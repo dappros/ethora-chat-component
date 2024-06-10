@@ -1,0 +1,139 @@
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  ChatContainer,
+  ChatContainerHeader,
+  ChatContainerHeaderLabel,
+} from "./styled/StyledComponents";
+import { useSelector, useDispatch } from "react-redux";
+import { RootState } from "../roomStore";
+import ChatList from "./ChatList";
+import CustomMessage from "./CustomMessage";
+import xmppClient from "../networking/xmppClient";
+import { IRoom, User } from "../types/types";
+import { setUser } from "../roomStore/chatSettingsSlice";
+import SendInput from "./styled/SendInput";
+import { addRoom, setActiveRoom } from "../roomStore/roomsSlice";
+import Loader from "./styled/Loader";
+
+interface ChatRoomProps {
+  roomJID?: string;
+  defaultUser: User;
+  isLoading?: boolean;
+  defaultRoom: IRoom;
+}
+
+const ChatRoom: React.FC<ChatRoomProps> = React.memo(
+  ({ defaultUser, isLoading = false, defaultRoom, roomJID }) => {
+    const client = xmppClient;
+    const [currentRoom, setCurrentRoom] = useState(defaultRoom);
+
+    const rooms = useSelector((state: RootState) => state.rooms.rooms);
+    const activeRoom = useSelector(
+      (state: RootState) => state.rooms.activeRoom
+    );
+    const { user } = useSelector((state: RootState) => state.chatSettingStore);
+
+    const mainUser = defaultUser || user;
+    const dispatch = useDispatch();
+
+    useEffect(() => {
+      if (user !== mainUser) {
+        dispatch(setUser(mainUser));
+      }
+    }, [dispatch, mainUser, user]);
+
+    useEffect(() => {
+      const roomToSet = roomJID ? rooms[roomJID] : defaultRoom;
+      if (!rooms[roomToSet.jid]) {
+        dispatch(addRoom({ roomData: roomToSet }));
+      }
+      setCurrentRoom(roomToSet);
+      dispatch(setActiveRoom({ roomData: roomToSet }));
+    }, [dispatch, rooms, defaultRoom, roomJID]);
+
+    const sendMessage = useCallback(
+      (message: string) => {
+        xmppClient.sendMessage(
+          currentRoom.jid,
+          mainUser.firstName,
+          mainUser.lastName,
+          "",
+          mainUser.walletAddress,
+          message
+        );
+      },
+      [currentRoom.jid, mainUser]
+    );
+
+    const loadMoreMessages = useCallback(
+      async (chatJID: string, firstUserMessageID: string, amount: number) => {
+        client.getHistory(chatJID, firstUserMessageID, amount);
+      },
+
+      // async (chatJID: string, max: number, amount?: number) => {
+      //   client.getHistory(chatJID, max, amount).then((resp) => {
+      //     console.log(resp);
+      //   });
+      [client]
+    );
+
+    const sendMedia = useCallback(
+      async (roomJID: string, data: any) => {
+        client.sendMediaMessageStanza(roomJID, data);
+      },
+      [client]
+    );
+
+    useEffect(() => {
+      if (!rooms[currentRoom.jid]?.messages) {
+        setTimeout(() => {
+          client
+            .init(mainUser.walletAddress, mainUser.xmppPassword)
+            .then(() =>
+              client
+                .presence()
+                .then(() => client.getRooms())
+                .then(() => client.presenceInRoom(currentRoom.jid))
+                .then(() => {
+                  client.getHistory(currentRoom.jid, mainUser._id, 30);
+                })
+            )
+            .catch((error) => {
+              console.error("Error handling client operations:", error);
+            });
+        }, 1000);
+      }
+    }, [client, mainUser, currentRoom.jid, rooms]);
+
+    if (!activeRoom) return <>No room</>;
+
+    return (
+      <ChatContainer style={{ maxHeight: "95vh", overflow: "auto" }}>
+        <ChatContainerHeader>
+          <ChatContainerHeaderLabel>
+            {currentRoom?.title}
+          </ChatContainerHeaderLabel>
+          <ChatContainerHeaderLabel>
+            {currentRoom?.usersCnt} users
+          </ChatContainerHeaderLabel>
+        </ChatContainerHeader>
+        {isLoading ||
+        !rooms[activeRoom.jid].messages ||
+        rooms[activeRoom.jid].messages.length < 1 ? (
+          <Loader />
+        ) : (
+          <ChatList
+            loadMoreMessages={loadMoreMessages}
+            messages={rooms[activeRoom.jid].messages}
+            CustomMessage={CustomMessage}
+            user={mainUser}
+            room={currentRoom}
+          />
+        )}
+        <SendInput sendMessage={sendMessage} sendMedia={sendMedia} />
+      </ChatContainer>
+    );
+  }
+);
+
+export default ChatRoom;
