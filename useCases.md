@@ -9,9 +9,9 @@
 
 1. If You just start the app as it is it will show up as full page 1 room.
 2. if You want to add it to Your existent app:
-   a. Intall all dependencies
-   b. Import store from roomStore
-   c. Import ChatRoom from MainComponents
+   a. Install all dependencies<br />
+   b. Import store from roomStore<br />
+   c. Import ChatRoom from MainComponents<br />
 
 ```
    Default user and default room:
