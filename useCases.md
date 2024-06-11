@@ -2,10 +2,10 @@
 
 ##To test it locally
 
--1.  npm i
--2.  npm start
+1.  npm i
+2.  npm start
 
-Variants of usage:
+##Variants of usage:
 
 1. If You just start the app as it is it will show up as full page 1 room.
 2. if You want to add it to Your existent app:
@@ -15,32 +15,32 @@ Variants of usage:
 
 ```
    Default user and default room:
-   `const defaultUser = {
-   _id: string,
-   walletAddress: string,
-   xmppPassword: string,
-   firstName: string,
-   lastName: string,
-};
+   const defaultUser = {
+      _id: string,
+      walletAddress: string,
+      xmppPassword: string,
+      firstName: string,
+      lastName: string,
+   };
 ```
 
 ```
    const defRoom = {
-   name: string,
-   users_cnt: string,
-   room_background: string,
-   room_thumbnail: string,
-   jid: string,
-   id: string,
-   title: string,
-   usersCnt: number,
-   messages: array[],
+      name: string,
+      users_cnt: string,
+      room_background: string,
+      room_thumbnail: string,
+      jid: string,
+      id: string,
+      title: string,
+      usersCnt: number,
+      messages: array[],
 };
 ```
 
 Code should look like:
 ```
-<Provider store={store}>
+   <Provider store={store}>
       <ChatRoom
         key={currentRoom.jid}
         defaultRoom={currentRoom}
