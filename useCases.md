@@ -7,8 +7,8 @@
 
 ##Variants of usage:
 
-1. If You just start the app as it is it will show up as full page 1 room.
-2. if You want to add it to Your existent app:
+1. If You just start the app as it is it will show up as full page 1 room.<br />
+2. if You want to add it to Your existent app:<br />
    a. Install all dependencies<br />
    b. Import store from roomStore<br />
    c. Import ChatRoom from MainComponents<br />
