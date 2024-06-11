@@ -1,56 +1,20 @@
 import React from "react";
-import styled from "styled-components";
 import Modal from "react-modal";
-import CloseIcon from "@mui/icons-material/Close";
-import DownloadIcon from "@mui/icons-material/Download";
+import { ReactComponent as DownloadIcon } from "../../assets/downloadIcon.svg";
+import { ReactComponent as CloseIcon } from "../../assets/closeIcon.svg";
+
+import {
+  ButtonContainer,
+  Container,
+  FullScreenImage,
+  IconButton,
+  ModalContent,
+} from "./StyledInputComponents/MediaComponents";
 
 interface CustomMessageImageProps {
   imageUrl: string | undefined;
   imageAlt: string;
 }
-
-const Container = styled.div`
-  margin: 0;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
-
-const FullScreenImage = styled.img`
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-`;
-
-const ModalContent = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  border-radius: 10px;
-`;
-
-const ButtonContainer = styled.div`
-  display: flex;
-  position: absolute;
-  top: 8px;
-  right: 8px;
-`;
-
-const IconButton = styled.button`
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: gray;
-  font-size: 36px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  pointer-events: auto;
-`;
 
 const download = (link: string) => {
   console.log(link);

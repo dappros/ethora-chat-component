@@ -167,3 +167,15 @@ export const CustomSystemMessageText = styled.p`
   color: #000000;
   margin: 10px;
 `;
+
+export const IconButton = styled.button`
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: gray;
+  font-size: 36px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  pointer-events: auto;
+`;

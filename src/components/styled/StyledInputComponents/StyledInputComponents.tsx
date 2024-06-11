@@ -1,10 +1,9 @@
-import React from "react";
 import styled from "styled-components";
-import sendIcon from "../../assets/sendIcon.svg";
-import attachIcon from "../../assets/attachIcon.svg";
-import recordIcon from "../../assets/recordIcon.svg";
-import removeIcon from "../../assets/removeIcon.svg";
-import pauseIcon from "../../assets/pauseIcon.svg";
+import sendIcon from "../../../assets/sendIcon.svg";
+import attachIcon from "../../../assets/attachIcon.svg";
+import recordIcon from "../../../assets/recordIcon.svg";
+import removeIcon from "../../../assets/removeIcon.svg";
+import pauseIcon from "../../../assets/pauseIcon.svg";
 
 export const InputContainer = styled.div`
   display: flex;

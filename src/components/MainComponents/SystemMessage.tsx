@@ -2,7 +2,7 @@ import React from "react";
 import {
   CustomSystemMessage,
   CustomSystemMessageText,
-} from "./styled/StyledComponents";
+} from "../styled/StyledComponents";
 
 interface SystemMessageProps {
   messageText: string;

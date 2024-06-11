@@ -3,16 +3,16 @@ import {
   ChatContainer,
   ChatContainerHeader,
   ChatContainerHeaderLabel,
-} from "./styled/StyledComponents";
+} from "../styled/StyledComponents";
 import { useSelector, useDispatch } from "react-redux";
-import { RootState } from "../roomStore";
+import { RootState } from "../../roomStore";
 import ChatList from "./ChatList";
-import xmppClient from "../networking/xmppClient";
-import { IRoom, User } from "../types/types";
-import { setUser } from "../roomStore/chatSettingsSlice";
-import SendInput from "./styled/SendInput";
-import { addRoom, setActiveRoom } from "../roomStore/roomsSlice";
-import Loader from "./styled/Loader";
+import xmppClient from "../../networking/xmppClient";
+import { IRoom, User } from "../../types/types";
+import { setUser } from "../../roomStore/chatSettingsSlice";
+import SendInput from "../styled/SendInput";
+import { addRoom, setActiveRoom } from "../../roomStore/roomsSlice";
+import Loader from "../styled/Loader";
 
 interface ChatRoomProps {
   roomJID?: string;

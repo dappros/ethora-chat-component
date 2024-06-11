@@ -6,11 +6,11 @@ import {
   MessageText,
   MessageTimestamp,
   MessagesScroll,
-} from "./styled/StyledComponents";
-import { IMessage, IRoom, User } from "../types/types";
+} from "../styled/StyledComponents";
+import { IMessage, IRoom, User } from "../../types/types";
 import SystemMessage from "./SystemMessage";
-import DateLabel from "./styled/DateLabel";
-import { blockScrollEvent } from "../helpers/block_scroll";
+import DateLabel from "../styled/DateLabel";
+import { blockScrollEvent } from "../../helpers/block_scroll";
 
 interface ChatListProps<TMessage extends IMessage> {
   messages: TMessage[];

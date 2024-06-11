@@ -7,7 +7,7 @@ import {
   Timer,
   SendButton,
   RecordButton,
-} from "./StyledInputComponents";
+} from "../styled/StyledInputComponents/StyledInputComponents";
 
 interface AudioRecorderProps {
   setIsRecording: (state: boolean) => void;

@@ -13,7 +13,7 @@ const Container = styled.div`
   background-color: transparent;
 `;
 
-const StyledDateLabel = styled.div`
+export const StyledDateLabel = styled.div`
   margin: 0;
   color: #8f8f8f;
   background-color: #fff;

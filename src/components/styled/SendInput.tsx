@@ -12,8 +12,8 @@ import {
   SendButton,
   InputContainer,
   MessageInput,
-} from "./StyledInputComponents";
-import AudioRecorder from "./AudioRecorder";
+} from "./StyledInputComponents/StyledInputComponents";
+import AudioRecorder from "../InputComponents/AudioRecorder";
 
 interface SendInputProps {
   sendMessage: (message: string) => void;

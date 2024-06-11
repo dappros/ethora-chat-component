@@ -1,11 +1,11 @@
 import React, { FC, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import ChatRoom from "./ChatRoom";
-import xmppClient from "../networking/xmppClient";
-import { RootState } from "../roomStore";
-import { setUser } from "../roomStore/chatSettingsSlice";
-import { ChatWrapperBox } from "./styled/ChatWrapperBox";
-import CustomMessage from "./CustomMessage";
+import xmppClient from "../../networking/xmppClient";
+import { RootState } from "../../roomStore";
+import { setUser } from "../../roomStore/chatSettingsSlice";
+import { ChatWrapperBox } from "../styled/ChatWrapperBox";
+import CustomMessage from "../Message";
 
 interface ChatWrapperProps {}
 

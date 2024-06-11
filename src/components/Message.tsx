@@ -9,7 +9,7 @@ import {
   CustomMessagePhoto,
   CustomMessagePhotoContainer,
 } from "./styled/StyledComponents";
-import MediaMessage from "./MediaMessage";
+import MediaMessage from "./MainComponents/MediaMessage";
 
 interface CustomMessageProps {
   message: IMessage;

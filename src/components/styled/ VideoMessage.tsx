@@ -1,14 +1,14 @@
 import React from "react";
 import styled from "styled-components";
 import Modal from "react-modal";
-import CloseIcon from "@mui/icons-material/Close";
-import DownloadIcon from "@mui/icons-material/Download";
+import { ReactComponent as DownloadIcon } from "../../assets/downloadIcon.svg";
+import { ReactComponent as CloseIcon } from "../../assets/closeIcon.svg";
 
 interface CustomMessageVideoProps {
   videoUrl: string | undefined;
 }
 
-const Container = styled.div`
+export const Container = styled.div`
   margin: 0;
   cursor: pointer;
   display: flex;
@@ -16,19 +16,19 @@ const Container = styled.div`
   justify-content: center;
 `;
 
-const FullScreenVideo = styled.video`
+export const FullScreenVideo = styled.video`
   width: 100%;
   height: 100%;
   object-fit: contain;
 `;
 
-const FixedSizeVideo = styled.video`
+export const FixedSizeVideo = styled.video`
   width: 300px;
   height: 200px;
   object-fit: cover;
 `;
 
-const ModalContent = styled.div`
+export const ModalContent = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -38,14 +38,14 @@ const ModalContent = styled.div`
   border-radius: 10px;
 `;
 
-const ButtonContainer = styled.div`
+export const ButtonContainer = styled.div`
   display: flex;
   position: absolute;
   top: 8px;
   right: 8px;
 `;
 
-const IconButton = styled.button`
+export const IconButton = styled.button`
   background: none;
   border: none;
   cursor: pointer;
@@ -133,11 +133,11 @@ const CustomMessageVideo: React.FC<CustomMessageVideoProps> = ({
           <ButtonContainer>
             {videoUrl && (
               <IconButton onClick={downloadVideo} aria-label="Download">
-                <DownloadIcon fontSize="inherit" />
+                <DownloadIcon />
               </IconButton>
             )}
             <IconButton onClick={handleClose} aria-label="Close">
-              <CloseIcon fontSize="inherit" />
+              <CloseIcon />
             </IconButton>
           </ButtonContainer>
         </ModalContent>

@@ -1,6 +1,6 @@
 import { Provider } from "react-redux";
 import "./App.css";
-import { ChatWrapper } from "./components/ChatWrapper";
+import { ChatWrapper } from "./components/MainComponents/ChatWrapper";
 import { store } from "./roomStore";
 
 function App() {

@@ -1,9 +1,9 @@
 import React from "react";
 import styled from "styled-components";
-import CustomMessageImage from "./styled/CustomMessageImage";
-import CustomMessageVideo from "./styled/CustomMessageVideo";
-import { IMessage } from "../types/types";
-import FileDownload from "./styled/CustomUnsupportedType";
+import { IMessage } from "../../types/types";
+import FileDownload from "../styled/UnsupportedType";
+import CustomMessageImage from "../styled/MessageImage";
+import CustomMessageVideo from "../styled/ VideoMessage";
 
 interface MediaMessageProps {
   mimeType?: string;
@@ -11,12 +11,6 @@ interface MediaMessageProps {
   location?: string;
   messageText?: string;
 }
-
-const Video = styled.video`
-  max-width: 100%;
-  border-radius: 8px;
-  controls: true;
-`;
 
 const Audio = styled.audio`
   width: 300px;
