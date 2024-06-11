@@ -1,26 +1,14 @@
-import React, {
-  useState,
-  useRef,
-  useEffect,
-  useCallback,
-  useMemo,
-} from "react";
+import React, { useState, useRef, useCallback, useMemo } from "react";
 import attachIcon from "../../assets/attachIcon.svg";
 import {
   AttachButton,
-  CancelButton,
   FileIcon,
   FilePreview,
   FilePreviewContainer,
   HiddenFileInput,
   MessageInputContainer,
-  PauseButton,
-  RecordButton,
-  RecordContainer,
   RemoveButton,
-  Timer,
   VideoPreview,
-  WaveformContainer,
   SendButton,
   InputContainer,
   MessageInput,

@@ -60,8 +60,8 @@ export const Message = styled.div<{ isUser: boolean }>`
   padding: 10px;
   margin: 10px 0;
   border-radius: 8px;
-  align-self: ${(props) => (props.isUser ? "flex-end" : "flex-start")};
   max-width: 60%;
+  flex-direction: ${(props) => (!props.isUser ? "row" : "row-reverse")};
 `;
 
 export const MessageText = styled.p`

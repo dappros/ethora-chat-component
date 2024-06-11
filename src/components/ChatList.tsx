@@ -10,7 +10,7 @@ import {
 import { IMessage, IRoom, User } from "../types/types";
 import SystemMessage from "./SystemMessage";
 import DateLabel from "./styled/DateLabel";
-import { blockScrollEvent } from "./block_scroll";
+import { blockScrollEvent } from "../helpers/block_scroll";
 
 interface ChatListProps<TMessage extends IMessage> {
   messages: TMessage[];
@@ -131,6 +131,10 @@ const ChatList = <TMessage extends IMessage>({
         messagesOuter.removeEventListener("scroll", onScroll, true);
     };
   }, []);
+
+  useEffect(() => {
+    if (messages.length < 30) scrollToBottom();
+  }, [messages]);
 
   useEffect(() => {
     if (messages && messages.length > 30) {

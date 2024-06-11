@@ -5,6 +5,7 @@ import xmppClient from "../networking/xmppClient";
 import { RootState } from "../roomStore";
 import { setUser } from "../roomStore/chatSettingsSlice";
 import { ChatWrapperBox } from "./styled/ChatWrapperBox";
+import CustomMessage from "./CustomMessage";
 
 interface ChatWrapperProps {}
 
@@ -61,7 +62,11 @@ const ChatWrapper: FC<ChatWrapperProps> = ({}) => {
 
   return (
     <ChatWrapperBox>
-      <ChatRoom defaultUser={defaultUser} defaultRoom={defRoom} />
+      <ChatRoom
+        defaultUser={defaultUser}
+        defaultRoom={defRoom}
+        CustomMessageComponent={CustomMessage}
+      />
     </ChatWrapperBox>
   );
 };

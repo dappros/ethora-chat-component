@@ -7,7 +7,6 @@ import {
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../roomStore";
 import ChatList from "./ChatList";
-import CustomMessage from "./CustomMessage";
 import xmppClient from "../networking/xmppClient";
 import { IRoom, User } from "../types/types";
 import { setUser } from "../roomStore/chatSettingsSlice";
@@ -20,10 +19,17 @@ interface ChatRoomProps {
   defaultUser: User;
   isLoading?: boolean;
   defaultRoom: IRoom;
+  CustomMessageComponent?: any;
 }
 
 const ChatRoom: React.FC<ChatRoomProps> = React.memo(
-  ({ defaultUser, isLoading = false, defaultRoom, roomJID }) => {
+  ({
+    defaultUser,
+    isLoading = false,
+    defaultRoom,
+    roomJID,
+    CustomMessageComponent,
+  }) => {
     const client = xmppClient;
     const [currentRoom, setCurrentRoom] = useState(defaultRoom);
 
@@ -125,7 +131,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
           <ChatList
             loadMoreMessages={loadMoreMessages}
             messages={rooms[activeRoom.jid].messages}
-            CustomMessage={CustomMessage}
+            CustomMessage={CustomMessageComponent}
             user={mainUser}
             room={currentRoom}
           />
