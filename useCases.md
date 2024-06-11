@@ -1,7 +1,9 @@
-# To test Ethora chat component:
+# Ethora chat component:
 
-1. npm i
-2. npm start
+##To test it locally
+
+-1.  npm i
+-2.  npm start
 
 Variants of usage:
 
@@ -10,5 +12,43 @@ Variants of usage:
    a. Intall all dependencies
    b. Import store from roomStore
    c. Import ChatRoom from MainComponents
-   d. Add defaultUser, defaultRoom. Update logic to change user and room on your side
-   c. Enjoy
+
+```
+   Default user and default room:
+   `const defaultUser = {
+   _id: string,
+   walletAddress: string,
+   xmppPassword: string,
+   firstName: string,
+   lastName: string,
+};
+```
+
+```
+   const defRoom = {
+   name: string,
+   users_cnt: string,
+   room_background: string,
+   room_thumbnail: string,
+   jid: string,
+   id: string,
+   title: string,
+   usersCnt: number,
+   messages: array[],
+};
+```
+
+Code should look like:
+```
+<Provider store={store}>
+      <ChatRoom
+        key={currentRoom.jid}
+        defaultRoom={currentRoom}
+        isLoading={isLoading}
+        defaultUser={{ ...props, _id: props.walletAddress }}
+      />
+   </Provider>
+```
+
+d. Add defaultUser, defaultRoom. Update logic to change user and room on your side
+c. Enjoy
