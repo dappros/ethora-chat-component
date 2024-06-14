@@ -3,7 +3,7 @@ import styled from "styled-components";
 import { IMessage } from "../../types/types";
 import FileDownload from "../styled/UnsupportedType";
 import CustomMessageImage from "../styled/MessageImage";
-import CustomMessageVideo from "../styled/ VideoMessage";
+import CustomMessageVideo from "../styled/VideoMessage";
 
 interface MediaMessageProps {
   mimeType?: string;

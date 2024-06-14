@@ -4,6 +4,8 @@ export interface IUser {
   avatar?: string | null;
   xmmpPass?: string | null;
   userJID?: string | null;
+  token: string;
+  refreshToken: string;
 }
 
 export interface IMessage {
@@ -47,7 +49,8 @@ export interface User {
   lastName: string;
 
   description?: string;
-  token?: string;
+  token: string;
+  refreshToken: string;
   profileImage?: string;
 }
 

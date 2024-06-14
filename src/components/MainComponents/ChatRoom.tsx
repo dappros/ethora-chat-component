@@ -13,6 +13,7 @@ import { setUser } from "../../roomStore/chatSettingsSlice";
 import SendInput from "../styled/SendInput";
 import { addRoom, setActiveRoom } from "../../roomStore/roomsSlice";
 import Loader from "../styled/Loader";
+import { uploadFile } from "../../networking/apiClient";
 
 interface ChatRoomProps {
   roomJID?: string;
@@ -84,10 +85,46 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     );
 
     const sendMedia = useCallback(
-      async (roomJID: string, data: any) => {
-        client.sendMediaMessageStanza(roomJID, data);
+      async (data: any) => {
+        const formData = new FormData();
+        formData.append("/files", data);
+        uploadFile(formData, user.token)
+          .then((result: any) => {
+            console.log(result);
+            let userAvatar = "";
+            result.data.results.map(async (item: any) => {
+              const data = {
+                firstName: user.firstName,
+                lastName: user.lastName,
+                walletAddress: user.walletAddress,
+                chatName: currentRoom.name,
+                userAvatar: userAvatar,
+                createdAt: item.createdAt,
+                expiresAt: item.expiresAt,
+                fileName: item.filename,
+                isVisible: item.isVisible,
+                location: item.location,
+                locationPreview: item.locationPreview,
+                mimetype: item.mimetype,
+                originalName: item.originalname,
+                ownerKey: item.ownerKey,
+                size: item.size,
+                duration: item?.duration,
+                updatedAt: item.updatedAt,
+                userId: item.userId,
+                waveForm: "",
+                attachmentId: item._id,
+                wrappable: true,
+                roomJid: currentRoom,
+              };
+              client.sendMediaMessageStanza(currentRoom.jid, data);
+            });
+          })
+          .catch((error) => {
+            console.log(error);
+          });
       },
-      [client]
+      [client, currentRoom.jid]
     );
 
     useEffect(() => {
@@ -114,7 +151,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     if (!activeRoom) return <>No room</>;
 
     return (
-      <ChatContainer style={{ maxHeight: "95vh", overflow: "auto" }}>
+      <ChatContainer style={{ maxHeight: "100vh", overflow: "auto" }}>
         <ChatContainerHeader>
           <ChatContainerHeaderLabel>
             {currentRoom?.title}

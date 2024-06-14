@@ -117,8 +117,8 @@ const CustomMessageVideo: React.FC<CustomMessageVideoProps> = ({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            width: "80%",
-            height: "80%",
+            width: "70%",
+            height: "70%",
             padding: 0,
             position: "absolute",
             top: "50%",
@@ -132,7 +132,11 @@ const CustomMessageVideo: React.FC<CustomMessageVideoProps> = ({
           <FullScreenVideo src={videoUrl} controls autoPlay={false} />
           <ButtonContainer>
             {videoUrl && (
-              <IconButton onClick={downloadVideo} aria-label="Download">
+              <IconButton
+                onClick={downloadVideo}
+                aria-label="Download"
+                style={{ height: "50px", width: "50px" }}
+              >
                 <DownloadIcon />
               </IconButton>
             )}

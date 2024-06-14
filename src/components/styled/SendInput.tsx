@@ -17,7 +17,7 @@ import AudioRecorder from "../InputComponents/AudioRecorder";
 
 interface SendInputProps {
   sendMessage: (message: string) => void;
-  sendMedia: (roomJID: string, data: any) => void;
+  sendMedia: (data: any) => void;
 }
 
 const SendInput: React.FC<SendInputProps> = ({ sendMessage, sendMedia }) => {
@@ -71,18 +71,35 @@ const SendInput: React.FC<SendInputProps> = ({ sendMessage, sendMedia }) => {
 
   const handleSendClick = useCallback(
     (audioUrl?: string) => {
+      if (filePreviews) {
+        console.log(filePreviews);
+        console.log("Files sent:", filePreviews);
+        sendMedia(filePreviews);
+        setIsRecording(false);
+      }
       if (audioUrl) {
-        // sendMedia("roomJID_placeholder", audioUrl);
+        sendMedia(audioUrl);
         console.log(audioUrl);
         console.log("Audio sent:", audioUrl);
         setIsRecording(false);
       } else {
-        // sendMessage(message);
+        sendMessage(message);
       }
       setMessage("");
       setFilePreviews([]);
     },
     [filePreviews, message, sendMessage, sendMedia]
+  );
+
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === "Enter") {
+        if (filePreviews.length > 0 || message) {
+          handleSendClick();
+        }
+      }
+    },
+    [handleSendClick]
   );
 
   const renderFilePreview = useCallback((file: File) => {
@@ -120,6 +137,7 @@ const SendInput: React.FC<SendInputProps> = ({ sendMessage, sendMedia }) => {
               placeholder="Message..."
               value={message}
               onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
             />
           </>
         )}

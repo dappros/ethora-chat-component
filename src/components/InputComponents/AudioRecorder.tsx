@@ -71,7 +71,9 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
     };
 
     mediaRecorder.onstop = () => {
-      const audioBlob = new Blob(audioChunksRef.current, { type: "audio/wav" });
+      const audioBlob = new Blob(audioChunksRef.current, {
+        type: "audio/webm",
+      });
       const audioUrl = URL.createObjectURL(audioBlob);
       setAudioURL(audioUrl);
     };
@@ -112,12 +114,13 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
   };
 
   const sendAudio = () => {
+    console.log(audioURL);
     if (audioURL) {
       console.log(audioURL);
       stopTimer();
       setTimer(0);
       handleSendClick(audioURL);
-      setAudioURL(null);
+      // setAudioURL(null);
       setIsRecording(false);
     }
   };
@@ -186,7 +189,7 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
       <Timer>{formatTime(timer)}</Timer>
       {/* <RecordButton onClick={startRecording} disabled={isRecording} /> */}
       <PauseButton onClick={pauseRecording} disabled={!isRecording} />
-      <SendButton onClick={sendAudio} disabled={!audioURL} />
+      <SendButton onClick={sendAudio} disabled={!!audioURL} />
     </RecordContainer>
   ) : (
     <RecordButton onClick={startRecording} />

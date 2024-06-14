@@ -18,3 +18,8 @@ body {
   margin: 0;
   padding: 0;
 }
+
+svg {
+  height: 50px;
+  width: 50px;
+}

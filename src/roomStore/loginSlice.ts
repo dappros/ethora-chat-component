@@ -11,6 +11,8 @@ const initialState: LoginState = {
   user: {
     id: "",
     name: null,
+    token: "",
+    refreshToken: "",
   },
 };
 
@@ -18,7 +20,15 @@ export const loginSlice = createSlice({
   name: "login",
   initialState,
   reducers: {
-    login: (state, action: PayloadAction<{ id: string; name: string }>) => {
+    login: (
+      state,
+      action: PayloadAction<{
+        id: string;
+        name: string;
+        token: "";
+        refreshToken: "";
+      }>
+    ) => {
       state.isAuthenticated = true;
       state.user = action.payload;
     },
@@ -27,6 +37,8 @@ export const loginSlice = createSlice({
       state.user = {
         id: "",
         name: null,
+        token: "",
+        refreshToken: "",
       };
     },
     getInfo: (state, action: PayloadAction<{ id: string }>) => {
@@ -34,9 +46,17 @@ export const loginSlice = createSlice({
         state.user.id = action.payload.id;
       }
     },
+    refreshTokens: (
+      state,
+      action: PayloadAction<{ token: string; refreshToken: string }>
+    ) => {
+      console.log("changing tokens");
+      state.user.refreshToken = action.payload.refreshToken;
+      state.user.token = action.payload.token;
+    },
   },
 });
 
-export const { login, logout, getInfo } = loginSlice.actions;
+export const { login, logout, getInfo, refreshTokens } = loginSlice.actions;
 
 export default loginSlice.reducer;

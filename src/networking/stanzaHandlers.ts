@@ -36,6 +36,8 @@ export const createMessage = (
       name: `${data?.senderFirstName} ${data?.senderLastName}`,
       avatar: data?.photoURL,
       jid: data?.senderJID,
+      token: data.token,
+      refreshToken: data.refreshToken,
     },
   };
   return message;
