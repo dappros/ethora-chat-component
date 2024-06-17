@@ -32,6 +32,8 @@ export interface IRoom {
   usersCnt: number;
   // users: IUser[];
   messages: IMessage[];
+  lastMessage?: string;
+  icon?: string;
 }
 
 export interface UserType extends IMessage {
@@ -42,6 +44,8 @@ export interface UserType extends IMessage {
 }
 
 export interface User {
+  defaultWallet?: any;
+  user?: any;
   _id: string;
   xmppPassword: string;
   walletAddress: string;

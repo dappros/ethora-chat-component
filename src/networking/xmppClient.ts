@@ -54,6 +54,9 @@ export class XmppClient {
             case "presence":
               onPresenceInRoom(stanza);
               break;
+            case "iq":
+              console.log(stanza);
+              break;
             default:
               console.log("Unhandled stanza type:", stanza.name);
           }
@@ -232,6 +235,7 @@ export class XmppClient {
     beforeMessageID: string | null,
     amount: number
   ) => {
+    console.log("getting history");
     return new Promise((resolve, reject) => {
       try {
         const setChildren = [xml("max", {}, String(amount))];
@@ -274,7 +278,6 @@ export class XmppClient {
     let stanzaHdlrPointer: {
       (el: Element): void;
       (stanza: any): void;
-      (el: Element): void;
     };
 
     const unsubscribe = () => {

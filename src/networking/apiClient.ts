@@ -1,6 +1,7 @@
 import axios from "axios";
 import { store } from "../roomStore";
 import { refreshTokens } from "../roomStore/loginSlice";
+import { User } from "../types/types";
 
 const baseURL = "https://api.ethoradev.com/v1";
 
@@ -97,3 +98,14 @@ http.interceptors.response.use(
     }
   }
 );
+
+export function loginEmail(email: string, password: string, appToken: string) {
+  return http.post<User>(
+    "/users/login-with-email",
+    {
+      email,
+      password,
+    },
+    { headers: { Authorization: appToken } }
+  );
+}
