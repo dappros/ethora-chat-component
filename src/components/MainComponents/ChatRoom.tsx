@@ -14,6 +14,7 @@ import SendInput from "../styled/SendInput";
 import { addRoom, setActiveRoom } from "../../roomStore/roomsSlice";
 import Loader from "../styled/Loader";
 import { uploadFile } from "../../networking/apiClient";
+import RoomList from "./RoomList";
 
 interface ChatRoomProps {
   roomJID?: string;
@@ -73,14 +74,15 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     );
 
     const loadMoreMessages = useCallback(
-      async (chatJID: string, firstUserMessageID: string, amount: number) => {
-        client.getHistory(chatJID, firstUserMessageID, amount);
-      },
+      // async (chatJID: string, firstUserMessageID: string, amount: number) => {
+      //   client.getHistory(chatJID, firstUserMessageID, amount);
+      // },
 
-      // async (chatJID: string, max: number, amount?: number) => {
-      //   client.getHistory(chatJID, max, amount).then((resp) => {
-      //     console.log(resp);
-      //   });
+      async (chatJID: string, max: number, amount?: number) => {
+        client.getHistory(chatJID, max, amount).then((resp) => {
+          console.log(resp);
+        });
+      },
       [client]
     );
 
@@ -138,7 +140,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
                 .then(() => client.getRooms())
                 .then(() => client.presenceInRoom(currentRoom.jid))
                 .then(() => {
-                  client.getHistory(currentRoom.jid, mainUser._id, 30);
+                  client.getHistory(currentRoom.jid, 10, 30);
                 })
             )
             .catch((error) => {

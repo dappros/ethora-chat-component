@@ -1,6 +1,5 @@
 import { xml } from "@xmpp/client";
 import { Element } from "ltx";
-import { addMessage } from "../roomStore/chatSlice";
 import { store } from "../roomStore";
 import { addRoomMessage } from "../roomStore/roomsSlice";
 
@@ -95,6 +94,8 @@ const onMessageHistory = async (stanza: any) => {
       ?.getChild("forwarded")
       ?.getChild("message")
       ?.getChild("replaced");
+
+    console.log(data, body, replace);
 
     const id = stanza.getChild("result")?.attrs.id;
     if (!data || !body || !delay || !id) {

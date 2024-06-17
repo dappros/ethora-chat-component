@@ -230,51 +230,9 @@ export class XmppClient {
     this.client.send(message);
   };
 
-  getHistory = (
-    chatJID: string,
-    beforeMessageID: string | null,
-    amount: number
-  ) => {
-    console.log("getting history");
-    return new Promise((resolve, reject) => {
-      try {
-        const setChildren = [xml("max", {}, String(amount))];
-        if (beforeMessageID) {
-          setChildren.push(xml("before", {}, beforeMessageID));
-        }
-
-        const message = xml(
-          "iq",
-          {
-            type: "set",
-            to: chatJID,
-            id: "paginatedArchive",
-          },
-          xml(
-            "query",
-            { xmlns: "urn:xmpp:mam:2" },
-            xml(
-              "set",
-              { xmlns: "http://jabber.org/protocol/rsm" },
-              ...setChildren
-            )
-          )
-        );
-
-        this.client.send(message);
-        resolve("Successfully got paginated archive");
-      } catch (error) {
-        console.error(
-          "An error occurred while getting paginated archive:",
-          error
-        );
-        reject(error);
-      }
-    });
-  };
-
-  getHistory1 = async (chatJID: string, max: number, before?: number) => {
+  getHistory = async (chatJID: string, max: number, amount?: number) => {
     const id = `get-history:${Date.now().toString()}`;
+
     let stanzaHdlrPointer: {
       (el: Element): void;
       (stanza: any): void;
@@ -343,6 +301,7 @@ export class XmppClient {
               mainMessages.push(parsedEl);
             }
           }
+
           unsubscribe();
           resolve(mainMessages);
         }
@@ -352,7 +311,6 @@ export class XmppClient {
           stanza.attrs.id === id &&
           stanza.attrs.type === "error"
         ) {
-          console.log(stanza.toString());
           unsubscribe();
           reject();
         }
@@ -374,7 +332,7 @@ export class XmppClient {
             "set",
             { xmlns: "http://jabber.org/protocol/rsm" },
             xml("max", {}, max.toString()),
-            before ? xml("before", {}, before.toString()) : xml("before")
+            amount ? xml("before", {}, amount.toString()) : xml("before")
           )
         )
       );

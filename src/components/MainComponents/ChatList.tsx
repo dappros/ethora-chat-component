@@ -1,6 +1,5 @@
-import React, { useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
-  MessagesList,
   Message,
   UserName,
   MessageText,
@@ -10,7 +9,7 @@ import {
 import { IMessage, IRoom, User } from "../../types/types";
 import SystemMessage from "./SystemMessage";
 import DateLabel from "../styled/DateLabel";
-import { blockScrollEvent } from "../../helpers/block_scroll";
+import Loader from "../styled/Loader";
 
 interface ChatListProps<TMessage extends IMessage> {
   messages: TMessage[];
@@ -19,8 +18,8 @@ interface ChatListProps<TMessage extends IMessage> {
   room: IRoom;
   loadMoreMessages: (
     chatJID: string,
-    firstUserMessageID: string,
-    amount: number
+    max: number,
+    amount?: number
   ) => Promise<void>;
 }
 
@@ -31,13 +30,6 @@ const ChatList = <TMessage extends IMessage>({
   loadMoreMessages,
   room,
 }: ChatListProps<TMessage>) => {
-  const contentRef = useRef<HTMLDivElement>(null);
-  const outerRef = useRef<HTMLDivElement>(null);
-
-  const timeoutRef = useRef<number>(0);
-  const scrollParams = useRef<{ top: number; height: number } | null>(null);
-  const isLoadingMore = useRef<boolean>(false);
-
   const validateMessages = (messages: TMessage[]): boolean => {
     const requiredAttributes: (keyof IMessage)[] = [
       "id",
@@ -62,113 +54,50 @@ const ChatList = <TMessage extends IMessage>({
     return isValid;
   };
 
-  const scrollToBottom = (): void => {
-    const content = contentRef.current;
-    if (content) {
-      const height = content.clientHeight;
-      const scroll_height = content.scrollHeight;
+  const [loading, setLoading] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [initialLoad, setInitialLoad] = useState(true);
 
-      if (scroll_height > height) {
-        content.scrollTop = scroll_height - height;
+  useEffect(() => {
+    if (containerRef.current) {
+      if (initialLoad) {
+        containerRef.current.scrollTop = containerRef.current.scrollHeight;
+        setInitialLoad(false);
       }
     }
-  };
+  }, [initialLoad]);
 
-  const getScrollParams = (): { top: number; height: number } | null => {
-    const content = contentRef.current;
-    if (!content) {
-      return null;
+  useEffect(() => {
+    if (containerRef.current && !loading) {
+      const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+      const isScrolledToBottom = scrollHeight - scrollTop <= clientHeight + 30;
+
+      if (isScrolledToBottom) {
+        containerRef.current.scrollTop = containerRef.current.scrollHeight;
+      }
     }
-    return {
-      top: content.scrollTop,
-      height: content.scrollHeight,
-    };
-  };
+  }, [messages, loading]);
 
-  const blockScroll = () => {
-    const content = contentRef.current;
-    if (content) {
-      blockScrollEvent(content);
-    }
-  };
+  const handleScroll = useCallback(async () => {
+    if (containerRef.current && !loading) {
+      const { scrollTop, scrollHeight } = containerRef.current;
+      if (scrollTop <= 30) {
+        setLoading(true);
+        const currentScrollHeight = scrollHeight;
 
-  const checkIfLoadMoreMessages = () => {
-    const params = getScrollParams();
-    if (!params) return;
+        await loadMoreMessages(room.jid, 1, 30);
+        setLoading(false);
 
-    if (params.top < 150 && !isLoadingMore.current) {
-      scrollParams.current = getScrollParams();
-      const firstMessage = messages[0];
-      if (firstMessage?.user?.id) {
-        isLoadingMore.current = true;
-
-        loadMoreMessages(messages[0].roomJID, messages[0].user.id, 30).finally(
-          () => {
-            isLoadingMore.current = false;
+        setTimeout(() => {
+          if (containerRef.current) {
+            const newScrollHeight = containerRef.current.scrollHeight;
+            containerRef.current.scrollTop =
+              newScrollHeight - currentScrollHeight + scrollTop;
           }
-        );
+        }, 0);
       }
     }
-  };
-
-  const onScroll = () => {
-    window.clearTimeout(timeoutRef.current);
-    timeoutRef.current = window.setTimeout(() => checkIfLoadMoreMessages(), 50);
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-    blockScroll();
-
-    const messagesOuter = outerRef.current;
-
-    if (messagesOuter) {
-      messagesOuter.addEventListener("scroll", onScroll, true);
-    }
-
-    return () => {
-      messagesOuter &&
-        messagesOuter.removeEventListener("scroll", onScroll, true);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (messages.length < 30) scrollToBottom();
-  }, [messages]);
-
-  useEffect(() => {
-    if (messages && messages.length > 30) {
-      if (scrollParams.current) {
-        const _scrollParams = getScrollParams();
-
-        if (_scrollParams && contentRef.current) {
-          const scrollTop =
-            scrollParams.current.top +
-            (_scrollParams.height - scrollParams.current.height);
-          contentRef.current.scrollTop = scrollTop;
-        }
-
-        scrollParams.current = null;
-      }
-    }
-  }, [messages]);
-
-  useEffect(() => {
-    if (messages && messages.length > 30) {
-      if (scrollParams.current) {
-        const _scrollParams = getScrollParams();
-
-        if (_scrollParams && contentRef.current) {
-          const scrollTop =
-            scrollParams.current.top +
-            (_scrollParams.height - scrollParams.current.height);
-          contentRef.current.scrollTop = scrollTop;
-        }
-
-        scrollParams.current = null;
-      }
-    }
-  }, [messages]);
+  }, [loading, loadMoreMessages, room.jid]);
 
   if (!validateMessages(messages)) {
     console.log("Invalid 'messages' props provided to ChatList.");
@@ -178,48 +107,47 @@ const ChatList = <TMessage extends IMessage>({
   let lastDateLabel: string | null = null;
 
   return (
-    <MessagesList ref={outerRef}>
-      <MessagesScroll ref={contentRef}>
-        {messages.map((message) => {
-          const isUser = message.user.id === user.walletAddress;
-          const messageDate = new Date(message.date);
-          const currentDateLabel = messageDate.toDateString();
+    <MessagesScroll ref={containerRef} onScroll={handleScroll}>
+      {loading && <Loader />}
+      {messages.map((message) => {
+        const isUser = message.user.id === user.walletAddress;
+        const messageDate = new Date(message.date);
+        const currentDateLabel = messageDate.toDateString();
 
-          const showDateLabel = currentDateLabel !== lastDateLabel;
-          if (showDateLabel) {
-            lastDateLabel = currentDateLabel;
-          }
+        const showDateLabel = currentDateLabel !== lastDateLabel;
+        if (showDateLabel) {
+          lastDateLabel = currentDateLabel;
+        }
 
-          if (message.isSystemMessage === "true") {
-            return (
-              <React.Fragment key={message.id}>
-                {showDateLabel && <DateLabel date={messageDate} />}
-                <SystemMessage messageText={message.body} />
-              </React.Fragment>
-            );
-          }
-
-          const MessageComponent = CustomMessage || Message;
-
+        if (message.isSystemMessage === "true") {
           return (
             <React.Fragment key={message.id}>
               {showDateLabel && <DateLabel date={messageDate} />}
-              <MessageComponent message={message} isUser={isUser}>
-                {!CustomMessage && (
-                  <>
-                    <MessageTimestamp>
-                      {messageDate.toLocaleTimeString()}
-                    </MessageTimestamp>
-                    <UserName>{message.user.name}: </UserName>
-                    <MessageText>{message.body}</MessageText>
-                  </>
-                )}
-              </MessageComponent>
+              <SystemMessage messageText={message.body} />
             </React.Fragment>
           );
-        })}
-      </MessagesScroll>
-    </MessagesList>
+        }
+
+        const MessageComponent = CustomMessage || Message;
+
+        return (
+          <React.Fragment key={message.id}>
+            {showDateLabel && <DateLabel date={messageDate} />}
+            <MessageComponent message={message} isUser={isUser}>
+              {!CustomMessage && (
+                <>
+                  <MessageTimestamp>
+                    {messageDate.toLocaleTimeString()}
+                  </MessageTimestamp>
+                  <UserName>{message.user.name}: </UserName>
+                  <MessageText>{message.body}</MessageText>
+                </>
+              )}
+            </MessageComponent>
+          </React.Fragment>
+        );
+      })}
+    </MessagesScroll>
   );
 };
 

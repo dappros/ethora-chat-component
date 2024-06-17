@@ -44,10 +44,9 @@ export const roomsStore = createSlice({
         };
       } else {
         if (!state.rooms[roomJID].messages) {
-          console.log("created mes array for", state.activeRoom);
           state.rooms[roomJID].messages = [];
         }
-        state.rooms[roomJID].messages.push(message);
+        state.rooms[roomJID].messages.unshift(message);
       }
     },
     deleteAllRooms(state) {

@@ -28,7 +28,7 @@ export const chatSlice = createSlice({
   name: "chat",
   initialState,
   reducers: {
-    setUser: (state, action: PayloadAction<User>) => {
+    setUser: (state, action: PayloadAction<any>) => {
       state.user = action.payload;
     },
     setDefaultChatRooms: (state, action: PayloadAction<any[]>) => {
