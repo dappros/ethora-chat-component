@@ -28,27 +28,44 @@ export const roomsStore = createSlice({
         state.rooms[roomJID].messages = messages;
       }
     },
+
     addRoomMessage(
       state,
-      action: PayloadAction<{ roomJID: string; message: IMessage }>
+      action: PayloadAction<{
+        roomJID: string;
+        message: IMessage;
+        start?: boolean;
+      }>
     ) {
-      const { roomJID, message } = action.payload;
+      const { roomJID, message, start } = action.payload;
+
       if (!state.rooms[roomJID]) {
+        console.log("creating");
         state.rooms[roomJID] = {
           jid: roomJID,
-          messages: [message],
+          messages: [],
           title: "", // Default title, replace as needed
           usersCnt: 1, // Default users count, replace as needed
           id: "",
           name: "test",
         };
-      } else {
-        if (!state.rooms[roomJID].messages) {
-          state.rooms[roomJID].messages = [];
-        }
-        state.rooms[roomJID].messages.unshift(message);
+      }
+
+      if (!state.rooms[roomJID].messages) {
+        state.rooms[roomJID].messages = [];
+      }
+
+      const existingMessage = state.rooms[roomJID].messages.find(
+        (msg) => msg.id === message.id
+      );
+
+      if (!existingMessage) {
+        start
+          ? state.rooms[roomJID].messages.push(message)
+          : state.rooms[roomJID].messages.unshift(message);
       }
     },
+
     deleteAllRooms(state) {
       state.rooms = {};
       state.activeRoom = null;

@@ -55,7 +55,7 @@ export class XmppClient {
               onPresenceInRoom(stanza);
               break;
             case "iq":
-              console.log(stanza);
+              // console.log(stanza);
               break;
             default:
               console.log("Unhandled stanza type:", stanza.name);
@@ -230,7 +230,7 @@ export class XmppClient {
     this.client.send(message);
   };
 
-  getHistory = async (chatJID: string, max: number, amount?: number) => {
+  getHistory = async (chatJID: string, max: number, before?: number) => {
     const id = `get-history:${Date.now().toString()}`;
 
     let stanzaHdlrPointer: {
@@ -332,12 +332,12 @@ export class XmppClient {
             "set",
             { xmlns: "http://jabber.org/protocol/rsm" },
             xml("max", {}, max.toString()),
-            amount ? xml("before", {}, amount.toString()) : xml("before")
+            before ? xml("before", {}, before.toString()) : xml("before")
           )
         )
       );
 
-      console.log(message.toString());
+      // console.log(message.toString());
       this.client.send(message);
     });
 

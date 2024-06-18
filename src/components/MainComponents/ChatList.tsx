@@ -56,16 +56,12 @@ const ChatList = <TMessage extends IMessage>({
 
   const [loading, setLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [initialLoad, setInitialLoad] = useState(true);
 
   useEffect(() => {
     if (containerRef.current) {
-      if (initialLoad) {
-        containerRef.current.scrollTop = containerRef.current.scrollHeight;
-        setInitialLoad(false);
-      }
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
-  }, [initialLoad]);
+  }, []);
 
   useEffect(() => {
     if (containerRef.current && !loading) {
@@ -85,7 +81,7 @@ const ChatList = <TMessage extends IMessage>({
         setLoading(true);
         const currentScrollHeight = scrollHeight;
 
-        await loadMoreMessages(room.jid, 1, 30);
+        await loadMoreMessages(room.jid, 30, Number(messages[0].id));
         setLoading(false);
 
         setTimeout(() => {
@@ -97,7 +93,7 @@ const ChatList = <TMessage extends IMessage>({
         }, 0);
       }
     }
-  }, [loading, loadMoreMessages, room.jid]);
+  }, [loading, loadMoreMessages, room.jid, messages]);
 
   if (!validateMessages(messages)) {
     console.log("Invalid 'messages' props provided to ChatList.");

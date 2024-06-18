@@ -6,20 +6,33 @@ interface ChatState {
   defaultChatRooms: any[];
 }
 
+const unpackAndTransform = (input: any): User => {
+  const user = {
+    description: "",
+    token: input?.token || "",
+    profileImage: input?.user?.profileImage || "",
+    _id: input?.user?._id || "",
+    walletAddress: input?.user?.defaultWallet?.walletAddress || "",
+    xmppPassword: input?.user?.xmppPassword || "",
+    refreshToken: input?.refreshToken || "",
+    firstName: input?.user?.firstName || "",
+    lastName: input?.user?.lastName || "",
+  };
+
+  return user;
+};
+
 const initialState: ChatState = {
   user: {
     description: "",
-    token:
-      "JWT eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7InVzZXJJZCI6IjY1ODMxYTY0NmVkY2QzY2VlMDU0NTc1NyIsImFwcElkIjoiNjQ2Y2M4ZGM5NmQ0YTRkYzhmN2IyZjJkIn0sImlhdCI6MTcxODM1MzExMywiZXhwIjoxNzE4MzU0MDEzfQ.v_EhiyzprEbNtt6m0fP2BToMjiCbZgARuvFhsNuiFqA",
+    token: "",
     profileImage: "",
-    _id: "65495bdae5b326bb1b2d33e7",
-    walletAddress: "0x6C394B10F5Da4141b99DB2Ad424C5688c3f202B3",
-    xmppPassword: "Q9MIMMhZVe",
-    refreshToken:
-      "JWT eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7InVzZXJJZCI6IjY1ODMxYTY0NmVkY2QzY2VlMDU0NTc1NyIsImFwcElkIjoiNjQ2Y2M4ZGM5NmQ0YTRkYzhmN2IyZjJkIn0sImlhdCI6MTcxODM1MzExMywiZXhwIjoxNzE4OTU3OTEzfQ.Pyguj5O8UI8phkpjy56iXhQJF-iOIVpW04ujU8olUwE",
-
-    firstName: "Roman",
-    lastName: "Leshchukh",
+    _id: "",
+    walletAddress: "",
+    xmppPassword: "",
+    refreshToken: "",
+    firstName: "",
+    lastName: "",
   },
   defaultChatRooms: [],
 };
@@ -29,7 +42,8 @@ export const chatSlice = createSlice({
   initialState,
   reducers: {
     setUser: (state, action: PayloadAction<any>) => {
-      state.user = action.payload;
+      state.user = unpackAndTransform(action.payload);
+      console.log(state.user);
     },
     setDefaultChatRooms: (state, action: PayloadAction<any[]>) => {
       state.defaultChatRooms = action.payload;

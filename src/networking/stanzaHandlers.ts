@@ -65,6 +65,15 @@ const onRealtimeMessage = async (stanza: Element) => {
     }
 
     const message = createMessage(data, body, id, stanza.attrs.from);
+
+    store.dispatch(
+      addRoomMessage({
+        roomJID: store.getState().rooms.activeRoom?.jid || "test",
+        message,
+        start: true,
+      })
+    );
+
     return message;
   }
 };
@@ -95,8 +104,6 @@ const onMessageHistory = async (stanza: any) => {
       ?.getChild("message")
       ?.getChild("replaced");
 
-    console.log(data, body, replace);
-
     const id = stanza.getChild("result")?.attrs.id;
     if (!data || !body || !delay || !id) {
       return;
@@ -114,7 +121,7 @@ const onMessageHistory = async (stanza: any) => {
 
     store.dispatch(
       addRoomMessage({
-        roomJID: store.getState().rooms.activeRoom?.jid || "d",
+        roomJID: store.getState().rooms.activeRoom?.jid || "test",
         message,
       })
     );
