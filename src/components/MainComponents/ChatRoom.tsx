@@ -9,7 +9,6 @@ import { RootState } from "../../roomStore";
 import ChatList from "./ChatList";
 import xmppClient from "../../networking/xmppClient";
 import { IRoom, User } from "../../types/types";
-import { setUser } from "../../roomStore/chatSettingsSlice";
 import SendInput from "../styled/SendInput";
 import { addRoom, setActiveRoom } from "../../roomStore/roomsSlice";
 import Loader from "../styled/Loader";
@@ -24,13 +23,7 @@ interface ChatRoomProps {
 }
 
 const ChatRoom: React.FC<ChatRoomProps> = React.memo(
-  ({
-    defaultUser,
-    isLoading = false,
-    defaultRoom,
-    roomJID,
-    CustomMessageComponent,
-  }) => {
+  ({ isLoading = false, defaultRoom, roomJID, CustomMessageComponent }) => {
     const client = xmppClient;
     const [currentRoom, setCurrentRoom] = useState(defaultRoom);
     const rooms = useSelector((state: RootState) => state.rooms.rooms);
@@ -40,14 +33,8 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     );
     const { user } = useSelector((state: RootState) => state.chatSettingStore);
 
-    const mainUser = defaultUser || user;
+    const mainUser = user;
     const dispatch = useDispatch();
-
-    useEffect(() => {
-      if (user !== mainUser) {
-        dispatch(setUser(mainUser));
-      }
-    }, [dispatch, mainUser, user]);
 
     useEffect(() => {
       const roomToSet = roomJID ? rooms[roomJID] : defaultRoom;
@@ -115,6 +102,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
                 wrappable: true,
                 roomJid: currentRoom,
               };
+              console.log(data, "data to send media");
               client.sendMediaMessageStanza(currentRoom.jid, data);
             });
           })

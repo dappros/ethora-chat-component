@@ -7,7 +7,7 @@ interface ChatState {
 }
 
 const unpackAndTransform = (input: any): User => {
-  const user = {
+  return {
     description: "",
     token: input?.token || "",
     profileImage: input?.user?.profileImage || "",
@@ -18,8 +18,6 @@ const unpackAndTransform = (input: any): User => {
     firstName: input?.user?.firstName || "",
     lastName: input?.user?.lastName || "",
   };
-
-  return user;
 };
 
 const initialState: ChatState = {

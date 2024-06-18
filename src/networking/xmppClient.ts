@@ -429,6 +429,39 @@ export class XmppClient {
   };
 
   sendMediaMessageStanza(roomJID: string, data: any) {
+    const dataToSend = {
+      senderJID: this.client.jid?.toString(),
+      senderFirstName: data[0].firstName,
+      senderLastName: data[0].lastName,
+      senderWalletAddress: data[0].walletAddress,
+      isSystemMessage: false,
+      tokenAmount: "0",
+      receiverMessageId: "0",
+      mucname: data[0].chatName,
+      photoURL: data[0].userAvatar ? data[0].userAvatar : "",
+      isMediafile: true,
+      createdAt: data[0].createdAt,
+      expiresAt: data[0].expiresAt,
+      fileName: data[0].fileName,
+      isVisible: data[0].isVisible,
+      location: data[0].location,
+      locationPreview: data[0].locationPreview,
+      mimetype: data[0].mimetype,
+      originalName: data[0].originalName,
+      ownerKey: data[0].ownerKey,
+      size: data[0].size,
+      duration: data[0]?.duration,
+      updatedAt: data[0].updatedAt,
+      userId: data[0].userId,
+      waveForm: data[0].waveForm,
+      attachmentId: data[0]?.attachmentId,
+      isReply: data[0]?.isReply,
+      mainMessage: data[0]?.mainMessage,
+      roomJid: data[0]?.roomJid,
+    };
+
+    console.log(dataToSend);
+
     const message = xml(
       "message",
       {
@@ -439,36 +472,7 @@ export class XmppClient {
       },
       xml("body", {}, "media"),
       xml("store", { xmlns: "urn:xmpp:hints" }),
-      xml("data", {
-        senderJID: this.client.jid?.toString(),
-        senderFirstName: data[0].firstName,
-        senderLastName: data[0].lastName,
-        senderWalletAddress: data[0].walletAddress,
-        isSystemMessage: false,
-        tokenAmount: "0",
-        receiverMessageId: "0",
-        mucname: data[0].chatName,
-        photoURL: data[0].userAvatar ? data[0].userAvatar : "",
-        isMediafile: true,
-        createdAt: data[0].createdAt,
-        expiresAt: data[0].expiresAt,
-        fileName: data[0].fileName,
-        isVisible: data[0].isVisible,
-        location: data[0].location,
-        locationPreview: data[0].locationPreview,
-        mimetype: data[0].mimetype,
-        originalName: data[0].originalName,
-        ownerKey: data[0].ownerKey,
-        size: data[0].size,
-        duration: data[0]?.duration,
-        updatedAt: data[0].updatedAt,
-        userId: data[0].userId,
-        waveForm: data[0].waveForm,
-        attachmentId: data[0]?.attachmentId,
-        isReply: data[0]?.isReply,
-        mainMessage: data[0]?.mainMessage,
-        roomJid: data[0]?.roomJid,
-      })
+      xml("data", dataToSend)
     );
 
     this.client.send(message);
