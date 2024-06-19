@@ -13,6 +13,7 @@ import SendInput from "../styled/SendInput";
 import { addRoom, setActiveRoom } from "../../roomStore/roomsSlice";
 import Loader from "../styled/Loader";
 import { uploadFile } from "../../networking/apiClient";
+import RoomList from "./RoomList";
 
 interface ChatRoomProps {
   roomJID?: string;
@@ -139,6 +140,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     return (
       <ChatContainer style={{ maxHeight: "100vh", overflow: "auto" }}>
         <ChatContainerHeader>
+          <RoomList chats={[]} />
           <ChatContainerHeaderLabel>
             {currentRoom?.title}
           </ChatContainerHeaderLabel>

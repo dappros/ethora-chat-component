@@ -2,6 +2,7 @@ import xmpp, { xml, Client } from "@xmpp/client";
 import { walletToUsername } from "../helpers/walletUsername";
 import {
   getListOfRooms,
+  onGetChatRooms,
   onGetLastMessageArchive,
   onMessageHistory,
   onPresenceInRoom,
@@ -50,6 +51,7 @@ export class XmppClient {
               onRealtimeMessage(stanza);
               onMessageHistory(stanza);
               onGetLastMessageArchive(stanza, this);
+              onGetChatRooms(stanza, this);
               break;
             case "presence":
               onPresenceInRoom(stanza);

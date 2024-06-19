@@ -1,7 +1,8 @@
 import { xml } from "@xmpp/client";
 import { Element } from "ltx";
 import { store } from "../roomStore";
-import { addRoomMessage } from "../roomStore/roomsSlice";
+import { addRoom, addRoomMessage } from "../roomStore/roomsSlice";
+import { IRoom } from "../types/types";
 
 // TO DO: we are thinking to refactor this code in the following way:
 // each stanza will be parsed for 'type'
@@ -170,10 +171,54 @@ const onGetLastMessageArchive = (stanza: Element, xmpp: any) => {
   }
 };
 
+const onGetChatRooms = (stanza: Element, xmpp: any) => {
+  console.log(stanza.attrs.id);
+  if (
+    stanza.attrs.id === "getUserRooms" &&
+    stanza.getChild("query")?.children
+  ) {
+    let roomJID: string = "";
+    stanza.getChild("query")?.children.forEach((result: any) => {
+      const currentChatRooms = store.getState().rooms.rooms;
+
+      if (result?.attrs.name) {
+        const currentSavedChatRoom = Object.values(currentChatRooms).filter(
+          (element) => element.jid === result?.attrs.jid
+        );
+        if (currentSavedChatRoom.length === 0 || currentSavedChatRoom[0]) {
+          roomJID = result.attrs.jid;
+          xmpp.presenceInRoom(roomJID);
+          console.log("Room info", result?.attrs);
+          const roomData: IRoom = {
+            jid: roomJID,
+            name: result?.attrs.name,
+            id: "",
+            title: result?.attrs.name,
+            usersCnt: Number(result?.attrs.users_cnt),
+            messages: [],
+          };
+          store.dispatch(addRoom({ roomData }));
+          // if (
+          //   currentSavedChatRoom.length > 0 &&
+          // ) {
+          //   useStoreState.getState().updateUserChatRoom(roomData)
+          // } else {
+          //   useStoreState.getState().setNewUserChatRoom(roomData)
+          // }
+          // //get message history in the room
+          // xmpp.getRoomArchiveStanza(roomJID, 1)
+          // this.lastRomJIDLoading = roomJID
+        }
+      }
+    });
+  }
+};
+
 export {
   getListOfRooms,
   onRealtimeMessage,
   onMessageHistory,
   onPresenceInRoom,
   onGetLastMessageArchive,
+  onGetChatRooms,
 };
