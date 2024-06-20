@@ -4,4 +4,4 @@ export const VITE_APP_DOMAIN_NAME = "ethoradev.com";
 export const VITE_APP_XMPP_BASEDOMAIN_OLD = "dev.dxmpp.com";
 export const VITE_APP_XMPP_BASEDOMAIN = "xmpp.ethoradev.com";
 
-export const SERVICE = `wss://${VITE_APP_XMPP_BASEDOMAIN}:5443/ws`;
+export const SERVICE = `wss://${VITE_APP_XMPP_BASEDOMAIN_OLD}:5443/ws`;

@@ -1,5 +1,5 @@
 {
-  "name": "ethora-chat-component",
+  "name": "@dappros/chat-component",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
@@ -68,5 +68,19 @@
     "typescript": "^5.4.5",
     "webpack": "^5.92.0",
     "webpack-cli": "^5.1.4"
-  }
+  },
+  "package-name": {},
+  "description": "This is Dappros chat comonent, used for embedding chat into your apps",
+  "entry point": {},
+  "test command": {},
+  "git repository": {},
+  "keywords": [
+    "chat, chat-component",
+    "ethora",
+    "dappros"
+  ],
+  "author": {
+    "name": "Dappros"
+  },
+  "license": "ISC"
 }
