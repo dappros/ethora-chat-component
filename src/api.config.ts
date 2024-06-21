@@ -25,12 +25,8 @@ export const defaultUser = {
 };
 
 export const defRoom = {
-  jid: "e8b1e5297ac89ceb78341dd870ab12150d9903f4e6e799a8176b13f47ff22553@conference.dev.dxmpp.com",
-  name: "Yfg",
-  room_background:
-    "https://etofs.com/ipfs/QmVZRCSBPrKRuKtESQWAXseP6EWkqPEiUFXMZKxAPjraay",
-  room_thumbnail:
-    "https://files.ethoradev.com/files/88a0356591b139efad4770b4838b05de.jpg",
+  jid: "8ef200ac9dffd7b7b6ba0ee5a9df4d8b33c38877eb771ca1f5a3e6966b9d39f0@conference.xmpp.ethoradev.com",
+  name: "tESTcHAT",
   users_cnt: "1",
   unreadMessages: 0,
   composing: "",
@@ -38,7 +34,7 @@ export const defRoom = {
   description: "",
   group: "groups",
   id: "",
-  title: "Yfg",
+  title: "tESTcHAT",
   usersCnt: 1,
   messages: [],
 };

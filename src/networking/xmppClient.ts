@@ -31,7 +31,7 @@ export class XmppClient {
 
         // Connect to XMPP server
         this.client = xmpp.client({
-          service: `wss://${this?.devServer || "dev.dxmpp.com:5443"}/ws`, // TO DO: move this to config file?
+          service: `wss://${this?.devServer || "xmpp.ethoradev.com:5443"}/ws`, // TO DO: move this to config file?
           username: walletToUsername(walletAddress),
           password,
         });
@@ -410,7 +410,7 @@ export class XmppClient {
           id: "sendMessage",
         },
         xml("data", {
-          xmlns: `wss://${this?.devServer || "dev.dxmpp.com:5443"}/ws`,
+          xmlns: `wss://${this?.devServer || "xmpp.ethoradev.com:5443"}/ws`,
           senderFirstName: firstName,
           senderLastName: lastName,
           photoURL: photo,

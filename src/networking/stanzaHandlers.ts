@@ -21,13 +21,13 @@ export const createMessage = (
   //here add props changer, cause we get other stanza props
 
   //   {
-  //     "xmlns": "wss://dev.dxmpp.com:5443/ws",
+  //     "xmlns": "wss://xmpp.ethoradev.com:5443/ws",
   //     "senderFirstName": "Raze",
   //     "senderLastName": "Yuki",
   //     "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocLPzhjmRoDe9ZXawhnZN3nd0eEhrqoKwRicJyM6q2z_=s96-c",
-  //     "senderJID": "0x6816810a7_fe04_f_c9b800f9_d11564_c0e4a_e_c25_d78@dev.dxmpp.com/117879936120407221356323",
+  //     "senderJID": "0x6816810a7_fe04_f_c9b800f9_d11564_c0e4a_e_c25_d78@xmpp.ethoradev.com/117879936120407221356323",
   //     "senderWalletAddress": "0x6816810a7Fe04FC9b800f9D11564C0e4aEC25D78",
-  //     "roomJid": "e8b1e5297ac89ceb78341dd870ab12150d9903f4e6e799a8176b13f47ff22553@conference.dev.dxmpp.com",
+  //     "roomJid": "e8b1e5297ac89ceb78341dd870ab12150d9903f4e6e799a8176b13f47ff22553@conference.xmpp.ethoradev.com",
   //     "isSystemMessage": "false",
   //     "tokenAmount": "0",
   //     "quickReplies": "",
