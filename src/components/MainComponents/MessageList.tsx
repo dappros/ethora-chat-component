@@ -144,6 +144,7 @@ const MessageList = <TMessage extends IMessage>({
     if (messages.length < 30) {
       scrollToBottom();
     } else {
+      console.log(messages);
       lastMessageRef.current.id !== messages[messages.length - 1].id &&
         scrollToBottom();
     }

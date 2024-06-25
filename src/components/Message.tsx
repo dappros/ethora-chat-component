@@ -44,6 +44,7 @@ const CustomMessage: React.FC<CustomMessageProps> = forwardRef<
           <CustomMessageText>{message.body}</CustomMessageText>
         )}
         <CustomMessageTimestamp>
+          {message?.pending && "sending..."}
           {new Date(message.date).toLocaleTimeString()}
         </CustomMessageTimestamp>
       </CustomMessageBubble>

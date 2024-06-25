@@ -18,6 +18,7 @@ import {
 import Loader from "../styled/Loader";
 import { uploadFile } from "../../networking/apiClient";
 import RoomList from "./RoomList";
+import { getHighResolutionTimestamp } from "../../helpers/dateComparison";
 
 interface ChatRoomProps {
   roomJID?: string;
@@ -55,15 +56,16 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         addRoomMessage({
           roomJID: currentRoom.jid,
           message: {
-            id: Date.now().toString(),
+            id: getHighResolutionTimestamp(),
             user: {
               ...user,
               id: user.walletAddress,
               name: user.firstName + " " + user.lastName,
             },
-            date: new Date(),
+            date: new Date().toISOString(),
             body: message,
             roomJID: currentRoom.jid,
+            pending: true,
           },
         })
       );

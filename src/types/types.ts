@@ -22,6 +22,7 @@ export interface IMessage {
   locationPreview?: string;
   mimetype?: string;
   location?: string;
+  pending?: boolean;
 }
 
 export interface IRoom {
