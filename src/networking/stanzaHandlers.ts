@@ -12,27 +12,21 @@ import { IRoom } from "../types/types";
 // types: standard, coin transfer, is composing, attachment (media), token (nft) or smart contract
 // types can be added into our chat protocol (XMPP stanza add field type="") to make it easier to parse here
 
-export const createMessage = (
+export const createMessage = async (
   data: any,
   body: any,
   id: string,
   from: string
 ) => {
-  //here add props changer, cause we get other stanza props
+  if (!body || typeof body.getText !== "function") {
+    throw new Error("Invalid body: 'getText' method is missing.");
+  }
 
-  //   {
-  //     "xmlns": "wss://xmpp.ethoradev.com:5443/ws",
-  //     "senderFirstName": "Raze",
-  //     "senderLastName": "Yuki",
-  //     "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocLPzhjmRoDe9ZXawhnZN3nd0eEhrqoKwRicJyM6q2z_=s96-c",
-  //     "senderJID": "0x6816810a7_fe04_f_c9b800f9_d11564_c0e4a_e_c25_d78@xmpp.ethoradev.com/117879936120407221356323",
-  //     "senderWalletAddress": "0x6816810a7Fe04FC9b800f9D11564C0e4aEC25D78",
-  //     "roomJid": "e8b1e5297ac89ceb78341dd870ab12150d9903f4e6e799a8176b13f47ff22553@conference.xmpp.ethoradev.com",
-  //     "isSystemMessage": "false",
-  //     "tokenAmount": "0",
-  //     "quickReplies": "",
-  //     "notDisplayedValue": ""
-  // }
+  if (!data || !id || !from) {
+    console.log("Invalid arguments: data, id, and from are required.");
+  }
+
+  //here add props changer, cause we get other stanza props
 
   const message = {
     id: id,
@@ -48,19 +42,22 @@ export const createMessage = (
     mimetype: data?.mimetype,
     location: data?.location,
     user: {
-      id: data?.senderWalletAddress,
-      name: `${data?.senderFirstName} ${data?.senderLastName}`,
-      avatar: data?.photoURL,
-      jid: data?.senderJID,
+      id: data.senderWalletAddress,
+      name: `${data.senderFirstName} ${data.senderLastName}`,
+      avatar: data.photoURL,
+      jid: data.senderJID,
       token: data.token,
       refreshToken: data.refreshToken,
     },
   };
+
   return message;
 };
 
 //core default
 const onRealtimeMessage = async (stanza: Element) => {
+  console.log("Received real-time message:", stanza.toString());
+
   if (stanza.attrs.id === "sendMessage") {
     const body = stanza?.getChild("body");
     const data = stanza?.getChild("data");
@@ -68,8 +65,8 @@ const onRealtimeMessage = async (stanza: Element) => {
     const archived = stanza?.getChild("archived");
     const id = stanza.getChild("archived")?.attrs.id;
 
-    console.log("new message->>", stanza);
     if (!data || !body || !id) {
+      console.log("Missing required elements in real-time message.");
       return;
     }
 
@@ -78,24 +75,25 @@ const onRealtimeMessage = async (stanza: Element) => {
       !data.attrs.senderLastName ||
       !data.attrs.senderJID
     ) {
+      console.log("Missing sender information in real-time message.");
       return;
     }
 
-    const message = createMessage(data, body, id, stanza.attrs.from);
-
-    store.dispatch(
-      addRoomMessage({
-        roomJID: store.getState().rooms.activeRoom?.jid || "test",
-        message,
-      })
+    const message = await createMessage(
+      data.attrs,
+      body,
+      id,
+      stanza.attrs.from
     );
 
+    console.log("Processed real-time message:", message);
     return message;
   }
 };
 
 const onMessageHistory = async (stanza: any) => {
-  // console.log("<===", stanza.toString());
+  console.log("Received message history:", stanza.toString());
+
   if (
     stanza.is("message") &&
     stanza.children[0].attrs.xmlns === "urn:xmpp:mam:2"
@@ -122,6 +120,7 @@ const onMessageHistory = async (stanza: any) => {
 
     const id = stanza.getChild("result")?.attrs.id;
     if (!data || !body || !delay || !id) {
+      console.log("Missing required elements in message history.");
       return;
     }
 
@@ -130,10 +129,18 @@ const onMessageHistory = async (stanza: any) => {
       !data.attrs.senderLastName ||
       !data.attrs.senderJID
     ) {
+      console.log("Missing sender information in message history.");
       return;
     }
 
-    const message = createMessage(data.attrs, body, id, stanza.attrs.from);
+    const message = await createMessage(
+      data.attrs,
+      body,
+      id,
+      stanza.attrs.from
+    );
+
+    console.log("Processed message history:", message);
 
     store.dispatch(
       addRoomMessage({
@@ -145,7 +152,6 @@ const onMessageHistory = async (stanza: any) => {
 };
 
 const getListOfRooms = (xmpp: any) => {
-  console.log("xmpp", xmpp);
   xmpp.client.send(xml("presence"));
   // xmpp.getArchive(xmpp.client?.jid?.toString());
   xmpp.getArchive("0x6C394B10F5Da4141b99DB2Ad424C5688c3f202B3");
@@ -172,7 +178,6 @@ const onGetLastMessageArchive = (stanza: Element, xmpp: any) => {
 };
 
 const onGetChatRooms = (stanza: Element, xmpp: any) => {
-  console.log(stanza.attrs.id);
   if (
     stanza.attrs.id === "getUserRooms" &&
     stanza.getChild("query")?.children

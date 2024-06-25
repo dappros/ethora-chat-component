@@ -71,7 +71,7 @@ const SendInput: React.FC<SendInputProps> = ({ sendMessage, sendMedia }) => {
 
   const handleSendClick = useCallback(
     (audioUrl?: string) => {
-      if (filePreviews) {
+      if (filePreviews && filePreviews.length > 0) {
         console.log(filePreviews);
         console.log("Files sent:", filePreviews);
         sendMedia(filePreviews);
@@ -83,6 +83,7 @@ const SendInput: React.FC<SendInputProps> = ({ sendMessage, sendMedia }) => {
         console.log("Audio sent:", audioUrl);
         setIsRecording(false);
       } else {
+        console.log("sending default");
         sendMessage(message);
       }
       setMessage("");

@@ -6,11 +6,15 @@ import {
 } from "../styled/StyledComponents";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../../roomStore";
-import ChatList from "./ChatList";
+import MessageList from "./MessageList";
 import xmppClient from "../../networking/xmppClient";
 import { IRoom, User } from "../../types/types";
 import SendInput from "../styled/SendInput";
-import { addRoom, setActiveRoom } from "../../roomStore/roomsSlice";
+import {
+  addRoom,
+  setActiveRoom,
+  addRoomMessage,
+} from "../../roomStore/roomsSlice";
 import Loader from "../styled/Loader";
 import { uploadFile } from "../../networking/apiClient";
 import RoomList from "./RoomList";
@@ -46,19 +50,32 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       dispatch(setActiveRoom({ roomData: roomToSet }));
     }, [dispatch, rooms, defaultRoom, roomJID]);
 
-    const sendMessage = useCallback(
-      (message: string) => {
-        xmppClient.sendMessage(
-          currentRoom.jid,
-          mainUser.firstName,
-          mainUser.lastName,
-          "",
-          mainUser.walletAddress,
-          message
-        );
-      },
-      [currentRoom.jid, mainUser]
-    );
+    const sendMessage = useCallback((message: string) => {
+      dispatch(
+        addRoomMessage({
+          roomJID: currentRoom.jid,
+          message: {
+            id: new Date().toISOString(),
+            user: {
+              ...user,
+              id: user.walletAddress,
+              name: user.firstName + " " + user.lastName,
+            },
+            date: new Date(),
+            body: message,
+            roomJID: currentRoom.jid,
+          },
+        })
+      );
+      xmppClient.sendMessage(
+        currentRoom.jid,
+        user.firstName,
+        user.lastName,
+        "",
+        user.walletAddress,
+        message
+      );
+    }, []);
 
     const loadMoreMessages = useCallback(
       async (chatJID: string, max: number, idOfMessageBefore?: number) => {
@@ -153,7 +170,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         rooms[activeRoom.jid].messages.length < 1 ? (
           <Loader />
         ) : (
-          <ChatList
+          <MessageList
             loadMoreMessages={loadMoreMessages}
             messages={rooms[activeRoom.jid].messages}
             CustomMessage={CustomMessageComponent}

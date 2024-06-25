@@ -77,3 +77,4 @@ const ChatWrapper: FC<ChatWrapperProps> = ({}) => {
 };
 
 export { ChatWrapper };
+//npm publish --access=restricted
