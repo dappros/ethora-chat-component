@@ -56,8 +56,6 @@ export const createMessage = async (
 
 //core default
 const onRealtimeMessage = async (stanza: Element) => {
-  console.log("Received real-time message:", stanza.toString());
-
   if (stanza.attrs.id === "sendMessage") {
     const body = stanza?.getChild("body");
     const data = stanza?.getChild("data");
@@ -92,8 +90,6 @@ const onRealtimeMessage = async (stanza: Element) => {
 };
 
 const onMessageHistory = async (stanza: any) => {
-  console.log("Received message history:", stanza.toString());
-
   if (
     stanza.is("message") &&
     stanza.children[0].attrs.xmlns === "urn:xmpp:mam:2"
@@ -139,8 +135,6 @@ const onMessageHistory = async (stanza: any) => {
       id,
       stanza.attrs.from
     );
-
-    console.log("Processed message history:", message);
 
     store.dispatch(
       addRoomMessage({

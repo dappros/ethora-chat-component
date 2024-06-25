@@ -59,6 +59,7 @@ const MessageList = <TMessage extends IMessage>({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);
+  const lastMessageRef = useRef<IMessage>(messages[messages.length - 1]);
 
   const timeoutRef = useRef<number>(0);
   const scrollParams = useRef<{ top: number; height: number } | null>(null);
@@ -112,6 +113,7 @@ const MessageList = <TMessage extends IMessage>({
           Number(messages[0].id)
         ).finally(() => {
           isLoadingMore.current = false;
+          lastMessageRef.current = messages[messages.length - 1];
         });
       }
     }
@@ -142,10 +144,8 @@ const MessageList = <TMessage extends IMessage>({
     if (messages.length < 30) {
       scrollToBottom();
     } else {
-      isDateBefore(
-        messages[messages.length - 1].date.toString(),
-        messages[messages.length - 2].date.toString()
-      ) && scrollToBottom();
+      lastMessageRef.current.id !== messages[messages.length - 1].id &&
+        scrollToBottom();
     }
   }, [messages]);
 

@@ -55,7 +55,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         addRoomMessage({
           roomJID: currentRoom.jid,
           message: {
-            id: new Date().toISOString(),
+            id: Date.now().toString(),
             user: {
               ...user,
               id: user.walletAddress,
