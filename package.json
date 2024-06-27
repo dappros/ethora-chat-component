@@ -1,7 +1,6 @@
 {
-  "name": "@dappros/chat-component",
+  "name": "projecet-2-ccomp",
   "version": "0.1.0",
-  "private": true,
   "dependencies": {
     "@reduxjs/toolkit": "^2.2.1",
     "@types/node": "^16.18.89",
@@ -70,18 +69,15 @@
     "webpack-cli": "^5.1.4"
   },
   "package-name": {},
-  "description": "This is Dappros chat comonent, used for embedding chat into your apps",
+  "description": "This is chat comonent, used for embedding chat into your apps",
   "entry point": {},
   "test command": {},
   "git repository": {},
   "keywords": [
-    "chat, chat-component",
-    "ethora",
-    "dappros"
+    "chat, chat-component"
   ],
   "author": {
     "name": "Dappros"
   },
   "license": "ISC"
 }
-
