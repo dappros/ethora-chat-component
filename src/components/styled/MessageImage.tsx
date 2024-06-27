@@ -1,7 +1,5 @@
 import React from "react";
 import Modal from "react-modal";
-import { ReactComponent as DownloadIcon } from "../../assets/downloadIcon.svg";
-import { ReactComponent as CloseIcon } from "../../assets/closeIcon.svg";
 
 import {
   ButtonContainer,
@@ -10,6 +8,7 @@ import {
   IconButton,
   ModalContent,
 } from "./StyledInputComponents/MediaComponents";
+import { CloseIcon, DownloadIcon } from "../../assets/icons";
 
 interface CustomMessageImageProps {
   imageUrl: string | undefined;

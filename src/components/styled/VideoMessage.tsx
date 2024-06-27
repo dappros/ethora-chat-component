@@ -1,8 +1,7 @@
 import React from "react";
 import styled from "styled-components";
 import Modal from "react-modal";
-import { ReactComponent as DownloadIcon } from "../../assets/downloadIcon.svg";
-import { ReactComponent as CloseIcon } from "../../assets/closeIcon.svg";
+import { CloseIcon, DownloadIcon } from "../../assets/icons";
 
 interface CustomMessageVideoProps {
   videoUrl: string | undefined;

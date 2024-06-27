@@ -1,11 +1,11 @@
 import React from "react";
-import { ReactComponent as DownloadIcon } from "../../assets/downloadIcon.svg";
 
 import {
   FileName,
   UnsupportedContainer,
 } from "./StyledInputComponents/MediaComponents";
 import { IconButton } from "./StyledComponents";
+import { DownloadIcon } from "../../assets/icons";
 
 interface FileDownloadProps {
   fileUrl: string;
