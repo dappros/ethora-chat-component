@@ -1,2 +1,3 @@
-# ethora-chat-component
-Chat component of Ethora engine
+# projecet-2-ccomp
+
+Chat component
