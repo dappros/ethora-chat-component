@@ -26,10 +26,17 @@ interface ChatRoomProps {
   isLoading?: boolean;
   defaultRoom: IRoom;
   CustomMessageComponent?: any;
+  MainComponentStyles?: any;
 }
 
 const ChatRoom: React.FC<ChatRoomProps> = React.memo(
-  ({ isLoading = false, defaultRoom, roomJID, CustomMessageComponent }) => {
+  ({
+    isLoading = false,
+    defaultRoom,
+    roomJID,
+    CustomMessageComponent,
+    MainComponentStyles,
+  }) => {
     const client = xmppClient;
     const [currentRoom, setCurrentRoom] = useState(defaultRoom);
     const rooms = useSelector((state: RootState) => state.rooms.rooms);
@@ -157,7 +164,9 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     if (!activeRoom) return <>No room</>;
 
     return (
-      <ChatContainer style={{ maxHeight: "100vh", overflow: "auto" }}>
+      <ChatContainer
+        style={{ maxHeight: "100vh", overflow: "auto", ...MainComponentStyles }}
+      >
         <ChatContainerHeader>
           <RoomList chats={[]} />
           <ChatContainerHeaderLabel>
