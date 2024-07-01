@@ -1,6 +1,6 @@
 {
   "name": "projecet-2-ccomp",
-  "version": "0.1.6",
+  "version": "0.1.9",
   "dependencies": {
     "@reduxjs/toolkit": "^2.2.1",
     "@types/react": "^18.2.65",
@@ -67,7 +67,7 @@
   "module": "dist/index.js",
   "package-name": {},
   "description": "This is chat comonent, used for embedding chat into your apps",
-  "entry point": {},
+  "entry point": "dist/index.js",
   "test command": {},
   "git repository": {},
   "keywords": [
