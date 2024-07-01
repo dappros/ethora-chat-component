@@ -7,7 +7,12 @@ function App() {
   return (
     <Provider store={store}>
       <div className="App">
-        <ChatWrapper />
+        <ChatWrapper
+          token={undefined}
+          room={undefined}
+          user={undefined}
+          loginData={undefined}
+        />
       </div>
     </Provider>
   );

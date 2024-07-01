@@ -14,10 +14,10 @@ import CustomMessage from "../Message";
 import Loader from "../styled/Loader";
 import { IRoom, User } from "../../types/types";
 interface ChatWrapperProps {
-  token: string;
-  room: IRoom;
-  user: User;
-  loginData: { email: string; password: string };
+  token?: string;
+  room?: IRoom;
+  user?: User;
+  loginData?: { email: string; password: string };
   MainComponentStyles?: any; //change to particular types
   CustomMessageComponent?: any;
 }
@@ -38,8 +38,8 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   const loginUserFunction = useCallback(async () => {
     try {
       const authData = await loginEmail(
-        loginData.email || "yukiraze9@gmail.com",
-        loginData.password || "Qwerty123",
+        loginData?.email || "yukiraze9@gmail.com",
+        loginData?.password || "Qwerty123",
         token || appToken
       );
       return authData.data;
