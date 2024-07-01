@@ -1,7 +1,7 @@
 import React from "react";
 import styled from "styled-components";
-import Modal from "react-modal";
 import { CloseIcon, DownloadIcon } from "../../assets/icons";
+import { Overlay, StyledModal } from "./Modal";
 
 interface CustomMessageVideoProps {
   videoUrl: string | undefined;
@@ -101,50 +101,29 @@ const CustomMessageVideo: React.FC<CustomMessageVideoProps> = ({
         onClick={(e) => handleOpen(e)}
         style={{ cursor: "pointer", maxWidth: "100%" }}
       />
-      <Modal
-        isOpen={open}
-        onRequestClose={handleClose}
-        contentLabel="Video Modal"
-        style={{
-          overlay: {
-            backgroundColor: "rgba(0, 0, 0, 0.75)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          },
-          content: {
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: "70%",
-            height: "70%",
-            padding: 0,
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-          },
-        }}
-        shouldCloseOnOverlayClick={true}
-      >
-        <ModalContent>
-          <FullScreenVideo src={videoUrl} controls autoPlay={false} />
-          <ButtonContainer>
-            {videoUrl && (
-              <IconButton
-                onClick={downloadVideo}
-                aria-label="Download"
-                style={{ height: "50px", width: "50px" }}
-              >
-                <DownloadIcon />
-              </IconButton>
-            )}
-            <IconButton onClick={handleClose} aria-label="Close">
-              <CloseIcon />
-            </IconButton>
-          </ButtonContainer>
-        </ModalContent>
-      </Modal>
+      {open && (
+        <Overlay>
+          <StyledModal>
+            <ModalContent>
+              <FullScreenVideo src={videoUrl} controls autoPlay={false} />
+              <ButtonContainer>
+                {videoUrl && (
+                  <IconButton
+                    onClick={downloadVideo}
+                    aria-label="Download"
+                    style={{ height: "50px", width: "50px" }}
+                  >
+                    <DownloadIcon />
+                  </IconButton>
+                )}
+                <IconButton onClick={handleClose} aria-label="Close">
+                  <CloseIcon />
+                </IconButton>
+              </ButtonContainer>
+            </ModalContent>
+          </StyledModal>
+        </Overlay>
+      )}
     </Container>
   );
 };

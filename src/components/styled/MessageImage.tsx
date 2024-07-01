@@ -1,6 +1,5 @@
 import React from "react";
-import Modal from "react-modal";
-
+import styled from "styled-components";
 import {
   ButtonContainer,
   Container,
@@ -9,6 +8,7 @@ import {
   ModalContent,
 } from "./StyledInputComponents/MediaComponents";
 import { CloseIcon, DownloadIcon } from "../../assets/icons";
+import { Overlay, StyledModal } from "./Modal";
 
 interface CustomMessageImageProps {
   imageUrl: string | undefined;
@@ -56,46 +56,25 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
         onClick={handleOpen}
         style={{ cursor: "pointer" }}
       />
-      <Modal
-        isOpen={open}
-        onRequestClose={handleClose}
-        contentLabel="Image Modal"
-        style={{
-          overlay: {
-            backgroundColor: "rgba(0, 0, 0, 0.75)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          },
-          content: {
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: "70%",
-            height: "70%",
-            padding: 0,
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-          },
-        }}
-        shouldCloseOnOverlayClick={true}
-      >
-        <ModalContent>
-          <FullScreenImage src={imageUrl} alt={imageAlt} />
-          <ButtonContainer>
-            {imageUrl && (
-              <IconButton onClick={downloadImage} aria-label="Download">
-                <DownloadIcon fontSize="inherit" />
-              </IconButton>
-            )}
-            <IconButton onClick={handleClose} aria-label="Close">
-              <CloseIcon fontSize="inherit" />
-            </IconButton>
-          </ButtonContainer>
-        </ModalContent>
-      </Modal>
+      {open && (
+        <Overlay>
+          <StyledModal>
+            <ModalContent>
+              <FullScreenImage src={imageUrl} alt={imageAlt} />
+              <ButtonContainer>
+                {imageUrl && (
+                  <IconButton onClick={downloadImage} aria-label="Download">
+                    <DownloadIcon fontSize="inherit" />
+                  </IconButton>
+                )}
+                <IconButton onClick={handleClose} aria-label="Close">
+                  <CloseIcon fontSize="inherit" />
+                </IconButton>
+              </ButtonContainer>
+            </ModalContent>
+          </StyledModal>
+        </Overlay>
+      )}
     </Container>
   );
 };
