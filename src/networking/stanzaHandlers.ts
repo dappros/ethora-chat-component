@@ -63,8 +63,9 @@ const onRealtimeMessage = async (stanza: Element) => {
     const archived = stanza?.getChild("archived");
     const id = stanza.getChild("archived")?.attrs.id;
 
-    if (!data || !body || !id) {
+    if (!data) {
       console.log("Missing required elements in real-time message.");
+      console.log({ data, replace, archived, body });
       return;
     }
 
