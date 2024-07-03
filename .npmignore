@@ -1,0 +1,24 @@
+# Ignore build artifacts
+dist/
+build/
+
+# Node modules
+node_modules/
+
+# Environment variables
+.env
+
+# Miscellaneous
+.*.swp
+._*
+.DS_Store
+.git
+.hg
+.npmignore
+.npmrc
+.lock-wscript
+.svn
+.wafpickle-*
+config.gypi
+CVS
+npm-debug.log

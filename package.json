@@ -1,6 +1,6 @@
 {
   "name": "projecet-2-ccomp",
-  "version": "0.1.9",
+  "version": "0.1.15",
   "dependencies": {
     "@reduxjs/toolkit": "^2.2.1",
     "@types/react": "^18.2.65",
@@ -16,7 +16,35 @@
     "redux": "^5.0.1",
     "redux-saga": "^1.3.0",
     "styled-components": "^6.1.8",
-    "uuid": "^9.0.1",
+    "uuid": "^9.0.1"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build-rs": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "build": "webpack --config webpack.config.cjs",
+    "build:types": "tsc"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
     "@babel/core": "^7.24.7",
     "@babel/preset-env": "^7.24.7",
     "@babel/preset-react": "^7.24.7",
@@ -38,36 +66,11 @@
     "webpack": "^5.92.0",
     "webpack-cli": "^5.1.4"
   },
-  "scripts": {
-    "start": "react-scripts start",
-    "build-rs": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject",
-    "build": "webpack --config webpack.config.js"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  },
-  "main": "dist/index.js",
-  "module": "dist/index.js",
+  "main": "./src/main.ts",
+  "module": "./src/main.ts",
   "package-name": {},
   "description": "This is chat comonent, used for embedding chat into your apps",
-  "entry point": "dist/index.js",
+  "entry point": "./src/main.ts",
   "test command": {},
   "git repository": {},
   "keywords": [
@@ -76,5 +79,10 @@
   "author": {
     "name": "Dappros"
   },
-  "license": "ISC"
+  "license": "ISC",
+  "type": "module",
+  "types": "dist/main.d.ts",
+  "files": [
+    "dist"
+  ]
 }

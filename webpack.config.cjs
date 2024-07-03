@@ -7,12 +7,12 @@ const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
 
 module.exports = {
   mode: "production",
-  entry: "./src/index.tsx",
+  entry: "./src/main.ts",
   output: {
     path: path.resolve(__dirname, "dist"),
-    filename: "bundle.[contenthash].js",
+    filename: "[name].js",
     publicPath: "/",
-    libraryTarget: "umd",
+    libraryTarget: "es",
     umdNamedDefine: true,
   },
   resolve: {
@@ -31,7 +31,7 @@ module.exports = {
         __dirname,
         "node_modules/@types/styled-components"
       ),
-      "@xmpp/client": path.resolve(__dirname, "node_modules/@xmpp/client"),
+      "@xmpp": path.resolve(__dirname, "node_modules/@xmpp"),
       axios: path.resolve(__dirname, "node_modules/axios"),
       ltx: path.resolve(__dirname, "node_modules/ltx"),
       react: path.resolve(__dirname, "node_modules/react"),
@@ -45,19 +45,6 @@ module.exports = {
         "node_modules/styled-components"
       ),
       uuid: path.resolve(__dirname, "node_modules/uuid"),
-      "@babel/core": path.resolve(__dirname, "node_modules/@babel/core"),
-      "@babel/preset-env": path.resolve(
-        __dirname,
-        "node_modules/@babel/preset-env"
-      ),
-      "@babel/preset-react": path.resolve(
-        __dirname,
-        "node_modules/@babel/preset-react"
-      ),
-      "@babel/preset-typescript": path.resolve(
-        __dirname,
-        "node_modules/@babel/preset-typescript"
-      ),
       "@types/lodash": path.resolve(__dirname, "node_modules/@types/lodash"),
       "@types/react-modal": path.resolve(
         __dirname,
@@ -68,33 +55,6 @@ module.exports = {
         __dirname,
         "node_modules/@types/xmpp__client"
       ),
-      "babel-loader": path.resolve(__dirname, "node_modules/babel-loader"),
-      "clean-webpack-plugin": path.resolve(
-        __dirname,
-        "node_modules/clean-webpack-plugin"
-      ),
-      "css-loader": path.resolve(__dirname, "node_modules/css-loader"),
-      "css-minimizer-webpack-plugin": path.resolve(
-        __dirname,
-        "node_modules/css-minimizer-webpack-plugin"
-      ),
-      "file-loader": path.resolve(__dirname, "node_modules/file-loader"),
-      "html-webpack-plugin": path.resolve(
-        __dirname,
-        "node_modules/html-webpack-plugin"
-      ),
-      "mini-css-extract-plugin": path.resolve(
-        __dirname,
-        "node_modules/mini-css-extract-plugin"
-      ),
-      "terser-webpack-plugin": path.resolve(
-        __dirname,
-        "node_modules/terser-webpack-plugin"
-      ),
-      "ts-loader": path.resolve(__dirname, "node_modules/ts-loader"),
-      typescript: path.resolve(__dirname, "node_modules/typescript"),
-      webpack: path.resolve(__dirname, "node_modules/webpack"),
-      "webpack-cli": path.resolve(__dirname, "node_modules/webpack-cli"),
     },
   },
   module: {
@@ -122,16 +82,6 @@ module.exports = {
       },
     ],
   },
-  plugins: [
-    new CleanWebpackPlugin(),
-    new HtmlWebpackPlugin({
-      template: "./public/index.html",
-      filename: "index.html",
-    }),
-    new MiniCssExtractPlugin({
-      filename: "[name].[contenthash].css",
-    }),
-  ],
   optimization: {
     minimize: true,
     minimizer: [
