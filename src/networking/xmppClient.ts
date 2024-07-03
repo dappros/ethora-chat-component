@@ -283,7 +283,7 @@ export class XmppClient {
               }
 
               for (const [key, value] of Object.entries(data.attrs)) {
-                parsedEl[key] = value;
+                parsedEl[key] = value as string;
               }
 
               // ignore messages wich has isReply but there is no mainMessage field

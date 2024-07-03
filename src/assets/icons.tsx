@@ -1,3 +1,5 @@
+import React from "react";
+
 export const AttachIcon = (props: any) => (
   <svg
     width="70"
