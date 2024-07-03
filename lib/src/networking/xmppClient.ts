@@ -39,7 +39,7 @@ export class XmppClient {
         this.client.setMaxListeners(20);
         this.client.start();
 
-        this.client.on("online", () => {
+        this.client.on("online", (jid) => {
           getListOfRooms(this);
           console.log("Client is online");
           resolve();
@@ -283,7 +283,7 @@ export class XmppClient {
               }
 
               for (const [key, value] of Object.entries(data.attrs)) {
-                parsedEl[key] = value as string;
+                parsedEl[key] = value;
               }
 
               // ignore messages wich has isReply but there is no mainMessage field

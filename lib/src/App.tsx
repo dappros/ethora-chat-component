@@ -1,20 +1,12 @@
-import { Provider } from "react-redux";
+import React from "react";
 import "./App.css";
-import { ChatWrapper } from "./components/MainComponents/ChatWrapper";
-import { store } from "./roomStore";
+import ReduxWrapper from "./components/MainComponents/ReduxWrapper";
 
 function App() {
   return (
-    <Provider store={store}>
-      <div className="App">
-        <ChatWrapper
-          token={undefined}
-          room={undefined}
-          user={undefined}
-          loginData={undefined}
-        />
-      </div>
-    </Provider>
+    <div className="App">
+      <ReduxWrapper />
+    </div>
   );
 }
 

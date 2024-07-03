@@ -12,7 +12,7 @@ const http = axios.create({
 export function refresh(): Promise<{
   data: { refreshToken: string; token: string };
 }> {
-  return new Promise((reject) => {
+  return new Promise((resolve, reject) => {
     const user = store.getState().loginStore.user;
     http
       .post(

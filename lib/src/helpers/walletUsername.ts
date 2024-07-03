@@ -6,7 +6,7 @@ export function walletToUsername(string: string) {
 }
 
 export function usernameToWallet(string: string) {
-  return string.replaceAll(/_([a-z])/gm, (m2: string) => {
+  return string.replaceAll(/_([a-z])/gm, (m1: string, m2: string) => {
     return m2.toUpperCase();
   });
 }

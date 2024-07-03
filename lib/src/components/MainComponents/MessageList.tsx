@@ -31,6 +31,7 @@ const MessageList = <TMessage extends IMessage>({
   CustomMessage,
   user,
   loadMoreMessages,
+  room,
 }: MessageListProps<TMessage>) => {
   const validateMessages = (messages: TMessage[]): boolean => {
     const requiredAttributes: (keyof IMessage)[] = [

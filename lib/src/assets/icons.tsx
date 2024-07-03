@@ -1,4 +1,4 @@
-export const AttachIcon = () => (
+export const AttachIcon = (props: any) => (
   <svg
     width="70"
     height="70"
@@ -17,7 +17,7 @@ export const AttachIcon = () => (
   </svg>
 );
 
-export const CloseIcon = () => (
+export const CloseIcon = (props: any) => (
   <svg
     width="800px"
     height="800px"
@@ -42,7 +42,7 @@ export const CloseIcon = () => (
   </svg>
 );
 
-export const DownloadIcon = () => (
+export const DownloadIcon = (props: any) => (
   <svg
     width="800px"
     height="800px"
@@ -61,7 +61,7 @@ export const DownloadIcon = () => (
   </svg>
 );
 
-export const PauseIcon = () => (
+export const PauseIcon = (props: any) => (
   <svg
     width="90"
     height="90"
@@ -146,7 +146,7 @@ export const PauseIcon = () => (
   </svg>
 );
 
-export const RecordIcon = () => (
+export const RecordIcon = (props: any) => (
   <svg
     width="70"
     height="70"
@@ -178,7 +178,7 @@ export const RecordIcon = () => (
   </svg>
 );
 
-export const RemoveIcon = () => (
+export const RemoveIcon = (props: any) => (
   <svg
     width="28"
     height="36"
@@ -207,7 +207,7 @@ export const RemoveIcon = () => (
   </svg>
 );
 
-export const SendIcon = () => (
+export const SendIcon = (props: any) => (
   <svg
     width="90"
     height="90"

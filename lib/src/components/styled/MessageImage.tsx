@@ -64,11 +64,11 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
               <ButtonContainer>
                 {imageUrl && (
                   <IconButton onClick={downloadImage} aria-label="Download">
-                    <DownloadIcon />
+                    <DownloadIcon fontSize="inherit" />
                   </IconButton>
                 )}
                 <IconButton onClick={handleClose} aria-label="Close">
-                  <CloseIcon />
+                  <CloseIcon fontSize="inherit" />
                 </IconButton>
               </ButtonContainer>
             </ModalContent>

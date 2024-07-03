@@ -19,6 +19,7 @@ const Audio = styled.audio`
 const MediaMessage: React.FC<MediaMessageProps> = ({
   mimeType,
   location,
+  message,
   messageText,
 }) => {
   if (mimeType)
