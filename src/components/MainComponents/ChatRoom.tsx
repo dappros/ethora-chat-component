@@ -153,6 +153,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
                 .then(() => {
                   client.getHistory(currentRoom.jid, 30);
                 })
+                .catch((error) => console.log(error))
             )
             .catch((error) => {
               console.error("Error handling client operations:", error);

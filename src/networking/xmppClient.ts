@@ -1,4 +1,4 @@
-import xmpp, { xml, Client } from "@xmpp/client";
+import xmpp, { xml } from "@xmpp/client";
 import { walletToUsername } from "../helpers/walletUsername";
 import {
   getListOfRooms,
@@ -11,7 +11,7 @@ import {
 import { Element } from "ltx";
 
 export class XmppClient {
-  public client!: Client;
+  public client!: any;
   public devServer: string | undefined;
 
   //core functions
@@ -37,7 +37,12 @@ export class XmppClient {
         });
 
         this.client.setMaxListeners(20);
-        this.client.start();
+        try {
+          this.client.start();
+        } catch (error) {
+          console.log("errror", error);
+          reject(error);
+        }
 
         this.client.on("online", (jid) => {
           getListOfRooms(this);
