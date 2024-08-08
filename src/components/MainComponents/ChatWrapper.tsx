@@ -62,11 +62,15 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             loginData.user?.defaultWallet?.walletAddress &&
             loginData.user.xmppPassword
           ) {
-            client.init(
-              loginData.user.defaultWallet.walletAddress,
-              loginData.user.xmppPassword
-            );
-            console.log("Client successfully initialized", client);
+            client
+              .init(
+                loginData.user.defaultWallet.walletAddress,
+                loginData.user.xmppPassword
+              )
+              .then(() =>
+                console.log("Client successfully initialized", client)
+              )
+              .catch((error) => console.log(error));
           }
         } catch (error) {
           console.log(error, "Unsuccessful init");

@@ -18,7 +18,7 @@
     "strict": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": false
   },
   "include": ["lib"],
   "references": [{ "path": "./tsconfig.node.json" }]

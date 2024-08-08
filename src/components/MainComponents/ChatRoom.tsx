@@ -143,18 +143,18 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     useEffect(() => {
       if (!rooms[currentRoom.jid]?.messages) {
         setTimeout(() => {
+          // client
+          // .init(mainUser.walletAddress, mainUser.xmppPassword)
+          // .then(() =>
           client
-            .init(mainUser.walletAddress, mainUser.xmppPassword)
-            .then(() =>
-              client
-                .presence()
-                .then(() => client.getRooms())
-                .then(() => client.presenceInRoom(currentRoom.jid))
-                .then(() => {
-                  client.getHistory(currentRoom.jid, 30);
-                })
-                .catch((error) => console.log(error))
-            )
+            .presence()
+            .then(() => client.getRooms())
+            .then(() => client.presenceInRoom(currentRoom.jid))
+            .then(() => {
+              client.getHistory(currentRoom.jid, 30);
+            })
+            .catch((error) => console.log(error))
+            // )
             .catch((error) => {
               console.error("Error handling client operations:", error);
             });
