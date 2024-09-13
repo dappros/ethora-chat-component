@@ -1,5 +1,5 @@
 import React, { forwardRef } from "react";
-import { IMessage } from "../types/types";
+import { IConfig, IMessage } from "../types/types";
 import {
   CustomMessageTimestamp,
   CustomMessageContainer,
@@ -14,6 +14,7 @@ import MediaMessage from "./MainComponents/MediaMessage";
 interface CustomMessageProps {
   message: IMessage;
   isUser: boolean;
+  config: IConfig;
 }
 
 const CustomMessage: React.FC<CustomMessageProps> = forwardRef<
@@ -21,18 +22,26 @@ const CustomMessage: React.FC<CustomMessageProps> = forwardRef<
   CustomMessageProps
 >(({ message, isUser }, ref) => {
   return (
-    <CustomMessageContainer key={message.id} isUser={isUser} ref={ref}>
+    <CustomMessageContainer
+      key={message.id}
+      isUser={message.id === "1"}
+      ref={ref}
+    >
       <CustomMessagePhotoContainer>
         <CustomMessagePhoto
           src={
-            message.user.avatar ||
-            "https://devdevethora.ethoradev.com/assets/profilepic-4330773c.png"
+            // message.user.avatar ||
+            "https://soccerpointeclaire.com/wp-content/uploads/2021/06/default-profile-pic-e1513291410505.jpg"
           }
           alt="userIcon"
         />
       </CustomMessagePhotoContainer>
-      <CustomMessageBubble isUser={isUser}>
-        <CustomUserName isUser={isUser}>{message.user.name}</CustomUserName>
+      <CustomMessageBubble isUser={message.id === "1"}>
+        {message.id !== "1" && (
+          <CustomUserName isUser={message.id === "1"}>
+            {message.user.name}
+          </CustomUserName>
+        )}
         {message?.isMediafile === "true" ? (
           <MediaMessage
             mimeType={message.mimetype}

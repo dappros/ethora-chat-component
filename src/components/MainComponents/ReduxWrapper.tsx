@@ -1,8 +1,11 @@
-import React from "react";
+import React, { ReactNode, createContext, useContext, useState } from "react";
 import { Provider } from "react-redux";
 import { store } from "../../roomStore";
 import { ChatWrapper } from "./ChatWrapper";
-import { IRoom, User } from "../../types/types";
+import { IConfig, IRoom, User } from "../../types/types";
+// import LoginForm from "../AuthForms/Login";
+// import RegisterForm from "../AuthForms/Register";
+import { XmppProvider } from "../../context/xmppProvider.tsx";
 
 interface ChatWrapperProps {
   token?: string;
@@ -11,12 +14,15 @@ interface ChatWrapperProps {
   loginData?: { email: string; password: string };
   MainComponentStyles?: any;
   CustomMessageComponent?: any;
+  config: IConfig;
 }
 
-export const ReduxWrapper: React.FC<ChatWrapperProps> = (props) => {
+export const ReduxWrapper: React.FC<ChatWrapperProps> = ({ ...props }) => {
   return (
-    <Provider store={store}>
-      <ChatWrapper {...props} />
-    </Provider>
+    <XmppProvider>
+      <Provider store={store}>
+        <ChatWrapper {...props} />
+      </Provider>
+    </XmppProvider>
   );
 };

@@ -9,32 +9,34 @@ export const InputContainer = styled.div`
   display: flex;
   flex-direction: column;
   border-radius: 15px 15px 0px 0px;
-  padding: 11px 30px;
+  padding: 16px;
   background-color: #fff;
   z-index: 1;
+  box-shadow: 0px 0px 8px -4px #12121908;
+  box-shadow: 0px 0px 24px -4px #12121914;
 `;
 
 export const MessageInputContainer = styled.div`
   display: flex;
   align-items: center;
   width: 100%;
+  max-height: 72px;
 `;
 
 export const MessageInput = styled.input`
   flex-grow: 1;
   padding: 10px;
-  border-radius: 8px;
+  border-radius: 12px;
   border: none;
-  margin-right: 10px;
-  color: #8f8f8f;
+  color: #8c8c8c;
+  background-color: #f5f7f9;
   ::placeholder {
     color: red;
   }
-  height: 70px;
-  border: 1px solid #8f8f8f;
+  max-height: 40px;
 `;
 
-export const SendButton = styled.button`
+export const SendButton = styled.button<{ disabled: boolean }>`
   border: none;
   border-radius: 8px;
   background: url(${sendIcon}) no-repeat center center !important;
@@ -55,23 +57,23 @@ export const RecordButton = styled.button`
   background-size: contain;
   color: white;
   cursor: pointer;
-  height: 70px;
-  width: 70px;
+  height: 40px;
+  width: 40px;
   display: flex;
   justify-content: center;
   align-items: center;
 `;
 
-export const AttachButton = styled.button`
+export const AttachButton = styled.button<{ disabled: boolean }>`
   padding: 10px;
   border: none;
   border-radius: 8px;
   background: url(${attachIcon}) no-repeat center center;
   background-size: contain;
   cursor: pointer;
-  margin-right: 10px;
-  height: 70px;
-  width: 70px;
+  height: 40px;
+  width: 40px;
+  color: ${(props) => (props.disabled ? "#E7EDF9" : "#FFFFFF")};
 `;
 
 export const CancelButton = styled.button`
@@ -92,8 +94,8 @@ export const PauseButton = styled.button`
   background: url(${pauseIcon}) no-repeat center center;
   background-size: contain;
   cursor: pointer;
-  height: 70px;
-  width: 70px;
+  height: 40px;
+  width: 40px;
 `;
 
 export const HiddenFileInput = styled.input`
@@ -112,12 +114,12 @@ export const Timer = styled.div`
 
 export const WaveformContainer = styled.canvas`
   width: 100%;
-  height: 70px;
+  height: 40px;
   background: #f1f1f1;
 `;
 
 export const RecordContainer = styled.div`
-  height: 70px;
+  height: 40px;
   display: flex;
   flex-direction: row;
   gap: 8px;

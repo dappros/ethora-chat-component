@@ -12,12 +12,7 @@ import { IRoom } from "../types/types";
 // types: standard, coin transfer, is composing, attachment (media), token (nft) or smart contract
 // types can be added into our chat protocol (XMPP stanza add field type="") to make it easier to parse here
 
-export const createMessage = async (
-  data: any,
-  body: any,
-  id: string,
-  from: string
-) => {
+export const createMessage = async (data, body, id, from) => {
   if (!body || typeof body.getText !== "function") {
     throw new Error("Invalid body: 'getText' method is missing.");
   }
@@ -25,8 +20,6 @@ export const createMessage = async (
   if (!data || !id || !from) {
     console.log("Invalid arguments: data, id, and from are required.");
   }
-
-  //here add props changer, cause we get other stanza props
 
   const message = {
     id: id,
@@ -213,6 +206,86 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
     });
   }
 };
+
+function decomposeXMPPMessage(stanza) {
+  // Check if it is a message stanza
+  if (!stanza.is("message")) return;
+
+  // Group Chat Message with Archived tag
+  if (stanza.attrs["type"] === "groupchat" && stanza.getChild("archived")) {
+    console.log("HERE ", stanza.toString());
+    const dataTag = stanza.getChild("data");
+    if (dataTag && dataTag.attrs["senderJID"]) {
+      let senderResource = dataTag.attrs["senderJID"].split("/")[1];
+
+      // Do not process messages from the same resource
+      if (senderResource === this.client.jid.getResource()) {
+        return;
+      }
+    }
+
+    const parsed = this.realtimeMessageParser(stanza);
+    if (parsed) {
+      const data = {
+        operation: "chat_new_message",
+        message: parsed,
+      };
+      this.onmessage(data);
+    }
+  }
+
+  // Non-groupchat message - check for invite
+  if (stanza.attrs["type"] !== "groupchat") {
+    const from = stanza.attrs.from;
+    const xEls = stanza.getChildren("x");
+    for (const el of xEls) {
+      const child = el.getChild("invite");
+      // if (child) {
+      //     actionJoinChatByInvite(from);
+      // }
+    }
+  }
+
+  // Message deletion
+  if (stanza.getChild("delete")) {
+    const del = stanza.getChild("delete");
+    const id = del.attrs.id;
+    const chatId = stanza.attrs.from.split("/")[0];
+    // actionLocalHistoryDeleteMessage(chatId, id);
+  }
+
+  // Message replacement
+  if (stanza.getChild("replace")) {
+    let replace = stanza.getChild("replace");
+    let messageId = replace.attrs["id"];
+    let newMessage = replace.attrs["text"];
+    let chatId = stanza.attrs.from.split("/")[0];
+    // actionLocalHistoryEditMessage(chatId, messageId, newMessage, Date.now());
+  }
+
+  // Typing status
+  if (stanza.getChild("composing")) {
+    const from = stanza.attrs.from;
+    const data = stanza.getChild("data");
+    if (data) {
+      let fullname = data.attrs.fullName;
+      if (fullname) {
+        const [chatId, nickname] = from.split("/");
+        // actionProcessTyping(chatId, nickname, fullname);
+      }
+    }
+  }
+
+  // Paused typing
+  if (stanza.getChild("paused")) {
+    const from = stanza.attrs.from;
+    const data = stanza.getChild("data");
+    if (data) {
+      const [chatId, nickname] = from.split("/");
+      // actionProcessStopTyping(chatId, nickname);
+    }
+  }
+}
 
 export {
   getListOfRooms,

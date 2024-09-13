@@ -14,13 +14,19 @@ import {
   MessageInput,
 } from "./StyledInputComponents/StyledInputComponents";
 import AudioRecorder from "../InputComponents/AudioRecorder";
+import { IConfig } from "../../types/types";
 
 interface SendInputProps {
   sendMessage: (message: string) => void;
   sendMedia: (data: any) => void;
+  config: IConfig;
 }
 
-const SendInput: React.FC<SendInputProps> = ({ sendMessage, sendMedia }) => {
+const SendInput: React.FC<SendInputProps> = ({
+  sendMessage,
+  sendMedia,
+  config,
+}) => {
   const [message, setMessage] = useState("");
   const [isRecording, setIsRecording] = useState(false);
 
@@ -133,16 +139,18 @@ const SendInput: React.FC<SendInputProps> = ({ sendMessage, sendMedia }) => {
       <MessageInputContainer>
         {!isRecording && (
           <>
-            <AttachButton onClick={handleAttachClick} />
+            {!config.disableMedia && (
+              <AttachButton onClick={handleAttachClick} disabled={true} />
+            )}
             <MessageInput
-              placeholder="Message..."
+              placeholder="Type message"
               value={message}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
             />
           </>
         )}
-        {message || filePreviews.length > 0 ? (
+        {message || filePreviews.length > 0 || config.disableMedia ? (
           <SendButton onClick={() => handleSendClick()} />
         ) : (
           <AudioRecorder

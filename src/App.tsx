@@ -5,7 +5,7 @@ import { ReduxWrapper } from "./components/MainComponents/ReduxWrapper";
 function App() {
   return (
     <div className="App">
-      <ReduxWrapper />
+      <ReduxWrapper config={{ disableHeader: true, disableMedia: true }} />
     </div>
   );
 }

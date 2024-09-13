@@ -63,3 +63,8 @@ export interface XmppState {
   client: any;
   loading: boolean;
 }
+
+export interface IConfig {
+  disableHeader: boolean;
+  disableMedia: boolean;
+}

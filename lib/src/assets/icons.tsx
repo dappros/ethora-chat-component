@@ -2,13 +2,13 @@ import React from "react";
 
 export const AttachIcon = (props: any) => (
   <svg
-    width="70"
-    height="70"
-    viewBox="0 0 70 70"
+    width="40"
+    height="40"
+    viewBox="0 0 40 40"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
   >
-    <rect width="70" height="70" rx="15" fill="white" />
+    <rect width="40" height="40" rx="15" fill="white" />
     <path
       fill-rule="evenodd"
       clip-rule="evenodd"
