@@ -4,6 +4,7 @@ import { Line } from "./StyledComponents";
 
 interface DateLabelProps {
   date: Date;
+  colors?: { primary?: string; secondary?: string };
 }
 
 const Container = styled.div`
@@ -15,9 +16,12 @@ const Container = styled.div`
   gap: 16px;
 `;
 
-export const StyledDateLabel = styled.div`
+export const StyledDateLabel = styled.div<{
+  primary?: string;
+  secondary?: string;
+}>`
   margin: 0;
-  color: #0052cd;
+  color: ${(props) => props.primary || "#0052cd"};
   border-radius: 118px;
   padding: 5px 8px;
   display: flex;
@@ -26,12 +30,12 @@ export const StyledDateLabel = styled.div`
   font-size: 12px;
   line-height: 14px;
   font-weight: 600;
-  background-color: #e7edf9;
+  background-color: ${(props) => props.secondary || "#e7edf9"};
   height: 24px;
   white-space: nowrap;
 `;
 
-const DateLabel: React.FC<DateLabelProps> = ({ date }) => {
+const DateLabel: React.FC<DateLabelProps> = ({ date, colors }) => {
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
@@ -59,7 +63,7 @@ const DateLabel: React.FC<DateLabelProps> = ({ date }) => {
   return (
     <Container>
       <Line />
-      <StyledDateLabel>{label}</StyledDateLabel>
+      <StyledDateLabel {...colors}>{label}</StyledDateLabel>
       <Line />
     </Container>
   );
