@@ -31,7 +31,7 @@ export const CustomUserName = styled.span<{ isUser: boolean; color?: string }>`
   font-weight: 600;
   font-size: 18px;
   color: ${(props) =>
-    props.isUser ? (props?.color ? props?.color : "#12B829") : "#0052cd"};
+    props.isUser ? (props?.color ? props?.color : "#0052CD") : "#0052cd"};
   margin-bottom: 8px;
 `;
 

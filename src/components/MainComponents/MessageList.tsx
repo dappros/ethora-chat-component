@@ -177,7 +177,11 @@ const MessageList = <TMessage extends IMessage>({
 
   return (
     <MessagesList ref={outerRef}>
-      <MessagesScroll ref={containerRef} onScroll={onScroll}>
+      <MessagesScroll
+        ref={containerRef}
+        onScroll={onScroll}
+        color={config?.colors?.primary}
+      >
         {loading && <Loader />}
         {messages.map((message) => {
           const isUser = message.user.id === user.walletAddress;

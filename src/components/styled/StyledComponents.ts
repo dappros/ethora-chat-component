@@ -26,7 +26,7 @@ export const ChatContainerHeaderLabel = styled.div`
   font-size: 18px;
 `;
 
-export const MessagesScroll = styled.div`
+export const MessagesScroll = styled.div<{ isUser: boolean; color?: string }>`
   position: relative;
   height: calc(100%);
 
@@ -38,6 +38,25 @@ export const MessagesScroll = styled.div`
   padding: 16px;
   background-color: #f3f6fc;
   padding-bottom: 0px;
+
+  /* WebKit-based browsers (Chrome, Safari) */
+  ::-webkit-scrollbar {
+    width: 4px; /* Width of the scrollbar */
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: ${(props) => (props?.color ? props?.color : "#0052CD")};
+    border-radius: 6px; /* Rounded corners for the thumb */
+  }
+
+  ::-webkit-scrollbar-track {
+    background-color: #f0f0f0; /* Background color of the track */
+  }
+
+  /* Firefox */
+  scrollbar-width: thin; /* Make the scrollbar thinner */
+  scrollbar-color: ${(props) => (props?.color ? props?.color : "#0052CD")}
+    #f0f0f0; /* Color of the thumb and track */
 `;
 
 export const MessagesList = styled.div`
@@ -137,7 +156,7 @@ export const CustomUserName = styled.span<{ isUser: boolean; color?: string }>`
   font-weight: 600;
   font-size: 18px;
   color: ${(props) =>
-    props.isUser ? (props?.color ? props?.color : "#12B829") : "#0052cd"};
+    props.isUser ? (props?.color ? props?.color : "#0052CD") : "#0052cd"};
   margin-bottom: 8px;
 `;
 
