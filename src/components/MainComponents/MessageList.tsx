@@ -204,11 +204,7 @@ const MessageList = <TMessage extends IMessage>({
           return (
             <React.Fragment key={message.id}>
               {showDateLabel && <DateLabel date={messageDate} />}
-              <MessageComponent
-                message={message}
-                isUser={isUser}
-                config={config}
-              >
+              <MessageComponent message={message} isUser={isUser}>
                 {!CustomMessage && (
                   <>
                     <MessageTimestamp>

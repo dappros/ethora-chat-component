@@ -7,7 +7,6 @@ import {
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../../roomStore";
 import MessageList from "./MessageList";
-import xmppClient from "../../networking/xmppClient";
 import { IConfig, IRoom, User } from "../../types/types";
 import SendInput from "../styled/SendInput";
 import {
@@ -20,7 +19,7 @@ import { uploadFile } from "../../networking/apiClient";
 import RoomList from "./RoomList";
 import { getHighResolutionTimestamp } from "../../helpers/dateComparison";
 import { useXmppClient } from "../../context/xmppProvider.tsx";
-import { mockMessages } from "../../helpers/mockData.ts";
+import { setIsLoading } from "../../roomStore/chatSlice.ts";
 
 interface ChatRoomProps {
   roomJID?: string;
@@ -63,23 +62,23 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     }, [dispatch, rooms, defaultRoom, roomJID]);
 
     const sendMessage = useCallback((message: string) => {
-      dispatch(
-        addRoomMessage({
-          roomJID: currentRoom.jid,
-          message: {
-            id: getHighResolutionTimestamp(),
-            user: {
-              ...user,
-              id: user.walletAddress,
-              name: user.firstName + " " + user.lastName,
-            },
-            date: new Date().toISOString(),
-            body: message,
-            roomJID: currentRoom.jid,
-            pending: true,
-          },
-        })
-      );
+      // dispatch(
+      //   addRoomMessage({
+      //     roomJID: currentRoom.jid,
+      //     message: {
+      //       id: getHighResolutionTimestamp(),
+      //       user: {
+      //         ...user,
+      //         id: user.walletAddress,
+      //         name: user.firstName + " " + user.lastName,
+      //       },
+      //       date: new Date().toISOString(),
+      //       body: message,
+      //       roomJID: currentRoom.jid,
+      //       // pending: true,
+      //     },
+      //   })
+      // );
       client?.sendMessage(
         currentRoom.jid,
         user.firstName,
@@ -93,6 +92,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     const loadMoreMessages = useCallback(
       async (chatJID: string, max: number, idOfMessageBefore?: number) => {
         client?.getHistory(chatJID, max, idOfMessageBefore).then((resp) => {
+          dispatch(setIsLoading(true));
           console.log("getting history by scroll");
           // console.log(resp);
         });
@@ -177,15 +177,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         {isLoading ||
         !rooms[activeRoom.jid].messages ||
         rooms[activeRoom.jid].messages.length < 1 ? (
-          // <Loader />
-          <MessageList
-            loadMoreMessages={loadMoreMessages}
-            messages={mockMessages}
-            CustomMessage={CustomMessageComponent}
-            user={mainUser}
-            room={currentRoom}
-            config={config}
-          />
+          <Loader />
         ) : (
           <MessageList
             loadMoreMessages={loadMoreMessages}

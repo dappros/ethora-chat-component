@@ -27,7 +27,7 @@ export const StyledLabel = styled.div`
   white-space: nowrap;
 `;
 
-const DateLabel = () => {
+const NewMessageLabel = () => {
   return (
     <Container>
       <Line />
@@ -37,4 +37,4 @@ const DateLabel = () => {
   );
 };
 
-export default DateLabel;
+export default NewMessageLabel;

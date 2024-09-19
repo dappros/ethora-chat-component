@@ -89,7 +89,7 @@ const SendInput: React.FC<SendInputProps> = ({
         console.log("Audio sent:", audioUrl);
         setIsRecording(false);
       } else {
-        console.log("sending default");
+        console.log("sending default", message);
         sendMessage(message);
       }
       setMessage("");
