@@ -1,13 +1,17 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 
 import {
-  CancelButton,
-  PauseButton,
   RecordContainer,
   Timer,
-  SendButton,
-  RecordButton,
 } from "../styled/StyledInputComponents/StyledInputComponents";
+import Buttom from "../styled/Button";
+import {
+  PauseIcon,
+  RecordIcon,
+  RemoveIcon,
+  SendIcon,
+} from "../../assets/icons";
+import Button from "../styled/Button";
 
 interface AudioRecorderProps {
   setIsRecording: (state: boolean) => void;
@@ -184,15 +188,27 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
 
   return isRecording ? (
     <RecordContainer>
-      <CancelButton onClick={stopRecording} disabled={!isRecording} />
+      <Buttom
+        onClick={stopRecording}
+        disabled={!isRecording}
+        EndIcon={<RemoveIcon />}
+      />
       <canvas ref={canvasRef} width="600" height="70" />
       <Timer>{formatTime(timer)}</Timer>
       {/* <RecordButton onClick={startRecording} disabled={isRecording} /> */}
-      <PauseButton onClick={pauseRecording} disabled={!isRecording} />
-      <SendButton onClick={sendAudio} disabled={!!audioURL} />
+      <Buttom
+        onClick={pauseRecording}
+        disabled={!isRecording}
+        EndIcon={<PauseIcon />}
+      />
+      <Buttom
+        onClick={sendAudio}
+        disabled={!!audioURL}
+        EndIcon={<SendIcon />}
+      />
     </RecordContainer>
   ) : (
-    <RecordButton onClick={startRecording} />
+    <Button onClick={startRecording} EndIcon={<RecordIcon />} />
   );
 };
 

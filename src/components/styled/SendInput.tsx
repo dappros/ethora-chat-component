@@ -1,7 +1,6 @@
 import React, { useState, useRef, useCallback, useMemo } from "react";
 import attachIcon from "../../assets/attachIcon.svg";
 import {
-  AttachButton,
   FileIcon,
   FilePreview,
   FilePreviewContainer,
@@ -9,12 +8,13 @@ import {
   MessageInputContainer,
   RemoveButton,
   VideoPreview,
-  SendButton,
   InputContainer,
   MessageInput,
 } from "./StyledInputComponents/StyledInputComponents";
 import AudioRecorder from "../InputComponents/AudioRecorder";
 import { IConfig } from "../../types/types";
+import Button from "./Button";
+import { AttachIcon, RemoveIcon, SendIcon } from "../../assets/icons";
 
 interface SendInputProps {
   sendMessage: (message: string) => void;
@@ -128,7 +128,10 @@ const SendInput: React.FC<SendInputProps> = ({
         idx < 6 && (
           <FilePreview key={file.name}>
             {renderFilePreview(file)}
-            <RemoveButton onClick={() => handleRemoveFile(file)} />
+            <Button
+              onClick={() => handleRemoveFile(file)}
+              EndIcon={<RemoveIcon />}
+            />
           </FilePreview>
         )
     );
@@ -140,7 +143,11 @@ const SendInput: React.FC<SendInputProps> = ({
         {!isRecording && (
           <>
             {!config.disableMedia && (
-              <AttachButton onClick={handleAttachClick} disabled={true} />
+              <Button
+                onClick={handleAttachClick}
+                disabled={true}
+                EndIcon={<AttachIcon />}
+              />
             )}
             <MessageInput
               placeholder="Type message"
@@ -151,9 +158,10 @@ const SendInput: React.FC<SendInputProps> = ({
           </>
         )}
         {message || filePreviews.length > 0 || config.disableMedia ? (
-          <SendButton
+          <Button
             onClick={() => handleSendClick()}
             disabled={!message || message === ""}
+            EndIcon={<SendIcon />}
           />
         ) : (
           <AudioRecorder

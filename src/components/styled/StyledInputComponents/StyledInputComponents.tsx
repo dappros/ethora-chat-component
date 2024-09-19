@@ -1,9 +1,4 @@
 import styled from "styled-components";
-import sendIcon from "../../../assets/sendIcon.svg";
-import attachIcon from "../../../assets/attachIcon.svg";
-import recordIcon from "../../../assets/recordIcon.svg";
-import removeIcon from "../../../assets/removeIcon.svg";
-import pauseIcon from "../../../assets/pauseIcon.svg";
 
 export const InputContainer = styled.div`
   display: flex;
@@ -21,8 +16,7 @@ export const MessageInputContainer = styled.div`
   align-items: center;
   width: 100%;
   max-height: 72px;
-  display: "flex";
-  gap: "16px";
+  gap: 16px;
 `;
 
 export const MessageInput = styled.input`
@@ -36,68 +30,6 @@ export const MessageInput = styled.input`
     color: red;
   }
   max-height: 40px;
-`;
-
-export const SendButton = styled.button<{ disabled: boolean }>`
-  border: none;
-  border-radius: 8px;
-  background: url(${sendIcon}) no-repeat center center !important;
-  background-size: contain;
-  color: white;
-  cursor: pointer;
-  height: 50px;
-  width: 50px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-`;
-
-export const RecordButton = styled.button`
-  border: none;
-  border-radius: 8px;
-  background: url(${recordIcon}) no-repeat center center !important;
-  background-size: contain;
-  color: white;
-  cursor: pointer;
-  height: 40px;
-  width: 40px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-`;
-
-export const AttachButton = styled.button<{ disabled: boolean }>`
-  padding: 10px;
-  border: none;
-  border-radius: 8px;
-  background: url(${attachIcon}) no-repeat center center;
-  background-size: contain;
-  cursor: pointer;
-  height: 40px;
-  width: 40px;
-  color: ${(props) => (props.disabled ? "#E7EDF9" : "#FFFFFF")};
-`;
-
-export const CancelButton = styled.button`
-  padding: 10px;
-  border: none;
-  border-radius: 8px;
-  background: url(${removeIcon}) no-repeat center center;
-  background-size: contain;
-  cursor: pointer;
-  height: 30px;
-  width: 30px;
-`;
-
-export const PauseButton = styled.button`
-  padding: 10px;
-  border: none;
-  border-radius: 8px;
-  background: url(${pauseIcon}) no-repeat center center;
-  background-size: contain;
-  cursor: pointer;
-  height: 40px;
-  width: 40px;
 `;
 
 export const HiddenFileInput = styled.input`
@@ -150,19 +82,6 @@ export const FilePreview = styled.div`
   border-radius: 8px;
   overflow: hidden;
   background-color: #f9f9f9;
-`;
-
-export const RemoveButton = styled.button`
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  padding: 5px;
-  border: none;
-  background: url(${removeIcon}) no-repeat center center;
-  background-size: contain;
-  cursor: pointer;
-  width: 24px;
-  height: 24px;
 `;
 
 export const FileIcon = styled.img`
