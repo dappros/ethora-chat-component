@@ -106,7 +106,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
         </Overlay>
       )}
       {isLoading ? (
-        <Loader />
+        <></>
       ) : (
         <ChatRoom
           defaultUser={user || defaultUser}

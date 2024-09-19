@@ -159,7 +159,11 @@ const SendInput: React.FC<SendInputProps> = ({
           <Button
             onClick={() => handleSendClick()}
             disabled={!message || message === ""}
-            EndIcon={<SendIcon />}
+            EndIcon={
+              <SendIcon
+                color={!message || message === "" ? "#D4D4D8" : "#5E3FDE"}
+              />
+            }
           />
         ) : (
           <AudioRecorder

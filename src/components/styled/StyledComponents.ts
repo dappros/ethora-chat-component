@@ -28,7 +28,7 @@ export const ChatContainerHeaderLabel = styled.div`
 
 export const MessagesScroll = styled.div`
   position: relative;
-  height: calc(100% - 16px);
+  height: calc(100%);
 
   overflow-y: scroll;
   top: 0;
