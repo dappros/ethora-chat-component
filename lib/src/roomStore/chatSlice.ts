@@ -3,10 +3,12 @@ import { IMessage } from "../types/types";
 
 interface ChatState {
   messages: IMessage[];
+  isLoading: boolean;
 }
 
 const initialState: ChatState = {
   messages: [],
+  isLoading: false,
 };
 
 // Utility function to add unique messages
@@ -37,10 +39,18 @@ export const chatSlice = createSlice({
     resetMessages: (state) => {
       state.messages = [];
     },
+    setIsLoading: (state, action: PayloadAction<boolean>) => {
+      state.isLoading = action.payload;
+    },
   },
 });
 
-export const { addMessage, setMessages, addMessages, resetMessages } =
-  chatSlice.actions;
+export const {
+  addMessage,
+  setMessages,
+  addMessages,
+  resetMessages,
+  setIsLoading,
+} = chatSlice.actions;
 
 export default chatSlice.reducer;

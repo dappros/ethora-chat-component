@@ -151,7 +151,10 @@ const SendInput: React.FC<SendInputProps> = ({
           </>
         )}
         {message || filePreviews.length > 0 || config.disableMedia ? (
-          <SendButton onClick={() => handleSendClick()} />
+          <SendButton
+            onClick={() => handleSendClick()}
+            disabled={!message || message === ""}
+          />
         ) : (
           <AudioRecorder
             setIsRecording={setIsRecording}

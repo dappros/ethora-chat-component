@@ -21,6 +21,8 @@ export const MessageInputContainer = styled.div`
   align-items: center;
   width: 100%;
   max-height: 72px;
+  display: "flex";
+  gap: "16px";
 `;
 
 export const MessageInput = styled.input`

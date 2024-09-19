@@ -23,3 +23,25 @@ svg {
   height: 50px;
   width: 50px;
 }
+
+/* Target the scrollbar */
+::-webkit-scrollbar {
+  width: 4px; /* Width of the scrollbar */
+}
+
+/* Style the scrollbar thumb */
+::-webkit-scrollbar-thumb {
+  background-color: #5e3fde; /* Color of the thumb */
+  border-radius: 6px; /* Rounded corners for the thumb */
+}
+
+/* Optional: Style the scrollbar track */
+::-webkit-scrollbar-track {
+  background-color: #f0f0f0; /* Background color of the track */
+}
+
+/* Target the scrollbar thumb */
+* {
+  scrollbar-width: thin; /* Make the scrollbar thinner */
+  scrollbar-color: #5e3fde #f0f0f0; /* Color of the thumb and track */
+}

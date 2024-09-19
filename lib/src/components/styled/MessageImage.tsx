@@ -51,16 +51,25 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
   return (
     <Container>
       <img
-        src={imageUrl}
+        src={
+          // imageUrl ||
+          "https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg"
+        }
         alt={imageAlt}
         onClick={handleOpen}
-        style={{ cursor: "pointer" }}
+        style={{ cursor: "pointer", maxWidth: "100%" }}
       />
       {open && (
         <Overlay>
           <StyledModal>
             <ModalContent>
-              <FullScreenImage src={imageUrl} alt={imageAlt} />
+              <FullScreenImage
+                src={
+                  // imageUrl ||
+                  "https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg"
+                }
+                alt={imageAlt}
+              />
               <ButtonContainer>
                 {imageUrl && (
                   <IconButton onClick={downloadImage} aria-label="Download">

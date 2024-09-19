@@ -47,7 +47,6 @@ export const MessagesList = styled.div`
   min-height: 1.25em;
   position: relative;
   color: #000000de;
-  background-color: #fff;
 `;
 
 export const MessageTimestamp = styled.div`

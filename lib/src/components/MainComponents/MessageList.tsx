@@ -7,7 +7,7 @@ import {
   MessagesScroll,
   MessagesList,
 } from "../styled/StyledComponents";
-import { IMessage, IRoom, User } from "../../types/types";
+import { IConfig, IMessage, IRoom, User } from "../../types/types";
 import SystemMessage from "./SystemMessage";
 import DateLabel from "../styled/DateLabel";
 import Loader from "../styled/Loader";
@@ -24,6 +24,7 @@ interface MessageListProps<TMessage extends IMessage> {
     max: number,
     amount?: number
   ) => Promise<void>;
+  config: IConfig;
 }
 
 const MessageList = <TMessage extends IMessage>({
@@ -32,6 +33,7 @@ const MessageList = <TMessage extends IMessage>({
   user,
   loadMoreMessages,
   room,
+  config,
 }: MessageListProps<TMessage>) => {
   const validateMessages = (messages: TMessage[]): boolean => {
     const requiredAttributes: (keyof IMessage)[] = [

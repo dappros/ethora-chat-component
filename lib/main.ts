@@ -1,3 +1,3 @@
-import { ReduxWrapper } from "./src/main";
+import { Chat } from "./src/main";
 
-export { ReduxWrapper as ChatComponent };
+export { Chat as ChatComponent };

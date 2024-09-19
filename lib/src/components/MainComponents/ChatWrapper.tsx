@@ -12,7 +12,10 @@ import xmppClient from "../../networking/xmppClient";
 
 import CustomMessage from "../Message";
 import Loader from "../styled/Loader";
-import { IRoom, User } from "../../types/types";
+import { IConfig, IRoom, User } from "../../types/types";
+import XmppClient from "../../networking/xmppClient";
+import { useXmppClient } from "../../context/xmppProvider";
+
 interface ChatWrapperProps {
   token?: string;
   room?: IRoom;
@@ -20,6 +23,7 @@ interface ChatWrapperProps {
   loginData?: { email: string; password: string };
   MainComponentStyles?: any; //change to particular types
   CustomMessageComponent?: any;
+  config: IConfig;
 }
 
 const ChatWrapper: FC<ChatWrapperProps> = ({
@@ -29,11 +33,13 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   room,
   user,
   loginData,
+  config,
 }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const client = xmppClient;
+
   const dispatch = useDispatch();
+  const { client, initializeClient } = useXmppClient();
 
   const loginUserFunction = useCallback(async () => {
     try {
@@ -62,11 +68,22 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             loginData.user?.defaultWallet?.walletAddress &&
             loginData.user.xmppPassword
           ) {
-            client.init(
-              loginData.user.defaultWallet.walletAddress,
-              loginData.user.xmppPassword
-            );
-            console.log("Client successfully initialized", client);
+            if (!client) {
+              initializeClient(
+                loginData.user?.defaultWallet?.walletAddress,
+                loginData.user.xmppPassword
+              );
+            } else {
+              client
+                .initPresence()
+                .then(() => {
+                  console.log("XMPP client initialized successfully");
+                })
+                .catch((error) => {
+                  console.error("Failed to initialize XMPP client:", error);
+                  setIsLoading(false);
+                });
+            }
           }
         } catch (error) {
           console.log(error, "Unsuccessful init");
@@ -96,6 +113,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           defaultRoom={room || defRoom}
           CustomMessageComponent={CustomMessageComponent || CustomMessage}
           MainComponentStyles={MainComponentStyles}
+          config={config}
         />
       )}
     </ChatWrapperBox>

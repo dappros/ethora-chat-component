@@ -1,1 +1,1 @@
-export { ReduxWrapper } from "./components/MainComponents/ReduxWrapper";
+export { ReduxWrapper as Chat } from "./components/MainComponents/ReduxWrapper";
