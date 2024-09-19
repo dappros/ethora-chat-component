@@ -15,7 +15,7 @@ interface ChatWrapperProps {
   loginData?: { email: string; password: string };
   MainComponentStyles?: any;
   CustomMessageComponent?: any;
-  config: IConfig;
+  config?: IConfig;
 }
 
 export const ReduxWrapper: React.FC<ChatWrapperProps> = ({ ...props }) => {

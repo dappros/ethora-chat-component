@@ -209,7 +209,7 @@ export const RemoveIcon = (props: any) => (
   </svg>
 );
 
-export const SendIcon = ({ color = "#D4D4D8", ...props }) => (
+export const SendIcon = ({ color = "#0052CD", ...props }) => (
   <svg
     width="40"
     height="40"

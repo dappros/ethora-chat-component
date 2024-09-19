@@ -28,7 +28,7 @@ interface ChatRoomProps {
   defaultRoom: IRoom;
   CustomMessageComponent?: any;
   MainComponentStyles?: any;
-  config: IConfig;
+  config?: IConfig;
 }
 
 const ChatRoom: React.FC<ChatRoomProps> = React.memo(
@@ -163,7 +163,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       <ChatContainer
         style={{ maxHeight: "100vh", overflow: "auto", ...MainComponentStyles }}
       >
-        {!config.disableHeader && (
+        {!config?.disableHeader && (
           <ChatContainerHeader>
             <RoomList chats={[]} />
             <ChatContainerHeaderLabel>
@@ -189,15 +189,6 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             config={config}
           />
         )}
-        {/* //   <MessageList
-      //   loadMoreMessages={loadMoreMessages}
-      //   messages={rooms[activeRoom.jid].messages}
-      //   // messages={mockMessages}
-      //   CustomMessage={CustomMessageComponent}
-      //   user={mainUser}
-      //   room={currentRoom}
-      //   config={config}
-      // /> */}
         <SendInput
           sendMessage={sendMessage}
           sendMedia={sendMedia}

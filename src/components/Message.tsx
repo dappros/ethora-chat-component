@@ -20,7 +20,7 @@ interface CustomMessageProps {
 const CustomMessage: React.FC<CustomMessageProps> = forwardRef<
   HTMLDivElement,
   CustomMessageProps
->(({ message, isUser }, ref) => {
+>(({ message, isUser, config }, ref) => {
   return (
     <CustomMessageContainer key={message.id} isUser={isUser} ref={ref}>
       <CustomMessagePhotoContainer>
@@ -34,7 +34,9 @@ const CustomMessage: React.FC<CustomMessageProps> = forwardRef<
       </CustomMessagePhotoContainer>
       <CustomMessageBubble isUser={isUser}>
         {isUser && (
-          <CustomUserName isUser={isUser}>{message.user.name}</CustomUserName>
+          <CustomUserName isUser={isUser} color={config?.colors?.primary}>
+            {message.user.name}
+          </CustomUserName>
         )}
         {message?.isMediafile === "true" ? (
           <MediaMessage

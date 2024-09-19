@@ -37,6 +37,7 @@ export const MessagesScroll = styled.div`
   bottom: 0;
   padding: 16px;
   background-color: #f3f6fc;
+  padding-bottom: 0px;
 `;
 
 export const MessagesList = styled.div`
@@ -47,6 +48,7 @@ export const MessagesList = styled.div`
   min-height: 1.25em;
   position: relative;
   color: #000000de;
+  padding-bottom: 16px;
 `;
 
 export const MessageTimestamp = styled.div`
@@ -130,11 +132,12 @@ export const CustomMessageText = styled.p`
   word-wrap: break-word;
 `;
 
-export const CustomUserName = styled.span<{ isUser: boolean }>`
+export const CustomUserName = styled.span<{ isUser: boolean; color?: string }>`
   font-family: "Open Sans", sans-serif;
   font-weight: 600;
   font-size: 18px;
-  color: ${(props) => (props.isUser ? "#12B829" : "#0052cd")};
+  color: ${(props) =>
+    props.isUser ? (props?.color ? props?.color : "#12B829") : "#0052cd"};
   margin-bottom: 8px;
 `;
 

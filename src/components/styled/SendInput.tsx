@@ -17,7 +17,7 @@ import { AttachIcon, RemoveIcon, SendIcon } from "../../assets/icons";
 interface SendInputProps {
   sendMessage: (message: string) => void;
   sendMedia: (data: any) => void;
-  config: IConfig;
+  config?: IConfig;
 }
 
 const SendInput: React.FC<SendInputProps> = ({
@@ -116,7 +116,8 @@ const SendInput: React.FC<SendInputProps> = ({
     } else if (fileType === "video") {
       return <VideoPreview src={fileUrl} controls />;
     } else {
-      return <FileIcon src={attachIcon} alt={file.name} />;
+      // return <FileIcon src={attachIcon} alt={file.name} />;
+      return <></>;
     }
   }, []);
 
@@ -140,7 +141,7 @@ const SendInput: React.FC<SendInputProps> = ({
       <MessageInputContainer>
         {!isRecording && (
           <>
-            {!config.disableMedia && (
+            {!config?.disableMedia && (
               <Button
                 onClick={handleAttachClick}
                 disabled={true}
@@ -155,13 +156,17 @@ const SendInput: React.FC<SendInputProps> = ({
             />
           </>
         )}
-        {message || filePreviews.length > 0 || config.disableMedia ? (
+        {message || filePreviews.length > 0 || config?.disableMedia ? (
           <Button
             onClick={() => handleSendClick()}
             disabled={!message || message === ""}
             EndIcon={
               <SendIcon
-                color={!message || message === "" ? "#D4D4D8" : "#5E3FDE"}
+                color={
+                  !message || message === ""
+                    ? "#D4D4D8"
+                    : config?.colors?.primary
+                }
               />
             }
           />

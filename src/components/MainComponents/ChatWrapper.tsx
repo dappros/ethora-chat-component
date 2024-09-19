@@ -23,7 +23,7 @@ interface ChatWrapperProps {
   loginData?: { email: string; password: string };
   MainComponentStyles?: any; //change to particular types
   CustomMessageComponent?: any;
-  config: IConfig;
+  config?: IConfig;
 }
 
 const ChatWrapper: FC<ChatWrapperProps> = ({
