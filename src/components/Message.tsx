@@ -10,17 +10,22 @@ import {
   CustomMessagePhotoContainer,
 } from "./styled/StyledComponents";
 import MediaMessage from "./MainComponents/MediaMessage";
+import { useSelector } from "react-redux";
+import { RootState } from "../roomStore";
 
 interface CustomMessageProps {
   message: IMessage;
   isUser: boolean;
-  config: IConfig;
 }
 
 const CustomMessage: React.FC<CustomMessageProps> = forwardRef<
   HTMLDivElement,
   CustomMessageProps
->(({ message, isUser, config }, ref) => {
+>(({ message, isUser }, ref) => {
+  const config = useSelector(
+    (state: RootState) => state.chatSettingStore.config
+  );
+
   return (
     <CustomMessageContainer key={message.id} isUser={isUser} ref={ref}>
       <CustomMessagePhotoContainer>

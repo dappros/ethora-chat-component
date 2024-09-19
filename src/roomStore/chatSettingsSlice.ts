@@ -1,9 +1,10 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { User } from "../types/types";
+import { IConfig, User } from "../types/types";
 
 interface ChatState {
   user: User;
   defaultChatRooms: any[];
+  config?: IConfig;
 }
 
 const unpackAndTransform = (input: any): User => {
@@ -33,6 +34,7 @@ const initialState: ChatState = {
     lastName: "",
   },
   defaultChatRooms: [],
+  config: undefined,
 };
 
 export const chatSlice = createSlice({
@@ -46,9 +48,12 @@ export const chatSlice = createSlice({
     setDefaultChatRooms: (state, action: PayloadAction<any[]>) => {
       state.defaultChatRooms = action.payload;
     },
+    setConfig: (state, action: PayloadAction<IConfig | undefined>) => {
+      state.config = action.payload;
+    },
   },
 });
 
-export const { setUser, setDefaultChatRooms } = chatSlice.actions;
+export const { setUser, setDefaultChatRooms, setConfig } = chatSlice.actions;
 
 export default chatSlice.reducer;

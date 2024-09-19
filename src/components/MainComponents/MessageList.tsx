@@ -192,7 +192,9 @@ const MessageList = <TMessage extends IMessage>({
           if (message.isSystemMessage === "true") {
             return (
               <React.Fragment key={message.id}>
-                {showDateLabel && <DateLabel date={messageDate} />}
+                {showDateLabel && (
+                  <DateLabel date={messageDate} colors={config?.colors} />
+                )}
                 <SystemMessage messageText={message.body} />
               </React.Fragment>
             );
@@ -202,7 +204,9 @@ const MessageList = <TMessage extends IMessage>({
 
           return (
             <React.Fragment key={message.id}>
-              {showDateLabel && <DateLabel date={messageDate} />}
+              {showDateLabel && (
+                <DateLabel date={messageDate} colors={config?.colors} />
+              )}
               <MessageComponent message={message} isUser={isUser}>
                 {!CustomMessage && (
                   <>

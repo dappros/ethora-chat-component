@@ -1,7 +1,7 @@
 import React, { FC, useEffect, useCallback, useState } from "react";
 import { useDispatch } from "react-redux";
 import ChatRoom from "./ChatRoom";
-import { setUser } from "../../roomStore/chatSettingsSlice";
+import { setConfig, setUser } from "../../roomStore/chatSettingsSlice";
 import { ChatWrapperBox } from "../styled/ChatWrapperBox";
 
 import { loginEmail } from "../../networking/apiClient";
@@ -56,6 +56,8 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   }, []);
 
   useEffect(() => {
+    dispatch(setConfig(config));
+
     const initUserAndClient = async () => {
       setIsLoading(true);
       const loginData = await loginUserFunction();
