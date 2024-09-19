@@ -1,4 +1,4 @@
-import React, { ReactNode, createContext, useContext, useState } from "react";
+import React from "react";
 import { Provider } from "react-redux";
 import { store } from "../../roomStore";
 import { ChatWrapper } from "./ChatWrapper";
@@ -6,6 +6,7 @@ import { IConfig, IRoom, User } from "../../types/types";
 // import LoginForm from "../AuthForms/Login";
 // import RegisterForm from "../AuthForms/Register";
 import { XmppProvider } from "../../context/xmppProvider.tsx";
+import "../../index.css";
 
 interface ChatWrapperProps {
   token?: string;

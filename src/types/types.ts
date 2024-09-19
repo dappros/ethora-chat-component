@@ -65,6 +65,7 @@ export interface XmppState {
 }
 
 export interface IConfig {
-  disableHeader: boolean;
-  disableMedia: boolean;
+  disableHeader?: boolean;
+  disableMedia?: boolean;
+  colors?: { primary: string; secondary: string };
 }

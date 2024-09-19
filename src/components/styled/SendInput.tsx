@@ -1,12 +1,10 @@
 import React, { useState, useRef, useCallback, useMemo } from "react";
-import attachIcon from "../../assets/attachIcon.svg";
 import {
   FileIcon,
   FilePreview,
   FilePreviewContainer,
   HiddenFileInput,
   MessageInputContainer,
-  RemoveButton,
   VideoPreview,
   InputContainer,
   MessageInput,
