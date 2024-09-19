@@ -7,6 +7,7 @@ import { IConfig, IRoom, User } from "../../types/types";
 // import RegisterForm from "../AuthForms/Register";
 import { XmppProvider } from "../../context/xmppProvider.tsx";
 import "../../index.css";
+import "../../helpers/storeConsole";
 
 interface ChatWrapperProps {
   token?: string;
