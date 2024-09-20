@@ -8,13 +8,16 @@ import {
   CustomUserName,
   CustomMessagePhoto,
   CustomMessagePhotoContainer,
-  ContextMenu,
-  MenuItem,
-  Overlay,
 } from "./styled/StyledComponents";
 import MediaMessage from "./MainComponents/MediaMessage";
 import { useSelector } from "react-redux";
 import { RootState } from "../roomStore";
+import {
+  ContextMenu,
+  Delimeter,
+  MenuItem,
+  Overlay,
+} from "./ContextMenu/ContextMenuComponents";
 
 interface CustomMessageProps {
   message: IMessage;
@@ -39,8 +42,8 @@ const CustomMessage: React.FC<CustomMessageProps> = forwardRef<
   const handleContextMenu = (event: React.MouseEvent) => {
     event.preventDefault();
 
-    const menuWidth = 160; // Width of the context menu
-    const menuHeight = 120; // Approximate height based on items
+    const menuWidth = 240; // Width of the context menu
+    const menuHeight = 310; // Approximate height based on items
 
     // Get the cursor position and window dimensions
     const x = event.clientX;
@@ -110,15 +113,20 @@ const CustomMessage: React.FC<CustomMessageProps> = forwardRef<
               style={{ top: contextMenu.y, left: contextMenu.x }}
               onClick={closeContextMenu}
             >
-              <MenuItem onClick={() => console.log("Reply to message")}>
+              <MenuItem onClick={() => console.log("Send coins")}>
                 Send coins
               </MenuItem>
+              <Delimeter />
               <MenuItem onClick={() => console.log("Send item")}>
                 Send item
               </MenuItem>
+              <Delimeter />
               <MenuItem onClick={() => console.log("Reply")}>Reply</MenuItem>
+              <Delimeter />
               <MenuItem onClick={() => console.log("Copy")}>Copy</MenuItem>
+              <Delimeter />
               <MenuItem onClick={() => console.log("Delete")}>Delete</MenuItem>
+              <Delimeter />
               <MenuItem onClick={() => console.log("Report")}>Report</MenuItem>
             </ContextMenu>
           </Overlay>
