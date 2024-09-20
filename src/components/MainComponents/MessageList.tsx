@@ -12,7 +12,8 @@ import SystemMessage from "./SystemMessage";
 import DateLabel from "../styled/DateLabel";
 import Loader from "../styled/Loader";
 import { blockScrollEvent } from "../../helpers/block_scroll";
-import { isDateBefore } from "../../helpers/dateComparison";
+import { useSelector } from "react-redux";
+import { RootState } from "../../roomStore";
 
 interface MessageListProps<TMessage extends IMessage> {
   messages: TMessage[];
@@ -65,9 +66,7 @@ const MessageList = <TMessage extends IMessage>({
 
   const timeoutRef = useRef<number>(0);
   const scrollParams = useRef<{ top: number; height: number } | null>(null);
-  const isLoadingMore = useRef<boolean>(false);
-
-  const [loading, setLoading] = useState(false);
+  const loading = useSelector((state: RootState) => state.chat.isLoading);
 
   const scrollToBottom = (): void => {
     const content = containerRef.current;
@@ -103,18 +102,15 @@ const MessageList = <TMessage extends IMessage>({
     const params = getScrollParams();
     if (!params) return;
 
-    if (params.top < 150 && !isLoadingMore.current) {
+    if (params.top < 150 && !loading) {
       scrollParams.current = getScrollParams();
       const firstMessage = messages[0];
       if (firstMessage?.user?.id) {
-        isLoadingMore.current = true;
-
         loadMoreMessages(
           messages[0].roomJID,
           30,
           Number(messages[0].id)
         ).finally(() => {
-          isLoadingMore.current = false;
           lastMessageRef.current = messages[messages.length - 1];
         });
       }

@@ -91,10 +91,11 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
 
     const loadMoreMessages = useCallback(
       async (chatJID: string, max: number, idOfMessageBefore?: number) => {
+        dispatch(setIsLoading(true));
         client?.getHistory(chatJID, max, idOfMessageBefore).then((resp) => {
-          dispatch(setIsLoading(true));
           console.log("getting history by scroll");
-          // console.log(resp);
+          console.log(resp);
+          dispatch(setIsLoading(false));
         });
       },
       [client]
