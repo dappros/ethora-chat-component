@@ -6,7 +6,6 @@ import React, {
   useState,
 } from "react";
 import XmppClient from "../networking/xmppClient";
-import Loader from "../components/styled/Loader";
 
 // Declare XmppContext with both client and initializeClient, ensuring client is not null
 interface XmppContextType {

@@ -182,7 +182,7 @@ const MessageList = <TMessage extends IMessage>({
         onScroll={onScroll}
         color={config?.colors?.primary}
       >
-        {loading && <Loader />}
+        {loading && <Loader color={config?.colors?.primary} />}
         {messages.map((message) => {
           const isUser = message.user.id === user.walletAddress;
           const messageDate = new Date(message.date);

@@ -130,6 +130,7 @@ export const CustomMessageContainer = styled.div<{ isUser: boolean }>`
   align-items: end;
   margin: 10px 0;
   gap: 5px;
+  position: "relative";
 `;
 
 export const CustomMessageBubble = styled.div<{ isUser: boolean }>`
@@ -143,6 +144,7 @@ export const CustomMessageBubble = styled.div<{ isUser: boolean }>`
   display: flex;
   flex-direction: column;
   background-color: ${(props) => (props.isUser ? "#E7EDF9" : "#FFFFFF")};
+  position: "relative";
 `;
 
 export const CustomMessageText = styled.p`
@@ -214,4 +216,33 @@ export const Line = styled.div`
   width: 100%;
   background-color: transparent;
   border: 1px solid var(--colors-background-bg-prymary-5, #0052cd0d);
+`;
+
+export const ContextMenu = styled.div`
+  position: absolute;
+  z-index: 1000;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  padding: 8px 0;
+  width: 160px;
+`;
+
+export const MenuItem = styled.div`
+  padding: 8px 16px;
+  cursor: pointer;
+  &:hover {
+    background-color: #f0f0f0;
+  }
+`;
+
+export const Overlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+  background: transparent;
 `;

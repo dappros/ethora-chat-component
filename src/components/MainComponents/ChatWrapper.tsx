@@ -8,12 +8,8 @@ import { loginEmail } from "../../networking/apiClient";
 import { defRoom, defaultUser, appToken } from "../../api.config";
 import { Overlay, StyledModal } from "../styled/Modal";
 
-import xmppClient from "../../networking/xmppClient";
-
 import CustomMessage from "../Message";
-import Loader from "../styled/Loader";
 import { IConfig, IRoom, User } from "../../types/types";
-import XmppClient from "../../networking/xmppClient";
 import { useXmppClient } from "../../context/xmppProvider";
 
 interface ChatWrapperProps {
