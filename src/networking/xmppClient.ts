@@ -81,7 +81,8 @@ export class XmppClient {
             onPresenceInRoom(stanza);
             break;
           case "iq":
-            // console.log(stanza);
+            console.log(stanza);
+            onRealtimeMessage(stanza);
             break;
           default:
             console.log("Unhandled stanza type:", stanza.name);
@@ -277,6 +278,7 @@ export class XmppClient {
           result
         ) {
           const messageEl = result.getChild("forwarded")?.getChild("message");
+
           messages.push(messageEl);
         }
 
@@ -289,6 +291,7 @@ export class XmppClient {
 
           for (const msg of messages) {
             const text = msg.getChild("body")?.getText();
+
             if (text) {
               let parsedEl: Record<string, string> = {};
 
@@ -310,6 +313,9 @@ export class XmppClient {
               if (parsedEl.isReply === "true" && !parsedEl.mainMessage) {
                 continue;
               }
+
+              // fucntionality to not to add deleted messages into array
+              // if (msg.getChild("deleted")?.attrs["timestamp"]) continue;
 
               if (parsedEl.mainMessage) {
                 try {
@@ -449,6 +455,24 @@ export class XmppClient {
       console.error("An error occurred while sending message:", error);
     }
   };
+
+  deleteMessage(room: string, msgId: string) {
+    const stanza = xml(
+      "message",
+      {
+        from: this.client.jid?.toString(),
+        to: room,
+        id: "deleteMessageStanza",
+        type: "groupchat",
+      },
+      xml("body", "wow"),
+      xml("delete", {
+        id: msgId,
+      })
+    );
+
+    this.client.send(stanza);
+  }
 
   sendMediaMessageStanza(roomJID: string, data: any) {
     const dataToSend = {

@@ -63,6 +63,7 @@ const MessageList = <TMessage extends IMessage>({
   const containerRef = useRef<HTMLDivElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);
   const lastMessageRef = useRef<IMessage>(messages[messages.length - 1]);
+  const isLoadingMore = useRef<boolean>(false);
 
   const timeoutRef = useRef<number>(0);
   const scrollParams = useRef<{ top: number; height: number } | null>(null);
@@ -102,15 +103,18 @@ const MessageList = <TMessage extends IMessage>({
     const params = getScrollParams();
     if (!params) return;
 
-    if (params.top < 150 && !loading) {
+    if (params.top < 150 && !isLoadingMore.current) {
       scrollParams.current = getScrollParams();
       const firstMessage = messages[0];
       if (firstMessage?.user?.id) {
+        isLoadingMore.current = true;
+
         loadMoreMessages(
           messages[0].roomJID,
           30,
           Number(messages[0].id)
         ).finally(() => {
+          isLoadingMore.current = false;
           lastMessageRef.current = messages[messages.length - 1];
         });
       }

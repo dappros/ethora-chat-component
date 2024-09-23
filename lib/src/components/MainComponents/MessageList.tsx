@@ -12,7 +12,8 @@ import SystemMessage from "./SystemMessage";
 import DateLabel from "../styled/DateLabel";
 import Loader from "../styled/Loader";
 import { blockScrollEvent } from "../../helpers/block_scroll";
-import { isDateBefore } from "../../helpers/dateComparison";
+import { useSelector } from "react-redux";
+import { RootState } from "../../roomStore";
 
 interface MessageListProps<TMessage extends IMessage> {
   messages: TMessage[];
@@ -24,7 +25,7 @@ interface MessageListProps<TMessage extends IMessage> {
     max: number,
     amount?: number
   ) => Promise<void>;
-  config: IConfig;
+  config?: IConfig;
 }
 
 const MessageList = <TMessage extends IMessage>({
@@ -62,12 +63,11 @@ const MessageList = <TMessage extends IMessage>({
   const containerRef = useRef<HTMLDivElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);
   const lastMessageRef = useRef<IMessage>(messages[messages.length - 1]);
+  const isLoadingMore = useRef<boolean>(false);
 
   const timeoutRef = useRef<number>(0);
   const scrollParams = useRef<{ top: number; height: number } | null>(null);
-  const isLoadingMore = useRef<boolean>(false);
-
-  const [loading, setLoading] = useState(false);
+  const loading = useSelector((state: RootState) => state.chat.isLoading);
 
   const scrollToBottom = (): void => {
     const content = containerRef.current;
@@ -146,7 +146,6 @@ const MessageList = <TMessage extends IMessage>({
     if (messages.length < 30) {
       scrollToBottom();
     } else {
-      console.log(messages);
       lastMessageRef.current.id !== messages[messages.length - 1].id &&
         scrollToBottom();
     }
@@ -178,8 +177,12 @@ const MessageList = <TMessage extends IMessage>({
 
   return (
     <MessagesList ref={outerRef}>
-      <MessagesScroll ref={containerRef} onScroll={onScroll}>
-        {loading && <Loader />}
+      <MessagesScroll
+        ref={containerRef}
+        onScroll={onScroll}
+        color={config?.colors?.primary}
+      >
+        {loading && <Loader color={config?.colors?.primary} />}
         {messages.map((message) => {
           const isUser = message.user.id === user.walletAddress;
           const messageDate = new Date(message.date);
@@ -193,7 +196,9 @@ const MessageList = <TMessage extends IMessage>({
           if (message.isSystemMessage === "true") {
             return (
               <React.Fragment key={message.id}>
-                {showDateLabel && <DateLabel date={messageDate} />}
+                {showDateLabel && (
+                  <DateLabel date={messageDate} colors={config?.colors} />
+                )}
                 <SystemMessage messageText={message.body} />
               </React.Fragment>
             );
@@ -203,7 +208,9 @@ const MessageList = <TMessage extends IMessage>({
 
           return (
             <React.Fragment key={message.id}>
-              {showDateLabel && <DateLabel date={messageDate} />}
+              {showDateLabel && (
+                <DateLabel date={messageDate} colors={config?.colors} />
+              )}
               <MessageComponent message={message} isUser={isUser}>
                 {!CustomMessage && (
                   <>

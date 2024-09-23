@@ -17,7 +17,6 @@ const Container = styled.div<{ burgerMenu?: boolean; open?: boolean }>`
           top: 0;
           width: 300px;
           height: 100%;
-          background-color: #fff;
           transform: ${open ? "translateX(0)" : "translateX(-100%)"};
           transition: transform 0.3s ease-in-out;
           box-shadow: 2px 0 5px rgba(0, 0, 0, 0.3);

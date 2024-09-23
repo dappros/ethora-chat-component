@@ -1,19 +1,15 @@
 import React, { FC, useEffect, useCallback, useState } from "react";
 import { useDispatch } from "react-redux";
 import ChatRoom from "./ChatRoom";
-import { setUser } from "../../roomStore/chatSettingsSlice";
+import { setConfig, setUser } from "../../roomStore/chatSettingsSlice";
 import { ChatWrapperBox } from "../styled/ChatWrapperBox";
 
 import { loginEmail } from "../../networking/apiClient";
 import { defRoom, defaultUser, appToken } from "../../api.config";
 import { Overlay, StyledModal } from "../styled/Modal";
 
-import xmppClient from "../../networking/xmppClient";
-
 import CustomMessage from "../Message";
-import Loader from "../styled/Loader";
 import { IConfig, IRoom, User } from "../../types/types";
-import XmppClient from "../../networking/xmppClient";
 import { useXmppClient } from "../../context/xmppProvider";
 
 interface ChatWrapperProps {
@@ -23,7 +19,7 @@ interface ChatWrapperProps {
   loginData?: { email: string; password: string };
   MainComponentStyles?: any; //change to particular types
   CustomMessageComponent?: any;
-  config: IConfig;
+  config?: IConfig;
 }
 
 const ChatWrapper: FC<ChatWrapperProps> = ({
@@ -56,6 +52,8 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   }, []);
 
   useEffect(() => {
+    dispatch(setConfig(config));
+
     const initUserAndClient = async () => {
       setIsLoading(true);
       const loginData = await loginUserFunction();
@@ -106,7 +104,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
         </Overlay>
       )}
       {isLoading ? (
-        <Loader />
+        <></>
       ) : (
         <ChatRoom
           defaultUser={user || defaultUser}

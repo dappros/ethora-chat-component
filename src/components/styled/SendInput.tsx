@@ -149,6 +149,7 @@ const SendInput: React.FC<SendInputProps> = ({
               />
             )}
             <MessageInput
+              color={config?.colors?.primary}
               placeholder="Type message"
               value={message}
               onChange={handleInputChange}

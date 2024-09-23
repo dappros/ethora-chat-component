@@ -1,25 +1,23 @@
 import React, { useState, useRef, useCallback, useMemo } from "react";
-import attachIcon from "../../assets/attachIcon.svg";
 import {
-  AttachButton,
   FileIcon,
   FilePreview,
   FilePreviewContainer,
   HiddenFileInput,
   MessageInputContainer,
-  RemoveButton,
   VideoPreview,
-  SendButton,
   InputContainer,
   MessageInput,
 } from "./StyledInputComponents/StyledInputComponents";
 import AudioRecorder from "../InputComponents/AudioRecorder";
 import { IConfig } from "../../types/types";
+import Button from "./Button";
+import { AttachIcon, RemoveIcon, SendIcon } from "../../assets/icons";
 
 interface SendInputProps {
   sendMessage: (message: string) => void;
   sendMedia: (data: any) => void;
-  config: IConfig;
+  config?: IConfig;
 }
 
 const SendInput: React.FC<SendInputProps> = ({
@@ -118,7 +116,8 @@ const SendInput: React.FC<SendInputProps> = ({
     } else if (fileType === "video") {
       return <VideoPreview src={fileUrl} controls />;
     } else {
-      return <FileIcon src={attachIcon} alt={file.name} />;
+      // return <FileIcon src={attachIcon} alt={file.name} />;
+      return <></>;
     }
   }, []);
 
@@ -128,7 +127,10 @@ const SendInput: React.FC<SendInputProps> = ({
         idx < 6 && (
           <FilePreview key={file.name}>
             {renderFilePreview(file)}
-            <RemoveButton onClick={() => handleRemoveFile(file)} />
+            <Button
+              onClick={() => handleRemoveFile(file)}
+              EndIcon={<RemoveIcon />}
+            />
           </FilePreview>
         )
     );
@@ -139,10 +141,15 @@ const SendInput: React.FC<SendInputProps> = ({
       <MessageInputContainer>
         {!isRecording && (
           <>
-            {!config.disableMedia && (
-              <AttachButton onClick={handleAttachClick} disabled={true} />
+            {!config?.disableMedia && (
+              <Button
+                onClick={handleAttachClick}
+                disabled={true}
+                EndIcon={<AttachIcon />}
+              />
             )}
             <MessageInput
+              color={config?.colors?.primary}
               placeholder="Type message"
               value={message}
               onChange={handleInputChange}
@@ -150,10 +157,19 @@ const SendInput: React.FC<SendInputProps> = ({
             />
           </>
         )}
-        {message || filePreviews.length > 0 || config.disableMedia ? (
-          <SendButton
+        {message || filePreviews.length > 0 || config?.disableMedia ? (
+          <Button
             onClick={() => handleSendClick()}
             disabled={!message || message === ""}
+            EndIcon={
+              <SendIcon
+                color={
+                  !message || message === ""
+                    ? "#D4D4D8"
+                    : config?.colors?.primary
+                }
+              />
+            }
           />
         ) : (
           <AudioRecorder

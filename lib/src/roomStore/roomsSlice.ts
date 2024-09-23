@@ -29,7 +29,21 @@ export const roomsStore = createSlice({
         state.rooms[roomJID].messages = messages;
       }
     },
-
+    deleteRoomMessage(
+      state,
+      action: PayloadAction<{ roomJID: string; messageId: string }>
+    ) {
+      const { roomJID, messageId } = action.payload;
+      if (state.rooms[roomJID]) {
+        const roomMessages = state.rooms[roomJID].messages;
+        const messageIndex = roomMessages.findIndex(
+          (msg) => msg.id === messageId
+        );
+        if (messageIndex !== -1) {
+          roomMessages.splice(messageIndex, 1);
+        }
+      }
+    },
     addRoomMessage(
       state,
       action: PayloadAction<{
@@ -110,6 +124,7 @@ export const {
   deleteAllRooms,
   setRoomMessages,
   addRoomMessage,
+  deleteRoomMessage,
   setActiveRoom,
 } = roomsStore.actions;
 

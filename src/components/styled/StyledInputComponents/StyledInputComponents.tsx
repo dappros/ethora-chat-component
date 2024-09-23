@@ -19,17 +19,18 @@ export const MessageInputContainer = styled.div`
   gap: 16px;
 `;
 
-export const MessageInput = styled.input`
+export const MessageInput = styled.input<{ color?: string }>`
   flex-grow: 1;
   padding: 10px;
   border-radius: 12px;
   border: none;
-  color: #8c8c8c;
+  color: #141414;
   background-color: #f5f7f9;
-  ::placeholder {
-    color: red;
-  }
   max-height: 40px;
+  &:focus {
+    border: 1px solid ${(props) => (props.color ? props.color : "#0052CD")};
+    outline: none;
+  }
 `;
 
 export const HiddenFileInput = styled.input`

@@ -10,7 +10,7 @@ import {
   CustomMessagePhotoContainer,
 } from "./styled/StyledComponents";
 import MediaMessage from "./MainComponents/MediaMessage";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../roomStore";
 import {
   ContextMenu,
@@ -18,6 +18,8 @@ import {
   MenuItem,
   Overlay,
 } from "./ContextMenu/ContextMenuComponents";
+import { useXmppClient } from "../context/xmppProvider";
+import { deleteRoomMessage } from "../roomStore/roomsSlice";
 
 interface CustomMessageProps {
   message: IMessage;
@@ -28,6 +30,9 @@ const CustomMessage: React.FC<CustomMessageProps> = forwardRef<
   HTMLDivElement,
   CustomMessageProps
 >(({ message, isUser }, ref) => {
+  const { client } = useXmppClient();
+  const dispatch = useDispatch();
+
   const config = useSelector(
     (state: RootState) => state.chatSettingStore.config
   );
@@ -68,6 +73,15 @@ const CustomMessage: React.FC<CustomMessageProps> = forwardRef<
   // Close the context menu
   const closeContextMenu = () => {
     setContextMenu({ visible: false, x: 0, y: 0 });
+  };
+
+  // const handleDeleteMessage = (room: string, msgId: string) => {
+  //   dispatch(deleteRoomMessage({ roomJID: room, messageId: msgId }));
+  //   client.deleteMessage(room, msgId);
+  // };
+
+  const handleCopyMessage = (text: string) => {
+    navigator.clipboard.writeText(text);
   };
 
   return (
@@ -123,9 +137,23 @@ const CustomMessage: React.FC<CustomMessageProps> = forwardRef<
               <Delimeter />
               <MenuItem onClick={() => console.log("Reply")}>Reply</MenuItem>
               <Delimeter />
-              <MenuItem onClick={() => console.log("Copy")}>Copy</MenuItem>
+              <MenuItem
+                onClick={() => {
+                  console.log("Copy");
+                  handleCopyMessage(message.body);
+                }}
+              >
+                Copy
+              </MenuItem>
               <Delimeter />
-              <MenuItem onClick={() => console.log("Delete")}>Delete</MenuItem>
+              <MenuItem
+                onClick={() => {
+                  console.log("Delete");
+                  // handleDeleteMessage(message.roomJID, message.id);
+                }}
+              >
+                Delete
+              </MenuItem>
               <Delimeter />
               <MenuItem onClick={() => console.log("Report")}>Report</MenuItem>
             </ContextMenu>

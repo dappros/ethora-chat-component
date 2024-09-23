@@ -1,12 +1,5 @@
-import React, {
-  ReactNode,
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-} from "react";
+import React, { ReactNode, createContext, useContext, useState } from "react";
 import XmppClient from "../networking/xmppClient";
-import Loader from "../components/styled/Loader";
 
 // Declare XmppContext with both client and initializeClient, ensuring client is not null
 interface XmppContextType {

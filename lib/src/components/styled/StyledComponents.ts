@@ -26,17 +26,38 @@ export const ChatContainerHeaderLabel = styled.div`
   font-size: 18px;
 `;
 
-export const MessagesScroll = styled.div`
+export const MessagesScroll = styled.div<{ color?: string }>`
   position: relative;
-  height: calc(100% - 16px);
+  height: calc(100%);
 
   overflow-y: scroll;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 16px;
   background-color: #f3f6fc;
+  padding-bottom: 0px;
+
+  padding: 0px 16px;
+
+  /* WebKit-based browsers (Chrome, Safari) */
+  ::-webkit-scrollbar {
+    width: 4px; /* Width of the scrollbar */
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: ${(props) => (props?.color ? props?.color : "#0052CD")};
+    border-radius: 6px; /* Rounded corners for the thumb */
+  }
+
+  ::-webkit-scrollbar-track {
+    background-color: #f0f0f0; /* Background color of the track */
+  }
+
+  /* Firefox */
+  scrollbar-width: thin; /* Make the scrollbar thinner */
+  scrollbar-color: ${(props) => (props?.color ? props?.color : "#0052CD")}
+    #f0f0f0; /* Color of the thumb and track */
 `;
 
 export const MessagesList = styled.div`
@@ -47,7 +68,6 @@ export const MessagesList = styled.div`
   min-height: 1.25em;
   position: relative;
   color: #000000de;
-  background-color: #fff;
 `;
 
 export const MessageTimestamp = styled.div`
@@ -111,6 +131,7 @@ export const CustomMessageContainer = styled.div<{ isUser: boolean }>`
   align-items: end;
   margin: 10px 0;
   gap: 5px;
+  position: "relative";
 `;
 
 export const CustomMessageBubble = styled.div<{ isUser: boolean }>`
@@ -124,6 +145,7 @@ export const CustomMessageBubble = styled.div<{ isUser: boolean }>`
   display: flex;
   flex-direction: column;
   background-color: ${(props) => (props.isUser ? "#E7EDF9" : "#FFFFFF")};
+  position: "relative";
 `;
 
 export const CustomMessageText = styled.p`
@@ -131,11 +153,12 @@ export const CustomMessageText = styled.p`
   word-wrap: break-word;
 `;
 
-export const CustomUserName = styled.span<{ isUser: boolean }>`
+export const CustomUserName = styled.span<{ isUser: boolean; color?: string }>`
   font-family: "Open Sans", sans-serif;
   font-weight: 600;
   font-size: 18px;
-  color: ${(props) => (props.isUser ? "#12B829" : "#0052cd")};
+  color: ${(props) =>
+    props.isUser ? (props?.color ? props?.color : "#0052CD") : "#0052cd"};
   margin-bottom: 8px;
 `;
 

@@ -26,7 +26,7 @@ export const ChatContainerHeaderLabel = styled.div`
   font-size: 18px;
 `;
 
-export const MessagesScroll = styled.div<{ isUser: boolean; color?: string }>`
+export const MessagesScroll = styled.div<{ color?: string }>`
   position: relative;
   height: calc(100%);
 
@@ -35,9 +35,10 @@ export const MessagesScroll = styled.div<{ isUser: boolean; color?: string }>`
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 16px;
   background-color: #f3f6fc;
   padding-bottom: 0px;
+
+  padding: 0px 16px;
 
   /* WebKit-based browsers (Chrome, Safari) */
   ::-webkit-scrollbar {

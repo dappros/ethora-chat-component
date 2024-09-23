@@ -12,7 +12,28 @@ import { IRoom } from "../types/types";
 // types: standard, coin transfer, is composing, attachment (media), token (nft) or smart contract
 // types can be added into our chat protocol (XMPP stanza add field type="") to make it easier to parse here
 
-export const createMessage = async (data, body, id, from) => {
+export const createMessage = async (
+  data: {
+    [x: string]: any;
+    coinsInMessage?: any;
+    numberOfReplies?: any;
+    isSystemMessage?: any;
+    isMediafile?: any;
+    locationPreview?: any;
+    mimetype?: any;
+    location?: any;
+    senderWalletAddress?: any;
+    senderFirstName?: any;
+    senderLastName?: any;
+    photoURL?: any;
+    senderJID?: any;
+    token?: any;
+    refreshToken?: any;
+  },
+  body: Element | undefined,
+  id: string,
+  from: any
+) => {
   if (!body || typeof body.getText !== "function") {
     throw new Error("Invalid body: 'getText' method is missing.");
   }
@@ -51,6 +72,7 @@ export const createMessage = async (data, body, id, from) => {
 const onRealtimeMessage = async (stanza: Element) => {
   if (stanza.attrs.id === "sendMessage") {
     const body = stanza?.getChild("body");
+
     const data = stanza?.getChild("data");
     const replace = stanza?.getChild("replaced");
     const archived = stanza?.getChild("archived");

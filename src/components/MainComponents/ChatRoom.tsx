@@ -42,6 +42,8 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
   }) => {
     const [currentRoom, setCurrentRoom] = useState(defaultRoom);
     const rooms = useSelector((state: RootState) => state.rooms.rooms);
+    const loading = useSelector((state: RootState) => state.chat.isLoading);
+
     const { client } = useXmppClient();
 
     const activeRoom = useSelector(
@@ -91,12 +93,14 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
 
     const loadMoreMessages = useCallback(
       async (chatJID: string, max: number, idOfMessageBefore?: number) => {
-        dispatch(setIsLoading(true));
-        client?.getHistory(chatJID, max, idOfMessageBefore).then((resp) => {
-          console.log("getting history by scroll");
-          console.log(resp);
-          dispatch(setIsLoading(false));
-        });
+        if (!loading) {
+          dispatch(setIsLoading(true));
+          client?.getHistory(chatJID, max, idOfMessageBefore).then((resp) => {
+            console.log("getting history by scroll");
+            console.log(resp);
+            dispatch(setIsLoading(false));
+          });
+        }
       },
       [client]
     );
@@ -178,12 +182,11 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         {isLoading ||
         !rooms[activeRoom.jid].messages ||
         rooms[activeRoom.jid].messages.length < 1 ? (
-          <Loader />
+          <Loader color={config?.colors?.primary} />
         ) : (
           <MessageList
             loadMoreMessages={loadMoreMessages}
             messages={rooms[activeRoom.jid].messages}
-            // messages={mockMessages}
             CustomMessage={CustomMessageComponent}
             user={mainUser}
             room={currentRoom}
