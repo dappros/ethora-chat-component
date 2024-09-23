@@ -8,20 +8,33 @@
 6. go to file src/App.tsx and replace it with this code
 
 ```
-import { ChatWrapper as Chat } from "projecet-2-ccomp";
-import { store } from "projecet-2-ccomp";
-import { Provider } from "react-redux";
+
+### Creating just chatroom screen
+import { Chat } from "projecet-2-ccomp";
 import "./App.css";
 
 function App() {
  return (
-  <Provider store={store}>
-   <Chat MainComponentStyles={{ width: "100%" }} />
-  </Provider>
+   <Chat />
  );
 }
 
 export default App;
+
+use to create custom styles
+<Chat
+    config={{
+      disableHeader: true,
+      disableMedia: true,
+      colors: { primary: "#4287f5", secondary: "#42f5e9" },
+    }}
+    MainComponentStyles={{
+      width: "100%",
+      height: "500px",
+      borderRadius: "16px",
+      border: "1px solid #42f5e9",
+    }}
+  />
 ```
 
 7. run like this
