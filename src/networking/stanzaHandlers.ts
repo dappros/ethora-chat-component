@@ -1,7 +1,7 @@
 import { xml } from "@xmpp/client";
 import { Element } from "ltx";
 import { store } from "../roomStore";
-import { addRoom, addRoomMessage } from "../roomStore/roomsSlice";
+import { addRoom, addRoomMessage, setComposing } from "../roomStore/roomsSlice";
 import { IRoom } from "../types/types";
 
 // TO DO: we are thinking to refactor this code in the following way:
@@ -29,11 +29,17 @@ export const createMessage = async (
     senderJID?: any;
     token?: any;
     refreshToken?: any;
+    roomJid?: any;
+    tokenAmount?: any;
+    quickReplie?: any;
+    notDisplayedValue?: any;
+    showInChannel?: any;
   },
   body: Element | undefined,
   id: string,
   from: any
-) => {
+): Promise<any> => {
+  // change to iMESSAGES
   if (!body || typeof body.getText !== "function") {
     throw new Error("Invalid body: 'getText' method is missing.");
   }
@@ -48,7 +54,6 @@ export const createMessage = async (
     roomJID: from,
     date: new Date(+id.slice(0, 13)).toISOString(),
     key: `${Date.now() + Number(id)}`,
-    coinsInMessage: data?.coinsInMessage,
     numberOfReplies: data?.numberOfReplies,
     isSystemMessage: data?.isSystemMessage,
     isMediafile: data?.isMediafile,
@@ -70,25 +75,27 @@ export const createMessage = async (
 
 //core default
 const onRealtimeMessage = async (stanza: Element) => {
-  if (stanza.attrs.id === "sendMessage") {
+  if (
+    !stanza?.getChild("result") &&
+    !stanza.getChild("composing") &&
+    !stanza.getChild("paused") &&
+    !stanza.is("iq")
+  ) {
     const body = stanza?.getChild("body");
-
-    const data = stanza?.getChild("data");
-    const replace = stanza?.getChild("replaced");
     const archived = stanza?.getChild("archived");
-    const id = stanza.getChild("archived")?.attrs.id;
+    const data = stanza?.getChild("data");
+    const id = archived?.attrs.id;
 
     if (!data) {
-      console.log("Missing required elements in real-time message.");
-      console.log({ data, replace, archived, body });
+      console.log(stanza.toString());
+      console.log("Missing data elements in real-time message.");
       return;
     }
 
-    if (
-      !data.attrs.senderFirstName ||
-      !data.attrs.senderLastName ||
-      !data.attrs.senderJID
-    ) {
+    if (!data.attrs.senderJID) {
+      console.log(stanza.toString());
+      console.log(data.attrs.senderJID);
+
       console.log("Missing sender information in real-time message.");
       return;
     }
@@ -100,7 +107,12 @@ const onRealtimeMessage = async (stanza: Element) => {
       stanza.attrs.from
     );
 
-    console.log("Processed real-time message:", message);
+    store.dispatch(
+      addRoomMessage({
+        roomJID: store.getState().rooms.activeRoom?.jid || "test",
+        message,
+      })
+    );
     return message;
   }
 };
@@ -120,18 +132,13 @@ const onMessageHistory = async (stanza: any) => {
       ?.getChild("forwarded")
       ?.getChild("message")
       ?.getChild("data");
-    const delay = stanza
-      .getChild("result")
-      ?.getChild("forwarded")
-      ?.getChild("delay");
-    const replace = stanza
-      .getChild("result")
-      ?.getChild("forwarded")
-      ?.getChild("message")
-      ?.getChild("replaced");
+    // const delay = stanza
+    //   .getChild('result')
+    //   ?.getChild('forwarded')
+    //   ?.getChild('delay');
 
     const id = stanza.getChild("result")?.attrs.id;
-    if (!data || !body || !delay || !id) {
+    if (!data || !body || !id) {
       console.log("Missing required elements in message history.");
       return;
     }
@@ -161,10 +168,31 @@ const onMessageHistory = async (stanza: any) => {
   }
 };
 
+const handleComposing = async (
+  stanza: Element,
+  currentUser: string,
+  chatJID: string
+) => {
+  if (
+    currentUser !== stanza.attrs?.from?.split("/")?.[1] &&
+    stanza.attrs?.type !== "error"
+  ) {
+    if (stanza.getChild("paused") || stanza.getChild("composing")) {
+      console.log("composing or paused");
+
+      store.dispatch(
+        setComposing({
+          chatJID: chatJID,
+          composing: !!stanza?.getChild("composing"),
+        })
+      );
+    }
+  }
+};
+
 const getListOfRooms = (xmpp: any) => {
   xmpp.client.send(xml("presence"));
-  // xmpp.getArchive(xmpp.client?.jid?.toString());
-  xmpp.getArchive("0x6C394B10F5Da4141b99DB2Ad424C5688c3f202B3");
+  xmpp.getArchive(xmpp.client?.jid?.toString());
   xmpp.getRooms();
 };
 
@@ -229,91 +257,12 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
   }
 };
 
-function decomposeXMPPMessage(stanza) {
-  // Check if it is a message stanza
-  if (!stanza.is("message")) return;
-
-  // Group Chat Message with Archived tag
-  if (stanza.attrs["type"] === "groupchat" && stanza.getChild("archived")) {
-    console.log("HERE ", stanza.toString());
-    const dataTag = stanza.getChild("data");
-    if (dataTag && dataTag.attrs["senderJID"]) {
-      let senderResource = dataTag.attrs["senderJID"].split("/")[1];
-
-      // Do not process messages from the same resource
-      if (senderResource === this.client.jid.getResource()) {
-        return;
-      }
-    }
-
-    const parsed = this.realtimeMessageParser(stanza);
-    if (parsed) {
-      const data = {
-        operation: "chat_new_message",
-        message: parsed,
-      };
-      this.onmessage(data);
-    }
-  }
-
-  // Non-groupchat message - check for invite
-  if (stanza.attrs["type"] !== "groupchat") {
-    const from = stanza.attrs.from;
-    const xEls = stanza.getChildren("x");
-    for (const el of xEls) {
-      const child = el.getChild("invite");
-      // if (child) {
-      //     actionJoinChatByInvite(from);
-      // }
-    }
-  }
-
-  // Message deletion
-  if (stanza.getChild("delete")) {
-    const del = stanza.getChild("delete");
-    const id = del.attrs.id;
-    const chatId = stanza.attrs.from.split("/")[0];
-    // actionLocalHistoryDeleteMessage(chatId, id);
-  }
-
-  // Message replacement
-  if (stanza.getChild("replace")) {
-    let replace = stanza.getChild("replace");
-    let messageId = replace.attrs["id"];
-    let newMessage = replace.attrs["text"];
-    let chatId = stanza.attrs.from.split("/")[0];
-    // actionLocalHistoryEditMessage(chatId, messageId, newMessage, Date.now());
-  }
-
-  // Typing status
-  if (stanza.getChild("composing")) {
-    const from = stanza.attrs.from;
-    const data = stanza.getChild("data");
-    if (data) {
-      let fullname = data.attrs.fullName;
-      if (fullname) {
-        const [chatId, nickname] = from.split("/");
-        // actionProcessTyping(chatId, nickname, fullname);
-      }
-    }
-  }
-
-  // Paused typing
-  if (stanza.getChild("paused")) {
-    const from = stanza.attrs.from;
-    const data = stanza.getChild("data");
-    if (data) {
-      const [chatId, nickname] = from.split("/");
-      // actionProcessStopTyping(chatId, nickname);
-    }
-  }
-}
-
 export {
   getListOfRooms,
   onRealtimeMessage,
   onMessageHistory,
   onPresenceInRoom,
   onGetLastMessageArchive,
+  handleComposing,
   onGetChatRooms,
 };

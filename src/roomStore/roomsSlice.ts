@@ -116,6 +116,9 @@ export const roomsStore = createSlice({
     setActiveRoom(state, action: PayloadAction<{ roomData: IRoom }>) {
       state.activeRoom = action.payload.roomData;
     },
+    setComposing(state, action: PayloadAction<{ chatJID:string, composing: boolean }>) {
+      state.rooms[action.payload.chatJID].composing = action.payload.composing;
+    },
   },
 });
 
@@ -126,6 +129,7 @@ export const {
   addRoomMessage,
   deleteRoomMessage,
   setActiveRoom,
+  setComposing,
 } = roomsStore.actions;
 
 export default roomsStore.reducer;

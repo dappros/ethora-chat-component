@@ -35,6 +35,7 @@ export interface IRoom {
   messages: IMessage[];
   lastMessage?: string;
   icon?: string;
+  composing?: boolean;
 }
 
 export interface UserType extends IMessage {

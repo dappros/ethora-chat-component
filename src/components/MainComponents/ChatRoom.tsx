@@ -97,7 +97,6 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
           dispatch(setIsLoading(true));
           client?.getHistory(chatJID, max, idOfMessageBefore).then((resp) => {
             console.log("getting history by scroll");
-            console.log(resp);
             dispatch(setIsLoading(false));
           });
         }
