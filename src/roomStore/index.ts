@@ -1,7 +1,5 @@
 import { configureStore, combineReducers } from "@reduxjs/toolkit";
 import createSagaMiddleware from "redux-saga";
-import chatReducer from "./chatSlice";
-import roomMessagesReducer from "./roomMessagesSlice";
 import loginReducer from "./loginSlice";
 import chatSettingsReducer from "./chatSettingsSlice";
 import roomsSlice from "./roomsSlice";
@@ -9,8 +7,6 @@ import roomsSlice from "./roomsSlice";
 const sagaMiddleware = createSagaMiddleware();
 
 const rootReducer = combineReducers({
-  chat: chatReducer,
-  roomMessages: roomMessagesReducer,
   loginStore: loginReducer,
   chatSettingStore: chatSettingsReducer,
   rooms: roomsSlice,

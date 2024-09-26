@@ -25,8 +25,8 @@ export const defaultUser = {
 };
 
 export const defRoom = {
-  jid: "8ef200ac9dffd7b7b6ba0ee5a9df4d8b33c38877eb771ca1f5a3e6966b9d39f0@conference.xmpp.ethoradev.com",
-  name: "tESTcHAT",
+  jid: "5f9a4603b2b5bbfa6b228b642127c56d03b778ad594c52b755e605c977303979@conference.xmpp.ethoradev.com",
+  name: "General",
   users_cnt: "1",
   unreadMessages: 0,
   composing: "",

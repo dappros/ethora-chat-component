@@ -52,7 +52,7 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
     <Container>
       <img
         src={
-          // imageUrl ||
+          imageUrl ||
           "https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg"
         }
         alt={imageAlt}
@@ -65,7 +65,7 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
             <ModalContent>
               <FullScreenImage
                 src={
-                  // imageUrl ||
+                  imageUrl ||
                   "https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg"
                 }
                 alt={imageAlt}

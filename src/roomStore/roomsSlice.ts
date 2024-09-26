@@ -63,6 +63,7 @@ export const roomsStore = createSlice({
           usersCnt: 1, // Default users count, replace as needed
           id: "",
           name: "test",
+          isLoading: false,
         };
       }
 
@@ -116,8 +117,19 @@ export const roomsStore = createSlice({
     setActiveRoom(state, action: PayloadAction<{ roomData: IRoom }>) {
       state.activeRoom = action.payload.roomData;
     },
-    setComposing(state, action: PayloadAction<{ chatJID:string, composing: boolean }>) {
-      state.rooms[action.payload.chatJID].composing = action.payload.composing;
+    setComposing(
+      state,
+      action: PayloadAction<{ chatJID: string; composing: boolean }>
+    ) {
+      const { chatJID, composing } = action.payload;
+      state.rooms[chatJID].composing = composing;
+    },
+    setIsLoading: (
+      state,
+      action: PayloadAction<{ chatJID: string; loading: boolean }>
+    ) => {
+      const { chatJID, loading } = action.payload;
+      state.rooms[chatJID].isLoading = loading;
     },
   },
 });
@@ -130,6 +142,7 @@ export const {
   deleteRoomMessage,
   setActiveRoom,
   setComposing,
+  setIsLoading,
 } = roomsStore.actions;
 
 export default roomsStore.reducer;

@@ -33,6 +33,7 @@ export interface IRoom {
   usersCnt: number;
   // users: IUser[];
   messages: IMessage[];
+  isLoading: boolean;
   lastMessage?: string;
   icon?: string;
   composing?: boolean;

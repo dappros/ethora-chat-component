@@ -132,15 +132,18 @@ const onMessageHistory = async (stanza: any) => {
       ?.getChild("forwarded")
       ?.getChild("message")
       ?.getChild("data");
-    // const delay = stanza
-    //   .getChild('result')
-    //   ?.getChild('forwarded')
-    //   ?.getChild('delay');
+    const delay = stanza
+      .getChild("result")
+      ?.getChild("forwarded")
+      ?.getChild("delay");
 
     const id = stanza.getChild("result")?.attrs.id;
-    if (!data || !body || !id) {
-      console.log("Missing required elements in message history.");
-      return;
+
+    if (!delay) {
+      if (!data || !body || !id) {
+        console.log("Missing required elements in message history.");
+        return;
+      }
     }
 
     if (
@@ -151,6 +154,8 @@ const onMessageHistory = async (stanza: any) => {
       console.log("Missing sender information in message history.");
       return;
     }
+
+    console.log(data.toString());
 
     const message = await createMessage(
       data.attrs,

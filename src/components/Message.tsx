@@ -90,14 +90,14 @@ const CustomMessage: React.FC<CustomMessageProps> = forwardRef<
         <CustomMessagePhotoContainer>
           <CustomMessagePhoto
             src={
-              // message.user.avatar ||
+              message.user.avatar ||
               "https://soccerpointeclaire.com/wp-content/uploads/2021/06/default-profile-pic-e1513291410505.jpg"
             }
             alt="userIcon"
           />
         </CustomMessagePhotoContainer>
         <CustomMessageBubble isUser={isUser} onContextMenu={handleContextMenu}>
-          {isUser && (
+          {!isUser && (
             <CustomUserName isUser={isUser} color={config?.colors?.primary}>
               {message.user.name}
             </CustomUserName>

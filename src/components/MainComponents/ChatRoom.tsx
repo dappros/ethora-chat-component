@@ -13,13 +13,13 @@ import {
   addRoom,
   setActiveRoom,
   addRoomMessage,
+  setIsLoading,
 } from "../../roomStore/roomsSlice";
 import Loader from "../styled/Loader";
 import { uploadFile } from "../../networking/apiClient";
 import RoomList from "./RoomList";
 import { getHighResolutionTimestamp } from "../../helpers/dateComparison";
 import { useXmppClient } from "../../context/xmppProvider.tsx";
-import { setIsLoading } from "../../roomStore/chatSlice.ts";
 
 interface ChatRoomProps {
   roomJID?: string;
@@ -42,7 +42,9 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
   }) => {
     const [currentRoom, setCurrentRoom] = useState(defaultRoom);
     const rooms = useSelector((state: RootState) => state.rooms.rooms);
-    const loading = useSelector((state: RootState) => state.chat.isLoading);
+    const loading = useSelector(
+      (state: RootState) => state.rooms.activeRoom?.isLoading
+    );
 
     const { client } = useXmppClient();
 
@@ -94,10 +96,10 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     const loadMoreMessages = useCallback(
       async (chatJID: string, max: number, idOfMessageBefore?: number) => {
         if (!loading) {
-          dispatch(setIsLoading(true));
+          dispatch(setIsLoading({ chatJID: chatJID, loading: true }));
           client?.getHistory(chatJID, max, idOfMessageBefore).then((resp) => {
             console.log("getting history by scroll");
-            dispatch(setIsLoading(false));
+            dispatch(setIsLoading({ chatJID: chatJID, loading: false }));
           });
         }
       },
@@ -169,6 +171,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       >
         {!config?.disableHeader && (
           <ChatContainerHeader>
+            {/* todo add here list of rooms */}
             <RoomList chats={[]} />
             <ChatContainerHeaderLabel>
               {currentRoom?.title}

@@ -67,7 +67,9 @@ const MessageList = <TMessage extends IMessage>({
 
   const timeoutRef = useRef<number>(0);
   const scrollParams = useRef<{ top: number; height: number } | null>(null);
-  const loading = useSelector((state: RootState) => state.chat.isLoading);
+  const loading = useSelector(
+    (state: RootState) => state.rooms.activeRoom?.isLoading
+  );
 
   const scrollToBottom = (): void => {
     const content = containerRef.current;
