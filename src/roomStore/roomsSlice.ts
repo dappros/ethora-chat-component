@@ -162,7 +162,6 @@ const countNewerMessages = (
   timestamp: number
 ): number => {
   return messages.filter((message) => {
-    console.log(Number(message.id), timestamp);
     return Number(message.id) < timestamp;
   }).length;
 };
