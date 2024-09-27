@@ -188,14 +188,18 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             .then(async () => {
               const res: any = await client.getChatsPrivateStoreRequest();
               console.log("res of priv store", res);
-              const [chatJID, timestamp] = Object.entries(JSON.parse(res))?.[0];
-              console.log(chatJID, timestamp);
-              dispatch(
-                setLastViewedTimestamp({
-                  timestamp: timestamp,
-                  chatJID: chatJID,
-                })
-              );
+
+              const entries = Object.entries(res);
+              if (entries.length > 0) {
+                const [chatJID, timestamp] = entries[0];
+                dispatch(
+                  setLastViewedTimestamp({
+                    // @ts-expect-error
+                    timestamp,
+                    chatJID,
+                  })
+                );
+              }
             });
         }, 1000);
       }

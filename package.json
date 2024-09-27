@@ -1,6 +1,6 @@
 {
   "name": "projecet-2-ccomp",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "type": "module",
   "main": "dist/main.js",
   "types": "dist/main.d.ts",

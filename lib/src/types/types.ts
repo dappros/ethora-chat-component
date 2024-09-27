@@ -23,6 +23,7 @@ export interface IMessage {
   mimetype?: string;
   location?: string;
   pending?: boolean;
+  timestamp?: number;
 }
 
 export interface IRoom {
@@ -33,8 +34,13 @@ export interface IRoom {
   usersCnt: number;
   // users: IUser[];
   messages: IMessage[];
+  isLoading: boolean;
   lastMessage?: string;
   icon?: string;
+  composing?: boolean;
+  composingList?: string[];
+  lastViewedTimestamp?: number;
+  unreadMessages?: number;
 }
 
 export interface UserType extends IMessage {
@@ -68,4 +74,5 @@ export interface IConfig {
   disableHeader?: boolean;
   disableMedia?: boolean;
   colors?: { primary: string; secondary: string };
+  googleLogin?: boolean;
 }

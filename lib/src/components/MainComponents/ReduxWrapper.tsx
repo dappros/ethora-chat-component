@@ -8,6 +8,7 @@ import { IConfig, IRoom, User } from "../../types/types";
 import { XmppProvider } from "../../context/xmppProvider.tsx";
 import "../../index.css";
 import "../../helpers/storeConsole";
+import LoginForm from "../AuthForms/Login.tsx";
 
 interface ChatWrapperProps {
   token?: string;
@@ -23,7 +24,11 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = ({ ...props }) => {
   return (
     <XmppProvider>
       <Provider store={store}>
-        <ChatWrapper {...props} />
+        {!props.config?.googleLogin ? (
+          <LoginForm {...props} />
+        ) : (
+          <ChatWrapper {...props} />
+        )}
       </Provider>
     </XmppProvider>
   );

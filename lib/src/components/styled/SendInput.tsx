@@ -16,14 +16,20 @@ import { AttachIcon, RemoveIcon, SendIcon } from "../../assets/icons";
 
 interface SendInputProps {
   sendMessage: (message: string) => void;
+  isLoading: boolean;
   sendMedia: (data: any) => void;
   config?: IConfig;
+  onFocus?: () => void;
+  onBlur?: () => void;
 }
 
 const SendInput: React.FC<SendInputProps> = ({
   sendMessage,
   sendMedia,
+  onFocus,
+  onBlur,
   config,
+  isLoading,
 }) => {
   const [message, setMessage] = useState("");
   const [isRecording, setIsRecording] = useState(false);
@@ -61,6 +67,14 @@ const SendInput: React.FC<SendInputProps> = ({
     },
     []
   );
+
+  const handleFocus = () => {
+    onFocus?.();
+  };
+
+  const handleBlur = () => {
+    onBlur?.();
+  };
 
   const handleRemoveFile = useCallback((file: File) => {
     setFilePreviews((prevFiles) => prevFiles.filter((f) => f !== file));
@@ -154,6 +168,9 @@ const SendInput: React.FC<SendInputProps> = ({
               value={message}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
+              disabled={isLoading}
             />
           </>
         )}

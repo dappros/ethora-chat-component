@@ -13,13 +13,14 @@ import {
   addRoom,
   setActiveRoom,
   addRoomMessage,
+  setIsLoading,
+  setLastViewedTimestamp,
 } from "../../roomStore/roomsSlice";
 import Loader from "../styled/Loader";
 import { uploadFile } from "../../networking/apiClient";
 import RoomList from "./RoomList";
 import { getHighResolutionTimestamp } from "../../helpers/dateComparison";
 import { useXmppClient } from "../../context/xmppProvider.tsx";
-import { setIsLoading } from "../../roomStore/chatSlice.ts";
 
 interface ChatRoomProps {
   roomJID?: string;
@@ -42,7 +43,10 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
   }) => {
     const [currentRoom, setCurrentRoom] = useState(defaultRoom);
     const rooms = useSelector((state: RootState) => state.rooms.rooms);
-    const loading = useSelector((state: RootState) => state.chat.isLoading);
+    const loading = useSelector(
+      (state: RootState) =>
+        state.rooms.rooms[currentRoom?.jid]?.isLoading || false
+    );
 
     const { client } = useXmppClient();
 
@@ -91,14 +95,29 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       );
     }, []);
 
+    const sendStartComposing = useCallback(() => {
+      console.log(currentRoom.jid);
+      client.sendTypingRequest(
+        currentRoom.jid,
+        `${user.firstName} ${user.lastName}`,
+        true
+      );
+    }, []);
+    const sendEndComposing = useCallback(() => {
+      client.sendTypingRequest(
+        currentRoom.jid,
+        `${user.firstName} ${user.lastName}`,
+        false
+      );
+    }, []);
+
     const loadMoreMessages = useCallback(
       async (chatJID: string, max: number, idOfMessageBefore?: number) => {
         if (!loading) {
-          dispatch(setIsLoading(true));
+          dispatch(setIsLoading({ chatJID: chatJID, loading: true }));
           client?.getHistory(chatJID, max, idOfMessageBefore).then((resp) => {
             console.log("getting history by scroll");
-            console.log(resp);
-            dispatch(setIsLoading(false));
+            dispatch(setIsLoading({ chatJID: chatJID, loading: false }));
           });
         }
       },
@@ -158,6 +177,29 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             .then(() => client.presenceInRoom(currentRoom.jid))
             .then(() => {
               client.getHistory(currentRoom.jid, 30);
+            })
+            .then(
+              async () =>
+                await client.actionSetTimestampToPrivateStore(
+                  currentRoom.jid,
+                  1727308800000
+                )
+            )
+            .then(async () => {
+              const res: any = await client.getChatsPrivateStoreRequest();
+              console.log("res of priv store", res);
+
+              const entries = Object.entries(res);
+              if (entries.length > 0) {
+                const [chatJID, timestamp] = entries[0];
+                dispatch(
+                  setLastViewedTimestamp({
+                    // @ts-expect-error
+                    timestamp,
+                    chatJID,
+                  })
+                );
+              }
             });
         }, 1000);
       }
@@ -170,6 +212,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       >
         {!config?.disableHeader && (
           <ChatContainerHeader>
+            {/* todo add here list of rooms */}
             <RoomList chats={[]} />
             <ChatContainerHeaderLabel>
               {currentRoom?.title}
@@ -197,6 +240,9 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
           sendMessage={sendMessage}
           sendMedia={sendMedia}
           config={config}
+          onFocus={sendStartComposing}
+          onBlur={sendEndComposing}
+          isLoading={isLoading}
         />
       </ChatContainer>
     );

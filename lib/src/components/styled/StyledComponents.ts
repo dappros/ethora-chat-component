@@ -36,9 +36,9 @@ export const MessagesScroll = styled.div<{ color?: string }>`
   right: 0;
   bottom: 0;
   background-color: #f3f6fc;
-  padding-bottom: 0px;
-
   padding: 0px 16px;
+
+  transition: height 0.3s ease-in-out; /* Smooth height transition */
 
   /* WebKit-based browsers (Chrome, Safari) */
   ::-webkit-scrollbar {

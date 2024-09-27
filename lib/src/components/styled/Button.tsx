@@ -17,7 +17,7 @@ const CustomButton = styled.button<{ disabled: boolean }>`
 
 // Extend props from the default button attributes
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  text?: string;
+  text?: string | ReactElement;
   EndIcon?: ReactElement;
   loading?: boolean;
 }
