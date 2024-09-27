@@ -143,8 +143,29 @@ export const roomsStore = createSlice({
       const { chatJID, loading } = action.payload;
       state.rooms[chatJID].isLoading = loading;
     },
+    setLastViewedTimestamp: (
+      state,
+      action: PayloadAction<{ chatJID: string; timestamp: number }>
+    ) => {
+      const { chatJID, timestamp } = action.payload;
+      state.rooms[chatJID].lastViewedTimestamp = timestamp;
+      state.rooms[chatJID].unreadMessages = countNewerMessages(
+        state.rooms[chatJID].messages,
+        timestamp
+      );
+    },
   },
 });
+
+const countNewerMessages = (
+  messages: IMessage[],
+  timestamp: number
+): number => {
+  return messages.filter((message) => {
+    console.log(Number(message.id), timestamp);
+    return Number(message.id) < timestamp;
+  }).length;
+};
 
 export const {
   addRoom,
@@ -155,6 +176,7 @@ export const {
   setActiveRoom,
   setComposing,
   setIsLoading,
+  setLastViewedTimestamp,
 } = roomsStore.actions;
 
 export default roomsStore.reducer;

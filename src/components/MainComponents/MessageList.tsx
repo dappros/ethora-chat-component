@@ -16,6 +16,7 @@ import { useSelector } from "react-redux";
 import { RootState } from "../../roomStore";
 import Composing from "../styled/StyledInputComponents/Composing";
 import { validateMessages } from "../../helpers/validator";
+import NewMessageLabel from "../styled/NewMessageLabel";
 
 interface MessageListProps<TMessage extends IMessage> {
   messages: TMessage[];
@@ -45,13 +46,8 @@ const MessageList = <TMessage extends IMessage>({
 
   const timeoutRef = useRef<number>(0);
   const scrollParams = useRef<{ top: number; height: number } | null>(null);
-  const loading = useSelector(
-    (state: RootState) => state.rooms.rooms[room.jid]?.isLoading
-  );
-
-  const composing = useSelector(
-    (state: RootState) =>
-      state.rooms.rooms[state.rooms?.activeRoom?.jid]?.composing
+  const { isLoading, composing, lastViewedTimestamp } = useSelector(
+    (state: RootState) => state.rooms.rooms[room.jid]
   );
 
   const scrollToBottom = (): void => {
@@ -167,7 +163,7 @@ const MessageList = <TMessage extends IMessage>({
         onScroll={onScroll}
         color={config?.colors?.primary}
       >
-        {loading && <Loader color={config?.colors?.primary} />}
+        {isLoading && <Loader color={config?.colors?.primary} />}
         {messages.map((message) => {
           const isUser = message.user.id === user.walletAddress;
           const messageDate = new Date(message.date);
@@ -211,6 +207,9 @@ const MessageList = <TMessage extends IMessage>({
           );
         })}
         {composing && <Composing usersTyping={["User"]} />}
+        {/* {lastViewedTimestamp && (
+          <NewMessageLabel color={config?.colors?.primary} />
+        )} */}
       </MessagesScroll>
     </MessagesList>
   );

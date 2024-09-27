@@ -13,7 +13,7 @@ const Container = styled.div`
 
 export const StyledLabel = styled.div`
   margin: 0;
-  color: #0052cd;
+  color: ${(props) => (props?.color ? props?.color : "#0052CD")};
   border-radius: 118px;
   padding: 5px 8px;
   display: flex;
@@ -27,11 +27,15 @@ export const StyledLabel = styled.div`
   white-space: nowrap;
 `;
 
-const NewMessageLabel = () => {
+interface NewMessageLabelProps {
+  color?: string;
+}
+
+const NewMessageLabel: React.FC<NewMessageLabelProps> = ({ color }) => {
   return (
     <Container>
       <Line />
-      <StyledLabel>New</StyledLabel>
+      <StyledLabel color={color}>New messages</StyledLabel>
       <Line />
     </Container>
   );

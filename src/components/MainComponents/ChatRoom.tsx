@@ -14,6 +14,7 @@ import {
   setActiveRoom,
   addRoomMessage,
   setIsLoading,
+  setLastViewedTimestamp,
 } from "../../roomStore/roomsSlice";
 import Loader from "../styled/Loader";
 import { uploadFile } from "../../networking/apiClient";
@@ -176,6 +177,25 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             .then(() => client.presenceInRoom(currentRoom.jid))
             .then(() => {
               client.getHistory(currentRoom.jid, 30);
+            })
+            .then(
+              async () =>
+                await client.actionSetTimestampToPrivateStore(
+                  currentRoom.jid,
+                  1727308800000
+                )
+            )
+            .then(async () => {
+              const res: any = await client.getChatsPrivateStoreRequest();
+              console.log("res of priv store", res);
+              const [chatJID, timestamp] = Object.entries(JSON.parse(res))?.[0];
+              console.log(chatJID, timestamp);
+              dispatch(
+                setLastViewedTimestamp({
+                  timestamp: timestamp,
+                  chatJID: chatJID,
+                })
+              );
             });
         }, 1000);
       }

@@ -23,6 +23,7 @@ export interface IMessage {
   mimetype?: string;
   location?: string;
   pending?: boolean;
+  timestamp?: number;
 }
 
 export interface IRoom {
@@ -38,6 +39,8 @@ export interface IRoom {
   icon?: string;
   composing?: boolean;
   composingList?: string[];
+  lastViewedTimestamp?: number;
+  unreadMessages?: number;
 }
 
 export interface UserType extends IMessage {
