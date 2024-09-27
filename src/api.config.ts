@@ -29,7 +29,6 @@ export const defRoom = {
   name: "General",
   users_cnt: "1",
   unreadMessages: 0,
-  composing: "",
   toUpdate: false,
   description: "",
   group: "groups",
@@ -37,4 +36,6 @@ export const defRoom = {
   title: "tESTcHAT",
   usersCnt: 1,
   messages: [],
+  isLoading: false,
+  composing: false,
 };

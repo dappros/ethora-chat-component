@@ -37,6 +37,7 @@ export interface IRoom {
   lastMessage?: string;
   icon?: string;
   composing?: boolean;
+  composingList?: string[];
 }
 
 export interface UserType extends IMessage {
@@ -70,4 +71,5 @@ export interface IConfig {
   disableHeader?: boolean;
   disableMedia?: boolean;
   colors?: { primary: string; secondary: string };
+  googleLogin?: boolean;
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   Message,
   UserName,
@@ -14,6 +14,8 @@ import Loader from "../styled/Loader";
 import { blockScrollEvent } from "../../helpers/block_scroll";
 import { useSelector } from "react-redux";
 import { RootState } from "../../roomStore";
+import Composing from "../styled/StyledInputComponents/Composing";
+import { validateMessages } from "../../helpers/validator";
 
 interface MessageListProps<TMessage extends IMessage> {
   messages: TMessage[];
@@ -36,30 +38,6 @@ const MessageList = <TMessage extends IMessage>({
   room,
   config,
 }: MessageListProps<TMessage>) => {
-  const validateMessages = (messages: TMessage[]): boolean => {
-    const requiredAttributes: (keyof IMessage)[] = [
-      "id",
-      "user",
-      "date",
-      "body",
-    ];
-    let isValid = true;
-    messages.forEach((message, index) => {
-      const missingAttributes = requiredAttributes.filter(
-        (attr) => !(attr in message)
-      );
-      if (missingAttributes.length > 0) {
-        console.error(
-          `Message at index ${index} is missing attributes: ${missingAttributes.join(
-            ", "
-          )}`
-        );
-        isValid = false;
-      }
-    });
-    return isValid;
-  };
-
   const containerRef = useRef<HTMLDivElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);
   const lastMessageRef = useRef<IMessage>(messages[messages.length - 1]);
@@ -68,7 +46,12 @@ const MessageList = <TMessage extends IMessage>({
   const timeoutRef = useRef<number>(0);
   const scrollParams = useRef<{ top: number; height: number } | null>(null);
   const loading = useSelector(
-    (state: RootState) => state.rooms.activeRoom?.isLoading
+    (state: RootState) => state.rooms.rooms[room.jid]?.isLoading
+  );
+
+  const composing = useSelector(
+    (state: RootState) =>
+      state.rooms.rooms[state.rooms?.activeRoom?.jid]?.composing
   );
 
   const scrollToBottom = (): void => {
@@ -151,7 +134,7 @@ const MessageList = <TMessage extends IMessage>({
       lastMessageRef.current.id !== messages[messages.length - 1].id &&
         scrollToBottom();
     }
-  }, [messages]);
+  }, [messages, composing]);
 
   useEffect(() => {
     if (messages && messages.length > 30) {
@@ -168,7 +151,7 @@ const MessageList = <TMessage extends IMessage>({
         scrollParams.current = null;
       }
     }
-  }, [messages]);
+  }, [messages, composing]);
 
   if (!validateMessages(messages)) {
     console.log("Invalid 'messages' props provided to MessageList.");
@@ -227,6 +210,7 @@ const MessageList = <TMessage extends IMessage>({
             </React.Fragment>
           );
         })}
+        {composing && <Composing usersTyping={["User"]} />}
       </MessagesScroll>
     </MessagesList>
   );

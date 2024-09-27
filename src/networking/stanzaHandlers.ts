@@ -155,8 +155,6 @@ const onMessageHistory = async (stanza: any) => {
       return;
     }
 
-    console.log(data.toString());
-
     const message = await createMessage(
       data.attrs,
       body,
@@ -173,17 +171,15 @@ const onMessageHistory = async (stanza: any) => {
   }
 };
 
-const handleComposing = async (
-  stanza: Element,
-  currentUser: string,
-  chatJID: string
-) => {
+const handleComposing = async (stanza: Element, currentUser: string) => {
   if (
-    currentUser !== stanza.attrs?.from?.split("/")?.[1] &&
+    stanza.attrs?.from?.split("/")?.[1]?.replace(/_/g, "") &&
+    currentUser.toLowerCase() !==
+      stanza.attrs?.from?.split("/")?.[1]?.replace(/_/g, "") &&
     stanza.attrs?.type !== "error"
   ) {
     if (stanza.getChild("paused") || stanza.getChild("composing")) {
-      console.log("composing or paused");
+      const chatJID = stanza.attrs?.from.split("/")[0];
 
       store.dispatch(
         setComposing({
@@ -244,6 +240,7 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
             title: result?.attrs.name,
             usersCnt: Number(result?.attrs.users_cnt),
             messages: [],
+            isLoading: false,
           };
           store.dispatch(addRoom({ roomData }));
           // if (

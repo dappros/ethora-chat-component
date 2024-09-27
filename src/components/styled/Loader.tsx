@@ -11,12 +11,16 @@ interface LoaderProps {
 }
 
 const Loader = styled.div<LoaderProps>`
-  border: ${({ size }) => (size ? size / 8 : 8)}px solid #f3f3f3;
-  border-top: ${({ size }) => (size ? size / 8 : 8)}px solid
+  border: ${({ size }) => (size ? size / 4 : 4)}px solid #f3f3f3;
+  border-top: ${({ size }) => (size ? size / 4 : 4)}px solid
+    ${({ color }) => color || "#3498db"};
+  border-right: ${({ size }) => (size ? size / 4 : 4)}px solid
+    ${({ color }) => color || "#3498db"};
+  border-left: ${({ size }) => (size ? size / 4 : 4)}px solid
     ${({ color }) => color || "#3498db"};
   border-radius: 50%;
-  width: ${({ size }) => size || 64}px;
-  height: ${({ size }) => size || 64}px;
+  width: ${({ size }) => size || 32}px;
+  height: ${({ size }) => size || 32}px;
   animation: ${spin} 2s linear infinite;
   margin: auto;
 `;

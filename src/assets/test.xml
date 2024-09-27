@@ -41,6 +41,7 @@
 	<stanza-id by="da866751f3915731b5e408a2a2531355f7eba2f2c5bc00c5126889a5995e9bd6@conference.case-any-place-iframe-xmpp-dev.atomwcapps.com" id="1727199608653240" xmlns="urn:xmpp:sid:0" />
 </message>
 
+<message xmlns="jabber:client" xml:lang="en" to="0x6816810a7_fe04_f_c9b800f9_d11564_c0e4a_e_c25_d78@xmpp.ethoradev.com/1029570399890456970131474" from="5f9a4603b2b5bbfa6b228b642127c56d03b778ad594c52b755e605c977303979@conference.xmpp.ethoradev.com/0x6816810a7_fe04_f_c9b800f9_d11564_c0e4a_e_c25_d78" type="groupchat" id="typing-1727398801870"><composing xmlns="http://jabber.org/protocol/chatstates"/><data fullName="Raze Yuki"/><stanza-id by="5f9a4603b2b5bbfa6b228b642127c56d03b778ad594c52b755e605c977303979@conference.xmpp.ethoradev.com" id="1727398802037869" xmlns="urn:xmpp:sid:0"/></message>
 //paused
 <message xmlns="jabber:client" xml:lang="en" to="3ca9c8541c020dee4ff34077dd1006323464eca35353cd74cde2b71bfa6b2156@case-any-place-iframe-xmpp-dev.atomwcapps.com/1727199448461" from="da866751f3915731b5e408a2a2531355f7eba2f2c5bc00c5126889a5995e9bd6@conference.case-any-place-iframe-xmpp-dev.atomwcapps.com/3ca9c8541c020dee4ff34077dd1006323464eca35353cd74cde2b71bfa6b2156" type="groupchat" id="stop-typing-1727199611818">
 	<paused xmlns="http://jabber.org/protocol/chatstates" />
@@ -58,6 +59,9 @@
 	</error>
 </message>
 
+<message xmlns="jabber:client" xml:lang="en" to="0x6816810a7_fe04_f_c9b800f9_d11564_c0e4a_e_c25_d78@xmpp.ethoradev.com/1029570399890456970131474" from="5f9a4603b2b5bbfa6b228b642127c56d03b778ad594c52b755e605c977303979@conference.xmpp.ethoradev.com/0x6816810a7_fe04_f_c9b800f9_d11564_c0e4a_e_c25_d78" type="groupchat" id="typing-1727398803922"><paused xmlns="http://jabber.org/protocol/chatstates"/><data fullName="Raze Yuki"/><stanza-id by="5f9a4603b2b5bbfa6b228b642127c56d03b778ad594c52b755e605c977303979@conference.xmpp.ethoradev.com" id="1727398804087352" xmlns="urn:xmpp:sid:0"/></message>
+
+
 //subject
 <message xmlns="jabber:client" to="3ca9c8541c020dee4ff34077dd1006323464eca35353cd74cde2b71bfa6b2156@case-any-place-iframe-xmpp-dev.atomwcapps.com/1727200763551" from="da866751f3915731b5e408a2a2531355f7eba2f2c5bc00c5126889a5995e9bd6@conference.case-any-place-iframe-xmpp-dev.atomwcapps.com" type="groupchat">
 	<subject />
@@ -71,3 +75,7 @@
 		9087
 	</body>
 </message>
+
+
+
+<message type="groupchat" id="typing-1727449049844" to="5f9a4603b2b5bbfa6b228b642127c56d03b778ad594c52b755e605c977303979@conference.xmpp.ethoradev.com" xmlns="jabber:client"><composing xmlns="http://jabber.org/protocol/chatstates"/><data fullName="test test"/></message>

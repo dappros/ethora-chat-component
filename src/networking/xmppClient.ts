@@ -82,7 +82,7 @@ export class XmppClient {
             onRealtimeMessage(stanza);
             onMessageHistory(stanza);
             onGetLastMessageArchive(stanza, this);
-            handleComposing(stanza, this.username, "csas");
+            handleComposing(stanza, this.username);
             break;
           case "presence":
             onPresenceInRoom(stanza);
@@ -455,7 +455,7 @@ export class XmppClient {
   }
 
   sendTypingRequest(chatId: string, fullName: string, start: boolean) {
-    let id = `typing-${Date.now()}`;
+    let id = start ? `typing-${Date.now()}` : `stop-typing-${Date.now()}`;
     const stanza = xml(
       "message",
       {

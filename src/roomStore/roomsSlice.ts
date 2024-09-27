@@ -122,6 +122,18 @@ export const roomsStore = createSlice({
       action: PayloadAction<{ chatJID: string; composing: boolean }>
     ) {
       const { chatJID, composing } = action.payload;
+      if (!state.rooms[chatJID]) {
+        console.log("creating new room as it was missing");
+        state.rooms[chatJID] = {
+          jid: chatJID,
+          messages: [],
+          title: "",
+          usersCnt: 1,
+          id: "",
+          name: "test",
+          isLoading: false,
+        };
+      }
       state.rooms[chatJID].composing = composing;
     },
     setIsLoading: (

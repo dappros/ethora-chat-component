@@ -43,7 +43,8 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     const [currentRoom, setCurrentRoom] = useState(defaultRoom);
     const rooms = useSelector((state: RootState) => state.rooms.rooms);
     const loading = useSelector(
-      (state: RootState) => state.rooms.activeRoom?.isLoading
+      (state: RootState) =>
+        state.rooms.rooms[currentRoom?.jid]?.isLoading || false
     );
 
     const { client } = useXmppClient();
@@ -90,6 +91,22 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         "",
         user.walletAddress,
         message
+      );
+    }, []);
+
+    const sendStartComposing = useCallback(() => {
+      console.log(currentRoom.jid);
+      client.sendTypingRequest(
+        currentRoom.jid,
+        `${user.firstName} ${user.lastName}`,
+        true
+      );
+    }, []);
+    const sendEndComposing = useCallback(() => {
+      client.sendTypingRequest(
+        currentRoom.jid,
+        `${user.firstName} ${user.lastName}`,
+        false
       );
     }, []);
 
@@ -199,6 +216,9 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
           sendMessage={sendMessage}
           sendMedia={sendMedia}
           config={config}
+          onFocus={sendStartComposing}
+          onBlur={sendEndComposing}
+          isLoading={isLoading}
         />
       </ChatContainer>
     );
