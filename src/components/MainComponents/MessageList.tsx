@@ -185,11 +185,15 @@ const MessageList = <TMessage extends IMessage>({
             );
           }
 
+          if (message.id === "delimiter-new" && lastViewedTimestamp) {
+            return <NewMessageLabel color={config?.colors?.primary} />;
+          }
+
           const MessageComponent = CustomMessage || Message;
 
           return (
             <React.Fragment key={message.id}>
-              {showDateLabel && (
+              {showDateLabel && message.id !== "delimiter-new" && (
                 <DateLabel date={messageDate} colors={config?.colors} />
               )}
               <MessageComponent message={message} isUser={isUser}>
@@ -207,9 +211,6 @@ const MessageList = <TMessage extends IMessage>({
           );
         })}
         {composing && <Composing usersTyping={["User"]} />}
-        {/* {lastViewedTimestamp && (
-          <NewMessageLabel color={config?.colors?.primary} />
-        )} */}
       </MessagesScroll>
     </MessagesList>
   );

@@ -89,6 +89,54 @@ export const roomsStore = createSlice({
             isDateAfter(newMessageDate.toString(), lastMessageDate.toString())
           ) {
             roomMessages.push(message);
+
+            // Check for lastViewedTimestamp and insert delimiter if needed
+            if (
+              state.rooms[roomJID].lastViewedTimestamp &&
+              !roomMessages.some((msg) => msg.id === "delimiter-new")
+            ) {
+              const lastViewedTimestamp =
+                new Date(state.rooms[roomJID].lastViewedTimestamp) ||
+                new Date();
+
+              // If the new message is after the last viewed timestamp
+
+              isDateAfter(
+                newMessageDate.toString(),
+                lastViewedTimestamp.toString()
+              );
+
+              if (
+                isDateAfter(
+                  newMessageDate.toString(),
+                  lastViewedTimestamp.toString()
+                )
+              ) {
+                const delimiterIndex = roomMessages.findIndex((msg) =>
+                  isDateAfter(
+                    msg.date.toString(),
+                    lastViewedTimestamp.toString()
+                  )
+                );
+
+                // Insert the delimiter before the new messages
+                if (delimiterIndex !== -1) {
+                  roomMessages.splice(delimiterIndex, 0, {
+                    id: "delimiter-new",
+                    user: {
+                      id: "system",
+                      name: null,
+                      token: "",
+                      refreshToken: "",
+                    },
+                    date: "",
+                    body: "New Messages",
+                    roomJID: "",
+                  });
+                }
+                console.log("adeded message del");
+              }
+            }
           } else if (
             isDateBefore(newMessageDate.toString(), firstMessageDate.toString())
           ) {
@@ -153,6 +201,7 @@ export const roomsStore = createSlice({
         state.rooms[chatJID].messages,
         timestamp
       );
+      console.log(timestamp);
     },
   },
 });

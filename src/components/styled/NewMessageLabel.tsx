@@ -25,6 +25,7 @@ export const StyledLabel = styled.div`
   background-color: #e7edf9;
   height: 24px;
   white-space: nowrap;
+  margin: 10px 0px;
 `;
 
 interface NewMessageLabelProps {
@@ -34,9 +35,7 @@ interface NewMessageLabelProps {
 const NewMessageLabel: React.FC<NewMessageLabelProps> = ({ color }) => {
   return (
     <Container>
-      <Line />
       <StyledLabel color={color}>New messages</StyledLabel>
-      <Line />
     </Container>
   );
 };

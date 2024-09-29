@@ -19,7 +19,6 @@ import {
 import Loader from "../styled/Loader";
 import { uploadFile } from "../../networking/apiClient";
 import RoomList from "./RoomList";
-import { getHighResolutionTimestamp } from "../../helpers/dateComparison";
 import { useXmppClient } from "../../context/xmppProvider.tsx";
 
 interface ChatRoomProps {

@@ -19,7 +19,6 @@ import {
 import Loader from "../styled/Loader";
 import { uploadFile } from "../../networking/apiClient";
 import RoomList from "./RoomList";
-import { getHighResolutionTimestamp } from "../../helpers/dateComparison";
 import { useXmppClient } from "../../context/xmppProvider.tsx";
 
 interface ChatRoomProps {
@@ -103,6 +102,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         true
       );
     }, []);
+
     const sendEndComposing = useCallback(() => {
       client.sendTypingRequest(
         currentRoom.jid,
@@ -175,31 +175,24 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             .initPresence()
             .then(() => client.getRooms())
             .then(() => client.presenceInRoom(currentRoom.jid))
-            .then(() => {
-              client.getHistory(currentRoom.jid, 30);
-            })
-            .then(
-              async () =>
-                await client.actionSetTimestampToPrivateStore(
-                  currentRoom.jid,
-                  1727308800000
-                )
-            )
             .then(async () => {
               const res: any = await client.getChatsPrivateStoreRequest();
-              console.log("res of priv store", res);
 
-              const entries = Object.entries(res);
+              const entries = Object.entries(JSON.parse(res));
               if (entries.length > 0) {
                 const [chatJID, timestamp] = entries[0];
+                console.log(chatJID, timestamp);
                 dispatch(
                   setLastViewedTimestamp({
+                    chatJID,
                     // @ts-expect-error
                     timestamp,
-                    chatJID,
                   })
                 );
               }
+            })
+            .then(() => {
+              client.getHistory(currentRoom.jid, 30);
             });
         }, 1000);
       }

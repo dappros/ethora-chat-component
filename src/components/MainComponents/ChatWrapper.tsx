@@ -11,6 +11,7 @@ import { Overlay, StyledModal } from "../styled/Modal";
 import CustomMessage from "../Message";
 import { IConfig, IRoom, User } from "../../types/types";
 import { useXmppClient } from "../../context/xmppProvider";
+import { setLastViewedTimestamp } from "../../roomStore/roomsSlice";
 
 interface ChatWrapperProps {
   token?: string;
@@ -95,6 +96,35 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
     initUserAndClient();
   }, [loginUserFunction, dispatch]);
+
+  // useEffect(() => {
+  //   const updateLastReadTimeStamp = () => {
+  //     if (client) {
+  //       client.actionSetTimestampToPrivateStore(
+  //         room?.jid || defRoom.jid,
+  //         new Date().getTime()
+  //       );
+  //     }
+  //     dispatch(
+  //       setLastViewedTimestamp({
+  //         chatJID: room?.jid || defRoom.jid,
+  //         timestamp: new Date().getTime(),
+  //       })
+  //     );
+  //   };
+
+  //   const handleBeforeUnload = () => {
+  //     updateLastReadTimeStamp();
+  //   };
+
+  //   window.addEventListener("blur", handleBeforeUnload);
+  //   window.addEventListener("offline", handleBeforeUnload);
+
+  //   return () => {
+  //     window.removeEventListener("blur", handleBeforeUnload);
+  //     window.removeEventListener("offline", handleBeforeUnload);
+  //   };
+  // }, [client, room?.jid]);
 
   return (
     <ChatWrapperBox>
