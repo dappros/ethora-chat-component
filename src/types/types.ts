@@ -77,20 +77,20 @@ export interface User {
   appId: string;
   xmppPassword: string;
 
-  homeScreen: string;
-  registrationChannelType: string;
-  updatedAt: string;
-  authMethod: string;
-  resetPasswordExpires: string;
-  resetPasswordToken: string;
-  xmppUsername: string;
-  roles: string[];
-  tags: string[];
-  __v: number;
+  homeScreen?: string;
+  registrationChannelType?: string;
+  updatedAt?: string;
+  authMethod?: string;
+  resetPasswordExpires?: string;
+  resetPasswordToken?: string;
+  xmppUsername?: string;
+  roles?: string[];
+  tags?: string[];
+  __v?: number;
 
-  isProfileOpen: true;
-  isAssetsOpen: true;
-  isAgreeWithTerms: false;
+  isProfileOpen?: boolean;
+  isAssetsOpen?: boolean;
+  isAgreeWithTerms?: boolean;
 }
 
 export interface XmppState {

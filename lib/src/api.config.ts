@@ -22,6 +22,11 @@ export const defaultUser = {
   company: [],
   appId: "646cc8dc96d4a4dc8f7b2f2d",
   homeScreen: "",
+  defaultWallet: {
+    walletAddress: "0x6816810a7Fe04FC9b800f9D11564C0e4aEC25D78",
+  },
+  email: "yukiraze9@gmail.com",
+  username: "",
 };
 
 export const defRoom = {

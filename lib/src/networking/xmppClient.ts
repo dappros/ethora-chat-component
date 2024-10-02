@@ -50,7 +50,8 @@ export class XmppClient {
       });
 
       this.client.on("disconnect", () => {
-        this.onclose();
+        this?.onclose();
+        this.client.stop();
       });
       this.client.on("error", () => console.log("xmpp client error"));
 
@@ -61,15 +62,10 @@ export class XmppClient {
       this.client.setMaxListeners(20);
       this.client
         .start()
-        .then(() => console.log("inited"))
+        .then(() => console.log("started client"))
         .catch((error) => console.log(error, "There were an error"));
 
       this.client.setMaxListeners(20);
-      try {
-        this.client.start();
-      } catch (error) {
-        console.log("errror", error);
-      }
 
       this.client.on("online", (jid) => {
         getListOfRooms(this);
