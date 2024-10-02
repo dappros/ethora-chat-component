@@ -134,7 +134,6 @@ export const roomsStore = createSlice({
                     roomJID: "",
                   });
                 }
-                console.log("adeded message del");
               }
             }
           } else if (
@@ -196,11 +195,13 @@ export const roomsStore = createSlice({
       action: PayloadAction<{ chatJID: string; timestamp: number }>
     ) => {
       const { chatJID, timestamp } = action.payload;
-      state.rooms[chatJID].lastViewedTimestamp = timestamp;
-      state.rooms[chatJID].unreadMessages = countNewerMessages(
-        state.rooms[chatJID].messages,
-        timestamp
-      );
+      if (state.rooms[chatJID]) {
+        state.rooms[chatJID].lastViewedTimestamp = timestamp;
+        state.rooms[chatJID].unreadMessages = countNewerMessages(
+          state.rooms[chatJID].messages,
+          timestamp
+        );
+      }
       console.log(timestamp);
     },
   },

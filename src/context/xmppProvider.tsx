@@ -18,8 +18,13 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
   const [client, setClient] = useState<XmppClient | null>(null);
 
   const initializeClient = async (password: string, email: string) => {
-    const newClient = new XmppClient(password, email);
-    setClient(newClient);
+    try {
+      const newClient = new XmppClient(password, email);
+      console.log("client successfully initialized");
+      setClient(newClient);
+    } catch (error) {
+      console.log(error, "error with initializing client");
+    }
   };
 
   return (

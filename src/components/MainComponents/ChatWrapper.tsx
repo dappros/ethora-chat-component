@@ -1,22 +1,22 @@
-import React, { FC, useEffect, useCallback, useState } from "react";
-import { useDispatch } from "react-redux";
+import React, { FC, useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import ChatRoom from "./ChatRoom";
-import { setConfig, setUser } from "../../roomStore/chatSettingsSlice";
+import { setConfig } from "../../roomStore/chatSettingsSlice";
 import { ChatWrapperBox } from "../styled/ChatWrapperBox";
 
-import { loginEmail } from "../../networking/apiClient";
-import { defRoom, defaultUser, appToken } from "../../api.config";
+import { defRoom, defaultUser } from "../../api.config";
 import { Overlay, StyledModal } from "../styled/Modal";
 
 import CustomMessage from "../Message";
 import { IConfig, IRoom, User } from "../../types/types";
 import { useXmppClient } from "../../context/xmppProvider";
-import { setLastViewedTimestamp } from "../../roomStore/roomsSlice";
+import LoginForm from "../AuthForms/Login";
+import { RootState } from "../../roomStore";
+import Loader from "../styled/Loader";
 
 interface ChatWrapperProps {
   token?: string;
   room?: IRoom;
-  user?: User;
   loginData?: { email: string; password: string };
   MainComponentStyles?: any; //change to particular types
   CustomMessageComponent?: any;
@@ -26,77 +26,44 @@ interface ChatWrapperProps {
 const ChatWrapper: FC<ChatWrapperProps> = ({
   MainComponentStyles,
   CustomMessageComponent,
-  token,
   room,
-  user,
-  loginData,
   config,
 }) => {
-  const [isLoading, setIsLoading] = useState(true);
+  const [isInited, setInited] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
   const dispatch = useDispatch();
-  const { client, initializeClient } = useXmppClient();
+  const { user } = useSelector((state: RootState) => state.chatSettingStore);
 
-  const loginUserFunction = useCallback(async () => {
-    try {
-      const authData = await loginEmail(
-        loginData?.email || "yukiraze9@gmail.com",
-        loginData?.password || "Qwerty123",
-        token || appToken
-      );
-      return authData.data;
-    } catch (error) {
-      console.error("Login failed:", error);
-      return null;
-    }
-  }, []);
+  const { client, initializeClient } = useXmppClient();
 
   useEffect(() => {
     dispatch(setConfig(config));
 
-    const initUserAndClient = async () => {
-      setIsLoading(true);
-      const loginData = await loginUserFunction();
-
-      if (loginData) {
-        dispatch(setUser(loginData));
-
-        try {
-          if (
-            loginData.user?.defaultWallet?.walletAddress &&
-            loginData.user.xmppPassword
-          ) {
-            if (!client) {
-              initializeClient(
-                loginData.user?.defaultWallet?.walletAddress,
-                loginData.user.xmppPassword
-              );
-            } else {
-              client
-                .initPresence()
-                .then(() => {
-                  console.log("XMPP client initialized successfully");
-                })
-                .catch((error) => {
-                  console.error("Failed to initialize XMPP client:", error);
-                  setIsLoading(false);
-                });
-            }
-          }
-        } catch (error) {
-          console.log(error, "Unsuccessful init");
-        }
-      } else {
-        console.log("Login unsuccessful");
+    try {
+      if (!user.defaultWallet || user?.defaultWallet.walletAddress === "") {
         setShowModal(true);
+        console.log("Error, no user");
+      } else {
+        if (!client) {
+          console.log("No client, so initing one");
+          initializeClient(
+            user.defaultWallet?.walletAddress,
+            user.xmppPassword
+          );
+          setInited(true);
+        }
       }
-      setIsLoading(false);
-    };
+    } catch (error) {
+      setShowModal(true);
+      console.log(error);
+    }
+  }, []);
 
-    initUserAndClient();
-  }, [loginUserFunction, dispatch]);
+  if (user.xmppPassword === "" && user.xmppUsername === "")
+    return <LoginForm config={config} />;
 
+  // functionality to handle unreadmessages
   // useEffect(() => {
   //   const updateLastReadTimeStamp = () => {
   //     if (client) {
@@ -133,9 +100,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           <StyledModal>Unsuccessfull login. Try again</StyledModal>
         </Overlay>
       )}
-      {isLoading ? (
-        <></>
-      ) : (
+      {isInited ? (
         <ChatRoom
           defaultUser={user || defaultUser}
           defaultRoom={room || defRoom}
@@ -143,6 +108,8 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           MainComponentStyles={MainComponentStyles}
           config={config}
         />
+      ) : (
+        <Loader />
       )}
     </ChatWrapperBox>
   );

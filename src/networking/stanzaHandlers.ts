@@ -173,7 +173,7 @@ const onMessageHistory = async (stanza: any) => {
 
 const handleComposing = async (stanza: Element, currentUser: string) => {
   if (
-    stanza.attrs?.from?.split("/")?.[1]?.replace(/_/g, "") &&
+    stanza.attrs?.from?.split("/")?.[1] &&
     currentUser.toLowerCase() !==
       stanza.attrs?.from?.split("/")?.[1]?.replace(/_/g, "") &&
     stanza.attrs?.type !== "error"
@@ -243,6 +243,7 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
             isLoading: false,
           };
           store.dispatch(addRoom({ roomData }));
+          console.log(roomData);
           // if (
           //   currentSavedChatRoom.length > 0 &&
           // ) {

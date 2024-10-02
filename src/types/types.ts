@@ -51,18 +51,46 @@ export interface UserType extends IMessage {
 }
 
 export interface User {
-  defaultWallet?: any;
-  user?: any;
-  _id: string;
-  xmppPassword: string;
   walletAddress: string;
-  firstName: string;
-  lastName: string;
 
   description?: string;
   token: string;
   refreshToken: string;
-  profileImage?: string;
+
+  defaultWallet: {
+    walletAddress: string;
+  };
+  _id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  username: string;
+  profileImage: string;
+  emails?: [
+    {
+      loginType: string;
+      email: string;
+      verified: boolean;
+      _id: string;
+    }
+  ];
+  appId: string;
+  xmppPassword: string;
+
+  homeScreen: string;
+  registrationChannelType: string;
+  updatedAt: string;
+  authMethod: string;
+  resetPasswordExpires: string;
+  resetPasswordToken: string;
+  xmppUsername: string;
+  roles: string[];
+  tags: string[];
+  __v: number;
+
+  isProfileOpen: true;
+  isAssetsOpen: true;
+  isAgreeWithTerms: false;
 }
 
 export interface XmppState {
@@ -75,4 +103,12 @@ export interface IConfig {
   disableMedia?: boolean;
   colors?: { primary: string; secondary: string };
   googleLogin?: boolean;
+  firebaseConfig?: {
+    apiKey: string;
+    authDomain: string;
+    projectId: string;
+    storageBucket: string;
+    messagingSenderId: string;
+    appId: string;
+  };
 }

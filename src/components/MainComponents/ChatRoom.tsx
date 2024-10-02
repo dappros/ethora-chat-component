@@ -20,6 +20,7 @@ import Loader from "../styled/Loader";
 import { uploadFile } from "../../networking/apiClient";
 import RoomList from "./RoomList";
 import { useXmppClient } from "../../context/xmppProvider.tsx";
+import ChatHeader from "./ChatHeader.tsx";
 
 interface ChatRoomProps {
   roomJID?: string;
@@ -203,18 +204,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       <ChatContainer
         style={{ maxHeight: "100vh", overflow: "auto", ...MainComponentStyles }}
       >
-        {!config?.disableHeader && (
-          <ChatContainerHeader>
-            {/* todo add here list of rooms */}
-            <RoomList chats={[]} />
-            <ChatContainerHeaderLabel>
-              {currentRoom?.title}
-            </ChatContainerHeaderLabel>
-            <ChatContainerHeaderLabel>
-              {currentRoom?.usersCnt} users
-            </ChatContainerHeaderLabel>
-          </ChatContainerHeader>
-        )}
+        {!config?.disableHeader && <ChatHeader currentRoom={currentRoom} />}
         {isLoading ||
         !rooms[activeRoom.jid].messages ||
         rooms[activeRoom.jid].messages.length < 1 ? (

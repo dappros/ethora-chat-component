@@ -3,6 +3,16 @@ import { store } from "../roomStore";
 import { refreshTokens } from "../roomStore/loginSlice";
 import { User } from "../types/types";
 
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  User as FirebaseUser,
+} from "firebase/auth";
+import { app } from "../firebase-config";
+import { appToken } from "../api.config";
+// import { appToken } from "../api.config";
+
 const baseURL = "https://api.ethoradev.com/v1";
 
 const http = axios.create({
@@ -99,13 +109,81 @@ http.interceptors.response.use(
   }
 );
 
-export function loginEmail(email: string, password: string, appToken: string) {
-  return http.post<User>(
+export function loginEmail(email: string, password: string) {
+  return http.post<{ user: User }>(
     "/users/login-with-email",
     {
       email,
       password,
     },
+    { headers: { Authorization: appToken } }
+  );
+}
+
+export const signInWithGoogle = async () => {
+  const auth = getAuth(app);
+  const googleProvider = new GoogleAuthProvider();
+  googleProvider.addScope("https://www.googleapis.com/auth/userinfo.email");
+  googleProvider.addScope("https://www.googleapis.com/auth/userinfo.profile");
+  try {
+    const res = await signInWithPopup(auth, googleProvider);
+    const user = res.user as FirebaseUser;
+    const idToken = await auth?.currentUser?.getIdToken();
+    const credential = GoogleAuthProvider.credentialFromResult(res);
+    return {
+      user,
+      idToken,
+      credential,
+    };
+  } catch (error) {
+    console.error(error);
+    return {};
+  }
+};
+
+// login functions
+export function loginSocial(
+  idToken: string,
+  accessToken: string,
+  loginType: string,
+  authToken: string = "authToken"
+) {
+  return http.post<any>(
+    "/users/login",
+    {
+      idToken,
+      accessToken,
+      loginType,
+      authToken,
+    },
+    { headers: { Authorization: appToken } }
+  );
+}
+
+export function registerSocial(
+  idToken: string,
+  accessToken: string,
+  authToken: string,
+  loginType: string,
+  signUpPlan?: string
+) {
+  return http.post(
+    "/users",
+    {
+      idToken,
+      accessToken,
+      loginType,
+      authToken: authToken,
+      signupPlan: signUpPlan,
+    },
+    { headers: { Authorization: appToken } }
+  );
+}
+
+export function checkEmailExist(email: string) {
+  return http.get(
+    "/users/checkEmail/" + email,
+
     { headers: { Authorization: appToken } }
   );
 }

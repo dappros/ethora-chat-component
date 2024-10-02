@@ -1,15 +1,27 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import styled from "styled-components";
 import { MessageInput } from "../styled/StyledComponents";
 import Button from "../styled/Button";
 import { GoogleIcon } from "../../assets/icons";
 import { IConfig } from "../../types/types";
+import {
+  checkEmailExist,
+  loginEmail,
+  loginSocial,
+  registerSocial,
+  signInWithGoogle,
+} from "../../networking/apiClient";
+import { useDispatch } from "react-redux";
+import { setUser } from "../../roomStore/chatSettingsSlice";
+import { useXmppClient } from "../../context/xmppProvider";
 
 interface LoginFormProps {
   config?: IConfig;
 }
 
 const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
+  const dispatch = useDispatch();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState({ email: "", password: "" });
@@ -35,14 +47,75 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
     setErrors({ email: emailError, password: passwordError });
   };
 
-  const handleGoogleLogin = (e: { preventDefault: () => void }) => {
+  const handleRegularLogin = useCallback(async () => {
+    try {
+      console.log(email, password);
+      const authData = await loginEmail("yukiraze9@gmail.com", "Qwerty123");
+
+      console.log("authData res", authData);
+
+      dispatch(setUser(authData.data.user));
+
+      return authData.data;
+    } catch (error) {
+      console.error("Login failed:", error);
+      return null;
+    }
+  }, []);
+
+  const handleGoogleLogin = async (e: { preventDefault: () => void }) => {
     e.preventDefault();
+    const loginType = "google";
+
+    try {
+      const res = await signInWithGoogle();
+
+      const emailExist = await checkEmailExist(
+        res.user?.providerData[0].email || ""
+      );
+
+      if (!emailExist.data.success) {
+        try {
+          await registerSocial(
+            res.idToken || "",
+            res.credential?.accessToken || "",
+            "",
+            loginType
+          );
+          const loginRes = await loginSocial(
+            res.idToken || "",
+            res.credential?.accessToken || "",
+            loginType
+          );
+          console.log("google log after register res", loginRes);
+
+          const user = loginRes.data.user;
+
+          dispatch(setUser(user));
+        } catch (error) {
+          console.log("error registering user viag google");
+        }
+      }
+      if (res.idToken && res.credential && res.credential.accessToken) {
+        const loginRes = await loginSocial(
+          res.idToken,
+          res.credential.accessToken,
+          loginType
+        );
+        console.log("google log res", loginRes);
+        const user = loginRes.data.user;
+        dispatch(setUser(user));
+      }
+    } catch (error) {
+      console.log(error);
+    }
   };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     validateForm();
     if (!errors.email && !errors.password) {
-      // Submit form logic
+      handleRegularLogin();
       console.log("Form submitted");
     }
   };
@@ -97,6 +170,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
         </div>
 
         <Button
+          onClick={handleRegularLogin}
           type="submit"
           text={"Login to Ethora Chat"}
           style={{ width: "100%", height: "40px" }}
@@ -143,7 +217,6 @@ const FormContainer = styled.div`
   width: 100%;
   height: 100%;
   background-color: #f5f5f5;
-  padding: 16px;
 `;
 
 const Form = styled.form`

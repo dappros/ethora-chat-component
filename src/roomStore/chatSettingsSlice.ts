@@ -7,17 +7,37 @@ interface ChatState {
   config?: IConfig;
 }
 
-const unpackAndTransform = (input: any): User => {
+const unpackAndTransform = (input: User): User => {
+  console.log({ input });
   return {
     description: "",
     token: input?.token || "",
-    profileImage: input?.user?.profileImage || "",
-    _id: input?.user?._id || "",
-    walletAddress: input?.user?.defaultWallet?.walletAddress || "",
-    xmppPassword: input?.user?.xmppPassword || "",
+    profileImage: input?.profileImage || "",
+    _id: input?._id || "",
+    walletAddress: input?.defaultWallet?.walletAddress || "",
+    xmppPassword: input?.xmppPassword || "",
     refreshToken: input?.refreshToken || "",
-    firstName: input?.user?.firstName || "",
-    lastName: input?.user?.lastName || "",
+    firstName: input?.firstName || "",
+    lastName: input?.lastName || "",
+    defaultWallet: {
+      walletAddress: input?.defaultWallet?.walletAddress || "",
+    },
+    email: input?.email || "",
+    username: input?.username || "",
+    appId: input?.appId || "",
+    homeScreen: input?.homeScreen || "",
+    registrationChannelType: input?.registrationChannelType || "",
+    updatedAt: input?.updatedAt || "",
+    authMethod: input?.authMethod || "",
+    resetPasswordExpires: input?.resetPasswordExpires || "",
+    resetPasswordToken: input?.resetPasswordToken || "",
+    xmppUsername: input?.xmppUsername || "",
+    roles: input?.roles || [],
+    tags: input?.tags || [],
+    __v: input?.__v || 0,
+    isProfileOpen: input?.isProfileOpen || false,
+    isAssetsOpen: input?.isAssetsOpen || false,
+    isAgreeWithTerms: input?.isAgreeWithTerms || false,
   };
 };
 
@@ -32,6 +52,25 @@ const initialState: ChatState = {
     refreshToken: "",
     firstName: "",
     lastName: "",
+    defaultWallet: {
+      walletAddress: "",
+    },
+    email: "",
+    username: "",
+    appId: "",
+    homeScreen: "",
+    registrationChannelType: "",
+    updatedAt: "",
+    authMethod: "",
+    resetPasswordExpires: "",
+    resetPasswordToken: "",
+    xmppUsername: "",
+    roles: [],
+    tags: [],
+    __v: 0,
+    isProfileOpen: true,
+    isAssetsOpen: true,
+    isAgreeWithTerms: false,
   },
   defaultChatRooms: [],
   config: undefined,
@@ -41,8 +80,9 @@ export const chatSlice = createSlice({
   name: "chat",
   initialState,
   reducers: {
-    setUser: (state, action: PayloadAction<any>) => {
+    setUser: (state, action: PayloadAction<User>) => {
       state.user = unpackAndTransform(action.payload);
+      console.log(state.user);
     },
     setDefaultChatRooms: (state, action: PayloadAction<any[]>) => {
       state.defaultChatRooms = action.payload;

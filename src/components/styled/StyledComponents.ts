@@ -14,16 +14,16 @@ export const ChatContainerHeader = styled.div`
   display: flex;
   border-radius: 0px 0px 15px 15px;
   box-shadow: 1px -1px 10px 0 rgba(0, 0, 0, 0.25);
-  padding: 30px 11px;
+  padding: 16px;
   background-color: #fff;
-  flex-direction: column;
   z-index: 1;
+  justify-content: space-between;
 `;
 
 export const ChatContainerHeaderLabel = styled.div`
-  color: #0052cd;
+  color: #141414;
   font-weight: 600;
-  font-size: 18px;
+  font-size: 16px;
 `;
 
 export const MessagesScroll = styled.div<{ color?: string }>`
@@ -189,6 +189,7 @@ export const CustomSystemMessage = styled.div`
   width: 100%;
   background-color: transparent;
   gap: 16px;
+  margin: 8px;
 `;
 
 export const CustomSystemMessageText = styled.p`
