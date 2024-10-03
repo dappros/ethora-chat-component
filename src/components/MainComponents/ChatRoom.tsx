@@ -55,7 +55,6 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     );
     const { user } = useSelector((state: RootState) => state.chatSettingStore);
 
-    const mainUser = user;
     const dispatch = useDispatch();
 
     useEffect(() => {
@@ -128,8 +127,20 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     const sendMedia = useCallback(
       async (data: any) => {
         const formData = new FormData();
-        formData.append("/files", data);
+        formData.append(
+          "audio",
+          data,
+          `${new Date().getTime()}-recording-${
+            user.firstName + " " + user.lastName
+          }.webm`
+        );
         uploadFile(formData, user.token)
+          .then((response) => {
+            console.log("Upload successful", response);
+          })
+          .catch((error) => {
+            console.error("Upload failed", error);
+          })
           .then((result: any) => {
             console.log(result);
             let userAvatar = "";
@@ -197,7 +208,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             });
         }, 1000);
       }
-    }, [client, mainUser, currentRoom.jid, rooms]);
+    }, [client, user, currentRoom.jid, rooms]);
     if (!activeRoom) return <>No room</>;
 
     return (
@@ -214,7 +225,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             loadMoreMessages={loadMoreMessages}
             messages={rooms[activeRoom.jid].messages}
             CustomMessage={CustomMessageComponent}
-            user={mainUser}
+            user={user}
             room={currentRoom}
             config={config}
           />

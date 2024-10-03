@@ -591,6 +591,8 @@ export class XmppClient {
   }
 
   sendMediaMessageStanza(roomJID: string, data: any) {
+    const id = `send-media-message:${Date.now().toString()}`;
+
     const dataToSend = {
       senderJID: this.client.jid?.toString(),
       senderFirstName: data[0].firstName,

@@ -26,7 +26,12 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
         user.walletAddress || "yukiraze9@gmail.com",
         user?.xmppPassword || "Qwerty123"
       );
-      return authData.data.user;
+
+      return {
+        ...authData.data.user,
+        token: authData.data.token,
+        refreshToken: authData.data.refreshToken,
+      };
     } catch (error) {
       console.error("Login failed:", error);
       return null;

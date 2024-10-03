@@ -13,6 +13,7 @@ import { useXmppClient } from "../../context/xmppProvider";
 import LoginForm from "../AuthForms/Login";
 import { RootState } from "../../roomStore";
 import Loader from "../styled/Loader";
+import { setLastViewedTimestamp } from "../../roomStore/roomsSlice";
 
 interface ChatWrapperProps {
   token?: string;
@@ -46,6 +47,8 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
         console.log("Error, no user");
       } else {
         if (!client) {
+          setShowModal(false);
+
           console.log("No client, so initing one");
           initializeClient(
             user.defaultWallet?.walletAddress,
@@ -58,40 +61,40 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
       setShowModal(true);
       console.log(error);
     }
-  }, []);
+  }, [user]);
+
+  // functionality to handle unreadmessages
+  useEffect(() => {
+    const updateLastReadTimeStamp = () => {
+      if (client) {
+        client.actionSetTimestampToPrivateStore(
+          room?.jid || defRoom.jid,
+          new Date().getTime()
+        );
+      }
+      dispatch(
+        setLastViewedTimestamp({
+          chatJID: room?.jid || defRoom.jid,
+          timestamp: new Date().getTime(),
+        })
+      );
+    };
+
+    const handleBeforeUnload = () => {
+      updateLastReadTimeStamp();
+    };
+
+    window.addEventListener("blur", handleBeforeUnload);
+    window.addEventListener("offline", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("blur", handleBeforeUnload);
+      window.removeEventListener("offline", handleBeforeUnload);
+    };
+  }, [client, room?.jid]);
 
   if (user.xmppPassword === "" && user.xmppUsername === "")
     return <LoginForm config={config} />;
-
-  // functionality to handle unreadmessages
-  // useEffect(() => {
-  //   const updateLastReadTimeStamp = () => {
-  //     if (client) {
-  //       client.actionSetTimestampToPrivateStore(
-  //         room?.jid || defRoom.jid,
-  //         new Date().getTime()
-  //       );
-  //     }
-  //     dispatch(
-  //       setLastViewedTimestamp({
-  //         chatJID: room?.jid || defRoom.jid,
-  //         timestamp: new Date().getTime(),
-  //       })
-  //     );
-  //   };
-
-  //   const handleBeforeUnload = () => {
-  //     updateLastReadTimeStamp();
-  //   };
-
-  //   window.addEventListener("blur", handleBeforeUnload);
-  //   window.addEventListener("offline", handleBeforeUnload);
-
-  //   return () => {
-  //     window.removeEventListener("blur", handleBeforeUnload);
-  //     window.removeEventListener("offline", handleBeforeUnload);
-  //   };
-  // }, [client, room?.jid]);
 
   return (
     <ChatWrapperBox>

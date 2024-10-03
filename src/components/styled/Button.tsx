@@ -5,7 +5,7 @@ import Loader from "./Loader";
 // Styled button inheriting from the HTML button
 const CustomButton = styled.button<{ disabled: boolean }>`
   border: none;
-  border-radius: 8px;
+  border-radius: 16px;
   background-size: contain;
   cursor: pointer;
   height: 40px;
@@ -13,6 +13,20 @@ const CustomButton = styled.button<{ disabled: boolean }>`
   display: flex;
   justify-content: center;
   align-items: center;
+  padding: 0;
+  transition: background-color 0.3s, box-shadow 0.3s;
+  background-color: white;
+
+  &:hover {
+    background-color: #cddce7;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+
+  &:disabled {
+    background-color: #bdc3c7;
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
 `;
 
 // Extend props from the default button attributes
