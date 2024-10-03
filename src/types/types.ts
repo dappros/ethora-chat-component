@@ -112,3 +112,23 @@ export interface IConfig {
     appId: string;
   };
 }
+
+export interface StorageUser {
+  appId: string;
+  company: any[];
+  firstName: string;
+  homeScreen: string;
+
+  lastName: string;
+  referrerId: string;
+  refreshToken: string;
+  token: string;
+  walletAddress: string;
+  xmppPassword: string;
+  _id: string;
+
+  isAgreeWithTerms?: boolean;
+  isAllowedNewAppCreate?: boolean;
+  isAssetsOpen?: boolean;
+  isProfileOpen?: boolean;
+}

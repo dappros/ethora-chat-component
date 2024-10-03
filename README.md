@@ -4,13 +4,13 @@
 2. select name of project, select type (react/js)
 3. cd project-name
 4. npm i
-5. npm i projecet-2-ccomp
+5. npm i @ethora/chat-component
 6. go to file src/App.tsx and replace it with this code
 
 ```
 
 ### Creating just chatroom screen
-import { Chat } from "projecet-2-ccomp";
+import { Chat } from "@ethora/chat-component";
 import "./App.css";
 
 function App() {
@@ -71,4 +71,4 @@ body {
 ```
 
 after these changes you can modify
-MainComponentStyles for chat 
+MainComponentStyles for chat

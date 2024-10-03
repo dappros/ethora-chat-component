@@ -77,9 +77,10 @@ http.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (!error.response || error.response.status !== 401) {
-      throw error;
-    }
+    // if (!error.response || error.response.status !== 401) {
+    //   console.log("heherherh");
+    //   throw error;
+    // }
     if (
       originalRequest.url === "/users/login/refresh" ||
       originalRequest.url === "/users/login"
@@ -103,14 +104,14 @@ http.interceptors.response.use(
         return http(originalRequest);
       } catch (error) {
         isRefreshing = false;
-        return Promise.reject(error);
+        return error;
       }
     }
   }
 );
 
-export function loginEmail(email: string, password: string) {
-  return http.post<{ user: User }>(
+export async function loginEmail(email: string, password: string) {
+  const res = await http.post<{ user: User }>(
     "/users/login-with-email",
     {
       email,
@@ -118,6 +119,8 @@ export function loginEmail(email: string, password: string) {
     },
     { headers: { Authorization: appToken } }
   );
+
+  return res;
 }
 
 export const signInWithGoogle = async () => {

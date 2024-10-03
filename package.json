@@ -1,6 +1,6 @@
 {
-  "name": "projecet-2-ccomp",
-  "version": "0.2.6",
+  "name": "@ethora/chat-component",
+  "version": "0.1.1",
   "type": "module",
   "main": "dist/main.js",
   "types": "dist/main.d.ts",
@@ -45,5 +45,11 @@
     "eslint-plugin-react-refresh": "^0.4.7",
     "typescript": "^5.2.2",
     "vite": "^5.3.1"
-  }
+  },
+  "description": "1. npm create vite@latest 2. select name of project, select type (react/js) 3. cd project-name 4. npm i 5. npm i @ethora/chat-component 6. go to file src/App.tsx and replace it with this code",
+  "directories": {
+    "lib": "lib"
+  },
+  "author": "Ethora",
+  "license": "ISC"
 }
