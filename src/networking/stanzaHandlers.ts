@@ -140,6 +140,10 @@ const onMessageHistory = async (stanza: any) => {
     const id = stanza.getChild("result")?.attrs.id;
 
     if (!delay) {
+      if (stanza.getChild("subject")) {
+        console.log("Subject.");
+        return;
+      }
       if (!data || !body || !id) {
         console.log("Missing required elements in message history.");
         return;
@@ -147,11 +151,15 @@ const onMessageHistory = async (stanza: any) => {
     }
 
     if (
+      !data?.attrs ||
       !data.attrs.senderFirstName ||
       !data.attrs.senderLastName ||
       !data.attrs.senderJID
     ) {
-      console.log("Missing sender information in message history.");
+      // console.log(
+      //   "Missing sender information in message history.",
+      //   stanza.toString()
+      // );
       return;
     }
 

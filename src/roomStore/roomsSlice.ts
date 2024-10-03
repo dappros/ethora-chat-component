@@ -129,7 +129,7 @@ export const roomsStore = createSlice({
                       token: "",
                       refreshToken: "",
                     },
-                    date: "",
+                    date: new Date().toString(),
                     body: "New Messages",
                     roomJID: "",
                   });
@@ -202,7 +202,6 @@ export const roomsStore = createSlice({
           timestamp
         );
       }
-      console.log(timestamp);
     },
   },
 });

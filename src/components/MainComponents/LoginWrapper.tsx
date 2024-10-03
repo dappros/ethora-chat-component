@@ -43,7 +43,9 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
   useEffect(() => {
     //use localStorage, to check for user was already logged
 
-    const storedUser: User = useLocalStorage("user").get() as User;
+    const storedUser: User = useLocalStorage(
+      "@ethora/chat-compoent-user"
+    ).get() as User;
     if (storedUser) {
       dispatch(setUser(storedUser));
     }
@@ -57,7 +59,7 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
           if (loginData) {
             console.log("Login data", loginData);
             dispatch(setUser(loginData));
-            useLocalStorage("user").set(loginData);
+            useLocalStorage("@ethora/chat-compoent-user").set(loginData);
           }
         } catch (error) {
           console.log("error with default login", error);

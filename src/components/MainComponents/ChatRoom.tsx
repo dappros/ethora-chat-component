@@ -84,6 +84,12 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       //     },
       //   })
       // );
+      dispatch(
+        setLastViewedTimestamp({
+          chatJID: currentRoom.jid,
+          timestamp: undefined,
+        })
+      );
       client?.sendMessage(
         currentRoom.jid,
         user.firstName,

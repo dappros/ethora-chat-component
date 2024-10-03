@@ -13,7 +13,6 @@ import {
 } from "../../networking/apiClient";
 import { useDispatch } from "react-redux";
 import { setUser } from "../../roomStore/chatSettingsSlice";
-import { useXmppClient } from "../../context/xmppProvider";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 
 interface LoginFormProps {
@@ -57,7 +56,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
         return null;
       }
       dispatch(setUser(authData.data.user));
-      useLocalStorage("user").set(authData.data.user);
+      useLocalStorage("@ethora/chat-compoent-user").set(authData.data.user);
     } catch (error) {
       console.error("Login failed:", error);
       setIsLoading(false);
@@ -98,7 +97,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
           const user = loginRes.data.user;
 
           dispatch(setUser(user));
-          useLocalStorage("user").set(user);
+          useLocalStorage("@ethora/chat-compoent-user").set(user);
         } catch (error) {
           console.log("error registering user viag google");
         }
@@ -112,7 +111,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
         console.log("google log res", loginRes);
         const user = loginRes.data.user;
         dispatch(setUser(user));
-        useLocalStorage("user").set(user);
+        useLocalStorage("@ethora/chat-compoent-user").set(user);
       }
     } catch (error) {
       console.log(error);
@@ -195,6 +194,24 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
           EndIcon={<GoogleIcon style={{ height: "24px" }} />}
           disabled={isLoading}
         />
+        <div>
+          Don't have an account?{" "}
+          <div
+            style={{
+              textDecoration: "underline",
+              color: "#0052CD",
+              fontSize: "14px",
+              display: "inline",
+              cursor: "pointer",
+              fontWeight: "400",
+            }}
+            onClick={() =>
+              window.open("https://ethora.ethoradev.com/register", "_blank")
+            }
+          >
+            Sign Up to Ethora
+          </div>
+        </div>
       </Form>
     </FormContainer>
   );

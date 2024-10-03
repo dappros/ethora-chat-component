@@ -23,7 +23,7 @@ const CustomButton = styled.button<{ disabled: boolean }>`
   }
 
   &:disabled {
-    background-color: #bdc3c7;
+    background-color: white;
     cursor: not-allowed;
     opacity: 0.6;
   }

@@ -79,3 +79,25 @@
 
 
 <message type="groupchat" id="typing-1727449049844" to="5f9a4603b2b5bbfa6b228b642127c56d03b778ad594c52b755e605c977303979@conference.xmpp.ethoradev.com" xmlns="jabber:client"><composing xmlns="http://jabber.org/protocol/chatstates"/><data fullName="test test"/></message>
+
+<message xmlns="jabber:client" to="0x6816810a7_fe04_f_c9b800f9_d11564_c0e4a_e_c25_d78@xmpp.ethoradev.com/1189077568371589559545426" from="0x6816810a7_fe04_f_c9b800f9_d11564_c0e4a_e_c25_d78@xmpp.ethoradev.com">
+	<result id="1727969410723554" queryid="userArchive" xmlns="urn:xmpp:mam:2">
+		<forwarded xmlns="urn:xmpp:forward:0">
+			<message to="0x6816810a7_fe04_f_c9b800f9_d11564_c0e4a_e_c25_d78@xmpp.ethoradev.com" from="57834759e627abd4ee3d10b4df859d1665753c208206419e5ffaa0e384137ba3@conference.xmpp.ethoradev.com" id="17147864347420389854" xmlns="jabber:client">
+				<archived by="0x6816810a7_fe04_f_c9b800f9_d11564_c0e4a_e_c25_d78@xmpp.ethoradev.com" id="1727969410723554" xmlns="urn:xmpp:mam:tmp"/>
+				<stanza-id by="0x6816810a7_fe04_f_c9b800f9_d11564_c0e4a_e_c25_d78@xmpp.ethoradev.com" id="1727969410723554" xmlns="urn:xmpp:sid:0"/>
+				<event xmlns="http://jabber.org/protocol/pubsub#event">
+					<items node="urn:xmpp:mucsub:nodes:presence">
+						<item id="17147864347420389854">
+							<presence xmlns="jabber:client" to="0x6816810a7_fe04_f_c9b800f9_d11564_c0e4a_e_c25_d78@xmpp.ethoradev.com" from="57834759e627abd4ee3d10b4df859d1665753c208206419e5ffaa0e384137ba3@conference.xmpp.ethoradev.com/0x9_c475da5_fa_ff_d_b175_fc286_b2b0581_ed48e674_cbf" type="unavailable">
+								<x xmlns="http://jabber.org/protocol/muc#user"><item role="none" affiliation="none"/>
+								</x>
+							</presence>
+						</item>
+					</items>
+				</event>
+			</message>
+			<delay from="xmpp.ethoradev.com" stamp="2024-10-03T15:30:10.723554Z" xmlns="urn:xmpp:delay"/>
+		</forwarded>
+	</result>
+</message>
