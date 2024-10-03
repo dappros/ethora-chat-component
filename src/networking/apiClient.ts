@@ -67,6 +67,7 @@ const processQueue = (newAccessToken: string) => {
 };
 
 export function uploadFile(formData: FormData, token: string) {
+  console.log(formData, token);
   return http.post("/files", formData, {
     headers: { Authorization: token },
   });
@@ -77,10 +78,9 @@ http.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // if (!error.response || error.response.status !== 401) {
-    //   console.log("heherherh");
-    //   throw error;
-    // }
+    if (!error.response || error.response.status !== 401) {
+      throw error;
+    }
     if (
       originalRequest.url === "/users/login/refresh" ||
       originalRequest.url === "/users/login"
@@ -111,7 +111,11 @@ http.interceptors.response.use(
 );
 
 export async function loginEmail(email: string, password: string) {
-  const res = await http.post<{ user: User }>(
+  const res = await http.post<{
+    user: User;
+    refreshToken: string;
+    token: string;
+  }>(
     "/users/login-with-email",
     {
       email,
