@@ -14,6 +14,7 @@ import {
 import { useDispatch } from "react-redux";
 import { setUser } from "../../roomStore/chatSettingsSlice";
 import { useXmppClient } from "../../context/xmppProvider";
+import { useLocalStorage } from "../../hooks/useLocalStorage";
 
 interface LoginFormProps {
   config?: IConfig;
@@ -24,46 +25,51 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({ email: "", password: "" });
-
-  useEffect(() => {
-    validateForm();
-  }, [email, password]);
 
   const validateForm = () => {
     let emailError = "";
     let passwordError = "";
 
-    // Basic email validation
     if (!/\S+@\S+\.\S+/.test(email)) {
       emailError = "Invalid email format";
     }
 
-    // Basic password validation
     if (password.length < 6) {
       passwordError = "Password must be at least 6 characters long";
     }
 
-    setErrors({ email: emailError, password: passwordError });
+    return { emailError, passwordError };
   };
 
   const handleRegularLogin = useCallback(async () => {
+    setIsLoading(true);
     try {
-      console.log(email, password);
-      const authData = await loginEmail("yukiraze9@gmail.com", "Qwerty123");
+      const authData = await loginEmail(email, password);
 
-      console.log("authData res", authData);
-
+      if (authData?.response?.status === 401) {
+        setErrors((prev) => ({
+          ...prev,
+          password: "You entered wrong data. Try again",
+        }));
+        setIsLoading(false);
+        return null;
+      }
       dispatch(setUser(authData.data.user));
-
-      return authData.data;
+      useLocalStorage("user").set(authData.data.user);
     } catch (error) {
       console.error("Login failed:", error);
+      setIsLoading(false);
+
       return null;
     }
-  }, []);
+    setIsLoading(false);
+  }, [email, password, dispatch]);
 
   const handleGoogleLogin = async (e: { preventDefault: () => void }) => {
+    setIsLoading(true);
+
     e.preventDefault();
     const loginType = "google";
 
@@ -92,6 +98,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
           const user = loginRes.data.user;
 
           dispatch(setUser(user));
+          useLocalStorage("user").set(user);
         } catch (error) {
           console.log("error registering user viag google");
         }
@@ -105,18 +112,22 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
         console.log("google log res", loginRes);
         const user = loginRes.data.user;
         dispatch(setUser(user));
+        useLocalStorage("user").set(user);
       }
     } catch (error) {
       console.log(error);
     }
+    setIsLoading(false);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    validateForm();
-    if (!errors.email && !errors.password) {
+    const { emailError, passwordError } = validateForm();
+
+    setErrors({ email: emailError, password: passwordError });
+
+    if (!emailError && !passwordError) {
       handleRegularLogin();
-      console.log("Form submitted");
     }
   };
 
@@ -170,39 +181,20 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
         </div>
 
         <Button
-          onClick={handleRegularLogin}
           type="submit"
           text={"Login to Ethora Chat"}
           style={{ width: "100%", height: "40px" }}
+          disabled={isLoading}
+          loading={isLoading}
         />
-
         <Delimiter>or</Delimiter>
-
         <Button
           onClick={handleGoogleLogin}
           style={{ width: "100%", height: "40px" }}
           text={<>Login with Google</>}
           EndIcon={<GoogleIcon style={{ height: "24px" }} />}
+          disabled={isLoading}
         />
-
-        <div>
-          Don't have an account?{" "}
-          <div
-            style={{
-              textDecoration: "underline",
-              color: "#0052CD",
-              fontSize: "14px",
-              display: "inline",
-              cursor: "pointer",
-              fontWeight: "400",
-            }}
-            onClick={() =>
-              window.open("https://ethora.ethoradev.com/register", "_blank")
-            }
-          >
-            Sign Up to Ethora
-          </div>
-        </div>
       </Form>
     </FormContainer>
   );

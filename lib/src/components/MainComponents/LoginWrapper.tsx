@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect } from "react";
-import { IConfig, IRoom } from "../../types/types";
+import { IConfig, IRoom, User } from "../../types/types";
 import { ChatWrapper } from "./ChatWrapper";
 import LoginForm from "../AuthForms/Login";
 import { RootState } from "../../roomStore";
 import { useDispatch, useSelector } from "react-redux";
 import { setUser } from "../../roomStore/chatSettingsSlice";
 import { loginEmail } from "../../networking/apiClient";
+import { useLocalStorage } from "../../hooks/useLocalStorage";
 
 interface LoginWrapperProps {
   token?: string;
@@ -35,9 +36,14 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    //if no login config - default user (just
-    // const loginData = await loginUserFunction();
-    // dispatch(setUser(loginData)))
+    //use localStorage, to check for user was already logged
+
+    const storedUser: User = useLocalStorage("user").get() as User;
+    if (storedUser) {
+      dispatch(setUser(storedUser));
+    }
+
+    //if no login config - default user login
 
     if (!props.config?.googleLogin && user.xmppUsername === "") {
       const defaultLogin = async () => {
@@ -46,6 +52,7 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
           if (loginData) {
             console.log("Login data", loginData);
             dispatch(setUser(loginData));
+            useLocalStorage("user").set(loginData);
           }
         } catch (error) {
           console.log("error with default login", error);

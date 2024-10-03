@@ -31,7 +31,7 @@ const Button: React.FC<ButtonProps> = ({
 }) => {
   return (
     <CustomButton disabled={disabled} {...props}>
-      {loading ? <Loader /> : text}
+      {loading ? <Loader size={24} /> : text}
       {!loading && EndIcon}
     </CustomButton>
   );
