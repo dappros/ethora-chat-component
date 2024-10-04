@@ -7,9 +7,9 @@
 5. npm i @ethora/chat-component
 6. go to file src/App.tsx and replace it with this code
 
-```
-
 ### Creating just chatroom screen
+
+```
 import { Chat } from "@ethora/chat-component";
 import "./App.css";
 

@@ -1,0 +1,230 @@
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { IMessage, IRoom } from "../types/types";
+import { isDateAfter, isDateBefore } from "../helpers/dateComparison";
+
+interface RoomMessagesState {
+  rooms: { [jid: string]: IRoom };
+  activeRoom: IRoom | null;
+}
+
+const initialState: RoomMessagesState = {
+  rooms: {},
+  activeRoom: null,
+};
+
+export const roomsStore = createSlice({
+  name: "roomMessages",
+  initialState,
+  reducers: {
+    addRoom(state, action: PayloadAction<{ roomData: IRoom }>) {
+      const { roomData } = action.payload;
+      state.rooms[roomData.jid] = roomData;
+    },
+    setRoomMessages(
+      state,
+      action: PayloadAction<{ roomJID: string; messages: IMessage[] }>
+    ) {
+      const { roomJID, messages } = action.payload;
+      if (state.rooms[roomJID]) {
+        state.rooms[roomJID].messages = messages;
+      }
+    },
+    deleteRoomMessage(
+      state,
+      action: PayloadAction<{ roomJID: string; messageId: string }>
+    ) {
+      const { roomJID, messageId } = action.payload;
+      if (state.rooms[roomJID]) {
+        const roomMessages = state.rooms[roomJID].messages;
+        const messageIndex = roomMessages.findIndex(
+          (msg) => msg.id === messageId
+        );
+        if (messageIndex !== -1) {
+          roomMessages.splice(messageIndex, 1);
+        }
+      }
+    },
+    addRoomMessage(
+      state,
+      action: PayloadAction<{
+        roomJID: string;
+        message: IMessage;
+        start?: boolean;
+      }>
+    ) {
+      const { roomJID, message, start } = action.payload;
+
+      if (!state.rooms[roomJID]) {
+        console.log("creating");
+        state.rooms[roomJID] = {
+          jid: roomJID,
+          messages: [],
+          title: "", // Default title, replace as needed
+          usersCnt: 1, // Default users count, replace as needed
+          id: "",
+          name: "test",
+          isLoading: false,
+        };
+      }
+
+      if (!state.rooms[roomJID].messages) {
+        state.rooms[roomJID].messages = [];
+      }
+
+      const roomMessages = state.rooms[roomJID].messages;
+
+      const existingMessage = roomMessages.find((msg) => msg.id === message.id);
+
+      if (roomMessages.length === 0 || start) {
+        roomMessages.unshift(message);
+      } else {
+        const lastMessage = roomMessages[roomMessages.length - 1];
+        const firstMessage = roomMessages[0];
+        const lastMessageDate = lastMessage.date;
+        const firstMessageDate = firstMessage.date;
+        const newMessageDate = message.date;
+
+        if (!existingMessage) {
+          if (
+            isDateAfter(newMessageDate.toString(), lastMessageDate.toString())
+          ) {
+            roomMessages.push(message);
+
+            // Check for lastViewedTimestamp and insert delimiter if needed
+            if (
+              state.rooms[roomJID].lastViewedTimestamp &&
+              !roomMessages.some((msg) => msg.id === "delimiter-new")
+            ) {
+              const lastViewedTimestamp =
+                new Date(state.rooms[roomJID].lastViewedTimestamp) ||
+                new Date();
+
+              // If the new message is after the last viewed timestamp
+
+              isDateAfter(
+                newMessageDate.toString(),
+                lastViewedTimestamp.toString()
+              );
+
+              if (
+                isDateAfter(
+                  newMessageDate.toString(),
+                  lastViewedTimestamp.toString()
+                )
+              ) {
+                const delimiterIndex = roomMessages.findIndex((msg) =>
+                  isDateAfter(
+                    msg.date.toString(),
+                    lastViewedTimestamp.toString()
+                  )
+                );
+
+                // Insert the delimiter before the new messages
+                if (delimiterIndex !== -1) {
+                  roomMessages.splice(delimiterIndex, 0, {
+                    id: "delimiter-new",
+                    user: {
+                      id: "system",
+                      name: null,
+                      token: "",
+                      refreshToken: "",
+                    },
+                    date: new Date().toString(),
+                    body: "New Messages",
+                    roomJID: "",
+                  });
+                }
+              }
+            }
+          } else if (
+            isDateBefore(newMessageDate.toString(), firstMessageDate.toString())
+          ) {
+            roomMessages.unshift(message);
+          } else {
+            for (let i = 0; i < roomMessages.length; i++) {
+              if (
+                isDateBefore(
+                  newMessageDate.toString(),
+                  roomMessages[i].date.toString()
+                )
+              ) {
+                roomMessages.splice(i, 0, message);
+                break;
+              }
+            }
+          }
+        }
+      }
+    },
+
+    deleteAllRooms(state) {
+      state.rooms = {};
+      state.activeRoom = null;
+    },
+    setActiveRoom(state, action: PayloadAction<{ roomData: IRoom }>) {
+      state.activeRoom = action.payload.roomData;
+    },
+    setComposing(
+      state,
+      action: PayloadAction<{ chatJID: string; composing: boolean }>
+    ) {
+      const { chatJID, composing } = action.payload;
+      if (!state.rooms[chatJID]) {
+        console.log("creating new room as it was missing");
+        state.rooms[chatJID] = {
+          jid: chatJID,
+          messages: [],
+          title: "",
+          usersCnt: 1,
+          id: "",
+          name: "test",
+          isLoading: false,
+        };
+      }
+      state.rooms[chatJID].composing = composing;
+    },
+    setIsLoading: (
+      state,
+      action: PayloadAction<{ chatJID: string; loading: boolean }>
+    ) => {
+      const { chatJID, loading } = action.payload;
+      state.rooms[chatJID].isLoading = loading;
+    },
+    setLastViewedTimestamp: (
+      state,
+      action: PayloadAction<{ chatJID: string; timestamp: number }>
+    ) => {
+      const { chatJID, timestamp } = action.payload;
+      if (state.rooms[chatJID]) {
+        state.rooms[chatJID].lastViewedTimestamp = timestamp;
+        state.rooms[chatJID].unreadMessages = countNewerMessages(
+          state.rooms[chatJID].messages,
+          timestamp
+        );
+      }
+    },
+  },
+});
+
+const countNewerMessages = (
+  messages: IMessage[],
+  timestamp: number
+): number => {
+  return messages.filter((message) => {
+    return Number(message.id) < timestamp;
+  }).length;
+};
+
+export const {
+  addRoom,
+  deleteAllRooms,
+  setRoomMessages,
+  addRoomMessage,
+  deleteRoomMessage,
+  setActiveRoom,
+  setComposing,
+  setIsLoading,
+  setLastViewedTimestamp,
+} = roomsStore.actions;
+
+export default roomsStore.reducer;
