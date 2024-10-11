@@ -49,14 +49,14 @@ npm run dev
 ```
 
 you should see something like this:
-![CleanShot 2024-10-11 at 11 06 29@2x](https://github.com/user-attachments/assets/7a4022cc-ad95-4561-bf40-c097a6aaa94c)
+<br /><img src="https://github.com/user-attachments/assets/7a4022cc-ad95-4561-bf40-c097a6aaa94c" width="300" />
 
 
 8. Open http://localhost:5173/ in your browser
 
 Voilà - your chat app should work like so:
 
-![CleanShot 2024-10-11 at 11 08 00@2x](https://github.com/user-attachments/assets/e4d05fd1-7dcc-438b-9bfd-895ec29b494a)
+<img src="https://github.com/user-attachments/assets/e4d05fd1-7dcc-438b-9bfd-895ec29b494a" width="800" />
 
 ℹ️ Note: your Ethora App, User and Chat credentials are hard-coded and login screen is bypassed. This is done so that you can scaffold and test the functionality quickly.
 Leave this as is if you only need to demo or validate the chat functionality as part of your project.
