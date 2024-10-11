@@ -4,12 +4,10 @@ import { isDateAfter, isDateBefore } from "../helpers/dateComparison";
 
 interface RoomMessagesState {
   rooms: { [jid: string]: IRoom };
-  activeRoom: IRoom | null;
 }
 
 const initialState: RoomMessagesState = {
   rooms: {},
-  activeRoom: null,
 };
 
 export const roomsStore = createSlice({
@@ -159,10 +157,6 @@ export const roomsStore = createSlice({
 
     deleteAllRooms(state) {
       state.rooms = {};
-      state.activeRoom = null;
-    },
-    setActiveRoom(state, action: PayloadAction<{ roomData: IRoom }>) {
-      state.activeRoom = action.payload.roomData;
     },
     setComposing(
       state,
@@ -188,8 +182,17 @@ export const roomsStore = createSlice({
       action: PayloadAction<{ chatJID: string; loading: boolean }>
     ) => {
       const { chatJID, loading } = action.payload;
+
+      // console.log(
+      //   JSON.parse(JSON.stringify(state.rooms, null, 2))[chatJID],
+      //   chatJID
+      // );
+
+      console.log(state.rooms[chatJID].isLoading, "isloding", loading);
+
       state.rooms[chatJID].isLoading = loading;
     },
+
     setLastViewedTimestamp: (
       state,
       action: PayloadAction<{ chatJID: string; timestamp: number }>
@@ -201,6 +204,15 @@ export const roomsStore = createSlice({
           state.rooms[chatJID].messages,
           timestamp
         );
+      }
+    },
+    setRoomNoMessages: (
+      state,
+      action: PayloadAction<{ value: boolean; chatJID?: string }>
+    ) => {
+      const { value, chatJID } = action.payload;
+      if (chatJID) {
+        state.rooms[chatJID].noMessages = value;
       }
     },
   },
@@ -221,10 +233,10 @@ export const {
   setRoomMessages,
   addRoomMessage,
   deleteRoomMessage,
-  setActiveRoom,
   setComposing,
   setIsLoading,
   setLastViewedTimestamp,
+  setRoomNoMessages,
 } = roomsStore.actions;
 
 export default roomsStore.reducer;

@@ -79,6 +79,7 @@ const onRealtimeMessage = async (stanza: Element) => {
     !stanza?.getChild("result") &&
     !stanza.getChild("composing") &&
     !stanza.getChild("paused") &&
+    !stanza.getChild("subject") &&
     !stanza.is("iq")
   ) {
     const body = stanza?.getChild("body");
@@ -109,7 +110,7 @@ const onRealtimeMessage = async (stanza: Element) => {
 
     store.dispatch(
       addRoomMessage({
-        roomJID: store.getState().rooms.activeRoom?.jid || "test",
+        roomJID: stanza.attrs.from,
         message,
       })
     );
@@ -122,6 +123,7 @@ const onMessageHistory = async (stanza: any) => {
     stanza.is("message") &&
     stanza.children[0].attrs.xmlns === "urn:xmpp:mam:2"
   ) {
+    // console.log("stanza -->", stanza.toString());
     const body = stanza
       .getChild("result")
       ?.getChild("forwarded")
@@ -150,6 +152,8 @@ const onMessageHistory = async (stanza: any) => {
       }
     }
 
+    // console.log(stanza.attrs.from);
+
     if (
       !data?.attrs ||
       !data.attrs.senderFirstName ||
@@ -172,7 +176,7 @@ const onMessageHistory = async (stanza: any) => {
 
     store.dispatch(
       addRoomMessage({
-        roomJID: store.getState().rooms.activeRoom?.jid || "test",
+        roomJID: stanza.attrs.from,
         message,
       })
     );
@@ -201,7 +205,7 @@ const handleComposing = async (stanza: Element, currentUser: string) => {
 
 const getListOfRooms = (xmpp: any) => {
   xmpp.client.send(xml("presence"));
-  xmpp.getArchive(xmpp.client?.jid?.toString());
+  // xmpp.getArchive(xmpp.client?.jid?.toString());
   xmpp.getRooms();
 };
 

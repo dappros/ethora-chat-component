@@ -51,5 +51,9 @@
     "lib": "lib"
   },
   "author": "Ethora",
-  "license": "ISC"
+  "license": "ISC",
+  "keywords": [
+    "chat",
+    "messaging"
+  ]
 }

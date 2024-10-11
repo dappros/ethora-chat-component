@@ -17,7 +17,7 @@ import { AttachIcon, RemoveIcon, SendIcon } from "../../assets/icons";
 interface SendInputProps {
   sendMessage: (message: string) => void;
   isLoading: boolean;
-  sendMedia: (data: any) => void;
+  sendMedia: (data: any, type: string) => void;
   config?: IConfig;
   onFocus?: () => void;
   onBlur?: () => void;
@@ -89,14 +89,13 @@ const SendInput: React.FC<SendInputProps> = ({
 
   const handleSendClick = useCallback(
     (audioUrl?: string) => {
-      if (filePreviews && filePreviews.length > 0) {
+      if (filePreviews.length > 0) {
         console.log(filePreviews);
-        console.log("Files sent:", filePreviews);
-        sendMedia(filePreviews);
+        console.log("Files sent:", filePreviews[0]);
+        sendMedia(filePreviews[0], "media");
         setIsRecording(false);
-      }
-      if (audioUrl) {
-        sendMedia(audioUrl);
+      } else if (audioUrl) {
+        sendMedia(audioUrl, "audio");
         console.log(audioUrl);
         console.log("Audio sent:", audioUrl);
         setIsRecording(false);
@@ -138,10 +137,17 @@ const SendInput: React.FC<SendInputProps> = ({
   const memoizedFilePreviews = useMemo(() => {
     return filePreviews.map(
       (file: any, idx: number) =>
-        idx < 6 && (
+        idx < 1 && (
           <FilePreview key={file.name}>
             {renderFilePreview(file)}
             <Button
+              style={{
+                position: "absolute",
+                backgroundColor: "transparent",
+                top: -12,
+                right: 0,
+                height: 12,
+              }}
               onClick={() => handleRemoveFile(file)}
               EndIcon={<RemoveIcon />}
             />
@@ -158,7 +164,7 @@ const SendInput: React.FC<SendInputProps> = ({
             {!config?.disableMedia && (
               <Button
                 onClick={handleAttachClick}
-                disabled={true}
+                disabled={false}
                 EndIcon={<AttachIcon />}
               />
             )}
@@ -177,11 +183,11 @@ const SendInput: React.FC<SendInputProps> = ({
         {message || filePreviews.length > 0 || config?.disableMedia ? (
           <Button
             onClick={() => handleSendClick()}
-            disabled={!message || message === ""}
+            // disabled={!message || message === ""}
             EndIcon={
               <SendIcon
                 color={
-                  !message || message === ""
+                  !message || message === "" || !filePreviews
                     ? "#D4D4D8"
                     : config?.colors?.primary
                 }

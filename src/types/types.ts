@@ -41,6 +41,7 @@ export interface IRoom {
   composingList?: string[];
   lastViewedTimestamp?: number;
   unreadMessages?: number;
+  noMessages?: boolean;
 }
 
 export interface UserType extends IMessage {

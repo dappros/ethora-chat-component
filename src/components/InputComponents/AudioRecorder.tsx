@@ -4,19 +4,13 @@ import {
   RecordContainer,
   Timer,
 } from "../styled/StyledInputComponents/StyledInputComponents";
-import Buttom from "../styled/Button";
-import {
-  PauseIcon,
-  RecordIcon,
-  RemoveIcon,
-  SendIcon,
-} from "../../assets/icons";
+import { RecordIcon, RemoveIcon, SendIcon } from "../../assets/icons";
 import Button from "../styled/Button";
 
 interface AudioRecorderProps {
   setIsRecording: (state: boolean) => void;
   isRecording: boolean;
-  handleSendClick: (audioBlob?: string) => void;
+  handleSendClick: (audioBlob?: any) => void;
 }
 
 const AudioRecorder: React.FC<AudioRecorderProps> = ({
@@ -24,12 +18,11 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
   isRecording,
   handleSendClick,
 }) => {
-  const [isPaused, setIsPaused] = useState(false);
   const [audioURL, setAudioURL] = useState<string | null>(null);
   const [timer, setTimer] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -80,52 +73,25 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
       });
       const audioUrl = URL.createObjectURL(audioBlob);
       setAudioURL(audioUrl);
+      handleSendClick(audioBlob); // Pass the audio blob to the parent component
+      console.log(audioBlob); // Log the audio object
     };
 
     audioChunksRef.current = [];
     mediaRecorder.start();
     setIsRecording(true);
-    setIsPaused(false);
     startTimer();
-  }, [startTimer]);
-
-  const pauseRecording = () => {
-    if (mediaRecorderRef.current) {
-      if (isPaused) {
-        mediaRecorderRef.current.resume();
-        startTimer();
-      } else {
-        mediaRecorderRef.current.pause();
-        stopTimer();
-      }
-      setIsPaused(!isPaused);
-    }
-  };
+  }, [startTimer, setIsRecording, handleSendClick]);
 
   const stopRecording = () => {
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
-      setIsPaused(false);
       stopTimer();
+      setTimer(0);
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
-    }
-    setIsRecording(false);
-    stopTimer();
-    setTimer(0);
-  };
-
-  const sendAudio = () => {
-    console.log(audioURL);
-    if (audioURL) {
-      console.log(audioURL);
-      stopTimer();
-      setTimer(0);
-      handleSendClick(audioURL);
-      // setAudioURL(null);
-      setIsRecording(false);
     }
   };
 
@@ -143,31 +109,26 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
 
       analyser.getByteTimeDomainData(dataArray);
       if (ctx) {
-        ctx.fillStyle = "rgb(200, 200, 200)";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
+
+        ctx.fillStyle = "rgba(255, 255, 255, 0.1)"; // Transparent background
+        ctx.fillRect(0, 0, canvas.width, canvas.height); // Fill with transparent color
 
         ctx.lineWidth = 2;
-        ctx.strokeStyle = "rgb(0, 0, 255)";
+        ctx.strokeStyle = "rgb(0, 0, 255)"; // Line color
 
-        ctx.beginPath();
         const sliceWidth = (canvas.width * 1.0) / dataArray.length;
-        let x = 0;
 
         for (let i = 0; i < dataArray.length; i++) {
-          const v = dataArray[i] / 128.0;
-          const y = (v * canvas.height) / 2;
+          const v = dataArray[i] / 128.0; // Normalize
+          const height = (v * canvas.height) / 2; // Get height based on sensitivity
+          const x = i * sliceWidth; // X position
 
-          if (i === 0) {
-            ctx.moveTo(x, y);
-          } else {
-            ctx.lineTo(x, y);
-          }
-
-          x += sliceWidth;
+          ctx.beginPath();
+          ctx.moveTo(x, canvas.height / 2 - height);
+          ctx.lineTo(x, canvas.height / 2 + height); // Draw vertical line
+          ctx.stroke();
         }
-
-        ctx.lineTo(canvas.width, canvas.height / 2);
-        ctx.stroke();
       }
       animationFrameRef.current = requestAnimationFrame(draw);
     };
@@ -186,26 +147,20 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
     };
   }, [isRecording, drawWaveform]);
 
+  const sendAudio = () => {
+    console.log("sent audio", audioURL);
+  };
+
   return isRecording ? (
     <RecordContainer>
-      <Buttom
+      <Button
         onClick={stopRecording}
         disabled={!isRecording}
         EndIcon={<RemoveIcon />}
       />
       <canvas ref={canvasRef} width="600" height="70" />
       <Timer>{formatTime(timer)}</Timer>
-      {/* <RecordButton onClick={startRecording} disabled={isRecording} /> */}
-      <Buttom
-        onClick={pauseRecording}
-        disabled={!isRecording}
-        EndIcon={<PauseIcon />}
-      />
-      <Buttom
-        onClick={sendAudio}
-        disabled={!!audioURL}
-        EndIcon={<SendIcon />}
-      />
+      <Button onClick={sendAudio} disabled={!audioURL} EndIcon={<SendIcon />} />
     </RecordContainer>
   ) : (
     <Button onClick={startRecording} EndIcon={<RecordIcon />} />
