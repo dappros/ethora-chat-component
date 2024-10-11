@@ -49,6 +49,13 @@ npm run dev
 
 To create custom chat room styles in **App.tsx**:
 
+replace 
+```
+<Chat />
+```
+
+with:
+
 ```
 <Chat
     config={{
