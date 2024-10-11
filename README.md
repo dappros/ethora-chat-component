@@ -146,7 +146,7 @@ Supported by Ethora platform but not implemented into Chat Component yet:
 #### "Multiple rooms - messenger / social app”
 
 * Use Case 3: **Users can switch between Chats** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub>
-- Similar to Use Case 2, but also allows your User to switch to the **List of Chats** where they can see chat rooms, the count of new messages and a last message for -each room etc. Users can create new Chats and invite others into Chats (depending on your App settings). This functionality is available in full Ethora app but is currently "work in progress" for Chat Component.
+Similar to Use Case 2, but also allows your User to switch to the **List of Chats** where they can see chat rooms, the count of new messages and a last message for -each room etc. Users can create new Chats and invite others into Chats (depending on your App settings). This functionality is available in full Ethora app but is currently "work in progress" for Chat Component.
 
 #### Misc core chat functionalities
 * **Chat header** ✅ - Header with chat title and Users counter (this is optional and you can disable the header)
@@ -165,7 +165,7 @@ Supported by Ethora platform but not implemented into Chat Component yet:
 
 ### FILE ATTACHMENTS
 
-**File attachments** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub> - file attachments, previews, media attachments, audio/video player etc currently are work in progress for chat component
+* **File attachments** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub> - file attachments, previews, media attachments, audio/video player etc currently are work in progress for chat component
 
 ### USER PROFILES AND DIGITAL WALLET FUNCTIONALITY
 
