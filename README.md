@@ -216,3 +216,11 @@ Similar to Use Case 2, but also allows your User to switch to the **List of Chat
 * **Profile Asset: Media (audio, video) files** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub> - Media files playable right from Profiles.
 * **Profile Asset: Digital Art (collectables / NFT)** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub> - For projects which support rewarding Users with unique digital collectables and/or allowing Users to upload/mint, distribute or trade digital art or collectables. 
 
+## Contacts, Documentation and Technical Support
+* Community support forum: https://forum.ethora.com/
+* Discord: https://discord.gg/Sm6bAHA3ZC
+* Contact Ethora team: https://www.ethora.com/#contact
+* Documentation main: https://docs.ethora.com/
+* Documentation for Ethora API (Swagger): https://api.ethoradev.com/api-docs
+* Documentation on github including chat protocol and bots: https://github.com/dappros/ethora/tree/main/api
+
