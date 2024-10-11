@@ -51,5 +51,16 @@
     "lib": "lib"
   },
   "author": "Ethora",
-  "license": "ISC"
+  "license": "ISC",
+  "keywords": [
+    "chat",
+    "messaging",
+    "react",
+    "react-component",
+    "messenger",
+    "reactjs",
+    "web3",
+    "xmpp", 
+    "ethora"
+  ]
 }
