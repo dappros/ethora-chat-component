@@ -106,15 +106,15 @@ Chat component includes an optional Login / Sign-on screen that allows you to lo
 In cases where chat component is embedded into your existing web or app experience, you would likely want to disable and bypass the login screen.
 
 Supported out of the box:
-* Login bypass (user credentials are passed from your existing backend)
-* E-mail + password 
-* Google SSO
+* Login bypass (user credentials are passed from your existing backend) ✅
+* E-mail + password ✅
+* Google SSO ✅
 
 Supported by Ethora platform but not implemented into Chat Component yet:
-* Custom set of credentials
-* Apple SSO
-* Facebook SSO 
-* Metamask SSO
+* Custom set of credentials 🚧
+* Apple SSO 🚧
+* Facebook SSO 🚧 
+* Metamask SSO 🚧
 
 
 ### CHAT FUNCTIONALITY
