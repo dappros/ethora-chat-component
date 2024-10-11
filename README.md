@@ -139,18 +139,33 @@ Supported by Ethora platform but not implemented into Chat Component yet:
 ### CHAT FUNCTIONALITY
 
 #### "One room at a time - chat session"
+
 * Use Case 1: **One global chat room for all users** ✅ - (e.g. chat lobby for all of your website / app users). Simply create a chat room manually and hardcode the UUID into your chat component code.
 * Use Case 2: **One chat room per case** ✅ - (e.g. customer support session, AI bot, a chat room for each location or department, web page specific chat etc). You have to create rooms as required by your business logic via Ethora API and then pass the corresponding chat UUID into chat component. Your end User will see the corresponding room.
 
 #### "Multiple rooms - messenger / social app”
-* Use Case 3: **Users can switch between Chats** 🚧 (available in Ethora git repo)
+
+* Use Case 3: **Users can switch between Chats** 🚧 (available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub>
 - Similar to Use Case 2, but also allows your User to switch to the **List of Chats** where they can see chat rooms, the count of new messages and a last message for -each room etc. Users can create new Chats and invite others into Chats (depending on your App settings). This functionality is available in full Ethora app but is currently "work in progress" for Chat Component.
 
-#### Chat Message Menu
+#### Misc core chat functionalities
+* **Chat header** ✅ - Header with chat title and Users counter (this is optional and you can disable the header)
+* **Message bubbles** ✅ - Message bubbles next to user avatars with message content and timestamp
+* **Chat history caching and scrolling** ✅
+* **Chat history date divider** ✅
 * **Now typing** ✅ - when someone is typing, other room Users will see indication of who is typing
-* **Emoji Reactions** 🚧 (available in Ethora git repo) - Users are able to long tap / click on the message and send Emoji reactions to the message. Reactions are displayed in the corner of the message bubble. 
+
+#### Message interactions
+* **Message menu** 🚧 (available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub> - Long tap or right click opens message menu with "Reply", "Copy", "Edit", "Delete", "Report" options available as well as send Coin / Item options
+* **Emoji Reactions** 🚧 (available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub> - Users are able to long tap / click on the message and send Emoji reactions to the message. Reactions are displayed in the corner of the message bubble. 
+
+#### Notifications
+* **Browser and mobile push notifications** 🚧 (available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub> - push notifications are useful to alert the User about new messages or transactions related to them when they are not actively using your app / chat in the browser. 
 
 
+### FILE ATTACHMENTS
+
+**File attachments** 🚧 (available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub> - file attachments, previews, media attachments, audio/video player etc currently are work in progress for chat component
 
 ### USER PROFILES AND DIGITAL WALLET FUNCTIONALITY
 
@@ -160,7 +175,3 @@ Supported by Ethora platform but not implemented into Chat Component yet:
 * **Custom profile photos** 🚧 (available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub> - users are able to upload their custom photos when managing their Profile and the mini-photo will be displayed as a chat avatar
 * **Profile screen** 🚧 (available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub>) - users can see their own and other Users Profile screens by tapping their avatar in Chat. Profile includes Photo, name, description, direct message button and profile share link
 * **Profile Assets (Digital Wallet)** 🚧 (available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub> - Users can view assets (Documents, art/collectables, Coins) 
-
-
-
-
