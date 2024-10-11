@@ -88,8 +88,42 @@ with:
       borderRadius: "16px",
       border: "1px solid #42f5e9",
     }}
+    room={{
+      jid: 'string@conference.xmpp.ethoradev.com',
+      name: '',
+      unreadMessages: 0,
+      composing: '',
+      toUpdate: false,
+      description: '',
+      group: 'groups',
+      id: '',
+      title: '',
+      usersCnt: 1,
+     }}
+     user={{
+       _id: '',
+       firstName: '',
+       lastName: '',
+       xmppPassword: '',
+       walletAddress: '',
+       profileImage: '',
+       isProfileOpen: true,
+       isAssetsOpen: true,
+       referrerId: '',
+       isAllowedNewAppCreate: true,
+       isAgreeWithTerms: false,
+       company: [],
+       appId: '',
+       homeScreen: '',
+       defaultWallet: {
+         walletAddress: '',
+       },
+       email: '',
+       username: '',
+     }}
   />
 ```
+ℹ️ Note: Add room and user which are registered at Ethora. After these changes - the pre-written user & room will be changed to yours.
 
 For styling you can alter **App.css**:
 
