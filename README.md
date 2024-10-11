@@ -21,7 +21,7 @@ Note: scroll below for use cases and functionality break down of this Chat Compo
 2. specify a name for your project (e.g. "vite-project") 
 3. select framework and variant (for example, React -> Typescript but may be different depending on your project requirements, it will work with plain Javascript too)
 
-![CleanShot 2024-10-11 at 10 59 54@2x](https://github.com/user-attachments/assets/c5c45898-cc86-469c-947c-7ca9974fd649){:height="36px" width="36px"}
+<img src="https://github.com/user-attachments/assets/c5c45898-cc86-469c-947c-7ca9974fd649" width="400" />
 
 ![CleanShot 2024-10-11 at 11 01 36@2x](https://github.com/user-attachments/assets/20b732d3-482d-4538-bb03-359a9beb8a51)
 
