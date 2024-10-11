@@ -18,11 +18,17 @@ Note: scroll below for use cases and functionality break down of this Chat Compo
 ## How to build your chat room in 5 minutes
 
 1. npm create vite@latest
-2. specify a name for your project (e.g. "project-name") and select type (react, javascript etc)
-3. cd project-name
-4. npm i
-5. npm i @ethora/chat-component
-6. go to file src/App.tsx and replace it with the below code
+2. specify a name for your project (e.g. "vite-project") 
+3. select framework and variant (for example, React -> Typescript but may be different depending on your project requirements, it will work with plain Javascript too)
+
+![CleanShot 2024-10-11 at 10 59 54@2x](https://github.com/user-attachments/assets/c5c45898-cc86-469c-947c-7ca9974fd649)
+
+![CleanShot 2024-10-11 at 11 01 36@2x](https://github.com/user-attachments/assets/20b732d3-482d-4538-bb03-359a9beb8a51)
+
+4. cd vite-project _(use your name instead of "vite-project")_
+5. npm i
+6. npm i @ethora/chat-component
+7. go to file src/App.tsx and replace it with the below code
 
 ```
 import { Chat } from "@ethora/chat-component";
@@ -42,7 +48,20 @@ export default App;
 npm run dev
 ```
 
+you should see something like this:
+![CleanShot 2024-10-11 at 11 06 29@2x](https://github.com/user-attachments/assets/7a4022cc-ad95-4561-bf40-c097a6aaa94c)
+
+
 8. Open http://localhost:5173/ in your browser
+
+Voilà - your chat app should work like so:
+
+![CleanShot 2024-10-11 at 11 08 00@2x](https://github.com/user-attachments/assets/e4d05fd1-7dcc-438b-9bfd-895ec29b494a)
+
+ℹ️ Note: your Ethora App, User and Chat credentials are hard-coded and login screen is bypassed. This is done so that you can scaffold and test the functionality quickly.
+Leave this as is if you only need to demo or validate the chat functionality as part of your project.
+If you need to have your own private chats, be able to login multiple users etc then go to https://www.ethora.com/, sign up in the top right which gives you a free account with Ethora backend where you can create your own App, manage your Users and Chats, view stats etc. Copy App ID & App Secret to your chat component code which will then switch to your own App context on the server side. The free tier is generous but should you need extra you can later build your own backend, upgrade to a paid tier from Ethora or use a self-hosted AWS marketplace image from Ethora. 
+
 
 
 ## Extra options (styling etc)
