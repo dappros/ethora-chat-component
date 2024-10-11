@@ -56,7 +56,7 @@ you should see something like this:
 
 Voilà - your chat app should work like so:
 
-<img src="https://github.com/user-attachments/assets/e4d05fd1-7dcc-438b-9bfd-895ec29b494a" width="600" />
+<img src="https://github.com/user-attachments/assets/e4d05fd1-7dcc-438b-9bfd-895ec29b494a" width="600" border="1" />
 
 ℹ️ Note: your Ethora App, User and Chat credentials are hard-coded and login screen is bypassed. This is done so that you can scaffold and test the functionality quickly.
 Leave this as is if you only need to demo or validate the chat functionality as part of your project.
