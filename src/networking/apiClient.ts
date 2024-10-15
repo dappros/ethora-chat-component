@@ -196,3 +196,13 @@ export function checkEmailExist(email: string) {
     { headers: { Authorization: appToken } }
   );
 }
+
+export async function loginViaJwt(clientToken: string): Promise<User> {
+  const response = await http.post<{
+    user: User;
+    refreshToken: string;
+    token: string;
+  }>("/users", {}, { headers: { "x-custom-token": clientToken } });
+
+  return response.data.user;
+}

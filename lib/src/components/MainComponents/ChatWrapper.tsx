@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState } from "react";
+import React, { FC, useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import ChatRoom from "./ChatRoom";
 import { setConfig } from "../../roomStore/chatSettingsSlice";
@@ -13,7 +13,12 @@ import { useXmppClient } from "../../context/xmppProvider";
 import LoginForm from "../AuthForms/Login";
 import { RootState } from "../../roomStore";
 import Loader from "../styled/Loader";
-import { setLastViewedTimestamp } from "../../roomStore/roomsSlice";
+import {
+  addRoom,
+  setIsLoading,
+  setLastViewedTimestamp,
+} from "../../roomStore/roomsSlice";
+import { refresh } from "../../networking/apiClient";
 
 interface ChatWrapperProps {
   token?: string;
@@ -34,12 +39,18 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   const [showModal, setShowModal] = useState(false);
 
   const dispatch = useDispatch();
+
   const { user } = useSelector((state: RootState) => state.chatSettingStore);
 
   const { client, initializeClient } = useXmppClient();
 
+  const activeRoom = useMemo(() => room || defRoom, []);
+  const activeUser = useMemo(() => user || defaultUser, []);
+
   useEffect(() => {
     dispatch(setConfig(config));
+    dispatch(addRoom({ roomData: activeRoom }));
+    dispatch(setIsLoading({ chatJID: activeRoom.jid, loading: true }));
 
     try {
       if (!user.defaultWallet || user?.defaultWallet.walletAddress === "") {
@@ -54,11 +65,13 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             user.defaultWallet?.walletAddress,
             user.xmppPassword
           );
+          refresh();
           setInited(true);
         }
       }
     } catch (error) {
       setShowModal(true);
+      dispatch(setIsLoading({ chatJID: activeRoom.jid, loading: false }));
       console.log(error);
     }
   }, [user]);
@@ -103,10 +116,11 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           <StyledModal>Unsuccessfull login. Try again</StyledModal>
         </Overlay>
       )}
+      {/* {isInited ?? !loading ? ( */}
       {isInited ? (
         <ChatRoom
-          defaultUser={user || defaultUser}
-          defaultRoom={room || defRoom}
+          defaultUser={activeUser}
+          room={activeRoom}
           CustomMessageComponent={CustomMessageComponent || CustomMessage}
           MainComponentStyles={MainComponentStyles}
           config={config}

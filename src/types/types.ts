@@ -104,6 +104,10 @@ export interface IConfig {
   disableMedia?: boolean;
   colors?: { primary: string; secondary: string };
   googleLogin?: boolean;
+  jwtLogin?: {
+    token: string;
+    enabled: boolean;
+  };
   firebaseConfig?: {
     apiKey: string;
     authDomain: string;

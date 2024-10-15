@@ -110,7 +110,7 @@ const onRealtimeMessage = async (stanza: Element) => {
 
     store.dispatch(
       addRoomMessage({
-        roomJID: stanza.attrs.from,
+        roomJID: stanza.attrs.from.split("/")[0],
         message,
       })
     );
@@ -184,13 +184,12 @@ const onMessageHistory = async (stanza: any) => {
 };
 
 const handleComposing = async (stanza: Element, currentUser: string) => {
-  if (
-    stanza.attrs?.from?.split("/")?.[1] &&
-    currentUser.toLowerCase() !==
-      stanza.attrs?.from?.split("/")?.[1]?.replace(/_/g, "") &&
-    stanza.attrs?.type !== "error"
-  ) {
-    if (stanza.getChild("paused") || stanza.getChild("composing")) {
+  if (stanza.getChild("paused") || stanza.getChild("composing")) {
+    const composingUser = stanza.attrs?.from?.split("/")?.[1];
+    if (
+      composingUser &&
+      currentUser.toLowerCase() !== composingUser?.replace(/_/g, "")
+    ) {
       const chatJID = stanza.attrs?.from.split("/")[0];
 
       store.dispatch(

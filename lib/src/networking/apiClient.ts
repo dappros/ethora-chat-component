@@ -54,7 +54,6 @@ const addRequestToQueue = (config: any) => {
 };
 
 const processQueue = (newAccessToken: string) => {
-  console.log(failedQueue);
   for (const request of failedQueue) {
     if (newAccessToken) {
       request.config.headers["Authorization"] = newAccessToken;
@@ -67,9 +66,11 @@ const processQueue = (newAccessToken: string) => {
 };
 
 export function uploadFile(formData: FormData, token: string) {
-  console.log(formData, token);
-  return http.post("/files", formData, {
-    headers: { Authorization: token },
+  return http.post("/files/", formData, {
+    headers: {
+      Authorization: token,
+      Accept: "*/*",
+    },
   });
 }
 
@@ -98,6 +99,7 @@ http.interceptors.response.use(
       isRefreshing = true;
       try {
         const tokens = await refresh();
+        console.log("tokens", tokens);
         isRefreshing = false;
         originalRequest.headers["Authorization"] = tokens.data.token;
         processQueue(tokens.data.token);
@@ -193,4 +195,14 @@ export function checkEmailExist(email: string) {
 
     { headers: { Authorization: appToken } }
   );
+}
+
+export async function loginViaJwt(clientToken: string): Promise<User> {
+  const response = await http.post<{
+    user: User;
+    refreshToken: string;
+    token: string;
+  }>("/users", {}, { headers: { "x-custom-token": clientToken } });
+
+  return response.data.user;
 }

@@ -11,7 +11,6 @@ import { IConfig, IMessage, IRoom, User } from "../../types/types";
 import SystemMessage from "./SystemMessage";
 import DateLabel from "../styled/DateLabel";
 import Loader from "../styled/Loader";
-import { blockScrollEvent } from "../../helpers/block_scroll";
 import { useSelector } from "react-redux";
 import { RootState } from "../../roomStore";
 import Composing from "../styled/StyledInputComponents/Composing";
@@ -28,9 +27,9 @@ interface MessageListProps<TMessage extends IMessage> {
     max: number,
     amount?: number
   ) => Promise<void>;
+  loading: boolean;
   config?: IConfig;
 }
-
 const MessageList = <TMessage extends IMessage>({
   messages,
   CustomMessage,
@@ -38,6 +37,7 @@ const MessageList = <TMessage extends IMessage>({
   loadMoreMessages,
   room,
   config,
+  loading,
 }: MessageListProps<TMessage>) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);
@@ -46,37 +46,27 @@ const MessageList = <TMessage extends IMessage>({
 
   const timeoutRef = useRef<number>(0);
   const scrollParams = useRef<{ top: number; height: number } | null>(null);
-  const { isLoading, composing, lastViewedTimestamp } = useSelector(
+  const { composing, lastViewedTimestamp } = useSelector(
     (state: RootState) => state.rooms.rooms[room.jid]
   );
 
-  const scrollToBottom = (): void => {
-    const content = containerRef.current;
-    if (content) {
-      const height = content.clientHeight;
-      const scroll_height = content.scrollHeight;
-
-      if (scroll_height > height) {
-        content.scrollTop = scroll_height - height;
-      }
-    }
-  };
-
   const getScrollParams = (): { top: number; height: number } | null => {
     const content = containerRef.current;
-    if (!content) {
-      return null;
-    }
+    if (!content) return null;
+
     return {
       top: content.scrollTop,
       height: content.scrollHeight,
     };
   };
 
-  const blockScroll = () => {
+  const restoreScrollPosition = () => {
     const content = containerRef.current;
-    if (content) {
-      blockScrollEvent(content);
+    if (content && scrollParams.current) {
+      const { top, height } = scrollParams.current;
+      const newHeight = content.scrollHeight;
+      const scrollTop = top + (newHeight - height);
+      content.scrollTop = scrollTop;
     }
   };
 
@@ -97,6 +87,7 @@ const MessageList = <TMessage extends IMessage>({
         ).finally(() => {
           isLoadingMore.current = false;
           lastMessageRef.current = messages[messages.length - 1];
+          restoreScrollPosition();
         });
       }
     }
@@ -108,46 +99,45 @@ const MessageList = <TMessage extends IMessage>({
   };
 
   useEffect(() => {
-    scrollToBottom();
-    blockScroll();
-
     const messagesOuter = outerRef.current;
-
     if (messagesOuter) {
       messagesOuter.addEventListener("scroll", onScroll, true);
     }
-
     return () => {
-      messagesOuter &&
-        messagesOuter.removeEventListener("scroll", onScroll, true);
+      messagesOuter?.removeEventListener("scroll", onScroll, true);
     };
-  }, []);
+  }, [composing]);
 
   useEffect(() => {
-    if (messages.length < 30) {
-      scrollToBottom();
+    if (messages.length > 30) {
+      restoreScrollPosition();
     } else {
-      lastMessageRef.current.id !== messages[messages.length - 1].id &&
-        scrollToBottom();
+      const scrollToBottom = (): void => {
+        const content = containerRef.current;
+        if (content) {
+          content.scrollTop = content.scrollHeight;
+        }
+      };
+
+      scrollToBottom();
     }
-  }, [messages, composing]);
+  }, [messages.length, composing]);
 
   useEffect(() => {
-    if (messages && messages.length > 30) {
-      if (scrollParams.current) {
-        const _scrollParams = getScrollParams();
+    const content = containerRef.current;
+    if (!content) return;
 
-        if (_scrollParams && containerRef.current) {
-          const scrollTop =
-            scrollParams.current.top +
-            (_scrollParams.height - scrollParams.current.height);
-          containerRef.current.scrollTop = scrollTop;
-        }
+    const totalHeight = content.scrollHeight;
+    const currentScrollPosition = content.scrollTop + content.clientHeight;
 
-        scrollParams.current = null;
-      }
+    const isCloseToBottom = currentScrollPosition >= totalHeight * 0.9;
+
+    const lastMessageUser =
+      messages[messages.length - 1].user.userJID === user.walletAddress;
+    if (isCloseToBottom || lastMessageUser) {
+      content.scrollTop = totalHeight;
     }
-  }, [messages, composing]);
+  }, [messages.length, composing]);
 
   if (!validateMessages(messages)) {
     console.log("Invalid 'messages' props provided to MessageList.");
@@ -163,7 +153,7 @@ const MessageList = <TMessage extends IMessage>({
         onScroll={onScroll}
         color={config?.colors?.primary}
       >
-        {isLoading && <Loader color={config?.colors?.primary} />}
+        {loading && <Loader color={config?.colors?.primary} />}
         {messages.map((message) => {
           const isUser = message.user.id === user.walletAddress;
           const messageDate = new Date(message.date);
@@ -185,6 +175,7 @@ const MessageList = <TMessage extends IMessage>({
             );
           }
 
+          // todo finish unread messages
           if (message.id === "delimiter-new" && lastViewedTimestamp) {
             return <NewMessageLabel color={config?.colors?.primary} />;
           }

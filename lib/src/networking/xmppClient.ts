@@ -213,19 +213,6 @@ export class XmppClient {
     });
   };
 
-  getArchive = (userJID: string) => {
-    const message = xml(
-      "iq",
-      { type: "set", id: userJID },
-      xml(
-        "query",
-        { xmlns: "urn:xmpp:mam:2", queryid: "userArchive" },
-        xml("set", { xmlns: "http://jabber.org/protocol/rsm" }, xml("before"))
-      )
-    );
-    this.client.send(message);
-  };
-
   getHistory = async (chatJID: string, max: number, before?: number) => {
     const id = `get-history:${Date.now().toString()}`;
 
@@ -414,6 +401,7 @@ export class XmppClient {
           xmlns: `wss://${this?.devServer || "xmpp.ethoradev.com:5443"}/ws`,
           senderFirstName: firstName,
           senderLastName: lastName,
+          fullName: `${firstName} ${lastName}`,
           photoURL: photo,
           senderJID: this.client.jid?.toString(),
           senderWalletAddress: walletAddress,

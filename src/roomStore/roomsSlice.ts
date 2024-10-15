@@ -183,13 +183,6 @@ export const roomsStore = createSlice({
     ) => {
       const { chatJID, loading } = action.payload;
 
-      // console.log(
-      //   JSON.parse(JSON.stringify(state.rooms, null, 2))[chatJID],
-      //   chatJID
-      // );
-
-      console.log(state.rooms[chatJID].isLoading, "isloding", loading);
-
       state.rooms[chatJID].isLoading = loading;
     },
 

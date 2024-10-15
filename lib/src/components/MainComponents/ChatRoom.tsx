@@ -11,7 +11,6 @@ import { IConfig, IRoom, User } from "../../types/types";
 import SendInput from "../styled/SendInput";
 import {
   addRoom,
-  setActiveRoom,
   addRoomMessage,
   setIsLoading,
   setLastViewedTimestamp,
@@ -26,45 +25,32 @@ interface ChatRoomProps {
   roomJID?: string;
   defaultUser: User;
   isLoading?: boolean;
-  defaultRoom: IRoom;
+  room: IRoom;
   CustomMessageComponent?: any;
   MainComponentStyles?: any;
   config?: IConfig;
 }
 
 const ChatRoom: React.FC<ChatRoomProps> = React.memo(
-  ({
-    isLoading = false,
-    defaultRoom,
-    roomJID,
-    CustomMessageComponent,
-    MainComponentStyles,
-    config,
-  }) => {
-    const [currentRoom, setCurrentRoom] = useState(defaultRoom);
-    const rooms = useSelector((state: RootState) => state.rooms.rooms);
-    const loading = useSelector(
-      (state: RootState) =>
-        state.rooms.rooms[currentRoom?.jid]?.isLoading || false
-    );
-
+  ({ room, roomJID, CustomMessageComponent, MainComponentStyles, config }) => {
     const { client } = useXmppClient();
-
-    const activeRoom = useSelector(
-      (state: RootState) => state.rooms.activeRoom
-    );
-    const { user } = useSelector((state: RootState) => state.chatSettingStore);
-
     const dispatch = useDispatch();
 
+    const [currentRoom, setCurrentRoom] = useState(room);
+    const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+    const { roomsStore, loading, user } = useSelector((state: RootState) => ({
+      roomsStore: state.rooms.rooms,
+      loading: state.rooms.rooms[room.jid]?.isLoading || false,
+      user: state.chatSettingStore.user,
+    }));
+
     useEffect(() => {
-      const roomToSet = roomJID ? rooms[roomJID] : defaultRoom;
-      if (!rooms[roomToSet.jid]) {
+      const roomToSet = roomJID ? roomsStore[roomJID] : room;
+      if (!roomsStore[roomToSet.jid]) {
         dispatch(addRoom({ roomData: roomToSet }));
       }
       setCurrentRoom(roomToSet);
-      dispatch(setActiveRoom({ roomData: roomToSet }));
-    }, [dispatch, rooms, defaultRoom, roomJID]);
+    }, [dispatch, roomsStore, room, roomJID]);
 
     const sendMessage = useCallback((message: string) => {
       // dispatch(
@@ -101,7 +87,6 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     }, []);
 
     const sendStartComposing = useCallback(() => {
-      console.log(currentRoom.jid);
       client.sendTypingRequest(
         currentRoom.jid,
         `${user.firstName} ${user.lastName}`,
@@ -119,121 +104,163 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
 
     const loadMoreMessages = useCallback(
       async (chatJID: string, max: number, idOfMessageBefore?: number) => {
-        if (!loading) {
-          dispatch(setIsLoading({ chatJID: chatJID, loading: true }));
-          client?.getHistory(chatJID, max, idOfMessageBefore).then((resp) => {
-            console.log("getting history by scroll");
-            dispatch(setIsLoading({ chatJID: chatJID, loading: false }));
-          });
+        // console.log("getting history by scroll", loading);
+
+        if (!isLoadingMore) {
+          setIsLoadingMore(true);
+          client
+            ?.getHistory(chatJID, max, idOfMessageBefore)
+            .then((resp) => {
+              // console.log("getting history by scroll");
+            })
+            .then(() => {
+              setIsLoadingMore(false);
+            });
         }
       },
       [client]
     );
 
     const sendMedia = useCallback(
-      async (data: any) => {
-        const formData = new FormData();
-        formData.append(
-          "audio",
-          data,
-          `${new Date().getTime()}-recording-${
-            user.firstName + " " + user.lastName
-          }.webm`
-        );
-        uploadFile(formData, user.token)
-          .then((response) => {
-            console.log("Upload successful", response);
-          })
-          .catch((error) => {
-            console.error("Upload failed", error);
-          })
-          .then((result: any) => {
-            console.log(result);
-            let userAvatar = "";
-            result.data.results.map(async (item: any) => {
-              const data = {
-                firstName: user.firstName,
-                lastName: user.lastName,
-                walletAddress: user.walletAddress,
-                chatName: currentRoom.name,
-                userAvatar: userAvatar,
-                createdAt: item.createdAt,
-                expiresAt: item.expiresAt,
-                fileName: item.filename,
-                isVisible: item.isVisible,
-                location: item.location,
-                locationPreview: item.locationPreview,
-                mimetype: item.mimetype,
-                originalName: item.originalname,
-                ownerKey: item.ownerKey,
-                size: item.size,
-                duration: item?.duration,
-                updatedAt: item.updatedAt,
-                userId: item.userId,
-                waveForm: "",
-                attachmentId: item._id,
-                wrappable: true,
-                roomJid: currentRoom,
-              };
-              console.log(data, "data to send media");
-              client?.sendMediaMessageStanza(currentRoom.jid, data);
-            });
-          })
-          .catch((error) => {
-            console.log(error);
-          });
+      async (data: any, type: string) => {
+        let mediaData: FormData | null = new FormData();
+        if (type === "audio") {
+          mediaData.append(
+            "audio",
+            data,
+            `${new Date().getTime()}-recording-${
+              user.firstName + " " + user.lastName
+            }.webm`
+          );
+        } else {
+          mediaData.append(
+            "media",
+            data,
+            `${new Date().getTime()}-media-${
+              user.firstName + " " + user.lastName
+            }`
+          );
+        }
+        for (let pair of mediaData.entries()) {
+          console.log(pair[0] + ": " + pair[1]);
+        }
+        // console.log(mediaData.toString());
+        // false === true &&
+        //   uploadFile(mediaData, user.token)
+        //     .then((response) => {
+        //       console.log("Upload successful", response);
+        //     })
+
+        //     .catch((error) => {
+        //       console.error("Upload failed", error);
+        //     })
+        //     .then((result: any) => {
+        //       console.log(result);
+        //       let userAvatar = "";
+        //       result.data.results.map(async (item: any) => {
+        //         const data = {
+        //           firstName: user.firstName,
+        //           lastName: user.lastName,
+        //           walletAddress: user.walletAddress,
+        //           chatName: currentRoom.name,
+        //           userAvatar: userAvatar,
+        //           createdAt: item.createdAt,
+        //           expiresAt: item.expiresAt,
+        //           fileName: item.filename,
+        //           isVisible: item.isVisible,
+        //           location: item.location,
+        //           locationPreview: item.locationPreview,
+        //           mimetype: item.mimetype,
+        //           originalName: item.originalname,
+        //           ownerKey: item.ownerKey,
+        //           size: item.size,
+        //           duration: item?.duration,
+        //           updatedAt: item.updatedAt,
+        //           userId: item.userId,
+        //           waveForm: "",
+        //           attachmentId: item._id,
+        //           wrappable: true,
+        //           roomJid: currentRoom,
+        //         };
+        //         console.log(data, "data to send media");
+        //         client?.sendMediaMessageStanza(currentRoom.jid, data);
+        //       });
+        //     })
+        //     .catch((error) => {
+        //       console.log(error);
+        //     });
       },
       [client, currentRoom.jid]
     );
 
     useEffect(() => {
-      if (!rooms[currentRoom.jid]?.messages) {
-        setTimeout(() => {
-          client
-            .initPresence()
-            .then(() => client.getRooms())
-            .then(() => client.presenceInRoom(currentRoom.jid))
-            .then(async () => {
-              const res: any = await client.getChatsPrivateStoreRequest();
+      setTimeout(() => {
+        client
+          .initPresence()
+          .then(() => client.getRooms())
+          .then(() => client.presenceInRoom(currentRoom.jid))
+          .then(async () => {
+            const res: any = await client.getChatsPrivateStoreRequest();
 
-              const entries = Object.entries(JSON.parse(res));
-              if (entries.length > 0) {
-                const [chatJID, timestamp] = entries[0];
-                console.log(chatJID, timestamp);
-                dispatch(
-                  setLastViewedTimestamp({
-                    chatJID,
-                    // @ts-expect-error
-                    timestamp,
-                  })
-                );
-              }
-            })
-            .then(() => {
-              client.getHistory(currentRoom.jid, 30);
+            const entries = Object.entries(JSON.parse(res));
+            if (entries.length > 0) {
+              const [chatJID, timestamp] = entries[0];
+              console.log(chatJID, timestamp);
+              dispatch(
+                setLastViewedTimestamp({
+                  chatJID,
+                  // @ts-expect-error
+                  timestamp,
+                })
+              );
+            }
+          })
+          .then(() => {
+            client.getHistory(currentRoom.jid, 30).then(() => {
+              dispatch(
+                setIsLoading({ chatJID: currentRoom.jid, loading: false })
+              );
             });
-        }, 1000);
-      }
-    }, [client, user, currentRoom.jid, rooms]);
-    if (!activeRoom) return <>No room</>;
+          });
+      }, 1000);
+    }, [user, currentRoom.jid]);
+
+    if (!room) {
+      return <>No room</>;
+    }
 
     return (
       <ChatContainer
-        style={{ maxHeight: "100vh", overflow: "auto", ...MainComponentStyles }}
+        style={{
+          maxHeight: "100vh",
+          overflow: "auto",
+          ...MainComponentStyles,
+        }}
       >
         {!config?.disableHeader && <ChatHeader currentRoom={currentRoom} />}
-        {isLoading ||
-        !rooms[activeRoom.jid].messages ||
-        rooms[activeRoom.jid].messages.length < 1 ? (
+        {loading ? (
           <Loader color={config?.colors?.primary} />
+        ) : roomsStore[currentRoom.jid].messages &&
+          roomsStore[currentRoom.jid].messages.length < 1 ? (
+          <div
+            style={{
+              height: "100%",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <>No messages yet</>
+          </div>
         ) : (
           <MessageList
             loadMoreMessages={loadMoreMessages}
-            messages={rooms[activeRoom.jid].messages}
+            messages={roomsStore[room.jid].messages}
             CustomMessage={CustomMessageComponent}
             user={user}
             room={currentRoom}
             config={config}
+            loading={isLoadingMore}
           />
         )}
         <SendInput
@@ -242,7 +269,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
           config={config}
           onFocus={sendStartComposing}
           onBlur={sendEndComposing}
-          isLoading={isLoading}
+          isLoading={loading}
         />
       </ChatContainer>
     );

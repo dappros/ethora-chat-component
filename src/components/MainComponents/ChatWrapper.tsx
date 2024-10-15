@@ -71,6 +71,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
       }
     } catch (error) {
       setShowModal(true);
+      dispatch(setIsLoading({ chatJID: activeRoom.jid, loading: false }));
       console.log(error);
     }
   }, [user]);

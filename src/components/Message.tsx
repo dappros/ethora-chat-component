@@ -20,6 +20,7 @@ import {
 } from "./ContextMenu/ContextMenuComponents";
 import { useXmppClient } from "../context/xmppProvider";
 import { deleteRoomMessage } from "../roomStore/roomsSlice";
+import { Avatar } from "./MessageBubble/Avatar";
 
 interface CustomMessageProps {
   message: IMessage;
@@ -43,23 +44,19 @@ const CustomMessage: React.FC<CustomMessageProps> = forwardRef<
     y: number;
   }>({ visible: false, x: 0, y: 0 });
 
-  // Open context menu on right-click
   const handleContextMenu = (event: React.MouseEvent) => {
     event.preventDefault();
 
-    const menuWidth = 240; // Width of the context menu
-    const menuHeight = 310; // Approximate height based on items
+    const menuWidth = 240;
+    const menuHeight = 310;
 
-    // Get the cursor position and window dimensions
     const x = event.clientX;
     const y = event.clientY;
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
 
-    // Adjust x if menu overflows to the right
     const adjustedX = x + menuWidth > windowWidth ? x - menuWidth : x;
 
-    // Adjust y if menu overflows to the bottom
     const adjustedY =
       y + menuHeight > windowHeight ? windowHeight - menuHeight : y;
 
@@ -70,7 +67,6 @@ const CustomMessage: React.FC<CustomMessageProps> = forwardRef<
     });
   };
 
-  // Close the context menu
   const closeContextMenu = () => {
     setContextMenu({ visible: false, x: 0, y: 0 });
   };
@@ -87,15 +83,21 @@ const CustomMessage: React.FC<CustomMessageProps> = forwardRef<
   return (
     <>
       <CustomMessageContainer key={message.id} isUser={isUser} ref={ref}>
-        <CustomMessagePhotoContainer>
-          <CustomMessagePhoto
-            src={
-              message.user.avatar ||
-              "https://soccerpointeclaire.com/wp-content/uploads/2021/06/default-profile-pic-e1513291410505.jpg"
-            }
-            alt="userIcon"
-          />
-        </CustomMessagePhotoContainer>
+        {!isUser && (
+          <CustomMessagePhotoContainer>
+            {message.user.avatar ? (
+              <CustomMessagePhoto
+                src={
+                  message.user.avatar ||
+                  "https://soccerpointeclaire.com/wp-content/uploads/2021/06/default-profile-pic-e1513291410505.jpg"
+                }
+                alt="userIcon"
+              />
+            ) : (
+              <Avatar username={message.user.name} />
+            )}
+          </CustomMessagePhotoContainer>
+        )}
         <CustomMessageBubble isUser={isUser} onContextMenu={handleContextMenu}>
           {!isUser && (
             <CustomUserName isUser={isUser} color={config?.colors?.primary}>
