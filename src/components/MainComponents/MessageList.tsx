@@ -170,7 +170,10 @@ const MessageList = <TMessage extends IMessage>({
                 {showDateLabel && (
                   <DateLabel date={messageDate} colors={config?.colors} />
                 )}
-                <SystemMessage messageText={message.body} />
+                <SystemMessage
+                  messageText={message.body}
+                  colors={config?.colors}
+                />
               </React.Fragment>
             );
           }
