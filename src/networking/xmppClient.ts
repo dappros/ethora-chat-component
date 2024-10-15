@@ -3,6 +3,7 @@ import { walletToUsername } from "../helpers/walletUsername";
 import {
   getListOfRooms,
   handleComposing,
+  onGetChatRooms,
   onGetLastMessageArchive,
   onMessageHistory,
   onPresenceInRoom,
@@ -84,6 +85,7 @@ export class XmppClient {
             onPresenceInRoom(stanza);
             break;
           case "iq":
+            onGetChatRooms(stanza, this);
             onRealtimeMessage(stanza);
             break;
           default:
@@ -137,6 +139,7 @@ export class XmppClient {
   };
 
   getRooms = () => {
+    const id = `get-user-rooms:${Date.now().toString()}`;
     return new Promise((resolve, reject) => {
       try {
         const message = xml(

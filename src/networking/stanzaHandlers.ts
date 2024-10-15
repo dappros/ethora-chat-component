@@ -243,7 +243,6 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
         if (currentSavedChatRoom.length === 0 || currentSavedChatRoom[0]) {
           roomJID = result.attrs.jid;
           xmpp.presenceInRoom(roomJID);
-          console.log("Room info", result?.attrs);
           const roomData: IRoom = {
             jid: roomJID,
             name: result?.attrs.name,
@@ -254,7 +253,6 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
             isLoading: false,
           };
           store.dispatch(addRoom({ roomData }));
-          console.log(roomData);
           // if (
           //   currentSavedChatRoom.length > 0 &&
           // ) {

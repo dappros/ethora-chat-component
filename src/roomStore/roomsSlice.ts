@@ -4,10 +4,12 @@ import { isDateAfter, isDateBefore } from "../helpers/dateComparison";
 
 interface RoomMessagesState {
   rooms: { [jid: string]: IRoom };
+  currentRoom: IRoom;
 }
 
 const initialState: RoomMessagesState = {
   rooms: {},
+  currentRoom: null,
 };
 
 export const roomsStore = createSlice({
@@ -208,6 +210,12 @@ export const roomsStore = createSlice({
         state.rooms[chatJID].noMessages = value;
       }
     },
+    setCurrentRoom: (state, action: PayloadAction<{ room: IRoom }>) => {
+      const { room } = action.payload;
+      if (room) {
+        state.currentRoom = room;
+      }
+    },
   },
 });
 
@@ -230,6 +238,7 @@ export const {
   setIsLoading,
   setLastViewedTimestamp,
   setRoomNoMessages,
+  setCurrentRoom,
 } = roomsStore.actions;
 
 export default roomsStore.reducer;

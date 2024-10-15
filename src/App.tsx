@@ -10,7 +10,7 @@ function App() {
       <ReduxWrapper
         config={{
           // disableHeader: true,
-          disableMedia: true,
+          // disableMedia: true,
           colors: { primary: "#5E3FDE", secondary: "#E1E4FE" },
           googleLogin: true,
           firebaseConfig: config,

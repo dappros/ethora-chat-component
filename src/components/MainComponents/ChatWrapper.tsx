@@ -15,6 +15,7 @@ import { RootState } from "../../roomStore";
 import Loader from "../styled/Loader";
 import {
   addRoom,
+  setCurrentRoom,
   setIsLoading,
   setLastViewedTimestamp,
 } from "../../roomStore/roomsSlice";
@@ -51,6 +52,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     dispatch(setConfig(config));
     dispatch(addRoom({ roomData: activeRoom }));
     dispatch(setIsLoading({ chatJID: activeRoom.jid, loading: true }));
+    dispatch(setCurrentRoom({ room: activeRoom }));
 
     try {
       if (!user.defaultWallet || user?.defaultWallet.walletAddress === "") {

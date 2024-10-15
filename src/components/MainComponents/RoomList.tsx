@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import styled, { css } from "styled-components";
 import { IRoom } from "../../types/types";
+import { ChatHeaderAvatar } from "./ChatHeaderAvatar";
 
 interface RoomListProps {
   chats: IRoom[];
@@ -24,6 +25,7 @@ const Container = styled.div<{ burgerMenu?: boolean; open?: boolean }>`
           display: flex;
           flex-direction: column;
           gap: 8px;
+          background-color: rgba(156, 104, 104, 0.3);
         `
       : css`
           position: static;
@@ -129,7 +131,11 @@ const RoomList: React.FC<RoomListProps> = ({
       <Container burgerMenu={burgerMenu} open={open} ref={containerRef}>
         {chats.map((chat, index) => (
           <ChatItem key={index} onClick={() => performClick(chat)}>
-            <Icon src={chat.title} alt={chat.name} />
+            {chat.icon ? (
+              <Icon src={chat.title} alt={chat.name} />
+            ) : (
+              <ChatHeaderAvatar name={chat.name} />
+            )}
             <ChatInfo>
               <ChatName>{chat.name}</ChatName>
               <LastMessage>{chat.lastMessage}</LastMessage>

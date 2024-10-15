@@ -31,7 +31,6 @@ interface MessageListProps<TMessage extends IMessage> {
   config?: IConfig;
 }
 const MessageList = <TMessage extends IMessage>({
-  messages,
   CustomMessage,
   user,
   loadMoreMessages,
@@ -39,6 +38,10 @@ const MessageList = <TMessage extends IMessage>({
   config,
   loading,
 }: MessageListProps<TMessage>) => {
+  const { messages } = useSelector((state: RootState) => ({
+    messages: state.rooms.rooms[room.jid].messages,
+  }));
+
   const containerRef = useRef<HTMLDivElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);
   const lastMessageRef = useRef<IMessage>(messages[messages.length - 1]);

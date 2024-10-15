@@ -12,6 +12,7 @@ import SendInput from "../styled/SendInput";
 import {
   addRoom,
   addRoomMessage,
+  setCurrentRoom,
   setIsLoading,
   setLastViewedTimestamp,
 } from "../../roomStore/roomsSlice";
@@ -37,21 +38,23 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     const { client } = useXmppClient();
     const dispatch = useDispatch();
 
-    const [currentRoom, setCurrentRoom] = useState(room);
     const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
-    const { roomsStore, loading, user } = useSelector((state: RootState) => ({
-      roomsStore: state.rooms.rooms,
-      loading: state.rooms.rooms[room.jid]?.isLoading || false,
-      user: state.chatSettingStore.user,
-    }));
+    const { roomsStore, loading, user, activeRoom } = useSelector(
+      (state: RootState) => ({
+        activeRoom: state.rooms.currentRoom,
+        roomsStore: state.rooms.rooms,
+        loading: state.rooms.rooms[room.jid]?.isLoading || false,
+        user: state.chatSettingStore.user,
+      })
+    );
 
     useEffect(() => {
-      const roomToSet = roomJID ? roomsStore[roomJID] : room;
+      const roomToSet = activeRoom.jid ? roomsStore[activeRoom.jid] : room;
       if (!roomsStore[roomToSet.jid]) {
         dispatch(addRoom({ roomData: roomToSet }));
       }
-      setCurrentRoom(roomToSet);
-    }, [dispatch, roomsStore, room, roomJID]);
+      dispatch(setCurrentRoom({ room: roomToSet }));
+    }, [dispatch, roomJID, activeRoom.jid]);
 
     const sendMessage = useCallback((message: string) => {
       // dispatch(
@@ -73,12 +76,12 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       // );
       dispatch(
         setLastViewedTimestamp({
-          chatJID: currentRoom.jid,
+          chatJID: activeRoom.jid,
           timestamp: undefined,
         })
       );
       client?.sendMessage(
-        currentRoom.jid,
+        activeRoom.jid,
         user.firstName,
         user.lastName,
         "",
@@ -89,7 +92,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
 
     const sendStartComposing = useCallback(() => {
       client.sendTypingRequest(
-        currentRoom.jid,
+        activeRoom.jid,
         `${user.firstName} ${user.lastName}`,
         true
       );
@@ -97,7 +100,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
 
     const sendEndComposing = useCallback(() => {
       client.sendTypingRequest(
-        currentRoom.jid,
+        activeRoom.jid,
         `${user.firstName} ${user.lastName}`,
         false
       );
@@ -158,7 +161,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
                 firstName: user.firstName,
                 lastName: user.lastName,
                 walletAddress: user.walletAddress,
-                chatName: currentRoom.name,
+                chatName: activeRoom.name,
                 userAvatar: userAvatar,
                 createdAt: item.createdAt,
                 expiresAt: item.expiresAt,
@@ -176,17 +179,17 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
                 waveForm: "",
                 attachmentId: item._id,
                 wrappable: true,
-                roomJid: currentRoom,
+                roomJid: activeRoom,
               };
               console.log(data, "data to send media");
-              client?.sendMediaMessageStanza(currentRoom.jid, data);
+              client?.sendMediaMessageStanza(activeRoom.jid, data);
             });
           })
           .catch((error) => {
             console.log(error);
           });
       },
-      [client, currentRoom.jid]
+      [client, activeRoom.jid]
     );
 
     useEffect(() => {
@@ -194,7 +197,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         client
           .initPresence()
           .then(() => client.getRooms())
-          .then(() => client.presenceInRoom(currentRoom.jid))
+          .then(() => client.presenceInRoom(activeRoom.jid))
           .then(async () => {
             const res: any = await client.getChatsPrivateStoreRequest();
 
@@ -212,14 +215,14 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             }
           })
           .then(() => {
-            client.getHistory(currentRoom.jid, 30).then(() => {
+            client.getHistory(activeRoom.jid, 30).then(() => {
               dispatch(
-                setIsLoading({ chatJID: currentRoom.jid, loading: false })
+                setIsLoading({ chatJID: activeRoom.jid, loading: false })
               );
             });
           });
       }, 1000);
-    }, [user, currentRoom.jid]);
+    }, [user, activeRoom.jid]);
 
     if (!room) {
       return <>No room</>;
@@ -233,11 +236,11 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
           ...MainComponentStyles,
         }}
       >
-        {!config?.disableHeader && <ChatHeader currentRoom={currentRoom} />}
+        {!config?.disableHeader && <ChatHeader currentRoom={activeRoom} />}
         {loading ? (
           <Loader color={config?.colors?.primary} />
-        ) : roomsStore[currentRoom.jid].messages &&
-          roomsStore[currentRoom.jid].messages.length < 1 ? (
+        ) : roomsStore[activeRoom.jid].messages &&
+          roomsStore[activeRoom.jid].messages.length < 1 ? (
           <div
             style={{
               height: "100%",
@@ -251,10 +254,9 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         ) : (
           <MessageList
             loadMoreMessages={loadMoreMessages}
-            messages={roomsStore[room.jid].messages}
             CustomMessage={CustomMessageComponent}
             user={user}
-            room={currentRoom}
+            room={activeRoom}
             config={config}
             loading={isLoadingMore}
           />
