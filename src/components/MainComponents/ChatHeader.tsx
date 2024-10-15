@@ -8,12 +8,18 @@ import { IRoom } from "../../types/types";
 import { ChatHeaderAvatar } from "./ChatHeaderAvatar";
 import Button from "../styled/Button";
 import { MoreIcon, SearchIcon } from "../../assets/icons";
+import { RootState } from "../../roomStore";
+import { useSelector } from "react-redux";
+import Composing from "../styled/StyledInputComponents/Composing";
 
 interface ChatHeaderProps {
   currentRoom: IRoom;
 }
 
 const ChatHeader: React.FC<ChatHeaderProps> = ({ currentRoom }) => {
+  const { composing } = useSelector(
+    (state: RootState) => state.rooms.rooms[currentRoom.jid]
+  );
   return (
     <ChatContainerHeader>
       {/* todo add here list of rooms */}
@@ -40,7 +46,11 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ currentRoom }) => {
           <ChatContainerHeaderLabel
             style={{ color: "#8C8C8C", fontSize: "14px" }}
           >
-            {currentRoom?.usersCnt} users
+            {composing ? (
+              <Composing usersTyping={["User"]} />
+            ) : (
+              `${currentRoom?.usersCnt} users`
+            )}
           </ChatContainerHeaderLabel>
         </div>
       </div>

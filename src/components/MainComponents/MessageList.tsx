@@ -204,7 +204,9 @@ const MessageList = <TMessage extends IMessage>({
             </React.Fragment>
           );
         })}
-        {composing && <Composing usersTyping={["User"]} />}
+        {!config.disableHeader && composing && (
+          <Composing usersTyping={["User"]} />
+        )}
       </MessagesScroll>
     </MessagesList>
   );

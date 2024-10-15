@@ -20,6 +20,7 @@ import { uploadFile } from "../../networking/apiClient";
 import RoomList from "./RoomList";
 import { useXmppClient } from "../../context/xmppProvider.tsx";
 import ChatHeader from "./ChatHeader.tsx";
+import NoMessagesPlaceholder from "./NoMessagesPlaceholder.tsx";
 
 interface ChatRoomProps {
   roomJID?: string;
@@ -141,54 +142,49 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             }`
           );
         }
-        for (let pair of mediaData.entries()) {
-          console.log(pair[0] + ": " + pair[1]);
-        }
-        // console.log(mediaData.toString());
-        // false === true &&
-        //   uploadFile(mediaData, user.token)
-        //     .then((response) => {
-        //       console.log("Upload successful", response);
-        //     })
+        uploadFile(mediaData, user.token)
+          .then((response) => {
+            console.log("Upload successful", response);
+          })
 
-        //     .catch((error) => {
-        //       console.error("Upload failed", error);
-        //     })
-        //     .then((result: any) => {
-        //       console.log(result);
-        //       let userAvatar = "";
-        //       result.data.results.map(async (item: any) => {
-        //         const data = {
-        //           firstName: user.firstName,
-        //           lastName: user.lastName,
-        //           walletAddress: user.walletAddress,
-        //           chatName: currentRoom.name,
-        //           userAvatar: userAvatar,
-        //           createdAt: item.createdAt,
-        //           expiresAt: item.expiresAt,
-        //           fileName: item.filename,
-        //           isVisible: item.isVisible,
-        //           location: item.location,
-        //           locationPreview: item.locationPreview,
-        //           mimetype: item.mimetype,
-        //           originalName: item.originalname,
-        //           ownerKey: item.ownerKey,
-        //           size: item.size,
-        //           duration: item?.duration,
-        //           updatedAt: item.updatedAt,
-        //           userId: item.userId,
-        //           waveForm: "",
-        //           attachmentId: item._id,
-        //           wrappable: true,
-        //           roomJid: currentRoom,
-        //         };
-        //         console.log(data, "data to send media");
-        //         client?.sendMediaMessageStanza(currentRoom.jid, data);
-        //       });
-        //     })
-        //     .catch((error) => {
-        //       console.log(error);
-        //     });
+          .catch((error) => {
+            console.error("Upload failed", error);
+          })
+          .then((result: any) => {
+            console.log(result);
+            let userAvatar = "";
+            result.data.results.map(async (item: any) => {
+              const data = {
+                firstName: user.firstName,
+                lastName: user.lastName,
+                walletAddress: user.walletAddress,
+                chatName: currentRoom.name,
+                userAvatar: userAvatar,
+                createdAt: item.createdAt,
+                expiresAt: item.expiresAt,
+                fileName: item.filename,
+                isVisible: item.isVisible,
+                location: item.location,
+                locationPreview: item.locationPreview,
+                mimetype: item.mimetype,
+                originalName: item.originalname,
+                ownerKey: item.ownerKey,
+                size: item.size,
+                duration: item?.duration,
+                updatedAt: item.updatedAt,
+                userId: item.userId,
+                waveForm: "",
+                attachmentId: item._id,
+                wrappable: true,
+                roomJid: currentRoom,
+              };
+              console.log(data, "data to send media");
+              client?.sendMediaMessageStanza(currentRoom.jid, data);
+            });
+          })
+          .catch((error) => {
+            console.log(error);
+          });
       },
       [client, currentRoom.jid]
     );
@@ -250,7 +246,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
               alignItems: "center",
             }}
           >
-            <>No messages yet</>
+            <NoMessagesPlaceholder />
           </div>
         ) : (
           <MessageList
