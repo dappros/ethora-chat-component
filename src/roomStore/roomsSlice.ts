@@ -5,11 +5,13 @@ import { isDateAfter, isDateBefore } from "../helpers/dateComparison";
 interface RoomMessagesState {
   rooms: { [jid: string]: IRoom };
   currentRoom: IRoom;
+  isLoading: boolean;
 }
 
 const initialState: RoomMessagesState = {
   rooms: {},
   currentRoom: null,
+  isLoading: false,
 };
 
 export const roomsStore = createSlice({
@@ -184,7 +186,7 @@ export const roomsStore = createSlice({
       action: PayloadAction<{ chatJID: string; loading: boolean }>
     ) => {
       const { chatJID, loading } = action.payload;
-
+      state.isLoading = loading;
       state.rooms[chatJID].isLoading = loading;
     },
 

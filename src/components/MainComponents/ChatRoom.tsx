@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   ChatContainer,
   ChatContainerHeader,
@@ -39,13 +39,18 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     const dispatch = useDispatch();
 
     const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
-    const { roomsStore, loading, user, activeRoom } = useSelector(
-      (state: RootState) => ({
+    const { roomsStore, loading, user, activeRoom, globalLoading } =
+      useSelector((state: RootState) => ({
         activeRoom: state.rooms.currentRoom,
         roomsStore: state.rooms.rooms,
         loading: state.rooms.rooms[room.jid]?.isLoading || false,
         user: state.chatSettingStore.user,
-      })
+        globalLoading: state.rooms.isLoading,
+      }));
+
+    const roomMessages = useMemo(
+      () => roomsStore[activeRoom.jid]?.messages || [],
+      [roomsStore, activeRoom.jid]
     );
 
     useEffect(() => {
@@ -54,6 +59,9 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         dispatch(addRoom({ roomData: roomToSet }));
       }
       dispatch(setCurrentRoom({ room: roomToSet }));
+      if (roomMessages.length) {
+        dispatch(setIsLoading({ chatJID: room.jid, loading: false }));
+      }
     }, [dispatch, roomJID, activeRoom.jid]);
 
     const sendMessage = useCallback((message: string) => {
@@ -193,36 +201,12 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     );
 
     useEffect(() => {
-      setTimeout(() => {
-        client
-          .initPresence()
-          .then(() => client.getRooms())
-          .then(() => client.presenceInRoom(activeRoom.jid))
-          .then(async () => {
-            const res: any = await client.getChatsPrivateStoreRequest();
-
-            const entries = Object.entries(JSON.parse(res));
-            if (entries.length > 0) {
-              const [chatJID, timestamp] = entries[0];
-              console.log(chatJID, timestamp);
-              dispatch(
-                setLastViewedTimestamp({
-                  chatJID,
-                  // @ts-expect-error
-                  timestamp,
-                })
-              );
-            }
-          })
-          .then(() => {
-            client.getHistory(activeRoom.jid, 30).then(() => {
-              dispatch(
-                setIsLoading({ chatJID: activeRoom.jid, loading: false })
-              );
-            });
-          });
-      }, 1000);
-    }, [user, activeRoom.jid]);
+      if (!roomMessages.length) {
+        client.getHistory(activeRoom.jid, 30).then(() => {
+          dispatch(setIsLoading({ chatJID: activeRoom.jid, loading: false }));
+        });
+      }
+    }, [client, activeRoom.jid, roomMessages, dispatch]);
 
     if (!room) {
       return <>No room</>;
@@ -237,7 +221,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         }}
       >
         {!config?.disableHeader && <ChatHeader currentRoom={activeRoom} />}
-        {loading ? (
+        {globalLoading ? (
           <Loader color={config?.colors?.primary} />
         ) : roomsStore[activeRoom.jid].messages &&
           roomsStore[activeRoom.jid].messages.length < 1 ? (

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   Message,
   UserName,
@@ -18,8 +18,7 @@ import { validateMessages } from "../../helpers/validator";
 import NewMessageLabel from "../styled/NewMessageLabel";
 
 interface MessageListProps<TMessage extends IMessage> {
-  messages: TMessage[];
-  CustomMessage?: React.ComponentType<{ message: TMessage; isUser: boolean }>;
+  CustomMessage?: React.ComponentType<{ message: IMessage; isUser: boolean }>;
   user: User;
   room: IRoom;
   loadMoreMessages: (
@@ -38,9 +37,11 @@ const MessageList = <TMessage extends IMessage>({
   config,
   loading,
 }: MessageListProps<TMessage>) => {
-  const { messages } = useSelector((state: RootState) => ({
-    messages: state.rooms.rooms[room.jid].messages,
-  }));
+  const { composing, lastViewedTimestamp, messages } = useSelector(
+    (state: RootState) => state.rooms.rooms[room.jid]
+  );
+
+  const memoizedMessages = useMemo(() => messages, [messages.length]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);
@@ -49,9 +50,6 @@ const MessageList = <TMessage extends IMessage>({
 
   const timeoutRef = useRef<number>(0);
   const scrollParams = useRef<{ top: number; height: number } | null>(null);
-  const { composing, lastViewedTimestamp } = useSelector(
-    (state: RootState) => state.rooms.rooms[room.jid]
-  );
 
   const getScrollParams = (): { top: number; height: number } | null => {
     const content = containerRef.current;
@@ -73,28 +71,28 @@ const MessageList = <TMessage extends IMessage>({
     }
   };
 
-  const checkIfLoadMoreMessages = () => {
+  const checkIfLoadMoreMessages = useCallback(() => {
     const params = getScrollParams();
     if (!params) return;
 
     if (params.top < 150 && !isLoadingMore.current) {
       scrollParams.current = getScrollParams();
-      const firstMessage = messages[0];
+      const firstMessage = memoizedMessages[0];
       if (firstMessage?.user?.id) {
         isLoadingMore.current = true;
-
         loadMoreMessages(
-          messages[0].roomJID,
+          memoizedMessages[0].roomJID,
           30,
-          Number(messages[0].id)
+          Number(memoizedMessages[0].id)
         ).finally(() => {
           isLoadingMore.current = false;
-          lastMessageRef.current = messages[messages.length - 1];
+          lastMessageRef.current =
+            memoizedMessages[memoizedMessages.length - 1];
           restoreScrollPosition();
         });
       }
     }
-  };
+  }, [loadMoreMessages, memoizedMessages.length]);
 
   const onScroll = () => {
     window.clearTimeout(timeoutRef.current);
@@ -134,13 +132,14 @@ const MessageList = <TMessage extends IMessage>({
     const currentScrollPosition = content.scrollTop + content.clientHeight;
 
     const isCloseToBottom = currentScrollPosition >= totalHeight * 0.9;
-
     const lastMessageUser =
-      messages[messages.length - 1].user.userJID === user.walletAddress;
+      memoizedMessages[memoizedMessages.length - 1]?.user?.userJID ===
+      user.walletAddress;
+
     if (isCloseToBottom || lastMessageUser) {
       content.scrollTop = totalHeight;
     }
-  }, [messages.length, composing]);
+  }, [memoizedMessages, composing]);
 
   if (!validateMessages(messages)) {
     console.log("Invalid 'messages' props provided to MessageList.");
@@ -157,7 +156,7 @@ const MessageList = <TMessage extends IMessage>({
         color={config?.colors?.primary}
       >
         {loading && <Loader color={config?.colors?.primary} />}
-        {messages.map((message) => {
+        {memoizedMessages.map((message) => {
           const isUser = message.user.id === user.walletAddress;
           const messageDate = new Date(message.date);
           const currentDateLabel = messageDate.toDateString();
