@@ -45,16 +45,20 @@ const MessageList = <TMessage extends IMessage>({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);
-  const lastMessageRef = useRef<IMessage>(messages[messages.length - 1]);
+  const lastMessageRef = useRef<IMessage>(
+    memoizedMessages[memoizedMessages.length - 1]
+  );
   const isLoadingMore = useRef<boolean>(false);
 
   const timeoutRef = useRef<number>(0);
   const scrollParams = useRef<{ top: number; height: number } | null>(null);
+  const atBottom = useRef<boolean>(true);
 
   const getScrollParams = (): { top: number; height: number } | null => {
     const content = containerRef.current;
-    if (!content) return null;
-
+    if (!content) {
+      return null;
+    }
     return {
       top: content.scrollTop,
       height: content.scrollHeight,
@@ -80,6 +84,7 @@ const MessageList = <TMessage extends IMessage>({
       const firstMessage = memoizedMessages[0];
       if (firstMessage?.user?.id) {
         isLoadingMore.current = true;
+
         loadMoreMessages(
           memoizedMessages[0].roomJID,
           30,
@@ -94,9 +99,27 @@ const MessageList = <TMessage extends IMessage>({
     }
   }, [loadMoreMessages, memoizedMessages.length]);
 
+  const checkAtBottom = () => {
+    const content = containerRef.current;
+    if (content) {
+      atBottom.current =
+        content.scrollHeight - content.clientHeight <= content.scrollTop + 10;
+      checkIfLoadMoreMessages();
+    }
+  };
+
+  const scrollToBottom = useCallback((): void => {
+    const content = containerRef.current;
+    if (content) {
+      content.scrollTop = content.scrollHeight;
+    }
+  }, []);
+
   const onScroll = () => {
     window.clearTimeout(timeoutRef.current);
-    timeoutRef.current = window.setTimeout(() => checkIfLoadMoreMessages(), 50);
+    timeoutRef.current = window.setTimeout(() => {
+      checkAtBottom();
+    }, 50);
   };
 
   useEffect(() => {
@@ -104,44 +127,33 @@ const MessageList = <TMessage extends IMessage>({
     if (messagesOuter) {
       messagesOuter.addEventListener("scroll", onScroll, true);
     }
+
     return () => {
-      messagesOuter?.removeEventListener("scroll", onScroll, true);
+      messagesOuter &&
+        messagesOuter.removeEventListener("scroll", onScroll, true);
     };
-  }, [composing]);
+  }, []);
 
   useEffect(() => {
-    if (messages.length > 30) {
-      restoreScrollPosition();
-    } else {
-      const scrollToBottom = (): void => {
-        const content = containerRef.current;
-        if (content) {
-          content.scrollTop = content.scrollHeight;
-        }
-      };
-
+    if (atBottom.current) {
       scrollToBottom();
     }
-  }, [messages.length, composing]);
+  }, [memoizedMessages.length]);
 
   useEffect(() => {
-    const content = containerRef.current;
-    if (!content) return;
-
-    const totalHeight = content.scrollHeight;
-    const currentScrollPosition = content.scrollTop + content.clientHeight;
-
-    const isCloseToBottom = currentScrollPosition >= totalHeight * 0.9;
-    const lastMessageUser =
-      memoizedMessages[memoizedMessages.length - 1]?.user?.userJID ===
-      user.walletAddress;
-
-    if (isCloseToBottom || lastMessageUser) {
-      content.scrollTop = totalHeight;
+    if (memoizedMessages.length > 30) {
+      const content = containerRef.current;
+      if (content && scrollParams.current) {
+        const newScrollTop =
+          scrollParams.current.top +
+          (content.scrollHeight - scrollParams.current.height);
+        content.scrollTop = newScrollTop;
+      }
+      scrollParams.current = null;
     }
-  }, [memoizedMessages, composing]);
+  }, [memoizedMessages.length, composing]);
 
-  if (!validateMessages(messages)) {
+  if (!validateMessages(memoizedMessages)) {
     console.log("Invalid 'messages' props provided to MessageList.");
     return null;
   }

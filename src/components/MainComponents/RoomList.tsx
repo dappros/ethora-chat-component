@@ -53,8 +53,7 @@ const BurgerButton = styled.button`
   /* position: fixed; */
   left: 10px;
   top: 10px;
-  background-color: #333;
-  color: #fff;
+  color: #333;
   border: none;
   padding: 10px;
   cursor: pointer;
@@ -141,16 +140,11 @@ const RoomList: React.FC<RoomListProps> = ({
     [onRoomClick]
   );
 
-  const debouncedSearch = useMemo(
-    () => debounce((value: string) => setSearchTerm(value), 300),
-    []
-  );
-
   const handleSearchChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      debouncedSearch(e.target.value);
+      setSearchTerm(e.target.value);
     },
-    [debouncedSearch]
+    []
   );
 
   const filteredChats = useMemo(
@@ -181,51 +175,57 @@ const RoomList: React.FC<RoomListProps> = ({
         <BurgerButton onClick={() => setOpen(!open)}>☰</BurgerButton>
       )}
       <Container burgerMenu={burgerMenu} open={open} ref={containerRef}>
-        <div
-          style={{
-            display: "flex",
-            gap: "16px",
-            alignItems: "center",
-            width: "100%",
-          }}
-        >
-          <SearchInput
-            value={searchTerm}
-            onChange={handleSearchChange}
-            placeholder="Search..."
-          />
-          <Button style={{ color: "black" }} text={"New"} />
-        </div>
-        {filteredChats.map((chat, index) => (
-          <ChatItem
-            key={index}
-            active={isChatActive(chat)}
-            onClick={() => performClick(chat)}
-          >
+        {open && (
+          <>
             <div
               style={{
                 display: "flex",
-                alignItems: "start",
+                gap: "16px",
+                alignItems: "center",
                 width: "100%",
-                gap: "8px",
               }}
             >
-              {chat.icon ? (
-                <IconPlaceholder>{chat.icon}</IconPlaceholder>
-              ) : (
-                <ChatHeaderAvatar name={chat.name} />
-              )}
-              <ChatInfo>
-                <ChatName>{chat.name}</ChatName>
-                <LastMessage>{chat.lastMessage}</LastMessage>
-              </ChatInfo>
+              <SearchInput
+                value={searchTerm}
+                onChange={handleSearchChange}
+                placeholder="Search..."
+              />
+              <Button style={{ color: "black" }} text={"New"} />
             </div>
-            <div style={{ textAlign: "right", display: "flex" }}>
-              <UserCount active={isChatActive(chat)}>{chat.usersCnt}</UserCount>
-              {/* <div>{chat.lastMessageTime}</div> */}
-            </div>
-          </ChatItem>
-        ))}
+            {filteredChats.map((chat, index) => (
+              <ChatItem
+                key={index}
+                active={isChatActive(chat)}
+                onClick={() => performClick(chat)}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "start",
+                    width: "100%",
+                    gap: "8px",
+                  }}
+                >
+                  {chat.icon ? (
+                    <IconPlaceholder>{chat.icon}</IconPlaceholder>
+                  ) : (
+                    <ChatHeaderAvatar name={chat.name} />
+                  )}
+                  <ChatInfo>
+                    <ChatName>{chat.name}</ChatName>
+                    <LastMessage>{chat.lastMessage}</LastMessage>
+                  </ChatInfo>
+                </div>
+                <div style={{ textAlign: "right", display: "flex" }}>
+                  <UserCount active={isChatActive(chat)}>
+                    {chat.usersCnt}
+                  </UserCount>
+                  {/* <div>{chat.lastMessageTime}</div> */}
+                </div>
+              </ChatItem>
+            ))}
+          </>
+        )}
       </Container>
     </>
   );

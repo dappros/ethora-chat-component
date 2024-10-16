@@ -31,7 +31,6 @@ export const ChatHeaderAvatar: React.FC<ChatHeaderAvatarProps> = ({
   name,
   size = 64,
 }) => {
-  console.log(size);
   const getInitials = () => {
     return name[0].toUpperCase();
   };
