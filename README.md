@@ -21,9 +21,9 @@ Note: scroll below for use cases and functionality break down of this Chat Compo
 2. specify a name for your project (e.g. "vite-project") 
 3. select framework and variant (for example, React -> Typescript but may be different depending on your project requirements, it will work with plain Javascript too)
 
-<img src="https://github.com/user-attachments/assets/c5c45898-cc86-469c-947c-7ca9974fd649" width="500" />
+<img src="./img/readme01.png" width="500" />
 
-<img src="https://github.com/user-attachments/assets/20b732d3-482d-4538-bb03-359a9beb8a51" width="500" />
+<img src="./img/readme02.png" width="500" />
 
 4. cd vite-project _(use your name instead of "vite-project")_
 5. npm i
@@ -49,14 +49,14 @@ npm run dev
 ```
 
 you should see something like this:
-<br /><img src="https://github.com/user-attachments/assets/7a4022cc-ad95-4561-bf40-c097a6aaa94c" width="350" />
+<br /><img src="./img/readme03.png" width="350" />
 
 
 8. Open http://localhost:5173/ in your browser
 
 Voilà - your chat app should work like so:
 
-<img src="https://github.com/user-attachments/assets/e4d05fd1-7dcc-438b-9bfd-895ec29b494a" width="600" />
+<img src="./img/readme04.png" width="600" />
 
 ℹ️ Note: your Ethora App, User and Chat credentials are hard-coded and login screen is bypassed. This is done so that you can scaffold and test the functionality quickly.
 Leave this as is if you only need to demo or validate the chat functionality as part of your project.
