@@ -103,19 +103,22 @@ export interface IConfig {
   disableHeader?: boolean;
   disableMedia?: boolean;
   colors?: { primary: string; secondary: string };
-  googleLogin?: boolean;
+  googleLogin?: {
+    enabled: boolean;
+    firebaseConfig: {
+      apiKey: string;
+      authDomain: string;
+      projectId: string;
+      storageBucket: string;
+      messagingSenderId: string;
+      appId: string;
+    };
+  };
   jwtLogin?: {
     token: string;
     enabled: boolean;
   };
-  firebaseConfig?: {
-    apiKey: string;
-    authDomain: string;
-    projectId: string;
-    storageBucket: string;
-    messagingSenderId: string;
-    appId: string;
-  };
+  defaultLogin?: boolean;
 }
 
 export interface StorageUser {

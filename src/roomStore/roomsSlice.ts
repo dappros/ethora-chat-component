@@ -186,8 +186,10 @@ export const roomsStore = createSlice({
       action: PayloadAction<{ chatJID: string; loading: boolean }>
     ) => {
       const { chatJID, loading } = action.payload;
-      state.isLoading = loading;
-      state.rooms[chatJID].isLoading = loading;
+      if (chatJID) {
+        state.isLoading = loading;
+        state.rooms[chatJID].isLoading = loading;
+      }
     },
 
     setLastViewedTimestamp: (

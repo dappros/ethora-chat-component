@@ -106,17 +106,46 @@ export class XmppClient {
     }
   }
 
-  initPresence() {
-    return new Promise((resolve, reject) => {
+  joinBySendingPresence(chatJID: string) {
+    let stanzaHdlrPointer: (stanza: Element) => void;
+
+    const unsubscribe = () => {
+      this.client.off("stanza", stanzaHdlrPointer);
+    };
+
+    const responsePromise = new Promise((resolve, _) => {
+      stanzaHdlrPointer = (stanza: Element) => {
+        if (
+          stanza.is("presence") &&
+          stanza.attrs["from"]?.split("/") &&
+          stanza.attrs["from"]?.split("/")[0] === chatJID
+        ) {
+          unsubscribe();
+          resolve(true);
+        }
+      };
+
+      console.log(this.client.jid);
+      console.log("cleint");
+
+      const message = xml(
+        "presence",
+        {
+          to: `${chatJID}/${this.client.jid.toString()}`,
+        },
+        xml("x", "http://jabber.org/protocol/muc")
+      );
+
       try {
-        this.client.send(xml("presence"));
-        console.log("Successful presence");
-        resolve("Presence sent successfully");
+        this.client.send(message);
       } catch (error) {
-        console.error("Error sending presence:", error);
-        reject(error);
+        console.log("Error joining by presence", error);
       }
     });
+
+    const timeoutPromise = createTimeoutPromise(3000, unsubscribe);
+
+    return Promise.race([responsePromise, timeoutPromise]);
   }
 
   unsubscribe = (address: string) => {
@@ -338,7 +367,7 @@ export class XmppClient {
       const res = await Promise.race([responsePromise, timeoutPromise]);
       return res;
     } catch (e) {
-      console.log("=-> error ", e);
+      console.log("=-> error in", chatJID, e);
       return null;
     }
   };

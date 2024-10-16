@@ -203,7 +203,6 @@ const handleComposing = async (stanza: Element, currentUser: string) => {
 };
 
 const getListOfRooms = (xmpp: any) => {
-  xmpp.client.send(xml("presence"));
   // xmpp.getArchive(xmpp.client?.jid?.toString());
   xmpp.getRooms();
 };
@@ -212,7 +211,7 @@ const onPresenceInRoom = (stanza: Element | any) => {
   if (stanza.attrs.id === "presenceInRoom") {
     const roomJID: string = stanza.attrs.from.split("/")[0];
     const role: string = stanza?.children[1]?.children[0]?.attrs.role;
-    // console.log({ roomJID, role });
+    console.log({ roomJID, role });
   }
 };
 

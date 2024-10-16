@@ -12,8 +12,11 @@ function App() {
           // disableHeader: true,
           // disableMedia: true,
           colors: { primary: "#5E3FDE", secondary: "#E1E4FE" },
-          googleLogin: true,
-          firebaseConfig: config,
+          defaultLogin: true,
+          // googleLogin: {
+          //   firebaseConfig: config,
+          //   enabled: false,
+          // },
         }}
         room={defRoom}
       />

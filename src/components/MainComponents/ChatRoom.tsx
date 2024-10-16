@@ -202,9 +202,16 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
 
     useEffect(() => {
       if (!roomMessages.length) {
-        client.getHistory(activeRoom.jid, 30).then(() => {
-          dispatch(setIsLoading({ chatJID: activeRoom.jid, loading: false }));
-        });
+        const initialPresenceAndHistory = () => {
+          client.joinBySendingPresence(activeRoom.jid).then(() =>
+            client.getHistory(activeRoom.jid, 30).then(() => {
+              dispatch(
+                setIsLoading({ chatJID: activeRoom.jid, loading: false })
+              );
+            })
+          );
+        };
+        initialPresenceAndHistory();
       }
     }, [client, activeRoom.jid, roomMessages, dispatch]);
 

@@ -53,7 +53,11 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
 
     //if no login config - default user login
 
-    if (!props.config?.googleLogin && user.xmppUsername === "") {
+    if (
+      !props.config?.googleLogin &&
+      !props.config?.defaultLogin &&
+      user.xmppUsername === ""
+    ) {
       const defaultLogin = async () => {
         try {
           const loginData = await loginUserFunction();
@@ -88,7 +92,6 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
     }
 
     //if google - show login.tsx and process user there (there will be dispatch, set user)
-
     //if only ethora - show login with only ethora
 
     if (props.room) {

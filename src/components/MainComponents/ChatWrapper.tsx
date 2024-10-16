@@ -43,7 +43,6 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   const dispatch = useDispatch();
 
   const { user } = useSelector((state: RootState) => state.chatSettingStore);
-  const { rooms } = useSelector((state: RootState) => state.rooms);
 
   const { client, initializeClient } = useXmppClient();
 
