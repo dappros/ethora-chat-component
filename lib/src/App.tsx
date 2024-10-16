@@ -9,8 +9,8 @@ function App() {
     <div className="App" style={{ height: "100%" }}>
       <ReduxWrapper
         config={{
-          disableHeader: true,
-          disableMedia: true,
+          // disableHeader: true,
+          // disableMedia: true,
           colors: { primary: "#5E3FDE", secondary: "#E1E4FE" },
           googleLogin: true,
           firebaseConfig: config,

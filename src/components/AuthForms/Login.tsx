@@ -56,7 +56,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
         return null;
       }
       dispatch(setUser(authData.data.user));
-      useLocalStorage("@ethora/chat-compoent-user").set(authData.data.user);
+      useLocalStorage("@ethora/chat-component-user").set(authData.data.user);
     } catch (error) {
       console.error("Login failed:", error);
       setIsLoading(false);
@@ -97,7 +97,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
           const user = loginRes.data.user;
 
           dispatch(setUser(user));
-          useLocalStorage("@ethora/chat-compoent-user").set(user);
+          useLocalStorage("@ethora/chat-component-user").set(user);
         } catch (error) {
           console.log("error registering user viag google");
         }
@@ -111,7 +111,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
         console.log("google log res", loginRes);
         const user = loginRes.data.user;
         dispatch(setUser(user));
-        useLocalStorage("@ethora/chat-compoent-user").set(user);
+        useLocalStorage("@ethora/chat-component-user").set(user);
       }
     } catch (error) {
       console.log(error);

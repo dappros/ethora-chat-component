@@ -101,3 +101,26 @@
 		</forwarded>
 	</result>
 </message>
+
+<message xmlns="jabber:client" to="0x6816810a7_fe04_f_c9b800f9_d11564_c0e4a_e_c25_d78@xmpp.ethoradev.com/287950209239444818056227" from="0x6816810a7_fe04_f_c9b800f9_d11564_c0e4a_e_c25_d78@xmpp.ethoradev.com">
+	<result id="1728534590392664" queryid="userArchive" xmlns="urn:xmpp:mam:2">
+		<forwarded xmlns="urn:xmpp:forward:0">
+			<message to="0x6816810a7_fe04_f_c9b800f9_d11564_c0e4a_e_c25_d78@xmpp.ethoradev.com" from="d673a602b47d524ba6a95102cc71fc3f308b31d64454498078a056cf54e5a2b4@conference.xmpp.ethoradev.com" id="11358382913258728319" xmlns="jabber:client">
+				<archived by="0x6816810a7_fe04_f_c9b800f9_d11564_c0e4a_e_c25_d78@xmpp.ethoradev.com" id="1728534590392664" xmlns="urn:xmpp:mam:tmp"/>
+				<stanza-id by="0x6816810a7_fe04_f_c9b800f9_d11564_c0e4a_e_c25_d78@xmpp.ethoradev.com" id="1728534590392664" xmlns="urn:xmpp:sid:0"/>
+				<event xmlns="http://jabber.org/protocol/pubsub#event">
+				<items node="urn:xmpp:mucsub:nodes:presence">
+				<item id="11358382913258728319">
+			<presence xmlns="jabber:client" to="0x6816810a7_fe04_f_c9b800f9_d11564_c0e4a_e_c25_d78@xmpp.ethoradev.com" from="d673a602b47d524ba6a95102cc71fc3f308b31d64454498078a056cf54e5a2b4@conference.xmpp.ethoradev.com/0x239619_f_dda54_f471_febfb_e048_eb9238ea_f_e5_d360" type="unavailable">
+				<x xmlns="http://jabber.org/protocol/muc#user">
+					<item role="none" affiliation="none"/>
+				</x>
+			</presence>
+		</item>
+	</items>
+</event>
+</message>
+<delay from="xmpp.ethoradev.com" stamp="2024-10-10T04:29:50.392664Z" xmlns="urn:xmpp:delay"/>
+</forwarded>
+</result>
+</message>

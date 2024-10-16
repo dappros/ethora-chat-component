@@ -41,6 +41,7 @@ export interface IRoom {
   composingList?: string[];
   lastViewedTimestamp?: number;
   unreadMessages?: number;
+  noMessages?: boolean;
 }
 
 export interface UserType extends IMessage {
@@ -103,6 +104,10 @@ export interface IConfig {
   disableMedia?: boolean;
   colors?: { primary: string; secondary: string };
   googleLogin?: boolean;
+  jwtLogin?: {
+    token: string;
+    enabled: boolean;
+  };
   firebaseConfig?: {
     apiKey: string;
     authDomain: string;

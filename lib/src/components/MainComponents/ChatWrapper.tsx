@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState } from "react";
+import React, { FC, useCallback, useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import ChatRoom from "./ChatRoom";
 import { setConfig } from "../../roomStore/chatSettingsSlice";
@@ -13,7 +13,14 @@ import { useXmppClient } from "../../context/xmppProvider";
 import LoginForm from "../AuthForms/Login";
 import { RootState } from "../../roomStore";
 import Loader from "../styled/Loader";
-import { setLastViewedTimestamp } from "../../roomStore/roomsSlice";
+import {
+  addRoom,
+  setCurrentRoom,
+  setIsLoading,
+  setLastViewedTimestamp,
+} from "../../roomStore/roomsSlice";
+import { refresh } from "../../networking/apiClient";
+import RoomList from "./RoomList";
 
 interface ChatWrapperProps {
   token?: string;
@@ -34,12 +41,20 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   const [showModal, setShowModal] = useState(false);
 
   const dispatch = useDispatch();
+
   const { user } = useSelector((state: RootState) => state.chatSettingStore);
+  const { rooms } = useSelector((state: RootState) => state.rooms);
 
   const { client, initializeClient } = useXmppClient();
 
+  const activeRoom = useMemo(() => room || defRoom, []);
+  const activeUser = useMemo(() => user || defaultUser, []);
+
   useEffect(() => {
     dispatch(setConfig(config));
+    dispatch(addRoom({ roomData: activeRoom }));
+    dispatch(setIsLoading({ chatJID: activeRoom.jid, loading: true }));
+    dispatch(setCurrentRoom({ room: activeRoom }));
 
     try {
       if (!user.defaultWallet || user?.defaultWallet.walletAddress === "") {
@@ -54,11 +69,13 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             user.defaultWallet?.walletAddress,
             user.xmppPassword
           );
+          refresh();
           setInited(true);
         }
       }
     } catch (error) {
       setShowModal(true);
+      dispatch(setIsLoading({ chatJID: activeRoom.jid, loading: false }));
       console.log(error);
     }
   }, [user]);
@@ -93,6 +110,11 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     };
   }, [client, room?.jid]);
 
+  // const handleChangeChat = () => (chat: IRoom) => {
+  //   dispatch(setCurrentRoom({ room: chat }));
+  //   dispatch(setIsLoading({ chatJID: chat.jid, loading: true }));
+  // };
+
   if (user.xmppPassword === "" && user.xmppUsername === "")
     return <LoginForm config={config} />;
 
@@ -103,14 +125,29 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           <StyledModal>Unsuccessfull login. Try again</StyledModal>
         </Overlay>
       )}
+      {/* {isInited ?? !loading ? ( */}
       {isInited ? (
-        <ChatRoom
-          defaultUser={user || defaultUser}
-          defaultRoom={room || defRoom}
-          CustomMessageComponent={CustomMessageComponent || CustomMessage}
-          MainComponentStyles={MainComponentStyles}
-          config={config}
-        />
+        <div
+          style={{
+            display: "flex",
+            height: "100%",
+            width: "100%",
+          }}
+        >
+          {/* {rooms && (
+            <RoomList
+              chats={Object.values(rooms)}
+              onRoomClick={handleChangeChat}
+            />
+          )} */}
+          <ChatRoom
+            defaultUser={activeUser}
+            room={activeRoom}
+            CustomMessageComponent={CustomMessageComponent || CustomMessage}
+            MainComponentStyles={MainComponentStyles}
+            config={config}
+          />
+        </div>
       ) : (
         <Loader />
       )}

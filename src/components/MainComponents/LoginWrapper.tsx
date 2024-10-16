@@ -5,8 +5,9 @@ import LoginForm from "../AuthForms/Login";
 import { RootState } from "../../roomStore";
 import { useDispatch, useSelector } from "react-redux";
 import { setUser } from "../../roomStore/chatSettingsSlice";
-import { loginEmail } from "../../networking/apiClient";
+import { loginEmail, loginViaJwt } from "../../networking/apiClient";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
+import { addRoom } from "../../roomStore/roomsSlice";
 
 interface LoginWrapperProps {
   token?: string;
@@ -44,7 +45,7 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
     //use localStorage, to check for user was already logged
 
     const storedUser: User = useLocalStorage(
-      "@ethora/chat-compoent-user"
+      "@ethora/chat-component-user"
     ).get() as User;
     if (storedUser) {
       dispatch(setUser(storedUser));
@@ -58,8 +59,8 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
           const loginData = await loginUserFunction();
           if (loginData) {
             console.log("Login data", loginData);
-            dispatch(setUser(loginData));
-            useLocalStorage("@ethora/chat-compoent-user").set(loginData);
+            if (props.room) dispatch(setUser(loginData));
+            useLocalStorage("@ethora/chat-component-user").set(loginData);
           }
         } catch (error) {
           console.log("error with default login", error);
@@ -68,9 +69,32 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
       defaultLogin();
     }
 
+    //if jwt send api req with jwt and get user data
+
+    if (props.config?.jwtLogin?.enabled) {
+      const jwtLogin = async () => {
+        try {
+          const loginData = await loginViaJwt(props.config?.jwtLogin?.token);
+          if (loginData) {
+            console.log("Login data", loginData);
+            if (props.room) dispatch(setUser(loginData));
+            useLocalStorage("@ethora/chat-component-user").set(loginData);
+          }
+        } catch (error) {
+          console.log("error with default login", error);
+        }
+      };
+      jwtLogin();
+    }
+
     //if google - show login.tsx and process user there (there will be dispatch, set user)
 
     //if only ethora - show login with only ethora
+
+    if (props.room) {
+      dispatch(addRoom({ roomData: props.room }));
+    }
+
     return () => {
       //clear
     };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   ChatContainer,
   ChatContainerHeader,
@@ -11,8 +11,8 @@ import { IConfig, IRoom, User } from "../../types/types";
 import SendInput from "../styled/SendInput";
 import {
   addRoom,
-  setActiveRoom,
   addRoomMessage,
+  setCurrentRoom,
   setIsLoading,
   setLastViewedTimestamp,
 } from "../../roomStore/roomsSlice";
@@ -21,50 +21,48 @@ import { uploadFile } from "../../networking/apiClient";
 import RoomList from "./RoomList";
 import { useXmppClient } from "../../context/xmppProvider.tsx";
 import ChatHeader from "./ChatHeader.tsx";
+import NoMessagesPlaceholder from "./NoMessagesPlaceholder.tsx";
 
 interface ChatRoomProps {
   roomJID?: string;
   defaultUser: User;
   isLoading?: boolean;
-  defaultRoom: IRoom;
+  room: IRoom;
   CustomMessageComponent?: any;
   MainComponentStyles?: any;
   config?: IConfig;
 }
 
 const ChatRoom: React.FC<ChatRoomProps> = React.memo(
-  ({
-    isLoading = false,
-    defaultRoom,
-    roomJID,
-    CustomMessageComponent,
-    MainComponentStyles,
-    config,
-  }) => {
-    const [currentRoom, setCurrentRoom] = useState(defaultRoom);
-    const rooms = useSelector((state: RootState) => state.rooms.rooms);
-    const loading = useSelector(
-      (state: RootState) =>
-        state.rooms.rooms[currentRoom?.jid]?.isLoading || false
-    );
-
+  ({ room, roomJID, CustomMessageComponent, MainComponentStyles, config }) => {
     const { client } = useXmppClient();
-
-    const activeRoom = useSelector(
-      (state: RootState) => state.rooms.activeRoom
-    );
-    const { user } = useSelector((state: RootState) => state.chatSettingStore);
-
     const dispatch = useDispatch();
 
+    const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+    const { roomsStore, loading, user, activeRoom, globalLoading } =
+      useSelector((state: RootState) => ({
+        activeRoom: state.rooms.currentRoom,
+        roomsStore: state.rooms.rooms,
+        loading: state.rooms.rooms[room.jid]?.isLoading || false,
+        user: state.chatSettingStore.user,
+        globalLoading: state.rooms.isLoading,
+      }));
+
+    const roomMessages = useMemo(
+      () => roomsStore[activeRoom.jid]?.messages || [],
+      [roomsStore, activeRoom.jid]
+    );
+
     useEffect(() => {
-      const roomToSet = roomJID ? rooms[roomJID] : defaultRoom;
-      if (!rooms[roomToSet.jid]) {
+      const roomToSet = activeRoom.jid ? roomsStore[activeRoom.jid] : room;
+      if (!roomsStore[roomToSet.jid]) {
         dispatch(addRoom({ roomData: roomToSet }));
       }
-      setCurrentRoom(roomToSet);
-      dispatch(setActiveRoom({ roomData: roomToSet }));
-    }, [dispatch, rooms, defaultRoom, roomJID]);
+      dispatch(setCurrentRoom({ room: roomToSet }));
+      if (roomMessages.length) {
+        dispatch(setIsLoading({ chatJID: room.jid, loading: false }));
+      }
+    }, [dispatch, roomJID, activeRoom.jid]);
 
     const sendMessage = useCallback((message: string) => {
       // dispatch(
@@ -86,12 +84,12 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       // );
       dispatch(
         setLastViewedTimestamp({
-          chatJID: currentRoom.jid,
+          chatJID: activeRoom.jid,
           timestamp: undefined,
         })
       );
       client?.sendMessage(
-        currentRoom.jid,
+        activeRoom.jid,
         user.firstName,
         user.lastName,
         "",
@@ -101,9 +99,8 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     }, []);
 
     const sendStartComposing = useCallback(() => {
-      console.log(currentRoom.jid);
       client.sendTypingRequest(
-        currentRoom.jid,
+        activeRoom.jid,
         `${user.firstName} ${user.lastName}`,
         true
       );
@@ -111,7 +108,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
 
     const sendEndComposing = useCallback(() => {
       client.sendTypingRequest(
-        currentRoom.jid,
+        activeRoom.jid,
         `${user.firstName} ${user.lastName}`,
         false
       );
@@ -119,31 +116,48 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
 
     const loadMoreMessages = useCallback(
       async (chatJID: string, max: number, idOfMessageBefore?: number) => {
-        if (!loading) {
-          dispatch(setIsLoading({ chatJID: chatJID, loading: true }));
-          client?.getHistory(chatJID, max, idOfMessageBefore).then((resp) => {
-            console.log("getting history by scroll");
-            dispatch(setIsLoading({ chatJID: chatJID, loading: false }));
-          });
+        // console.log("getting history by scroll", loading);
+
+        if (!isLoadingMore) {
+          setIsLoadingMore(true);
+          client
+            ?.getHistory(chatJID, max, idOfMessageBefore)
+            .then((resp) => {
+              // console.log("getting history by scroll");
+            })
+            .then(() => {
+              setIsLoadingMore(false);
+            });
         }
       },
       [client]
     );
 
     const sendMedia = useCallback(
-      async (data: any) => {
-        const formData = new FormData();
-        formData.append(
-          "audio",
-          data,
-          `${new Date().getTime()}-recording-${
-            user.firstName + " " + user.lastName
-          }.webm`
-        );
-        uploadFile(formData, user.token)
+      async (data: any, type: string) => {
+        let mediaData: FormData | null = new FormData();
+        if (type === "audio") {
+          mediaData.append(
+            "audio",
+            data,
+            `${new Date().getTime()}-recording-${
+              user.firstName + " " + user.lastName
+            }.webm`
+          );
+        } else {
+          mediaData.append(
+            "media",
+            data,
+            `${new Date().getTime()}-media-${
+              user.firstName + " " + user.lastName
+            }`
+          );
+        }
+        uploadFile(mediaData, user.token)
           .then((response) => {
             console.log("Upload successful", response);
           })
+
           .catch((error) => {
             console.error("Upload failed", error);
           })
@@ -155,7 +169,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
                 firstName: user.firstName,
                 lastName: user.lastName,
                 walletAddress: user.walletAddress,
-                chatName: currentRoom.name,
+                chatName: activeRoom.name,
                 userAvatar: userAvatar,
                 createdAt: item.createdAt,
                 expiresAt: item.expiresAt,
@@ -173,67 +187,62 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
                 waveForm: "",
                 attachmentId: item._id,
                 wrappable: true,
-                roomJid: currentRoom,
+                roomJid: activeRoom,
               };
               console.log(data, "data to send media");
-              client?.sendMediaMessageStanza(currentRoom.jid, data);
+              client?.sendMediaMessageStanza(activeRoom.jid, data);
             });
           })
           .catch((error) => {
             console.log(error);
           });
       },
-      [client, currentRoom.jid]
+      [client, activeRoom.jid]
     );
 
     useEffect(() => {
-      if (!rooms[currentRoom.jid]?.messages) {
-        setTimeout(() => {
-          client
-            .initPresence()
-            .then(() => client.getRooms())
-            .then(() => client.presenceInRoom(currentRoom.jid))
-            .then(async () => {
-              const res: any = await client.getChatsPrivateStoreRequest();
-
-              const entries = Object.entries(JSON.parse(res));
-              if (entries.length > 0) {
-                const [chatJID, timestamp] = entries[0];
-                console.log(chatJID, timestamp);
-                dispatch(
-                  setLastViewedTimestamp({
-                    chatJID,
-                    // @ts-expect-error
-                    timestamp,
-                  })
-                );
-              }
-            })
-            .then(() => {
-              client.getHistory(currentRoom.jid, 30);
-            });
-        }, 1000);
+      if (!roomMessages.length) {
+        client.getHistory(activeRoom.jid, 30).then(() => {
+          dispatch(setIsLoading({ chatJID: activeRoom.jid, loading: false }));
+        });
       }
-    }, [client, user, currentRoom.jid, rooms]);
-    if (!activeRoom) return <>No room</>;
+    }, [client, activeRoom.jid, roomMessages, dispatch]);
+
+    if (!room) {
+      return <>No room</>;
+    }
 
     return (
       <ChatContainer
-        style={{ maxHeight: "100vh", overflow: "auto", ...MainComponentStyles }}
+        style={{
+          maxHeight: "100vh",
+          overflow: "auto",
+          ...MainComponentStyles,
+        }}
       >
-        {!config?.disableHeader && <ChatHeader currentRoom={currentRoom} />}
-        {isLoading ||
-        !rooms[activeRoom.jid].messages ||
-        rooms[activeRoom.jid].messages.length < 1 ? (
+        {!config?.disableHeader && <ChatHeader currentRoom={activeRoom} />}
+        {globalLoading ? (
           <Loader color={config?.colors?.primary} />
+        ) : roomsStore[activeRoom.jid].messages &&
+          roomsStore[activeRoom.jid].messages.length < 1 ? (
+          <div
+            style={{
+              height: "100%",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <NoMessagesPlaceholder />
+          </div>
         ) : (
           <MessageList
             loadMoreMessages={loadMoreMessages}
-            messages={rooms[activeRoom.jid].messages}
             CustomMessage={CustomMessageComponent}
             user={user}
-            room={currentRoom}
+            room={activeRoom}
             config={config}
+            loading={isLoadingMore}
           />
         )}
         <SendInput
@@ -242,7 +251,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
           config={config}
           onFocus={sendStartComposing}
           onBlur={sendEndComposing}
-          isLoading={isLoading}
+          isLoading={loading}
         />
       </ChatContainer>
     );

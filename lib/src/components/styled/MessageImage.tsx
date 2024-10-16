@@ -16,7 +16,6 @@ interface CustomMessageImageProps {
 }
 
 const download = (link: string) => {
-  console.log(link);
   fetch(link, {
     method: "GET",
     headers: {},
@@ -50,15 +49,25 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
 
   return (
     <Container>
-      <img
-        src={
-          imageUrl ||
-          "https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg"
-        }
-        alt={imageAlt}
-        onClick={handleOpen}
-        style={{ cursor: "pointer", maxWidth: "100%" }}
-      />
+      {imageUrl ? (
+        <img
+          src={imageUrl}
+          alt={imageAlt}
+          onClick={handleOpen}
+          style={{ cursor: "pointer", maxWidth: "100%" }}
+          onError={(e) => {
+            (e.target as HTMLImageElement).src =
+              "https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg";
+          }}
+        />
+      ) : (
+        <img
+          src="https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg"
+          alt={imageAlt}
+          onClick={handleOpen}
+          style={{ cursor: "pointer", maxWidth: "100%" }}
+        />
+      )}
       {open && (
         <Overlay>
           <StyledModal>
@@ -69,6 +78,10 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
                   "https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg"
                 }
                 alt={imageAlt}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src =
+                    "https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg";
+                }}
               />
               <ButtonContainer>
                 {imageUrl && (

@@ -1,6 +1,6 @@
 {
   "name": "@ethora/chat-component",
-  "version": "0.1.3",
+  "version": "24.10.16",
   "type": "module",
   "main": "dist/main.js",
   "types": "dist/main.d.ts",
@@ -60,7 +60,7 @@
     "messenger",
     "reactjs",
     "web3",
-    "xmpp", 
+    "xmpp",
     "ethora"
   ]
 }

@@ -3,6 +3,7 @@ import { walletToUsername } from "../helpers/walletUsername";
 import {
   getListOfRooms,
   handleComposing,
+  onGetChatRooms,
   onGetLastMessageArchive,
   onMessageHistory,
   onPresenceInRoom,
@@ -84,6 +85,7 @@ export class XmppClient {
             onPresenceInRoom(stanza);
             break;
           case "iq":
+            onGetChatRooms(stanza, this);
             onRealtimeMessage(stanza);
             break;
           default:
@@ -137,6 +139,7 @@ export class XmppClient {
   };
 
   getRooms = () => {
+    const id = `get-user-rooms:${Date.now().toString()}`;
     return new Promise((resolve, reject) => {
       try {
         const message = xml(
@@ -211,19 +214,6 @@ export class XmppClient {
         reject(error);
       }
     });
-  };
-
-  getArchive = (userJID: string) => {
-    const message = xml(
-      "iq",
-      { type: "set", id: userJID },
-      xml(
-        "query",
-        { xmlns: "urn:xmpp:mam:2", queryid: "userArchive" },
-        xml("set", { xmlns: "http://jabber.org/protocol/rsm" }, xml("before"))
-      )
-    );
-    this.client.send(message);
   };
 
   getHistory = async (chatJID: string, max: number, before?: number) => {
@@ -414,6 +404,7 @@ export class XmppClient {
           xmlns: `wss://${this?.devServer || "xmpp.ethoradev.com:5443"}/ws`,
           senderFirstName: firstName,
           senderLastName: lastName,
+          fullName: `${firstName} ${lastName}`,
           photoURL: photo,
           senderJID: this.client.jid?.toString(),
           senderWalletAddress: walletAddress,
