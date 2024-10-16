@@ -55,7 +55,7 @@ you should see something like this:
 
 Voilà - your chat app should work like so:
 
-<img src="https://github.com/dappros/ethora-chat-component/blob/main/img/readme_animation.gif" width="600" />
+<img src="https://github.com/dappros/ethora-chat-component/blob/main/img/readme_animation.gif" width="860" />
 
 ℹ️ Note: your Ethora App, User and Chat credentials are hard-coded and login screen is bypassed. This is done so that you can scaffold and test the functionality quickly.
 Leave this as is if you only need to demo or validate the chat functionality as part of your project.
