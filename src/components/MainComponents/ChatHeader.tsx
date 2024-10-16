@@ -39,13 +39,14 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ currentRoom }) => {
             chats={Object.values(rooms)}
             burgerMenu
             onRoomClick={handleChangeChat}
+            activeJID={currentRoom.jid}
           />
         )}
         <div>
           {currentRoom?.icon ? (
             <img src={currentRoom.icon} />
           ) : (
-            <ChatHeaderAvatar name={currentRoom.name} />
+            <ChatHeaderAvatar name={currentRoom.name} size={40} />
           )}
         </div>
         <div

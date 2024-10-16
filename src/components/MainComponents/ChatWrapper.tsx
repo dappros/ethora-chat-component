@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo, useState } from "react";
+import React, { FC, useCallback, useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import ChatRoom from "./ChatRoom";
 import { setConfig } from "../../roomStore/chatSettingsSlice";
@@ -20,6 +20,7 @@ import {
   setLastViewedTimestamp,
 } from "../../roomStore/roomsSlice";
 import { refresh } from "../../networking/apiClient";
+import RoomList from "./RoomList";
 
 interface ChatWrapperProps {
   token?: string;
@@ -42,6 +43,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   const dispatch = useDispatch();
 
   const { user } = useSelector((state: RootState) => state.chatSettingStore);
+  const { rooms } = useSelector((state: RootState) => state.rooms);
 
   const { client, initializeClient } = useXmppClient();
 
@@ -108,6 +110,11 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     };
   }, [client, room?.jid]);
 
+  // const handleChangeChat = () => (chat: IRoom) => {
+  //   dispatch(setCurrentRoom({ room: chat }));
+  //   dispatch(setIsLoading({ chatJID: chat.jid, loading: true }));
+  // };
+
   if (user.xmppPassword === "" && user.xmppUsername === "")
     return <LoginForm config={config} />;
 
@@ -120,13 +127,27 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
       )}
       {/* {isInited ?? !loading ? ( */}
       {isInited ? (
-        <ChatRoom
-          defaultUser={activeUser}
-          room={activeRoom}
-          CustomMessageComponent={CustomMessageComponent || CustomMessage}
-          MainComponentStyles={MainComponentStyles}
-          config={config}
-        />
+        <div
+          style={{
+            display: "flex",
+            height: "100%",
+            width: "100%",
+          }}
+        >
+          {/* {rooms && (
+            <RoomList
+              chats={Object.values(rooms)}
+              onRoomClick={handleChangeChat}
+            />
+          )} */}
+          <ChatRoom
+            defaultUser={activeUser}
+            room={activeRoom}
+            CustomMessageComponent={CustomMessageComponent || CustomMessage}
+            MainComponentStyles={MainComponentStyles}
+            config={config}
+          />
+        </div>
       ) : (
         <Loader />
       )}

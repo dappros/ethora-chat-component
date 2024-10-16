@@ -4,13 +4,18 @@ import styled from "styled-components";
 interface ChatHeaderAvatarProps {
   name?: string;
   onClick?: () => void;
+  size?: number;
 }
 
 const backgroundColors = ["#f44336", "#2196f3", "#4caf50", "#ff9800"];
 
-const AvatarCircle = styled.div<{ bgColor: string; textColor?: string }>`
-  width: 40px;
-  height: 40px;
+const AvatarCircle = styled.div<{
+  bgColor: string;
+  size?: number;
+  textColor?: string;
+}>`
+  width: ${({ size }) => `${size}px` || "64px"};
+  height: ${({ size }) => `${size}px` || "64px"};
   border-radius: 50%;
   background-color: ${({ bgColor }) => bgColor};
   color: ${({ textColor }) => textColor};
@@ -22,7 +27,11 @@ const AvatarCircle = styled.div<{ bgColor: string; textColor?: string }>`
   cursor: pointer;
 `;
 
-export const ChatHeaderAvatar: React.FC<ChatHeaderAvatarProps> = ({ name }) => {
+export const ChatHeaderAvatar: React.FC<ChatHeaderAvatarProps> = ({
+  name,
+  size = 64,
+}) => {
+  console.log(size);
   const getInitials = () => {
     return name[0].toUpperCase();
   };
@@ -38,7 +47,11 @@ export const ChatHeaderAvatar: React.FC<ChatHeaderAvatarProps> = ({ name }) => {
   };
 
   return (
-    <AvatarCircle bgColor={randomColor} color={getTextColor(randomColor)}>
+    <AvatarCircle
+      bgColor={randomColor}
+      color={getTextColor(randomColor)}
+      size={size}
+    >
       {getInitials()}
     </AvatarCircle>
   );
