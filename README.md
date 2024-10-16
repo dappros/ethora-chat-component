@@ -21,7 +21,12 @@ Note: scroll below for use cases and functionality break down of this Chat Compo
 2. specify a name for your project (e.g. "vite-project") 
 3. select framework and variant (for example, React -> Typescript but may be different depending on your project requirements, it will work with plain Javascript too)
 
-<img src="./img/readme01.png" width="500" />
+1) <img src="./img/readme01.png" width="500" />
+2) <img src="https://github.com/dappros/ethora-chat-component/blob/main/img/readme01.png?raw=true" width="500" />
+3) <img src="https://raw.githubusercontent.com/dappros/ethora-chat-component/main/img/readme01.png?token=GHSAT0AAAAAACPTWPQQPIDHDGD5DIDTLIGIZYPRL2Q" width="500"  />
+4) ![readme01](https://github.com/dappros/ethora-chat-component/blob/main/img/readme01.png?raw=true)
+5) <img src="https://www.ethora.com/images/ethora-logo-new.png" />
+
 
 <img src="./img/readme02.png" width="500" />
 
