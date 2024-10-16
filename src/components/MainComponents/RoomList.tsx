@@ -2,14 +2,15 @@ import React, {
   useState,
   useRef,
   useEffect,
-  useMemo,
   useCallback,
+  useMemo,
 } from "react";
 import styled, { css } from "styled-components";
 import { IRoom } from "../../types/types";
 import { ChatHeaderAvatar } from "./ChatHeaderAvatar";
 import Button from "../styled/Button";
 import { SearchInput } from "../InputComponents/Search";
+import debounce from "lodash/debounce";
 
 interface RoomListProps {
   chats: IRoom[];
@@ -120,24 +121,44 @@ const RoomList: React.FC<RoomListProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleClickOutside = (event: MouseEvent) => {
+  const handleClickOutside = useCallback((event: MouseEvent) => {
     if (
       containerRef.current &&
       !containerRef.current.contains(event.target as Node)
     ) {
       setOpen(false);
     }
-  };
+  }, []);
 
-  const performClick = (chat: IRoom) => {
-    onRoomClick?.(chat);
-    setOpen(false);
-  };
+  const performClick = useCallback(
+    (chat: IRoom) => {
+      onRoomClick?.(chat);
+      setOpen(false);
+    },
+    [onRoomClick]
+  );
 
-  const filteredChats = chats.filter((chat) =>
-    chat.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const debouncedSearch = useMemo(
+    () => debounce((value: string) => setSearchTerm(value), 300),
+    []
+  );
+
+  const handleSearchChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      debouncedSearch(e.target.value);
+    },
+    [debouncedSearch]
+  );
+
+  const filteredChats = useMemo(
+    () =>
+      chats.filter((chat) =>
+        chat.name.toLowerCase().includes(searchTerm.toLowerCase())
+      ),
+    [chats, searchTerm]
   );
 
   useEffect(() => {
@@ -147,7 +168,7 @@ const RoomList: React.FC<RoomListProps> = ({
         document.removeEventListener("mousedown", handleClickOutside);
       };
     }
-  }, [burgerMenu]);
+  }, [burgerMenu, handleClickOutside]);
 
   const isChatActive = useCallback(
     (room: IRoom) => activeJID === room.jid,
@@ -170,7 +191,7 @@ const RoomList: React.FC<RoomListProps> = ({
         >
           <SearchInput
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearchChange}
             placeholder="Search..."
           />
           <Button style={{ color: "black" }} text={"New"} />
