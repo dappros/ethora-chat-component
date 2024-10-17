@@ -76,9 +76,18 @@ with:
 ```
 <Chat
     config={{
-      disableHeader: true,
-      disableMedia: true,
-      colors: { primary: "#4287f5", secondary: "#42f5e9" },
+    disableHeader: true,
+    disableMedia: true,
+    colors: { primary: "#4287f5", secondary: "#42f5e9" },
+    defaultLogin=true
+    googleLogin: {
+      firebaseConfig: config, //Ethora app config
+      enabled: true,
+    },
+    googleLogin: {
+      firebaseConfig: config, //Ethora app config
+      enabled: true,
+    },
     }}
     MainComponentStyles={{
       width: "100%",
@@ -86,39 +95,8 @@ with:
       borderRadius: "16px",
       border: "1px solid #42f5e9",
     }}
-    room={{
-      jid: 'string@conference.xmpp.ethoradev.com',
-      name: '',
-      unreadMessages: 0,
-      composing: '',
-      toUpdate: false,
-      description: '',
-      group: 'groups',
-      id: '',
-      title: '',
-      usersCnt: 1,
-     }}
-     user={{
-       _id: '',
-       firstName: '',
-       lastName: '',
-       xmppPassword: '',
-       walletAddress: '',
-       profileImage: '',
-       isProfileOpen: true,
-       isAssetsOpen: true,
-       referrerId: '',
-       isAllowedNewAppCreate: true,
-       isAgreeWithTerms: false,
-       company: [],
-       appId: '',
-       homeScreen: '',
-       defaultWallet: {
-         walletAddress: '',
-       },
-       email: '',
-       username: '',
-     }}
+    roomJID=""
+    user={{ email: "", password: "" }}
   />
 ```
 

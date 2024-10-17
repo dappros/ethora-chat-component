@@ -7,11 +7,8 @@ import { useDispatch, useSelector } from "react-redux";
 import { setUser } from "../../roomStore/chatSettingsSlice";
 import { loginEmail, loginViaJwt } from "../../networking/apiClient";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
-import { addRoom } from "../../roomStore/roomsSlice";
 
 interface LoginWrapperProps {
-  token?: string;
-  room?: IRoom;
   user?: { email: string; password: string };
   MainComponentStyles?: any;
   CustomMessageComponent?: any;
@@ -81,8 +78,6 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
         try {
           const loginData = await loginViaJwt(props.config?.jwtLogin?.token);
           if (loginData) {
-            console.log("Login data", loginData);
-            if (props.room) dispatch(setUser(loginData));
             useLocalStorage("@ethora/chat-component-user").set(loginData);
           }
         } catch (error) {
@@ -94,11 +89,6 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
 
     //if google - show login.tsx and process user there (there will be dispatch, set user)
     //if only ethora - show login with only ethora
-
-    if (props.room) {
-      dispatch(addRoom({ roomData: props.room }));
-    }
-
     return () => {
       //clear
     };
