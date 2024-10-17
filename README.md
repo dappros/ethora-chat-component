@@ -1,5 +1,16 @@
 # Ethora Chat Component: a single npm for your React chat
 
+![GitHub watchers](https://img.shields.io/github/watchers/dappros/ethora-chat-component) ![GitHub forks](https://img.shields.io/github/forks/dappros/ethora-chat-component) ![GitHub Repo stars](https://img.shields.io/github/stars/dappros/ethora-chat-component) ![GitHub repo size](https://img.shields.io/github/repo-size/dappros/ethora-chat-component) ![GitHub language count](https://img.shields.io/github/languages/count/dappros/ethora-chat-component) ![GitHub top language](https://img.shields.io/github/languages/top/dappros/ethora-chat-component) <a href="https://codeclimate.com/github/dappros/ethora-chat-component/maintainability"><img src="https://api.codeclimate.com/v1/badges/715c6f3ffb08de5ca621/maintainability" /></a> ![GitHub commit activity (branch)](https://img.shields.io/github/commit-activity/m/dappros/ethora-chat-component/main) ![GitHub issues](https://img.shields.io/github/issues/dappros/ethora-chat-component) ![GitHub closed issues](https://img.shields.io/github/issues-closed-raw/dappros/ethora-chat-component) ![GitHub](https://img.shields.io/github/license/dappros/ethora-chat-component) ![GitHub contributors](https://img.shields.io/github/contributors/dappros/ethora-chat-component)
+
+![JavaScript](https://img.shields.io/badge/javascript-%23323330.svg?style=flat&logo=javascript&logoColor=%23F7DF1E)
+![React](https://img.shields.io/badge/react-%2320232a.svg?style=flat&logo=react&logoColor=%2361DAFB) ![TypeScript](https://img.shields.io/badge/typescript-%23007ACC.svg?style=flat&logo=typescript&logoColor=white) ![JWT](https://img.shields.io/badge/JWT-black?style=flat&logo=JSON%20web%20tokens) 
+
+[![Discord](https://img.shields.io/badge/%3Cethora%3E-%237289DA.svg?style=flat&logo=discord&logoColor=white)](https://discord.gg/Sm6bAHA3ZC) [![Twitter URL](https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2Fdappros%2Fethora)](https://twitter.com/intent/tweet?url=https%3A%2F%2Fgithub.com%2Fdappros%2Fethora%2F&via=tarasfilatov&text=check%20out%20Ethora%20%23web3%20%23social%20app%20engine&hashtags=lowcode%2Creactnative%2Copensource%2Cnocode) [![Website](https://img.shields.io/website?url=https%3A%2F%2Fethora.com%2F)](https://ethora.com/) [![YouTube Channel Subscribers](https://img.shields.io/youtube/channel/subscribers/UCRvrXwMOU0WBkRZyFlU7V_g)](https://www.youtube.com/channel/UCRvrXwMOU0WBkRZyFlU7V_g)
+
+
+
+
+
 ## About Chat Component
 
 Ethora Chat Component allows you to build a functioning chat room super quickly.
