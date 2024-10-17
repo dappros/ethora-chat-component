@@ -49,8 +49,6 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
   const { client, initializeClient, setClient } = useXmppClient();
 
-  const activeRoom = useMemo(() => defRoom, []);
-
   useEffect(() => {
     dispatch(setConfig(config));
     dispatch(setIsLoading({ loading: true }));
@@ -81,7 +79,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
       }
     } catch (error) {
       setShowModal(true);
-      dispatch(setIsLoading({ chatJID: activeRoom.roomJID, loading: false }));
+      dispatch(setIsLoading({ loading: false }));
       console.log(error);
     }
   }, [user]);
@@ -91,13 +89,13 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     const updateLastReadTimeStamp = () => {
       if (client) {
         client.actionSetTimestampToPrivateStore(
-          room?.jid || activeRoom.roomJID,
+          room?.jid || roomJID,
           new Date().getTime()
         );
       }
       dispatch(
         setLastViewedTimestamp({
-          chatJID: room?.jid || activeRoom.roomJID,
+          chatJID: room?.jid || roomJID,
           timestamp: new Date().getTime(),
         })
       );

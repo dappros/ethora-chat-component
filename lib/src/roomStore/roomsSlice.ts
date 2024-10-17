@@ -4,13 +4,13 @@ import { isDateAfter, isDateBefore } from "../helpers/dateComparison";
 
 interface RoomMessagesState {
   rooms: { [jid: string]: IRoom };
-  currentRoom: IRoom;
+  activeRoomJID: string;
   isLoading: boolean;
 }
 
 const initialState: RoomMessagesState = {
   rooms: {},
-  currentRoom: null,
+  activeRoomJID: null,
   isLoading: false,
 };
 
@@ -55,19 +55,6 @@ export const roomsStore = createSlice({
       }>
     ) {
       const { roomJID, message, start } = action.payload;
-
-      if (!state.rooms[roomJID]) {
-        console.log("creating");
-        state.rooms[roomJID] = {
-          jid: roomJID,
-          messages: [],
-          title: "", // Default title, replace as needed
-          usersCnt: 1, // Default users count, replace as needed
-          id: "",
-          name: "test",
-          isLoading: false,
-        };
-      }
 
       if (!state.rooms[roomJID].messages) {
         state.rooms[roomJID].messages = [];
@@ -167,27 +154,17 @@ export const roomsStore = createSlice({
       action: PayloadAction<{ chatJID: string; composing: boolean }>
     ) {
       const { chatJID, composing } = action.payload;
-      if (!state.rooms[chatJID]) {
-        console.log("creating new room as it was missing");
-        state.rooms[chatJID] = {
-          jid: chatJID,
-          messages: [],
-          title: "",
-          usersCnt: 1,
-          id: "",
-          name: "test",
-          isLoading: false,
-        };
-      }
       state.rooms[chatJID].composing = composing;
     },
     setIsLoading: (
       state,
-      action: PayloadAction<{ chatJID: string; loading: boolean }>
+      action: PayloadAction<{ chatJID?: string; loading: boolean }>
     ) => {
       const { chatJID, loading } = action.payload;
-      state.isLoading = loading;
-      state.rooms[chatJID].isLoading = loading;
+      if (chatJID) {
+        state.isLoading = loading;
+        state.rooms[chatJID].isLoading = loading;
+      }
     },
 
     setLastViewedTimestamp: (
@@ -212,10 +189,10 @@ export const roomsStore = createSlice({
         state.rooms[chatJID].noMessages = value;
       }
     },
-    setCurrentRoom: (state, action: PayloadAction<{ room: IRoom }>) => {
-      const { room } = action.payload;
-      if (room) {
-        state.currentRoom = room;
+    setCurrentRoom: (state, action: PayloadAction<{ roomJID: string }>) => {
+      const { roomJID } = action.payload;
+      if (roomJID) {
+        state.activeRoomJID = roomJID;
       }
     },
   },

@@ -186,14 +186,18 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
           disabled={isLoading}
           loading={isLoading}
         />
-        <Delimiter>or</Delimiter>
-        <Button
-          onClick={handleGoogleLogin}
-          style={{ width: "100%", height: "40px" }}
-          text={<>Login with Google</>}
-          EndIcon={<GoogleIcon style={{ height: "24px" }} />}
-          disabled={isLoading}
-        />
+        {config?.googleLogin?.enabled && (
+          <>
+            <Delimiter>or</Delimiter>
+            <Button
+              onClick={handleGoogleLogin}
+              style={{ width: "100%", height: "40px" }}
+              text={<>Login with Google</>}
+              EndIcon={<GoogleIcon style={{ height: "24px" }} />}
+              disabled={isLoading}
+            />
+          </>
+        )}
         <div>
           Don't have an account?{" "}
           <div

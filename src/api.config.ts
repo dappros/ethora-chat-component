@@ -30,6 +30,5 @@ export const defaultUser = {
 };
 
 export const defRoom = {
-  roomJID:
-    "5f9a4603b2b5bbfa6b228b642127c56d03b778ad594c52b755e605c977303979@conference.xmpp.ethoradev.com",
+  jid: "5f9a4603b2b5bbfa6b228b642127c56d03b778ad594c52b755e605c977303979@conference.xmpp.ethoradev.com",
 };

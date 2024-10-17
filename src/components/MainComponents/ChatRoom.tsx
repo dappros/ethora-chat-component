@@ -1,20 +1,14 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import {
-  ChatContainer,
-  ChatContainerHeader,
-  ChatContainerHeaderLabel,
-} from "../styled/StyledComponents";
+import { ChatContainer } from "../styled/StyledComponents";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../../roomStore";
 import MessageList from "./MessageList";
-import { IConfig, IRoom, User } from "../../types/types";
 import SendInput from "../styled/SendInput";
 import {
   addRoom,
   addRoomMessage,
   setCurrentRoom,
   setIsLoading,
-  setLastViewedTimestamp,
 } from "../../roomStore/roomsSlice";
 import Loader from "../styled/Loader";
 import { uploadFile } from "../../networking/apiClient";
@@ -200,32 +194,42 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     );
 
     useEffect(() => {
-      if (!activeRoomJID) {
-        dispatch(setCurrentRoom({ roomJID: chatJID }));
-        dispatch(setIsLoading({ loading: true }));
-      }
+      if (Object.values(roomsStore).length > 0) {
+        if (!activeRoomJID) {
+          dispatch(setCurrentRoom({ roomJID: chatJID }));
+          dispatch(setIsLoading({ loading: true }));
+        }
 
-      if (!roomMessages.length) {
-        const initialPresenceAndHistory = () => {
-          if (!roomsStore[chatJID]) {
-            client.joinBySendingPresence(chatJID).then(() => {
-              client.getRooms().then(() => {
-                client.getHistory(chatJID, 30).then(() => {
-                  dispatch(setIsLoading({ chatJID: chatJID, loading: false }));
+        if (!roomMessages.length) {
+          const initialPresenceAndHistory = () => {
+            if (!roomsStore[chatJID || activeRoomJID]) {
+              client.joinBySendingPresence(chatJID).then(() => {
+                client.getRooms().then(() => {
+                  client.getHistory(chatJID, 30).then(() => {
+                    dispatch(
+                      setIsLoading({ chatJID: chatJID, loading: false })
+                    );
+                  });
                 });
               });
-            });
-          } else {
-            client.getHistory(activeRoomJID, 30).then(() => {
-              dispatch(
-                setIsLoading({ chatJID: activeRoomJID, loading: false })
-              );
-            });
-          }
-        };
-        initialPresenceAndHistory();
+            } else {
+              client.getHistory(activeRoomJID, 30).then(() => {
+                dispatch(
+                  setIsLoading({ chatJID: activeRoomJID, loading: false })
+                );
+              });
+            }
+          };
+          initialPresenceAndHistory();
+        }
       }
-    }, [client, activeRoomJID, roomMessages, dispatch, roomsStore.length]);
+    }, [
+      client,
+      activeRoomJID,
+      roomMessages,
+      dispatch,
+      Object.values(roomsStore).length,
+    ]);
 
     if (!activeRoomJID || !roomsStore[activeRoomJID]) {
       return (
@@ -233,9 +237,11 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
           style={{
             height: "100%",
             width: "100%",
+            alignItems: "center",
+            display: "flex",
           }}
         >
-          No room
+          <Loader color={config?.colors?.primary} />
         </div>
       );
     }

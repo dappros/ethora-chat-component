@@ -10,15 +10,14 @@ function App() {
       <ReduxWrapper
         config={{
           // disableHeader: true,
-          // disableMedia: true,
+          disableMedia: true,
           colors: { primary: "#5E3FDE", secondary: "#E1E4FE" },
           defaultLogin: true,
-          // googleLogin: {
-          //   firebaseConfig: config,
-          //   enabled: false,
-          // },
+          googleLogin: {
+            firebaseConfig: config,
+            enabled: false,
+          },
         }}
-        roomJID={defRoom?.jid}
       />
     </div>
   );

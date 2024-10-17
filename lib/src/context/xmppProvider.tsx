@@ -4,7 +4,8 @@ import XmppClient from "../networking/xmppClient";
 // Declare XmppContext with both client and initializeClient, ensuring client is not null
 interface XmppContextType {
   client: XmppClient;
-  initializeClient: (password: string, email: string) => void;
+  setClient: (client: XmppClient | null) => void;
+  initializeClient: (password: string, email: string) => Promise<XmppClient>;
 }
 
 const XmppContext = createContext<XmppContextType | null>(null);
@@ -20,8 +21,21 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
   const initializeClient = async (password: string, email: string) => {
     try {
       const newClient = new XmppClient(password, email);
-      console.log("client successfully initialized");
-      setClient(newClient);
+
+      await new Promise<void>((resolve, reject) => {
+        const checkStatus = () => {
+          if (newClient.status === "online") {
+            resolve();
+          } else if (newClient.status === "error") {
+            reject(new Error("Failed to connect."));
+          } else {
+            setTimeout(checkStatus, 500);
+          }
+        };
+        checkStatus();
+      });
+
+      return newClient;
     } catch (error) {
       console.log(error, "error with initializing client");
     }
@@ -29,7 +43,7 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
 
   return (
     <XmppContext.Provider
-      value={{ client: client as XmppClient, initializeClient }}
+      value={{ client: client as XmppClient, initializeClient, setClient }}
     >
       {children}
     </XmppContext.Provider>

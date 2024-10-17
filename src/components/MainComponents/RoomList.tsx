@@ -204,7 +204,7 @@ const RoomList: React.FC<RoomListProps> = ({
                   key={index}
                   active={isChatActive(chat)}
                   onClick={() => performClick(chat)}
-                  bg={config.colors.primary}
+                  bg={config?.colors?.primary}
                 >
                   <div
                     style={{

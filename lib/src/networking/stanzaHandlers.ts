@@ -1,7 +1,12 @@
 import { xml } from "@xmpp/client";
 import { Element } from "ltx";
 import { store } from "../roomStore";
-import { addRoom, addRoomMessage, setComposing } from "../roomStore/roomsSlice";
+import {
+  addRoom,
+  addRoomMessage,
+  setComposing,
+  setCurrentRoom,
+} from "../roomStore/roomsSlice";
 import { IRoom } from "../types/types";
 
 // TO DO: we are thinking to refactor this code in the following way:
@@ -202,12 +207,6 @@ const handleComposing = async (stanza: Element, currentUser: string) => {
   }
 };
 
-const getListOfRooms = (xmpp: any) => {
-  xmpp.client.send(xml("presence"));
-  // xmpp.getArchive(xmpp.client?.jid?.toString());
-  xmpp.getRooms();
-};
-
 const onPresenceInRoom = (stanza: Element | any) => {
   if (stanza.attrs.id === "presenceInRoom") {
     const roomJID: string = stanza.attrs.from.split("/")[0];
@@ -232,7 +231,6 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
     stanza.attrs.id === "getUserRooms" &&
     stanza.getChild("query")?.children
   ) {
-    let roomJID: string = "";
     stanza.getChild("query")?.children.forEach((result: any) => {
       const currentChatRooms = store.getState().rooms.rooms;
 
@@ -241,18 +239,28 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
           (element) => element.jid === result?.attrs.jid
         );
         if (currentSavedChatRoom.length === 0 || currentSavedChatRoom[0]) {
-          roomJID = result.attrs.jid;
-          xmpp.presenceInRoom(roomJID);
           const roomData: IRoom = {
-            jid: roomJID,
+            jid: result.attrs.jid,
             name: result?.attrs.name,
             id: "",
             title: result?.attrs.name,
             usersCnt: Number(result?.attrs.users_cnt),
             messages: [],
             isLoading: false,
+            roomBg:
+              result?.attrs.room_background !== "none"
+                ? result?.attrs.room_background
+                : null,
+            icon:
+              result?.attrs.room_thumbnail !== "none"
+                ? result?.attrs.room_thumbnail
+                : null,
           };
           store.dispatch(addRoom({ roomData }));
+          if (!store.getState().rooms.activeRoomJID) {
+            store.dispatch(setCurrentRoom({ roomJID: roomData?.jid }));
+          }
+          xmpp.presenceInRoom(result.attrs.jid);
           // if (
           //   currentSavedChatRoom.length > 0 &&
           // ) {
@@ -270,7 +278,6 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
 };
 
 export {
-  getListOfRooms,
   onRealtimeMessage,
   onMessageHistory,
   onPresenceInRoom,

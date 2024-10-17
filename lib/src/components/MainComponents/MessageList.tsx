@@ -20,7 +20,7 @@ import NewMessageLabel from "../styled/NewMessageLabel";
 interface MessageListProps<TMessage extends IMessage> {
   CustomMessage?: React.ComponentType<{ message: IMessage; isUser: boolean }>;
   user: User;
-  room: IRoom;
+  roomJID: string;
   loadMoreMessages: (
     chatJID: string,
     max: number,
@@ -33,12 +33,12 @@ const MessageList = <TMessage extends IMessage>({
   CustomMessage,
   user,
   loadMoreMessages,
-  room,
+  roomJID,
   config,
   loading,
 }: MessageListProps<TMessage>) => {
   const { composing, lastViewedTimestamp, messages } = useSelector(
-    (state: RootState) => state.rooms.rooms[room.jid]
+    (state: RootState) => state.rooms.rooms[roomJID]
   );
 
   const memoizedMessages = useMemo(() => messages, [messages.length]);
