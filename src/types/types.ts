@@ -52,6 +52,11 @@ export interface UserType extends IMessage {
   text: any;
 }
 
+export interface ConfigUser {
+  email: string;
+  password: string;
+}
+
 export interface User {
   walletAddress: string;
 

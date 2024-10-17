@@ -1,7 +1,7 @@
 import React from "react";
 import { Provider } from "react-redux";
 import { store } from "../../roomStore";
-import { IConfig, IRoom, User } from "../../types/types";
+import { ConfigUser, IConfig, IRoom, User } from "../../types/types";
 import { XmppProvider } from "../../context/xmppProvider.tsx";
 import "../../index.css";
 import "../../helpers/storeConsole";
@@ -10,7 +10,7 @@ import LoginWrapper from "./LoginWrapper.tsx";
 interface ChatWrapperProps {
   token?: string;
   roomJID?: string;
-  user?: User;
+  user?: ConfigUser;
   loginData?: { email: string; password: string };
   MainComponentStyles?: any;
   CustomMessageComponent?: any;

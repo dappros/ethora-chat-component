@@ -12,7 +12,7 @@ import { addRoom } from "../../roomStore/roomsSlice";
 interface LoginWrapperProps {
   token?: string;
   room?: IRoom;
-  loginData?: { email: string; password: string };
+  user?: { email: string; password: string };
   MainComponentStyles?: any;
   CustomMessageComponent?: any;
   config?: IConfig;
@@ -25,8 +25,8 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
   const loginUserFunction = useCallback(async () => {
     try {
       const authData = await loginEmail(
-        user.walletAddress || "yukiraze9@gmail.com",
-        user?.xmppPassword || "Qwerty123"
+        user.walletAddress || props.user.email || "yukiraze9@gmail.com",
+        user?.xmppPassword || props.user.password || "Qwerty123"
       );
 
       return {
@@ -64,7 +64,7 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
           const loginData = await loginUserFunction();
           if (loginData) {
             console.log("Login data", loginData);
-            if (props.room) dispatch(setUser(loginData));
+            dispatch(setUser(loginData));
             useLocalStorage("@ethora/chat-component-user").set(loginData);
           }
         } catch (error) {
