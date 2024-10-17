@@ -16,6 +16,7 @@ interface LoginWrapperProps {
   MainComponentStyles?: any;
   CustomMessageComponent?: any;
   config?: IConfig;
+  roomJID?: string;
 }
 
 const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {

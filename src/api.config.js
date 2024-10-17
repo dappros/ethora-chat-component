@@ -32,7 +32,7 @@ export const defRoom = {
   // jid: "61ca3489a54efe5dc1517bc24d5c8982cc369428b333b1f7a14f46d70ac70bfd@conference.xmpp.ethoradev.com", // deepx
   // jid: "5f9a4603b2b5bbfa6b228b642127c56d03b778ad594c52b755e605c977303979@conference.xmpp.ethoradev.com", // general
   // jid: "70ad0f490034cf85f12f09fe88a83165302c59592cbedf9f8dbbea755bc5e180@conference.xmpp.ethoradev.com", // empty
-  jid: "b76a90d9c753cbb4697a1d22b32611110008bb87671ed332269a339b07ffee50c@conference.xmpp.ethoradev.com",
+  jid: "74e12f74fa9c1f09f2a04b704107f4382a9682072b77632d8bf2e1b8618d2c3e@conference.xmpp.ethoradev.com",
   name: "1234",
   users_cnt: "1",
   unreadMessages: 0,

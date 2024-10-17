@@ -18,10 +18,12 @@ function App() {
           //   enabled: false,
           // },
         }}
-        room={defRoom}
+        roomJID={defRoom?.jid}
       />
     </div>
   );
 }
 
 export default App;
+
+//to="5f9a4603b2b5bbfa6b228b642127c56d03b778ad594c52b755e605c977303979@conference.xmpp.ethoradev.com/0x6816810a7_fe04_f_c9b800f9_d11564_c0e4a_e_c25_d78"

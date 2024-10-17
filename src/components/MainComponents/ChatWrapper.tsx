@@ -29,6 +29,7 @@ interface ChatWrapperProps {
   MainComponentStyles?: any; //change to particular types
   CustomMessageComponent?: any;
   config?: IConfig;
+  roomJID?: string;
 }
 
 const ChatWrapper: FC<ChatWrapperProps> = ({
@@ -36,6 +37,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   CustomMessageComponent,
   room,
   config,
+  roomJID,
 }) => {
   const [isInited, setInited] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -43,17 +45,15 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   const dispatch = useDispatch();
 
   const { user } = useSelector((state: RootState) => state.chatSettingStore);
+  const { rooms } = useSelector((state: RootState) => state.rooms.rooms);
 
-  const { client, initializeClient } = useXmppClient();
+  const { client, initializeClient, setClient } = useXmppClient();
 
-  const activeRoom = useMemo(() => room || defRoom, []);
-  const activeUser = useMemo(() => user || defaultUser, []);
+  const activeRoom = useMemo(() => defRoom, []);
 
   useEffect(() => {
     dispatch(setConfig(config));
-    dispatch(addRoom({ roomData: activeRoom }));
-    dispatch(setIsLoading({ chatJID: activeRoom.jid, loading: true }));
-    dispatch(setCurrentRoom({ room: activeRoom }));
+    dispatch(setIsLoading({ loading: true }));
 
     try {
       if (!user.defaultWallet || user?.defaultWallet.walletAddress === "") {
@@ -67,14 +67,21 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           initializeClient(
             user.defaultWallet?.walletAddress,
             user.xmppPassword
-          );
+          ).then((client) => {
+            client
+              .getRooms()
+              .then(() => {
+                setClient(client);
+              })
+              .finally(() => setInited(true));
+          });
+
           refresh();
-          setInited(true);
         }
       }
     } catch (error) {
       setShowModal(true);
-      dispatch(setIsLoading({ chatJID: activeRoom.jid, loading: false }));
+      dispatch(setIsLoading({ chatJID: activeRoom.roomJID, loading: false }));
       console.log(error);
     }
   }, [user]);
@@ -84,13 +91,13 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     const updateLastReadTimeStamp = () => {
       if (client) {
         client.actionSetTimestampToPrivateStore(
-          room?.jid || defRoom.jid,
+          room?.jid || activeRoom.roomJID,
           new Date().getTime()
         );
       }
       dispatch(
         setLastViewedTimestamp({
-          chatJID: room?.jid || defRoom.jid,
+          chatJID: room?.jid || activeRoom.roomJID,
           timestamp: new Date().getTime(),
         })
       );
@@ -125,31 +132,31 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
         </Overlay>
       )}
       {/* {isInited ?? !loading ? ( */}
-      {isInited ? (
-        <div
-          style={{
-            display: "flex",
-            height: "100%",
-            width: "100%",
-          }}
-        >
-          {/* {rooms && (
-            <RoomList
-              chats={Object.values(rooms)}
-              onRoomClick={handleChangeChat}
+      <div
+        style={{
+          display: "flex",
+          height: "100%",
+          width: "100%",
+        }}
+      >
+        {isInited ? (
+          // {/* {rooms && (
+          //   <RoomList
+          //     chats={Object.values(rooms)}
+          //     onRoomClick={handleChangeChat}
+          //   />
+          // )} */}
+          <>
+            <ChatRoom
+              CustomMessageComponent={CustomMessageComponent || CustomMessage}
+              MainComponentStyles={MainComponentStyles}
+              chatJID={roomJID}
             />
-          )} */}
-          <ChatRoom
-            defaultUser={activeUser}
-            room={activeRoom}
-            CustomMessageComponent={CustomMessageComponent || CustomMessage}
-            MainComponentStyles={MainComponentStyles}
-            config={config}
-          />
-        </div>
-      ) : (
-        <Loader />
-      )}
+          </>
+        ) : (
+          <Loader color={config?.colors?.primary} />
+        )}
+      </div>
     </ChatWrapperBox>
   );
 };

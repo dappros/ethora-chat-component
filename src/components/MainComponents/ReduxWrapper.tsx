@@ -9,7 +9,7 @@ import LoginWrapper from "./LoginWrapper.tsx";
 
 interface ChatWrapperProps {
   token?: string;
-  room?: IRoom;
+  roomJID?: string;
   user?: User;
   loginData?: { email: string; password: string };
   MainComponentStyles?: any;

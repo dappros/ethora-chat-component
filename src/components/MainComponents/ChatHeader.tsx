@@ -26,7 +26,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ currentRoom }) => {
   const rooms = useSelector((state: RootState) => state.rooms.rooms);
 
   const handleChangeChat = (chat: IRoom) => {
-    dispatch(setCurrentRoom({ room: chat }));
+    dispatch(setCurrentRoom({ roomJID: chat.jid }));
     dispatch(setIsLoading({ chatJID: chat.jid, loading: true }));
   };
 

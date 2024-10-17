@@ -35,16 +35,17 @@ const Container = styled.div<{ burgerMenu?: boolean; open?: boolean }>`
           z-index: 2;
           display: flex;
           flex-direction: column;
-          /* background-color: rgba(156, 104, 104, 0.3); */
           background-color: #fff;
-          /* padding: 16px 0px 12px 16px; */
           padding: 16px 12px;
+          z-index: 1000;
         `
       : css`
           position: static;
           width: 300px;
           z-index: 2;
           padding: 0px 0px 12px 16px;
+          overflow-y: auto;
+          z-index: 1000;
           background-color: #fff;
         `}
 `;
@@ -197,39 +198,41 @@ const RoomList: React.FC<RoomListProps> = ({
               />
               <Button style={{ color: "black" }} text={"New"} />
             </div>
-            {filteredChats.map((chat, index) => (
-              <ChatItem
-                key={index}
-                active={isChatActive(chat)}
-                onClick={() => performClick(chat)}
-                bg={config.colors.primary}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "start",
-                    width: "100%",
-                    gap: "8px",
-                  }}
+            <div style={{ height: "80%", overflow: "auto" }}>
+              {filteredChats.map((chat, index) => (
+                <ChatItem
+                  key={index}
+                  active={isChatActive(chat)}
+                  onClick={() => performClick(chat)}
+                  bg={config.colors.primary}
                 >
-                  {chat.icon ? (
-                    <IconPlaceholder>{chat.icon}</IconPlaceholder>
-                  ) : (
-                    <ChatHeaderAvatar name={chat.name} />
-                  )}
-                  <ChatInfo>
-                    <ChatName>{chat.name}</ChatName>
-                    <LastMessage>{chat.lastMessage}</LastMessage>
-                  </ChatInfo>
-                </div>
-                <div style={{ textAlign: "right", display: "flex" }}>
-                  <UserCount active={isChatActive(chat)}>
-                    {chat.usersCnt}
-                  </UserCount>
-                  {/* <div>{chat.lastMessageTime}</div> */}
-                </div>
-              </ChatItem>
-            ))}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "start",
+                      width: "100%",
+                      gap: "8px",
+                    }}
+                  >
+                    {chat.icon ? (
+                      <IconPlaceholder>{chat.icon}</IconPlaceholder>
+                    ) : (
+                      <ChatHeaderAvatar name={chat.name} />
+                    )}
+                    <ChatInfo>
+                      <ChatName>{chat.name}</ChatName>
+                      <LastMessage>{chat.lastMessage}</LastMessage>
+                    </ChatInfo>
+                  </div>
+                  <div style={{ textAlign: "right", display: "flex" }}>
+                    <UserCount active={isChatActive(chat)}>
+                      {chat.usersCnt}
+                    </UserCount>
+                    {/* <div>{chat.lastMessageTime}</div> */}
+                  </div>
+                </ChatItem>
+              ))}
+            </div>
           </>
         )}
       </Container>

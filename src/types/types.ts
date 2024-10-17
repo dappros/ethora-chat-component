@@ -42,6 +42,7 @@ export interface IRoom {
   lastViewedTimestamp?: number;
   unreadMessages?: number;
   noMessages?: boolean;
+  roomBg: string;
 }
 
 export interface UserType extends IMessage {

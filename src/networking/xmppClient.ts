@@ -1,7 +1,6 @@
 import xmpp, { Client, xml } from "@xmpp/client";
 import { walletToUsername } from "../helpers/walletUsername";
 import {
-  getListOfRooms,
   handleComposing,
   onGetChatRooms,
   onGetLastMessageArchive,
@@ -20,6 +19,7 @@ export class XmppClient {
   username: string;
   onclose: () => void;
   onmessage: (data: any) => void;
+  status: string;
 
   password = "";
   resource = "";
@@ -68,8 +68,8 @@ export class XmppClient {
 
       this.client.setMaxListeners(20);
 
-      this.client.on("online", (jid) => {
-        getListOfRooms(this);
+      this.client.on("online", () => {
+        this.status = "online";
         console.log("Client is online");
       });
 
@@ -109,6 +109,7 @@ export class XmppClient {
   joinBySendingPresence(chatJID: string) {
     let stanzaHdlrPointer: (stanza: Element) => void;
 
+    console.log("chatJID", chatJID);
     const unsubscribe = () => {
       this.client.off("stanza", stanzaHdlrPointer);
     };
@@ -125,18 +126,16 @@ export class XmppClient {
         }
       };
 
-      console.log(this.client.jid);
-      console.log("cleint");
-
       const message = xml(
         "presence",
         {
-          to: `${chatJID}/${this.client.jid.toString()}`,
+          to: `${chatJID}/${this.client.jid.toString().split("@")[0]}`,
         },
         xml("x", "http://jabber.org/protocol/muc")
       );
 
       try {
+        console.log("joning by presence");
         this.client.send(message);
       } catch (error) {
         console.log("Error joining by presence", error);
@@ -168,7 +167,6 @@ export class XmppClient {
   };
 
   getRooms = () => {
-    const id = `get-user-rooms:${Date.now().toString()}`;
     return new Promise((resolve, reject) => {
       try {
         const message = xml(
@@ -183,7 +181,7 @@ export class XmppClient {
 
         this.client
           .send(message)
-          .then(() => {
+          .then((res) => {
             console.log("getRooms successfully sent");
             resolve("Request to get rooms sent successfully");
           })
