@@ -25,8 +25,8 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
   const loginUserFunction = useCallback(async () => {
     try {
       const authData = await loginEmail(
-        user.walletAddress || props.user.email || "yukiraze9@gmail.com",
-        user?.xmppPassword || props.user.password || "Qwerty123"
+        props?.user?.email || "yukiraze9@gmail.com",
+        props?.user?.password || "Qwerty123"
       );
 
       return {

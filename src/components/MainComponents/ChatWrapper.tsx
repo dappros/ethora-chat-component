@@ -45,7 +45,6 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   const dispatch = useDispatch();
 
   const { user } = useSelector((state: RootState) => state.chatSettingStore);
-  const { rooms } = useSelector((state: RootState) => state.rooms.rooms);
 
   const { client, initializeClient, setClient } = useXmppClient();
 
@@ -78,7 +77,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
         }
       }
     } catch (error) {
-      setShowModal(true);
+      setShowModal(false);
       dispatch(setIsLoading({ loading: false }));
       console.log(error);
     }

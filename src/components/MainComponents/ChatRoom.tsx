@@ -51,7 +51,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         dispatch(setIsLoading({ loading: true }));
       }
 
-      const actualJID = chatJID || activeRoomJID;
+      const actualJID = activeRoomJID;
       const roomToSet = roomsStore?.[actualJID];
       if (roomToSet?.jid && !roomsStore[roomToSet.jid]) {
         dispatch(addRoom({ roomData: roomToSet }));
@@ -63,33 +63,36 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       }
     }, [dispatch, activeRoomJID, roomsStore.length]);
 
-    const sendMessage = useCallback((message: string) => {
-      // dispatch(
-      //   addRoomMessage({
-      //     roomJID: currentRoom.jid,
-      //     message: {
-      //       id: getHighResolutionTimestamp(),
-      //       user: {
-      //         ...user,
-      //         id: user.walletAddress,
-      //         name: user.firstName + " " + user.lastName,
-      //       },
-      //       date: new Date().toISOString(),
-      //       body: message,
-      //       roomJID: currentRoom.jid,
-      //       // pending: true,
-      //     },
-      //   })
-      // );
-      client?.sendMessage(
-        activeRoomJID,
-        user.firstName,
-        user.lastName,
-        "",
-        user.walletAddress,
-        message
-      );
-    }, []);
+    const sendMessage = useCallback(
+      (message: string) => {
+        // dispatch(
+        //   addRoomMessage({
+        //     roomJID: currentRoom.jid,
+        //     message: {
+        //       id: getHighResolutionTimestamp(),
+        //       user: {
+        //         ...user,
+        //         id: user.walletAddress,
+        //         name: user.firstName + " " + user.lastName,
+        //       },
+        //       date: new Date().toISOString(),
+        //       body: message,
+        //       roomJID: currentRoom.jid,
+        //       // pending: true,
+        //     },
+        //   })
+        // );
+        client?.sendMessage(
+          activeRoomJID,
+          user.firstName,
+          user.lastName,
+          "",
+          user.walletAddress,
+          message
+        );
+      },
+      [activeRoomJID]
+    );
 
     const sendStartComposing = useCallback(() => {
       client.sendTypingRequest(
