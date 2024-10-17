@@ -146,3 +146,8 @@ export interface StorageUser {
   isAssetsOpen?: boolean;
   isProfileOpen?: boolean;
 }
+
+export interface MessageProps {
+  message: IMessage;
+  isUser: boolean;
+}

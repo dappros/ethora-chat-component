@@ -102,6 +102,11 @@ with:
 
 ℹ️ Note: Add room and user which are registered at Ethora. After these changes - the pre-written user & room will be changed to yours.
 
+ℹ️ Note:
+There is also a prop CustomMessageComponent: React.ComponentType<MessageProps>
+This prop is used to fully change styles of messageBubble.
+You can find an example here: https://github.com/dappros/ethora-chat-component/blob/main/src/components/ExampleComponents/CustomMessage.tsx
+
 For styling you can alter **App.css**:
 
 ```

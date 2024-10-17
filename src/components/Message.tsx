@@ -1,5 +1,5 @@
 import React, { forwardRef, useState } from "react";
-import { IMessage } from "../types/types";
+import { IMessage, MessageProps } from "../types/types";
 import {
   CustomMessageTimestamp,
   CustomMessageContainer,
@@ -22,14 +22,9 @@ import { useXmppClient } from "../context/xmppProvider";
 import { deleteRoomMessage } from "../roomStore/roomsSlice";
 import { Avatar } from "./MessageBubble/Avatar";
 
-interface CustomMessageProps {
-  message: IMessage;
-  isUser: boolean;
-}
-
-const CustomMessage: React.FC<CustomMessageProps> = forwardRef<
+const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
-  CustomMessageProps
+  MessageProps
 >(({ message, isUser }, ref) => {
   const { client } = useXmppClient();
   const dispatch = useDispatch();
@@ -166,4 +161,4 @@ const CustomMessage: React.FC<CustomMessageProps> = forwardRef<
   );
 });
 
-export default CustomMessage;
+export { Message };

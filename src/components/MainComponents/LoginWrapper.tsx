@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect } from "react";
-import { IConfig, IRoom, User } from "../../types/types";
+import { IConfig, MessageProps, User } from "../../types/types";
 import { ChatWrapper } from "./ChatWrapper";
 import LoginForm from "../AuthForms/Login";
 import { RootState } from "../../roomStore";
@@ -10,8 +10,8 @@ import { useLocalStorage } from "../../hooks/useLocalStorage";
 
 interface LoginWrapperProps {
   user?: { email: string; password: string };
-  MainComponentStyles?: any;
-  CustomMessageComponent?: any;
+  MainComponentStyles?: React.CSSProperties;
+  CustomMessageComponent?: React.ComponentType<MessageProps>;
   config?: IConfig;
   roomJID?: string;
 }

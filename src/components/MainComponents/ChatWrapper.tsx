@@ -3,12 +3,9 @@ import { useDispatch, useSelector } from "react-redux";
 import ChatRoom from "./ChatRoom";
 import { setConfig } from "../../roomStore/chatSettingsSlice";
 import { ChatWrapperBox } from "../styled/ChatWrapperBox";
-
-import { defRoom, defaultUser } from "../../api.config";
 import { Overlay, StyledModal } from "../styled/Modal";
-
-import CustomMessage from "../Message";
-import { IConfig, IRoom, User } from "../../types/types";
+import { Message } from "../Message";
+import { IConfig, IRoom, MessageProps, User } from "../../types/types";
 import { useXmppClient } from "../../context/xmppProvider";
 import LoginForm from "../AuthForms/Login";
 import { RootState } from "../../roomStore";
@@ -26,8 +23,8 @@ interface ChatWrapperProps {
   token?: string;
   room?: IRoom;
   loginData?: { email: string; password: string };
-  MainComponentStyles?: any; //change to particular types
-  CustomMessageComponent?: any;
+  MainComponentStyles?: React.CSSProperties; //change to particular types
+  CustomMessageComponent?: React.ComponentType<MessageProps>;
   config?: IConfig;
   roomJID?: string;
 }
@@ -145,7 +142,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           // )} */}
           <>
             <ChatRoom
-              CustomMessageComponent={CustomMessageComponent || CustomMessage}
+              CustomMessageComponent={CustomMessageComponent || Message}
               MainComponentStyles={MainComponentStyles}
               chatJID={roomJID}
             />
