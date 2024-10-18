@@ -1,73 +1,81 @@
-import React from "react";
-import styled from "styled-components";
+import React, { forwardRef } from "react";
 
-export const CustomMessageContainer = styled.div<{ isUser: boolean }>`
+import styled from "styled-components";
+import { MessageProps } from "../../types/types";
+
+export const MessageContainer = styled.div<{ isUser: boolean }>`
   display: flex;
   flex-direction: ${(props) => (!props.isUser ? "row" : "row-reverse")};
-  align-items: end;
+  align-items: center;
   margin: 10px 0;
-  gap: 5px;
+  width: "100%";
 `;
 
-export const CustomMessageBubble = styled.div<{ isUser: boolean }>`
+export const MessageBubble = styled.div<{ isUser: boolean }>`
+  background-color: ${(props) => (!props.isUser ? "#f1f0f0" : "#0052CD")};
+  color: ${(props) => (!props.isUser ? "#000" : "#fff")};
+  border-radius: 12px;
+  padding: 10px;
   max-width: 60%;
-  padding: 12px 8px;
-  border-radius: ${(props) =>
-    props.isUser ? "15px 15px 0px 15px" : "15px 15px 15px 0px"};
-  background-color: #ffffff;
-  color: #000000;
-  text-align: left;
-  display: flex;
-  flex-direction: column;
 `;
 
-export const CustomMessageText = styled.p`
+export const MessageText = styled.p`
   margin: 0;
   word-wrap: break-word;
 `;
 
-export const CustomUserName = styled.span<{ isUser: boolean; color?: string }>`
-  font-family: "Open Sans", sans-serif;
-  font-weight: 600;
-  font-size: 18px;
+export const UserName = styled.span<{ isUser: boolean; color?: string }>`
+  font-weight: bold;
   color: ${(props) =>
-    props.isUser ? (props?.color ? props?.color : "#0052CD") : "#0052cd"};
-  margin-bottom: 8px;
+    props.color ? props.color : props.isUser ? "#0052CD" : "#333"};
+  margin-right: 8px;
 `;
 
-export const CustomMessageTimestamp = styled.span`
-  font-size: 0.75rem;
-  align-self: flex-end;
-  color: #8f8f8f;
+export const MessageTimestamp = styled.span`
+  font-size: 0.8em;
+  color: #999;
+  margin-left: 8px;
 `;
 
-export const CustomMessagePhoto = styled.img`
-  width: 45px;
-  aspect-ratio: 1/1;
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
-  border-radius: 100px;
+export const MessagePhoto = styled.img`
+  max-width: 100%;
+  border-radius: 8px;
+  margin-top: 8px;
 `;
 
-export const CustomMessagePhotoContainer = styled.div`
+export const MessagePhotoContainer = styled.div`
+  max-width: 100px;
   margin: 0;
 `;
 
-export const CustomSystemMessage = styled.div`
-  width: 100%;
+export const SystemMessage = styled.div`
+  background-color: #e0e0e0;
+  color: #555;
   text-align: center;
+  padding: 8px;
+  border-radius: 8px;
+  margin: 10px 0;
+  max-width: 60%;
 `;
 
-export const CustomSystemMessageText = styled.p`
+export const SystemMessageText = styled.p`
   margin: 0;
-  word-wrap: break-word;
-  color: #000000;
-  margin: 10px;
+  font-size: 0.9em;
+  color: #333;
 `;
 
-const CustomMessage = () => {
-  return <div>CustomMessage</div>;
-};
+const CustomMessageExample = forwardRef<HTMLDivElement, MessageProps>(
+  ({ message, isUser }, ref) => {
+    return (
+      <MessageContainer isUser={isUser} ref={ref}>
+        <MessageBubble isUser={isUser}>
+          <UserName isUser={isUser}>{message.user.name}</UserName>
+          <MessageText>{message.body}</MessageText>
+          <MessageTimestamp>{message.timestamp}</MessageTimestamp>
+        </MessageBubble>
+      </MessageContainer>
+    );
+  }
+);
 
-export default CustomMessage;
+export default CustomMessageExample;

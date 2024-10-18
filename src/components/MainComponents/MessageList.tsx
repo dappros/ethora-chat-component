@@ -20,7 +20,7 @@ import NewMessageLabel from "../styled/NewMessageLabel";
 interface MessageListProps<TMessage extends IMessage> {
   CustomMessage?: React.ComponentType<{ message: IMessage; isUser: boolean }>;
   user: User;
-  room: IRoom;
+  roomJID: string;
   loadMoreMessages: (
     chatJID: string,
     max: number,
@@ -33,12 +33,12 @@ const MessageList = <TMessage extends IMessage>({
   CustomMessage,
   user,
   loadMoreMessages,
-  room,
+  roomJID,
   config,
   loading,
 }: MessageListProps<TMessage>) => {
   const { composing, lastViewedTimestamp, messages } = useSelector(
-    (state: RootState) => state.rooms.rooms[room.jid]
+    (state: RootState) => state.rooms.rooms[roomJID]
   );
 
   const memoizedMessages = useMemo(() => messages, [messages.length]);
@@ -204,21 +204,21 @@ const MessageList = <TMessage extends IMessage>({
               {showDateLabel && message.id !== "delimiter-new" && (
                 <DateLabel date={messageDate} colors={config?.colors} />
               )}
-              <MessageComponent message={message} isUser={isUser}>
-                {!CustomMessage && (
-                  <>
-                    <MessageTimestamp>
-                      {messageDate.toLocaleTimeString()}
-                    </MessageTimestamp>
-                    <UserName>{message.user.name}: </UserName>
-                    <MessageText>{message.body}</MessageText>
-                  </>
-                )}
-              </MessageComponent>
+              {!CustomMessage ? (
+                <MessageComponent message={message} isUser={isUser}>
+                  <MessageTimestamp>
+                    {messageDate.toLocaleTimeString()}
+                  </MessageTimestamp>
+                  <UserName>{message.user.name}: </UserName>
+                  <MessageText>{message.body}</MessageText>
+                </MessageComponent>
+              ) : (
+                <MessageComponent message={message} isUser={isUser} />
+              )}
             </React.Fragment>
           );
         })}
-        {!config.disableHeader && composing && (
+        {!config?.disableHeader && composing && (
           <Composing usersTyping={["User"]} />
         )}
       </MessagesScroll>

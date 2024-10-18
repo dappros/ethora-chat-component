@@ -186,13 +186,16 @@ const SendInput: React.FC<SendInputProps> = ({
             // disabled={!message || message === ""}
             EndIcon={
               <SendIcon
-                color={
-                  !message || message === "" || !filePreviews
-                    ? "#D4D4D8"
-                    : config?.colors?.primary
-                }
+                color={!message || message === "" ? "#D4D4D8" : "#fff"}
               />
             }
+            style={{
+              borderRadius: "100px",
+              backgroundColor:
+                !message || message === ""
+                  ? "transparent"
+                  : config?.colors?.primary,
+            }}
           />
         ) : (
           <AudioRecorder

@@ -3,12 +3,9 @@ import { useDispatch, useSelector } from "react-redux";
 import ChatRoom from "./ChatRoom";
 import { setConfig } from "../../roomStore/chatSettingsSlice";
 import { ChatWrapperBox } from "../styled/ChatWrapperBox";
-
-import { defRoom, defaultUser } from "../../api.config";
 import { Overlay, StyledModal } from "../styled/Modal";
-
-import CustomMessage from "../Message";
-import { IConfig, IRoom, User } from "../../types/types";
+import { Message } from "../Message";
+import { IConfig, IRoom, MessageProps, User } from "../../types/types";
 import { useXmppClient } from "../../context/xmppProvider";
 import LoginForm from "../AuthForms/Login";
 import { RootState } from "../../roomStore";
@@ -26,9 +23,10 @@ interface ChatWrapperProps {
   token?: string;
   room?: IRoom;
   loginData?: { email: string; password: string };
-  MainComponentStyles?: any; //change to particular types
-  CustomMessageComponent?: any;
+  MainComponentStyles?: React.CSSProperties; //change to particular types
+  CustomMessageComponent?: React.ComponentType<MessageProps>;
   config?: IConfig;
+  roomJID?: string;
 }
 
 const ChatWrapper: FC<ChatWrapperProps> = ({
@@ -36,6 +34,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   CustomMessageComponent,
   room,
   config,
+  roomJID,
 }) => {
   const [isInited, setInited] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -43,18 +42,12 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   const dispatch = useDispatch();
 
   const { user } = useSelector((state: RootState) => state.chatSettingStore);
-  const { rooms } = useSelector((state: RootState) => state.rooms);
 
-  const { client, initializeClient } = useXmppClient();
-
-  const activeRoom = useMemo(() => room || defRoom, []);
-  const activeUser = useMemo(() => user || defaultUser, []);
+  const { client, initializeClient, setClient } = useXmppClient();
 
   useEffect(() => {
     dispatch(setConfig(config));
-    dispatch(addRoom({ roomData: activeRoom }));
-    dispatch(setIsLoading({ chatJID: activeRoom.jid, loading: true }));
-    dispatch(setCurrentRoom({ room: activeRoom }));
+    dispatch(setIsLoading({ loading: true }));
 
     try {
       if (!user.defaultWallet || user?.defaultWallet.walletAddress === "") {
@@ -68,14 +61,21 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           initializeClient(
             user.defaultWallet?.walletAddress,
             user.xmppPassword
-          );
+          ).then((client) => {
+            client
+              .getRooms()
+              .then(() => {
+                setClient(client);
+              })
+              .finally(() => setInited(true));
+          });
+
           refresh();
-          setInited(true);
         }
       }
     } catch (error) {
-      setShowModal(true);
-      dispatch(setIsLoading({ chatJID: activeRoom.jid, loading: false }));
+      setShowModal(false);
+      dispatch(setIsLoading({ loading: false }));
       console.log(error);
     }
   }, [user]);
@@ -85,13 +85,13 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     const updateLastReadTimeStamp = () => {
       if (client) {
         client.actionSetTimestampToPrivateStore(
-          room?.jid || defRoom.jid,
+          room?.jid || roomJID,
           new Date().getTime()
         );
       }
       dispatch(
         setLastViewedTimestamp({
-          chatJID: room?.jid || defRoom.jid,
+          chatJID: room?.jid || roomJID,
           timestamp: new Date().getTime(),
         })
       );
@@ -126,31 +126,31 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
         </Overlay>
       )}
       {/* {isInited ?? !loading ? ( */}
-      {isInited ? (
-        <div
-          style={{
-            display: "flex",
-            height: "100%",
-            width: "100%",
-          }}
-        >
-          {/* {rooms && (
-            <RoomList
-              chats={Object.values(rooms)}
-              onRoomClick={handleChangeChat}
+      <div
+        style={{
+          display: "flex",
+          height: "100%",
+          width: "100%",
+        }}
+      >
+        {isInited ? (
+          // {/* {rooms && (
+          //   <RoomList
+          //     chats={Object.values(rooms)}
+          //     onRoomClick={handleChangeChat}
+          //   />
+          // )} */}
+          <>
+            <ChatRoom
+              CustomMessageComponent={CustomMessageComponent || Message}
+              MainComponentStyles={MainComponentStyles}
+              chatJID={roomJID}
             />
-          )} */}
-          <ChatRoom
-            defaultUser={activeUser}
-            room={activeRoom}
-            CustomMessageComponent={CustomMessageComponent || CustomMessage}
-            MainComponentStyles={MainComponentStyles}
-            config={config}
-          />
-        </div>
-      ) : (
-        <Loader />
-      )}
+          </>
+        ) : (
+          <Loader color={config?.colors?.primary} />
+        )}
+      </div>
     </ChatWrapperBox>
   );
 };

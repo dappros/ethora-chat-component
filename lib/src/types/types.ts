@@ -42,6 +42,7 @@ export interface IRoom {
   lastViewedTimestamp?: number;
   unreadMessages?: number;
   noMessages?: boolean;
+  roomBg: string;
 }
 
 export interface UserType extends IMessage {
@@ -49,6 +50,11 @@ export interface UserType extends IMessage {
   user: any;
   timestamp: any;
   text: any;
+}
+
+export interface ConfigUser {
+  email: string;
+  password: string;
 }
 
 export interface User {
@@ -103,19 +109,22 @@ export interface IConfig {
   disableHeader?: boolean;
   disableMedia?: boolean;
   colors?: { primary: string; secondary: string };
-  googleLogin?: boolean;
+  googleLogin?: {
+    enabled: boolean;
+    firebaseConfig: {
+      apiKey: string;
+      authDomain: string;
+      projectId: string;
+      storageBucket: string;
+      messagingSenderId: string;
+      appId: string;
+    };
+  };
   jwtLogin?: {
     token: string;
     enabled: boolean;
   };
-  firebaseConfig?: {
-    apiKey: string;
-    authDomain: string;
-    projectId: string;
-    storageBucket: string;
-    messagingSenderId: string;
-    appId: string;
-  };
+  defaultLogin?: boolean;
 }
 
 export interface StorageUser {
@@ -136,4 +145,9 @@ export interface StorageUser {
   isAllowedNewAppCreate?: boolean;
   isAssetsOpen?: boolean;
   isProfileOpen?: boolean;
+}
+
+export interface MessageProps {
+  message: IMessage;
+  isUser: boolean;
 }

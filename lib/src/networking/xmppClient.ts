@@ -1,7 +1,6 @@
 import xmpp, { Client, xml } from "@xmpp/client";
 import { walletToUsername } from "../helpers/walletUsername";
 import {
-  getListOfRooms,
   handleComposing,
   onGetChatRooms,
   onGetLastMessageArchive,
@@ -20,6 +19,7 @@ export class XmppClient {
   username: string;
   onclose: () => void;
   onmessage: (data: any) => void;
+  status: string;
 
   password = "";
   resource = "";
@@ -68,8 +68,8 @@ export class XmppClient {
 
       this.client.setMaxListeners(20);
 
-      this.client.on("online", (jid) => {
-        getListOfRooms(this);
+      this.client.on("online", () => {
+        this.status = "online";
         console.log("Client is online");
       });
 
@@ -106,17 +106,45 @@ export class XmppClient {
     }
   }
 
-  initPresence() {
-    return new Promise((resolve, reject) => {
+  joinBySendingPresence(chatJID: string) {
+    let stanzaHdlrPointer: (stanza: Element) => void;
+
+    console.log("chatJID", chatJID);
+    const unsubscribe = () => {
+      this.client.off("stanza", stanzaHdlrPointer);
+    };
+
+    const responsePromise = new Promise((resolve, _) => {
+      stanzaHdlrPointer = (stanza: Element) => {
+        if (
+          stanza.is("presence") &&
+          stanza.attrs["from"]?.split("/") &&
+          stanza.attrs["from"]?.split("/")[0] === chatJID
+        ) {
+          unsubscribe();
+          resolve(true);
+        }
+      };
+
+      const message = xml(
+        "presence",
+        {
+          to: `${chatJID}/${this.client.jid.toString().split("@")[0]}`,
+        },
+        xml("x", "http://jabber.org/protocol/muc")
+      );
+
       try {
-        this.client.send(xml("presence"));
-        console.log("Successful presence");
-        resolve("Presence sent successfully");
+        console.log("joning by presence");
+        this.client.send(message);
       } catch (error) {
-        console.error("Error sending presence:", error);
-        reject(error);
+        console.log("Error joining by presence", error);
       }
     });
+
+    const timeoutPromise = createTimeoutPromise(3000, unsubscribe);
+
+    return Promise.race([responsePromise, timeoutPromise]);
   }
 
   unsubscribe = (address: string) => {
@@ -139,7 +167,6 @@ export class XmppClient {
   };
 
   getRooms = () => {
-    const id = `get-user-rooms:${Date.now().toString()}`;
     return new Promise((resolve, reject) => {
       try {
         const message = xml(
@@ -154,7 +181,7 @@ export class XmppClient {
 
         this.client
           .send(message)
-          .then(() => {
+          .then((res) => {
             console.log("getRooms successfully sent");
             resolve("Request to get rooms sent successfully");
           })
@@ -338,7 +365,7 @@ export class XmppClient {
       const res = await Promise.race([responsePromise, timeoutPromise]);
       return res;
     } catch (e) {
-      console.log("=-> error ", e);
+      console.log("=-> error in", chatJID, e);
       return null;
     }
   };

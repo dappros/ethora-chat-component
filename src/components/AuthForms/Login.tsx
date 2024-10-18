@@ -182,18 +182,26 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
         <Button
           type="submit"
           text={"Login to Ethora Chat"}
-          style={{ width: "100%", height: "40px" }}
+          style={{
+            width: "100%",
+            height: "40px",
+            backgroundColor: config?.colors?.primary || "#0052CD",
+          }}
           disabled={isLoading}
           loading={isLoading}
         />
-        <Delimiter>or</Delimiter>
-        <Button
-          onClick={handleGoogleLogin}
-          style={{ width: "100%", height: "40px" }}
-          text={<>Login with Google</>}
-          EndIcon={<GoogleIcon style={{ height: "24px" }} />}
-          disabled={isLoading}
-        />
+        {config?.googleLogin?.enabled && (
+          <>
+            <Delimiter>or</Delimiter>
+            <Button
+              onClick={handleGoogleLogin}
+              style={{ width: "100%", height: "40px" }}
+              text={<>Login with Google</>}
+              EndIcon={<GoogleIcon style={{ height: "24px" }} />}
+              disabled={isLoading}
+            />
+          </>
+        )}
         <div>
           Don't have an account?{" "}
           <div
