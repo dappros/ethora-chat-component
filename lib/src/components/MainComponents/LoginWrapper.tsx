@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect } from "react";
-import { IConfig, IRoom, User } from "../../types/types";
+import { IConfig, MessageProps, User } from "../../types/types";
 import { ChatWrapper } from "./ChatWrapper";
 import LoginForm from "../AuthForms/Login";
 import { RootState } from "../../roomStore";
@@ -7,14 +7,11 @@ import { useDispatch, useSelector } from "react-redux";
 import { setUser } from "../../roomStore/chatSettingsSlice";
 import { loginEmail, loginViaJwt } from "../../networking/apiClient";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
-import { addRoom } from "../../roomStore/roomsSlice";
 
 interface LoginWrapperProps {
-  token?: string;
-  room?: IRoom;
-  loginData?: { email: string; password: string };
-  MainComponentStyles?: any;
-  CustomMessageComponent?: any;
+  user?: { email: string; password: string };
+  MainComponentStyles?: React.CSSProperties;
+  CustomMessageComponent?: React.ComponentType<MessageProps>;
   config?: IConfig;
   roomJID?: string;
 }
@@ -25,8 +22,8 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
   const loginUserFunction = useCallback(async () => {
     try {
       const authData = await loginEmail(
-        user.walletAddress || "yukiraze9@gmail.com",
-        user?.xmppPassword || "Qwerty123"
+        props?.user?.email || "yukiraze9@gmail.com",
+        props?.user?.password || "Qwerty123"
       );
 
       return {
@@ -64,7 +61,7 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
           const loginData = await loginUserFunction();
           if (loginData) {
             console.log("Login data", loginData);
-            if (props.room) dispatch(setUser(loginData));
+            dispatch(setUser(loginData));
             useLocalStorage("@ethora/chat-component-user").set(loginData);
           }
         } catch (error) {
@@ -81,8 +78,6 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
         try {
           const loginData = await loginViaJwt(props.config?.jwtLogin?.token);
           if (loginData) {
-            console.log("Login data", loginData);
-            if (props.room) dispatch(setUser(loginData));
             useLocalStorage("@ethora/chat-component-user").set(loginData);
           }
         } catch (error) {
@@ -94,11 +89,6 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
 
     //if google - show login.tsx and process user there (there will be dispatch, set user)
     //if only ethora - show login with only ethora
-
-    if (props.room) {
-      dispatch(addRoom({ roomData: props.room }));
-    }
-
     return () => {
       //clear
     };

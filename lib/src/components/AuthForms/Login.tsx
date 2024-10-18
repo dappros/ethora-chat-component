@@ -182,7 +182,11 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
         <Button
           type="submit"
           text={"Login to Ethora Chat"}
-          style={{ width: "100%", height: "40px" }}
+          style={{
+            width: "100%",
+            height: "40px",
+            backgroundColor: config?.colors?.primary || "#0052CD",
+          }}
           disabled={isLoading}
           loading={isLoading}
         />

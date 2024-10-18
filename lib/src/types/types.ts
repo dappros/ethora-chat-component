@@ -52,6 +52,11 @@ export interface UserType extends IMessage {
   text: any;
 }
 
+export interface ConfigUser {
+  email: string;
+  password: string;
+}
+
 export interface User {
   walletAddress: string;
 
@@ -140,4 +145,9 @@ export interface StorageUser {
   isAllowedNewAppCreate?: boolean;
   isAssetsOpen?: boolean;
   isProfileOpen?: boolean;
+}
+
+export interface MessageProps {
+  message: IMessage;
+  isUser: boolean;
 }
