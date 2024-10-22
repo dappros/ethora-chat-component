@@ -262,8 +262,8 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         )}
         {globalLoading ? (
           <Loader color={config?.colors?.primary} />
-        ) : roomsStore[activeRoomJID].messages &&
-          roomsStore[activeRoomJID].messages.length < 1 ? (
+        ) : roomsStore[activeRoomJID]?.messages &&
+          roomsStore[activeRoomJID]?.messages.length < 1 ? (
           <div
             style={{
               height: "100%",

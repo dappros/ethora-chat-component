@@ -20,11 +20,6 @@ body,
   padding: 0;
 }
 
-svg {
-  height: 50px;
-  width: 50px;
-}
-
 /* Target the scrollbar */
 ::-webkit-scrollbar {
   width: 4px; /* Width of the scrollbar */

@@ -32,10 +32,10 @@ export interface IRoom {
   jid: string;
   title: string;
   usersCnt: number;
-  // users: IUser[];
   messages: IMessage[];
   isLoading: boolean;
   lastMessage?: string;
+  lastRoomMessage?: RoomLastMessage;
   icon?: string;
   composing?: boolean;
   composingList?: string[];
@@ -43,6 +43,11 @@ export interface IRoom {
   unreadMessages?: number;
   noMessages?: boolean;
   roomBg: string;
+}
+
+export interface RoomLastMessage {
+  name: string;
+  body: string;
 }
 
 export interface UserType extends IMessage {

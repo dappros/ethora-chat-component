@@ -8,7 +8,6 @@ interface ChatState {
 }
 
 const unpackAndTransform = (input: User): User => {
-  console.log({ input });
   return {
     description: "",
     token: input?.token || "",
