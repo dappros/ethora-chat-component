@@ -129,6 +129,7 @@ export interface IConfig {
     token: string;
     enabled: boolean;
   };
+  disableRooms?: boolean;
   defaultLogin?: boolean;
 }
 

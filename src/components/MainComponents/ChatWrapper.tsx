@@ -139,7 +139,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
       >
         {isInited ? (
           <>
-            {rooms && (
+            {!config.disableRooms && rooms && (
               <RoomList
                 chats={Object.values(rooms)}
                 onRoomClick={handleChangeChat}
