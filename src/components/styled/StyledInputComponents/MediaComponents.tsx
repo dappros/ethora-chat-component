@@ -29,6 +29,7 @@ export const ButtonContainer = styled.div`
   position: absolute;
   top: 8px;
   right: 8px;
+  gap: 4px;
 `;
 
 export const IconButton = styled.button`

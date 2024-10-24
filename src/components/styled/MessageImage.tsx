@@ -9,10 +9,12 @@ import {
 } from "./StyledInputComponents/MediaComponents";
 import { CloseIcon, DownloadIcon } from "../../assets/icons";
 import { Overlay, StyledModal } from "./Modal";
-
+import { IConfig } from "../../types/types";
+import { ActionButton } from "./ActionButton";
 interface CustomMessageImageProps {
   imageUrl: string | undefined;
   imageAlt: string;
+  config?: IConfig;
 }
 
 const download = (link: string) => {
@@ -38,6 +40,7 @@ const download = (link: string) => {
 const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
   imageUrl,
   imageAlt,
+  config,
 }) => {
   const [open, setOpen] = React.useState(false);
   const handleOpen = () => setOpen(true);
@@ -85,13 +88,13 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
               />
               <ButtonContainer>
                 {imageUrl && (
-                  <IconButton onClick={downloadImage} aria-label="Download">
-                    <DownloadIcon fontSize="inherit" />
-                  </IconButton>
+                  <ActionButton onClick={downloadImage} aria-label="Download" />
                 )}
-                <IconButton onClick={handleClose} aria-label="Close">
-                  <CloseIcon fontSize="inherit" />
-                </IconButton>
+                <ActionButton
+                  onClick={handleClose}
+                  aria-label="Close"
+                  icon={<CloseIcon />}
+                />
               </ButtonContainer>
             </ModalContent>
           </StyledModal>
