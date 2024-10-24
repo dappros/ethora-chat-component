@@ -1,13 +1,7 @@
 import React from "react";
 import { Provider } from "react-redux";
 import { store } from "../../roomStore";
-import {
-  ConfigUser,
-  IConfig,
-  IRoom,
-  MessageProps,
-  User,
-} from "../../types/types";
+import { ConfigUser, IConfig, MessageProps } from "../../types/types";
 import { XmppProvider } from "../../context/xmppProvider.tsx";
 import "../../index.css";
 import "../../helpers/storeConsole";

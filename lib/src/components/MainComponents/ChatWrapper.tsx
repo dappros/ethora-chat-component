@@ -42,6 +42,11 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   const dispatch = useDispatch();
 
   const { user } = useSelector((state: RootState) => state.chatSettingStore);
+  const rooms = useSelector((state: RootState) => state.rooms.rooms);
+  const handleChangeChat = (chat: IRoom) => {
+    dispatch(setCurrentRoom({ roomJID: chat.jid }));
+    dispatch(setIsLoading({ chatJID: chat.jid, loading: true }));
+  };
 
   const { client, initializeClient, setClient } = useXmppClient();
 
@@ -49,35 +54,39 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     dispatch(setConfig(config));
     dispatch(setIsLoading({ loading: true }));
 
-    try {
-      if (!user.defaultWallet || user?.defaultWallet.walletAddress === "") {
-        setShowModal(true);
-        console.log("Error, no user");
-      } else {
-        if (!client) {
-          setShowModal(false);
+    const initXmmpClient = async () => {
+      try {
+        if (!user.defaultWallet || user?.defaultWallet.walletAddress === "") {
+          setShowModal(true);
+          console.log("Error, no user");
+        } else {
+          if (!client) {
+            setShowModal(false);
 
-          console.log("No client, so initing one");
-          initializeClient(
-            user.defaultWallet?.walletAddress,
-            user.xmppPassword
-          ).then((client) => {
-            client
-              .getRooms()
-              .then(() => {
-                setClient(client);
-              })
-              .finally(() => setInited(true));
-          });
+            console.log("No client, so initing one");
+            await initializeClient(
+              user.defaultWallet?.walletAddress,
+              user.xmppPassword
+            ).then((client) => {
+              client
+                .getRooms()
+                .then(() => {
+                  setClient(client);
+                })
+                .finally(() => setInited(true));
+            });
 
-          refresh();
+            refresh();
+          }
         }
+      } catch (error) {
+        setShowModal(false);
+        dispatch(setIsLoading({ loading: false }));
+        console.log(error);
       }
-    } catch (error) {
-      setShowModal(false);
-      dispatch(setIsLoading({ loading: false }));
-      console.log(error);
-    }
+    };
+
+    initXmmpClient();
   }, [user]);
 
   // functionality to handle unreadmessages
@@ -110,11 +119,6 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     };
   }, [client, room?.jid]);
 
-  // const handleChangeChat = () => (chat: IRoom) => {
-  //   dispatch(setCurrentRoom({ room: chat }));
-  //   dispatch(setIsLoading({ chatJID: chat.jid, loading: true }));
-  // };
-
   if (user.xmppPassword === "" && user.xmppUsername === "")
     return <LoginForm config={config} />;
 
@@ -134,13 +138,14 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
         }}
       >
         {isInited ? (
-          // {/* {rooms && (
-          //   <RoomList
-          //     chats={Object.values(rooms)}
-          //     onRoomClick={handleChangeChat}
-          //   />
-          // )} */}
           <>
+            {!config.disableRooms && rooms && (
+              <RoomList
+                chats={Object.values(rooms)}
+                onRoomClick={handleChangeChat}
+                activeJID={roomJID || "asdd"}
+              />
+            )}
             <ChatRoom
               CustomMessageComponent={CustomMessageComponent || Message}
               MainComponentStyles={MainComponentStyles}

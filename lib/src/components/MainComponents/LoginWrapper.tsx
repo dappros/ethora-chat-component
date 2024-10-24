@@ -46,6 +46,7 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
       "@ethora/chat-component-user"
     ).get() as User;
     if (storedUser) {
+      console.log("Login data storedUser", storedUser);
       dispatch(setUser(storedUser));
     }
 

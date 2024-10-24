@@ -13,6 +13,7 @@ import { SearchInput } from "../InputComponents/Search";
 import { useSelector } from "react-redux";
 import { RootState } from "../../roomStore";
 import { getTintedColor } from "../../helpers/getTintedColor";
+import { AddNewIcon, SearchIcon } from "../../assets/icons";
 
 interface RoomListProps {
   chats: IRoom[];
@@ -38,15 +39,16 @@ const Container = styled.div<{ burgerMenu?: boolean; open?: boolean }>`
           background-color: #fff;
           padding: 16px 12px;
           z-index: 1000;
+          border-right: 1px solid var(--Colors-Border-border-primary, #f0f0f0);
         `
       : css`
-          position: static;
-          width: 300px;
           z-index: 2;
-          padding: 0px 0px 12px 16px;
+          padding: 16px 12px;
           overflow-y: auto;
           z-index: 1000;
           background-color: #fff;
+          width: 475px;
+          border-right: 1px solid var(--Colors-Border-border-primary, #f0f0f0);
         `}
 `;
 
@@ -92,6 +94,7 @@ const ChatInfo = styled.div`
   display: flex;
   flex-direction: column;
   max-width: 60%;
+  text-align: start;
 `;
 
 const ChatName = styled.div`
@@ -112,6 +115,8 @@ const UserCount = styled.div<{ active: boolean }>`
   color: ${({ active }) => (!active ? "#000" : "#fff")};
   margin-left: auto;
 `;
+
+const Divider = styled.div<{ active: boolean }>``;
 
 const RoomList: React.FC<RoomListProps> = ({
   chats,
@@ -180,7 +185,7 @@ const RoomList: React.FC<RoomListProps> = ({
         <BurgerButton onClick={() => setOpen(!open)}>☰</BurgerButton>
       )}
       <Container burgerMenu={burgerMenu} open={open} ref={containerRef}>
-        {open && (
+        {(open || !burgerMenu) && (
           <>
             <div
               style={{
@@ -192,13 +197,23 @@ const RoomList: React.FC<RoomListProps> = ({
               }}
             >
               <SearchInput
+                icon={<SearchIcon height={"20px"} />}
                 value={searchTerm}
                 onChange={handleSearchChange}
                 placeholder="Search..."
+                // animated={true}
               />
-              <Button style={{ color: "black" }} text={"New"} />
+              <Button
+                style={{
+                  color: "black",
+                  padding: 8,
+                  borderRadius: "16px",
+                  backgroundColor: "transparent",
+                }}
+                EndIcon={<AddNewIcon color={config?.colors?.primary} />}
+              />
             </div>
-            <div style={{ height: "80%", overflow: "auto" }}>
+            <div style={{ height: "100%", overflow: "auto" }}>
               {filteredChats.map((chat, index) => (
                 <ChatItem
                   key={index}
@@ -215,13 +230,19 @@ const RoomList: React.FC<RoomListProps> = ({
                     }}
                   >
                     {chat.icon ? (
-                      <IconPlaceholder>{chat.icon}</IconPlaceholder>
+                      <img src={chat.icon} alt="Icon" />
                     ) : (
                       <ChatHeaderAvatar name={chat.name} />
                     )}
                     <ChatInfo>
                       <ChatName>{chat.name}</ChatName>
-                      <LastMessage>{chat.lastMessage}</LastMessage>
+                      <LastMessage
+                        style={{ color: "#141414", fontWeight: 600 }}
+                      >
+                        {chat?.lastRoomMessage?.name &&
+                          `${chat?.lastRoomMessage?.name}:`}
+                      </LastMessage>
+                      <LastMessage>{chat?.lastRoomMessage?.body}</LastMessage>
                     </ChatInfo>
                   </div>
                   <div style={{ textAlign: "right", display: "flex" }}>
