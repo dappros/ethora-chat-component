@@ -57,11 +57,11 @@ export const RecordContainer = styled.div`
   height: 40px;
   display: flex;
   flex-direction: row;
-  gap: 8px;
   justify-content: space-between;
   align-items: center;
   width: 100%;
 `;
+
 
 export const FilePreviewContainer = styled.div`
   display: flex;

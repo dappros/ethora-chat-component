@@ -21,6 +21,10 @@ import {
 import { useXmppClient } from "../context/xmppProvider";
 import { deleteRoomMessage } from "../roomStore/roomsSlice";
 import { Avatar } from "./MessageBubble/Avatar";
+import {
+  MESSAGE_INTERACTIONS,
+  MESSAGE_INTERACTIONS_ICONS,
+} from "../helpers/constants/MESSAGE_INTERACTIONS";
 
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
@@ -33,15 +37,18 @@ const Message: React.FC<MessageProps> = forwardRef<
     (state: RootState) => state.chatSettingStore.config
   );
 
-  const [contextMenu, setContextMenu] = useState<{
-    visible: boolean;
-    x: number;
-    y: number;
-  }>({ visible: false, x: 0, y: 0 });
+  const [contextMenu, setContextMenu] = !config?.disableInteractions
+    ? useState<{ visible: boolean; x: number; y: number }>({
+        visible: false,
+        x: 0,
+        y: 0,
+      })
+    : [null, null];
 
   const handleContextMenu = (event: React.MouseEvent) => {
-    event.preventDefault();
+    if (config?.disableInteractions) return;
 
+    event.preventDefault();
     const menuWidth = 240;
     const menuHeight = 310;
 
@@ -51,7 +58,6 @@ const Message: React.FC<MessageProps> = forwardRef<
     const windowHeight = window.innerHeight;
 
     const adjustedX = x + menuWidth > windowWidth ? x - menuWidth : x;
-
     const adjustedY =
       y + menuHeight > windowHeight ? windowHeight - menuHeight : y;
 
@@ -63,7 +69,9 @@ const Message: React.FC<MessageProps> = forwardRef<
   };
 
   const closeContextMenu = () => {
-    setContextMenu({ visible: false, x: 0, y: 0 });
+    if (!config?.disableInteractions) {
+      setContextMenu({ visible: false, x: 0, y: 0 });
+    }
   };
 
   // const handleDeleteMessage = (room: string, msgId: string) => {
@@ -116,7 +124,7 @@ const Message: React.FC<MessageProps> = forwardRef<
         </CustomMessageBubble>
       </CustomMessageContainer>
 
-      {contextMenu.visible && (
+      {!config.disableInteractions && contextMenu.visible && (
         <>
           {/* Click outside to close the context menu */}
           <Overlay onClick={closeContextMenu}>
@@ -124,35 +132,51 @@ const Message: React.FC<MessageProps> = forwardRef<
               style={{ top: contextMenu.y, left: contextMenu.x }}
               onClick={closeContextMenu}
             >
-              <MenuItem onClick={() => console.log("Send coins")}>
-                Send coins
+              <MenuItem
+                onClick={() => console.log(MESSAGE_INTERACTIONS.SEND_COINS)}
+              >
+                {MESSAGE_INTERACTIONS.SEND_COINS}
+                <MESSAGE_INTERACTIONS_ICONS.SEND_COINS />{" "}
               </MenuItem>
               <Delimeter />
-              <MenuItem onClick={() => console.log("Send item")}>
-                Send item
+              <MenuItem
+                onClick={() => console.log(MESSAGE_INTERACTIONS.SEND_ITEM)}
+              >
+                {MESSAGE_INTERACTIONS.SEND_ITEM}
+                <MESSAGE_INTERACTIONS_ICONS.SEND_ITEM />{" "}
               </MenuItem>
               <Delimeter />
-              <MenuItem onClick={() => console.log("Reply")}>Reply</MenuItem>
+              <MenuItem onClick={() => console.log(MESSAGE_INTERACTIONS.REPLY)}>
+                {MESSAGE_INTERACTIONS.REPLY}
+                <MESSAGE_INTERACTIONS_ICONS.REPLY />{" "}
+              </MenuItem>
               <Delimeter />
               <MenuItem
                 onClick={() => {
-                  console.log("Copy");
+                  console.log(MESSAGE_INTERACTIONS.COPY);
                   handleCopyMessage(message.body);
                 }}
               >
-                Copy
+                {MESSAGE_INTERACTIONS.COPY}
+                <MESSAGE_INTERACTIONS_ICONS.COPY />
               </MenuItem>
               <Delimeter />
               <MenuItem
                 onClick={() => {
-                  console.log("Delete");
+                  console.log(MESSAGE_INTERACTIONS.DELETE);
                   // handleDeleteMessage(message.roomJID, message.id);
                 }}
               >
-                Delete
+                {MESSAGE_INTERACTIONS.DELETE}
+                <MESSAGE_INTERACTIONS_ICONS.DELETE />{" "}
               </MenuItem>
               <Delimeter />
-              <MenuItem onClick={() => console.log("Report")}>Report</MenuItem>
+              <MenuItem
+                onClick={() => console.log(MESSAGE_INTERACTIONS.REPORT)}
+              >
+                {MESSAGE_INTERACTIONS.REPORT}
+                <MESSAGE_INTERACTIONS_ICONS.REPORT />{" "}
+              </MenuItem>
             </ContextMenu>
           </Overlay>
         </>

@@ -28,7 +28,7 @@ const MediaMessage: React.FC<MediaMessageProps> = ({
         return <CustomMessageImage imageAlt="image" imageUrl={messageText} />;
       case mimeType.startsWith("video/"):
         return <CustomMessageVideo videoUrl={location} />;
-      case mimeType.startsWith("audio/"):
+      case mimeType.startsWith("audio/") || mimeType.includes("application/octet-stream"):
         return <Audio src={location} controls />;
       default:
         return (

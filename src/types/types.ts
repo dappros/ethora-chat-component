@@ -131,6 +131,7 @@ export interface IConfig {
   };
   disableRooms?: boolean;
   defaultLogin?: boolean;
+  disableInteractions?: boolean;
 }
 
 export interface StorageUser {
