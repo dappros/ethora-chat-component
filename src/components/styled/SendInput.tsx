@@ -144,12 +144,13 @@ const SendInput: React.FC<SendInputProps> = ({
               style={{
                 position: "absolute",
                 backgroundColor: "transparent",
-                top: -12,
-                right: 0,
-                height: 12,
+                top: 4,
+                right: 4,
+                height: 16,
+                width: 16,
               }}
               onClick={() => handleRemoveFile(file)}
-              EndIcon={<RemoveIcon />}
+              EndIcon={<RemoveIcon style={{ height: 16, width: 16 }} />}
             />
           </FilePreview>
         )

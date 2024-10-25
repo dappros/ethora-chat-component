@@ -1,6 +1,5 @@
 import axios from "axios";
 import { store } from "../roomStore";
-import { refreshTokens } from "../roomStore/loginSlice";
 import { User } from "../types/types";
 
 import {
@@ -11,6 +10,7 @@ import {
 } from "firebase/auth";
 import { app } from "../firebase-config";
 import { appToken } from "../api.config";
+import { refreshTokens } from "../roomStore/chatSettingsSlice";
 // import { appToken } from "../api.config";
 
 const baseURL = "https://api.ethoradev.com/v1";
@@ -23,7 +23,7 @@ export function refresh(): Promise<{
   data: { refreshToken: string; token: string };
 }> {
   return new Promise((resolve, reject) => {
-    const user = store.getState().loginStore.user;
+    const user = store.getState().chatSettingStore.user;
     http
       .post(
         "/users/login/refresh",
@@ -65,7 +65,8 @@ const processQueue = (newAccessToken: string) => {
   failedQueue = [];
 };
 
-export function uploadFile(formData: FormData, token: string) {
+export function uploadFile(formData: FormData) {
+  const token = store.getState().chatSettingStore.user.token;
   return http.post("/files/", formData, {
     headers: {
       Authorization: token,

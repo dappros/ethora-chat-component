@@ -30,6 +30,9 @@ export const loginSlice = createSlice({
       }>
     ) => {
       state.isAuthenticated = true;
+
+      console.log({ action: action.payload });
+
       state.user = action.payload;
     },
     logout: (state) => {

@@ -12,8 +12,9 @@ import {
   signInWithGoogle,
 } from "../../networking/apiClient";
 import { useDispatch } from "react-redux";
-import { setUser } from "../../roomStore/chatSettingsSlice";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
+import { setUser } from "../../roomStore/chatSettingsSlice";
+import { localStorageConstants } from "../../helpers/constants/LOCAL_STORAGE";
 
 interface LoginFormProps {
   config?: IConfig;
@@ -55,8 +56,14 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
         setIsLoading(false);
         return null;
       }
-      dispatch(setUser(authData.data.user));
-      useLocalStorage("@ethora/chat-component-user").set(authData.data.user);
+
+      const user = {
+        ...authData.data.user,
+        token: authData.data.token,
+        refreshToken: authData.data.refreshToken,
+      };
+      dispatch(setUser(user));
+      useLocalStorage(localStorageConstants.ETHORA_USER).set(user);
     } catch (error) {
       console.error("Login failed:", error);
       setIsLoading(false);
@@ -94,10 +101,13 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
           );
           console.log("google log after register res", loginRes);
 
-          const user = loginRes.data.user;
-
+          const user = {
+            ...loginRes.data.user,
+            token: loginRes.data.token,
+            refreshToken: loginRes.data.refreshToken,
+          };
           dispatch(setUser(user));
-          useLocalStorage("@ethora/chat-component-user").set(user);
+          useLocalStorage(localStorageConstants.ETHORA_USER).set(user);
         } catch (error) {
           console.log("error registering user viag google");
         }
@@ -109,9 +119,13 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
           loginType
         );
         console.log("google log res", loginRes);
-        const user = loginRes.data.user;
+        const user = {
+          ...loginRes.data.user,
+          token: loginRes.data.token,
+          refreshToken: loginRes.data.refreshToken,
+        };
         dispatch(setUser(user));
-        useLocalStorage("@ethora/chat-component-user").set(user);
+        useLocalStorage(localStorageConstants.ETHORA_USER).set(user);
       }
     } catch (error) {
       console.log(error);

@@ -157,3 +157,5 @@ export interface MessageProps {
   message: IMessage;
   isUser: boolean;
 }
+
+export interface MediaMessageType {}

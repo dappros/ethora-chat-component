@@ -216,6 +216,7 @@ export const RemoveIcon = (props: any) => (
     viewBox="0 0 28 36"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
+    {...props}
   >
     <path
       d="M2.00391 12.6699V26.3797C2.00391 30.5862 5.41398 33.9963 9.62051 33.9963H18.3795C22.586 33.9963 25.9961 30.5862 25.9961 26.3797V12.6699"
