@@ -1,5 +1,5 @@
-import React, { FC } from "react";
-import styled, { keyframes } from "styled-components";
+import React, { FC } from 'react';
+import styled, { keyframes } from 'styled-components';
 
 // Define props
 interface ComposingProps {
@@ -54,7 +54,7 @@ const Composing: FC<ComposingProps> = ({ usersTyping }) => {
   } else if (usersTyping.length > 2) {
     typingText = `${usersTyping.length} people are typing`;
   } else {
-    typingText = "";
+    typingText = '';
   }
 
   return (

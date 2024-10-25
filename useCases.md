@@ -39,6 +39,7 @@
 ```
 
 Code should look like:
+
 ```
    <Provider store={store}>
       <ChatRoom

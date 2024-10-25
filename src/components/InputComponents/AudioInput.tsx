@@ -1,5 +1,5 @@
-import React from "react";
-import AudioRecorder from "../InputComponents/AudioRecorder";
+import React from 'react';
+import AudioRecorder from '../InputComponents/AudioRecorder';
 
 interface AudioInputProps {
   isRecording: boolean;

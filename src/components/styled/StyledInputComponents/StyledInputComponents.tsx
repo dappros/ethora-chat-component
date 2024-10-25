@@ -1,4 +1,4 @@
-import styled from "styled-components";
+import styled from 'styled-components';
 
 export const InputContainer = styled.div`
   display: flex;
@@ -28,7 +28,7 @@ export const MessageInput = styled.input<{ color?: string }>`
   background-color: #f5f7f9;
   max-height: 40px;
   &:focus {
-    border: 1px solid ${(props) => (props.color ? props.color : "#0052CD")};
+    border: 1px solid ${(props) => (props.color ? props.color : '#0052CD')};
     outline: none;
   }
 `;
@@ -61,7 +61,6 @@ export const RecordContainer = styled.div`
   align-items: center;
   width: 100%;
 `;
-
 
 export const FilePreviewContainer = styled.div`
   display: flex;

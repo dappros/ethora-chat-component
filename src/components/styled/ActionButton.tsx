@@ -1,8 +1,8 @@
-import React, { FC } from "react";
-import { IconButton } from "./StyledComponents";
-import { DownloadIcon } from "../../assets/icons";
-import { RootState } from "../../roomStore";
-import { useSelector } from "react-redux";
+import React, { FC } from 'react';
+import { IconButton } from './StyledComponents';
+import { DownloadIcon } from '../../assets/icons';
+import { RootState } from '../../roomStore';
+import { useSelector } from 'react-redux';
 
 interface ActionButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -20,8 +20,8 @@ const ActionButton: FC<ActionButtonProps> = ({ icon, ...props }) => {
         height: 40,
         width: 40,
         borderRadius: 8,
-        backgroundColor: "#fff",
-        border: `1px solid ${config?.colors?.primary || "#0052CD"}`,
+        backgroundColor: '#fff',
+        border: `1px solid ${config?.colors?.primary || '#0052CD'}`,
         ...props.style,
       }}
       {...props}

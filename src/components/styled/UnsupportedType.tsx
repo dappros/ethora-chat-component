@@ -1,13 +1,13 @@
-import React from "react";
+import React from 'react';
 
 import {
   FileName,
   UnsupportedContainer,
-} from "./StyledInputComponents/MediaComponents";
-import { IconButton } from "./StyledComponents";
-import { DownloadIcon } from "../../assets/icons";
-import { IConfig } from "../../types/types";
-import { ActionButton } from "./ActionButton";
+} from './StyledInputComponents/MediaComponents';
+import { IconButton } from './StyledComponents';
+import { DownloadIcon } from '../../assets/icons';
+import { IConfig } from '../../types/types';
+import { ActionButton } from './ActionButton';
 
 interface FileDownloadProps {
   fileUrl: string;
@@ -17,15 +17,15 @@ interface FileDownloadProps {
 
 const downloadFile = (fileUrl: string, fileName: string) => {
   fetch(fileUrl, {
-    method: "GET",
+    method: 'GET',
     headers: {},
   })
     .then((response) => {
       response.arrayBuffer().then(function (buffer) {
         const url = window.URL.createObjectURL(new Blob([buffer]));
-        const link = document.createElement("a");
+        const link = document.createElement('a');
         link.href = url;
-        link.setAttribute("download", fileName);
+        link.setAttribute('download', fileName);
         document.body.appendChild(link);
         link.click();
       });

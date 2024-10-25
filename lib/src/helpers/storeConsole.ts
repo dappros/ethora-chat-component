@@ -1,4 +1,4 @@
-import { RootState, store } from "../roomStore";
+import { RootState, store } from '../roomStore';
 
 // Function to expose the Redux store's state to the browser console
 export const useStoreConsole = () => {

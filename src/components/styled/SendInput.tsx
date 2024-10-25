@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useMemo } from "react";
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import {
   FileIcon,
   FilePreview,
@@ -8,11 +8,11 @@ import {
   VideoPreview,
   InputContainer,
   MessageInput,
-} from "./StyledInputComponents/StyledInputComponents";
-import AudioRecorder from "../InputComponents/AudioRecorder";
-import { IConfig } from "../../types/types";
-import Button from "./Button";
-import { AttachIcon, RemoveIcon, SendIcon } from "../../assets/icons";
+} from './StyledInputComponents/StyledInputComponents';
+import AudioRecorder from '../InputComponents/AudioRecorder';
+import { IConfig } from '../../types/types';
+import Button from './Button';
+import { AttachIcon, RemoveIcon, SendIcon } from '../../assets/icons';
 
 interface SendInputProps {
   sendMessage: (message: string) => void;
@@ -31,7 +31,7 @@ const SendInput: React.FC<SendInputProps> = ({
   config,
   isLoading,
 }) => {
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
 
   const [filePreviews, setFilePreviews] = useState<File[]>([]);
@@ -91,19 +91,19 @@ const SendInput: React.FC<SendInputProps> = ({
     (audioUrl?: string) => {
       if (filePreviews.length > 0) {
         console.log(filePreviews);
-        console.log("Files sent:", filePreviews[0]);
-        sendMedia(filePreviews[0], "media");
+        console.log('Files sent:', filePreviews[0]);
+        sendMedia(filePreviews[0], 'media');
         setIsRecording(false);
       } else if (audioUrl) {
-        sendMedia(audioUrl, "audio");
+        sendMedia(audioUrl, 'audio');
         console.log(audioUrl);
-        console.log("Audio sent:", audioUrl);
+        console.log('Audio sent:', audioUrl);
         setIsRecording(false);
       } else {
-        console.log("sending default", message);
+        console.log('sending default', message);
         sendMessage(message);
       }
-      setMessage("");
+      setMessage('');
       setFilePreviews([]);
     },
     [filePreviews, message, sendMessage, sendMedia]
@@ -111,7 +111,7 @@ const SendInput: React.FC<SendInputProps> = ({
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
-      if (event.key === "Enter") {
+      if (event.key === 'Enter') {
         if (filePreviews.length > 0 || message) {
           handleSendClick();
         }
@@ -122,11 +122,11 @@ const SendInput: React.FC<SendInputProps> = ({
 
   const renderFilePreview = useCallback((file: File) => {
     const fileUrl = URL.createObjectURL(file);
-    const fileType = file.type.split("/")[0];
+    const fileType = file.type.split('/')[0];
 
-    if (fileType === "image") {
+    if (fileType === 'image') {
       return <FileIcon src={fileUrl} alt={file.name} />;
-    } else if (fileType === "video") {
+    } else if (fileType === 'video') {
       return <VideoPreview src={fileUrl} controls />;
     } else {
       // return <FileIcon src={attachIcon} alt={file.name} />;
@@ -142,8 +142,8 @@ const SendInput: React.FC<SendInputProps> = ({
             {renderFilePreview(file)}
             <Button
               style={{
-                position: "absolute",
-                backgroundColor: "transparent",
+                position: 'absolute',
+                backgroundColor: 'transparent',
                 top: 4,
                 right: 4,
                 height: 16,
@@ -187,14 +187,14 @@ const SendInput: React.FC<SendInputProps> = ({
             // disabled={!message || message === ""}
             EndIcon={
               <SendIcon
-                color={!message || message === "" ? "#D4D4D8" : "#fff"}
+                color={!message || message === '' ? '#D4D4D8' : '#fff'}
               />
             }
             style={{
-              borderRadius: "100px",
+              borderRadius: '100px',
               backgroundColor:
-                !message || message === ""
-                  ? "transparent"
+                !message || message === ''
+                  ? 'transparent'
                   : config?.colors?.primary,
             }}
           />

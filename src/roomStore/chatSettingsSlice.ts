@@ -1,6 +1,6 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { IConfig, User } from "../types/types";
-import { localStorageConstants } from "../helpers/constants/LOCAL_STORAGE";
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { IConfig, User } from '../types/types';
+import { localStorageConstants } from '../helpers/constants/LOCAL_STORAGE';
 
 interface ChatState {
   user: User;
@@ -11,28 +11,28 @@ interface ChatState {
 const unpackAndTransform = (input: User): User => {
   console.log(input);
   return {
-    description: "",
-    token: input?.token || "",
-    profileImage: input?.profileImage || "",
-    _id: input?._id || "",
-    walletAddress: input?.defaultWallet?.walletAddress || "",
-    xmppPassword: input?.xmppPassword || "",
-    refreshToken: input?.refreshToken || "",
-    firstName: input?.firstName || "",
-    lastName: input?.lastName || "",
+    description: '',
+    token: input?.token || '',
+    profileImage: input?.profileImage || '',
+    _id: input?._id || '',
+    walletAddress: input?.defaultWallet?.walletAddress || '',
+    xmppPassword: input?.xmppPassword || '',
+    refreshToken: input?.refreshToken || '',
+    firstName: input?.firstName || '',
+    lastName: input?.lastName || '',
     defaultWallet: {
-      walletAddress: input?.defaultWallet?.walletAddress || "",
+      walletAddress: input?.defaultWallet?.walletAddress || '',
     },
-    email: input?.email || "",
-    username: input?.username || "",
-    appId: input?.appId || "",
-    homeScreen: input?.homeScreen || "",
-    registrationChannelType: input?.registrationChannelType || "",
-    updatedAt: input?.updatedAt || "",
-    authMethod: input?.authMethod || "",
-    resetPasswordExpires: input?.resetPasswordExpires || "",
-    resetPasswordToken: input?.resetPasswordToken || "",
-    xmppUsername: input?.xmppUsername || "",
+    email: input?.email || '',
+    username: input?.username || '',
+    appId: input?.appId || '',
+    homeScreen: input?.homeScreen || '',
+    registrationChannelType: input?.registrationChannelType || '',
+    updatedAt: input?.updatedAt || '',
+    authMethod: input?.authMethod || '',
+    resetPasswordExpires: input?.resetPasswordExpires || '',
+    resetPasswordToken: input?.resetPasswordToken || '',
+    xmppUsername: input?.xmppUsername || '',
     roles: input?.roles || [],
     tags: input?.tags || [],
     __v: input?.__v || 0,
@@ -44,28 +44,28 @@ const unpackAndTransform = (input: User): User => {
 
 const initialState: ChatState = {
   user: {
-    description: "",
-    token: "",
-    profileImage: "",
-    _id: "",
-    walletAddress: "",
-    xmppPassword: "",
-    refreshToken: "",
-    firstName: "",
-    lastName: "",
+    description: '',
+    token: '',
+    profileImage: '',
+    _id: '',
+    walletAddress: '',
+    xmppPassword: '',
+    refreshToken: '',
+    firstName: '',
+    lastName: '',
     defaultWallet: {
-      walletAddress: "",
+      walletAddress: '',
     },
-    email: "",
-    username: "",
-    appId: "",
-    homeScreen: "",
-    registrationChannelType: "",
-    updatedAt: "",
-    authMethod: "",
-    resetPasswordExpires: "",
-    resetPasswordToken: "",
-    xmppUsername: "",
+    email: '',
+    username: '',
+    appId: '',
+    homeScreen: '',
+    registrationChannelType: '',
+    updatedAt: '',
+    authMethod: '',
+    resetPasswordExpires: '',
+    resetPasswordToken: '',
+    xmppUsername: '',
     roles: [],
     tags: [],
     __v: 0,
@@ -78,7 +78,7 @@ const initialState: ChatState = {
 };
 
 export const chatSlice = createSlice({
-  name: "chat",
+  name: 'chat',
   initialState,
   reducers: {
     setUser: (state, action: PayloadAction<User>) => {
@@ -94,7 +94,7 @@ export const chatSlice = createSlice({
       state,
       action: PayloadAction<{ token: string; refreshToken: string }>
     ) => {
-      console.log("changing tokens");
+      console.log('changing tokens');
       state.user.refreshToken = action.payload.refreshToken;
       state.user.token = action.payload.token;
 

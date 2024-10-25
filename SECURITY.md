@@ -15,4 +15,4 @@ Please report vulnerabilities through our contact form: https://www.dappros.com/
 
 In most cases, you will hear back to us within a few days, or up to two weeks.
 
-We do not have any fixed bugs bounty policy at the moment. We do not offer bounty for minor or known issues that do not affect the product or users security in a significant way. At the same time we'll be happy to review every contribution on invididual terms. 
+We do not have any fixed bugs bounty policy at the moment. We do not offer bounty for minor or known issues that do not affect the product or users security in a significant way. At the same time we'll be happy to review every contribution on invididual terms.

@@ -1,21 +1,21 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { ChatContainer } from "../styled/StyledComponents";
-import { useSelector, useDispatch } from "react-redux";
-import { RootState } from "../../roomStore";
-import MessageList from "./MessageList";
-import SendInput from "../styled/SendInput";
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { ChatContainer } from '../styled/StyledComponents';
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState } from '../../roomStore';
+import MessageList from './MessageList';
+import SendInput from '../styled/SendInput';
 import {
   addRoom,
   addRoomMessage,
   setCurrentRoom,
   setIsLoading,
-} from "../../roomStore/roomsSlice";
-import Loader from "../styled/Loader";
-import { uploadFile } from "../../networking/apiClient";
-import RoomList from "./RoomList";
-import { useXmppClient } from "../../context/xmppProvider.tsx";
-import ChatHeader from "./ChatHeader.tsx";
-import NoMessagesPlaceholder from "./NoMessagesPlaceholder.tsx";
+} from '../../roomStore/roomsSlice';
+import Loader from '../styled/Loader';
+import { uploadFile } from '../../networking/apiClient';
+import RoomList from './RoomList';
+import { useXmppClient } from '../../context/xmppProvider.tsx';
+import ChatHeader from './ChatHeader.tsx';
+import NoMessagesPlaceholder from './NoMessagesPlaceholder.tsx';
 
 interface ChatRoomProps {
   CustomMessageComponent?: any;
@@ -86,7 +86,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
           activeRoomJID,
           user.firstName,
           user.lastName,
-          "",
+          '',
           user.walletAddress,
           message
         );
@@ -132,11 +132,11 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     const sendMedia = useCallback(
       async (data: any, type: string) => {
         let mediaData: FormData | null = new FormData();
-        mediaData.append("files", data);
+        mediaData.append('files', data);
 
         uploadFile(mediaData)
           .then((response) => {
-            console.log("Upload successful", response);
+            console.log('Upload successful', response);
             response.data.results.map(async (item: any) => {
               const data = {
                 firstName: user.firstName,
@@ -161,12 +161,12 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
                 isPrivate: item?.isPrivate,
                 __v: item.__v,
               };
-              console.log(data, "data to send media");
+              console.log(data, 'data to send media');
               client?.sendMediaMessageStanza(activeRoomJID, data);
             });
           })
           .catch((error) => {
-            console.error("Upload failed", error);
+            console.error('Upload failed', error);
           });
       },
       [client, activeRoomJID]
@@ -214,10 +214,10 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       return (
         <div
           style={{
-            height: "100%",
-            width: "100%",
-            alignItems: "center",
-            display: "flex",
+            height: '100%',
+            width: '100%',
+            alignItems: 'center',
+            display: 'flex',
           }}
         >
           <Loader color={config?.colors?.primary} />
@@ -228,8 +228,8 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     return (
       <ChatContainer
         style={{
-          maxHeight: "100vh",
-          overflow: "auto",
+          maxHeight: '100vh',
+          overflow: 'auto',
           ...MainComponentStyles,
         }}
       >
@@ -242,10 +242,10 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
           roomsStore[activeRoomJID]?.messages.length < 1 ? (
           <div
             style={{
-              height: "100%",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
+              height: '100%',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
             }}
           >
             <NoMessagesPlaceholder />

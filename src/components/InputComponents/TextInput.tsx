@@ -1,8 +1,8 @@
-import React, { useCallback } from "react";
-import { SendIcon } from "../../assets/icons";
-import { IConfig } from "../../types/types";
-import Button from "../styled/Button";
-import { MessageInput } from "../styled/StyledInputComponents/StyledInputComponents";
+import React, { useCallback } from 'react';
+import { SendIcon } from '../../assets/icons';
+import { IConfig } from '../../types/types';
+import Button from '../styled/Button';
+import { MessageInput } from '../styled/StyledInputComponents/StyledInputComponents';
 
 interface TextInputProps {
   message: string;
@@ -32,7 +32,7 @@ const TextInput: React.FC<TextInputProps> = ({
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
-      if (event.key === "Enter" && message) {
+      if (event.key === 'Enter' && message) {
         handleSendClick();
       }
     },
@@ -53,10 +53,10 @@ const TextInput: React.FC<TextInputProps> = ({
       />
       <Button
         onClick={handleSendClick}
-        EndIcon={<SendIcon color={!message ? "#D4D4D8" : "#fff"} />}
+        EndIcon={<SendIcon color={!message ? '#D4D4D8' : '#fff'} />}
         style={{
-          borderRadius: "100px",
-          backgroundColor: !message ? "transparent" : config?.colors?.primary,
+          borderRadius: '100px',
+          backgroundColor: !message ? 'transparent' : config?.colors?.primary,
         }}
       />
     </>

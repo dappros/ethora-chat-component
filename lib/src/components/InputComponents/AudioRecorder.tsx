@@ -1,11 +1,11 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 
 import {
   RecordContainer,
   Timer,
-} from "../styled/StyledInputComponents/StyledInputComponents";
-import { RecordIcon, RemoveIcon, SendIcon } from "../../assets/icons";
-import Button from "../styled/Button";
+} from '../styled/StyledInputComponents/StyledInputComponents';
+import { RecordIcon, RemoveIcon, SendIcon } from '../../assets/icons';
+import Button from '../styled/Button';
 
 interface AudioRecorderProps {
   setIsRecording: (state: boolean) => void;
@@ -32,9 +32,9 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
   const formatTime = (time: number) => {
     const minutes = Math.floor(time / 60);
     const seconds = time % 60;
-    return `${minutes.toString().padStart(2, "0")}:${seconds
+    return `${minutes.toString().padStart(2, '0')}:${seconds
       .toString()
-      .padStart(2, "0")}`;
+      .padStart(2, '0')}`;
   };
 
   const startTimer = useCallback(() => {
@@ -69,7 +69,7 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
 
     mediaRecorder.onstop = () => {
       const audioBlob = new Blob(audioChunksRef.current, {
-        type: "audio/webm",
+        type: 'audio/webm',
       });
       const audioUrl = URL.createObjectURL(audioBlob);
       setAudioURL(audioUrl);
@@ -100,7 +100,7 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
       return;
     }
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     const analyser = analyserRef.current;
     const dataArray = dataArrayRef.current;
 
@@ -111,11 +111,11 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
       if (ctx) {
         ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
 
-        ctx.fillStyle = "rgba(255, 255, 255, 0.1)"; // Transparent background
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'; // Transparent background
         ctx.fillRect(0, 0, canvas.width, canvas.height); // Fill with transparent color
 
         ctx.lineWidth = 2;
-        ctx.strokeStyle = "rgb(0, 0, 255)"; // Line color
+        ctx.strokeStyle = 'rgb(0, 0, 255)'; // Line color
 
         const sliceWidth = (canvas.width * 1.0) / dataArray.length;
 
@@ -148,7 +148,7 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
   }, [isRecording, drawWaveform]);
 
   const sendAudio = () => {
-    console.log("sent audio", audioURL);
+    console.log('sent audio', audioURL);
   };
 
   return isRecording ? (

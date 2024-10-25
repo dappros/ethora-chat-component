@@ -1,5 +1,5 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { IUser } from "../types/types";
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { IUser } from '../types/types';
 
 interface LoginState {
   isAuthenticated: boolean;
@@ -9,15 +9,15 @@ interface LoginState {
 const initialState: LoginState = {
   isAuthenticated: false,
   user: {
-    id: "",
+    id: '',
     name: null,
-    token: "",
-    refreshToken: "",
+    token: '',
+    refreshToken: '',
   },
 };
 
 export const loginSlice = createSlice({
-  name: "login",
+  name: 'login',
   initialState,
   reducers: {
     login: (
@@ -25,8 +25,8 @@ export const loginSlice = createSlice({
       action: PayloadAction<{
         id: string;
         name: string;
-        token: "";
-        refreshToken: "";
+        token: '';
+        refreshToken: '';
       }>
     ) => {
       state.isAuthenticated = true;
@@ -38,10 +38,10 @@ export const loginSlice = createSlice({
     logout: (state) => {
       state.isAuthenticated = false;
       state.user = {
-        id: "",
+        id: '',
         name: null,
-        token: "",
-        refreshToken: "",
+        token: '',
+        refreshToken: '',
       };
     },
     getInfo: (state, action: PayloadAction<{ id: string }>) => {
@@ -53,7 +53,7 @@ export const loginSlice = createSlice({
       state,
       action: PayloadAction<{ token: string; refreshToken: string }>
     ) => {
-      console.log("changing tokens");
+      console.log('changing tokens');
       state.user.refreshToken = action.payload.refreshToken;
       state.user.token = action.payload.token;
     },

@@ -1,8 +1,8 @@
-import { configureStore, combineReducers } from "@reduxjs/toolkit";
-import createSagaMiddleware from "redux-saga";
-import loginReducer from "./loginSlice";
-import chatSettingsReducer from "./chatSettingsSlice";
-import roomsSlice from "./roomsSlice";
+import { configureStore, combineReducers } from '@reduxjs/toolkit';
+import createSagaMiddleware from 'redux-saga';
+import loginReducer from './loginSlice';
+import chatSettingsReducer from './chatSettingsSlice';
+import roomsSlice from './roomsSlice';
 
 const sagaMiddleware = createSagaMiddleware();
 
@@ -17,8 +17,8 @@ export const store = configureStore({
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
-        ignoredActions: ["chat/addMessage"],
-        ignoredPaths: ["chat.messages.timestamp"],
+        ignoredActions: ['chat/addMessage'],
+        ignoredPaths: ['chat.messages.timestamp'],
         serializableCheck: false,
       },
     }).concat(sagaMiddleware),

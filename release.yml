@@ -11,13 +11,13 @@ jobs:
     name: Build container
     runs-on: ubuntu-latest
     steps:
-      - name: "☁️ checkout repository"
+      - name: '☁️ checkout repository'
         uses: actions/checkout@v2
 
-      - name: "🔧 setup buildx"
+      - name: '🔧 setup buildx'
         uses: docker/setup-buildx-action@v1
 
-      - name: "🔧 cache docker layers"
+      - name: '🔧 cache docker layers'
         uses: actions/cache@v2
         with:
           path: /tmp/.buildx-cache
@@ -25,14 +25,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
 
-      - name: "🔧 docker meta"
+      - name: '🔧 docker meta'
         id: meta
         uses: docker/metadata-action@v3
         with:
           images: ${{ github.repository }}
           tags: latest
 
-      - name: "📦 docker build"
+      - name: '📦 docker build'
         uses: docker/build-push-action@v2
         with:
           context: .
@@ -43,7 +43,7 @@ jobs:
           cache-from: type=gha, scope=${{ github.workflow }}
           cache-to: type=gha, scope=${{ github.workflow }}
 
-      - name: "📂 docker artifacts"
+      - name: '📂 docker artifacts'
         uses: actions/upload-artifact@v2
         with:
           name: docker
@@ -53,34 +53,34 @@ jobs:
     name: Build application
     runs-on: ubuntu-latest
     steps:
-      - name: "checkout repository"
+      - name: 'checkout repository'
         uses: actions/checkout@v2
 
-      - name: "setup node"
+      - name: 'setup node'
         uses: actions/setup-node@v2.1.5
         with:
           node-version: 16
 
-      - name: "install npm@latest"
+      - name: 'install npm@latest'
         run: npm i -g npm@latest
 
-      - name: "install dependencies"
+      - name: 'install dependencies'
         uses: bahmutov/npm-install@v1
 
-      - name: "repository visualizer"
+      - name: 'repository visualizer'
         id: diagram
         uses: githubocto/repo-visualizer@0.7.1
         with:
-          excluded_paths: "node_modules,build,.storybook,.netlify,.github,npm-shrinkwrap.json"
-          output_file: "public/diagram.svg"
+          excluded_paths: 'node_modules,build,.storybook,.netlify,.github,npm-shrinkwrap.json'
+          output_file: 'public/diagram.svg'
           should_push: false
-          root_path: "src/"
-          artifact_name: "diagram"
+          root_path: 'src/'
+          artifact_name: 'diagram'
 
-      - name: "static app"
+      - name: 'static app'
         run: npm run build
 
-      - name: "production artifacts"
+      - name: 'production artifacts'
         uses: actions/upload-artifact@v2
         with:
           name: build
@@ -96,35 +96,35 @@ jobs:
       - build
     runs-on: ubuntu-latest
     steps:
-      - name: "☁️ checkout repository"
+      - name: '☁️ checkout repository'
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
 
-      - name: "download docker artifacts"
+      - name: 'download docker artifacts'
         uses: actions/download-artifact@v2
         with:
           name: docker
           path: /tmp
 
-      - name: "load tag"
+      - name: 'load tag'
         run: |
           docker load --input /tmp/docker.tar
           docker image ls -a
 
-      - name: "download build artifacts"
+      - name: 'download build artifacts'
         uses: actions/download-artifact@v2
         with:
           name: build
           path: build
 
-      - name: "download diagram artifacts"
+      - name: 'download diagram artifacts'
         uses: actions/download-artifact@v2
         with:
           name: diagram
           path: .
 
-      - name: "release"
+      - name: 'release'
         id: semantic-release
         uses: open-sauced/semantic-release-conventional-config@v3
         env:
@@ -136,7 +136,7 @@ jobs:
       - release
     runs-on: ubuntu-latest
     steps:
-      - name: "♻️ remove build artifacts"
+      - name: '♻️ remove build artifacts'
         uses: geekyeggo/delete-artifact@v1
         with:
           name: |

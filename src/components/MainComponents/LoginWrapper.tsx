@@ -1,13 +1,13 @@
-import React, { useCallback, useEffect } from "react";
-import { IConfig, MessageProps, User } from "../../types/types";
-import { ChatWrapper } from "./ChatWrapper";
-import LoginForm from "../AuthForms/Login";
-import { RootState } from "../../roomStore";
-import { useDispatch, useSelector } from "react-redux";
-import { setUser } from "../../roomStore/chatSettingsSlice";
-import { loginEmail, loginViaJwt } from "../../networking/apiClient";
-import { useLocalStorage } from "../../hooks/useLocalStorage";
-import { localStorageConstants } from "../../helpers/constants/LOCAL_STORAGE";
+import React, { useCallback, useEffect } from 'react';
+import { IConfig, MessageProps, User } from '../../types/types';
+import { ChatWrapper } from './ChatWrapper';
+import LoginForm from '../AuthForms/Login';
+import { RootState } from '../../roomStore';
+import { useDispatch, useSelector } from 'react-redux';
+import { setUser } from '../../roomStore/chatSettingsSlice';
+import { loginEmail, loginViaJwt } from '../../networking/apiClient';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { localStorageConstants } from '../../helpers/constants/LOCAL_STORAGE';
 
 interface LoginWrapperProps {
   user?: { email: string; password: string };
@@ -23,8 +23,8 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
   const loginUserFunction = useCallback(async () => {
     try {
       const authData = await loginEmail(
-        props?.user?.email || "yukiraze9@gmail.com",
-        props?.user?.password || "Qwerty123"
+        props?.user?.email || 'yukiraze9@gmail.com',
+        props?.user?.password || 'Qwerty123'
       );
 
       return {
@@ -33,7 +33,7 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
         refreshToken: authData.data.refreshToken,
       };
     } catch (error) {
-      console.error("Login failed:", error);
+      console.error('Login failed:', error);
       return null;
     }
   }, []);
@@ -44,10 +44,10 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
     //use localStorage, to check for user was already logged
 
     const storedUser: User = useLocalStorage(
-      "@ethora/chat-component-user"
+      '@ethora/chat-component-user'
     ).get() as User;
     if (storedUser) {
-      console.log("Login data storedUser", storedUser);
+      console.log('Login data storedUser', storedUser);
       dispatch(setUser(storedUser));
     }
 
@@ -56,18 +56,18 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
     if (
       !props.config?.googleLogin &&
       !props.config?.defaultLogin &&
-      user.xmppUsername === ""
+      user.xmppUsername === ''
     ) {
       const defaultLogin = async () => {
         try {
           const loginData = await loginUserFunction();
           if (loginData) {
-            console.log("Login data", loginData);
+            console.log('Login data', loginData);
             dispatch(setUser(loginData));
-            useLocalStorage("@ethora/chat-component-user").set(loginData);
+            useLocalStorage('@ethora/chat-component-user').set(loginData);
           }
         } catch (error) {
-          console.log("error with default login", error);
+          console.log('error with default login', error);
         }
       };
       defaultLogin();
@@ -80,10 +80,10 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
         try {
           const loginData = await loginViaJwt(props.config?.jwtLogin?.token);
           if (loginData) {
-            useLocalStorage("@ethora/chat-component-user").set(loginData);
+            useLocalStorage('@ethora/chat-component-user').set(loginData);
           }
         } catch (error) {
-          console.log("error with default login", error);
+          console.log('error with default login', error);
         }
       };
       jwtLogin();
@@ -98,7 +98,7 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
 
   return (
     <>
-      {!props.config?.googleLogin || user.xmppUsername !== "" ? (
+      {!props.config?.googleLogin || user.xmppUsername !== '' ? (
         <ChatWrapper {...props} />
       ) : (
         <LoginForm {...props} />

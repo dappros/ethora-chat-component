@@ -14,8 +14,8 @@ export interface DataFields {
   senderFirstName: string; // TO DO: review - may replace with vCard / users store
   senderLastName: string; // TO DO: review - may replace with vCard / users store
   senderWalletAddress: string; // TO DO: review - may be deprecated, we can derive this from 'from' user's JID
-  senderJID?: string; 
-  xmlns?: string;  // probably system - websockets endpoint? not sure if used
+  senderJID?: string;
+  xmlns?: string; // probably system - websockets endpoint? not sure if used
   isEdited?: boolean; // if message was edited (to display 'edited' in UI)
 
   // push notifications
@@ -27,7 +27,7 @@ export interface DataFields {
   isReply?: boolean; // if this is a response to another message (replies/threads)
   showInChannel?: boolean; // for thread responses, whether user ticked 'copy to room', if not this will only be shown in the thread
   mainMessage?: string; // for thread responses, the ID of the main message (or text quote?)
-  
+
   // system messages
   isSystemMessage?: boolean; // if this flag is set, App UI will not process this as a standard text message, and will instead process this as a system message. For example, this could be a system message informing others about a Coin transfer from one User to another. Such message will be displayed in a different, more subtle way, in order to not clutter the Room
   tokenAmount?: number; // (system message) for coin transfers - the number of tokens being sent - used in system type transfer messages. Typically this is used for “tipping” or social ranking mechanism. Users can tap on Messages of other users and tip them with Coins. Message will display a counter of Coins received, similarly to ‘likes’ in social networks
@@ -35,7 +35,7 @@ export interface DataFields {
 }
 
 export interface FileAttachmentParams {
-  createdAt: Date; // when file was created (from our API - mongodb) 
+  createdAt: Date; // when file was created (from our API - mongodb)
   fileName: string; // for file attachments this is used to display the file name
   imageLocation: string; // for file attachments this is URL of the file itself, typically from our IPFS or Minio buckets based files service
   imagePreview: string; // for file attachments that are pictures and some other supported file types (PDF etc) this will be a path to the preview / thumbnail version of the attachment

@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
-import styled, { css } from "styled-components";
+import React, { useState, useEffect, useRef } from 'react';
+import styled, { css } from 'styled-components';
 
 interface SearchInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   icon?: React.ReactNode;
   animated?: boolean;
-  direction?: "left" | "right";
+  direction?: 'left' | 'right';
 }
 
 const SearchInputWrapper = styled.div<{
@@ -15,6 +15,7 @@ const SearchInputWrapper = styled.div<{
   position: relative;
   display: flex;
   align-items: center;
+  justify-content: center;
   background-color: #f5f7f9;
   border-radius: 16px;
   height: 48px;
@@ -24,11 +25,11 @@ const SearchInputWrapper = styled.div<{
   ${({ animated, direction, expanded }) =>
     animated &&
     css`
-      width: ${expanded ? "300px" : "48px"};
-      justify-content: ${direction === "right" ? "flex-start" : "flex-end"};
+      width: ${expanded ? '300px' : '48px'};
+      justify-content: 'center';
       cursor: pointer;
 
-      padding: 0 ${expanded ? "16px" : "0"};
+      padding: 0 ${expanded ? '16px' : '0'};
     `};
 `;
 
@@ -43,11 +44,13 @@ const StyledInput = styled.input<{ animated?: boolean; expanded?: boolean }>`
   border: none;
   outline: none;
   width: ${({ animated, expanded }) =>
-    animated ? (expanded ? "100%" : "0") : "100%"};
+    animated ? (expanded ? '100%' : '0px') : '100%'};
   font-size: 16px;
   height: 48px;
   color: #000;
-  transition: width 0.7s ease-in-out, padding 0.7s ease-in-out;
+  transition:
+    width 0.7s ease-in-out,
+    padding 0.7s ease-in-out;
   opacity: ${({ animated, expanded }) => (animated ? (expanded ? 1 : 0) : 1)};
   z-index: 1;
 
@@ -60,7 +63,7 @@ const StyledInput = styled.input<{ animated?: boolean; expanded?: boolean }>`
 const SearchInput: React.FC<SearchInputProps> = ({
   icon,
   animated = false,
-  direction = "left",
+  direction = 'left',
   ...props
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);

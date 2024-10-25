@@ -1,6 +1,6 @@
-import React from "react";
+import React from 'react';
 
-export const AddNewIcon = ({ color = "#0052CD", ...props }) => (
+export const AddNewIcon = ({ color = '#0052CD', ...props }) => (
   <svg
     width="20"
     height="18"
@@ -92,91 +92,6 @@ export const DownloadIcon = (props: any) => (
   </svg>
 );
 
-export const PauseIcon = (props: any) => (
-  <svg
-    width="90"
-    height="90"
-    viewBox="0 0 90 90"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <g filter="url(#filter0_d_2552_3937)">
-      <rect
-        x="9"
-        y="9"
-        width="70"
-        height="70"
-        rx="15"
-        fill="white"
-        shape-rendering="crispEdges"
-      />
-      <mask id="path-2-inside-1_2552_3937" fill="white">
-        <rect x="30.5" y="30.5" width="10" height="27" rx="2" />
-      </mask>
-      <rect
-        x="30.5"
-        y="30.5"
-        width="10"
-        height="27"
-        rx="2"
-        stroke="black"
-        strokeWidth="5"
-        mask="url(#path-2-inside-1_2552_3937)"
-      />
-      <mask id="path-3-inside-2_2552_3937" fill="white">
-        <rect x="47.5" y="30.5" width="10" height="27" rx="2" />
-      </mask>
-      <rect
-        x="47.5"
-        y="30.5"
-        width="10"
-        height="27"
-        rx="2"
-        stroke="black"
-        strokeWidth="5"
-        mask="url(#path-3-inside-2_2552_3937)"
-      />
-    </g>
-    <defs>
-      <filter
-        id="filter0_d_2552_3937"
-        x="0"
-        y="0"
-        width="90"
-        height="90"
-        filterUnits="userSpaceOnUse"
-        color-interpolation-filters="sRGB"
-      >
-        <feFlood flood-opacity="0" result="BackgroundImageFix" />
-        <feColorMatrix
-          in="SourceAlpha"
-          type="matrix"
-          values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
-          result="hardAlpha"
-        />
-        <feOffset dx="1" dy="1" />
-        <feGaussianBlur stdDeviation="5" />
-        <feComposite in2="hardAlpha" operator="out" />
-        <feColorMatrix
-          type="matrix"
-          values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0"
-        />
-        <feBlend
-          mode="normal"
-          in2="BackgroundImageFix"
-          result="effect1_dropShadow_2552_3937"
-        />
-        <feBlend
-          mode="normal"
-          in="SourceGraphic"
-          in2="effect1_dropShadow_2552_3937"
-          result="shape"
-        />
-      </filter>
-    </defs>
-  </svg>
-);
-
 export const RecordIcon = (props: any) => (
   <svg
     width="70"
@@ -239,7 +154,7 @@ export const RemoveIcon = (props: any) => (
   </svg>
 );
 
-export const SendIcon = ({ color = "#0052CD", ...props }) => (
+export const SendIcon = ({ color = '#0052CD', ...props }) => (
   <svg
     width="40"
     height="40"
@@ -291,7 +206,7 @@ export const GoogleIcon = ({ ...props }) => (
   </svg>
 );
 
-export const MoreIcon = ({ color = "#8C8C8C", ...props }) => (
+export const MoreIcon = ({ color = '#8C8C8C', ...props }) => (
   <svg
     width="24"
     height="24"
@@ -306,7 +221,7 @@ export const MoreIcon = ({ color = "#8C8C8C", ...props }) => (
   </svg>
 );
 
-export const SearchIcon = ({ color = "#8C8C8C", ...props }) => (
+export const SearchIcon = ({ color = '#8C8C8C', ...props }) => (
   <svg
     width="24"
     height="24"
@@ -321,7 +236,7 @@ export const SearchIcon = ({ color = "#8C8C8C", ...props }) => (
   </svg>
 );
 
-export const NoMessages = ({ color = "#8C8C8C", ...props }) => (
+export const NoMessages = ({ color = '#8C8C8C', ...props }) => (
   <svg
     width="240"
     height="154"
@@ -358,7 +273,7 @@ export const NoMessages = ({ color = "#8C8C8C", ...props }) => (
   </svg>
 );
 
-export const ReportIcon = ({ color = "#8C8C8C", ...props }) => (
+export const ReportIcon = ({ color = '#8C8C8C', ...props }) => (
   <svg
     width="24"
     height="24"
@@ -384,7 +299,7 @@ export const ReportIcon = ({ color = "#8C8C8C", ...props }) => (
   </svg>
 );
 
-export const DeleteIcon = ({ color = "#8C8C8C", ...props }) => (
+export const DeleteIcon = ({ color = '#8C8C8C', ...props }) => (
   <svg
     width="24"
     height="24"
@@ -400,7 +315,7 @@ export const DeleteIcon = ({ color = "#8C8C8C", ...props }) => (
   </svg>
 );
 
-export const CopyIcon = ({ color = "#8C8C8C", ...props }) => (
+export const CopyIcon = ({ color = '#8C8C8C', ...props }) => (
   <svg
     width="24"
     height="24"
@@ -426,7 +341,7 @@ export const CopyIcon = ({ color = "#8C8C8C", ...props }) => (
   </svg>
 );
 
-export const ReplyIcon = ({ color = "#8C8C8C", ...props }) => (
+export const ReplyIcon = ({ color = '#8C8C8C', ...props }) => (
   <svg
     width="24"
     height="24"
@@ -442,7 +357,7 @@ export const ReplyIcon = ({ color = "#8C8C8C", ...props }) => (
   </svg>
 );
 
-export const SendItemIcon = ({ color = "#8C8C8C", ...props }) => (
+export const SendItemIcon = ({ color = '#8C8C8C', ...props }) => (
   <svg
     width="24"
     height="24"
@@ -477,7 +392,7 @@ export const SendItemIcon = ({ color = "#8C8C8C", ...props }) => (
   </svg>
 );
 
-export const SendCoinIcon = ({ color = "#8C8C8C", ...props }) => (
+export const SendCoinIcon = ({ color = '#8C8C8C', ...props }) => (
   <svg
     width="24"
     height="24"
@@ -514,5 +429,36 @@ export const SendCoinIcon = ({ color = "#8C8C8C", ...props }) => (
         <stop offset="1" stop-color="#FFD100" />
       </linearGradient>
     </defs>
+  </svg>
+);
+
+export const PlayIcon = ({ color = '#fff', ...props }) => (
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M18.394 13.045L8.8495 18.583C8.0395 19.0525 7 18.484 7 17.5375V6.46155C7 5.51655 8.038 4.94655 8.8495 5.41755L18.394 10.9555C18.5783 11.0607 18.7314 11.2128 18.8379 11.3963C18.9445 11.5797 19.0006 11.7881 19.0006 12.0003C19.0006 12.2125 18.9445 12.4209 18.8379 12.6043C18.7314 12.7878 18.5783 12.9399 18.394 13.045Z"
+      fill="white"
+    />
+  </svg>
+);
+
+export const PauseIcon = ({ color = '#fff', ...props }) => (
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill={color}
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <path
+      d="M18.5 6.16667V17.8333C18.5 18.1428 18.3755 18.4395 18.1539 18.6583C17.9322 18.8771 17.6316 19 17.3182 19H14.3636C14.0502 19 13.7496 18.8771 13.528 18.6583C13.3063 18.4395 13.1818 18.1428 13.1818 17.8333V6.16667C13.1818 5.85725 13.3063 5.5605 13.528 5.34171C13.7496 5.12292 14.0502 5 14.3636 5H17.3182C17.6316 5 17.9322 5.12292 18.1539 5.34171C18.3755 5.5605 18.5 5.85725 18.5 6.16667ZM9.63636 5H6.68182C6.36838 5 6.06778 5.12292 5.84615 5.34171C5.62451 5.5605 5.5 5.85725 5.5 6.16667V17.8333C5.5 18.1428 5.62451 18.4395 5.84615 18.6583C6.06778 18.8771 6.36838 19 6.68182 19H9.63636C9.9498 19 10.2504 18.8771 10.472 18.6583C10.6937 18.4395 10.8182 18.1428 10.8182 17.8333V6.16667C10.8182 5.85725 10.6937 5.5605 10.472 5.34171C10.2504 5.12292 9.9498 5 9.63636 5Z"
+      fill="white"
+    />
   </svg>
 );

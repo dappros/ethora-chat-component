@@ -4,16 +4,16 @@ import React, {
   useEffect,
   useCallback,
   useMemo,
-} from "react";
-import styled, { css } from "styled-components";
-import { IRoom } from "../../types/types";
-import { ChatHeaderAvatar } from "./ChatHeaderAvatar";
-import Button from "../styled/Button";
-import { SearchInput } from "../InputComponents/Search";
-import { useSelector } from "react-redux";
-import { RootState } from "../../roomStore";
-import { getTintedColor } from "../../helpers/getTintedColor";
-import { AddNewIcon, SearchIcon } from "../../assets/icons";
+} from 'react';
+import styled, { css } from 'styled-components';
+import { IRoom } from '../../types/types';
+import { ChatHeaderAvatar } from './ChatHeaderAvatar';
+import Button from '../styled/Button';
+import { SearchInput } from '../InputComponents/Search';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../roomStore';
+import { getTintedColor } from '../../helpers/getTintedColor';
+import { AddNewIcon, SearchIcon } from '../../assets/icons';
 
 interface RoomListProps {
   chats: IRoom[];
@@ -31,7 +31,7 @@ const Container = styled.div<{ burgerMenu?: boolean; open?: boolean }>`
           top: 0;
           width: 300px;
           height: 100%;
-          transform: ${open ? "translateX(0)" : "translateX(-100%)"};
+          transform: ${open ? 'translateX(0)' : 'translateX(-100%)'};
           transition: transform 0.3s ease-in-out;
           z-index: 2;
           display: flex;
@@ -70,12 +70,12 @@ const ChatItem = styled.div<{ active: boolean; bg?: string }>`
   padding: 10px;
   cursor: pointer;
   background-color: ${({ active, bg }) =>
-    active ? (bg ? bg : "#0052CD") : "#fff"};
-  color: ${({ active }) => (!active ? "#000" : "#fff")};
+    active ? (bg ? bg : '#0052CD') : '#fff'};
+  color: ${({ active }) => (!active ? '#000' : '#fff')};
 
   &:hover {
     background-color: ${({ active, bg }) =>
-      active ? getTintedColor(bg ? bg : "#0052CD") : "rgba(0, 0, 0, 0.05)"};
+      active ? getTintedColor(bg ? bg : '#0052CD') : 'rgba(0, 0, 0, 0.05)'};
   }
 `;
 
@@ -112,7 +112,7 @@ const LastMessage = styled.div`
 `;
 
 const UserCount = styled.div<{ active: boolean }>`
-  color: ${({ active }) => (!active ? "#000" : "#fff")};
+  color: ${({ active }) => (!active ? '#000' : '#fff')};
   margin-left: auto;
 `;
 
@@ -125,7 +125,7 @@ const RoomList: React.FC<RoomListProps> = ({
   onRoomClick,
 }) => {
   const [open, setOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
 
   const config = useSelector(
     (state: RootState) => state.chatSettingStore.config
@@ -167,9 +167,9 @@ const RoomList: React.FC<RoomListProps> = ({
 
   useEffect(() => {
     if (burgerMenu) {
-      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener('mousedown', handleClickOutside);
       return () => {
-        document.removeEventListener("mousedown", handleClickOutside);
+        document.removeEventListener('mousedown', handleClickOutside);
       };
     }
   }, [burgerMenu, handleClickOutside]);
@@ -189,15 +189,15 @@ const RoomList: React.FC<RoomListProps> = ({
           <>
             <div
               style={{
-                display: "flex",
-                gap: "16px",
-                alignItems: "center",
-                width: "100%",
+                display: 'flex',
+                gap: '16px',
+                alignItems: 'center',
+                width: '100%',
                 marginBottom: 8,
               }}
             >
               <SearchInput
-                icon={<SearchIcon height={"20px"} />}
+                icon={<SearchIcon height={'20px'} />}
                 value={searchTerm}
                 onChange={handleSearchChange}
                 placeholder="Search..."
@@ -205,15 +205,15 @@ const RoomList: React.FC<RoomListProps> = ({
               />
               <Button
                 style={{
-                  color: "black",
+                  color: 'black',
                   padding: 8,
-                  borderRadius: "16px",
-                  backgroundColor: "transparent",
+                  borderRadius: '16px',
+                  backgroundColor: 'transparent',
                 }}
                 EndIcon={<AddNewIcon color={config?.colors?.primary} />}
               />
             </div>
-            <div style={{ height: "100%", overflow: "auto" }}>
+            <div style={{ height: '100%', overflow: 'auto' }}>
               {filteredChats.map((chat, index) => (
                 <ChatItem
                   key={index}
@@ -223,10 +223,10 @@ const RoomList: React.FC<RoomListProps> = ({
                 >
                   <div
                     style={{
-                      display: "flex",
-                      alignItems: "start",
-                      width: "100%",
-                      gap: "8px",
+                      display: 'flex',
+                      alignItems: 'start',
+                      width: '100%',
+                      gap: '8px',
                     }}
                   >
                     {chat.icon ? (
@@ -237,7 +237,7 @@ const RoomList: React.FC<RoomListProps> = ({
                     <ChatInfo>
                       <ChatName>{chat.name}</ChatName>
                       <LastMessage
-                        style={{ color: "#141414", fontWeight: 600 }}
+                        style={{ color: '#141414', fontWeight: 600 }}
                       >
                         {chat?.lastRoomMessage?.name &&
                           `${chat?.lastRoomMessage?.name}:`}
@@ -245,7 +245,7 @@ const RoomList: React.FC<RoomListProps> = ({
                       <LastMessage>{chat?.lastRoomMessage?.body}</LastMessage>
                     </ChatInfo>
                   </div>
-                  <div style={{ textAlign: "right", display: "flex" }}>
+                  <div style={{ textAlign: 'right', display: 'flex' }}>
                     <UserCount active={isChatActive(chat)}>
                       {chat.usersCnt}
                     </UserCount>

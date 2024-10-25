@@ -1,6 +1,6 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { IMessage, IRoom } from "../types/types";
-import { isDateAfter, isDateBefore } from "../helpers/dateComparison";
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { IMessage, IRoom } from '../types/types';
+import { isDateAfter, isDateBefore } from '../helpers/dateComparison';
 
 interface RoomMessagesState {
   rooms: { [jid: string]: IRoom };
@@ -15,7 +15,7 @@ const initialState: RoomMessagesState = {
 };
 
 export const roomsStore = createSlice({
-  name: "roomMessages",
+  name: 'roomMessages',
   initialState,
   reducers: {
     addRoom(state, action: PayloadAction<{ roomData: IRoom }>) {
@@ -82,7 +82,7 @@ export const roomsStore = createSlice({
             // Check for lastViewedTimestamp and insert delimiter if needed
             if (
               state.rooms[roomJID].lastViewedTimestamp &&
-              !roomMessages.some((msg) => msg.id === "delimiter-new")
+              !roomMessages.some((msg) => msg.id === 'delimiter-new')
             ) {
               const lastViewedTimestamp =
                 new Date(state.rooms[roomJID].lastViewedTimestamp) ||
@@ -111,16 +111,16 @@ export const roomsStore = createSlice({
                 // Insert the delimiter before the new messages
                 if (delimiterIndex !== -1) {
                   roomMessages.splice(delimiterIndex, 0, {
-                    id: "delimiter-new",
+                    id: 'delimiter-new',
                     user: {
-                      id: "system",
+                      id: 'system',
                       name: null,
-                      token: "",
-                      refreshToken: "",
+                      token: '',
+                      refreshToken: '',
                     },
                     date: new Date().toString(),
-                    body: "New Messages",
-                    roomJID: "",
+                    body: 'New Messages',
+                    roomJID: '',
                   });
                 }
               }

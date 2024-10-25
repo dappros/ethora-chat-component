@@ -1,13 +1,13 @@
-import { xml } from "@xmpp/client";
-import { Element } from "ltx";
-import { store } from "../roomStore";
+import { xml } from '@xmpp/client';
+import { Element } from 'ltx';
+import { store } from '../roomStore';
 import {
   addRoom,
   addRoomMessage,
   setComposing,
   setCurrentRoom,
-} from "../roomStore/roomsSlice";
-import { IRoom } from "../types/types";
+} from '../roomStore/roomsSlice';
+import { IRoom } from '../types/types';
 
 // TO DO: we are thinking to refactor this code in the following way:
 // each stanza will be parsed for 'type'
@@ -45,12 +45,12 @@ export const createMessage = async (
   from: any
 ): Promise<any> => {
   // change to iMESSAGES
-  if (!body || typeof body.getText !== "function") {
+  if (!body || typeof body.getText !== 'function') {
     throw new Error("Invalid body: 'getText' method is missing.");
   }
 
   if (!data || !id || !from) {
-    console.log("Invalid arguments: data, id, and from are required.");
+    console.log('Invalid arguments: data, id, and from are required.');
   }
 
   const message = {
@@ -81,20 +81,20 @@ export const createMessage = async (
 //core default
 const onRealtimeMessage = async (stanza: Element) => {
   if (
-    !stanza?.getChild("result") &&
-    !stanza.getChild("composing") &&
-    !stanza.getChild("paused") &&
-    !stanza.getChild("subject") &&
-    !stanza.is("iq")
+    !stanza?.getChild('result') &&
+    !stanza.getChild('composing') &&
+    !stanza.getChild('paused') &&
+    !stanza.getChild('subject') &&
+    !stanza.is('iq')
   ) {
-    const body = stanza?.getChild("body");
-    const archived = stanza?.getChild("archived");
-    const data = stanza?.getChild("data");
+    const body = stanza?.getChild('body');
+    const archived = stanza?.getChild('archived');
+    const data = stanza?.getChild('data');
     const id = archived?.attrs.id;
 
     if (!data) {
       console.log(stanza.toString());
-      console.log("Missing data elements in real-time message.");
+      console.log('Missing data elements in real-time message.');
       return;
     }
 
@@ -102,7 +102,7 @@ const onRealtimeMessage = async (stanza: Element) => {
       console.log(stanza.toString());
       console.log(data.attrs.senderJID);
 
-      console.log("Missing sender information in real-time message.");
+      console.log('Missing sender information in real-time message.');
       return;
     }
 
@@ -115,7 +115,7 @@ const onRealtimeMessage = async (stanza: Element) => {
 
     store.dispatch(
       addRoomMessage({
-        roomJID: stanza.attrs.from.split("/")[0],
+        roomJID: stanza.attrs.from.split('/')[0],
         message,
       })
     );
@@ -125,34 +125,34 @@ const onRealtimeMessage = async (stanza: Element) => {
 
 const onMessageHistory = async (stanza: any) => {
   if (
-    stanza.is("message") &&
-    stanza.children[0].attrs.xmlns === "urn:xmpp:mam:2"
+    stanza.is('message') &&
+    stanza.children[0].attrs.xmlns === 'urn:xmpp:mam:2'
   ) {
     // console.log("stanza -->", stanza.toString());
     const body = stanza
-      .getChild("result")
-      ?.getChild("forwarded")
-      ?.getChild("message")
-      ?.getChild("body");
+      .getChild('result')
+      ?.getChild('forwarded')
+      ?.getChild('message')
+      ?.getChild('body');
     const data = stanza
-      .getChild("result")
-      ?.getChild("forwarded")
-      ?.getChild("message")
-      ?.getChild("data");
+      .getChild('result')
+      ?.getChild('forwarded')
+      ?.getChild('message')
+      ?.getChild('data');
     const delay = stanza
-      .getChild("result")
-      ?.getChild("forwarded")
-      ?.getChild("delay");
+      .getChild('result')
+      ?.getChild('forwarded')
+      ?.getChild('delay');
 
-    const id = stanza.getChild("result")?.attrs.id;
+    const id = stanza.getChild('result')?.attrs.id;
 
     if (!delay) {
-      if (stanza.getChild("subject")) {
-        console.log("Subject.");
+      if (stanza.getChild('subject')) {
+        console.log('Subject.');
         return;
       }
       if (!data || !body || !id) {
-        console.log("Missing required elements in message history.");
+        console.log('Missing required elements in message history.');
         return;
       }
     }
@@ -189,18 +189,18 @@ const onMessageHistory = async (stanza: any) => {
 };
 
 const handleComposing = async (stanza: Element, currentUser: string) => {
-  if (stanza.getChild("paused") || stanza.getChild("composing")) {
-    const composingUser = stanza.attrs?.from?.split("/")?.[1];
+  if (stanza.getChild('paused') || stanza.getChild('composing')) {
+    const composingUser = stanza.attrs?.from?.split('/')?.[1];
     if (
       composingUser &&
-      currentUser.toLowerCase() !== composingUser?.replace(/_/g, "")
+      currentUser.toLowerCase() !== composingUser?.replace(/_/g, '')
     ) {
-      const chatJID = stanza.attrs?.from.split("/")[0];
+      const chatJID = stanza.attrs?.from.split('/')[0];
 
       store.dispatch(
         setComposing({
           chatJID: chatJID,
-          composing: !!stanza?.getChild("composing"),
+          composing: !!stanza?.getChild('composing'),
         })
       );
     }
@@ -208,16 +208,16 @@ const handleComposing = async (stanza: Element, currentUser: string) => {
 };
 
 const onPresenceInRoom = (stanza: Element | any) => {
-  if (stanza.attrs.id === "presenceInRoom") {
-    const roomJID: string = stanza.attrs.from.split("/")[0];
+  if (stanza.attrs.id === 'presenceInRoom') {
+    const roomJID: string = stanza.attrs.from.split('/')[0];
     const role: string = stanza?.children[1]?.children[0]?.attrs.role;
     // console.log({ roomJID, role });
   }
 };
 
 const onGetLastMessageArchive = (stanza: Element, xmpp: any) => {
-  if (stanza.attrs.id === "sendMessage") {
-    const data = stanza.getChild("stanza-id");
+  if (stanza.attrs.id === 'sendMessage') {
+    const data = stanza.getChild('stanza-id');
     if (data) {
       xmpp.getLastMessageArchive(data.attrs.by);
       return;
@@ -228,10 +228,10 @@ const onGetLastMessageArchive = (stanza: Element, xmpp: any) => {
 
 const onGetChatRooms = (stanza: Element, xmpp: any) => {
   if (
-    stanza.attrs.id === "getUserRooms" &&
-    stanza.getChild("query")?.children
+    stanza.attrs.id === 'getUserRooms' &&
+    stanza.getChild('query')?.children
   ) {
-    stanza.getChild("query")?.children.forEach((result: any) => {
+    stanza.getChild('query')?.children.forEach((result: any) => {
       const currentChatRooms = store.getState().rooms.rooms;
 
       if (result?.attrs.name) {
@@ -242,17 +242,17 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
           const roomData: IRoom = {
             jid: result.attrs.jid,
             name: result?.attrs.name,
-            id: "",
+            id: '',
             title: result?.attrs.name,
             usersCnt: Number(result?.attrs.users_cnt),
             messages: [],
             isLoading: false,
             roomBg:
-              result?.attrs.room_background !== "none"
+              result?.attrs.room_background !== 'none'
                 ? result?.attrs.room_background
                 : null,
             icon:
-              result?.attrs.room_thumbnail !== "none"
+              result?.attrs.room_thumbnail !== 'none'
                 ? result?.attrs.room_thumbnail
                 : null,
           };

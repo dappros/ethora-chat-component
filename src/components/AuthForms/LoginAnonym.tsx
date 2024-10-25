@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from "react";
-import styled from "styled-components";
-import { MessageInput } from "../styled/StyledComponents";
-import Button from "../styled/Button";
-import { GoogleIcon } from "../../assets/icons";
-import { IConfig } from "../../types/types";
+import React, { useState, useEffect } from 'react';
+import styled from 'styled-components';
+import { MessageInput } from '../styled/StyledComponents';
+import Button from '../styled/Button';
+import { GoogleIcon } from '../../assets/icons';
+import { IConfig } from '../../types/types';
 
 interface LoginFormProps {
   config?: IConfig;
@@ -12,7 +12,7 @@ interface LoginFormProps {
 const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Form submitted");
+    console.log('Form submitted');
   };
 
   return (
@@ -20,8 +20,8 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
       <Button
         type="submit"
         onClick={(e) => handleSubmit(e)}
-        text={"Login anonymously"}
-        style={{ width: "100%", height: "40px" }}
+        text={'Login anonymously'}
+        style={{ width: '100%', height: '40px' }}
       />
 
       <Delimiter>Only could send text messages</Delimiter>
@@ -50,7 +50,7 @@ const Delimiter = styled.div`
 
   &::before,
   &::after {
-    content: "";
+    content: '';
     position: absolute;
     top: 50%;
     width: 45%;

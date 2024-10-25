@@ -1,33 +1,32 @@
-import React from "react";
-import styled from "styled-components";
+import React from 'react';
+import styled from 'styled-components';
 import {
   ButtonContainer,
   Container,
   FullScreenImage,
   IconButton,
   ModalContent,
-} from "./StyledInputComponents/MediaComponents";
-import { CloseIcon, DownloadIcon } from "../../assets/icons";
-import { Overlay, StyledModal } from "./Modal";
-import { IConfig } from "../../types/types";
-import { ActionButton } from "./ActionButton";
+} from './StyledInputComponents/MediaComponents';
+import { CloseIcon, DownloadIcon } from '../../assets/icons';
+import { Overlay, StyledModal } from './Modal';
+import { IConfig } from '../../types/types';
+import { ActionButton } from './ActionButton';
 interface CustomMessageImageProps {
   imageUrl: string | undefined;
   imageAlt: string;
-  config?: IConfig;
 }
 
 const download = (link: string) => {
   fetch(link, {
-    method: "GET",
+    method: 'GET',
     headers: {},
   })
     .then((response) => {
       response.arrayBuffer().then(function (buffer) {
         const url = window.URL.createObjectURL(new Blob([buffer]));
-        const link = document.createElement("a");
+        const link = document.createElement('a');
         link.href = url;
-        link.setAttribute("download", "MEDIA-ETHORA.png");
+        link.setAttribute('download', 'MEDIA-ETHORA.png');
         document.body.appendChild(link);
         link.click();
       });
@@ -40,7 +39,6 @@ const download = (link: string) => {
 const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
   imageUrl,
   imageAlt,
-  config,
 }) => {
   const [open, setOpen] = React.useState(false);
   const handleOpen = () => setOpen(true);
@@ -57,10 +55,15 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
           src={imageUrl}
           alt={imageAlt}
           onClick={handleOpen}
-          style={{ cursor: "pointer", maxWidth: "100%" }}
+          style={{
+            borderRadius: 16,
+            cursor: 'pointer',
+            maxWidth: '150px',
+            maxHeight: '200px',
+          }}
           onError={(e) => {
             (e.target as HTMLImageElement).src =
-              "https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg";
+              'https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg';
           }}
         />
       ) : (
@@ -68,7 +71,12 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
           src="https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg"
           alt={imageAlt}
           onClick={handleOpen}
-          style={{ cursor: "pointer", maxWidth: "100%" }}
+          style={{
+            borderRadius: 16,
+            cursor: 'pointer',
+            maxWidth: '150px',
+            maxHeight: '200px',
+          }}
         />
       )}
       {open && (
@@ -78,12 +86,12 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
               <FullScreenImage
                 src={
                   imageUrl ||
-                  "https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg"
+                  'https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg'
                 }
                 alt={imageAlt}
                 onError={(e) => {
                   (e.target as HTMLImageElement).src =
-                    "https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg";
+                    'https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg';
                 }}
               />
               <ButtonContainer>

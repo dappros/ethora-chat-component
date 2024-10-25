@@ -84,7 +84,7 @@ export interface User {
       email: string;
       verified: boolean;
       _id: string;
-    }
+    },
   ];
   appId: string;
   xmppPassword: string;

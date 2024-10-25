@@ -1,8 +1,8 @@
 export function walletToUsername(string: string) {
   if (string) {
-    return string.replaceAll(/([A-Z])/g, "_$1").toLowerCase();
+    return string.replaceAll(/([A-Z])/g, '_$1').toLowerCase();
   }
-  return "";
+  return '';
 }
 
 export function usernameToWallet(string: string) {

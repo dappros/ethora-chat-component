@@ -1,11 +1,11 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback } from 'react';
 import {
   RecordContainer,
   Timer,
-} from "../styled/StyledInputComponents/StyledInputComponents";
-import { RecordIcon, RemoveIcon, SendIcon } from "../../assets/icons";
-import Button from "../styled/Button";
-import RecordingIndicator from "./RecordingIndicator";
+} from '../styled/StyledInputComponents/StyledInputComponents';
+import { RecordIcon, RemoveIcon, SendIcon } from '../../assets/icons';
+import Button from '../styled/Button';
+import RecordingIndicator from './RecordingIndicator';
 
 interface AudioRecorderProps {
   setIsRecording: (state: boolean) => void;
@@ -27,9 +27,9 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
   const formatTime = (time: number) => {
     const minutes = Math.floor(time / 60);
     const seconds = time % 60;
-    return `${minutes.toString().padStart(2, "0")}:${seconds
+    return `${minutes.toString().padStart(2, '0')}:${seconds
       .toString()
-      .padStart(2, "0")}`;
+      .padStart(2, '0')}`;
   };
 
   const startTimer = useCallback(() => {
@@ -50,7 +50,9 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
     setIsRecording(false);
     audioChunksRef.current = [];
     if (mediaRecorderRef.current) {
-      mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
+      mediaRecorderRef.current.stream
+        .getTracks()
+        .forEach((track) => track.stop());
     }
   };
 
@@ -78,13 +80,13 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
       stopTimer();
-      resetState();  // Fully reset the state without sending audio
+      resetState(); // Fully reset the state without sending audio
     }
   };
 
   const sendAudio = () => {
     if (mediaRecorderRef.current) {
-      mediaRecorderRef.current.stop();  // Stop recording
+      mediaRecorderRef.current.stop(); // Stop recording
       stopTimer();
 
       // On stop, send the audio after it's available
@@ -92,16 +94,16 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
         const audioBlob = new Blob(audioChunksRef.current);
         handleSendClick(audioBlob);
         // downloadAudio(audioBlob); // Automatically save the audio
-        resetState();  // Reset after sending
+        resetState(); // Reset after sending
       };
     }
   };
 
   const downloadAudio = (blob: Blob) => {
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = url;
-    a.download = "recording.x-m4a"; // Change the file name if needed
+    a.download = 'recording.x-m4a'; // Change the file name if needed
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -110,12 +112,12 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
 
   return isRecording || audioBlob ? (
     <RecordContainer>
-      <div style={{ display: "flex", alignItems: "center" }}>
+      <div style={{ display: 'flex', alignItems: 'center' }}>
         {isRecording && <RecordingIndicator />}
         <Timer>{formatTime(timer)}</Timer>
       </div>
 
-      <div style={{ display: "flex", gap: "8px" }}>
+      <div style={{ display: 'flex', gap: '8px' }}>
         <Button onClick={stopRecording} EndIcon={<RemoveIcon />} unstyled />
         <Button onClick={sendAudio} EndIcon={<SendIcon />} unstyled />
       </div>

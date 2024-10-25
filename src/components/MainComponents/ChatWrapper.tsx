@@ -1,23 +1,23 @@
-import React, { FC, useCallback, useEffect, useMemo, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import ChatRoom from "./ChatRoom";
-import { setConfig } from "../../roomStore/chatSettingsSlice";
-import { ChatWrapperBox } from "../styled/ChatWrapperBox";
-import { Overlay, StyledModal } from "../styled/Modal";
-import { Message } from "../Message";
-import { IConfig, IRoom, MessageProps, User } from "../../types/types";
-import { useXmppClient } from "../../context/xmppProvider";
-import LoginForm from "../AuthForms/Login";
-import { RootState } from "../../roomStore";
-import Loader from "../styled/Loader";
+import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import ChatRoom from './ChatRoom';
+import { setConfig } from '../../roomStore/chatSettingsSlice';
+import { ChatWrapperBox } from '../styled/ChatWrapperBox';
+import { Overlay, StyledModal } from '../styled/Modal';
+import { Message } from '../Message';
+import { IConfig, IRoom, MessageProps, User } from '../../types/types';
+import { useXmppClient } from '../../context/xmppProvider';
+import LoginForm from '../AuthForms/Login';
+import { RootState } from '../../roomStore';
+import Loader from '../styled/Loader';
 import {
   addRoom,
   setCurrentRoom,
   setIsLoading,
   setLastViewedTimestamp,
-} from "../../roomStore/roomsSlice";
-import { refresh } from "../../networking/apiClient";
-import RoomList from "./RoomList";
+} from '../../roomStore/roomsSlice';
+import { refresh } from '../../networking/apiClient';
+import RoomList from './RoomList';
 
 interface ChatWrapperProps {
   token?: string;
@@ -56,14 +56,14 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
     const initXmmpClient = async () => {
       try {
-        if (!user.defaultWallet || user?.defaultWallet.walletAddress === "") {
+        if (!user.defaultWallet || user?.defaultWallet.walletAddress === '') {
           setShowModal(true);
-          console.log("Error, no user");
+          console.log('Error, no user');
         } else {
           if (!client) {
             setShowModal(false);
 
-            console.log("No client, so initing one");
+            console.log('No client, so initing one');
             await initializeClient(
               user.defaultWallet?.walletAddress,
               user.xmppPassword
@@ -110,16 +110,16 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
       updateLastReadTimeStamp();
     };
 
-    window.addEventListener("blur", handleBeforeUnload);
-    window.addEventListener("offline", handleBeforeUnload);
+    window.addEventListener('blur', handleBeforeUnload);
+    window.addEventListener('offline', handleBeforeUnload);
 
     return () => {
-      window.removeEventListener("blur", handleBeforeUnload);
-      window.removeEventListener("offline", handleBeforeUnload);
+      window.removeEventListener('blur', handleBeforeUnload);
+      window.removeEventListener('offline', handleBeforeUnload);
     };
   }, [client, room?.jid]);
 
-  if (user.xmppPassword === "" && user.xmppUsername === "")
+  if (user.xmppPassword === '' && user.xmppUsername === '')
     return <LoginForm config={config} />;
 
   return (
@@ -132,9 +132,9 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
       {/* {isInited ?? !loading ? ( */}
       <div
         style={{
-          display: "flex",
-          height: "100%",
-          width: "100%",
+          display: 'flex',
+          height: '100%',
+          width: '100%',
         }}
       >
         {isInited ? (
@@ -143,7 +143,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
               <RoomList
                 chats={Object.values(rooms)}
                 onRoomClick={handleChangeChat}
-                activeJID={roomJID || "asdd"}
+                activeJID={roomJID || 'asdd'}
               />
             )}
             <ChatRoom

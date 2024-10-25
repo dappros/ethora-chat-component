@@ -1,12 +1,12 @@
-import React, { useCallback } from "react";
-import { AttachIcon, RemoveIcon } from "../../assets/icons";
-import { IConfig } from "../../types/types";
-import Button from "../styled/Button";
+import React, { useCallback } from 'react';
+import { AttachIcon, RemoveIcon } from '../../assets/icons';
+import { IConfig } from '../../types/types';
+import Button from '../styled/Button';
 import {
   FilePreview,
   FilePreviewContainer,
   HiddenFileInput,
-} from "../styled/StyledInputComponents/StyledInputComponents";
+} from '../styled/StyledInputComponents/StyledInputComponents';
 
 interface MediaInputProps {
   filePreviews: File[];
@@ -53,11 +53,11 @@ const MediaInput: React.FC<MediaInputProps> = ({
 
   const renderFilePreview = useCallback((file: File) => {
     const fileUrl = URL.createObjectURL(file);
-    const fileType = file.type.split("/")[0];
-    if (fileType === "image") {
-      return <img src={fileUrl} alt={file.name} style={{ width: "50px" }} />;
-    } else if (fileType === "video") {
-      return <video src={fileUrl} controls style={{ width: "50px" }} />;
+    const fileType = file.type.split('/')[0];
+    if (fileType === 'image') {
+      return <img src={fileUrl} alt={file.name} style={{ width: '50px' }} />;
+    } else if (fileType === 'video') {
+      return <video src={fileUrl} controls style={{ width: '50px' }} />;
     }
     return null;
   }, []);
@@ -83,7 +83,7 @@ const MediaInput: React.FC<MediaInputProps> = ({
                 onClick={() => handleRemoveFile(file)}
                 EndIcon={<RemoveIcon />}
                 style={{
-                  position: "absolute",
+                  position: 'absolute',
                   top: 4,
                   right: 4,
                   height: 16,

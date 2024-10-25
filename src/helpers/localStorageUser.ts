@@ -1,5 +1,5 @@
-import { User } from "../types/types";
-import { localStorageConstants } from "./constants/LOCAL_STORAGE";
+import { User } from '../types/types';
+import { localStorageConstants } from './constants/LOCAL_STORAGE';
 
 export const getLocalStorageUser = () => {
   const user: User = JSON.parse(

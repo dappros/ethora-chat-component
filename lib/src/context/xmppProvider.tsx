@@ -1,5 +1,5 @@
-import React, { ReactNode, createContext, useContext, useState } from "react";
-import XmppClient from "../networking/xmppClient";
+import React, { ReactNode, createContext, useContext, useState } from 'react';
+import XmppClient from '../networking/xmppClient';
 
 // Declare XmppContext with both client and initializeClient, ensuring client is not null
 interface XmppContextType {
@@ -24,10 +24,10 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
 
       await new Promise<void>((resolve, reject) => {
         const checkStatus = () => {
-          if (newClient.status === "online") {
+          if (newClient.status === 'online') {
             resolve();
-          } else if (newClient.status === "error") {
-            reject(new Error("Failed to connect."));
+          } else if (newClient.status === 'error') {
+            reject(new Error('Failed to connect.'));
           } else {
             setTimeout(checkStatus, 500);
           }
@@ -37,7 +37,7 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
 
       return newClient;
     } catch (error) {
-      console.log(error, "error with initializing client");
+      console.log(error, 'error with initializing client');
     }
   };
 
@@ -54,7 +54,7 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
 export const useXmppClient = () => {
   const context = useContext(XmppContext);
   if (!context) {
-    throw new Error("useXmppClient must be used within an XmppProvider");
+    throw new Error('useXmppClient must be used within an XmppProvider');
   }
   return context;
 };

@@ -1,6 +1,6 @@
-import React from "react";
+import React from 'react';
 
-export const AddNewIcon = ({ color = "#0052CD", ...props }) => (
+export const AddNewIcon = ({ color = '#0052CD', ...props }) => (
   <svg
     width="20"
     height="18"
@@ -236,7 +236,7 @@ export const RemoveIcon = (props: any) => (
   </svg>
 );
 
-export const SendIcon = ({ color = "#0052CD", ...props }) => (
+export const SendIcon = ({ color = '#0052CD', ...props }) => (
   <svg
     width="40"
     height="40"
@@ -288,7 +288,7 @@ export const GoogleIcon = ({ ...props }) => (
   </svg>
 );
 
-export const MoreIcon = ({ color = "#8C8C8C", ...props }) => (
+export const MoreIcon = ({ color = '#8C8C8C', ...props }) => (
   <svg
     width="24"
     height="24"
@@ -303,7 +303,7 @@ export const MoreIcon = ({ color = "#8C8C8C", ...props }) => (
   </svg>
 );
 
-export const SearchIcon = ({ color = "#8C8C8C", ...props }) => (
+export const SearchIcon = ({ color = '#8C8C8C', ...props }) => (
   <svg
     width="24"
     height="24"
@@ -318,7 +318,7 @@ export const SearchIcon = ({ color = "#8C8C8C", ...props }) => (
   </svg>
 );
 
-export const NoMessages = ({ color = "#8C8C8C", ...props }) => (
+export const NoMessages = ({ color = '#8C8C8C', ...props }) => (
   <svg
     width="240"
     height="154"

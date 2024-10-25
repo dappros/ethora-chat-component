@@ -1,5 +1,5 @@
-import React, { forwardRef, useState } from "react";
-import { IMessage, MessageProps } from "../types/types";
+import React, { forwardRef, useState } from 'react';
+import { IMessage, MessageProps } from '../types/types';
 import {
   CustomMessageTimestamp,
   CustomMessageContainer,
@@ -8,19 +8,19 @@ import {
   CustomUserName,
   CustomMessagePhoto,
   CustomMessagePhotoContainer,
-} from "./styled/StyledComponents";
-import MediaMessage from "./MainComponents/MediaMessage";
-import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "../roomStore";
+} from './styled/StyledComponents';
+import MediaMessage from './MainComponents/MediaMessage';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '../roomStore';
 import {
   ContextMenu,
   Delimeter,
   MenuItem,
   Overlay,
-} from "./ContextMenu/ContextMenuComponents";
-import { useXmppClient } from "../context/xmppProvider";
-import { deleteRoomMessage } from "../roomStore/roomsSlice";
-import { Avatar } from "./MessageBubble/Avatar";
+} from './ContextMenu/ContextMenuComponents';
+import { useXmppClient } from '../context/xmppProvider';
+import { deleteRoomMessage } from '../roomStore/roomsSlice';
+import { Avatar } from './MessageBubble/Avatar';
 
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
@@ -84,7 +84,7 @@ const Message: React.FC<MessageProps> = forwardRef<
               <CustomMessagePhoto
                 src={
                   message.user.avatar ||
-                  "https://soccerpointeclaire.com/wp-content/uploads/2021/06/default-profile-pic-e1513291410505.jpg"
+                  'https://soccerpointeclaire.com/wp-content/uploads/2021/06/default-profile-pic-e1513291410505.jpg'
                 }
                 alt="userIcon"
               />
@@ -99,7 +99,7 @@ const Message: React.FC<MessageProps> = forwardRef<
               {message.user.name}
             </CustomUserName>
           )}
-          {message?.isMediafile === "true" ? (
+          {message?.isMediafile === 'true' ? (
             <MediaMessage
               mimeType={message.mimetype}
               messageText={message.locationPreview}
@@ -110,7 +110,7 @@ const Message: React.FC<MessageProps> = forwardRef<
             <CustomMessageText>{message.body}</CustomMessageText>
           )}
           <CustomMessageTimestamp>
-            {message?.pending && "sending..."}
+            {message?.pending && 'sending...'}
             {new Date(message.date).toLocaleTimeString()}
           </CustomMessageTimestamp>
         </CustomMessageBubble>
@@ -124,19 +124,19 @@ const Message: React.FC<MessageProps> = forwardRef<
               style={{ top: contextMenu.y, left: contextMenu.x }}
               onClick={closeContextMenu}
             >
-              <MenuItem onClick={() => console.log("Send coins")}>
+              <MenuItem onClick={() => console.log('Send coins')}>
                 Send coins
               </MenuItem>
               <Delimeter />
-              <MenuItem onClick={() => console.log("Send item")}>
+              <MenuItem onClick={() => console.log('Send item')}>
                 Send item
               </MenuItem>
               <Delimeter />
-              <MenuItem onClick={() => console.log("Reply")}>Reply</MenuItem>
+              <MenuItem onClick={() => console.log('Reply')}>Reply</MenuItem>
               <Delimeter />
               <MenuItem
                 onClick={() => {
-                  console.log("Copy");
+                  console.log('Copy');
                   handleCopyMessage(message.body);
                 }}
               >
@@ -145,14 +145,14 @@ const Message: React.FC<MessageProps> = forwardRef<
               <Delimeter />
               <MenuItem
                 onClick={() => {
-                  console.log("Delete");
+                  console.log('Delete');
                   // handleDeleteMessage(message.roomJID, message.id);
                 }}
               >
                 Delete
               </MenuItem>
               <Delimeter />
-              <MenuItem onClick={() => console.log("Report")}>Report</MenuItem>
+              <MenuItem onClick={() => console.log('Report')}>Report</MenuItem>
             </ContextMenu>
           </Overlay>
         </>

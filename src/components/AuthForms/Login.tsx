@@ -1,20 +1,20 @@
-import React, { useState, useEffect, useCallback } from "react";
-import styled from "styled-components";
-import { MessageInput } from "../styled/StyledComponents";
-import Button from "../styled/Button";
-import { GoogleIcon } from "../../assets/icons";
-import { IConfig } from "../../types/types";
+import React, { useState, useEffect, useCallback } from 'react';
+import styled from 'styled-components';
+import { MessageInput } from '../styled/StyledComponents';
+import Button from '../styled/Button';
+import { GoogleIcon } from '../../assets/icons';
+import { IConfig } from '../../types/types';
 import {
   checkEmailExist,
   loginEmail,
   loginSocial,
   registerSocial,
   signInWithGoogle,
-} from "../../networking/apiClient";
-import { useDispatch } from "react-redux";
-import { useLocalStorage } from "../../hooks/useLocalStorage";
-import { setUser } from "../../roomStore/chatSettingsSlice";
-import { localStorageConstants } from "../../helpers/constants/LOCAL_STORAGE";
+} from '../../networking/apiClient';
+import { useDispatch } from 'react-redux';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { setUser } from '../../roomStore/chatSettingsSlice';
+import { localStorageConstants } from '../../helpers/constants/LOCAL_STORAGE';
 
 interface LoginFormProps {
   config?: IConfig;
@@ -23,21 +23,21 @@ interface LoginFormProps {
 const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
   const dispatch = useDispatch();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState({ email: "", password: "" });
+  const [errors, setErrors] = useState({ email: '', password: '' });
 
   const validateForm = () => {
-    let emailError = "";
-    let passwordError = "";
+    let emailError = '';
+    let passwordError = '';
 
     if (!/\S+@\S+\.\S+/.test(email)) {
-      emailError = "Invalid email format";
+      emailError = 'Invalid email format';
     }
 
     if (password.length < 6) {
-      passwordError = "Password must be at least 6 characters long";
+      passwordError = 'Password must be at least 6 characters long';
     }
 
     return { emailError, passwordError };
@@ -51,7 +51,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
       if (authData?.response?.status === 401) {
         setErrors((prev) => ({
           ...prev,
-          password: "You entered wrong data. Try again",
+          password: 'You entered wrong data. Try again',
         }));
         setIsLoading(false);
         return null;
@@ -65,7 +65,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
       dispatch(setUser(user));
       useLocalStorage(localStorageConstants.ETHORA_USER).set(user);
     } catch (error) {
-      console.error("Login failed:", error);
+      console.error('Login failed:', error);
       setIsLoading(false);
 
       return null;
@@ -77,29 +77,29 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
     setIsLoading(true);
 
     e.preventDefault();
-    const loginType = "google";
+    const loginType = 'google';
 
     try {
       const res = await signInWithGoogle();
 
       const emailExist = await checkEmailExist(
-        res.user?.providerData[0].email || ""
+        res.user?.providerData[0].email || ''
       );
 
       if (!emailExist.data.success) {
         try {
           await registerSocial(
-            res.idToken || "",
-            res.credential?.accessToken || "",
-            "",
+            res.idToken || '',
+            res.credential?.accessToken || '',
+            '',
             loginType
           );
           const loginRes = await loginSocial(
-            res.idToken || "",
-            res.credential?.accessToken || "",
+            res.idToken || '',
+            res.credential?.accessToken || '',
             loginType
           );
-          console.log("google log after register res", loginRes);
+          console.log('google log after register res', loginRes);
 
           const user = {
             ...loginRes.data.user,
@@ -109,7 +109,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
           dispatch(setUser(user));
           useLocalStorage(localStorageConstants.ETHORA_USER).set(user);
         } catch (error) {
-          console.log("error registering user viag google");
+          console.log('error registering user viag google');
         }
       }
       if (res.idToken && res.credential && res.credential.accessToken) {
@@ -118,7 +118,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
           res.credential.accessToken,
           loginType
         );
-        console.log("google log res", loginRes);
+        console.log('google log res', loginRes);
         const user = {
           ...loginRes.data.user,
           token: loginRes.data.token,
@@ -150,10 +150,10 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
         <div
           style={{
             height: 40,
-            width: "100%",
-            display: "flex",
-            gap: "4px",
-            flexDirection: "column",
+            width: '100%',
+            display: 'flex',
+            gap: '4px',
+            flexDirection: 'column',
           }}
         >
           <MessageInput
@@ -163,7 +163,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
             onChange={(e) => setEmail(e.target.value)}
             style={{
               border: `1px solid ${
-                config ? config.colors?.primary : "#3498db"
+                config ? config.colors?.primary : '#3498db'
               }`,
             }}
           />
@@ -173,10 +173,10 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
         <div
           style={{
             height: 40,
-            width: "100%",
-            display: "flex",
-            gap: "4px",
-            flexDirection: "column",
+            width: '100%',
+            display: 'flex',
+            gap: '4px',
+            flexDirection: 'column',
           }}
         >
           <MessageInput
@@ -186,7 +186,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
             onChange={(e) => setPassword(e.target.value)}
             style={{
               border: `1px solid ${
-                config ? config.colors?.primary : "#3498db"
+                config ? config.colors?.primary : '#3498db'
               }`,
             }}
           />
@@ -195,11 +195,11 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
 
         <Button
           type="submit"
-          text={"Login to Ethora Chat"}
+          text={'Login to Ethora Chat'}
           style={{
-            width: "100%",
-            height: "40px",
-            backgroundColor: config?.colors?.primary || "#0052CD",
+            width: '100%',
+            height: '40px',
+            backgroundColor: config?.colors?.primary || '#0052CD',
           }}
           disabled={isLoading}
           loading={isLoading}
@@ -209,26 +209,26 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
             <Delimiter>or</Delimiter>
             <Button
               onClick={handleGoogleLogin}
-              style={{ width: "100%", height: "40px" }}
+              style={{ width: '100%', height: '40px' }}
               text={<>Login with Google</>}
-              EndIcon={<GoogleIcon style={{ height: "24px" }} />}
+              EndIcon={<GoogleIcon style={{ height: '24px' }} />}
               disabled={isLoading}
             />
           </>
         )}
         <div>
-          Don't have an account?{" "}
+          Don't have an account?{' '}
           <div
             style={{
-              textDecoration: "underline",
-              color: "#0052CD",
-              fontSize: "14px",
-              display: "inline",
-              cursor: "pointer",
-              fontWeight: "400",
+              textDecoration: 'underline',
+              color: '#0052CD',
+              fontSize: '14px',
+              display: 'inline',
+              cursor: 'pointer',
+              fontWeight: '400',
             }}
             onClick={() =>
-              window.open("https://ethora.ethoradev.com/register", "_blank")
+              window.open('https://ethora.ethoradev.com/register', '_blank')
             }
           >
             Sign Up to Ethora
@@ -276,7 +276,7 @@ const Delimiter = styled.div`
 
   &::before,
   &::after {
-    content: "";
+    content: '';
     position: absolute;
     top: 50%;
     width: 45%;

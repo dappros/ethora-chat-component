@@ -1,5 +1,5 @@
-import React, { forwardRef, useState } from "react";
-import { IMessage, MessageProps } from "../types/types";
+import React, { forwardRef, useState } from 'react';
+import { IMessage, MessageProps } from '../types/types';
 import {
   CustomMessageTimestamp,
   CustomMessageContainer,
@@ -8,23 +8,23 @@ import {
   CustomUserName,
   CustomMessagePhoto,
   CustomMessagePhotoContainer,
-} from "./styled/StyledComponents";
-import MediaMessage from "./MainComponents/MediaMessage";
-import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "../roomStore";
+} from './styled/StyledComponents';
+import MediaMessage from './MainComponents/MediaMessage';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '../roomStore';
 import {
   ContextMenu,
   Delimeter,
   MenuItem,
   Overlay,
-} from "./ContextMenu/ContextMenuComponents";
-import { useXmppClient } from "../context/xmppProvider";
-import { deleteRoomMessage } from "../roomStore/roomsSlice";
-import { Avatar } from "./MessageBubble/Avatar";
+} from './ContextMenu/ContextMenuComponents';
+import { useXmppClient } from '../context/xmppProvider';
+import { deleteRoomMessage } from '../roomStore/roomsSlice';
+import { Avatar } from './MessageBubble/Avatar';
 import {
   MESSAGE_INTERACTIONS,
   MESSAGE_INTERACTIONS_ICONS,
-} from "../helpers/constants/MESSAGE_INTERACTIONS";
+} from '../helpers/constants/MESSAGE_INTERACTIONS';
 
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
@@ -92,7 +92,7 @@ const Message: React.FC<MessageProps> = forwardRef<
               <CustomMessagePhoto
                 src={
                   message.user.avatar ||
-                  "https://soccerpointeclaire.com/wp-content/uploads/2021/06/default-profile-pic-e1513291410505.jpg"
+                  'https://soccerpointeclaire.com/wp-content/uploads/2021/06/default-profile-pic-e1513291410505.jpg'
                 }
                 alt="userIcon"
               />
@@ -107,7 +107,7 @@ const Message: React.FC<MessageProps> = forwardRef<
               {message.user.name}
             </CustomUserName>
           )}
-          {message?.isMediafile === "true" ? (
+          {message?.isMediafile === 'true' ? (
             <MediaMessage
               mimeType={message.mimetype}
               messageText={message.locationPreview}
@@ -118,7 +118,7 @@ const Message: React.FC<MessageProps> = forwardRef<
             <CustomMessageText>{message.body}</CustomMessageText>
           )}
           <CustomMessageTimestamp>
-            {message?.pending && "sending..."}
+            {message?.pending && 'sending...'}
             {new Date(message.date).toLocaleTimeString()}
           </CustomMessageTimestamp>
         </CustomMessageBubble>
@@ -136,19 +136,19 @@ const Message: React.FC<MessageProps> = forwardRef<
                 onClick={() => console.log(MESSAGE_INTERACTIONS.SEND_COINS)}
               >
                 {MESSAGE_INTERACTIONS.SEND_COINS}
-                <MESSAGE_INTERACTIONS_ICONS.SEND_COINS />{" "}
+                <MESSAGE_INTERACTIONS_ICONS.SEND_COINS />{' '}
               </MenuItem>
               <Delimeter />
               <MenuItem
                 onClick={() => console.log(MESSAGE_INTERACTIONS.SEND_ITEM)}
               >
                 {MESSAGE_INTERACTIONS.SEND_ITEM}
-                <MESSAGE_INTERACTIONS_ICONS.SEND_ITEM />{" "}
+                <MESSAGE_INTERACTIONS_ICONS.SEND_ITEM />{' '}
               </MenuItem>
               <Delimeter />
               <MenuItem onClick={() => console.log(MESSAGE_INTERACTIONS.REPLY)}>
                 {MESSAGE_INTERACTIONS.REPLY}
-                <MESSAGE_INTERACTIONS_ICONS.REPLY />{" "}
+                <MESSAGE_INTERACTIONS_ICONS.REPLY />{' '}
               </MenuItem>
               <Delimeter />
               <MenuItem
@@ -168,14 +168,14 @@ const Message: React.FC<MessageProps> = forwardRef<
                 }}
               >
                 {MESSAGE_INTERACTIONS.DELETE}
-                <MESSAGE_INTERACTIONS_ICONS.DELETE />{" "}
+                <MESSAGE_INTERACTIONS_ICONS.DELETE />{' '}
               </MenuItem>
               <Delimeter />
               <MenuItem
                 onClick={() => console.log(MESSAGE_INTERACTIONS.REPORT)}
               >
                 {MESSAGE_INTERACTIONS.REPORT}
-                <MESSAGE_INTERACTIONS_ICONS.REPORT />{" "}
+                <MESSAGE_INTERACTIONS_ICONS.REPORT />{' '}
               </MenuItem>
             </ContextMenu>
           </Overlay>

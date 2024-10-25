@@ -1,4 +1,4 @@
-import styled, { keyframes } from "styled-components";
+import styled, { keyframes } from 'styled-components';
 
 // Keyframes for pulsing animation
 const pulse = keyframes`
@@ -46,10 +46,10 @@ const InnerCircle = styled.div`
 const RecordingIndicator = () => {
   return (
     <RecordingIndicatorWrapper>
-        <OuterCircle />
-        <InnerCircle />
-      </RecordingIndicatorWrapper>
-  )
-}
+      <OuterCircle />
+      <InnerCircle />
+    </RecordingIndicatorWrapper>
+  );
+};
 
-export default RecordingIndicator
+export default RecordingIndicator;

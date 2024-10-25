@@ -23,7 +23,7 @@ Currently Ethora codebase is managed by Ethora Foundation which is governed by D
 
 Check our license https://github.com/dappros/ethora/blob/main/LICENSE to make sure you understand how Ethora engine is distributed and that you are fine with your work being distributed this way. Do not contribute any work which you don't want to be distributed.
 
-Please note that the company running this project (Dappros) and RTC infrastructure (DeepX) may be in some cases distributing this product (Ethora) under a commercial license to enterprise customers. This is done in order to help finance this project's R&D. **Please do not make code, documentation or other project contributions in cases where you are not happy for them to be included into our commercial versions too**. **Please do not make code, documentation or other project contributions in cases where you would like to retain or claim any intellectual property ownership over such contributions** or other parts of the project. In case you would like to restrict your contribution solely to the open source branch of the project or in case you have any other concerns around these matters, please **contact us first** https://www.dappros.com/contact-us/ to discuss this prior to your contribution. We are open in the future to maintain two versions of the product, an open-source and closed sourced one, or simply maintain the open-source one only, once this becomes practical. At the moment (August 2023) this isn't practical as we don't receive funding for the open source project maintenance and we don't recieve any significant code contributions from the open source community outside of our team. As soon as this situation changes we'll be happy to refine the approach on contributions accordingly. 
+Please note that the company running this project (Dappros) and RTC infrastructure (DeepX) may be in some cases distributing this product (Ethora) under a commercial license to enterprise customers. This is done in order to help finance this project's R&D. **Please do not make code, documentation or other project contributions in cases where you are not happy for them to be included into our commercial versions too**. **Please do not make code, documentation or other project contributions in cases where you would like to retain or claim any intellectual property ownership over such contributions** or other parts of the project. In case you would like to restrict your contribution solely to the open source branch of the project or in case you have any other concerns around these matters, please **contact us first** https://www.dappros.com/contact-us/ to discuss this prior to your contribution. We are open in the future to maintain two versions of the product, an open-source and closed sourced one, or simply maintain the open-source one only, once this becomes practical. At the moment (August 2023) this isn't practical as we don't receive funding for the open source project maintenance and we don't recieve any significant code contributions from the open source community outside of our team. As soon as this situation changes we'll be happy to refine the approach on contributions accordingly.
 
 ## Copyright assignment
 
@@ -36,7 +36,7 @@ Some of the reasoning why copyright assingment is needed can be found in famous 
 
 #### Create a new issue
 
-If you spot a problem with the docs, [search if an issue already exists](https://docs.github.com/en/github/searching-for-information-on-github/searching-on-github/searching-issues-and-pull-requests#search-by-the-title-body-or-comments). 
+If you spot a problem with the docs, [search if an issue already exists](https://docs.github.com/en/github/searching-for-information-on-github/searching-on-github/searching-issues-and-pull-requests#search-by-the-title-body-or-comments).
 
 #### Solve an issue
 
@@ -47,7 +47,9 @@ Scan through our [existing issues](https://github.com/dappros/ethora/issues) to 
 #### Make changes locally
 
 1. Fork the repository.
+
 - Using GitHub Desktop:
+
   - [Getting started with GitHub Desktop](https://docs.github.com/en/desktop/installing-and-configuring-github-desktop/getting-started-with-github-desktop) will guide you through setting up Desktop.
   - Once Desktop is set up, you can use it to [fork the repo](https://docs.github.com/en/desktop/contributing-and-collaborating-using-github-desktop/cloning-and-forking-repositories-from-github-desktop)!
 
@@ -65,10 +67,11 @@ Commit the changes once you are happy with them. Don't forget to self-review to 
 ### Pull Request
 
 When you're finished with the changes, create a pull request, also known as a PR.
+
 - Fill the "Ready for review" template so that we can review your PR. This template helps reviewers understand your changes as well as the purpose of your pull request.
 - Don't forget to [link PR to issue](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue) if you are solving one.
 - Enable the checkbox to [allow maintainer edits](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/allowing-changes-to-a-pull-request-branch-created-from-a-fork) so the branch can be updated for a merge.
-Once you submit your PR, a Docs team member will review your proposal. We may ask questions or request additional information.
+  Once you submit your PR, a Docs team member will review your proposal. We may ask questions or request additional information.
 - We may ask for changes to be made before a PR can be merged, either using [suggested changes](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/incorporating-feedback-in-your-pull-request) or pull request comments. You can apply suggested changes directly through the UI. You can make any other changes in your fork, then commit them to your branch.
 - As you update your PR and apply changes, mark each conversation as [resolved](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/commenting-on-a-pull-request#resolving-conversations).
 - If you run into any merge issues, checkout this [git tutorial](https://github.com/skills/resolve-merge-conflicts) to help you resolve merge conflicts and other issues.

@@ -1,7 +1,7 @@
-import React from "react";
-import styled from "styled-components";
-import { CloseIcon, DownloadIcon } from "../../assets/icons";
-import { Overlay, StyledModal } from "./Modal";
+import React from 'react';
+import styled from 'styled-components';
+import { CloseIcon, DownloadIcon } from '../../assets/icons';
+import { Overlay, StyledModal } from './Modal';
 
 interface CustomMessageVideoProps {
   videoUrl: string | undefined;
@@ -59,15 +59,15 @@ export const IconButton = styled.button`
 const download = (link: string) => {
   console.log(link);
   fetch(link, {
-    method: "GET",
+    method: 'GET',
     headers: {},
   })
     .then((response) => {
       response.arrayBuffer().then(function (buffer) {
         const url = window.URL.createObjectURL(new Blob([buffer]));
-        const link = document.createElement("a");
+        const link = document.createElement('a');
         link.href = url;
-        link.setAttribute("download", "MEDIA-ETHORA.mp4");
+        link.setAttribute('download', 'MEDIA-ETHORA.mp4');
         document.body.appendChild(link);
         link.click();
       });
@@ -99,7 +99,7 @@ const CustomMessageVideo: React.FC<CustomMessageVideoProps> = ({
         controls
         autoPlay={false}
         onClick={(e) => handleOpen(e)}
-        style={{ cursor: "pointer", maxWidth: "100%" }}
+        style={{ cursor: 'pointer', maxWidth: '100%' }}
       />
       {open && (
         <Overlay>
@@ -111,7 +111,7 @@ const CustomMessageVideo: React.FC<CustomMessageVideoProps> = ({
                   <IconButton
                     onClick={downloadVideo}
                     aria-label="Download"
-                    style={{ height: "50px", width: "50px" }}
+                    style={{ height: '50px', width: '50px' }}
                   >
                     <DownloadIcon />
                   </IconButton>
