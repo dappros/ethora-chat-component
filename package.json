@@ -12,7 +12,8 @@
     "build": "tsc && vite build",
     "build:lib": "tsc --p ./tsconfig-build.json && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint:fix": "npx eslint --fix && prettier . --write"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.2.1",
@@ -30,11 +31,11 @@
     "redux-saga": "^1.3.0",
     "styled-components": "^6.1.8",
     "uuid": "^9.0.1",
-    "vite-plugin-dts": "^3.9.1",
     "wavesurfer.js": "^7.8.8"
   },
   "devDependencies": {
     "@types/node": "^20.14.9",
+    "vite-plugin-dts": "^3.9.1",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@types/xmpp__client": "^0.13.3",
@@ -44,9 +45,11 @@
     "eslint": "^8.57.0",
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-react-refresh": "^0.4.7",
-    "prettier": "^3.3.3",
     "typescript": "^5.2.2",
-    "vite": "^5.3.1"
+    "vite": "^5.3.1",
+    "prettier": "3.2.5",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.1.3"
   },
   "description": "1. npm create vite@latest 2. select name of project, select type (react/js) 3. cd project-name 4. npm i 5. npm i @ethora/chat-component 6. go to file src/App.tsx and replace it with this code",
   "directories": {
