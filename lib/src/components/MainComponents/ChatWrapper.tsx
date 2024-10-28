@@ -123,20 +123,14 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     return <LoginForm config={config} />;
 
   return (
-    <ChatWrapperBox>
+    <>
       {showModal && (
         <Overlay>
           <StyledModal>Unsuccessfull login. Try again</StyledModal>
         </Overlay>
       )}
       {/* {isInited ?? !loading ? ( */}
-      <div
-        style={{
-          display: 'flex',
-          height: '100%',
-          width: '100%',
-        }}
-      >
+      <>
         {isInited ? (
           <>
             {!config.disableRooms && rooms && (
@@ -155,8 +149,8 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
         ) : (
           <Loader color={config?.colors?.primary} />
         )}
-      </div>
-    </ChatWrapperBox>
+      </>
+    </>
   );
 };
 

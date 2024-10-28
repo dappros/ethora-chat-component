@@ -1,16 +1,27 @@
-import React from "react";
-import "./App.css";
-import { ReduxWrapper } from "./components/MainComponents/ReduxWrapper";
-import { config } from "./firebase-config";
+import React from 'react';
+import './App.css';
+import { ReduxWrapper } from './components/MainComponents/ReduxWrapper';
+import { config } from './firebase-config';
 
 function App() {
   return (
-    <div className="App" style={{ height: "100%" }}>
-      <ReduxWrapper />
+    <div className="App" style={{ height: '100%' }}>
+      <ReduxWrapper
+        roomJID="8ef200ac9dffd7b7b6ba0ee5a9df4d8b33c38877eb771ca1f5a3e6966b9d39f0@conference.xmpp.ethoradev.com"
+        config={{
+          // disableHeader: true,
+          // disableMedia: true,
+          disableRooms: true,
+          colors: { primary: '#5E3FDE', secondary: '#E1E4FE' },
+          defaultLogin: true,
+          googleLogin: {
+            firebaseConfig: config,
+            enabled: false,
+          },
+        }}
+      />
     </div>
   );
 }
 
 export default App;
-
-//to="5f9a4603b2b5bbfa6b228b642127c56d03b778ad594c52b755e605c977303979@conference.xmpp.ethoradev.com/0x6816810a7_fe04_f_c9b800f9_d11564_c0e4a_e_c25_d78"

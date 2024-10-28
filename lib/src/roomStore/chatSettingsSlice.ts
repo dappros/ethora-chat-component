@@ -1,5 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { IConfig, User } from '../types/types';
+import { localStorageConstants } from '../helpers/constants/LOCAL_STORAGE';
 
 interface ChatState {
   user: User;
@@ -8,6 +9,7 @@ interface ChatState {
 }
 
 const unpackAndTransform = (input: User): User => {
+  console.log(input);
   return {
     description: '',
     token: input?.token || '',
@@ -88,9 +90,23 @@ export const chatSlice = createSlice({
     setConfig: (state, action: PayloadAction<IConfig | undefined>) => {
       state.config = action.payload;
     },
+    refreshTokens: (
+      state,
+      action: PayloadAction<{ token: string; refreshToken: string }>
+    ) => {
+      console.log('changing tokens');
+      state.user.refreshToken = action.payload.refreshToken;
+      state.user.token = action.payload.token;
+
+      localStorage.setItem(
+        localStorageConstants.ETHORA_USER,
+        JSON.stringify(state.user)
+      );
+    },
   },
 });
 
-export const { setUser, setDefaultChatRooms, setConfig } = chatSlice.actions;
+export const { setUser, setDefaultChatRooms, setConfig, refreshTokens } =
+  chatSlice.actions;
 
 export default chatSlice.reducer;

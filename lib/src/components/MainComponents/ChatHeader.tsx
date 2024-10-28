@@ -12,6 +12,7 @@ import { RootState } from '../../roomStore';
 import { useDispatch, useSelector } from 'react-redux';
 import Composing from '../styled/StyledInputComponents/Composing';
 import { setCurrentRoom, setIsLoading } from '../../roomStore/roomsSlice';
+import { SearchInput } from '../InputComponents/Search';
 
 interface ChatHeaderProps {
   currentRoom: IRoom;
@@ -73,8 +74,8 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ currentRoom }) => {
       </div>
 
       <div style={{ display: 'flex', gap: 16 }}>
-        {/* <Button style={{ padding: 8 }} EndIcon={<SearchIcon />}></Button> */}
-        <Button style={{ padding: 8 }} EndIcon={<MoreIcon />}></Button>
+        <SearchInput animated icon={<SearchIcon />} />
+        <Button style={{ padding: 8 }} EndIcon={<MoreIcon />} />
       </div>
     </ChatContainerHeader>
   );

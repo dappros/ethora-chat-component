@@ -1,9 +1,9 @@
 import React from 'react';
-import styled from 'styled-components';
 import { IMessage } from '../../types/types';
 import FileDownload from '../styled/UnsupportedType';
 import CustomMessageImage from '../styled/MessageImage';
 import CustomMessageVideo from '../styled/VideoMessage';
+import AudioMessage from '../styled/AudioMessage';
 
 interface MediaMessageProps {
   mimeType?: string;
@@ -11,10 +11,6 @@ interface MediaMessageProps {
   location?: string;
   messageText?: string;
 }
-
-const Audio = styled.audio`
-  width: 300px;
-`;
 
 const MediaMessage: React.FC<MediaMessageProps> = ({
   mimeType,
@@ -28,8 +24,9 @@ const MediaMessage: React.FC<MediaMessageProps> = ({
         return <CustomMessageImage imageAlt="image" imageUrl={messageText} />;
       case mimeType.startsWith('video/'):
         return <CustomMessageVideo videoUrl={location} />;
-      case mimeType.startsWith('audio/'):
-        return <Audio src={location} controls />;
+      case mimeType.startsWith('audio/') ||
+        mimeType.includes('application/octet-stream'):
+        return <AudioMessage src={location} />;
       default:
         return (
           <FileDownload

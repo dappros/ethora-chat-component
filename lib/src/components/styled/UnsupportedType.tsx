@@ -6,10 +6,13 @@ import {
 } from './StyledInputComponents/MediaComponents';
 import { IconButton } from './StyledComponents';
 import { DownloadIcon } from '../../assets/icons';
+import { IConfig } from '../../types/types';
+import { ActionButton } from './ActionButton';
 
 interface FileDownloadProps {
   fileUrl: string;
   fileName: string;
+  config?: IConfig;
 }
 
 const downloadFile = (fileUrl: string, fileName: string) => {
@@ -32,13 +35,15 @@ const downloadFile = (fileUrl: string, fileName: string) => {
     });
 };
 
-const FileDownload: React.FC<FileDownloadProps> = ({ fileUrl, fileName }) => {
+const FileDownload: React.FC<FileDownloadProps> = ({
+  fileUrl,
+  fileName,
+  config,
+}) => {
   return (
     <UnsupportedContainer onClick={() => downloadFile(fileUrl, fileName)}>
       <FileName>{fileName}</FileName>
-      <IconButton>
-        <DownloadIcon />
-      </IconButton>
+      <ActionButton />
     </UnsupportedContainer>
   );
 };

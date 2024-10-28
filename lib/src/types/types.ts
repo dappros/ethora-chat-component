@@ -131,6 +131,7 @@ export interface IConfig {
   };
   disableRooms?: boolean;
   defaultLogin?: boolean;
+  disableInteractions?: boolean;
 }
 
 export interface StorageUser {
@@ -157,3 +158,5 @@ export interface MessageProps {
   message: IMessage;
   isUser: boolean;
 }
+
+export interface MediaMessageType {}

@@ -132,65 +132,41 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     const sendMedia = useCallback(
       async (data: any, type: string) => {
         let mediaData: FormData | null = new FormData();
-        if (type === 'audio') {
-          mediaData.append(
-            'audio',
-            data,
-            `${new Date().getTime()}-recording-${
-              user.firstName + ' ' + user.lastName
-            }.webm`
-          );
-        } else {
-          mediaData.append(
-            'media',
-            data,
-            `${new Date().getTime()}-media-${
-              user.firstName + ' ' + user.lastName
-            }`
-          );
-        }
-        uploadFile(mediaData, user.token)
+        mediaData.append('files', data);
+
+        uploadFile(mediaData)
           .then((response) => {
             console.log('Upload successful', response);
-          })
-
-          .catch((error) => {
-            console.error('Upload failed', error);
-          })
-          .then((result: any) => {
-            console.log(result);
-            let userAvatar = '';
-            result.data.results.map(async (item: any) => {
+            response.data.results.map(async (item: any) => {
               const data = {
                 firstName: user.firstName,
                 lastName: user.lastName,
                 walletAddress: user.walletAddress,
-                // chatName: activeRoom.name,
-                userAvatar: userAvatar,
                 createdAt: item.createdAt,
                 expiresAt: item.expiresAt,
                 fileName: item.filename,
-                isVisible: item.isVisible,
+                isVisible: item?.isVisible,
                 location: item.location,
                 locationPreview: item.locationPreview,
                 mimetype: item.mimetype,
-                originalName: item.originalname,
-                ownerKey: item.ownerKey,
+                originalName: item?.originalname,
+                ownerKey: item?.ownerKey,
                 size: item.size,
                 duration: item?.duration,
-                updatedAt: item.updatedAt,
-                userId: item.userId,
-                waveForm: '',
-                attachmentId: item._id,
+                updatedAt: item?.updatedAt,
+                userId: item?.userId,
+                attachmentId: item?._id,
                 wrappable: true,
                 roomJid: activeRoomJID,
+                isPrivate: item?.isPrivate,
+                __v: item.__v,
               };
               console.log(data, 'data to send media');
               client?.sendMediaMessageStanza(activeRoomJID, data);
             });
           })
           .catch((error) => {
-            console.log(error);
+            console.error('Upload failed', error);
           });
       },
       [client, activeRoomJID]
@@ -252,7 +228,6 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     return (
       <ChatContainer
         style={{
-          maxHeight: '100vh',
           overflow: 'auto',
           ...MainComponentStyles,
         }}

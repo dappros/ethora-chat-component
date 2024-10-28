@@ -7,6 +7,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { setUser } from '../../roomStore/chatSettingsSlice';
 import { loginEmail, loginViaJwt } from '../../networking/apiClient';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { localStorageConstants } from '../../helpers/constants/LOCAL_STORAGE';
 
 interface LoginWrapperProps {
   user?: { email: string; password: string };

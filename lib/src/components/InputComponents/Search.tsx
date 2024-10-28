@@ -15,6 +15,7 @@ const SearchInputWrapper = styled.div<{
   position: relative;
   display: flex;
   align-items: center;
+  justify-content: center;
   background-color: #f5f7f9;
   border-radius: 16px;
   height: 48px;
@@ -25,7 +26,7 @@ const SearchInputWrapper = styled.div<{
     animated &&
     css`
       width: ${expanded ? '300px' : '48px'};
-      justify-content: ${direction === 'right' ? 'flex-start' : 'flex-end'};
+      justify-content: 'center';
       cursor: pointer;
 
       padding: 0 ${expanded ? '16px' : '0'};
@@ -43,7 +44,7 @@ const StyledInput = styled.input<{ animated?: boolean; expanded?: boolean }>`
   border: none;
   outline: none;
   width: ${({ animated, expanded }) =>
-    animated ? (expanded ? '100%' : '0') : '100%'};
+    animated ? (expanded ? '100%' : '0px') : '100%'};
   font-size: 16px;
   height: 48px;
   color: #000;

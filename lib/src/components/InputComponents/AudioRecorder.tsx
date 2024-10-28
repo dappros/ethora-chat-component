@@ -1,11 +1,11 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-
+import React, { useState, useRef, useCallback } from 'react';
 import {
   RecordContainer,
   Timer,
 } from '../styled/StyledInputComponents/StyledInputComponents';
 import { RecordIcon, RemoveIcon, SendIcon } from '../../assets/icons';
 import Button from '../styled/Button';
+import RecordingIndicator from './RecordingIndicator';
 
 interface AudioRecorderProps {
   setIsRecording: (state: boolean) => void;
@@ -18,16 +18,11 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
   isRecording,
   handleSendClick,
 }) => {
-  const [audioURL, setAudioURL] = useState<string | null>(null);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [timer, setTimer] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const dataArrayRef = useRef<Uint8Array | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
 
   const formatTime = (time: number) => {
     const minutes = Math.floor(time / 60);
@@ -49,118 +44,83 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
     }
   }, []);
 
+  const resetState = () => {
+    setAudioBlob(null);
+    setTimer(0);
+    setIsRecording(false);
+    audioChunksRef.current = [];
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stream
+        .getTracks()
+        .forEach((track) => track.stop());
+    }
+  };
+
   const startRecording = useCallback(async () => {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const mediaRecorder = new MediaRecorder(stream);
     mediaRecorderRef.current = mediaRecorder;
-    audioContextRef.current = new AudioContext();
-    const source = audioContextRef.current.createMediaStreamSource(stream);
-    const analyser = audioContextRef.current.createAnalyser();
-    source.connect(analyser);
-    analyser.fftSize = 256;
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-    analyserRef.current = analyser;
-    dataArrayRef.current = dataArray;
 
     mediaRecorder.ondataavailable = (event) => {
       audioChunksRef.current.push(event.data);
     };
 
     mediaRecorder.onstop = () => {
-      const audioBlob = new Blob(audioChunksRef.current, {
-        type: 'audio/webm',
-      });
-      const audioUrl = URL.createObjectURL(audioBlob);
-      setAudioURL(audioUrl);
-      handleSendClick(audioBlob); // Pass the audio blob to the parent component
-      console.log(audioBlob); // Log the audio object
+      const audioBlob = new Blob(audioChunksRef.current);
+      setAudioBlob(audioBlob);
     };
 
     audioChunksRef.current = [];
     mediaRecorder.start();
     setIsRecording(true);
     startTimer();
-  }, [startTimer, setIsRecording, handleSendClick]);
+  }, [startTimer, setIsRecording]);
 
   const stopRecording = () => {
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
-      setIsRecording(false);
       stopTimer();
-      setTimer(0);
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
+      resetState(); // Fully reset the state without sending audio
     }
   };
-
-  const drawWaveform = useCallback(() => {
-    if (!canvasRef.current || !analyserRef.current || !dataArrayRef.current) {
-      return;
-    }
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    const analyser = analyserRef.current;
-    const dataArray = dataArrayRef.current;
-
-    const draw = () => {
-      if (!isRecording) return;
-
-      analyser.getByteTimeDomainData(dataArray);
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
-
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'; // Transparent background
-        ctx.fillRect(0, 0, canvas.width, canvas.height); // Fill with transparent color
-
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = 'rgb(0, 0, 255)'; // Line color
-
-        const sliceWidth = (canvas.width * 1.0) / dataArray.length;
-
-        for (let i = 0; i < dataArray.length; i++) {
-          const v = dataArray[i] / 128.0; // Normalize
-          const height = (v * canvas.height) / 2; // Get height based on sensitivity
-          const x = i * sliceWidth; // X position
-
-          ctx.beginPath();
-          ctx.moveTo(x, canvas.height / 2 - height);
-          ctx.lineTo(x, canvas.height / 2 + height); // Draw vertical line
-          ctx.stroke();
-        }
-      }
-      animationFrameRef.current = requestAnimationFrame(draw);
-    };
-
-    draw();
-  }, [isRecording]);
-
-  useEffect(() => {
-    if (isRecording) {
-      drawWaveform();
-    }
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, [isRecording, drawWaveform]);
 
   const sendAudio = () => {
-    console.log('sent audio', audioURL);
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop(); // Stop recording
+      stopTimer();
+
+      // On stop, send the audio after it's available
+      mediaRecorderRef.current.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current);
+        handleSendClick(audioBlob);
+        // downloadAudio(audioBlob); // Automatically save the audio
+        resetState(); // Reset after sending
+      };
+    }
   };
 
-  return isRecording ? (
+  const downloadAudio = (blob: Blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'recording.x-m4a'; // Change the file name if needed
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  return isRecording || audioBlob ? (
     <RecordContainer>
-      <Button
-        onClick={stopRecording}
-        disabled={!isRecording}
-        EndIcon={<RemoveIcon />}
-      />
-      <canvas ref={canvasRef} width="600" height="70" />
-      <Timer>{formatTime(timer)}</Timer>
-      <Button onClick={sendAudio} disabled={!audioURL} EndIcon={<SendIcon />} />
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        {isRecording && <RecordingIndicator />}
+        <Timer>{formatTime(timer)}</Timer>
+      </div>
+
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <Button onClick={stopRecording} EndIcon={<RemoveIcon />} unstyled />
+        <Button onClick={sendAudio} EndIcon={<SendIcon />} unstyled />
+      </div>
     </RecordContainer>
   ) : (
     <Button onClick={startRecording} EndIcon={<RecordIcon />} />

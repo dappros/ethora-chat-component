@@ -228,7 +228,6 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     return (
       <ChatContainer
         style={{
-          maxHeight: '100vh',
           overflow: 'auto',
           ...MainComponentStyles,
         }}
