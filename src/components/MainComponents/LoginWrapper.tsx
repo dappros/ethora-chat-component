@@ -5,9 +5,11 @@ import LoginForm from '../AuthForms/Login';
 import { RootState } from '../../roomStore';
 import { useDispatch, useSelector } from 'react-redux';
 import { setUser } from '../../roomStore/chatSettingsSlice';
-import { loginEmail, loginViaJwt } from '../../networking/apiClient';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
-import { localStorageConstants } from '../../helpers/constants/LOCAL_STORAGE';
+import {
+  loginEmail,
+  loginViaJwt,
+} from '../../networking/api-requests/auth.api';
 
 interface LoginWrapperProps {
   user?: { email: string; password: string };

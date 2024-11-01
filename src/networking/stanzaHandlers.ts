@@ -1,4 +1,3 @@
-import { xml } from '@xmpp/client';
 import { Element } from 'ltx';
 import { store } from '../roomStore';
 import {
@@ -6,6 +5,7 @@ import {
   addRoomMessage,
   setComposing,
   setCurrentRoom,
+  setRoomRole,
 } from '../roomStore/roomsSlice';
 import { IRoom } from '../types/types';
 
@@ -211,7 +211,7 @@ const onPresenceInRoom = (stanza: Element | any) => {
   if (stanza.attrs.id === 'presenceInRoom') {
     const roomJID: string = stanza.attrs.from.split('/')[0];
     const role: string = stanza?.children[1]?.children[0]?.attrs.role;
-    // console.log({ roomJID, role });
+    store.dispatch(setRoomRole({ chatJID: roomJID, role: role }));
   }
 };
 
@@ -219,7 +219,7 @@ const onGetLastMessageArchive = (stanza: Element, xmpp: any) => {
   if (stanza.attrs.id === 'sendMessage') {
     const data = stanza.getChild('stanza-id');
     if (data) {
-      xmpp.getLastMessageArchive(data.attrs.by);
+      xmpp.getLastMessageArchiveStanza(data.attrs.by);
       return;
     }
     return onMessageHistory(stanza);
@@ -256,12 +256,11 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
                 ? result?.attrs.room_thumbnail
                 : null,
           };
-          console.log('roomData', roomData);
           store.dispatch(addRoom({ roomData }));
           if (!store.getState().rooms.activeRoomJID) {
             store.dispatch(setCurrentRoom({ roomJID: roomData?.jid }));
           }
-          xmpp.presenceInRoom(result.attrs.jid);
+          xmpp.presenceInRoomStanza(result.attrs.jid);
           // if (
           //   currentSavedChatRoom.length > 0 &&
           // ) {

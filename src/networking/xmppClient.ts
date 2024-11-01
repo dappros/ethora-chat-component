@@ -10,6 +10,18 @@ import {
 } from './stanzaHandlers';
 import { Element } from 'ltx';
 
+import { sendMediaMessage } from './xmpp/sendMediaMessage.xmpp';
+import { createTimeoutPromise } from './xmpp/createTimeoutPromise.xmpp';
+import { setChatsPrivateStoreRequest } from './xmpp/setChatsPrivateStoreRequest.xmpp';
+import { getChatsPrivateStoreRequest } from './xmpp/getChatsPrivateStoreRequest.xmpp';
+import { actionSetTimestampToPrivateStore } from './xmpp/actionSetTimestampToPrivateStore.xmpp';
+import { sendTypingRequest } from './xmpp/sendTypingRequest.xmpp';
+import { getHistory } from './xmpp/getHistory.xmpp';
+import { sendTextMessage } from './xmpp/sendTextMessage.xmpp';
+import { deleteMessage } from './xmpp/deleteMessage.xmpp';
+import { presenceInRoom } from './xmpp/presenceInRoom.xmpp';
+import { getLastMessageArchive } from './xmpp/getLastMessageArchive.xmpp';
+
 export class XmppClient {
   client!: Client;
   devServer: string | undefined;
@@ -230,201 +242,16 @@ export class XmppClient {
     }
   };
 
-  presenceInRoom = (roomJID: string) => {
-    return new Promise((resolve, reject) => {
-      try {
-        const presence = xml(
-          'presence',
-          {
-            from: this.client.jid?.toString(),
-            to: `${roomJID}/${this.client.jid?.getLocal()}`,
-            id: 'presenceInRoom',
-          },
-          xml('x', { xmlns: 'http://jabber.org/protocol/muc' })
-        );
-
-        this.client
-          .send(presence)
-          .then(() => {
-            console.log('Presence in room successfully sent');
-            resolve('Presence in room sent successfully');
-          })
-          .catch((error: any) => {
-            console.error('Failed to send presence in room:', error);
-            reject(error);
-          });
-      } catch (error) {
-        console.error(
-          'An error occurred while setting presence in room:',
-          error
-        );
-        reject(error);
-      }
-    });
+  presenceInRoomStanza = (roomJID: string) => {
+    presenceInRoom(this.client, roomJID);
   };
 
-  getHistory = async (chatJID: string, max: number, before?: number) => {
-    const id = `get-history:${Date.now().toString()}`;
-
-    let stanzaHdlrPointer: {
-      (el: Element): void;
-      (stanza: any): void;
-    };
-
-    const unsubscribe = () => {
-      this.client.off('stanza', stanzaHdlrPointer);
-    };
-
-    const responsePromise = new Promise((resolve, reject) => {
-      let messages: Element[] = [];
-
-      stanzaHdlrPointer = (stanza) => {
-        const result = stanza.getChild('result');
-
-        if (
-          stanza.is('message') &&
-          stanza.attrs['from'] &&
-          stanza.attrs['from'].startsWith(chatJID) &&
-          result
-        ) {
-          const messageEl = result.getChild('forwarded')?.getChild('message');
-
-          messages.push(messageEl);
-        }
-
-        if (
-          stanza.is('iq') &&
-          stanza.attrs['id'] === id &&
-          stanza.attrs['type'] === 'result'
-        ) {
-          let mainMessages: Record<string, string>[] = [];
-
-          for (const msg of messages) {
-            const text = msg.getChild('body')?.getText();
-
-            if (text) {
-              let parsedEl: Record<string, string> = {};
-
-              parsedEl.text = text;
-              parsedEl.from = msg.attrs['from'];
-              parsedEl.id = msg.getChild('archived')?.attrs['id'];
-              parsedEl.created = parsedEl.id.slice(0, 13);
-              const data = msg.getChild('data');
-
-              if (!data || !data.attrs) {
-                continue;
-              }
-
-              for (const [key, value] of Object.entries(data.attrs)) {
-                parsedEl[key] = value as string;
-              }
-
-              // ignore messages wich has isReply but there is no mainMessage field
-              if (parsedEl.isReply === 'true' && !parsedEl.mainMessage) {
-                continue;
-              }
-
-              // fucntionality to not to add deleted messages into array
-              // if (msg.getChild("deleted")?.attrs["timestamp"]) continue;
-
-              if (parsedEl.mainMessage) {
-                try {
-                  parsedEl.mainMessage = JSON.parse(parsedEl.mainMessage);
-                } catch (e) {
-                  // ignore message if mainMessage is not parsable
-                  continue;
-                }
-              }
-
-              mainMessages.push(parsedEl);
-            }
-          }
-          unsubscribe();
-          resolve(mainMessages);
-        }
-
-        if (
-          stanza.is('iq') &&
-          stanza.attrs.id === id &&
-          stanza.attrs.type === 'error'
-        ) {
-          unsubscribe();
-          reject();
-        }
-      };
-
-      this.client?.on('stanza', stanzaHdlrPointer);
-
-      const message = xml(
-        'iq',
-        {
-          type: 'set',
-          to: chatJID,
-          id: id,
-        },
-        xml(
-          'query',
-          { xmlns: 'urn:xmpp:mam:2' },
-          xml(
-            'set',
-            { xmlns: 'http://jabber.org/protocol/rsm' },
-            xml('max', {}, max.toString()),
-            before ? xml('before', {}, before.toString()) : xml('before')
-          )
-        )
-      );
-
-      this.client
-        ?.send(message)
-        .catch((err) => console.log('err on load', err));
-    });
-
-    const timeoutPromise = createTimeoutPromise(10000, unsubscribe);
-
-    try {
-      const res = await Promise.race([responsePromise, timeoutPromise]);
-      return res;
-    } catch (e) {
-      console.log('=-> error in', chatJID, e);
-      return null;
-    }
+  getHistoryStanza = async (chatJID: string, max: number, before?: number) => {
+    await getHistory(this.client, chatJID, max, before);
   };
 
-  getAndReceiveRoomInfo = (roomJID: string) => {
-    const message = xml(
-      'iq',
-      {
-        from: this.client.jid?.toString(),
-        id: 'roomInfo',
-        to: roomJID,
-        type: 'get',
-      },
-      xml('query', { xmlns: 'http://jabber.org/protocol/disco#info' })
-    );
-    return this.client.sendReceive(message);
-  };
-
-  getLastMessageArchive(roomJID: string) {
-    // xmppMessagesHandler.isGettingMessages = true
-    const message = xml(
-      'iq',
-      {
-        type: 'set',
-        to: roomJID,
-        id: 'GetArchive',
-      },
-      xml(
-        'query',
-        { xmlns: 'urn:xmpp:mam:2' },
-        xml(
-          'set',
-          { xmlns: 'http://jabber.org/protocol/rsm' },
-          xml('max', {}, '1'),
-          xml('before')
-        )
-      )
-    );
-    this.client.send(message);
+  getLastMessageArchiveStanza(roomJID: string) {
+    getLastMessageArchive(this.client, roomJID);
   }
 
   //messages
@@ -437,262 +264,48 @@ export class XmppClient {
     userMessage: string,
     notDisplayedValue?: string
   ) => {
-    const id = `send-message:${Date.now().toString()}`;
-
-    try {
-      const message = xml(
-        'message',
-        {
-          to: roomJID,
-          type: 'groupchat',
-          id: id,
-        },
-        xml('data', {
-          xmlns: `wss://${this?.devServer || 'xmpp.ethoradev.com:5443'}/ws`,
-          senderFirstName: firstName,
-          senderLastName: lastName,
-          fullName: `${firstName} ${lastName}`,
-          photoURL: photo,
-          senderJID: this.client.jid?.toString(),
-          senderWalletAddress: walletAddress,
-          roomJid: roomJID,
-          isSystemMessage: false,
-          tokenAmount: 0,
-          quickReplies: '',
-          notDisplayedValue: '',
-          showInChannel: true,
-        }),
-        xml('body', {}, userMessage)
-      );
-      this.client.send(message);
-    } catch (error) {
-      console.error('An error occurred while sending message:', error);
-    }
+    sendTextMessage(
+      this.client,
+      roomJID,
+      firstName,
+      lastName,
+      photo,
+      walletAddress,
+      userMessage,
+      notDisplayedValue,
+      this.devServer
+    );
   };
 
-  deleteMessage(room: string, msgId: string) {
-    const stanza = xml(
-      'message',
-      {
-        from: this.client.jid?.toString(),
-        to: room,
-        id: 'deleteMessageStanza',
-        type: 'groupchat',
-      },
-      xml('body', 'wow'),
-      xml('delete', {
-        id: msgId,
-      })
+  deleteMessageStanza(room: string, msgId: string) {
+    deleteMessage(this.client, room, msgId);
+  }
+
+  sendTypingRequestStanza(chatId: string, fullName: string, start: boolean) {
+    sendTypingRequest(this.client, chatId, fullName, start);
+  }
+
+  getChatsPrivateStoreRequestStanza = () =>
+    getChatsPrivateStoreRequest(this.client);
+
+  async setChatsPrivateStoreRequestStanza(jsonObj: string) {
+    await setChatsPrivateStoreRequest(this.client, jsonObj);
+  }
+
+  async actionSetTimestampToPrivateStoreStanza(
+    chatId: string,
+    timestamp: number
+  ) {
+    return await actionSetTimestampToPrivateStore(
+      this.client,
+      chatId,
+      timestamp
     );
-
-    this.client.send(stanza);
-  }
-
-  sendTypingRequest(chatId: string, fullName: string, start: boolean) {
-    let id = start ? `typing-${Date.now()}` : `stop-typing-${Date.now()}`;
-    const stanza = xml(
-      'message',
-      {
-        type: 'groupchat',
-        id: id,
-        to: chatId,
-      },
-      xml(start ? 'composing' : 'paused', {
-        xmlns: 'http://jabber.org/protocol/chatstates',
-      }),
-      xml('data', {
-        fullName: fullName,
-      })
-    );
-
-    this.client?.send(stanza);
-  }
-
-  getChatsPrivateStoreRequest() {
-    const id = `get-chats-private-req:${Date.now().toString()}`;
-    let stanzaHdlrPointer: {
-      (el: Element): void;
-      (stanza: Element): void;
-      (el: Element): void;
-    };
-
-    const unsubscribe = () => {
-      this.client?.off('stanza', stanzaHdlrPointer);
-    };
-
-    const responsePromise = new Promise((resolve, _reject) => {
-      stanzaHdlrPointer = (stanza: Element) => {
-        if (stanza.is('iq') && stanza.attrs.id === id) {
-          let chatjson = stanza.getChild('query')?.getChild('chatjson');
-
-          if (chatjson) {
-            resolve(chatjson.attrs.value);
-          } else {
-            resolve(null);
-          }
-        }
-      };
-
-      this.client?.on('stanza', stanzaHdlrPointer);
-
-      const message = xml(
-        'iq',
-        {
-          id: id,
-          type: 'get',
-        },
-        xml(
-          'query',
-          { xmlns: 'jabber:iq:private' },
-          xml('chatjson', { xmlns: 'chatjson:store' })
-        )
-      );
-
-      this.client?.send(message);
-    });
-
-    const timeoutPromise = createTimeoutPromise(2000, unsubscribe);
-
-    return Promise.race([responsePromise, timeoutPromise]);
-  }
-
-  async actionSetTimestampToPrivateStore(chatId: string, timestamp: number) {
-    let storeObj: any = await this.getChatsPrivateStoreRequest();
-
-    if (storeObj && typeof storeObj === 'object') {
-      storeObj[chatId] = timestamp;
-
-      const str = JSON.stringify(storeObj);
-      await this.setChatsPrivateStoreRequest(str);
-      return true;
-    } else {
-      await this.setChatsPrivateStoreRequest(
-        JSON.stringify({ [chatId]: timestamp })
-      );
-      return true;
-    }
-  }
-
-  // async actionSetChatViewedTimestamp() {
-  //   const chat = store.chatStore.currentRoom;
-
-  //   if (!chat) {
-  //     return;
-  //   }
-
-  //   const timestamp = Date.now();
-
-  //   await this.actionSetTimestampToPrivateStore(chat.localJid, timestamp);
-  //   runInAction(() => rootStore.chatStore.setLastViewedTimestamp(timestamp));
-  // }
-
-  setChatsPrivateStoreRequest(jsonObj: string) {
-    const id = `set-chats-private-req:${Date.now().toString()}`;
-    let stanzaHdlrPointer: {
-      (el: Element): void;
-      (stanza: Element): void;
-      (el: Element): void;
-    };
-
-    const unsubscribe = () => {
-      this.client?.off('stanza', stanzaHdlrPointer);
-    };
-
-    const responsePromise = new Promise((resolve, _reject) => {
-      stanzaHdlrPointer = (stanza: Element) => {
-        if (stanza.is('iq') && stanza.attrs.id === id) {
-          resolve(true);
-        }
-      };
-
-      this.client?.on('stanza', stanzaHdlrPointer);
-
-      const message = xml(
-        'iq',
-        {
-          id: id,
-          type: 'set',
-        },
-        xml(
-          'query',
-          { xmlns: 'jabber:iq:private' },
-          xml('chatjson', { xmlns: 'chatjson:store', value: jsonObj })
-        )
-      );
-
-      this.client?.send(message);
-    });
-
-    const timeoutPromise = createTimeoutPromise(2000, unsubscribe);
-
-    return Promise.race([responsePromise, timeoutPromise]);
   }
 
   sendMediaMessageStanza(roomJID: string, data: any) {
-    const id = `send-media-message:${Date.now().toString()}`;
-
-    const dataToSend = {
-      senderJID: this.client.jid?.toString(),
-      senderFirstName: data.firstName,
-      senderLastName: data.lastName,
-      senderWalletAddress: data.walletAddress,
-      isSystemMessage: false,
-      tokenAmount: '0',
-      receiverMessageId: '0',
-      mucname: data.chatName,
-      photoURL: data.userAvatar ? data.userAvatar : '',
-      isMediafile: true,
-      createdAt: data.createdAt,
-      expiresAt: data.expiresAt,
-      fileName: data.fileName,
-      isVisible: data.isVisible,
-      location: data.location,
-      locationPreview: data.locationPreview,
-      mimetype: data.mimetype,
-      originalName: data.originalName,
-      ownerKey: data.ownerKey,
-      size: data.size,
-      duration: data?.duration,
-      updatedAt: data.updatedAt,
-      userId: data.userId,
-      waveForm: data.waveForm,
-      attachmentId: data?.attachmentId,
-      isReply: data?.isReply,
-      mainMessage: data?.mainMessage,
-      roomJid: data?.roomJid,
-    };
-
-    console.log(dataToSend);
-
-    const message = xml(
-      'message',
-      {
-        id: 'sendMessage',
-        type: 'groupchat',
-        from: this.client.jid?.toString(),
-        to: roomJID,
-      },
-      xml('body', {}, 'media'),
-      xml('store', { xmlns: 'urn:xmpp:hints' }),
-      xml('data', dataToSend)
-    );
-
-    this.client.send(message);
+    sendMediaMessage(this.client, roomJID, data);
   }
 }
 
 export default XmppClient;
-
-function createTimeoutPromise(
-  ms: number | undefined,
-  unsubscribe: { (): void; (): void }
-) {
-  return new Promise((_, reject) => {
-    setTimeout(() => {
-      try {
-        unsubscribe();
-      } catch (e) {}
-      reject();
-    }, ms);
-  });
-}

@@ -34,6 +34,8 @@ export interface IRoom {
   usersCnt: number;
   messages: IMessage[];
   isLoading: boolean;
+  roomBg: string;
+
   lastMessage?: string;
   lastRoomMessage?: RoomLastMessage;
   icon?: string;
@@ -42,7 +44,7 @@ export interface IRoom {
   lastViewedTimestamp?: number;
   unreadMessages?: number;
   noMessages?: boolean;
-  roomBg: string;
+  role?: string;
 }
 
 export interface RoomLastMessage {

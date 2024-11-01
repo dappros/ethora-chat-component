@@ -10,7 +10,7 @@ import {
   loginSocial,
   registerSocial,
   signInWithGoogle,
-} from '../../networking/apiClient';
+} from '../../networking/api-requests/auth.api';
 import { useDispatch } from 'react-redux';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { setUser } from '../../roomStore/chatSettingsSlice';

@@ -11,8 +11,7 @@ import {
   setIsLoading,
 } from '../../roomStore/roomsSlice';
 import Loader from '../styled/Loader';
-import { uploadFile } from '../../networking/apiClient';
-import RoomList from './RoomList';
+import { uploadFile } from '../../networking/api-requests/auth.api';
 import { useXmppClient } from '../../context/xmppProvider.tsx';
 import ChatHeader from './ChatHeader.tsx';
 import NoMessagesPlaceholder from './NoMessagesPlaceholder.tsx';
@@ -95,7 +94,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     );
 
     const sendStartComposing = useCallback(() => {
-      client.sendTypingRequest(
+      client.sendTypingRequestStanza(
         activeRoomJID,
         `${user.firstName} ${user.lastName}`,
         true
@@ -103,7 +102,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     }, []);
 
     const sendEndComposing = useCallback(() => {
-      client.sendTypingRequest(
+      client.sendTypingRequestStanza(
         activeRoomJID,
         `${user.firstName} ${user.lastName}`,
         false
@@ -117,7 +116,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         if (!isLoadingMore) {
           setIsLoadingMore(true);
           client
-            ?.getHistory(chatJID, max, idOfMessageBefore)
+            ?.getHistoryStanza(chatJID, max, idOfMessageBefore)
             .then((resp) => {
               // console.log("getting history by scroll");
             })
@@ -184,7 +183,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             if (!roomsStore[chatJID || activeRoomJID]) {
               client.joinBySendingPresence(chatJID).then(() => {
                 client.getRooms().then(() => {
-                  client.getHistory(chatJID, 30).then(() => {
+                  client.getHistoryStanza(chatJID, 30).then(() => {
                     dispatch(
                       setIsLoading({ chatJID: chatJID, loading: false })
                     );
@@ -192,7 +191,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
                 });
               });
             } else {
-              client.getHistory(activeRoomJID, 30).then(() => {
+              client.getHistoryStanza(activeRoomJID, 30).then(() => {
                 dispatch(
                   setIsLoading({ chatJID: activeRoomJID, loading: false })
                 );

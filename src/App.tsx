@@ -24,15 +24,11 @@ function App() {
             // disableRooms: true,
             colors: { primary: '#5E3FDE', secondary: '#E1E4FE' },
             defaultLogin: true,
-            jwtLogin: {
-              enabled: true,
-              token:
-                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7InR5cGUiOiJjbGllbnQiLCJ1c2VySWQiOiIwMTkyZGFhZC1jNmIxLTdhNzEtODQ1Yy00N2ZkOWM2ZTIzNzIiLCJhcHBJZCI6IjY3MDYzMzJkYjFiMWE0ZTk4NGQzYzdiYyJ9fQ.bwa63C9kaaSE8iUsTP9MeUzQtZHCiVVKtqYrzweNOy0',
-            },
-          }}
-          MainComponentStyles={{
-            borderRadius: 16,
-            backgroundColor: 'red',
+            // jwtLogin: {
+            //   enabled: true,
+            //   token:
+            //     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7InR5cGUiOiJjbGllbnQiLCJ1c2VySWQiOiIwMTkyZGFhZC1jNmIxLTdhNzEtODQ1Yy00N2ZkOWM2ZTIzNzIiLCJhcHBJZCI6IjY3MDYzMzJkYjFiMWE0ZTk4NGQzYzdiYyJ9fQ.bwa63C9kaaSE8iUsTP9MeUzQtZHCiVVKtqYrzweNOy0',
+            // },
           }}
         />
       </div>
