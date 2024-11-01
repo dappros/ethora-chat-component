@@ -50,6 +50,10 @@ export class XmppClient {
         password: password,
       });
 
+      this.onclose = () => {
+        console.log('Connection closed');
+      };
+
       this.client.on('disconnect', () => {
         this?.onclose();
         this.client.stop();
@@ -103,6 +107,22 @@ export class XmppClient {
       });
     } catch (error) {
       console.error('An error occurred during initialization:', error);
+    }
+  }
+
+  close() {
+    if (this.client) {
+      this.client
+        .stop()
+        .then(() => {
+          console.log('Client connection closed');
+          this.onclose();
+        })
+        .catch((error) => {
+          console.error('Error closing the client:', error);
+        });
+    } else {
+      console.log('No client to close');
     }
   }
 

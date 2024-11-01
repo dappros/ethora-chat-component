@@ -124,7 +124,7 @@ const Message: React.FC<MessageProps> = forwardRef<
         </CustomMessageBubble>
       </CustomMessageContainer>
 
-      {!config.disableInteractions && contextMenu.visible && (
+      {!config?.disableInteractions && contextMenu.visible && (
         <>
           {/* Click outside to close the context menu */}
           <Overlay onClick={closeContextMenu}>

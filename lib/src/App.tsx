@@ -11,7 +11,7 @@ function App() {
         config={{
           // disableHeader: true,
           // disableMedia: true,
-          disableRooms: true,
+          // disableRooms: true,
           colors: { primary: '#5E3FDE', secondary: '#E1E4FE' },
           defaultLogin: true,
           googleLogin: {

@@ -42,12 +42,13 @@ const Container = styled.div<{ burgerMenu?: boolean; open?: boolean }>`
           border-right: 1px solid var(--Colors-Border-border-primary, #f0f0f0);
         `
       : css`
+          max-height: 80%;
           z-index: 2;
           padding: 16px 12px;
-          overflow-y: auto;
+          overflow-y: hidden;
           z-index: 1000;
           background-color: #fff;
-          width: 475px;
+          min-width: 375px;
           border-right: 1px solid var(--Colors-Border-border-primary, #f0f0f0);
         `}
 `;
@@ -77,17 +78,6 @@ const ChatItem = styled.div<{ active: boolean; bg?: string }>`
     background-color: ${({ active, bg }) =>
       active ? getTintedColor(bg ? bg : '#0052CD') : 'rgba(0, 0, 0, 0.05)'};
   }
-`;
-
-const IconPlaceholder = styled.div`
-  width: 40px;
-  height: 40px;
-  background-color: #ccc;
-  border-radius: 50%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-right: 10px;
 `;
 
 const ChatInfo = styled.div`
@@ -194,6 +184,7 @@ const RoomList: React.FC<RoomListProps> = ({
                 alignItems: 'center',
                 width: '100%',
                 marginBottom: 8,
+                height: '50px',
               }}
             >
               <SearchInput
@@ -213,7 +204,9 @@ const RoomList: React.FC<RoomListProps> = ({
                 EndIcon={<AddNewIcon color={config?.colors?.primary} />}
               />
             </div>
-            <div style={{ height: '100%', overflow: 'auto' }}>
+            <div
+              style={{ height: '100%', overflow: 'hidden', overflowY: 'auto' }}
+            >
               {filteredChats.map((chat, index) => (
                 <ChatItem
                   key={index}

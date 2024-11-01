@@ -203,7 +203,11 @@ export async function loginViaJwt(clientToken: string): Promise<User> {
     user: User;
     refreshToken: string;
     token: string;
-  }>('/users', {}, { headers: { 'x-custom-token': clientToken } });
-
-  return response.data.user;
+  }>('/users/client', null, { headers: { 'x-custom-token': clientToken } });
+  const user = {
+    ...response.data.user,
+    refreshToken: response.data.refreshToken,
+    token: response.data.token,
+  };
+  return user;
 }

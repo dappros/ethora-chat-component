@@ -62,9 +62,7 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
         try {
           const loginData = await loginUserFunction();
           if (loginData) {
-            console.log('Login data', loginData);
             dispatch(setUser(loginData));
-            useLocalStorage('@ethora/chat-component-user').set(loginData);
           }
         } catch (error) {
           console.log('error with default login', error);
@@ -80,7 +78,7 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
         try {
           const loginData = await loginViaJwt(props.config?.jwtLogin?.token);
           if (loginData) {
-            useLocalStorage('@ethora/chat-component-user').set(loginData);
+            dispatch(setUser(loginData));
           }
         } catch (error) {
           console.log('error with default login', error);
@@ -98,7 +96,7 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
 
   return (
     <>
-      {!props.config?.googleLogin || user.xmppUsername !== '' ? (
+      {user && user.xmppPassword !== '' ? (
         <ChatWrapper {...props} />
       ) : (
         <LoginForm {...props} />

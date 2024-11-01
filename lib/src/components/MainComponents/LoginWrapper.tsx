@@ -98,7 +98,7 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
 
   return (
     <>
-      {!props.config?.googleLogin || user.xmppUsername !== '' ? (
+      {!props.config?.googleLogin || user.xmppPassword !== '' ? (
         <ChatWrapper {...props} />
       ) : (
         <LoginForm {...props} />

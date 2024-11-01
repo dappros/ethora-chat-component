@@ -132,6 +132,7 @@ export interface IConfig {
   disableRooms?: boolean;
   defaultLogin?: boolean;
   disableInteractions?: boolean;
+  chatHeaderBurgerMenu?: boolean;
 }
 
 export interface StorageUser {

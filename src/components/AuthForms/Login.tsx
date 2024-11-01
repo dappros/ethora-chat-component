@@ -200,6 +200,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
             width: '100%',
             height: '40px',
             backgroundColor: config?.colors?.primary || '#0052CD',
+            color: 'white',
           }}
           disabled={isLoading}
           loading={isLoading}

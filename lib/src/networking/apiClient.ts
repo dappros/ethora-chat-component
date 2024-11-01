@@ -203,7 +203,7 @@ export async function loginViaJwt(clientToken: string): Promise<User> {
     user: User;
     refreshToken: string;
     token: string;
-  }>('/users', {}, { headers: { 'x-custom-token': clientToken } });
+  }>('/users/client', {}, { headers: { 'x-custom-token': clientToken } });
 
   return response.data.user;
 }

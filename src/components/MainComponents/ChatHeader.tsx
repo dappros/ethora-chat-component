@@ -24,6 +24,10 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ currentRoom }) => {
     (state: RootState) => state.rooms.rooms[currentRoom.jid]
   );
 
+  const config = useSelector(
+    (state: RootState) => state.chatSettingStore.config
+  );
+
   const rooms = useSelector((state: RootState) => state.rooms.rooms);
 
   const handleChangeChat = (chat: IRoom) => {
@@ -35,7 +39,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ currentRoom }) => {
     <ChatContainerHeader>
       {/* todo add here list of rooms */}
       <div style={{ display: 'flex', gap: '8px' }}>
-        {rooms && (
+        {config?.chatHeaderBurgerMenu && rooms && (
           <RoomList
             chats={Object.values(rooms)}
             burgerMenu

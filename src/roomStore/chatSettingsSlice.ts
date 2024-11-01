@@ -1,6 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { IConfig, User } from '../types/types';
 import { localStorageConstants } from '../helpers/constants/LOCAL_STORAGE';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 
 interface ChatState {
   user: User;
@@ -8,8 +9,7 @@ interface ChatState {
   config?: IConfig;
 }
 
-const unpackAndTransform = (input: User): User => {
-  console.log(input);
+const unpackAndTransform = (input?: User): User => {
   return {
     description: '',
     token: input?.token || '',
@@ -83,6 +83,9 @@ export const chatSlice = createSlice({
   reducers: {
     setUser: (state, action: PayloadAction<User>) => {
       state.user = unpackAndTransform(action.payload);
+      useLocalStorage(localStorageConstants.ETHORA_USER).set(
+        unpackAndTransform(action.payload)
+      );
     },
     setDefaultChatRooms: (state, action: PayloadAction<any[]>) => {
       state.defaultChatRooms = action.payload;
@@ -103,10 +106,22 @@ export const chatSlice = createSlice({
         JSON.stringify(state.user)
       );
     },
+    logout: (state) => {
+      state.user = unpackAndTransform();
+      state.defaultChatRooms = [];
+      state.config = undefined;
+
+      localStorage.removeItem(localStorageConstants.ETHORA_USER);
+    },
   },
 });
 
-export const { setUser, setDefaultChatRooms, setConfig, refreshTokens } =
-  chatSlice.actions;
+export const {
+  setUser,
+  setDefaultChatRooms,
+  setConfig,
+  refreshTokens,
+  logout,
+} = chatSlice.actions;
 
 export default chatSlice.reducer;

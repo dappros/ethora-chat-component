@@ -229,7 +229,6 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       <ChatContainer
         style={{
           overflow: 'auto',
-          ...MainComponentStyles,
         }}
       >
         {!config?.disableHeader && (

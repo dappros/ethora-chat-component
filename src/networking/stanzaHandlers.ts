@@ -256,6 +256,7 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
                 ? result?.attrs.room_thumbnail
                 : null,
           };
+          console.log('roomData', roomData);
           store.dispatch(addRoom({ roomData }));
           if (!store.getState().rooms.activeRoomJID) {
             store.dispatch(setCurrentRoom({ roomJID: roomData?.jid }));

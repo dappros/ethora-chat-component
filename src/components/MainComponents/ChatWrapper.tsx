@@ -1,4 +1,4 @@
-import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { FC, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import ChatRoom from './ChatRoom';
 import { setConfig } from '../../roomStore/chatSettingsSlice';
@@ -11,7 +11,6 @@ import LoginForm from '../AuthForms/Login';
 import { RootState } from '../../roomStore';
 import Loader from '../styled/Loader';
 import {
-  addRoom,
   setCurrentRoom,
   setIsLoading,
   setLastViewedTimestamp,
@@ -77,6 +76,8 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             });
 
             refresh();
+          } else {
+            setInited(true);
           }
         }
       } catch (error) {
@@ -132,12 +133,16 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
       {/* {isInited ?? !loading ? ( */}
       <>
         {isInited ? (
-          <>
-            {!config.disableRooms && rooms && (
+          <ChatWrapperBox
+            style={{
+              ...MainComponentStyles,
+            }}
+          >
+            {!config?.disableRooms && rooms && (
               <RoomList
                 chats={Object.values(rooms)}
                 onRoomClick={handleChangeChat}
-                activeJID={roomJID || 'asdd'}
+                activeJID={roomJID || ''}
               />
             )}
             <ChatRoom
@@ -145,7 +150,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
               MainComponentStyles={MainComponentStyles}
               chatJID={roomJID}
             />
-          </>
+          </ChatWrapperBox>
         ) : (
           <Loader color={config?.colors?.primary} />
         )}
