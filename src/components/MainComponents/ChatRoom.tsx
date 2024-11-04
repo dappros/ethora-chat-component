@@ -200,6 +200,23 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
           };
           initialPresenceAndHistory();
         }
+      } else if (chatJID) {
+        const initialPresenceAndHistory = async () => {
+          if (!roomsStore[chatJID || activeRoomJID]) {
+            await client.joinBySendingPresence(chatJID);
+            await client.getRooms();
+            client.getHistoryStanza(chatJID, 30).then(() => {
+              dispatch(setIsLoading({ chatJID: chatJID, loading: false }));
+            });
+          } else {
+            client.getHistoryStanza(activeRoomJID, 30).then(() => {
+              dispatch(
+                setIsLoading({ chatJID: activeRoomJID, loading: false })
+              );
+            });
+          }
+        };
+        initialPresenceAndHistory();
       }
     }, [
       client,

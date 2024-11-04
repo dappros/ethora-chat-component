@@ -32,7 +32,7 @@ export const ChatHeaderAvatar: React.FC<ChatHeaderAvatarProps> = ({
   size = 64,
 }) => {
   const getInitials = () => {
-    return name[0].toUpperCase();
+    return name[0]?.toUpperCase();
   };
 
   const randomColor = useMemo(() => {

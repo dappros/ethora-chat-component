@@ -16,7 +16,7 @@ export const presenceInRoom = (client: Client, roomJID: string) => {
       client
         .send(presence)
         .then(() => {
-          console.log('Presence in room successfully sent');
+          // console.log('Presence in room successfully sent');
           resolve('Presence in room sent successfully');
         })
         .catch((error: any) => {

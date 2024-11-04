@@ -103,6 +103,7 @@ export class XmppClient {
           case 'iq':
             onGetChatRooms(stanza, this);
             onRealtimeMessage(stanza);
+            onPresenceInRoom(stanza);
             break;
           default:
             console.log('Unhandled stanza type:', stanza.name);
@@ -141,7 +142,6 @@ export class XmppClient {
   joinBySendingPresence(chatJID: string) {
     let stanzaHdlrPointer: (stanza: Element) => void;
 
-    console.log('chatJID', chatJID);
     const unsubscribe = () => {
       this.client.off('stanza', stanzaHdlrPointer);
     };
@@ -161,13 +161,13 @@ export class XmppClient {
       const message = xml(
         'presence',
         {
+          id: 'joinByPresence',
           to: `${chatJID}/${this.client.jid.toString().split('@')[0]}`,
         },
         xml('x', 'http://jabber.org/protocol/muc')
       );
 
       try {
-        console.log('joning by presence');
         this.client.send(message);
       } catch (error) {
         console.log('Error joining by presence', error);
@@ -213,7 +213,7 @@ export class XmppClient {
 
         this.client
           .send(message)
-          .then((res) => {
+          .then(() => {
             console.log('getRooms successfully sent');
             resolve('Request to get rooms sent successfully');
           })
