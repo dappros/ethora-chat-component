@@ -78,8 +78,8 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ currentRoom }) => {
       </div>
 
       <div style={{ display: 'flex', gap: 16 }}>
-        <SearchInput animated icon={<SearchIcon />} />
-        <Button style={{ padding: 8 }} EndIcon={<MoreIcon />} />
+        {/* <SearchInput animated icon={<SearchIcon />} /> */}
+        <Button style={{ padding: 8 }} EndIcon={<MoreIcon />} unstyled />
       </div>
     </ChatContainerHeader>
   );

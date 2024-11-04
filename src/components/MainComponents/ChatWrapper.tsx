@@ -4,7 +4,7 @@ import ChatRoom from './ChatRoom';
 import { setConfig } from '../../roomStore/chatSettingsSlice';
 import { ChatWrapperBox } from '../styled/ChatWrapperBox';
 import { Overlay, StyledModal } from '../styled/Modal';
-import { Message } from '../Message';
+import { Message } from '../MessageBubble/Message';
 import { IConfig, IRoom, MessageProps, User } from '../../types/types';
 import { useXmppClient } from '../../context/xmppProvider';
 import LoginForm from '../AuthForms/Login';
@@ -17,6 +17,7 @@ import {
 } from '../../roomStore/roomsSlice';
 import { refresh } from '../../networking/apiClient';
 import RoomList from './RoomList';
+import { StyledLoaderWrapper } from '../styled/StyledComponents';
 
 interface ChatWrapperProps {
   token?: string;
@@ -70,6 +71,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
               client
                 .getRooms()
                 .then(() => {
+                  // client.getChatsPrivateStoreRequestStanza();
                   setClient(client);
                 })
                 .finally(() => setInited(true));
@@ -94,7 +96,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   useEffect(() => {
     const updateLastReadTimeStamp = () => {
       if (client) {
-        client.actionSetTimestampToPrivateStore(
+        client.actionSetTimestampToPrivateStoreStanza(
           room?.jid || roomJID,
           new Date().getTime()
         );
@@ -130,7 +132,6 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           <StyledModal>Unsuccessfull login. Try again</StyledModal>
         </Overlay>
       )}
-      {/* {isInited ?? !loading ? ( */}
       <>
         {isInited ? (
           <ChatWrapperBox
@@ -152,7 +153,9 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             />
           </ChatWrapperBox>
         ) : (
-          <Loader color={config?.colors?.primary} />
+          <StyledLoaderWrapper>
+            <Loader color={config?.colors?.primary} />
+          </StyledLoaderWrapper>
         )}
       </>
     </>

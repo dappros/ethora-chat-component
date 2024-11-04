@@ -8,15 +8,16 @@ import React, {
 import styled, { css } from 'styled-components';
 import { IRoom } from '../../types/types';
 import { ChatHeaderAvatar } from './ChatHeaderAvatar';
-import Button from '../styled/Button';
 import { SearchInput } from '../InputComponents/Search';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
 import { getTintedColor } from '../../helpers/getTintedColor';
-import { AddNewIcon, SearchIcon } from '../../assets/icons';
+import { SearchIcon } from '../../assets/icons';
 import DropdownMenu from '../DropdownMenu/DropdownMenu';
 import { logout } from '../../roomStore/chatSettingsSlice';
 import { useXmppClient } from '../../context/xmppProvider';
+import NewChatModal from '../Modals/NewChatModal/NewChatModal';
+import UserProfileModal from '../Modals/UserProfileModal/UserProfileModal';
 
 interface RoomListProps {
   chats: IRoom[];
@@ -48,7 +49,7 @@ const Container = styled.div<{ burgerMenu?: boolean; open?: boolean }>`
           padding: 16px 12px;
           overflow: auto;
           display: relative;
-          z-index: 1000;
+          z-index: 2;
           background-color: #fff;
           min-width: 375px;
           border-right: 1px solid var(--Colors-Border-border-primary, #f0f0f0);
@@ -232,15 +233,8 @@ const RoomList: React.FC<RoomListProps> = ({
                 placeholder="Search..."
                 // animated={true}
               />
-              <Button
-                style={{
-                  color: 'black',
-                  padding: 8,
-                  borderRadius: '16px',
-                  backgroundColor: 'transparent',
-                }}
-                EndIcon={<AddNewIcon color={config?.colors?.primary} />}
-              />
+
+              <NewChatModal />
             </div>
             <div style={{ height: '100%' }}>
               {filteredChats.map((chat, index) => (

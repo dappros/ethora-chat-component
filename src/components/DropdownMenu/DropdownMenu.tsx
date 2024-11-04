@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import styled, { keyframes } from 'styled-components';
+import UserProfileModal from '../Modals/UserProfileModal/UserProfileModal';
 
 interface MenuOption {
   label: string;
@@ -72,6 +73,7 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({ options }) => {
         >
           {options.map((option, index) => (
             <>
+              {index === 2 && <UserProfileModal />}
               <MenuItem
                 key={index}
                 onClick={() => {

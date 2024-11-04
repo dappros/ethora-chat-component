@@ -1,8 +1,7 @@
-import { Client } from '@xmpp/client';
 import { getChatsPrivateStoreRequest } from './getChatsPrivateStoreRequest.xmpp';
 
 export async function actionSetTimestampToPrivateStore(
-  client: Client,
+  client: any,
   chatId: string,
   timestamp: number
 ) {
@@ -12,10 +11,10 @@ export async function actionSetTimestampToPrivateStore(
     storeObj[chatId] = timestamp;
 
     const str = JSON.stringify(storeObj);
-    await this.setChatsPrivateStoreRequestStanza(str);
+    await client.setChatsPrivateStoreRequestStanza(str);
     return true;
   } else {
-    await this.setChatsPrivateStoreRequestStanza(
+    await client.setChatsPrivateStoreRequestStanza(
       JSON.stringify({ [chatId]: timestamp })
     );
     return true;

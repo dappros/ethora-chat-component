@@ -15,7 +15,7 @@ function App() {
         backgroundColor: '#f5f5f5',
       }}
     >
-      <div style={{ height: '500px' }}>
+      <div style={{ height: '500px', width: '800px' }}>
         <ReduxWrapper
           // roomJID="6706332db1b1a4e984d3c7bc-0192e786-12a8-75ef-9a3d-91d4229531190@conference.xmpp.ethoradev.com"
           config={{

@@ -5,4 +5,10 @@ export const ChatWrapperBox = styled.div`
   width: 100%;
   position: relative;
   display: flex;
+  flex-direction: row;
+
+  & > * {
+    flex: 1;
+    width: 50%;
+  }
 `;

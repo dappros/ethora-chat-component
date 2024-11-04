@@ -289,7 +289,7 @@ export class XmppClient {
     getChatsPrivateStoreRequest(this.client);
 
   async setChatsPrivateStoreRequestStanza(jsonObj: string) {
-    await setChatsPrivateStoreRequest(this.client, jsonObj);
+    return await setChatsPrivateStoreRequest(this.client, jsonObj);
   }
 
   async actionSetTimestampToPrivateStoreStanza(
