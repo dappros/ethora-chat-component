@@ -4,12 +4,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../roomStore';
 import MessageList from './MessageList';
 import SendInput from '../styled/SendInput';
-import {
-  addRoom,
-  addRoomMessage,
-  setCurrentRoom,
-  setIsLoading,
-} from '../../roomStore/roomsSlice';
+import { addRoomMessage, setIsLoading } from '../../roomStore/roomsSlice';
 import Loader from '../styled/Loader';
 import { uploadFile } from '../../networking/api-requests/auth.api';
 import { useXmppClient } from '../../context/xmppProvider.tsx';
@@ -43,7 +38,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     );
 
     useEffect(() => {
-      if (activeRoomJID) {
+      if (config?.setRoomJidInPath && activeRoomJID) {
         const chatJidUrl = activeRoomJID.split('@')[0];
 
         const newUrl = `${window.location.origin}/${chatJidUrl}`;

@@ -138,6 +138,7 @@ export interface IConfig {
   forceSetRoom?: boolean;
   roomListStiles?: React.CSSProperties;
   chatRoomStyles?: React.CSSProperties;
+  setRoomJidInPath?: boolean;
 }
 
 export interface StorageUser {
