@@ -57,7 +57,7 @@ export const roomsStore = createSlice({
     ) {
       const { roomJID, message, start } = action.payload;
 
-      if (!state.rooms[roomJID].messages) {
+      if (!state.rooms[roomJID]?.messages) {
         state.rooms[roomJID].messages = [];
       }
 
@@ -88,7 +88,7 @@ export const roomsStore = createSlice({
       action: PayloadAction<{ chatJID?: string; loading: boolean }>
     ) => {
       const { chatJID, loading } = action.payload;
-      if (chatJID) {
+      if (chatJID && state.rooms?.[chatJID]) {
         state.rooms[chatJID].isLoading = loading;
       }
       state.isLoading = loading;
@@ -130,6 +130,11 @@ export const roomsStore = createSlice({
         state.activeRoomJID = roomJID;
       }
     },
+    setLogoutState: (state) => {
+      state.rooms = {};
+      state.activeRoomJID = null;
+      state.isLoading = false;
+    },
   },
 });
 
@@ -154,6 +159,7 @@ export const {
   setRoomNoMessages,
   setCurrentRoom,
   setRoomRole,
+  setLogoutState,
 } = roomsStore.actions;
 
 export default roomsStore.reducer;

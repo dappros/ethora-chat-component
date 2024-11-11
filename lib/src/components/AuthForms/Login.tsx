@@ -10,7 +10,7 @@ import {
   loginSocial,
   registerSocial,
   signInWithGoogle,
-} from '../../networking/apiClient';
+} from '../../networking/api-requests/auth.api';
 import { useDispatch } from 'react-redux';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { setUser } from '../../roomStore/chatSettingsSlice';
@@ -200,6 +200,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
             width: '100%',
             height: '40px',
             backgroundColor: config?.colors?.primary || '#0052CD',
+            color: 'white',
           }}
           disabled={isLoading}
           loading={isLoading}

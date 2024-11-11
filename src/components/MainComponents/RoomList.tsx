@@ -18,12 +18,12 @@ import { logout } from '../../roomStore/chatSettingsSlice';
 import { useXmppClient } from '../../context/xmppProvider';
 import NewChatModal from '../Modals/NewChatModal/NewChatModal';
 import UserProfileModal from '../Modals/UserProfileModal/UserProfileModal';
+import { setLogoutState } from '../../roomStore/roomsSlice';
 
 interface RoomListProps {
   chats: IRoom[];
   burgerMenu?: boolean;
   onRoomClick?: (chat: IRoom) => void;
-  activeJID: string;
 }
 
 const Container = styled.div<{ burgerMenu?: boolean; open?: boolean }>`
@@ -117,7 +117,6 @@ const Divider = styled.div`
 
 const RoomList: React.FC<RoomListProps> = ({
   chats,
-  activeJID,
   burgerMenu = false,
   onRoomClick,
 }) => {
@@ -129,6 +128,8 @@ const RoomList: React.FC<RoomListProps> = ({
   const config = useSelector(
     (state: RootState) => state.chatSettingStore.config
   );
+
+  const { activeRoomJID } = useSelector((state: RootState) => state.rooms);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -174,12 +175,13 @@ const RoomList: React.FC<RoomListProps> = ({
   }, [burgerMenu, handleClickOutside]);
 
   const isChatActive = useCallback(
-    (room: IRoom) => activeJID === room.jid,
-    [activeJID]
+    (room: IRoom) => activeRoomJID === room.jid,
+    [activeRoomJID]
   );
 
   const handleLogout = useCallback(() => {
     dispatch(logout());
+    dispatch(setLogoutState());
   }, []);
 
   const menuOptions = [
@@ -205,7 +207,12 @@ const RoomList: React.FC<RoomListProps> = ({
       {burgerMenu && !open && (
         <BurgerButton onClick={() => setOpen(!open)}>☰</BurgerButton>
       )}
-      <Container burgerMenu={burgerMenu} open={open} ref={containerRef}>
+      <Container
+        burgerMenu={burgerMenu}
+        open={open}
+        ref={containerRef}
+        style={config.roomListStiles}
+      >
         {(open || !burgerMenu) && (
           <div
             style={{

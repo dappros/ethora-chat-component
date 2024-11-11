@@ -135,6 +135,9 @@ export interface IConfig {
   defaultLogin?: boolean;
   disableInteractions?: boolean;
   chatHeaderBurgerMenu?: boolean;
+  forceSetRoom?: boolean;
+  roomListStiles?: React.CSSProperties;
+  chatRoomStyles?: React.CSSProperties;
 }
 
 export interface StorageUser {

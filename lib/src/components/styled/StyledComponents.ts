@@ -29,7 +29,7 @@ export const ChatContainerHeaderLabel = styled.div`
 export const MessagesScroll = styled.div<{ color?: string }>`
   position: relative;
   height: calc(100%);
-
+  overflow: hidden;
   overflow-y: scroll;
   top: 0;
   left: 0;
@@ -218,4 +218,10 @@ export const Line = styled.div`
   width: 100%;
   background-color: transparent;
   border: 1px solid var(--colors-background-bg-prymary-5, #0052cd0d);
+`;
+
+export const StyledLoaderWrapper = styled.div`
+  height: 100%;
+  display: flex;
+  justify-content: center;
 `;

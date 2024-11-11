@@ -8,12 +8,16 @@ import React, {
 import styled, { css } from 'styled-components';
 import { IRoom } from '../../types/types';
 import { ChatHeaderAvatar } from './ChatHeaderAvatar';
-import Button from '../styled/Button';
 import { SearchInput } from '../InputComponents/Search';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
 import { getTintedColor } from '../../helpers/getTintedColor';
-import { AddNewIcon, SearchIcon } from '../../assets/icons';
+import { SearchIcon } from '../../assets/icons';
+import DropdownMenu from '../DropdownMenu/DropdownMenu';
+import { logout } from '../../roomStore/chatSettingsSlice';
+import { useXmppClient } from '../../context/xmppProvider';
+import NewChatModal from '../Modals/NewChatModal/NewChatModal';
+import UserProfileModal from '../Modals/UserProfileModal/UserProfileModal';
 
 interface RoomListProps {
   chats: IRoom[];
@@ -42,11 +46,10 @@ const Container = styled.div<{ burgerMenu?: boolean; open?: boolean }>`
           border-right: 1px solid var(--Colors-Border-border-primary, #f0f0f0);
         `
       : css`
-          max-height: 80%;
-          z-index: 2;
           padding: 16px 12px;
-          overflow-y: hidden;
-          z-index: 1000;
+          overflow: auto;
+          display: relative;
+          z-index: 2;
           background-color: #fff;
           min-width: 375px;
           border-right: 1px solid var(--Colors-Border-border-primary, #f0f0f0);
@@ -106,7 +109,11 @@ const UserCount = styled.div<{ active: boolean }>`
   margin-left: auto;
 `;
 
-const Divider = styled.div<{ active: boolean }>``;
+const Divider = styled.div`
+  height: 1px;
+  width: 100%;
+  background-color: #0052cd0d;
+`;
 
 const RoomList: React.FC<RoomListProps> = ({
   chats,
@@ -116,6 +123,8 @@ const RoomList: React.FC<RoomListProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+
+  const dispatch = useDispatch();
 
   const config = useSelector(
     (state: RootState) => state.chatSettingStore.config
@@ -169,6 +178,28 @@ const RoomList: React.FC<RoomListProps> = ({
     [activeJID]
   );
 
+  const handleLogout = useCallback(() => {
+    dispatch(logout());
+  }, []);
+
+  const menuOptions = [
+    {
+      label: 'Profile',
+      icon: null,
+      onClick: () => console.log('Profile clicked'),
+    },
+    {
+      label: 'Settings',
+      icon: null,
+      onClick: () => console.log('Settings clicked'),
+    },
+    {
+      label: 'Logout',
+      icon: null,
+      onClick: () => handleLogout(),
+    },
+  ];
+
   return (
     <>
       {burgerMenu && !open && (
@@ -176,7 +207,14 @@ const RoomList: React.FC<RoomListProps> = ({
       )}
       <Container burgerMenu={burgerMenu} open={open} ref={containerRef}>
         {(open || !burgerMenu) && (
-          <>
+          <div
+            style={{
+              height: '100%',
+              flexGrow: 1,
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
             <div
               style={{
                 display: 'flex',
@@ -187,6 +225,7 @@ const RoomList: React.FC<RoomListProps> = ({
                 height: '50px',
               }}
             >
+              <DropdownMenu options={menuOptions} />
               <SearchInput
                 icon={<SearchIcon height={'20px'} />}
                 value={searchTerm}
@@ -194,60 +233,54 @@ const RoomList: React.FC<RoomListProps> = ({
                 placeholder="Search..."
                 // animated={true}
               />
-              <Button
-                style={{
-                  color: 'black',
-                  padding: 8,
-                  borderRadius: '16px',
-                  backgroundColor: 'transparent',
-                }}
-                EndIcon={<AddNewIcon color={config?.colors?.primary} />}
-              />
+
+              <NewChatModal />
             </div>
-            <div
-              style={{ height: '100%', overflow: 'hidden', overflowY: 'auto' }}
-            >
+            <div style={{ height: '100%' }}>
               {filteredChats.map((chat, index) => (
-                <ChatItem
-                  key={index}
-                  active={isChatActive(chat)}
-                  onClick={() => performClick(chat)}
-                  bg={config?.colors?.primary}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'start',
-                      width: '100%',
-                      gap: '8px',
-                    }}
+                <>
+                  <ChatItem
+                    key={index}
+                    active={isChatActive(chat)}
+                    onClick={() => performClick(chat)}
+                    bg={config?.colors?.primary}
                   >
-                    {chat.icon ? (
-                      <img src={chat.icon} alt="Icon" />
-                    ) : (
-                      <ChatHeaderAvatar name={chat.name} />
-                    )}
-                    <ChatInfo>
-                      <ChatName>{chat.name}</ChatName>
-                      <LastMessage
-                        style={{ color: '#141414', fontWeight: 600 }}
-                      >
-                        {chat?.lastRoomMessage?.name &&
-                          `${chat?.lastRoomMessage?.name}:`}
-                      </LastMessage>
-                      <LastMessage>{chat?.lastRoomMessage?.body}</LastMessage>
-                    </ChatInfo>
-                  </div>
-                  <div style={{ textAlign: 'right', display: 'flex' }}>
-                    <UserCount active={isChatActive(chat)}>
-                      {chat.usersCnt}
-                    </UserCount>
-                    {/* <div>{chat.lastMessageTime}</div> */}
-                  </div>
-                </ChatItem>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'start',
+                        width: '100%',
+                        gap: '8px',
+                      }}
+                    >
+                      {chat.icon ? (
+                        <img src={chat.icon} alt="Icon" />
+                      ) : (
+                        <ChatHeaderAvatar name={chat.name} />
+                      )}
+                      <ChatInfo>
+                        <ChatName>{chat.name}</ChatName>
+                        <LastMessage
+                          style={{ color: '#141414', fontWeight: 600 }}
+                        >
+                          {chat?.lastRoomMessage?.name &&
+                            `${chat?.lastRoomMessage?.name}:`}
+                        </LastMessage>
+                        <LastMessage>{chat?.lastRoomMessage?.body}</LastMessage>
+                      </ChatInfo>
+                    </div>
+                    <div style={{ textAlign: 'right', display: 'flex' }}>
+                      <UserCount active={isChatActive(chat)}>
+                        {chat.usersCnt}
+                      </UserCount>
+                      {/* <div>{chat.lastMessageTime}</div> */}
+                    </div>
+                  </ChatItem>
+                  <Divider />
+                </>
               ))}
             </div>
-          </>
+          </div>
         )}
       </Container>
     </>

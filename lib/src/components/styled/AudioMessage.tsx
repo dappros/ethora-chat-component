@@ -23,7 +23,7 @@ const AudioMessage: React.FC<AudioMessageProps> = ({ src }) => {
     wavesurfer.current = WaveSurfer.create({
       container: waveformRef.current,
       waveColor: '#C4C4C4',
-      progressColor: '#1565C0',
+      progressColor: config?.colors?.primary || '#0052CD',
       cursorColor: 'transparent',
       height: 32,
       barWidth: 3,
@@ -37,6 +37,10 @@ const AudioMessage: React.FC<AudioMessageProps> = ({ src }) => {
     wavesurfer.current.on('seek', () => {
       wavesurfer.current.play();
       setIsPlaying(true);
+    });
+
+    wavesurfer.current.on('finish', () => {
+      setIsPlaying(false);
     });
 
     return () => {
@@ -73,7 +77,13 @@ const AudioMessage: React.FC<AudioMessageProps> = ({ src }) => {
         }}
         EndIcon={isPlaying ? <PauseIcon /> : <PlayIcon />}
       />
-      <div ref={waveformRef} style={{ flex: 1, width: '150px' }} />
+      <div
+        ref={waveformRef}
+        style={{
+          flex: 1,
+          width: '150px',
+        }}
+      />
       <Button
         onClick={changeSpeed}
         style={{ color: '#141414', fontSize: 14 }}

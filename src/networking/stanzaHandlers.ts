@@ -209,8 +209,6 @@ const handleComposing = async (stanza: Element, currentUser: string) => {
 
 const onPresenceInRoom = (stanza: Element | any) => {
   if (stanza.attrs.id === 'joinByPresence' && !stanza.getChild('error')) {
-    console.log(stanza.toString());
-
     const roomJID: string = stanza.attrs.from.split('/')[0];
     const role: string = stanza?.children[1]?.children[0]?.attrs.role;
     store.dispatch(setRoomRole({ chatJID: roomJID, role: role }));
@@ -233,8 +231,6 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
     stanza.attrs.id === 'getUserRooms' &&
     stanza.getChild('query')?.children
   ) {
-    console.log(stanza.toString());
-
     stanza.getChild('query')?.children.forEach((result: any) => {
       const currentChatRooms = store.getState().rooms.rooms;
 

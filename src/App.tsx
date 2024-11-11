@@ -17,7 +17,7 @@ function App() {
     >
       <div style={{ height: '500px', width: '800px' }}>
         <ReduxWrapper
-          // roomJID="----9a35-@conference.xmpp.ethoradev.com"
+          roomJID="6706332db1b1a4e984d3c7bc-0192f640-674a-7aa2-890d-b029b684ec54@conference.xmpp.ethoradev.com"
           config={{
             // disableHeader: true,
             // disableMedia: true,
@@ -26,7 +26,8 @@ function App() {
             defaultLogin: true,
             jwtLogin: {
               enabled: true,
-              token: '..-',
+              token:
+                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7InR5cGUiOiJjbGllbnQiLCJ1c2VySWQiOiIwMTkyZTdlYy03MGUyLTc0NGEtYTMyNS00NGIyNzQ3YTU3Y2UiLCJhcHBJZCI6IjY3MDYzMzJkYjFiMWE0ZTk4NGQzYzdiYyJ9fQ.wgrZ1vHGlUPsF-3xct8RKaB1micp0xbj0IfCT2uAoDE',
             },
           }}
         />

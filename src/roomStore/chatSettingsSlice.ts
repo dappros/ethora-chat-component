@@ -5,7 +5,6 @@ import { useLocalStorage } from '../hooks/useLocalStorage';
 
 interface ChatState {
   user: User;
-  defaultChatRooms: any[];
   config?: IConfig;
 }
 
@@ -73,7 +72,6 @@ const initialState: ChatState = {
     isAssetsOpen: true,
     isAgreeWithTerms: false,
   },
-  defaultChatRooms: [],
   config: undefined,
 };
 
@@ -86,9 +84,6 @@ export const chatSlice = createSlice({
       useLocalStorage(localStorageConstants.ETHORA_USER).set(
         unpackAndTransform(action.payload)
       );
-    },
-    setDefaultChatRooms: (state, action: PayloadAction<any[]>) => {
-      state.defaultChatRooms = action.payload;
     },
     setConfig: (state, action: PayloadAction<IConfig | undefined>) => {
       state.config = action.payload;
@@ -108,7 +103,6 @@ export const chatSlice = createSlice({
     },
     logout: (state) => {
       state.user = unpackAndTransform();
-      state.defaultChatRooms = [];
       state.config = undefined;
 
       localStorage.removeItem(localStorageConstants.ETHORA_USER);
@@ -116,12 +110,6 @@ export const chatSlice = createSlice({
   },
 });
 
-export const {
-  setUser,
-  setDefaultChatRooms,
-  setConfig,
-  refreshTokens,
-  logout,
-} = chatSlice.actions;
+export const { setUser, setConfig, refreshTokens, logout } = chatSlice.actions;
 
 export default chatSlice.reducer;
