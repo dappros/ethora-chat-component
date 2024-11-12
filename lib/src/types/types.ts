@@ -136,7 +136,7 @@ export interface IConfig {
   disableInteractions?: boolean;
   chatHeaderBurgerMenu?: boolean;
   forceSetRoom?: boolean;
-  roomListStiles?: React.CSSProperties;
+  roomListStyles?: React.CSSProperties;
   chatRoomStyles?: React.CSSProperties;
   setRoomJidInPath?: boolean;
 }

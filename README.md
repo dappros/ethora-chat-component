@@ -99,7 +99,7 @@ with:
     defaultLogin: boolean;
     disableInteractions: boolean; //disable interactions
     chatHeaderBurgerMenu: boolean; // disable burger menu in room header
-    roomListStiles: React.CSSProperties; // used to change room List styles (left)
+    roomListStyles: React.CSSProperties; // used to change room List styles (left)
     chatRoomStyles: React.CSSProperties; // used to change room styles (right)
     setRoomJidInPath: boolean; // used to set RoomId to url
   />

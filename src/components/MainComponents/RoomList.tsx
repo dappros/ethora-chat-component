@@ -235,7 +235,7 @@ const RoomList: React.FC<RoomListProps> = ({
         burgerMenu={burgerMenu}
         open={open}
         ref={containerRef}
-        style={config.roomListStiles}
+        style={config?.roomListStyles}
       >
         {(open || !burgerMenu) && (
           <ScollableContainer>
