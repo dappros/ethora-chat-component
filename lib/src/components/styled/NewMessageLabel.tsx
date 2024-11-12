@@ -1,6 +1,6 @@
-import React from "react";
-import styled from "styled-components";
-import { Line } from "./StyledComponents";
+import React from 'react';
+import styled from 'styled-components';
+import { Line } from './StyledComponents';
 
 const Container = styled.div`
   display: flex;
@@ -13,7 +13,7 @@ const Container = styled.div`
 
 export const StyledLabel = styled.div`
   margin: 0;
-  color: ${(props) => (props?.color ? props?.color : "#0052CD")};
+  color: ${(props) => (props?.color ? props?.color : '#0052CD')};
   border-radius: 118px;
   padding: 5px 8px;
   display: flex;

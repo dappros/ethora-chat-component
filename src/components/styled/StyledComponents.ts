@@ -1,4 +1,4 @@
-import styled from "styled-components";
+import styled from 'styled-components';
 
 export const ChatContainer = styled.div`
   display: flex;
@@ -29,7 +29,7 @@ export const ChatContainerHeaderLabel = styled.div`
 export const MessagesScroll = styled.div<{ color?: string }>`
   position: relative;
   height: calc(100%);
-
+  overflow: hidden;
   overflow-y: scroll;
   top: 0;
   left: 0;
@@ -46,7 +46,7 @@ export const MessagesScroll = styled.div<{ color?: string }>`
   }
 
   ::-webkit-scrollbar-thumb {
-    background-color: ${(props) => (props?.color ? props?.color : "#0052CD")};
+    background-color: ${(props) => (props?.color ? props?.color : '#0052CD')};
     border-radius: 6px; /* Rounded corners for the thumb */
   }
 
@@ -56,7 +56,7 @@ export const MessagesScroll = styled.div<{ color?: string }>`
 
   /* Firefox */
   scrollbar-width: thin; /* Make the scrollbar thinner */
-  scrollbar-color: ${(props) => (props?.color ? props?.color : "#0052CD")}
+  scrollbar-color: ${(props) => (props?.color ? props?.color : '#0052CD')}
     #f0f0f0; /* Color of the thumb and track */
 `;
 
@@ -77,12 +77,12 @@ export const MessageTimestamp = styled.div`
 `;
 
 export const Message = styled.div<{ isUser: boolean }>`
-  background-color: ${(props) => (props.isUser ? "#dcf8c6" : "#f1f1f1")};
+  background-color: ${(props) => (props.isUser ? '#dcf8c6' : '#f1f1f1')};
   padding: 10px;
   margin: 10px 0;
   border-radius: 8px;
   max-width: 60%;
-  flex-direction: ${(props) => (!props.isUser ? "row" : "row-reverse")};
+  flex-direction: ${(props) => (!props.isUser ? 'row' : 'row-reverse')};
 `;
 
 export const MessageText = styled.p`
@@ -127,25 +127,25 @@ export const SendButton = styled.button`
 //
 export const CustomMessageContainer = styled.div<{ isUser: boolean }>`
   display: flex;
-  flex-direction: ${(props) => (!props.isUser ? "row" : "row-reverse")};
+  flex-direction: ${(props) => (!props.isUser ? 'row' : 'row-reverse')};
   align-items: end;
   margin: 10px 0;
   gap: 5px;
-  position: "relative";
+  position: 'relative';
 `;
 
 export const CustomMessageBubble = styled.div<{ isUser: boolean }>`
   max-width: 60%;
   padding: 8px 16px;
   border-radius: ${(props) =>
-    props.isUser ? "15px 15px 0px 15px" : "15px 15px 15px 0px"};
+    props.isUser ? '15px 15px 0px 15px' : '15px 15px 15px 0px'};
   background-color: #ffffff;
   color: #000000;
   text-align: left;
   display: flex;
   flex-direction: column;
-  background-color: ${(props) => (props.isUser ? "#E7EDF9" : "#FFFFFF")};
-  position: "relative";
+  background-color: ${(props) => (props.isUser ? '#E7EDF9' : '#FFFFFF')};
+  position: 'relative';
 `;
 
 export const CustomMessageText = styled.p`
@@ -154,11 +154,11 @@ export const CustomMessageText = styled.p`
 `;
 
 export const CustomUserName = styled.span<{ isUser: boolean; color?: string }>`
-  font-family: "Open Sans", sans-serif;
+  font-family: 'Open Sans', sans-serif;
   font-weight: 600;
   font-size: 18px;
   color: ${(props) =>
-    props.isUser ? (props?.color ? props?.color : "#0052CD") : "#0052cd"};
+    props.isUser ? (props?.color ? props?.color : '#0052CD') : '#0052cd'};
   margin-bottom: 8px;
 `;
 
@@ -218,4 +218,10 @@ export const Line = styled.div`
   width: 100%;
   background-color: transparent;
   border: 1px solid var(--colors-background-bg-prymary-5, #0052cd0d);
+`;
+
+export const StyledLoaderWrapper = styled.div`
+  height: 100%;
+  display: flex;
+  justify-content: center;
 `;

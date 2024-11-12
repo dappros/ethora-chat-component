@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   Message,
   UserName,
@@ -6,16 +6,16 @@ import {
   MessageTimestamp,
   MessagesScroll,
   MessagesList,
-} from "../styled/StyledComponents";
-import { IConfig, IMessage, IRoom, User } from "../../types/types";
-import SystemMessage from "./SystemMessage";
-import DateLabel from "../styled/DateLabel";
-import Loader from "../styled/Loader";
-import { useSelector } from "react-redux";
-import { RootState } from "../../roomStore";
-import Composing from "../styled/StyledInputComponents/Composing";
-import { validateMessages } from "../../helpers/validator";
-import NewMessageLabel from "../styled/NewMessageLabel";
+} from '../styled/StyledComponents';
+import { IConfig, IMessage, IRoom, User } from '../../types/types';
+import SystemMessage from './SystemMessage';
+import DateLabel from '../styled/DateLabel';
+import Loader from '../styled/Loader';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../roomStore';
+import Composing from '../styled/StyledInputComponents/Composing';
+import { validateMessages } from '../../helpers/validator';
+import NewMessageLabel from '../styled/NewMessageLabel';
 
 interface MessageListProps<TMessage extends IMessage> {
   CustomMessage?: React.ComponentType<{ message: IMessage; isUser: boolean }>;
@@ -125,12 +125,12 @@ const MessageList = <TMessage extends IMessage>({
   useEffect(() => {
     const messagesOuter = outerRef.current;
     if (messagesOuter) {
-      messagesOuter.addEventListener("scroll", onScroll, true);
+      messagesOuter.addEventListener('scroll', onScroll, true);
     }
 
     return () => {
       messagesOuter &&
-        messagesOuter.removeEventListener("scroll", onScroll, true);
+        messagesOuter.removeEventListener('scroll', onScroll, true);
     };
   }, []);
 
@@ -178,7 +178,7 @@ const MessageList = <TMessage extends IMessage>({
             lastDateLabel = currentDateLabel;
           }
 
-          if (message.isSystemMessage === "true") {
+          if (message.isSystemMessage === 'true') {
             return (
               <React.Fragment key={message.id}>
                 {showDateLabel && (
@@ -193,7 +193,7 @@ const MessageList = <TMessage extends IMessage>({
           }
 
           // todo finish unread messages
-          if (message.id === "delimiter-new" && lastViewedTimestamp) {
+          if (message.id === 'delimiter-new' && lastViewedTimestamp) {
             return <NewMessageLabel color={config?.colors?.primary} />;
           }
 
@@ -201,7 +201,7 @@ const MessageList = <TMessage extends IMessage>({
 
           return (
             <React.Fragment key={message.id}>
-              {showDateLabel && message.id !== "delimiter-new" && (
+              {showDateLabel && message.id !== 'delimiter-new' && (
                 <DateLabel date={messageDate} colors={config?.colors} />
               )}
               {!CustomMessage ? (
@@ -219,7 +219,7 @@ const MessageList = <TMessage extends IMessage>({
           );
         })}
         {!config?.disableHeader && composing && (
-          <Composing usersTyping={["User"]} />
+          <Composing usersTyping={['User']} />
         )}
       </MessagesScroll>
     </MessagesList>

@@ -32,17 +32,24 @@ export interface IRoom {
   jid: string;
   title: string;
   usersCnt: number;
-  // users: IUser[];
   messages: IMessage[];
   isLoading: boolean;
+  roomBg: string;
+
   lastMessage?: string;
+  lastRoomMessage?: RoomLastMessage;
   icon?: string;
   composing?: boolean;
   composingList?: string[];
   lastViewedTimestamp?: number;
   unreadMessages?: number;
   noMessages?: boolean;
-  roomBg: string;
+  role?: string;
+}
+
+export interface RoomLastMessage {
+  name: string;
+  body: string;
 }
 
 export interface UserType extends IMessage {
@@ -79,7 +86,7 @@ export interface User {
       email: string;
       verified: boolean;
       _id: string;
-    }
+    },
   ];
   appId: string;
   xmppPassword: string;
@@ -124,7 +131,14 @@ export interface IConfig {
     token: string;
     enabled: boolean;
   };
+  disableRooms?: boolean;
   defaultLogin?: boolean;
+  disableInteractions?: boolean;
+  chatHeaderBurgerMenu?: boolean;
+  forceSetRoom?: boolean;
+  roomListStyles?: React.CSSProperties;
+  chatRoomStyles?: React.CSSProperties;
+  setRoomJidInPath?: boolean;
 }
 
 export interface StorageUser {
@@ -151,3 +165,5 @@ export interface MessageProps {
   message: IMessage;
   isUser: boolean;
 }
+
+export interface MediaMessageType {}

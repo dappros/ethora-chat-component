@@ -9,7 +9,7 @@ interface ElemEvents {
 
 //  ---------------------------------------------------------------------------------------------------------------  //
 
-const ATTR_NAME = "data-scroll-id";
+const ATTR_NAME = 'data-scroll-id';
 
 const events: {
   [key: string]: ElemEvents;
@@ -23,7 +23,7 @@ export function blockScrollEvent(elem: HTMLElement) {
   if (id) {
     return;
   }
-  id = "scroll-id-" + Date.now();
+  id = 'scroll-id-' + Date.now();
   elem.setAttribute(ATTR_NAME, id);
 
   let _client_y: number;
@@ -65,9 +65,9 @@ export function blockScrollEvent(elem: HTMLElement) {
     },
   };
 
-  elem.addEventListener("touchstart", elem_events.on_touchstart);
-  elem.addEventListener("touchmove", elem_events.on_touchmove);
-  elem.addEventListener("wheel", elem_events.on_wheel);
+  elem.addEventListener('touchstart', elem_events.on_touchstart);
+  elem.addEventListener('touchmove', elem_events.on_touchmove);
+  elem.addEventListener('wheel', elem_events.on_wheel);
 
   events[id] = elem_events;
 }
@@ -75,7 +75,7 @@ export function blockScrollEvent(elem: HTMLElement) {
 //  ---------------------------------------------------------------------------------------------------------------  //
 
 export function unblock_scroll(elem: HTMLElement) {
-  console.log("unblock_scroll");
+  console.log('unblock_scroll');
   const id = elem.getAttribute(ATTR_NAME);
   if (!id) {
     return;
@@ -86,9 +86,9 @@ export function unblock_scroll(elem: HTMLElement) {
   const elem_events = events[id];
 
   if (elem_events) {
-    elem.removeEventListener("touchstart", elem_events.on_touchstart);
-    elem.removeEventListener("touchmove", elem_events.on_touchmove);
-    elem.removeEventListener("wheel", elem_events.on_wheel);
+    elem.removeEventListener('touchstart', elem_events.on_touchstart);
+    elem.removeEventListener('touchmove', elem_events.on_touchmove);
+    elem.removeEventListener('wheel', elem_events.on_wheel);
   }
 
   delete events[id];

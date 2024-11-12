@@ -4,21 +4,24 @@ import React, {
   useEffect,
   useCallback,
   useMemo,
-} from "react";
-import styled, { css } from "styled-components";
-import { IRoom } from "../../types/types";
-import { ChatHeaderAvatar } from "./ChatHeaderAvatar";
-import Button from "../styled/Button";
-import { SearchInput } from "../InputComponents/Search";
-import { useSelector } from "react-redux";
-import { RootState } from "../../roomStore";
-import { getTintedColor } from "../../helpers/getTintedColor";
+} from 'react';
+import styled, { css } from 'styled-components';
+import { IRoom } from '../../types/types';
+import { ChatHeaderAvatar } from './ChatHeaderAvatar';
+import { SearchInput } from '../InputComponents/Search';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '../../roomStore';
+import { getTintedColor } from '../../helpers/getTintedColor';
+import { SearchIcon } from '../../assets/icons';
+import DropdownMenu from '../DropdownMenu/DropdownMenu';
+import { logout, setActiveModal } from '../../roomStore/chatSettingsSlice';
+import NewChatModal from '../Modals/NewChatModal/NewChatModal';
+import { setLogoutState } from '../../roomStore/roomsSlice';
 
 interface RoomListProps {
   chats: IRoom[];
   burgerMenu?: boolean;
   onRoomClick?: (chat: IRoom) => void;
-  activeJID: string;
 }
 
 const Container = styled.div<{ burgerMenu?: boolean; open?: boolean }>`
@@ -30,7 +33,7 @@ const Container = styled.div<{ burgerMenu?: boolean; open?: boolean }>`
           top: 0;
           width: 300px;
           height: 100%;
-          transform: ${open ? "translateX(0)" : "translateX(-100%)"};
+          transform: ${open ? 'translateX(0)' : 'translateX(-100%)'};
           transition: transform 0.3s ease-in-out;
           z-index: 2;
           display: flex;
@@ -38,15 +41,16 @@ const Container = styled.div<{ burgerMenu?: boolean; open?: boolean }>`
           background-color: #fff;
           padding: 16px 12px;
           z-index: 1000;
+          border-right: 1px solid var(--Colors-Border-border-primary, #f0f0f0);
         `
       : css`
-          position: static;
-          width: 300px;
+          padding: 16px 12px;
+          overflow: auto;
+          display: relative;
           z-index: 2;
-          padding: 0px 0px 12px 16px;
-          overflow-y: auto;
-          z-index: 1000;
           background-color: #fff;
+          min-width: 375px;
+          border-right: 1px solid var(--Colors-Border-border-primary, #f0f0f0);
         `}
 `;
 
@@ -68,30 +72,37 @@ const ChatItem = styled.div<{ active: boolean; bg?: string }>`
   padding: 10px;
   cursor: pointer;
   background-color: ${({ active, bg }) =>
-    active ? (bg ? bg : "#0052CD") : "#fff"};
-  color: ${({ active }) => (!active ? "#000" : "#fff")};
+    active ? (bg ? bg : '#0052CD') : '#fff'};
+  color: ${({ active }) => (!active ? '#000' : '#fff')};
 
   &:hover {
     background-color: ${({ active, bg }) =>
-      active ? getTintedColor(bg ? bg : "#0052CD") : "rgba(0, 0, 0, 0.05)"};
+      active ? getTintedColor(bg ? bg : '#0052CD') : 'rgba(0, 0, 0, 0.05)'};
   }
 `;
 
-const IconPlaceholder = styled.div`
-  width: 40px;
-  height: 40px;
-  background-color: #ccc;
-  border-radius: 50%;
+const SearchContainer = styled.div<{}>`
   display: flex;
-  justify-content: center;
+  gap: 16px;
   align-items: center;
-  margin-right: 10px;
+  width: 100%;
+  height: 50px;
+  padding-bottom: 12px;
+`;
+
+const ScollableContainer = styled.div<{}>`
+  height: 100%;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
 `;
 
 const ChatInfo = styled.div`
   display: flex;
   flex-direction: column;
   max-width: 60%;
+  text-align: start;
 `;
 
 const ChatName = styled.div`
@@ -109,22 +120,31 @@ const LastMessage = styled.div`
 `;
 
 const UserCount = styled.div<{ active: boolean }>`
-  color: ${({ active }) => (!active ? "#000" : "#fff")};
+  color: ${({ active }) => (!active ? '#000' : '#fff')};
   margin-left: auto;
+`;
+
+const Divider = styled.div`
+  height: 1px;
+  width: 100%;
+  background-color: #0052cd0d;
 `;
 
 const RoomList: React.FC<RoomListProps> = ({
   chats,
-  activeJID,
   burgerMenu = false,
   onRoomClick,
 }) => {
   const [open, setOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const dispatch = useDispatch();
 
   const config = useSelector(
     (state: RootState) => state.chatSettingStore.config
   );
+
+  const { activeRoomJID } = useSelector((state: RootState) => state.rooms);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -162,16 +182,48 @@ const RoomList: React.FC<RoomListProps> = ({
 
   useEffect(() => {
     if (burgerMenu) {
-      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener('mousedown', handleClickOutside);
       return () => {
-        document.removeEventListener("mousedown", handleClickOutside);
+        document.removeEventListener('mousedown', handleClickOutside);
       };
     }
   }, [burgerMenu, handleClickOutside]);
 
   const isChatActive = useCallback(
-    (room: IRoom) => activeJID === room.jid,
-    [activeJID]
+    (room: IRoom) => activeRoomJID === room.jid,
+    [activeRoomJID]
+  );
+
+  const handleLogout = useCallback(() => {
+    dispatch(logout());
+    dispatch(setLogoutState());
+  }, []);
+
+  const menuOptions = useMemo(
+    () => [
+      {
+        label: 'Profile',
+        icon: null,
+        onClick: () => {
+          dispatch(setActiveModal('profile'));
+          console.log('Profile clicked');
+        },
+      },
+      {
+        label: 'Settings',
+        icon: null,
+        onClick: () => {
+          dispatch(setActiveModal('settings'));
+          console.log('Settings clicked');
+        },
+      },
+      {
+        label: 'Logout',
+        icon: null,
+        onClick: () => handleLogout(),
+      },
+    ],
+    []
   );
 
   return (
@@ -179,61 +231,74 @@ const RoomList: React.FC<RoomListProps> = ({
       {burgerMenu && !open && (
         <BurgerButton onClick={() => setOpen(!open)}>☰</BurgerButton>
       )}
-      <Container burgerMenu={burgerMenu} open={open} ref={containerRef}>
-        {open && (
-          <>
-            <div
-              style={{
-                display: "flex",
-                gap: "16px",
-                alignItems: "center",
-                width: "100%",
-                marginBottom: 8,
-              }}
-            >
+      <Container
+        burgerMenu={burgerMenu}
+        open={open}
+        ref={containerRef}
+        style={config?.roomListStyles}
+      >
+        {(open || !burgerMenu) && (
+          <ScollableContainer>
+            <SearchContainer>
+              {/* <DropdownMenu
+                options={menuOptions}
+                // onClose={dispatch(setActiveModal())}
+              /> */}
               <SearchInput
+                icon={<SearchIcon height={'20px'} />}
                 value={searchTerm}
                 onChange={handleSearchChange}
                 placeholder="Search..."
+                // animated={true}
               />
-              <Button style={{ color: "black" }} text={"New"} />
-            </div>
-            <div style={{ height: "80%", overflow: "auto" }}>
+
+              {/* <NewChatModal /> */}
+            </SearchContainer>
+            <div style={{ flexGrow: 1, overflowY: 'auto' }}>
               {filteredChats.map((chat, index) => (
-                <ChatItem
-                  key={index}
-                  active={isChatActive(chat)}
-                  onClick={() => performClick(chat)}
-                  bg={config?.colors?.primary}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "start",
-                      width: "100%",
-                      gap: "8px",
-                    }}
+                <>
+                  <ChatItem
+                    key={index}
+                    active={isChatActive(chat)}
+                    onClick={() => performClick(chat)}
+                    bg={config?.colors?.primary}
                   >
-                    {chat.icon ? (
-                      <IconPlaceholder>{chat.icon}</IconPlaceholder>
-                    ) : (
-                      <ChatHeaderAvatar name={chat.name} />
-                    )}
-                    <ChatInfo>
-                      <ChatName>{chat.name}</ChatName>
-                      <LastMessage>{chat.lastMessage}</LastMessage>
-                    </ChatInfo>
-                  </div>
-                  <div style={{ textAlign: "right", display: "flex" }}>
-                    <UserCount active={isChatActive(chat)}>
-                      {chat.usersCnt}
-                    </UserCount>
-                    {/* <div>{chat.lastMessageTime}</div> */}
-                  </div>
-                </ChatItem>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'start',
+                        width: '100%',
+                        gap: '8px',
+                      }}
+                    >
+                      {chat.icon ? (
+                        <img src={chat.icon} alt="Icon" />
+                      ) : (
+                        <ChatHeaderAvatar name={chat.name} />
+                      )}
+                      <ChatInfo>
+                        <ChatName>{chat.name}</ChatName>
+                        <LastMessage
+                          style={{ color: '#141414', fontWeight: 600 }}
+                        >
+                          {chat?.lastRoomMessage?.name &&
+                            `${chat?.lastRoomMessage?.name}:`}
+                        </LastMessage>
+                        <LastMessage>{chat?.lastRoomMessage?.body}</LastMessage>
+                      </ChatInfo>
+                    </div>
+                    <div style={{ textAlign: 'right', display: 'flex' }}>
+                      <UserCount active={isChatActive(chat)}>
+                        {chat.usersCnt}
+                      </UserCount>
+                      {/* <div>{chat.lastMessageTime}</div> */}
+                    </div>
+                  </ChatItem>
+                  <Divider />
+                </>
               ))}
             </div>
-          </>
+          </ScollableContainer>
         )}
       </Container>
     </>

@@ -1,19 +1,9 @@
-import axios from "axios";
-import { store } from "../roomStore";
-import { refreshTokens } from "../roomStore/loginSlice";
-import { User } from "../types/types";
+import axios from 'axios';
+import { store } from '../roomStore';
 
-import {
-  getAuth,
-  GoogleAuthProvider,
-  signInWithPopup,
-  User as FirebaseUser,
-} from "firebase/auth";
-import { app } from "../firebase-config";
-import { appToken } from "../api.config";
-// import { appToken } from "../api.config";
+import { refreshTokens } from '../roomStore/chatSettingsSlice';
 
-const baseURL = "https://api.ethoradev.com/v1";
+const baseURL = 'https://api.ethoradev.com/v1';
 
 const http = axios.create({
   baseURL,
@@ -23,10 +13,10 @@ export function refresh(): Promise<{
   data: { refreshToken: string; token: string };
 }> {
   return new Promise((resolve, reject) => {
-    const user = store.getState().loginStore.user;
+    const user = store.getState().chatSettingStore.user;
     http
       .post(
-        "/users/login/refresh",
+        '/users/login/refresh',
         {},
         { headers: { Authorization: user.refreshToken } }
       )
@@ -56,7 +46,7 @@ const addRequestToQueue = (config: any) => {
 const processQueue = (newAccessToken: string) => {
   for (const request of failedQueue) {
     if (newAccessToken) {
-      request.config.headers["Authorization"] = newAccessToken;
+      request.config.headers['Authorization'] = newAccessToken;
     }
 
     request.resolve(http(request.config));
@@ -64,15 +54,6 @@ const processQueue = (newAccessToken: string) => {
 
   failedQueue = [];
 };
-
-export function uploadFile(formData: FormData, token: string) {
-  return http.post("/files/", formData, {
-    headers: {
-      Authorization: token,
-      Accept: "*/*",
-    },
-  });
-}
 
 http.interceptors.response.use(
   (response) => response,
@@ -83,8 +64,8 @@ http.interceptors.response.use(
       throw error;
     }
     if (
-      originalRequest.url === "/users/login/refresh" ||
-      originalRequest.url === "/users/login"
+      originalRequest.url === '/users/login/refresh' ||
+      originalRequest.url === '/users/login'
     ) {
       return Promise.reject(error);
     }
@@ -99,9 +80,9 @@ http.interceptors.response.use(
       isRefreshing = true;
       try {
         const tokens = await refresh();
-        console.log("tokens", tokens);
+        console.log('tokens', tokens);
         isRefreshing = false;
-        originalRequest.headers["Authorization"] = tokens.data.token;
+        originalRequest.headers['Authorization'] = tokens.data.token;
         processQueue(tokens.data.token);
         return http(originalRequest);
       } catch (error) {
@@ -112,97 +93,4 @@ http.interceptors.response.use(
   }
 );
 
-export async function loginEmail(email: string, password: string) {
-  const res = await http.post<{
-    user: User;
-    refreshToken: string;
-    token: string;
-  }>(
-    "/users/login-with-email",
-    {
-      email,
-      password,
-    },
-    { headers: { Authorization: appToken } }
-  );
-
-  return res;
-}
-
-export const signInWithGoogle = async () => {
-  const auth = getAuth(app);
-  const googleProvider = new GoogleAuthProvider();
-  googleProvider.addScope("https://www.googleapis.com/auth/userinfo.email");
-  googleProvider.addScope("https://www.googleapis.com/auth/userinfo.profile");
-  try {
-    const res = await signInWithPopup(auth, googleProvider);
-    const user = res.user as FirebaseUser;
-    const idToken = await auth?.currentUser?.getIdToken();
-    const credential = GoogleAuthProvider.credentialFromResult(res);
-    return {
-      user,
-      idToken,
-      credential,
-    };
-  } catch (error) {
-    console.error(error);
-    return {};
-  }
-};
-
-// login functions
-export function loginSocial(
-  idToken: string,
-  accessToken: string,
-  loginType: string,
-  authToken: string = "authToken"
-) {
-  return http.post<any>(
-    "/users/login",
-    {
-      idToken,
-      accessToken,
-      loginType,
-      authToken,
-    },
-    { headers: { Authorization: appToken } }
-  );
-}
-
-export function registerSocial(
-  idToken: string,
-  accessToken: string,
-  authToken: string,
-  loginType: string,
-  signUpPlan?: string
-) {
-  return http.post(
-    "/users",
-    {
-      idToken,
-      accessToken,
-      loginType,
-      authToken: authToken,
-      signupPlan: signUpPlan,
-    },
-    { headers: { Authorization: appToken } }
-  );
-}
-
-export function checkEmailExist(email: string) {
-  return http.get(
-    "/users/checkEmail/" + email,
-
-    { headers: { Authorization: appToken } }
-  );
-}
-
-export async function loginViaJwt(clientToken: string): Promise<User> {
-  const response = await http.post<{
-    user: User;
-    refreshToken: string;
-    token: string;
-  }>("/users", {}, { headers: { "x-custom-token": clientToken } });
-
-  return response.data.user;
-}
+export default http;

@@ -1,5 +1,5 @@
-import React, { useMemo } from "react";
-import styled from "styled-components";
+import React, { useMemo } from 'react';
+import styled from 'styled-components';
 
 interface AvatarProps {
   username?: string;
@@ -7,7 +7,7 @@ interface AvatarProps {
   lastName?: string;
 }
 
-const backgroundColors = ["#f44336", "#2196f3", "#4caf50", "#ff9800"];
+const backgroundColors = ['#f44336', '#2196f3', '#4caf50', '#ff9800'];
 
 const AvatarCircle = styled.div<{ bgColor: string; textColor?: string }>`
   width: 40px;
@@ -32,12 +32,12 @@ export const Avatar: React.FC<AvatarProps> = ({
     if (firstName && lastName) {
       return `${firstName[0]}${lastName[0]}`.toUpperCase();
     } else if (username) {
-      const names = username.split(" ");
+      const names = username.split(' ');
       return names.length > 1
         ? `${names[0][0]}${names[1][0]}`.toUpperCase()
         : `${names[0][0]}`.toUpperCase();
     }
-    return "??";
+    return '??';
   };
 
   const randomColor = useMemo(() => {
@@ -46,9 +46,9 @@ export const Avatar: React.FC<AvatarProps> = ({
   }, []);
 
   const getTextColor = (bgColor: string) => {
-    const lightColors = ["#4caf50", "#ff9800"];
-    return lightColors.includes(bgColor) ? "#000" : "#fff";
+    const lightColors = ['#4caf50', '#ff9800'];
+    return lightColors.includes(bgColor) ? '#000' : '#fff';
   };
 
-  return <AvatarCircle bgColor={"#2196f3"}>{getInitials()}</AvatarCircle>;
+  return <AvatarCircle bgColor={'#2196f3'}>{getInitials()}</AvatarCircle>;
 };

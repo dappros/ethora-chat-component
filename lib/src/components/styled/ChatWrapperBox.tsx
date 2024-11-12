@@ -1,5 +1,14 @@
-import styled from "styled-components";
+import styled from 'styled-components';
 
 export const ChatWrapperBox = styled.div`
-  height: 100vh;
+  height: 100%;
+  width: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: row;
+
+  & > * {
+    flex: 1;
+    width: 50%;
+  }
 `;

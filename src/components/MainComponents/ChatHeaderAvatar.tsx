@@ -1,5 +1,5 @@
-import React, { useMemo } from "react";
-import styled from "styled-components";
+import React, { useMemo } from 'react';
+import styled from 'styled-components';
 
 interface ChatHeaderAvatarProps {
   name?: string;
@@ -7,15 +7,15 @@ interface ChatHeaderAvatarProps {
   size?: number;
 }
 
-const backgroundColors = ["#f44336", "#2196f3", "#4caf50", "#ff9800"];
+const backgroundColors = ['#f44336', '#2196f3', '#4caf50', '#ff9800'];
 
 const AvatarCircle = styled.div<{
   bgColor: string;
   size?: number;
   textColor?: string;
 }>`
-  width: ${({ size }) => `${size}px` || "64px"};
-  height: ${({ size }) => `${size}px` || "64px"};
+  width: ${({ size }) => `${size}px` || '64px'};
+  height: ${({ size }) => `${size}px` || '64px'};
   border-radius: 50%;
   background-color: ${({ bgColor }) => bgColor};
   color: ${({ textColor }) => textColor};
@@ -32,7 +32,7 @@ export const ChatHeaderAvatar: React.FC<ChatHeaderAvatarProps> = ({
   size = 64,
 }) => {
   const getInitials = () => {
-    return name[0].toUpperCase();
+    return name[0]?.toUpperCase();
   };
 
   const randomColor = useMemo(() => {
@@ -41,8 +41,8 @@ export const ChatHeaderAvatar: React.FC<ChatHeaderAvatarProps> = ({
   }, []);
 
   const getTextColor = (bgColor: string) => {
-    const lightColors = ["#4caf50", "#ff9800"];
-    return lightColors.includes(bgColor) ? "#000" : "#fff";
+    const lightColors = ['#4caf50', '#ff9800'];
+    return lightColors.includes(bgColor) ? '#fff' : '#fff';
   };
 
   return (

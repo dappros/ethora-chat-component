@@ -1,3 +1,3 @@
-import "vite/client";
-declare const _default: import("vite").UserConfig;
+import 'vite/client';
+declare const _default: import('vite').UserConfig;
 export default _default;

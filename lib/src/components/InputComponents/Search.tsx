@@ -1,10 +1,10 @@
-import React, { useState } from "react";
-import styled, { css } from "styled-components";
+import React, { useState, useEffect, useRef } from 'react';
+import styled, { css } from 'styled-components';
 
 interface SearchInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   icon?: React.ReactNode;
   animated?: boolean;
-  direction?: "left" | "right";
+  direction?: 'left' | 'right';
 }
 
 const SearchInputWrapper = styled.div<{
@@ -15,6 +15,7 @@ const SearchInputWrapper = styled.div<{
   position: relative;
   display: flex;
   align-items: center;
+  justify-content: center;
   background-color: #f5f7f9;
   border-radius: 16px;
   height: 48px;
@@ -24,63 +25,73 @@ const SearchInputWrapper = styled.div<{
   ${({ animated, direction, expanded }) =>
     animated &&
     css`
-      width: ${expanded ? "300px" : "48px"};
-      justify-content: ${direction === "right" ? "flex-start" : "flex-end"};
+      width: ${expanded ? '300px' : '48px'};
+      justify-content: 'center';
       cursor: pointer;
 
-      padding: 0 ${expanded ? "16px" : "0"};
+      padding: 0 ${expanded ? '16px' : '0'};
     `};
 `;
 
-const SearchIcon = styled.div<{
-  animated?: boolean;
-  expanded?: boolean;
-  direction?: string;
-}>`
-  position: absolute;
+const SearchIcon = styled.div<{ animated?: boolean; expanded?: boolean }>`
+  padding: 3.5px;
   color: #999;
-  left: ${({ animated, direction }) =>
-    !animated || direction === "left" ? "16px" : "auto"};
-  right: ${({ animated, direction }) =>
-    animated && direction === "right" ? "16px" : "auto"};
-  opacity: ${({ expanded }) => (expanded ? 0 : 1)};
+  cursor: pointer;
 `;
 
 const StyledInput = styled.input<{ animated?: boolean; expanded?: boolean }>`
   background-color: transparent;
   border: none;
   outline: none;
-  padding-left: ${({ animated, expanded }) =>
-    animated && expanded ? "16px" : "0"};
   width: ${({ animated, expanded }) =>
-    animated ? (expanded ? "100%" : "0") : "100%"};
+    animated ? (expanded ? '100%' : '0px') : '100%'};
   font-size: 16px;
   height: 48px;
   color: #000;
-  transition: width 0.7s ease-in-out, padding 0.7s ease-in-out;
-  opacity: ${({ expanded }) => (expanded ? 1 : 0)};
+  transition:
+    width 0.7s ease-in-out,
+    padding 0.7s ease-in-out;
+  opacity: ${({ animated, expanded }) => (animated ? (expanded ? 1 : 0) : 1)};
+  z-index: 1;
 
   &::placeholder {
-    color: #999;
-    font-size: 16px;
+    opacity: ${({ animated, expanded }) => (animated && !expanded ? 0 : 1)};
+    transition: opacity 0.7s ease-in-out;
   }
 `;
 
 const SearchInput: React.FC<SearchInputProps> = ({
   icon,
   animated = false,
-  direction = "left",
+  direction = 'left',
   ...props
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-
+  const [isTyping, setIsTyping] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   const handleFocus = () => {
     setIsExpanded(true);
   };
 
   const handleBlur = () => {
-    setIsExpanded(false);
+    if (!isTyping) {
+      setIsExpanded(false);
+    }
   };
+
+  const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setIsTyping(!!e.target.value);
+  };
+
+  useEffect(() => {
+    if (isExpanded && animated) {
+      const timeout = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 250);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [isExpanded, animated]);
 
   return (
     <SearchInputWrapper
@@ -93,17 +104,17 @@ const SearchInput: React.FC<SearchInputProps> = ({
         <SearchIcon
           animated={animated}
           expanded={isExpanded}
-          direction={direction}
+          onClick={() => inputRef.current?.focus()}
         >
           {icon}
         </SearchIcon>
       )}
       <StyledInput
-        placeholder={"Search..."}
+        ref={inputRef}
         onBlur={handleBlur}
         animated={animated}
         expanded={isExpanded}
-        autoFocus={true}
+        onInput={handleInput}
         {...props}
       />
     </SearchInputWrapper>

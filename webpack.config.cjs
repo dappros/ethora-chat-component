@@ -1,57 +1,57 @@
-const path = require("path");
-const MiniCssExtractPlugin = require("mini-css-extract-plugin");
-const TerserWebpackPlugin = require("terser-webpack-plugin");
-const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
+const path = require('path');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const TerserWebpackPlugin = require('terser-webpack-plugin');
+const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 
 module.exports = {
-  mode: "production",
-  entry: "./src/main.ts",
+  mode: 'production',
+  entry: './src/main.ts',
   output: {
-    path: path.resolve(__dirname, "dist"),
-    filename: "[name].js",
-    publicPath: "/",
-    libraryTarget: "es",
+    path: path.resolve(__dirname, 'dist'),
+    filename: '[name].js',
+    publicPath: '/',
+    libraryTarget: 'es',
     umdNamedDefine: true,
   },
   resolve: {
-    extensions: [".ts", ".tsx", ".js", ".jsx"],
+    extensions: ['.ts', '.tsx', '.js', '.jsx'],
     alias: {
-      "@reduxjs/toolkit": path.resolve(
+      '@reduxjs/toolkit': path.resolve(
         __dirname,
-        "node_modules/@reduxjs/toolkit"
+        'node_modules/@reduxjs/toolkit'
       ),
-      "@types/react": path.resolve(__dirname, "node_modules/@types/react"),
-      "@types/react-dom": path.resolve(
+      '@types/react': path.resolve(__dirname, 'node_modules/@types/react'),
+      '@types/react-dom': path.resolve(
         __dirname,
-        "node_modules/@types/react-dom"
+        'node_modules/@types/react-dom'
       ),
-      "@types/styled-components": path.resolve(
+      '@types/styled-components': path.resolve(
         __dirname,
-        "node_modules/@types/styled-components"
+        'node_modules/@types/styled-components'
       ),
-      "@xmpp": path.resolve(__dirname, "node_modules/@xmpp"),
-      axios: path.resolve(__dirname, "node_modules/axios"),
-      ltx: path.resolve(__dirname, "node_modules/ltx"),
-      react: path.resolve(__dirname, "node_modules/react"),
-      "react-dom": path.resolve(__dirname, "node_modules/react-dom"),
-      "react-redux": path.resolve(__dirname, "node_modules/react-redux"),
-      "react-scripts": path.resolve(__dirname, "node_modules/react-scripts"),
-      redux: path.resolve(__dirname, "node_modules/redux"),
-      "redux-saga": path.resolve(__dirname, "node_modules/redux-saga"),
-      "styled-components": path.resolve(
+      '@xmpp': path.resolve(__dirname, 'node_modules/@xmpp'),
+      axios: path.resolve(__dirname, 'node_modules/axios'),
+      ltx: path.resolve(__dirname, 'node_modules/ltx'),
+      react: path.resolve(__dirname, 'node_modules/react'),
+      'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
+      'react-redux': path.resolve(__dirname, 'node_modules/react-redux'),
+      'react-scripts': path.resolve(__dirname, 'node_modules/react-scripts'),
+      redux: path.resolve(__dirname, 'node_modules/redux'),
+      'redux-saga': path.resolve(__dirname, 'node_modules/redux-saga'),
+      'styled-components': path.resolve(
         __dirname,
-        "node_modules/styled-components"
+        'node_modules/styled-components'
       ),
-      uuid: path.resolve(__dirname, "node_modules/uuid"),
-      "@types/lodash": path.resolve(__dirname, "node_modules/@types/lodash"),
-      "@types/react-modal": path.resolve(
+      uuid: path.resolve(__dirname, 'node_modules/uuid'),
+      '@types/lodash': path.resolve(__dirname, 'node_modules/@types/lodash'),
+      '@types/react-modal': path.resolve(
         __dirname,
-        "node_modules/@types/react-modal"
+        'node_modules/@types/react-modal'
       ),
-      "@types/uuid": path.resolve(__dirname, "node_modules/@types/uuid"),
-      "@types/xmpp__client": path.resolve(
+      '@types/uuid': path.resolve(__dirname, 'node_modules/@types/uuid'),
+      '@types/xmpp__client': path.resolve(
         __dirname,
-        "node_modules/@types/xmpp__client"
+        'node_modules/@types/xmpp__client'
       ),
     },
   },
@@ -60,20 +60,20 @@ module.exports = {
       {
         test: /\.(ts|tsx)$/,
         exclude: /node_modules/,
-        use: "babel-loader",
+        use: 'babel-loader',
       },
       {
         test: /\.css$/,
-        use: [MiniCssExtractPlugin.loader, "css-loader"],
+        use: [MiniCssExtractPlugin.loader, 'css-loader'],
       },
       {
         test: /\.(png|jpg|gif|svg)$/,
         use: [
           {
-            loader: "file-loader",
+            loader: 'file-loader',
             options: {
-              name: "[name].[contenthash].[ext]",
-              outputPath: "assets/images",
+              name: '[name].[contenthash].[ext]',
+              outputPath: 'assets/images',
             },
           },
         ],
@@ -93,8 +93,8 @@ module.exports = {
       new CssMinimizerPlugin(),
     ],
     splitChunks: {
-      chunks: "all",
+      chunks: 'all',
     },
   },
-  devtool: "source-map",
+  devtool: 'source-map',
 };

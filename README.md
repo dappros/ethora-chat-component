@@ -95,10 +95,6 @@ with:
       firebaseConfig: config, //Ethora app config
       enabled: true,
     },
-    googleLogin: {
-      firebaseConfig: config, //Ethora app config
-      enabled: true,
-    },
     }}
     MainComponentStyles={{
       width: "100%",
@@ -108,6 +104,15 @@ with:
     }}
     roomJID=""
     user={{ email: "", password: "" }}
+      disableHeader?: boolean;
+
+    disableRooms: boolean;
+    defaultLogin: boolean;
+    disableInteractions: boolean; //disable interactions
+    chatHeaderBurgerMenu: boolean; // disable burger menu in room header
+    roomListStyles: React.CSSProperties; // used to change room List styles (left)
+    chatRoomStyles: React.CSSProperties; // used to change room styles (right)
+    setRoomJidInPath: boolean; // used to set RoomId to url
   />
 ```
 

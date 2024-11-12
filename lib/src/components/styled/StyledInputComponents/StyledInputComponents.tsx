@@ -1,4 +1,4 @@
-import styled from "styled-components";
+import styled from 'styled-components';
 
 export const InputContainer = styled.div`
   display: flex;
@@ -28,7 +28,7 @@ export const MessageInput = styled.input<{ color?: string }>`
   background-color: #f5f7f9;
   max-height: 40px;
   &:focus {
-    border: 1px solid ${(props) => (props.color ? props.color : "#0052CD")};
+    border: 1px solid ${(props) => (props.color ? props.color : '#0052CD')};
     outline: none;
   }
 `;
@@ -57,7 +57,6 @@ export const RecordContainer = styled.div`
   height: 40px;
   display: flex;
   flex-direction: row;
-  gap: 8px;
   justify-content: space-between;
   align-items: center;
   width: 100%;
@@ -93,4 +92,24 @@ export const FileIcon = styled.img`
 export const VideoPreview = styled.video`
   max-width: 80%;
   max-height: 80%;
+`;
+
+export const StyledInput = styled.input<{}>`
+  padding: 16px 12px;
+  background-color: #f5f7f9;
+  border: none;
+  outline: none;
+  font-size: 16px;
+  color: #000;
+  transition:
+    width 0.7s ease-in-out,
+    padding 0.7s ease-in-out;
+  opacity: 1;
+  z-index: 1;
+  border-radius: 16px;
+
+  &::placeholder {
+    opacity: 1;
+    transition: opacity 0.7s ease-in-out;
+  }
 `;

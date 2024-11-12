@@ -1,4 +1,4 @@
-import styled from "styled-components";
+import styled from 'styled-components';
 
 export const ContextMenu = styled.div`
   position: absolute;
@@ -22,6 +22,8 @@ export const MenuItem = styled.div`
   min-width: 208px;
   display: flex;
   text-align: start;
+  justify-content: space-between;
+  align-items: center;
 `;
 
 export const Overlay = styled.div`

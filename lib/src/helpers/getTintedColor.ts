@@ -1,13 +1,13 @@
 export const getTintedColor = (hex: string, amount: number = 0.2) => {
-  if (hex.startsWith("#")) {
+  if (hex.startsWith('#')) {
     hex = hex.slice(1);
   }
 
   if (hex.length === 3) {
     hex = hex
-      .split("")
+      .split('')
       .map((x) => x + x)
-      .join("");
+      .join('');
   }
 
   const num = parseInt(hex, 16);

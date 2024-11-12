@@ -1,4 +1,4 @@
-import styled from "styled-components";
+import styled from 'styled-components';
 
 export const Container = styled.div`
   margin: 0;
@@ -29,6 +29,7 @@ export const ButtonContainer = styled.div`
   position: absolute;
   top: 8px;
   right: 8px;
+  gap: 4px;
 `;
 
 export const IconButton = styled.button`
@@ -62,4 +63,7 @@ export const FileName = styled.div`
   flex-grow: 1;
   padding: 0 10px;
   color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 `;

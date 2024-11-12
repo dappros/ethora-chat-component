@@ -1,6 +1,7 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { IMessage, IRoom } from "../types/types";
-import { isDateAfter, isDateBefore } from "../helpers/dateComparison";
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { IMessage, IRoom } from '../types/types';
+import { isDateAfter, isDateBefore } from '../helpers/dateComparison';
+import { insertMessageWithDelimiter } from '../helpers/insertMessageWithDelimiter';
 
 interface RoomMessagesState {
   rooms: { [jid: string]: IRoom };
@@ -15,7 +16,7 @@ const initialState: RoomMessagesState = {
 };
 
 export const roomsStore = createSlice({
-  name: "roomMessages",
+  name: 'roomMessages',
   initialState,
   reducers: {
     addRoom(state, action: PayloadAction<{ roomData: IRoom }>) {
@@ -56,96 +57,22 @@ export const roomsStore = createSlice({
     ) {
       const { roomJID, message, start } = action.payload;
 
-      if (!state.rooms[roomJID].messages) {
+      if (!state.rooms[roomJID]?.messages) {
         state.rooms[roomJID].messages = [];
       }
 
       const roomMessages = state.rooms[roomJID].messages;
 
-      const existingMessage = roomMessages.find((msg) => msg.id === message.id);
-
       if (roomMessages.length === 0 || start) {
         roomMessages.unshift(message);
       } else {
-        const lastMessage = roomMessages[roomMessages.length - 1];
-        const firstMessage = roomMessages[0];
-        const lastMessageDate = lastMessage.date;
-        const firstMessageDate = firstMessage.date;
-        const newMessageDate = message.date;
+        const lastViewedTimestamp = state.rooms[roomJID].lastViewedTimestamp
+          ? new Date(state.rooms[roomJID].lastViewedTimestamp)
+          : null;
 
-        if (!existingMessage) {
-          if (
-            isDateAfter(newMessageDate.toString(), lastMessageDate.toString())
-          ) {
-            roomMessages.push(message);
-
-            // Check for lastViewedTimestamp and insert delimiter if needed
-            if (
-              state.rooms[roomJID].lastViewedTimestamp &&
-              !roomMessages.some((msg) => msg.id === "delimiter-new")
-            ) {
-              const lastViewedTimestamp =
-                new Date(state.rooms[roomJID].lastViewedTimestamp) ||
-                new Date();
-
-              // If the new message is after the last viewed timestamp
-
-              isDateAfter(
-                newMessageDate.toString(),
-                lastViewedTimestamp.toString()
-              );
-
-              if (
-                isDateAfter(
-                  newMessageDate.toString(),
-                  lastViewedTimestamp.toString()
-                )
-              ) {
-                const delimiterIndex = roomMessages.findIndex((msg) =>
-                  isDateAfter(
-                    msg.date.toString(),
-                    lastViewedTimestamp.toString()
-                  )
-                );
-
-                // Insert the delimiter before the new messages
-                if (delimiterIndex !== -1) {
-                  roomMessages.splice(delimiterIndex, 0, {
-                    id: "delimiter-new",
-                    user: {
-                      id: "system",
-                      name: null,
-                      token: "",
-                      refreshToken: "",
-                    },
-                    date: new Date().toString(),
-                    body: "New Messages",
-                    roomJID: "",
-                  });
-                }
-              }
-            }
-          } else if (
-            isDateBefore(newMessageDate.toString(), firstMessageDate.toString())
-          ) {
-            roomMessages.unshift(message);
-          } else {
-            for (let i = 0; i < roomMessages.length; i++) {
-              if (
-                isDateBefore(
-                  newMessageDate.toString(),
-                  roomMessages[i].date.toString()
-                )
-              ) {
-                roomMessages.splice(i, 0, message);
-                break;
-              }
-            }
-          }
-        }
+        insertMessageWithDelimiter(roomMessages, message, lastViewedTimestamp);
       }
     },
-
     deleteAllRooms(state) {
       state.rooms = {};
     },
@@ -161,12 +88,11 @@ export const roomsStore = createSlice({
       action: PayloadAction<{ chatJID?: string; loading: boolean }>
     ) => {
       const { chatJID, loading } = action.payload;
-      if (chatJID) {
+      if (chatJID && state.rooms?.[chatJID]) {
         state.rooms[chatJID].isLoading = loading;
       }
       state.isLoading = loading;
     },
-
     setLastViewedTimestamp: (
       state,
       action: PayloadAction<{ chatJID: string; timestamp: number }>
@@ -178,6 +104,15 @@ export const roomsStore = createSlice({
           state.rooms[chatJID].messages,
           timestamp
         );
+      }
+    },
+    setRoomRole: (
+      state,
+      action: PayloadAction<{ chatJID: string; role: string }>
+    ) => {
+      const { chatJID, role } = action.payload;
+      if (state.rooms[chatJID]) {
+        state.rooms[chatJID].role = role;
       }
     },
     setRoomNoMessages: (
@@ -194,6 +129,11 @@ export const roomsStore = createSlice({
       if (roomJID) {
         state.activeRoomJID = roomJID;
       }
+    },
+    setLogoutState: (state) => {
+      state.rooms = {};
+      state.activeRoomJID = null;
+      state.isLoading = false;
     },
   },
 });
@@ -218,6 +158,8 @@ export const {
   setLastViewedTimestamp,
   setRoomNoMessages,
   setCurrentRoom,
+  setRoomRole,
+  setLogoutState,
 } = roomsStore.actions;
 
 export default roomsStore.reducer;
