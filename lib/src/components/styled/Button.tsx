@@ -3,45 +3,65 @@ import styled from 'styled-components';
 import Loader from './Loader';
 import { getTintedColor } from '../../helpers/getTintedColor';
 
-// Styled button inheriting from the HTML button
 const CustomButton = styled.button<{
   disabled: boolean;
   backgroundColor?: string;
   unstyled?: boolean;
+  variant?: 'default' | 'filled' | 'outlined';
 }>`
-  border: none;
+  border: ${({ variant, backgroundColor }) =>
+    variant === 'outlined'
+      ? `1px solid ${backgroundColor || '#0052CD'}`
+      : 'none'};
   border-radius: 16px;
   background-size: contain;
+  background-color: ${({ variant, backgroundColor }) =>
+    variant === 'filled' ? backgroundColor || '#0052CD' : 'transparent'};
+  color: ${({ variant, backgroundColor }) =>
+    variant === 'filled'
+      ? '#FFFFFF'
+      : variant === 'outlined'
+        ? backgroundColor || '#0052CD'
+        : 'inherit'};
   cursor: pointer;
   height: 40px;
   width: 40px;
+  padding: 0;
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 0;
   transition:
     background-color 0.3s,
     box-shadow 0.3s;
-  background-color: ${({ unstyled, backgroundColor }) =>
-    unstyled ? 'transparent' : backgroundColor || 'transparent'};
+
+  ${({ variant, backgroundColor }) =>
+    variant === 'default' &&
+    `
+      border: none;
+      background-color: ${backgroundColor || 'transparent'};
+      color: inherit;
+  `}
 
   &:hover {
-    background-color: ${({ unstyled, backgroundColor }) =>
-      unstyled
-        ? 'transparent'
-        : getTintedColor(backgroundColor ? backgroundColor : '#0052CD')};
-    box-shadow: ${({ unstyled }) =>
-      unstyled ? 'none' : '0 4px 8px rgba(0, 0, 0, 0.2)'};
-  }
-
-  &:active {
-    background-color: ${({ unstyled }) =>
-      unstyled ? 'transparent' : undefined};
-    box-shadow: ${({ unstyled }) => (unstyled ? 'none' : undefined)};
+    background-color: ${({ variant, backgroundColor }) =>
+      variant === 'filled'
+        ? getTintedColor(backgroundColor || '#0052CD')
+        : variant === 'outlined'
+          ? 'rgba(0, 82, 205, 0.1)'
+          : backgroundColor || 'transparent'};
+    box-shadow: ${({ variant }) =>
+      variant !== 'default' ? '0 4px 8px rgba(0, 0, 0, 0.2)' : 'none'};
   }
 
   &:disabled {
-    background-color: ${({ unstyled }) => (unstyled ? 'transparent' : 'white')};
+    background-color: ${({ variant }) =>
+      variant === 'filled'
+        ? '#e0e0e0'
+        : variant === 'default'
+          ? 'white'
+          : 'transparent'};
+    color: #888;
+    border-color: #e0e0e0;
     cursor: not-allowed;
     opacity: 0.6;
   }
@@ -52,6 +72,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   EndIcon?: ReactElement;
   loading?: boolean;
   unstyled?: boolean;
+  variant?: 'default' | 'filled' | 'outlined';
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -60,6 +81,7 @@ const Button: React.FC<ButtonProps> = ({
   loading = false,
   disabled = false,
   unstyled = false,
+  variant = 'default',
   ...props
 }) => {
   return (
@@ -67,6 +89,7 @@ const Button: React.FC<ButtonProps> = ({
       disabled={disabled}
       backgroundColor={props?.style?.backgroundColor}
       unstyled={unstyled}
+      variant={variant}
       {...props}
     >
       {loading ? <Loader size={24} /> : text}

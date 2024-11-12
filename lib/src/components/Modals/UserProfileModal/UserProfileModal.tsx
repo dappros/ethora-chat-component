@@ -1,49 +1,19 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 
-const ModalBackground = styled.div`
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-`;
-
 const ModalContainer = styled.div`
   background: white;
   border-radius: 8px;
-  width: 400px;
   padding: 24px;
   box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
   gap: 16px;
-  position: relative;
 `;
 
 const ModalTitle = styled.h2`
   font-size: 1.5em;
   margin: 0;
-`;
-
-const CloseButton = styled.button`
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  background: none;
-  border: none;
-  font-size: 1.25em;
-  cursor: pointer;
-  color: #888;
-
-  &:hover {
-    color: #555;
-  }
 `;
 
 const Label = styled.label`
@@ -120,77 +90,56 @@ const SaveButton = styled.button`
   }
 `;
 
-const OpenModalButton = styled.button`
-  padding: 10px 20px;
-  font-size: 1em;
-  border: none;
-  background-color: #007bff;
-  color: white;
-  border-radius: 4px;
-  cursor: pointer;
+interface UserProfileModalProps {
+  handleCloseModal: any;
+}
 
-  &:hover {
-    background-color: #0056b3;
-  }
-`;
-
-const UserProfileModal: React.FC = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+const UserProfileModal: React.FC<UserProfileModalProps> = ({
+  handleCloseModal,
+}) => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [bio, setBio] = useState('');
 
-  const handleOpenModal = () => setIsModalOpen(true);
-  const handleCloseModal = () => setIsModalOpen(false);
-
   const handleSaveProfile = () => {
     console.log('Profile Updated:', { username, email, bio });
-    setIsModalOpen(false);
+    handleCloseModal();
   };
 
   return (
-    <>
-      <OpenModalButton onClick={handleOpenModal}>Edit Profile</OpenModalButton>
+    <ModalContainer>
+      <ModalTitle>Edit Profile</ModalTitle>
 
-      {isModalOpen && (
-        <ModalBackground>
-          <ModalContainer>
-            <CloseButton onClick={handleCloseModal}>&times;</CloseButton>
-            <ModalTitle>Edit Profile</ModalTitle>
+      <Label htmlFor="username">Username</Label>
+      <InputField
+        id="username"
+        value={username}
+        onChange={(e) => setUsername(e.target.value)}
+        placeholder="Enter your username"
+      />
 
-            <Label htmlFor="username">Username</Label>
-            <InputField
-              id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter your username"
-            />
+      <Label htmlFor="email">Email</Label>
+      <InputField
+        id="email"
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="Enter your email"
+      />
 
-            <Label htmlFor="email">Email</Label>
-            <InputField
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
-            />
+      <Label htmlFor="bio">Bio</Label>
+      <TextArea
+        id="bio"
+        value={bio}
+        onChange={(e) => setBio(e.target.value)}
+        placeholder="Tell us about yourself"
+      />
 
-            <Label htmlFor="bio">Bio</Label>
-            <TextArea
-              id="bio"
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              placeholder="Tell us about yourself"
-            />
-
-            <ButtonContainer>
-              <CancelButton onClick={handleCloseModal}>Cancel</CancelButton>
-              <SaveButton onClick={handleSaveProfile}>Save</SaveButton>
-            </ButtonContainer>
-          </ModalContainer>
-        </ModalBackground>
-      )}
-    </>
+      <ButtonContainer>
+        <CancelButton onClick={handleCloseModal}>Cancel</CancelButton>
+        <SaveButton onClick={handleSaveProfile}>Save</SaveButton>
+      </ButtonContainer>
+    </ModalContainer>
   );
 };
 

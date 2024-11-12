@@ -14,16 +14,14 @@ import { RootState } from '../../roomStore';
 import { getTintedColor } from '../../helpers/getTintedColor';
 import { SearchIcon } from '../../assets/icons';
 import DropdownMenu from '../DropdownMenu/DropdownMenu';
-import { logout } from '../../roomStore/chatSettingsSlice';
-import { useXmppClient } from '../../context/xmppProvider';
+import { logout, setActiveModal } from '../../roomStore/chatSettingsSlice';
 import NewChatModal from '../Modals/NewChatModal/NewChatModal';
-import UserProfileModal from '../Modals/UserProfileModal/UserProfileModal';
+import { setLogoutState } from '../../roomStore/roomsSlice';
 
 interface RoomListProps {
   chats: IRoom[];
   burgerMenu?: boolean;
   onRoomClick?: (chat: IRoom) => void;
-  activeJID: string;
 }
 
 const Container = styled.div<{ burgerMenu?: boolean; open?: boolean }>`
@@ -83,6 +81,23 @@ const ChatItem = styled.div<{ active: boolean; bg?: string }>`
   }
 `;
 
+const SearchContainer = styled.div<{}>`
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  width: 100%;
+  height: 50px;
+  padding-bottom: 12px;
+`;
+
+const ScollableContainer = styled.div<{}>`
+  height: 100%;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+`;
+
 const ChatInfo = styled.div`
   display: flex;
   flex-direction: column;
@@ -117,7 +132,6 @@ const Divider = styled.div`
 
 const RoomList: React.FC<RoomListProps> = ({
   chats,
-  activeJID,
   burgerMenu = false,
   onRoomClick,
 }) => {
@@ -129,6 +143,8 @@ const RoomList: React.FC<RoomListProps> = ({
   const config = useSelector(
     (state: RootState) => state.chatSettingStore.config
   );
+
+  const { activeRoomJID } = useSelector((state: RootState) => state.rooms);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -174,58 +190,60 @@ const RoomList: React.FC<RoomListProps> = ({
   }, [burgerMenu, handleClickOutside]);
 
   const isChatActive = useCallback(
-    (room: IRoom) => activeJID === room.jid,
-    [activeJID]
+    (room: IRoom) => activeRoomJID === room.jid,
+    [activeRoomJID]
   );
 
   const handleLogout = useCallback(() => {
     dispatch(logout());
+    dispatch(setLogoutState());
   }, []);
 
-  const menuOptions = [
-    {
-      label: 'Profile',
-      icon: null,
-      onClick: () => console.log('Profile clicked'),
-    },
-    {
-      label: 'Settings',
-      icon: null,
-      onClick: () => console.log('Settings clicked'),
-    },
-    {
-      label: 'Logout',
-      icon: null,
-      onClick: () => handleLogout(),
-    },
-  ];
+  const menuOptions = useMemo(
+    () => [
+      {
+        label: 'Profile',
+        icon: null,
+        onClick: () => {
+          dispatch(setActiveModal('profile'));
+          console.log('Profile clicked');
+        },
+      },
+      {
+        label: 'Settings',
+        icon: null,
+        onClick: () => {
+          dispatch(setActiveModal('settings'));
+          console.log('Settings clicked');
+        },
+      },
+      {
+        label: 'Logout',
+        icon: null,
+        onClick: () => handleLogout(),
+      },
+    ],
+    []
+  );
 
   return (
     <>
       {burgerMenu && !open && (
         <BurgerButton onClick={() => setOpen(!open)}>☰</BurgerButton>
       )}
-      <Container burgerMenu={burgerMenu} open={open} ref={containerRef}>
+      <Container
+        burgerMenu={burgerMenu}
+        open={open}
+        ref={containerRef}
+        style={config.roomListStiles}
+      >
         {(open || !burgerMenu) && (
-          <div
-            style={{
-              height: '100%',
-              flexGrow: 1,
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                gap: '16px',
-                alignItems: 'center',
-                width: '100%',
-                marginBottom: 8,
-                height: '50px',
-              }}
-            >
-              <DropdownMenu options={menuOptions} />
+          <ScollableContainer>
+            <SearchContainer>
+              {/* <DropdownMenu
+                options={menuOptions}
+                // onClose={dispatch(setActiveModal())}
+              /> */}
               <SearchInput
                 icon={<SearchIcon height={'20px'} />}
                 value={searchTerm}
@@ -234,9 +252,9 @@ const RoomList: React.FC<RoomListProps> = ({
                 // animated={true}
               />
 
-              <NewChatModal />
-            </div>
-            <div style={{ height: '100%' }}>
+              {/* <NewChatModal /> */}
+            </SearchContainer>
+            <div style={{ flexGrow: 1, overflowY: 'auto' }}>
               {filteredChats.map((chat, index) => (
                 <>
                   <ChatItem
@@ -280,7 +298,7 @@ const RoomList: React.FC<RoomListProps> = ({
                 </>
               ))}
             </div>
-          </div>
+          </ScollableContainer>
         )}
       </Container>
     </>

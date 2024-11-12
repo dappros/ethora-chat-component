@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import Button from '../../styled/Button';
-import { AddNewIcon } from '../../../assets/icons';
+import { AddNewIcon, AddPhotoIcon } from '../../../assets/icons';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../../roomStore';
+import { StyledInput } from '../../styled/StyledInputComponents/StyledInputComponents';
 
 const ModalBackground = styled.div`
   position: fixed;
@@ -20,14 +21,17 @@ const ModalBackground = styled.div`
 
 const ModalContainer = styled.div`
   background: white;
-  border-radius: 8px;
-  width: 400px;
-  padding: 24px;
+  border-radius: 24px;
+  padding: 32px;
   box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 32px;
   position: relative;
+  justify-content: center;
+  align-items: center;
+  width: 50%;
+  max-width: 400px;
 `;
 
 const ModalTitle = styled.h2`
@@ -44,98 +48,19 @@ const CloseButton = styled.button`
   font-size: 1.25em;
   cursor: pointer;
   color: #888;
+  border-radius: 8px;
 
   &:hover {
     color: #555;
+    background-color: #dddddd;
   }
 `;
 
-const Label = styled.label`
-  font-size: 0.9em;
-  color: #333;
-  margin-bottom: 4px;
-`;
-
-const InputField = styled.input`
-  width: 100%;
-  padding: 8px;
-  font-size: 1em;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background-color: #f5f5f5;
-  outline: none;
-
-  &:focus {
-    border-color: #007bff;
-    background-color: #fff;
-  }
-`;
-
-const TextArea = styled.textarea`
-  width: 100%;
-  padding: 8px;
-  font-size: 1em;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background-color: #f5f5f5;
-  outline: none;
-  resize: none;
-  height: 80px;
-
-  &:focus {
-    border-color: #007bff;
-    background-color: #fff;
-  }
-`;
-
-const ButtonContainer = styled.div`
+const GroupContainer = styled.div`
   display: flex;
-  justify-content: space-between;
-  gap: 8px;
-`;
-
-const CancelButton = styled.button`
-  flex: 1;
-  padding: 10px;
-  font-size: 1em;
-  border: 1px solid #007bff;
-  background: white;
-  color: #007bff;
-  border-radius: 4px;
-  cursor: pointer;
-
-  &:hover {
-    background: #f0f8ff;
-  }
-`;
-
-const CreateButton = styled.button`
-  flex: 1;
-  padding: 10px;
-  font-size: 1em;
-  border: none;
-  background: #007bff;
-  color: white;
-  border-radius: 4px;
-  cursor: pointer;
-
-  &:hover {
-    background: #0056b3;
-  }
-`;
-
-const OpenModalButton = styled.button`
-  padding: 10px 20px;
-  font-size: 1em;
-  border: none;
-  background-color: #007bff;
-  color: white;
-  border-radius: 4px;
-  cursor: pointer;
-
-  &:hover {
-    background-color: #0056b3;
-  }
+  gap: 32px;
+  width: 100%;
+  padding: 0;
 `;
 
 const NewChatModal: React.FC = () => {
@@ -172,29 +97,54 @@ const NewChatModal: React.FC = () => {
       {isModalOpen && (
         <ModalBackground>
           <ModalContainer>
-            <CloseButton onClick={handleCloseModal}>&times;</CloseButton>
-            <ModalTitle>Create New Chat Room</ModalTitle>
-
-            <Label htmlFor="roomName">Room Name</Label>
-            <InputField
-              id="roomName"
-              value={roomName}
-              onChange={(e) => setRoomName(e.target.value)}
-              placeholder="Enter room name"
+            <CloseButton onClick={handleCloseModal} style={{ fontSize: 24 }}>
+              &times;
+            </CloseButton>
+            <ModalTitle>Create New Chat</ModalTitle>
+            <Button
+              EndIcon={<AddPhotoIcon style={{ borderRadius: 100 }} />}
+              style={{
+                width: '120px',
+                height: '120px',
+                borderRadius: 100,
+              }}
+              unstyled
+              onClick={() => console.log('add image')}
             />
+            <GroupContainer
+              style={{ flexDirection: 'column', position: 'relative' }}
+            >
+              <StyledInput
+                id="roomName"
+                value={roomName}
+                onChange={(e) => setRoomName(e.target.value)}
+                placeholder="Enter Room Name"
+              />
 
-            <Label htmlFor="roomDescription">Room Description</Label>
-            <TextArea
-              id="roomDescription"
-              value={roomDescription}
-              onChange={(e) => setRoomDescription(e.target.value)}
-              placeholder="Enter room description"
-            />
+              <StyledInput
+                id="roomDescription"
+                value={roomDescription}
+                onChange={(e) => setRoomDescription(e.target.value)}
+                placeholder="Enter Description"
+              />
+            </GroupContainer>
 
-            <ButtonContainer>
-              <CancelButton onClick={handleCloseModal}>Cancel</CancelButton>
-              <CreateButton onClick={handleCreateRoom}>Create</CreateButton>
-            </ButtonContainer>
+            <GroupContainer>
+              <Button
+                onClick={handleCloseModal}
+                text={'Cancel'}
+                style={{ width: '100%' }}
+                unstyled
+                variant="outlined"
+              />
+              <Button
+                onClick={handleCreateRoom}
+                text={'Create'}
+                style={{ width: '100%' }}
+                unstyled
+                variant="filled"
+              />
+            </GroupContainer>
           </ModalContainer>
         </ModalBackground>
       )}

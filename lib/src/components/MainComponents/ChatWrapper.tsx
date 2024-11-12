@@ -1,7 +1,7 @@
 import React, { FC, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import ChatRoom from './ChatRoom';
-import { setConfig } from '../../roomStore/chatSettingsSlice';
+import { setActiveModal, setConfig } from '../../roomStore/chatSettingsSlice';
 import { ChatWrapperBox } from '../styled/ChatWrapperBox';
 import { Overlay, StyledModal } from '../styled/Modal';
 import { Message } from '../MessageBubble/Message';
@@ -18,6 +18,7 @@ import {
 import { refresh } from '../../networking/apiClient';
 import RoomList from './RoomList';
 import { StyledLoaderWrapper } from '../styled/StyledComponents';
+import Modal from '../Modals/Modal/Modal';
 
 interface ChatWrapperProps {
   token?: string;
@@ -41,16 +42,28 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
   const dispatch = useDispatch();
 
-  const { user } = useSelector((state: RootState) => state.chatSettingStore);
-  const rooms = useSelector((state: RootState) => state.rooms.rooms);
+  const { user, activeModal } = useSelector(
+    (state: RootState) => state.chatSettingStore
+  );
+
+  const { rooms, activeRoomJID } = useSelector(
+    (state: RootState) => state.rooms
+  );
+
   const handleChangeChat = (chat: IRoom) => {
-    dispatch(setCurrentRoom({ roomJID: chat.jid }));
-    dispatch(setIsLoading({ chatJID: chat.jid, loading: true }));
+    if (activeRoomJID !== chat.jid) {
+      dispatch(setCurrentRoom({ roomJID: chat.jid }));
+      dispatch(setIsLoading({ chatJID: chat.jid, loading: true }));
+    }
   };
 
   const { client, initializeClient, setClient } = useXmppClient();
 
   useEffect(() => {
+    if (roomJID) {
+      dispatch(setCurrentRoom({ roomJID: roomJID }));
+    }
+
     dispatch(setConfig(config));
     dispatch(setIsLoading({ loading: true }));
 
@@ -79,11 +92,16 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
             refresh();
           } else {
-            setInited(true);
+            client.getRooms().finally(() => {
+              setInited(true);
+            });
+            refresh();
           }
         }
+        dispatch(setIsLoading({ loading: false }));
       } catch (error) {
         setShowModal(false);
+        setInited(false);
         dispatch(setIsLoading({ loading: false }));
         console.log(error);
       }
@@ -143,13 +161,14 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
               <RoomList
                 chats={Object.values(rooms)}
                 onRoomClick={handleChangeChat}
-                activeJID={roomJID || ''}
               />
             )}
             <ChatRoom
               CustomMessageComponent={CustomMessageComponent || Message}
-              MainComponentStyles={MainComponentStyles}
-              chatJID={roomJID}
+            />
+            <Modal
+              modal={activeModal}
+              setOpenModal={(value) => dispatch(setActiveModal(value))}
             />
           </ChatWrapperBox>
         ) : (

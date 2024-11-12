@@ -4,12 +4,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../roomStore';
 import MessageList from './MessageList';
 import SendInput from '../styled/SendInput';
-import {
-  addRoom,
-  addRoomMessage,
-  setCurrentRoom,
-  setIsLoading,
-} from '../../roomStore/roomsSlice';
+import { addRoomMessage, setIsLoading } from '../../roomStore/roomsSlice';
 import Loader from '../styled/Loader';
 import { uploadFile } from '../../networking/api-requests/auth.api';
 import { useXmppClient } from '../../context/xmppProvider.tsx';
@@ -18,20 +13,18 @@ import NoMessagesPlaceholder from './NoMessagesPlaceholder.tsx';
 
 interface ChatRoomProps {
   CustomMessageComponent?: any;
-  MainComponentStyles?: any;
-  chatJID?: string;
 }
 
 const ChatRoom: React.FC<ChatRoomProps> = React.memo(
-  ({ CustomMessageComponent, MainComponentStyles, chatJID }) => {
+  ({ CustomMessageComponent }) => {
     const { client } = useXmppClient();
     const dispatch = useDispatch();
 
     const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
-    const { roomsStore, loading, user, activeRoomJID, globalLoading, config } =
+    const { roomsList, loading, user, activeRoomJID, globalLoading, config } =
       useSelector((state: RootState) => ({
         activeRoomJID: state.rooms.activeRoomJID,
-        roomsStore: state.rooms.rooms,
+        roomsList: state.rooms.rooms,
         loading:
           state.rooms.rooms[state.rooms.activeRoomJID]?.isLoading || false,
         user: state.chatSettingStore.user,
@@ -40,33 +33,22 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       }));
 
     const roomMessages = useMemo(
-      () => roomsStore[activeRoomJID]?.messages || [],
-      [roomsStore, activeRoomJID]
+      () => roomsList[activeRoomJID]?.messages || [],
+      [roomsList, activeRoomJID]
     );
 
     useEffect(() => {
-      if (!activeRoomJID) {
-        dispatch(setCurrentRoom({ roomJID: chatJID }));
-        dispatch(setIsLoading({ loading: true }));
+      if (config?.setRoomJidInPath && activeRoomJID) {
+        const chatJidUrl = activeRoomJID.split('@')[0];
+
+        const newUrl = `${window.location.origin}/${chatJidUrl}`;
+        window.history.pushState(null, '', newUrl);
       }
 
-      const actualJID = activeRoomJID;
-      const roomToSet = roomsStore?.[actualJID];
-      if (roomToSet?.jid && !roomsStore[roomToSet.jid]) {
-        dispatch(addRoom({ roomData: roomToSet }));
-      }
-
-      if (config.jwtLogin?.handleAutoChangeRoom && activeRoomJID !== chatJID) {
-        console.log('handleAutoChangeRoom', activeRoomJID, chatJID);
-        dispatch(setCurrentRoom({ roomJID: chatJID }));
-      } else {
-        roomToSet?.jid && dispatch(setCurrentRoom({ roomJID: activeRoomJID }));
-      }
-
-      if (roomMessages.length) {
-        dispatch(setIsLoading({ chatJID: activeRoomJID, loading: false }));
-      }
-    }, [dispatch, activeRoomJID, roomsStore.length, chatJID]);
+      return () => {
+        window.history.pushState(null, '', window.location.origin);
+      };
+    }, [activeRoomJID]);
 
     const sendMessage = useCallback(
       (message: string) => {
@@ -171,61 +153,43 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     );
 
     useEffect(() => {
-      if (Object.values(roomsStore).length > 0) {
-        if (!activeRoomJID) {
-          dispatch(setCurrentRoom({ roomJID: chatJID }));
-          dispatch(setIsLoading({ loading: true }));
-        }
+      const getDefaultHistory = async () => {
+        client.getHistoryStanza(activeRoomJID, 30).then(() => {
+          dispatch(setIsLoading({ loading: false, chatJID: activeRoomJID }));
+        });
+      };
 
-        if (!roomMessages.length) {
-          const initialPresenceAndHistory = () => {
-            if (!roomsStore[chatJID || activeRoomJID]) {
-              client.joinBySendingPresence(chatJID).then(() => {
-                client.getRooms().then(() => {
-                  client.getHistoryStanza(chatJID, 30).then(() => {
-                    dispatch(
-                      setIsLoading({ chatJID: chatJID, loading: false })
-                    );
-                  });
-                });
-              });
-            } else {
-              client.getHistoryStanza(activeRoomJID, 30).then(() => {
-                dispatch(
-                  setIsLoading({ chatJID: activeRoomJID, loading: false })
-                );
-              });
-            }
-          };
+      const initialPresenceAndHistory = () => {
+        if (!roomsList[activeRoomJID]) {
+          client.joinBySendingPresence(activeRoomJID).then(() => {
+            client.getRooms().then(() => {
+              getDefaultHistory();
+            });
+          });
+        } else {
+          getDefaultHistory();
+        }
+      };
+
+      dispatch(setIsLoading({ loading: true, chatJID: activeRoomJID }));
+
+      if (Object.keys(roomsList)?.length > 0) {
+        if (!roomsList?.[activeRoomJID] && Object.keys(roomsList).length > 0) {
           initialPresenceAndHistory();
+        } else if (roomMessages.length < 1) {
+          getDefaultHistory();
+        } else {
+          dispatch(setIsLoading({ loading: false, chatJID: activeRoomJID }));
         }
-      } else if (chatJID) {
-        const initialPresenceAndHistory = async () => {
-          if (!roomsStore[chatJID || activeRoomJID]) {
-            await client.joinBySendingPresence(chatJID);
-            await client.getRooms();
-            client.getHistoryStanza(chatJID, 30).then(() => {
-              dispatch(setIsLoading({ chatJID: chatJID, loading: false }));
-            });
-          } else {
-            client.getHistoryStanza(activeRoomJID, 30).then(() => {
-              dispatch(
-                setIsLoading({ chatJID: activeRoomJID, loading: false })
-              );
-            });
-          }
-        };
-        initialPresenceAndHistory();
       }
-    }, [
-      client,
-      activeRoomJID,
-      roomMessages,
-      dispatch,
-      Object.values(roomsStore).length,
-    ]);
+    }, [activeRoomJID, Object.keys(roomsList).length]);
 
-    if (!activeRoomJID || !roomsStore[activeRoomJID]) {
+    if (
+      !activeRoomJID ||
+      Object.keys(roomsList)?.length < 1 ||
+      !roomsList?.[activeRoomJID]
+    ) {
+      console.log({ activeRoomJID, roomsList });
       return (
         <div
           style={{
@@ -244,15 +208,16 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       <ChatContainer
         style={{
           overflow: 'auto',
+          ...config?.chatRoomStyles,
         }}
       >
         {!config?.disableHeader && (
-          <ChatHeader currentRoom={roomsStore[activeRoomJID]} />
+          <ChatHeader currentRoom={roomsList[activeRoomJID]} />
         )}
-        {globalLoading ? (
+        {loading || globalLoading ? (
           <Loader color={config?.colors?.primary} />
-        ) : roomsStore[activeRoomJID]?.messages &&
-          roomsStore[activeRoomJID]?.messages.length < 1 ? (
+        ) : roomsList[activeRoomJID]?.messages &&
+          roomsList[activeRoomJID]?.messages.length < 1 ? (
           <div
             style={{
               height: '100%',

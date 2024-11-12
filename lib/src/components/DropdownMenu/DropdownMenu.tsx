@@ -1,79 +1,66 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, ReactElement } from 'react';
 import styled, { keyframes } from 'styled-components';
-import UserProfileModal from '../Modals/UserProfileModal/UserProfileModal';
+import { BurgerMenuIcon } from '../../assets/icons';
 
 interface MenuOption {
   label: string;
   icon: React.ReactNode;
   onClick: () => void;
+  styles?: React.CSSProperties;
 }
 
 interface DropdownMenuProps {
   options: MenuOption[];
+  onClose?: any;
+  openButton?: ReactElement;
+  position?: 'left' | 'right';
 }
 
-const DropdownMenu: React.FC<DropdownMenuProps> = ({ options }) => {
+const DropdownMenu: React.FC<DropdownMenuProps> = ({
+  options,
+  openButton,
+  position = 'right',
+}) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [menuPosition, setMenuPosition] = useState<{
-    top?: string;
-    left?: string;
-    right?: string;
-    bottom?: string;
-  }>({
-    top: '60px',
-    right: '-140px',
-  });
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
+  const menuPosition =
+    position === 'right'
+      ? { top: '60px', right: '-140px' }
+      : { top: '60px', right: '0px' };
+
   const toggleMenu = () => setIsOpen((prev) => !prev);
 
-  //   useEffect(() => {
-  //     if (isOpen && menuRef.current && buttonRef.current) {
-  //       const adjustPosition = () => {
-  //         const menuRect = menuRef.current!.getBoundingClientRect();
-  //         const buttonRect = buttonRef.current!.getBoundingClientRect();
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
 
-  //         let top = buttonRect.bottom;
-  //         let left = 12;
-  //         let bottom: number | undefined;
-  //         let right: number | undefined;
-
-  //         if (menuRect.bottom > window.innerHeight) {
-  //           top = undefined;
-  //           bottom = window.innerHeight - buttonRect.top + 10;
-  //         }
-
-  //         setMenuPosition({
-  //           top: top !== undefined ? `${top}px` : undefined,
-  //           bottom: bottom !== undefined ? `${bottom}px` : undefined,
-  //           left: left !== undefined ? `${left}px` : undefined,
-  //           right: right !== undefined ? `${right}px` : undefined,
-  //         });
-  //       };
-
-  //       adjustPosition();
-  //     }
-  //   }, [isOpen]);
+    if (isOpen) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
 
   return (
     <Container>
-      <MenuButton ref={buttonRef} onClick={toggleMenu}>
-        <Icon>☰</Icon>
-      </MenuButton>
+      {openButton ? (
+        React.cloneElement(openButton, { ref: buttonRef, onClick: toggleMenu })
+      ) : (
+        <MenuButton ref={buttonRef} onClick={toggleMenu}>
+          <BurgerMenuIcon />
+        </MenuButton>
+      )}
       {isOpen && (
-        <Menu
-          ref={menuRef}
-          style={{
-            top: menuPosition.top,
-            bottom: menuPosition.bottom,
-            left: menuPosition.left,
-            right: menuPosition.right,
-          }}
-        >
+        <Menu ref={menuRef} style={menuPosition}>
           {options.map((option, index) => (
             <>
-              {index === 2 && <UserProfileModal />}
               <MenuItem
                 key={index}
                 onClick={() => {
@@ -82,7 +69,7 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({ options }) => {
                 }}
               >
                 {option.icon}
-                <Label>{option.label}</Label>
+                <Label style={{ ...option?.styles }}>{option.label}</Label>
               </MenuItem>
               <Divider />
             </>
@@ -123,13 +110,9 @@ const MenuButton = styled.button`
   border: none;
   cursor: pointer;
   font-size: 24px;
-  padding: 8px;
+  padding: 12px;
   display: flex;
   align-items: center;
-`;
-
-const Icon = styled.span`
-  font-size: 24px;
 `;
 
 const Menu = styled.div`

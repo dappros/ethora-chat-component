@@ -130,12 +130,15 @@ export interface IConfig {
   jwtLogin?: {
     token: string;
     enabled: boolean;
-    handleAutoChangeRoom?: boolean;
   };
   disableRooms?: boolean;
   defaultLogin?: boolean;
   disableInteractions?: boolean;
   chatHeaderBurgerMenu?: boolean;
+  forceSetRoom?: boolean;
+  roomListStiles?: React.CSSProperties;
+  chatRoomStyles?: React.CSSProperties;
+  setRoomJidInPath?: boolean;
 }
 
 export interface StorageUser {
