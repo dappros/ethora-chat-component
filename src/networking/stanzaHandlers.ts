@@ -229,37 +229,43 @@ const onGetLastMessageArchive = (stanza: Element, xmpp: any) => {
 const onGetChatRooms = (stanza: Element, xmpp: any) => {
   if (
     stanza.attrs.id === 'getUserRooms' &&
-    stanza.getChild('query')?.children
+    Array.isArray(stanza.getChild('query')?.children)
   ) {
     stanza.getChild('query')?.children.forEach((result: any) => {
       const currentChatRooms = store.getState().rooms.rooms;
 
-      const currentSavedChatRoom = Object.values(currentChatRooms).filter(
-        (element) => element.jid === result?.attrs.jid
+      const isRoomAlreadyAdded = Object.values(currentChatRooms).some(
+        (element) => element.jid === result?.attrs?.jid
       );
-      if (currentSavedChatRoom.length === 0 || currentSavedChatRoom[0]) {
+
+      if (!isRoomAlreadyAdded) {
         const roomData: IRoom = {
-          jid: result?.attrs?.jid,
+          jid: result?.attrs?.jid || '',
           name: result?.attrs?.name || '',
           id: '',
-          title: result?.attrs.name,
-          usersCnt: Number(result?.attrs.users_cnt),
+          title: result?.attrs?.name || '',
+          usersCnt: Number(result?.attrs?.users_cnt || 0),
           messages: [],
           isLoading: false,
           roomBg:
-            result?.attrs.room_background !== 'none'
-              ? result?.attrs.room_background
+            result?.attrs?.room_background !== 'none'
+              ? result?.attrs?.room_background
               : null,
           icon:
-            result?.attrs.room_thumbnail !== 'none'
-              ? result?.attrs.room_thumbnail
+            result?.attrs?.room_thumbnail !== 'none'
+              ? result?.attrs?.room_thumbnail
               : null,
         };
+
         store.dispatch(addRoom({ roomData }));
+
         if (!store.getState().rooms.activeRoomJID) {
-          store.dispatch(setCurrentRoom({ roomJID: roomData?.jid }));
+          store.dispatch(setCurrentRoom({ roomJID: roomData.jid }));
         }
-        xmpp.presenceInRoomStanza(result.attrs.jid);
+
+        if (roomData.jid) {
+          xmpp.presenceInRoomStanza(roomData.jid);
+        }
       }
     });
   }
