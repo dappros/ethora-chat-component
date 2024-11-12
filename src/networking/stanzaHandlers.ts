@@ -257,19 +257,9 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
         };
         store.dispatch(addRoom({ roomData }));
         if (!store.getState().rooms.activeRoomJID) {
-          store.dispatch(setCurrentRoom({ roomJID: roomData?.jid }));
+          store.dispatch(setCurrentRoom({ roomJID: roomData.jid }));
         }
         xmpp.presenceInRoomStanza(result.attrs.jid);
-        // if (
-        //   currentSavedChatRoom.length > 0 &&
-        // ) {
-        //   useStoreState.getState().updateUserChatRoom(roomData)
-        // } else {
-        //   useStoreState.getState().setNewUserChatRoom(roomData)
-        // }
-        // //get message history in the room
-        // xmpp.getRoomArchiveStanza(roomJID, 1)
-        // this.lastRomJIDLoading = roomJID
       }
     });
   }

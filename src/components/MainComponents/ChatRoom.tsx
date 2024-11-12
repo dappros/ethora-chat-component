@@ -41,12 +41,21 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       if (config?.setRoomJidInPath && activeRoomJID) {
         const chatJidUrl = activeRoomJID.split('@')[0];
 
-        const newUrl = `${window.location.origin}/${chatJidUrl}`;
+        const basePath = window.location.pathname
+          .split('/')
+          .slice(0, -1)
+          .join('/');
+        const newUrl = `${basePath}/${chatJidUrl}`;
+
         window.history.pushState(null, '', newUrl);
       }
 
       return () => {
-        window.history.pushState(null, '', window.location.origin);
+        window.history.pushState(
+          null,
+          '',
+          window.location.pathname.split('/').slice(0, -1).join('/')
+        );
       };
     }, [activeRoomJID]);
 
@@ -189,7 +198,6 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       Object.keys(roomsList)?.length < 1 ||
       !roomsList?.[activeRoomJID]
     ) {
-      console.log({ activeRoomJID, roomsList });
       return (
         <div
           style={{
