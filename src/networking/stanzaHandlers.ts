@@ -257,7 +257,7 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
         };
         store.dispatch(addRoom({ roomData }));
         if (!store.getState().rooms.activeRoomJID) {
-          store.dispatch(setCurrentRoom({ roomJID: roomData.jid }));
+          store.dispatch(setCurrentRoom({ roomJID: roomData?.jid }));
         }
         xmpp.presenceInRoomStanza(result.attrs.jid);
       }

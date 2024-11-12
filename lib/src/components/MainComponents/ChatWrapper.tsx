@@ -92,9 +92,10 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
             refresh();
           } else {
-            client.getRooms().finally(() => {
-              setInited(true);
-            });
+            if (!activeRoomJID) {
+              client.getRooms();
+            }
+            setInited(true);
             refresh();
           }
         }

@@ -42,7 +42,7 @@ export const ChatHeaderAvatar: React.FC<ChatHeaderAvatarProps> = ({
 
   const getTextColor = (bgColor: string) => {
     const lightColors = ['#4caf50', '#ff9800'];
-    return lightColors.includes(bgColor) ? '#000' : '#fff';
+    return lightColors.includes(bgColor) ? '#fff' : '#fff';
   };
 
   return (
