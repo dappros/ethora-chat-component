@@ -6,6 +6,7 @@ import { useLocalStorage } from '../hooks/useLocalStorage';
 interface ChatState {
   user: User;
   config?: IConfig;
+  activeModal?: 'settings' | 'profile' | undefined;
 }
 
 const unpackAndTransform = (input?: User): User => {
@@ -88,6 +89,12 @@ export const chatSlice = createSlice({
     setConfig: (state, action: PayloadAction<IConfig | undefined>) => {
       state.config = action.payload;
     },
+    setActiveModal: (
+      state,
+      action: PayloadAction<'settings' | 'profile' | undefined>
+    ) => {
+      state.activeModal = action.payload;
+    },
     refreshTokens: (
       state,
       action: PayloadAction<{ token: string; refreshToken: string }>
@@ -110,6 +117,7 @@ export const chatSlice = createSlice({
   },
 });
 
-export const { setUser, setConfig, refreshTokens, logout } = chatSlice.actions;
+export const { setUser, setConfig, refreshTokens, logout, setActiveModal } =
+  chatSlice.actions;
 
 export default chatSlice.reducer;

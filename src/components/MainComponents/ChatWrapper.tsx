@@ -1,7 +1,7 @@
 import React, { FC, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import ChatRoom from './ChatRoom';
-import { setConfig } from '../../roomStore/chatSettingsSlice';
+import { setActiveModal, setConfig } from '../../roomStore/chatSettingsSlice';
 import { ChatWrapperBox } from '../styled/ChatWrapperBox';
 import { Overlay, StyledModal } from '../styled/Modal';
 import { Message } from '../MessageBubble/Message';
@@ -18,6 +18,7 @@ import {
 import { refresh } from '../../networking/apiClient';
 import RoomList from './RoomList';
 import { StyledLoaderWrapper } from '../styled/StyledComponents';
+import Modal from '../Modals/Modal/Modal';
 
 interface ChatWrapperProps {
   token?: string;
@@ -41,7 +42,9 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
   const dispatch = useDispatch();
 
-  const { user } = useSelector((state: RootState) => state.chatSettingStore);
+  const { user, activeModal } = useSelector(
+    (state: RootState) => state.chatSettingStore
+  );
 
   const { rooms, activeRoomJID } = useSelector(
     (state: RootState) => state.rooms
@@ -162,6 +165,10 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             )}
             <ChatRoom
               CustomMessageComponent={CustomMessageComponent || Message}
+            />
+            <Modal
+              modal={activeModal}
+              setOpenModal={(value) => dispatch(setActiveModal(value))}
             />
           </ChatWrapperBox>
         ) : (

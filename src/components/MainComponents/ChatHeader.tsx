@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   ChatContainerHeader,
   ChatContainerHeaderLabel,
@@ -7,12 +7,18 @@ import RoomList from './RoomList';
 import { IRoom } from '../../types/types';
 import { ChatHeaderAvatar } from './ChatHeaderAvatar';
 import Button from '../styled/Button';
-import { MoreIcon, SearchIcon } from '../../assets/icons';
+import {
+  LeaveIcon,
+  MoreIcon,
+  ReportIcon,
+  SearchIcon,
+} from '../../assets/icons';
 import { RootState } from '../../roomStore';
 import { useDispatch, useSelector } from 'react-redux';
 import Composing from '../styled/StyledInputComponents/Composing';
 import { setCurrentRoom, setIsLoading } from '../../roomStore/roomsSlice';
 import { SearchInput } from '../InputComponents/Search';
+import DropdownMenu from '../DropdownMenu/DropdownMenu';
 
 interface ChatHeaderProps {
   currentRoom: IRoom;
@@ -35,6 +41,28 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ currentRoom }) => {
     dispatch(setIsLoading({ chatJID: chat.jid, loading: true }));
   };
 
+  const menuOptions = useMemo(
+    () => [
+      {
+        label: 'Report',
+        icon: <ReportIcon />,
+        onClick: () => {
+          console.log('Profile clicked');
+        },
+        styles: { color: 'red' },
+      },
+      {
+        label: 'Leave',
+        icon: <LeaveIcon />,
+        onClick: () => {
+          console.log('Settings clicked');
+        },
+        styles: { color: 'red' },
+      },
+    ],
+    []
+  );
+
   return (
     <ChatContainerHeader>
       {/* todo add here list of rooms */}
@@ -44,7 +72,6 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ currentRoom }) => {
             chats={Object.values(rooms)}
             burgerMenu
             onRoomClick={handleChangeChat}
-            activeJID={currentRoom.jid}
           />
         )}
         <div>
@@ -79,7 +106,13 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ currentRoom }) => {
 
       <div style={{ display: 'flex', gap: 16 }}>
         {/* <SearchInput animated icon={<SearchIcon />} /> */}
-        <Button style={{ padding: 8 }} EndIcon={<MoreIcon />} unstyled />
+        {/* <DropdownMenu
+          position="left"
+          options={menuOptions}
+          openButton={
+            <Button style={{ padding: 8 }} EndIcon={<MoreIcon />} unstyled />
+          }
+        /> */}
       </div>
     </ChatContainerHeader>
   );
