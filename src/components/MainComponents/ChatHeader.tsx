@@ -88,11 +88,11 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ currentRoom }) => {
           />
         )}
         <div>
-          {currentRoom?.icon ? (
-            <img src={currentRoom.icon} />
-          ) : (
-            <ChatHeaderAvatar name={currentRoom.name} size={40} />
-          )}
+          <ChatHeaderAvatar
+            name={currentRoom.name}
+            size={40}
+            icon={currentRoom?.icon}
+          />
         </div>
         <div
           style={{

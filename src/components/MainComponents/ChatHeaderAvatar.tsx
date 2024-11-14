@@ -3,6 +3,7 @@ import styled from 'styled-components';
 
 interface ChatHeaderAvatarProps {
   name?: string;
+  icon?: string;
   onClick?: () => void;
   size?: number;
 }
@@ -25,14 +26,22 @@ const AvatarCircle = styled.div<{
   font-size: 24px;
   font-weight: bold;
   cursor: pointer;
+  overflow: hidden;
+`;
+
+const AvatarImage = styled.img<{ size?: number }>`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 `;
 
 export const ChatHeaderAvatar: React.FC<ChatHeaderAvatarProps> = ({
   name,
+  icon,
   size = 64,
 }) => {
   const getInitials = () => {
-    return name[0]?.toUpperCase();
+    return name ? name[0].toUpperCase() : '';
   };
 
   const randomColor = useMemo(() => {
@@ -48,10 +57,14 @@ export const ChatHeaderAvatar: React.FC<ChatHeaderAvatarProps> = ({
   return (
     <AvatarCircle
       bgColor={randomColor}
-      color={getTextColor(randomColor)}
+      textColor={getTextColor(randomColor)}
       size={size}
     >
-      {getInitials()}
+      {icon ? (
+        <AvatarImage src={icon} alt="avatar icon" size={size} />
+      ) : (
+        getInitials()
+      )}
     </AvatarCircle>
   );
 };
