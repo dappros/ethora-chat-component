@@ -1,6 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { IMessage, IRoom } from '../types/types';
-import { isDateAfter, isDateBefore } from '../helpers/dateComparison';
 import { insertMessageWithDelimiter } from '../helpers/insertMessageWithDelimiter';
 
 interface RoomMessagesState {
@@ -22,6 +21,12 @@ export const roomsStore = createSlice({
     addRoom(state, action: PayloadAction<{ roomData: IRoom }>) {
       const { roomData } = action.payload;
       state.rooms[roomData.jid] = roomData;
+    },
+    deleteRoom(state, action: PayloadAction<{ jid: string }>) {
+      const { jid } = action.payload;
+      if (state.rooms[jid]) {
+        delete state.rooms[jid];
+      }
     },
     setRoomMessages(
       state,
@@ -160,6 +165,7 @@ export const {
   setCurrentRoom,
   setRoomRole,
   setLogoutState,
+  deleteRoom,
 } = roomsStore.actions;
 
 export default roomsStore.reducer;

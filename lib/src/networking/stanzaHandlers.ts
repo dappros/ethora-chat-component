@@ -226,6 +226,12 @@ const onGetLastMessageArchive = (stanza: Element, xmpp: any) => {
   }
 };
 
+const onNewRoomCreated = (stanza: Element, xmpp: any) => {
+  console.log(stanza.attrs.from);
+  store.dispatch(setCurrentRoom({ roomJID: stanza.attrs.from }));
+  xmpp.getRooms();
+};
+
 const onGetChatRooms = (stanza: Element, xmpp: any) => {
   if (
     stanza.attrs.id === 'getUserRooms' &&
@@ -278,4 +284,5 @@ export {
   onGetLastMessageArchive,
   handleComposing,
   onGetChatRooms,
+  onNewRoomCreated,
 };

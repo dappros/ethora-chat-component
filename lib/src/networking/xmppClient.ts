@@ -5,6 +5,7 @@ import {
   onGetChatRooms,
   onGetLastMessageArchive,
   onMessageHistory,
+  onNewRoomCreated,
   onPresenceInRoom,
   onRealtimeMessage,
 } from './stanzaHandlers';
@@ -21,6 +22,7 @@ import { sendTextMessage } from './xmpp/sendTextMessage.xmpp';
 import { deleteMessage } from './xmpp/deleteMessage.xmpp';
 import { presenceInRoom } from './xmpp/presenceInRoom.xmpp';
 import { getLastMessageArchive } from './xmpp/getLastMessageArchive.xmpp';
+import { createRoom } from './xmpp/createRoom.xmpp';
 
 export class XmppClient {
   client!: Client;
@@ -105,6 +107,9 @@ export class XmppClient {
             onRealtimeMessage(stanza);
             onPresenceInRoom(stanza);
             break;
+          case 'room-config':
+            onNewRoomCreated(stanza, this);
+            break;
           default:
             console.log('Unhandled stanza type:', stanza.name);
         }
@@ -137,46 +142,6 @@ export class XmppClient {
     } else {
       console.log('No client to close');
     }
-  }
-
-  joinBySendingPresence(chatJID: string) {
-    let stanzaHdlrPointer: (stanza: Element) => void;
-
-    const unsubscribe = () => {
-      this.client.off('stanza', stanzaHdlrPointer);
-    };
-
-    const responsePromise = new Promise((resolve, _) => {
-      stanzaHdlrPointer = (stanza: Element) => {
-        if (
-          stanza.is('presence') &&
-          stanza.attrs['from']?.split('/') &&
-          stanza.attrs['from']?.split('/')[0] === chatJID
-        ) {
-          unsubscribe();
-          resolve(true);
-        }
-      };
-
-      const message = xml(
-        'presence',
-        {
-          id: 'joinByPresence',
-          to: `${chatJID}/${this.client.jid.toString().split('@')[0]}`,
-        },
-        xml('x', 'http://jabber.org/protocol/muc')
-      );
-
-      try {
-        this.client.send(message);
-      } catch (error) {
-        console.log('Error joining by presence', error);
-      }
-    });
-
-    const timeoutPromise = createTimeoutPromise(3000, unsubscribe);
-
-    return Promise.race([responsePromise, timeoutPromise]);
   }
 
   unsubscribe = (address: string) => {
@@ -229,17 +194,18 @@ export class XmppClient {
   };
 
   //room functions
+
+  async createRoomStanza(title: string, description: string) {
+    return await createRoom(title, description, this.client);
+  }
+
   leaveTheRoom = (roomJID: string) => {
-    try {
-      const presence = xml('presence', {
-        from: this.client.jid?.toString(),
-        to: roomJID + '/' + this.client.jid?.getLocal(),
-        type: 'unavailable',
-      });
-      this.client.send(presence);
-    } catch (error) {
-      console.error('An error occurred while leaving the room:', error);
-    }
+    const message = xml('presence', {
+      to: `${roomJID}/${this.client.jid.getLocal()}`,
+      type: 'unavailable',
+    });
+
+    this.client.send(message);
   };
 
   presenceInRoomStanza = (roomJID: string) => {

@@ -5,130 +5,34 @@ import React, {
   useCallback,
   useMemo,
 } from 'react';
-import styled, { css } from 'styled-components';
 import { IRoom } from '../../types/types';
 import { ChatHeaderAvatar } from './ChatHeaderAvatar';
 import { SearchInput } from '../InputComponents/Search';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
-import { getTintedColor } from '../../helpers/getTintedColor';
 import { SearchIcon } from '../../assets/icons';
 import DropdownMenu from '../DropdownMenu/DropdownMenu';
 import { logout, setActiveModal } from '../../roomStore/chatSettingsSlice';
 import NewChatModal from '../Modals/NewChatModal/NewChatModal';
 import { setLogoutState } from '../../roomStore/roomsSlice';
+import {
+  BurgerButton,
+  ChatInfo,
+  ChatItem,
+  ChatName,
+  Container,
+  Divider,
+  LastMessage,
+  ScollableContainer,
+  SearchContainer,
+  UserCount,
+} from '../styled/RoomListComponents';
 
 interface RoomListProps {
   chats: IRoom[];
   burgerMenu?: boolean;
   onRoomClick?: (chat: IRoom) => void;
 }
-
-const Container = styled.div<{ burgerMenu?: boolean; open?: boolean }>`
-  ${({ burgerMenu, open }) =>
-    burgerMenu
-      ? css`
-          position: fixed;
-          left: 0;
-          top: 0;
-          width: 300px;
-          height: 100%;
-          transform: ${open ? 'translateX(0)' : 'translateX(-100%)'};
-          transition: transform 0.3s ease-in-out;
-          z-index: 2;
-          display: flex;
-          flex-direction: column;
-          background-color: #fff;
-          padding: 16px 12px;
-          z-index: 1000;
-          border-right: 1px solid var(--Colors-Border-border-primary, #f0f0f0);
-        `
-      : css`
-          padding: 16px 12px;
-          overflow: auto;
-          display: relative;
-          z-index: 2;
-          background-color: #fff;
-          min-width: 375px;
-          border-right: 1px solid var(--Colors-Border-border-primary, #f0f0f0);
-        `}
-`;
-
-const BurgerButton = styled.button`
-  /* position: fixed; */
-  left: 10px;
-  top: 10px;
-  color: #333;
-  border: none;
-  padding: 10px;
-  cursor: pointer;
-  z-index: 1000;
-`;
-
-const ChatItem = styled.div<{ active: boolean; bg?: string }>`
-  display: flex;
-  justify-content: space-between;
-  border-radius: 16px;
-  padding: 10px;
-  cursor: pointer;
-  background-color: ${({ active, bg }) =>
-    active ? (bg ? bg : '#0052CD') : '#fff'};
-  color: ${({ active }) => (!active ? '#000' : '#fff')};
-
-  &:hover {
-    background-color: ${({ active, bg }) =>
-      active ? getTintedColor(bg ? bg : '#0052CD') : 'rgba(0, 0, 0, 0.05)'};
-  }
-`;
-
-const SearchContainer = styled.div<{}>`
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  width: 100%;
-  height: 50px;
-  padding-bottom: 12px;
-`;
-
-const ScollableContainer = styled.div<{}>`
-  height: 100%;
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-  position: sticky;
-`;
-
-const ChatInfo = styled.div`
-  display: flex;
-  flex-direction: column;
-  max-width: 60%;
-  text-align: start;
-`;
-
-const ChatName = styled.div`
-  font-weight: bold;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-`;
-
-const LastMessage = styled.div`
-  color: #999;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-`;
-
-const UserCount = styled.div<{ active: boolean }>`
-  color: ${({ active }) => (!active ? '#000' : '#fff')};
-  margin-left: auto;
-`;
-
-const Divider = styled.div`
-  height: 1px;
-  width: 100%;
-  background-color: #0052cd0d;
-`;
 
 const RoomList: React.FC<RoomListProps> = ({
   chats,
@@ -172,13 +76,20 @@ const RoomList: React.FC<RoomListProps> = ({
     []
   );
 
-  const filteredChats = useMemo(
-    () =>
-      chats.filter((chat) =>
-        chat.name.toLowerCase().includes(searchTerm.toLowerCase())
-      ),
-    [chats, searchTerm]
-  );
+  const filteredChats = useMemo(() => {
+    const lowerCaseSearchTerm = searchTerm.toLowerCase();
+    const chatsMap = new Map<string, IRoom[]>();
+
+    if (!chatsMap.has(lowerCaseSearchTerm)) {
+      const result = chats
+        .filter((chat) => chat.name.toLowerCase().includes(lowerCaseSearchTerm))
+        .sort((a, b) => b.usersCnt - a.usersCnt);
+
+      chatsMap.set(lowerCaseSearchTerm, result);
+    }
+
+    return chatsMap.get(lowerCaseSearchTerm) || [];
+  }, [chats, searchTerm]);
 
   useEffect(() => {
     if (burgerMenu) {
@@ -252,10 +163,10 @@ const RoomList: React.FC<RoomListProps> = ({
                 // animated={true}
               />
 
-              {/* <NewChatModal /> */}
+              <NewChatModal />
             </SearchContainer>
             <div style={{ flexGrow: 1, overflowY: 'auto' }}>
-              {filteredChats.map((chat, index) => (
+              {filteredChats.map((chat: IRoom, index: React.Key) => (
                 <>
                   <ChatItem
                     key={index}

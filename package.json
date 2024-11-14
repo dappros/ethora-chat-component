@@ -1,6 +1,6 @@
 {
   "name": "@ethora/chat-component",
-  "version": "24.11.14",
+  "version": "24.11.15",
   "type": "module",
   "main": "dist/main.js",
   "types": "dist/main.d.ts",
@@ -23,6 +23,7 @@
     "@xmpp/client": "^0.13.1",
     "axios": "^1.7.2",
     "firebase": "^10.13.2",
+    "js-sha256": "^0.11.0",
     "ltx": "^3.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -35,7 +36,6 @@
   },
   "devDependencies": {
     "@types/node": "^20.14.9",
-    "vite-plugin-dts": "^3.9.1",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@types/xmpp__client": "^0.13.3",
@@ -43,13 +43,14 @@
     "@typescript-eslint/parser": "^7.13.1",
     "@vitejs/plugin-react": "^4.3.1",
     "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.1.3",
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-react-refresh": "^0.4.7",
+    "prettier": "3.2.5",
     "typescript": "^5.2.2",
     "vite": "^5.3.1",
-    "prettier": "3.2.5",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-prettier": "^5.1.3"
+    "vite-plugin-dts": "^3.9.1"
   },
   "description": "1. npm create vite@latest 2. select name of project, select type (react/js) 3. cd project-name 4. npm i 5. npm i @ethora/chat-component 6. go to file src/App.tsx and replace it with this code",
   "directories": {

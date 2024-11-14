@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   ChatContainerHeader,
   ChatContainerHeaderLabel,
@@ -7,18 +7,17 @@ import RoomList from './RoomList';
 import { IRoom } from '../../types/types';
 import { ChatHeaderAvatar } from './ChatHeaderAvatar';
 import Button from '../styled/Button';
-import {
-  LeaveIcon,
-  MoreIcon,
-  ReportIcon,
-  SearchIcon,
-} from '../../assets/icons';
+import { LeaveIcon, MoreIcon, ReportIcon } from '../../assets/icons';
 import { RootState } from '../../roomStore';
 import { useDispatch, useSelector } from 'react-redux';
 import Composing from '../styled/StyledInputComponents/Composing';
-import { setCurrentRoom, setIsLoading } from '../../roomStore/roomsSlice';
-import { SearchInput } from '../InputComponents/Search';
+import {
+  deleteRoom,
+  setCurrentRoom,
+  setIsLoading,
+} from '../../roomStore/roomsSlice';
 import DropdownMenu from '../DropdownMenu/DropdownMenu';
+import { useXmppClient } from '../../context/xmppProvider';
 
 interface ChatHeaderProps {
   currentRoom: IRoom;
@@ -26,6 +25,8 @@ interface ChatHeaderProps {
 
 const ChatHeader: React.FC<ChatHeaderProps> = ({ currentRoom }) => {
   const dispatch = useDispatch();
+  const { client } = useXmppClient();
+
   const { composing } = useSelector(
     (state: RootState) => state.rooms.rooms[currentRoom.jid]
   );
@@ -34,12 +35,24 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ currentRoom }) => {
     (state: RootState) => state.chatSettingStore.config
   );
 
-  const rooms = useSelector((state: RootState) => state.rooms.rooms);
+  const { rooms, activeRoomJID } = useSelector(
+    (state: RootState) => state.rooms
+  );
 
   const handleChangeChat = (chat: IRoom) => {
     dispatch(setCurrentRoom({ roomJID: chat.jid }));
     dispatch(setIsLoading({ chatJID: chat.jid, loading: true }));
   };
+
+  const handleLeaveClick = useCallback(() => {
+    client.leaveTheRoom(activeRoomJID);
+    dispatch(deleteRoom({ jid: activeRoomJID }));
+
+    const nextRoomJID = Object.keys(rooms)[0] || null;
+    if (nextRoomJID) {
+      dispatch(setCurrentRoom({ roomJID: nextRoomJID }));
+    }
+  }, [activeRoomJID, rooms, dispatch, client]);
 
   const menuOptions = useMemo(
     () => [
@@ -47,7 +60,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ currentRoom }) => {
         label: 'Report',
         icon: <ReportIcon />,
         onClick: () => {
-          console.log('Profile clicked');
+          console.log('Report clicked');
         },
         styles: { color: 'red' },
       },
@@ -55,12 +68,12 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ currentRoom }) => {
         label: 'Leave',
         icon: <LeaveIcon />,
         onClick: () => {
-          console.log('Settings clicked');
+          handleLeaveClick();
         },
         styles: { color: 'red' },
       },
     ],
-    []
+    [activeRoomJID]
   );
 
   return (
@@ -106,13 +119,13 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ currentRoom }) => {
 
       <div style={{ display: 'flex', gap: 16 }}>
         {/* <SearchInput animated icon={<SearchIcon />} /> */}
-        {/* <DropdownMenu
+        <DropdownMenu
           position="left"
           options={menuOptions}
           openButton={
             <Button style={{ padding: 8 }} EndIcon={<MoreIcon />} unstyled />
           }
-        /> */}
+        />
       </div>
     </ChatContainerHeader>
   );

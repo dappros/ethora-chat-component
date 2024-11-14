@@ -169,7 +169,9 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             />
             <Modal
               modal={activeModal}
-              setOpenModal={(value) => dispatch(setActiveModal(value))}
+              setOpenModal={(value?: 'settings' | 'profile') =>
+                dispatch(setActiveModal(value))
+              }
             />
           </ChatWrapperBox>
         ) : (

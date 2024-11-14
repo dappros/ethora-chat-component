@@ -1,72 +1,27 @@
 import React, { useState } from 'react';
-import styled from 'styled-components';
 import Button from '../../styled/Button';
 import { AddNewIcon, AddPhotoIcon } from '../../../assets/icons';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../../roomStore';
 import { StyledInput } from '../../styled/StyledInputComponents/StyledInputComponents';
-
-const ModalBackground = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-`;
-
-const ModalContainer = styled.div`
-  background: white;
-  border-radius: 24px;
-  padding: 32px;
-  box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.2);
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-  position: relative;
-  justify-content: center;
-  align-items: center;
-  width: 50%;
-  max-width: 400px;
-`;
-
-const ModalTitle = styled.h2`
-  font-size: 1.5em;
-  margin: 0;
-`;
-
-const CloseButton = styled.button`
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  background: none;
-  border: none;
-  font-size: 1.25em;
-  cursor: pointer;
-  color: #888;
-  border-radius: 8px;
-
-  &:hover {
-    color: #555;
-    background-color: #dddddd;
-  }
-`;
-
-const GroupContainer = styled.div`
-  display: flex;
-  gap: 32px;
-  width: 100%;
-  padding: 0;
-`;
+import { useXmppClient } from '../../../context/xmppProvider';
+import {
+  CloseButton,
+  GroupContainer,
+  ModalBackground,
+  ModalContainer,
+  ModalTitle,
+} from '../styledModalComponents';
+import { setCurrentRoom } from '../../../roomStore/roomsSlice';
 
 const NewChatModal: React.FC = () => {
   const config = useSelector(
     (state: RootState) => state.chatSettingStore.config
   );
+
+  const dispatch = useDispatch();
+
+  const { client } = useXmppClient();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [roomName, setRoomName] = useState('');
@@ -75,8 +30,10 @@ const NewChatModal: React.FC = () => {
   const handleOpenModal = () => setIsModalOpen(true);
   const handleCloseModal = () => setIsModalOpen(false);
 
-  const handleCreateRoom = () => {
-    console.log('Room Created:', roomName, roomDescription);
+  const handleCreateRoom = async () => {
+    const newChatJid = await client.createRoomStanza(roomName, roomDescription);
+    await client.getRooms();
+    dispatch(setCurrentRoom({ roomJID: newChatJid }));
     setIsModalOpen(false);
   };
 

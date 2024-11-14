@@ -70,9 +70,11 @@ const CustomButton = styled.button<{
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   text?: string | ReactElement;
   EndIcon?: ReactElement;
+  StartIcon?: ReactElement;
   loading?: boolean;
   unstyled?: boolean;
   variant?: 'default' | 'filled' | 'outlined';
+  children?: React.ReactNode;
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -82,6 +84,8 @@ const Button: React.FC<ButtonProps> = ({
   disabled = false,
   unstyled = false,
   variant = 'default',
+  children,
+  StartIcon,
   ...props
 }) => {
   return (
@@ -92,6 +96,8 @@ const Button: React.FC<ButtonProps> = ({
       variant={variant}
       {...props}
     >
+      {!loading && StartIcon}
+      {!loading && children}
       {loading ? <Loader size={24} /> : text}
       {!loading && EndIcon}
     </CustomButton>

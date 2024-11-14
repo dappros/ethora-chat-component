@@ -1,54 +1,25 @@
-import React, { useState } from 'react';
-import styled from 'styled-components';
+import React from 'react';
 import UserProfileModal from '../UserProfileModal/UserProfileModal';
-
-const ModalBackground = styled.div`
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-`;
-
-const CloseButton = styled.button`
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  background: none;
-  border: none;
-  font-size: 1.25em;
-  cursor: pointer;
-  color: #888;
-  border-radius: 8px;
-  z-index: 1001;
-
-  &:hover {
-    color: #555;
-    background-color: #dddddd;
-  }
-`;
+import { ModalBackground } from '../styledModalComponents';
+import UserSettingsModal from '../UserSettingsModal/UserSettingsModal';
 
 interface ModalProps {
   children?: React.ReactNode;
   modal?: string;
-  setOpenModal: any;
+  setOpenModal: (value?: 'settings' | 'profile') => any;
 }
 
 const Modal: React.FC<ModalProps> = ({ children, modal, setOpenModal }) => {
-  const handleCloseModal = () => setOpenModal(false);
+  const handleCloseModal = () => setOpenModal();
 
   return (
     modal && (
-      <ModalBackground id="modal-background">
-        <CloseButton onClick={handleCloseModal} style={{ fontSize: 24 }}>
+      <ModalBackground id="modal-background" style={{ position: 'absolute' }}>
+        {/* <CloseButton onClick={handleCloseModal} style={{ fontSize: 24 }}>
           &times;
-        </CloseButton>
+        </CloseButton> */}
         {modal === 'settings' ? (
-          <UserProfileModal handleCloseModal={handleCloseModal} />
+          <UserSettingsModal handleCloseModal={handleCloseModal} />
         ) : (
           <UserProfileModal handleCloseModal={handleCloseModal} />
         )}

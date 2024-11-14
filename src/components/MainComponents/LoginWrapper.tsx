@@ -53,6 +53,22 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
       dispatch(setUser(storedUser));
     }
 
+    //if jwt send api req with jwt and get user data
+
+    if (props.config?.jwtLogin?.enabled) {
+      const jwtLogin = async () => {
+        try {
+          const loginData = await loginViaJwt(props.config.jwtLogin.token);
+          if (loginData) {
+            dispatch(setUser(loginData));
+          }
+        } catch (error) {
+          console.log('error with jwt login', error);
+        }
+      };
+      jwtLogin();
+    }
+
     //if no login config - default user login
 
     if (
@@ -71,22 +87,6 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
         }
       };
       defaultLogin();
-    }
-
-    //if jwt send api req with jwt and get user data
-
-    if (props.config?.jwtLogin?.enabled) {
-      const jwtLogin = async () => {
-        try {
-          const loginData = await loginViaJwt(props.config?.jwtLogin?.token);
-          if (loginData) {
-            dispatch(setUser(loginData));
-          }
-        } catch (error) {
-          console.log('error with default login', error);
-        }
-      };
-      jwtLogin();
     }
 
     //if google - show login.tsx and process user there (there will be dispatch, set user)

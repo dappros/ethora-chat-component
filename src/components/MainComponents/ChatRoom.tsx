@@ -168,13 +168,11 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         });
       };
 
-      const initialPresenceAndHistory = () => {
+      const initialPresenceAndHistory = async () => {
         if (!roomsList[activeRoomJID]) {
-          client.joinBySendingPresence(activeRoomJID).then(() => {
-            client.getRooms().then(() => {
-              getDefaultHistory();
-            });
-          });
+          client.presenceInRoomStanza(activeRoomJID);
+          await client.getRooms();
+          await getDefaultHistory();
         } else {
           getDefaultHistory();
         }
