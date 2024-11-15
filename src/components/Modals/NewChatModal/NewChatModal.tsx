@@ -37,6 +37,32 @@ const NewChatModal: React.FC = () => {
     setIsModalOpen(false);
   };
 
+  // const onUpload = async (file: File) => {
+  //   try {
+  //     let mediaData: FormData | null = new FormData();
+  //     mediaData.append('files', file);
+
+  //     const uploadResult = await uploadFile(mediaData);
+
+  //     const location = uploadResult?.data?.results?.[0]?.location;
+  //     if (!location) {
+  //       throw new Error('No location found in upload result.');
+  //     }
+
+  //     client.setRoomImageStanza(activeRoom.jid, location, 'icon', 'none');
+  //     dispatch(
+  //       updateRoom({ jid: activeRoom.jid, updates: { icon: location } })
+  //     );
+  //   } catch (error) {
+  //     console.error('File upload failed or location is missing:', error);
+  //   }
+  // };
+
+  // const onRemoveClick = async () => {
+  //   client.setRoomImageStanza(activeRoom.jid, null, 'icon', 'none');
+  //   dispatch(updateRoom({ jid: activeRoom.jid, updates: { icon: null } }));
+  // };
+
   return (
     <>
       <Button

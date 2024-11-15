@@ -64,16 +64,20 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         <ChatHeaderAvatar
           name={activeRoom.name}
           icon={activeRoom.icon}
-          upload={{ onUpload, active: true }}
+          upload={{
+            onUpload,
+            active: activeRoom?.role !== 'participant' ? true : false,
+          }}
           remove={{ enabled: true, onRemoveClick }}
+          role={activeRoom?.role}
         />
         <UserInfo>
           <UserName>{activeRoom.name}</UserName>
-          <UserStatus>Status</UserStatus>
+          <UserStatus>{activeRoom.usersCnt} members</UserStatus>
         </UserInfo>
         <BorderedContainer>
-          <Label>About</Label>
-          <LabelData>Chat's description</LabelData>
+          <LabelData>Description</LabelData>
+          <Label>Chat's Description</Label>
         </BorderedContainer>
       </CenterContainer>
     </ModalContainerFullScreen>

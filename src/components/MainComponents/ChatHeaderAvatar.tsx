@@ -14,6 +14,7 @@ interface ChatHeaderAvatarProps {
     enabled: boolean;
     onRemoveClick: () => void;
   };
+  role?: string;
 }
 
 const backgroundColors = ['#f44336', '#2196f3', '#4caf50', '#ff9800'];
@@ -89,6 +90,7 @@ export const ChatHeaderAvatar: React.FC<ChatHeaderAvatarProps> = ({
   size = 64,
   upload,
   remove,
+  role = 'participant',
 }) => {
   const randomColor = useMemo(() => {
     if (!icon) {
@@ -122,7 +124,7 @@ export const ChatHeaderAvatar: React.FC<ChatHeaderAvatarProps> = ({
       <AvatarCircle
         bgColor={icon ? 'transparent' : randomColor}
         size={size}
-        isClickable={!!upload?.active}
+        isClickable={role === 'participant' && !!upload?.active}
         onClick={handleAvatarClick}
       >
         {icon ? (
@@ -139,7 +141,7 @@ export const ChatHeaderAvatar: React.FC<ChatHeaderAvatarProps> = ({
           />
         )}
       </AvatarCircle>
-      {remove?.enabled && icon && (
+      {remove?.enabled && icon && role !== 'participant' && (
         <RemoveButton
           onClick={(e) => {
             e.stopPropagation();
