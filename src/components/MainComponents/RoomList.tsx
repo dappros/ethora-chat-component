@@ -151,10 +151,10 @@ const RoomList: React.FC<RoomListProps> = ({
         {(open || !burgerMenu) && (
           <ScollableContainer>
             <SearchContainer>
-              {/* <DropdownMenu
+              <DropdownMenu
                 options={menuOptions}
                 // onClose={dispatch(setActiveModal())}
-              /> */}
+              />
               <SearchInput
                 icon={<SearchIcon height={'20px'} />}
                 value={searchTerm}

@@ -23,6 +23,7 @@ import { deleteMessage } from './xmpp/deleteMessage.xmpp';
 import { presenceInRoom } from './xmpp/presenceInRoom.xmpp';
 import { getLastMessageArchive } from './xmpp/getLastMessageArchive.xmpp';
 import { createRoom } from './xmpp/createRoom.xmpp';
+import { setRoomImage } from './xmpp/setRoomImage.xmpp';
 
 export class XmppClient {
   client!: Client;
@@ -219,6 +220,15 @@ export class XmppClient {
   getLastMessageArchiveStanza(roomJID: string) {
     getLastMessageArchive(this.client, roomJID);
   }
+
+  setRoomImageStanza = (
+    roomJid: string,
+    roomThumbnail: string,
+    type: string,
+    roomBackground?: string
+  ) => {
+    setRoomImage(roomJid, roomThumbnail, type, this.client, roomBackground);
+  };
 
   //messages
   sendMessage = (

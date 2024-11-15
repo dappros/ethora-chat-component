@@ -18,6 +18,7 @@ import {
 } from '../../roomStore/roomsSlice';
 import DropdownMenu from '../DropdownMenu/DropdownMenu';
 import { useXmppClient } from '../../context/xmppProvider';
+import { setActiveModal } from '../../roomStore/chatSettingsSlice';
 
 interface ChatHeaderProps {
   currentRoom: IRoom;
@@ -87,33 +88,38 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ currentRoom }) => {
             onRoomClick={handleChangeChat}
           />
         )}
-        <div>
-          <ChatHeaderAvatar
-            name={currentRoom.name}
-            size={40}
-            icon={currentRoom?.icon}
-          />
-        </div>
         <div
-          style={{
-            textAlign: 'start',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-          }}
+          style={{ display: 'flex', gap: '8px', cursor: 'pointer' }}
+          onClick={() => dispatch(setActiveModal('chatprofile'))}
         >
-          <ChatContainerHeaderLabel>
-            {currentRoom?.title}
-          </ChatContainerHeaderLabel>
-          <ChatContainerHeaderLabel
-            style={{ color: '#8C8C8C', fontSize: '14px' }}
+          <div>
+            <ChatHeaderAvatar
+              name={currentRoom.name}
+              size={40}
+              icon={currentRoom?.icon}
+            />
+          </div>
+          <div
+            style={{
+              textAlign: 'start',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+            }}
           >
-            {composing ? (
-              <Composing usersTyping={['User']} />
-            ) : (
-              `${currentRoom?.usersCnt} users`
-            )}
-          </ChatContainerHeaderLabel>
+            <ChatContainerHeaderLabel>
+              {currentRoom?.title}
+            </ChatContainerHeaderLabel>
+            <ChatContainerHeaderLabel
+              style={{ color: '#8C8C8C', fontSize: '14px' }}
+            >
+              {composing ? (
+                <Composing usersTyping={['User']} />
+              ) : (
+                `${currentRoom?.usersCnt} users`
+              )}
+            </ChatContainerHeaderLabel>
+          </div>
         </div>
       </div>
 

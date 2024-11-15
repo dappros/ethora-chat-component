@@ -6,26 +6,51 @@ interface ChatHeaderAvatarProps {
   icon?: string;
   onClick?: () => void;
   size?: number;
+  upload?: {
+    onUpload: (image: File) => void;
+    active: boolean;
+  };
+  remove?: {
+    enabled: boolean;
+    onRemoveClick: () => void;
+  };
 }
 
 const backgroundColors = ['#f44336', '#2196f3', '#4caf50', '#ff9800'];
 
-const AvatarCircle = styled.div<{
+const Wrapper = styled.div<{
   bgColor: string;
   size?: number;
-  textColor?: string;
+  isClickable: boolean;
 }>`
   width: ${({ size }) => `${size}px` || '64px'};
   height: ${({ size }) => `${size}px` || '64px'};
   border-radius: 50%;
   background-color: ${({ bgColor }) => bgColor};
-  color: ${({ textColor }) => textColor};
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 24px;
   font-weight: bold;
-  cursor: pointer;
+  cursor: ${({ isClickable }) => (isClickable ? 'pointer' : 'default')};
+  position: relative;
+`;
+
+const AvatarCircle = styled.div<{
+  bgColor: string;
+  size?: number;
+  isClickable: boolean;
+}>`
+  width: ${({ size }) => `${size}px` || '64px'};
+  height: ${({ size }) => `${size}px` || '64px'};
+  border-radius: 50%;
+  background-color: ${({ bgColor }) => bgColor};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: ${({ isClickable }) => (isClickable ? 'pointer' : 'default')};
   overflow: hidden;
 `;
 
@@ -35,36 +60,95 @@ const AvatarImage = styled.img<{ size?: number }>`
   object-fit: cover;
 `;
 
+const RemoveButton = styled.button`
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 20px;
+  height: 20px;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 0;
+  padding: 0;
+`;
+
+const FileInput = styled.input`
+  display: none;
+`;
+
 export const ChatHeaderAvatar: React.FC<ChatHeaderAvatarProps> = ({
   name,
   icon,
   size = 64,
+  upload,
+  remove,
 }) => {
-  const getInitials = () => {
-    return name ? name[0].toUpperCase() : '';
+  const randomColor = useMemo(() => {
+    if (!icon) {
+      const index = Math.floor(Math.random() * backgroundColors.length);
+      return backgroundColors[index];
+    }
+    return '';
+  }, [icon]);
+
+  const getInitials = () => (!icon && name ? name[0].toUpperCase() : '');
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && upload?.onUpload) {
+      upload.onUpload(file);
+    }
   };
 
-  const randomColor = useMemo(() => {
-    const index = Math.floor(Math.random() * backgroundColors.length);
-    return backgroundColors[index];
-  }, []);
-
-  const getTextColor = (bgColor: string) => {
-    const lightColors = ['#4caf50', '#ff9800'];
-    return lightColors.includes(bgColor) ? '#fff' : '#fff';
+  const handleAvatarClick = () => {
+    if (upload?.active) {
+      document.getElementById('avatar-file-input')?.click();
+    }
   };
 
   return (
-    <AvatarCircle
-      bgColor={randomColor}
-      textColor={getTextColor(randomColor)}
+    <Wrapper
+      bgColor={icon ? 'transparent' : randomColor}
       size={size}
+      isClickable={!!upload?.active}
     >
-      {icon ? (
-        <AvatarImage src={icon} alt="avatar icon" size={size} />
-      ) : (
-        getInitials()
+      <AvatarCircle
+        bgColor={icon ? 'transparent' : randomColor}
+        size={size}
+        isClickable={!!upload?.active}
+        onClick={handleAvatarClick}
+      >
+        {icon ? (
+          <AvatarImage src={icon} alt="avatar icon" size={size} />
+        ) : (
+          getInitials()
+        )}
+        {upload?.active && (
+          <FileInput
+            type="file"
+            id="avatar-file-input"
+            accept="image/*"
+            onChange={handleFileChange}
+          />
+        )}
+      </AvatarCircle>
+      {remove?.enabled && icon && (
+        <RemoveButton
+          onClick={(e) => {
+            e.stopPropagation();
+            remove.onRemoveClick();
+          }}
+        >
+          &times;
+        </RemoveButton>
       )}
-    </AvatarCircle>
+    </Wrapper>
   );
 };

@@ -14,6 +14,8 @@ import {
 } from '../styledModalComponents';
 import { ChatIcon } from '../../../assets/icons';
 import ModalHeaderComponent from '../ModalHeaderComponent';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../../roomStore';
 
 interface UserProfileModalProps {
   handleCloseModal: any;
@@ -22,6 +24,8 @@ interface UserProfileModalProps {
 const UserProfileModal: React.FC<UserProfileModalProps> = ({
   handleCloseModal,
 }) => {
+  const { user } = useSelector((state: RootState) => state.chatSettingStore);
+
   return (
     <ModalContainerFullScreen>
       <ModalHeaderComponent
@@ -31,7 +35,9 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
       <CenterContainer>
         <ProfileImage />
         <UserInfo>
-          <UserName>User's name</UserName>
+          <UserName>
+            {user.firstName} {user.lastName}
+          </UserName>
           <UserStatus>Status</UserStatus>
         </UserInfo>
         <BorderedContainer>

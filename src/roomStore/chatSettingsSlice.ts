@@ -6,7 +6,7 @@ import { useLocalStorage } from '../hooks/useLocalStorage';
 interface ChatState {
   user: User;
   config?: IConfig;
-  activeModal?: 'settings' | 'profile' | undefined;
+  activeModal?: 'settings' | 'profile' | 'chatprofile' | undefined;
 }
 
 const unpackAndTransform = (input?: User): User => {
@@ -91,7 +91,7 @@ export const chatSlice = createSlice({
     },
     setActiveModal: (
       state,
-      action: PayloadAction<'settings' | 'profile' | undefined>
+      action: PayloadAction<'settings' | 'profile' | 'chatprofile' | undefined>
     ) => {
       state.activeModal = action.payload;
     },
