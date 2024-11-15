@@ -1,6 +1,6 @@
 {
   "name": "@ethora/chat-component",
-  "version": "24.11.15",
+  "version": "24.11.16",
   "type": "module",
   "main": "dist/main.js",
   "types": "dist/main.d.ts",

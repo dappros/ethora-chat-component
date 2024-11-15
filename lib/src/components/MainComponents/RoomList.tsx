@@ -151,10 +151,10 @@ const RoomList: React.FC<RoomListProps> = ({
         {(open || !burgerMenu) && (
           <ScollableContainer>
             <SearchContainer>
-              {/* <DropdownMenu
+              <DropdownMenu
                 options={menuOptions}
                 // onClose={dispatch(setActiveModal())}
-              /> */}
+              />
               <SearchInput
                 icon={<SearchIcon height={'20px'} />}
                 value={searchTerm}
@@ -182,11 +182,7 @@ const RoomList: React.FC<RoomListProps> = ({
                         gap: '8px',
                       }}
                     >
-                      {chat.icon ? (
-                        <img src={chat.icon} alt="Icon" />
-                      ) : (
-                        <ChatHeaderAvatar name={chat.name} />
-                      )}
+                      <ChatHeaderAvatar name={chat.name} icon={chat?.icon} />
                       <ChatInfo>
                         <ChatName>{chat.name}</ChatName>
                         <LastMessage

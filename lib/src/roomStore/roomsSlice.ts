@@ -28,6 +28,21 @@ export const roomsStore = createSlice({
         delete state.rooms[jid];
       }
     },
+    updateRoom(
+      state,
+      action: PayloadAction<{ jid: string; updates: Partial<IRoom> }>
+    ) {
+      const { jid, updates } = action.payload;
+      const existingRoom = state.rooms[jid];
+
+      if (existingRoom) {
+        state.rooms[jid] = {
+          ...existingRoom,
+          ...updates,
+        };
+      }
+    },
+
     setRoomMessages(
       state,
       action: PayloadAction<{ roomJID: string; messages: IMessage[] }>
@@ -166,6 +181,7 @@ export const {
   setRoomRole,
   setLogoutState,
   deleteRoom,
+  updateRoom,
 } = roomsStore.actions;
 
 export default roomsStore.reducer;
