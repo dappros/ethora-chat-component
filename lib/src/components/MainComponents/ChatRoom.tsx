@@ -188,6 +188,8 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         } else {
           dispatch(setIsLoading({ loading: false, chatJID: activeRoomJID }));
         }
+      } else if (!roomsList?.[activeRoomJID]) {
+        initialPresenceAndHistory();
       }
     }, [activeRoomJID, Object.keys(roomsList).length]);
 

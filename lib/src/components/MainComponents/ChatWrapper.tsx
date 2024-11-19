@@ -101,7 +101,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
         }
         dispatch(setIsLoading({ loading: false }));
       } catch (error) {
-        setShowModal(false);
+        setShowModal(true);
         setInited(false);
         dispatch(setIsLoading({ loading: false }));
         console.log(error);
