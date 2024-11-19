@@ -6,6 +6,7 @@ import {
   setComposing,
   setCurrentRoom,
   setRoomRole,
+  updateRoom,
 } from '../roomStore/roomsSlice';
 import { IRoom } from '../types/types';
 
@@ -215,6 +216,31 @@ const onPresenceInRoom = (stanza: Element | any) => {
   }
 };
 
+const onGetMembers = (stanza: Element) => {
+  const jid = store.getState().rooms.activeRoomJID;
+  if (stanza.attrs.id.toString() === 'roomMemberInfo') {
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(stanza.toString(), 'text/xml');
+
+    // Extract activities
+    const roomMembers = Array.from(xmlDoc.getElementsByTagName('activity')).map(
+      (activity) => ({
+        name: activity.getAttribute('name'),
+        role: activity.getAttribute('role'),
+        ban_status: activity.getAttribute('ban_status'),
+        last_active: Number(activity.getAttribute('last_active')),
+        jid: activity.getAttribute('jid'),
+      })
+    );
+
+    store.dispatch(updateRoom({ jid, updates: { roomMembers } }));
+  }
+};
+const onGetRoomInfo = (stanza: Element) => {
+  if (stanza.attrs.id === 'roomInfo' && !stanza.getChild('error')) {
+  }
+};
+
 const onGetLastMessageArchive = (stanza: Element, xmpp: any) => {
   if (stanza.attrs.id === 'sendMessage') {
     const data = stanza.getChild('stanza-id');
@@ -285,4 +311,6 @@ export {
   handleComposing,
   onGetChatRooms,
   onNewRoomCreated,
+  onGetMembers,
+  onGetRoomInfo,
 };

@@ -1,12 +1,13 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { IConfig, User } from '../types/types';
+import { IConfig, IUser, User } from '../types/types';
 import { localStorageConstants } from '../helpers/constants/LOCAL_STORAGE';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 
 interface ChatState {
   user: User;
   config?: IConfig;
-  activeModal?: 'settings' | 'profile' | 'chatprofile' | undefined;
+  activeModal?: 'settings' | 'profile' | 'chatprofile';
+  selectedUser?: IUser;
 }
 
 const unpackAndTransform = (input?: User): User => {
@@ -95,6 +96,9 @@ export const chatSlice = createSlice({
     ) => {
       state.activeModal = action.payload;
     },
+    setSelectedUser: (state, action: PayloadAction<IUser | undefined>) => {
+      state.selectedUser = action.payload;
+    },
     refreshTokens: (
       state,
       action: PayloadAction<{ token: string; refreshToken: string }>
@@ -117,7 +121,13 @@ export const chatSlice = createSlice({
   },
 });
 
-export const { setUser, setConfig, refreshTokens, logout, setActiveModal } =
-  chatSlice.actions;
+export const {
+  setUser,
+  setConfig,
+  refreshTokens,
+  logout,
+  setActiveModal,
+  setSelectedUser,
+} = chatSlice.actions;
 
 export default chatSlice.reducer;

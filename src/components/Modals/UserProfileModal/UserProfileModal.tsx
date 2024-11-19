@@ -2,7 +2,6 @@ import React from 'react';
 import {
   EmptySection,
   CenterContainer,
-  ProfileImage,
   UserInfo,
   UserName,
   UserStatus,
@@ -16,6 +15,7 @@ import { ChatIcon } from '../../../assets/icons';
 import ModalHeaderComponent from '../ModalHeaderComponent';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../../roomStore';
+import { ProfileImagePlaceholder } from '../../MainComponents/ProfileImagePlaceholder';
 
 interface UserProfileModalProps {
   handleCloseModal: any;
@@ -24,7 +24,11 @@ interface UserProfileModalProps {
 const UserProfileModal: React.FC<UserProfileModalProps> = ({
   handleCloseModal,
 }) => {
-  const { user } = useSelector((state: RootState) => state.chatSettingStore);
+  const { user, selectedUser } = useSelector(
+    (state: RootState) => state.chatSettingStore
+  );
+
+  const modalUser: any = selectedUser || user;
 
   return (
     <ModalContainerFullScreen>
@@ -33,10 +37,16 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
         headerTitle={'Profile'}
       />
       <CenterContainer>
-        <ProfileImage />
+        <ProfileImagePlaceholder
+          icon={(modalUser?.profileImage || modalUser?.avatar) ?? null}
+          name={modalUser?.name ?? modalUser?.firstName}
+          size={120}
+        />
         <UserInfo>
           <UserName>
-            {user.firstName} {user.lastName}
+            {modalUser
+              ? `${modalUser?.name}`
+              : `${modalUser?.firstName} ${modalUser?.lastName}`}
           </UserName>
           <UserStatus>Status</UserStatus>
         </UserInfo>
@@ -44,9 +54,11 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
           <Label>About</Label>
           <LabelData>User's description</LabelData>
         </BorderedContainer>
-        <ActionButton StartIcon={<ChatIcon />} variant="filled">
-          Message
-        </ActionButton>
+        {selectedUser && (
+          <ActionButton StartIcon={<ChatIcon />} variant="filled">
+            Message
+          </ActionButton>
+        )}
         <EmptySection />
       </CenterContainer>
     </ModalContainerFullScreen>

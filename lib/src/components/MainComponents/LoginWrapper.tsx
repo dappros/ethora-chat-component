@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { IConfig, MessageProps, User } from '../../types/types';
 import { ChatWrapper } from './ChatWrapper';
 import LoginForm from '../AuthForms/Login';
@@ -10,6 +10,7 @@ import {
   loginEmail,
   loginViaJwt,
 } from '../../networking/api-requests/auth.api';
+import { Overlay, StyledModal } from '../styled/MediaModal';
 
 interface LoginWrapperProps {
   user?: { email: string; password: string };
@@ -20,6 +21,8 @@ interface LoginWrapperProps {
 }
 
 const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
+  const [showModal, setShowModal] = useState(false);
+
   const { user } = useSelector((state: RootState) => state.chatSettingStore);
 
   const loginUserFunction = useCallback(async () => {
@@ -64,6 +67,8 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
           }
         } catch (error) {
           console.log('error with jwt login', error);
+          setShowModal(true);
+          console.log('Error, no user');
         }
       };
       jwtLogin();
@@ -84,6 +89,7 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
           }
         } catch (error) {
           console.log('error with default login', error);
+          setShowModal(true);
         }
       };
       defaultLogin();
@@ -98,7 +104,11 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
 
   return (
     <>
-      {user && user.xmppPassword !== '' ? (
+      {showModal ? (
+        <Overlay>
+          <StyledModal>Error on login.Try again</StyledModal>
+        </Overlay>
+      ) : user && user.xmppPassword !== '' ? (
         <ChatWrapper {...props} />
       ) : (
         <LoginForm {...props} />

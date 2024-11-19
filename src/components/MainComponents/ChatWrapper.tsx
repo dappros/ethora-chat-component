@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import ChatRoom from './ChatRoom';
 import { setActiveModal, setConfig } from '../../roomStore/chatSettingsSlice';
 import { ChatWrapperBox } from '../styled/ChatWrapperBox';
-import { Overlay, StyledModal } from '../styled/Modal';
+import { Overlay, StyledModal } from '../styled/MediaModal';
 import { Message } from '../MessageBubble/Message';
 import { IConfig, IRoom, MessageProps, User } from '../../types/types';
 import { useXmppClient } from '../../context/xmppProvider';

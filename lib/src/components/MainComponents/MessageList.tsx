@@ -7,7 +7,7 @@ import {
   MessagesScroll,
   MessagesList,
 } from '../styled/StyledComponents';
-import { IConfig, IMessage, IRoom, User } from '../../types/types';
+import { IConfig, IMessage, User } from '../../types/types';
 import SystemMessage from './SystemMessage';
 import DateLabel from '../styled/DateLabel';
 import Loader from '../styled/Loader';

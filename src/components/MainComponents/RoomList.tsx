@@ -6,7 +6,7 @@ import React, {
   useMemo,
 } from 'react';
 import { IRoom } from '../../types/types';
-import { ChatHeaderAvatar } from './ChatHeaderAvatar';
+import { ProfileImagePlaceholder } from './ProfileImagePlaceholder';
 import { SearchInput } from '../InputComponents/Search';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
@@ -182,7 +182,10 @@ const RoomList: React.FC<RoomListProps> = ({
                         gap: '8px',
                       }}
                     >
-                      <ChatHeaderAvatar name={chat.name} icon={chat?.icon} />
+                      <ProfileImagePlaceholder
+                        name={chat.name}
+                        icon={chat?.icon}
+                      />
                       <ChatInfo>
                         <ChatName>{chat.name}</ChatName>
                         <LastMessage

@@ -64,6 +64,10 @@ const SendInput: React.FC<SendInputProps> = ({
           return combinedFiles;
         });
       }
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     },
     []
   );
@@ -187,15 +191,23 @@ const SendInput: React.FC<SendInputProps> = ({
             // disabled={!message || message === ""}
             EndIcon={
               <SendIcon
-                color={!message || message === '' ? '#D4D4D8' : '#fff'}
+                color={
+                  filePreviews.length > 0
+                    ? '#fff'
+                    : !message || message === ''
+                      ? '#D4D4D8'
+                      : '#fff'
+                }
               />
             }
             style={{
               borderRadius: '100px',
               backgroundColor:
-                !message || message === ''
-                  ? 'transparent'
-                  : config?.colors?.primary,
+                filePreviews.length > 0
+                  ? config?.colors?.primary
+                  : !message || message === ''
+                    ? 'transparent'
+                    : config?.colors?.primary,
             }}
           />
         ) : (

@@ -110,7 +110,7 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
     URL.revokeObjectURL(url);
   };
 
-  return isRecording || audioBlob ? (
+  return isRecording ? (
     <RecordContainer>
       <div style={{ display: 'flex', alignItems: 'center' }}>
         {isRecording && <RecordingIndicator />}

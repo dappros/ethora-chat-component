@@ -5,7 +5,7 @@ import {
 } from '../styled/StyledComponents';
 import RoomList from './RoomList';
 import { IRoom } from '../../types/types';
-import { ChatHeaderAvatar } from './ChatHeaderAvatar';
+import { ProfileImagePlaceholder } from './ProfileImagePlaceholder';
 import Button from '../styled/Button';
 import { LeaveIcon, MoreIcon, ReportIcon } from '../../assets/icons';
 import { RootState } from '../../roomStore';
@@ -46,7 +46,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ currentRoom }) => {
   };
 
   const handleLeaveClick = useCallback(() => {
-    client.leaveTheRoom(activeRoomJID);
+    client.leaveTheRoomStanza(activeRoomJID);
     dispatch(deleteRoom({ jid: activeRoomJID }));
 
     const nextRoomJID = Object.keys(rooms)[0] || null;
@@ -93,10 +93,11 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ currentRoom }) => {
           onClick={() => dispatch(setActiveModal('chatprofile'))}
         >
           <div>
-            <ChatHeaderAvatar
+            <ProfileImagePlaceholder
               name={currentRoom.name}
               size={40}
               icon={currentRoom?.icon}
+              active={true}
             />
           </div>
           <div

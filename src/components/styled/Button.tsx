@@ -48,7 +48,7 @@ const CustomButton = styled.button<{
         ? getTintedColor(backgroundColor || '#0052CD')
         : variant === 'outlined'
           ? 'rgba(0, 82, 205, 0.1)'
-          : backgroundColor || 'transparent'};
+          : backgroundColor || 'rgba(202, 202, 202, 0.1)'};
     box-shadow: ${({ variant }) =>
       variant !== 'default' ? '0 4px 8px rgba(0, 0, 0, 0.2)' : 'none'};
   }

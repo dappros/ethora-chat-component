@@ -8,7 +8,7 @@ import {
   ModalContent,
 } from './StyledInputComponents/MediaComponents';
 import { CloseIcon, DownloadIcon } from '../../assets/icons';
-import { Overlay, StyledModal } from './Modal';
+import { Overlay, StyledModal } from './MediaModal';
 import { IConfig } from '../../types/types';
 import { ActionButton } from './ActionButton';
 interface CustomMessageImageProps {

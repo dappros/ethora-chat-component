@@ -10,11 +10,13 @@ import Button from '../styled/Button';
 interface ModalHeaderComponentProps {
   handleCloseModal: any;
   headerTitle?: string;
+  leftMenu?: React.ReactElement;
 }
 
 const ModalHeaderComponent: React.FC<ModalHeaderComponentProps> = ({
   handleCloseModal,
   headerTitle,
+  leftMenu,
 }) => {
   return (
     <HeaderContainer>
@@ -22,10 +24,7 @@ const ModalHeaderComponent: React.FC<ModalHeaderComponentProps> = ({
         <Button EndIcon={<BackIcon />} onClick={handleCloseModal} />
         {headerTitle ?? 'Go back'}
       </HeaderLeft>
-      <HeaderRight>
-        <Button EndIcon={<QrIcon />} />
-        <Button EndIcon={<MoreIcon />} />
-      </HeaderRight>
+      <HeaderRight>{leftMenu}</HeaderRight>
     </HeaderContainer>
   );
 };

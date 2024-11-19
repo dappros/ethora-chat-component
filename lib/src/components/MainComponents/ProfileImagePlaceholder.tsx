@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import styled from 'styled-components';
 
-interface ChatHeaderAvatarProps {
+interface ProfileImagePlaceholderProps {
   name?: string;
   icon?: string;
   onClick?: () => void;
@@ -15,6 +15,7 @@ interface ChatHeaderAvatarProps {
     onRemoveClick: () => void;
   };
   role?: string;
+  active?: boolean;
 }
 
 const backgroundColors = ['#f44336', '#2196f3', '#4caf50', '#ff9800'];
@@ -84,13 +85,16 @@ const FileInput = styled.input`
   display: none;
 `;
 
-export const ChatHeaderAvatar: React.FC<ChatHeaderAvatarProps> = ({
+export const ProfileImagePlaceholder: React.FC<
+  ProfileImagePlaceholderProps
+> = ({
   name,
   icon,
   size = 64,
   upload,
   remove,
   role = 'participant',
+  active = false,
 }) => {
   const randomColor = useMemo(() => {
     if (!icon) {
@@ -100,7 +104,17 @@ export const ChatHeaderAvatar: React.FC<ChatHeaderAvatarProps> = ({
     return '';
   }, [icon]);
 
-  const getInitials = () => (!icon && name ? name[0].toUpperCase() : '');
+  const getTwoUppercaseLetters = (fullName: string) => {
+    if (!fullName) return '';
+
+    const words = fullName.trim().split(' ');
+    const firstLetter = words[0]?.[0]?.toUpperCase() || '';
+    const secondLetter = words[1]?.[0]?.toUpperCase() || '';
+
+    return firstLetter + secondLetter;
+  };
+
+  const getInitials = () => (!icon && name ? getTwoUppercaseLetters(name) : '');
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -119,12 +133,12 @@ export const ChatHeaderAvatar: React.FC<ChatHeaderAvatarProps> = ({
     <Wrapper
       bgColor={icon ? 'transparent' : randomColor}
       size={size}
-      isClickable={!!upload?.active}
+      isClickable={active || !!upload?.active}
     >
       <AvatarCircle
         bgColor={icon ? 'transparent' : randomColor}
         size={size}
-        isClickable={role === 'participant' && !!upload?.active}
+        isClickable={active || (role === 'participant' && !!upload?.active)}
         onClick={handleAvatarClick}
       >
         {icon ? (

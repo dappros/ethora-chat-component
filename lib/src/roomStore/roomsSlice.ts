@@ -42,7 +42,6 @@ export const roomsStore = createSlice({
         };
       }
     },
-
     setRoomMessages(
       state,
       action: PayloadAction<{ roomJID: string; messages: IMessage[] }>

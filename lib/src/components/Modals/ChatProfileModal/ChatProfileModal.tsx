@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   CenterContainer,
   UserInfo,
@@ -8,14 +8,18 @@ import {
   Label,
   BorderedContainer,
   LabelData,
+  Divider,
 } from '../styledModalComponents';
 import ModalHeaderComponent from '../ModalHeaderComponent';
-import { ChatHeaderAvatar } from '../../MainComponents/ChatHeaderAvatar';
+import { ProfileImagePlaceholder } from '../../MainComponents/ProfileImagePlaceholder';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, getActiveRoom } from '../../../roomStore';
 import { uploadFile } from '../../../networking/api-requests/auth.api';
 import { useXmppClient } from '../../../context/xmppProvider';
 import { updateRoom } from '../../../roomStore/roomsSlice';
+import Loader from '../../styled/Loader';
+import Button from '../../styled/Button';
+import { MoreIcon, QrIcon } from '../../../assets/icons';
 
 interface ChatProfileModalProps {
   handleCloseModal: any;
@@ -24,9 +28,22 @@ interface ChatProfileModalProps {
 const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   handleCloseModal,
 }) => {
+  const [loading, setLoading] = useState<boolean>(false);
+
   const dispatch = useDispatch();
   const { client } = useXmppClient();
   const activeRoom = useSelector((state: RootState) => getActiveRoom(state));
+
+  useEffect(() => {
+    setLoading(true);
+    client.getRoomMembersStanza(activeRoom.jid);
+
+    if (activeRoom.roomMembers?.length > 0) {
+      setLoading(false);
+    }
+
+    return () => {};
+  }, [activeRoom.roomMembers?.length]);
 
   const onUpload = async (file: File) => {
     try {
@@ -59,9 +76,15 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
       <ModalHeaderComponent
         handleCloseModal={handleCloseModal}
         headerTitle={'ChatProfile'}
+        leftMenu={
+          <>
+            <Button EndIcon={<QrIcon />} />
+            <Button EndIcon={<MoreIcon />} />
+          </>
+        }
       />
       <CenterContainer>
-        <ChatHeaderAvatar
+        <ProfileImagePlaceholder
           name={activeRoom.name}
           icon={activeRoom.icon}
           upload={{
@@ -78,6 +101,67 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         <BorderedContainer>
           <LabelData>Description</LabelData>
           <Label>Chat's Description</Label>
+        </BorderedContainer>
+        <BorderedContainer style={{ padding: '8px 16px' }}>
+          {loading ? (
+            <Loader />
+          ) : (
+            activeRoom?.roomMembers?.map((user, index) => (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'start',
+                  boxSizing: 'border-box',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    padding: '8px 0px',
+                    alignItems: 'center',
+                    width: '100%',
+                  }}
+                >
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <ProfileImagePlaceholder name={user.name} size={40} />
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '2px',
+                        alignItems: 'start',
+                      }}
+                    >
+                      <Label style={{ fontSize: '16px', fontWeight: 600 }}>
+                        {user.name}
+                      </Label>
+                      <LabelData>
+                        {new Date(user.last_active * 1000).toLocaleString()}
+                      </LabelData>
+                    </div>
+                  </div>
+                  {user.role !== 'none' && (
+                    <div
+                      style={{
+                        backgroundColor:
+                          user.ban_status !== 'banned' ? '#F3F6FC' : '#FFEBEE',
+                        color:
+                          user.ban_status !== 'banned' ? '#0052CD' : '#F44336',
+                        padding: '5px 8px',
+                        borderRadius: '16px',
+                        fontSize: '12px',
+                      }}
+                    >
+                      {user.role}
+                    </div>
+                  )}
+                </div>
+                {index < activeRoom?.roomMembers.length - 1 && <Divider />}
+              </div>
+            ))
+          )}
         </BorderedContainer>
       </CenterContainer>
     </ModalContainerFullScreen>

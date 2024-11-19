@@ -1,7 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { CloseIcon, DownloadIcon } from '../../assets/icons';
-import { Overlay, StyledModal } from './Modal';
+import { Overlay, StyledModal } from './MediaModal';
 
 interface CustomMessageVideoProps {
   videoUrl: string | undefined;

@@ -1,5 +1,5 @@
 import React, { forwardRef, useState } from 'react';
-import { MessageProps } from '../../types/types';
+import { IUser, MessageProps } from '../../types/types';
 import {
   CustomMessageTimestamp,
   CustomMessageContainer,
@@ -10,16 +10,21 @@ import {
   CustomMessagePhotoContainer,
 } from '../styled/StyledComponents';
 import MediaMessage from '../MainComponents/MediaMessage';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
 
 import { Avatar } from './Avatar';
 import MessageInteractions from './MessageInteractions';
+import {
+  setActiveModal,
+  setSelectedUser,
+} from '../../roomStore/chatSettingsSlice';
 
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
   MessageProps
 >(({ message, isUser }, ref) => {
+  const dispatch = useDispatch();
   const config = useSelector(
     (state: RootState) => state.chatSettingStore.config
   );
@@ -55,11 +60,18 @@ const Message: React.FC<MessageProps> = forwardRef<
     });
   };
 
+  const handleUserAvatarClick = (user: IUser): void => {
+    dispatch(setActiveModal('profile'));
+    dispatch(setSelectedUser(user));
+  };
+
   return (
     <>
       <CustomMessageContainer key={message.id} isUser={isUser} ref={ref}>
         {!isUser && (
-          <CustomMessagePhotoContainer>
+          <CustomMessagePhotoContainer
+            onClick={() => handleUserAvatarClick(message.user)}
+          >
             {message.user.avatar ? (
               <CustomMessagePhoto
                 src={

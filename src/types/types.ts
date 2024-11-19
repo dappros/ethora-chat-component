@@ -45,6 +45,16 @@ export interface IRoom {
   unreadMessages?: number;
   noMessages?: boolean;
   role?: string;
+
+  roomMembers?: RoomMember[];
+}
+
+export interface RoomMember {
+  ban_status: string;
+  jid: string;
+  last_active: number;
+  name: string;
+  role: string;
 }
 
 export interface RoomLastMessage {
@@ -130,6 +140,7 @@ export interface IConfig {
   jwtLogin?: {
     token: string;
     enabled: boolean;
+    handleBadlogin?: React.ReactElement;
   };
   disableRooms?: boolean;
   defaultLogin?: boolean;
