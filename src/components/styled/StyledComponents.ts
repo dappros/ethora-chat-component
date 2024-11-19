@@ -225,3 +225,29 @@ export const StyledLoaderWrapper = styled.div`
   display: flex;
   justify-content: center;
 `;
+
+export const OrDelimiter = styled.div`
+  text-align: center;
+  position: relative;
+  width: 100%;
+  font-size: 14px;
+  color: #999;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 45%;
+    height: 1px;
+    background: #ccc;
+  }
+
+  &::before {
+    left: 0;
+  }
+
+  &::after {
+    right: 0;
+  }
+`;

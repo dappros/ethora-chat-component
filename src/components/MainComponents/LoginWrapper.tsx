@@ -10,7 +10,8 @@ import {
   loginEmail,
   loginViaJwt,
 } from '../../networking/api-requests/auth.api';
-import { Overlay, StyledModal } from '../styled/MediaModal';
+import { OrDelimiter } from '../styled/StyledComponents';
+import Button from '../styled/Button';
 
 interface LoginWrapperProps {
   user?: { email: string; password: string };
@@ -105,9 +106,23 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
   return (
     <>
       {showModal ? (
-        <Overlay>
-          <StyledModal>Error on login.Try again</StyledModal>
-        </Overlay>
+        <div
+          style={{
+            ...props.MainComponentStyles,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            flexDirection: 'column',
+            padding: '20px',
+            gap: '8px',
+          }}
+        >
+          <p>Error on loading chat. Please, try again later</p>
+          <OrDelimiter>Or</OrDelimiter>
+          <Button onClick={() => setShowModal(false)} style={{ width: '100%' }}>
+            Enter with default account
+          </Button>
+        </div>
       ) : user && user.xmppPassword !== '' ? (
         <ChatWrapper {...props} />
       ) : (

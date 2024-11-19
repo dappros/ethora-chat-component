@@ -30,6 +30,7 @@ const CustomButton = styled.button<{
   display: flex;
   justify-content: center;
   align-items: center;
+  gap: 4px;
   transition:
     background-color 0.3s,
     box-shadow 0.3s;
