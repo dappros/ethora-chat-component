@@ -35,7 +35,7 @@ const MediaInput: React.FC<MediaInputProps> = ({
       if (files) {
         const newFiles = Array.from(files);
         setFilePreviews((prevFiles: any) =>
-          [...prevFiles, ...newFiles].slice(0, 5)
+          [...prevFiles, ...newFiles]?.slice(0, 5)
         );
       }
     },

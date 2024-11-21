@@ -40,6 +40,18 @@ export const createMessage = async (
     quickReplie?: any;
     notDisplayedValue?: any;
     showInChannel?: any;
+
+    //attachment
+    attachmentId?: any;
+    createdAt?: any;
+    expiresAt?: any;
+    fileName?: any;
+    originalName?: any;
+    ownerKey?: any;
+    receiverMessageId?: any;
+    size?: any;
+    updatedAt?: any;
+    userId?: any;
   },
   body: Element | undefined,
   id: string,
@@ -58,7 +70,7 @@ export const createMessage = async (
     id: id,
     body: body.getText(),
     roomJID: from,
-    date: new Date(+id.slice(0, 13)).toISOString(),
+    date: new Date(+id?.slice(0, 13)).toISOString(),
     key: `${Date.now() + Number(id)}`,
     numberOfReplies: data?.numberOfReplies,
     isSystemMessage: data?.isSystemMessage,
@@ -74,6 +86,7 @@ export const createMessage = async (
       token: data.token,
       refreshToken: data.refreshToken,
     },
+    ...data,
   };
 
   return message;

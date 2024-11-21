@@ -58,7 +58,7 @@ const SendInput: React.FC<SendInputProps> = ({
           let combinedFiles = [...prevFiles, ...uniqueNewFiles];
 
           if (combinedFiles.length > 5) {
-            combinedFiles = combinedFiles.slice(0, 5);
+            combinedFiles = combinedFiles?.slice(0, 5);
           }
 
           return combinedFiles;
