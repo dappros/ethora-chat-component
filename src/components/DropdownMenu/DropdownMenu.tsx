@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, ReactElement } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { BurgerMenuIcon } from '../../assets/icons';
+import Button from '../styled/Button';
 
 interface MenuOption {
   label: string;
@@ -14,12 +15,14 @@ interface DropdownMenuProps {
   onClose?: any;
   openButton?: ReactElement;
   position?: 'left' | 'right';
+  menuIcon?: React.ReactNode;
 }
 
 const DropdownMenu: React.FC<DropdownMenuProps> = ({
   options,
   openButton,
   position = 'right',
+  menuIcon,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -53,9 +56,7 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
       {openButton ? (
         React.cloneElement(openButton, { ref: buttonRef, onClick: toggleMenu })
       ) : (
-        <MenuButton ref={buttonRef} onClick={toggleMenu}>
-          <BurgerMenuIcon />
-        </MenuButton>
+        <Button onClick={toggleMenu}>{menuIcon ?? <BurgerMenuIcon />}</Button>
       )}
       {isOpen && (
         <Menu ref={menuRef} style={menuPosition}>
@@ -71,7 +72,7 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
                 {option.icon}
                 <Label style={{ ...option?.styles }}>{option.label}</Label>
               </MenuItem>
-              <Divider />
+              {index < options?.length - 1 && <Divider />}
             </>
           ))}
         </Menu>
@@ -105,25 +106,17 @@ const Container = styled.div`
   display: inline-block;
 `;
 
-const MenuButton = styled.button`
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 24px;
-  padding: 12px;
-  display: flex;
-  align-items: center;
-`;
-
 const Menu = styled.div`
   position: absolute;
-  background-color: white;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  background-color: #fcfcfc;
   border-radius: 8px;
   padding: 16px;
   min-width: 150px;
   animation: ${fadeIn} 0.2s ease-out;
   z-index: 1000;
+
+  box-shadow: 0px 0px 6px -2px #12121908;
+  box-shadow: 0px 0px 16px -4px #12121914;
 `;
 
 const MenuItem = styled.div`

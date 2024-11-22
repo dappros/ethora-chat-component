@@ -8,23 +8,31 @@ import { BackIcon, MoreIcon, QrIcon } from '../../assets/icons';
 import Button from '../styled/Button';
 
 interface ModalHeaderComponentProps {
-  handleCloseModal: any;
+  handleCloseModal?: any;
   headerTitle?: string;
+  rightMenu?: React.ReactElement;
   leftMenu?: React.ReactElement;
 }
 
 const ModalHeaderComponent: React.FC<ModalHeaderComponentProps> = ({
   handleCloseModal,
   headerTitle,
+  rightMenu,
   leftMenu,
 }) => {
   return (
     <HeaderContainer>
       <HeaderLeft>
-        <Button EndIcon={<BackIcon />} onClick={handleCloseModal} />
-        {headerTitle ?? 'Go back'}
+        {leftMenu ? (
+          leftMenu
+        ) : (
+          <>
+            <Button EndIcon={<BackIcon />} onClick={handleCloseModal} />
+            {headerTitle ?? 'Go back'}
+          </>
+        )}
       </HeaderLeft>
-      <HeaderRight>{leftMenu}</HeaderRight>
+      <HeaderRight>{rightMenu}</HeaderRight>
     </HeaderContainer>
   );
 };

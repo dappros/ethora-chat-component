@@ -5,7 +5,13 @@ import { setActiveModal, setConfig } from '../../roomStore/chatSettingsSlice';
 import { ChatWrapperBox } from '../styled/ChatWrapperBox';
 import { Overlay, StyledModal } from '../styled/MediaModal';
 import { Message } from '../MessageBubble/Message';
-import { IConfig, IRoom, MessageProps, User } from '../../types/types';
+import {
+  IConfig,
+  IRoom,
+  MessageProps,
+  ModalType,
+  User,
+} from '../../types/types';
 import { useXmppClient } from '../../context/xmppProvider';
 import LoginForm from '../AuthForms/Login';
 import { RootState } from '../../roomStore';
@@ -169,7 +175,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             />
             <Modal
               modal={activeModal}
-              setOpenModal={(value?: 'settings' | 'profile' | 'chatprofile') =>
+              setOpenModal={(value?: ModalType) =>
                 dispatch(setActiveModal(value))
               }
             />

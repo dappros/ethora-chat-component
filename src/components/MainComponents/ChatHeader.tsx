@@ -19,6 +19,7 @@ import {
 import DropdownMenu from '../DropdownMenu/DropdownMenu';
 import { useXmppClient } from '../../context/xmppProvider';
 import { setActiveModal } from '../../roomStore/chatSettingsSlice';
+import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 
 interface ChatHeaderProps {
   currentRoom: IRoom;
@@ -90,7 +91,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ currentRoom }) => {
         )}
         <div
           style={{ display: 'flex', gap: '8px', cursor: 'pointer' }}
-          onClick={() => dispatch(setActiveModal('chatprofile'))}
+          onClick={() => dispatch(setActiveModal(MODAL_TYPES.CHAT_PROFILE))}
         >
           <div>
             <ProfileImagePlaceholder

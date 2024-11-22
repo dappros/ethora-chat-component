@@ -139,7 +139,7 @@ export const LabelData = styled.div`
   font-weight: 400;
 `;
 
-export const Label = styled.div`
+export const Label = styled.span`
   color: #141414;
   font-size: 16px;
 `;

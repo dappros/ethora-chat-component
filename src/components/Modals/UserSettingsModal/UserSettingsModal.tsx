@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 
 import {
   ModalContainerFullScreen,
@@ -10,23 +10,35 @@ import {
 } from '../styledModalComponents';
 import ModalHeaderComponent from '../ModalHeaderComponent';
 import Button from '../../styled/Button';
+import { useDispatch } from 'react-redux';
+import { setActiveModal } from '../../../roomStore/chatSettingsSlice';
+import { MODAL_TYPES } from '../../../helpers/constants/MODAL_TYPES';
 
 interface UserSettingsModalProps {
   handleCloseModal: any;
 }
 
-const options = [
-  'ManageData',
-  'Visiblility',
-  'Profile Shares',
-  'Document Shares',
-  'Blocked Users',
-  'Referrals',
-];
-
 const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
   handleCloseModal,
 }) => {
+  const options = useMemo(
+    () => [
+      { value: 'Manage Data', key: MODAL_TYPES.MANAGE_DATA },
+      { value: 'Visiblility', key: MODAL_TYPES.VISIBILITY },
+      { value: 'Profile Shares', key: MODAL_TYPES.PROFILE_SHARES },
+      { value: 'Document Shares', key: MODAL_TYPES.DOCUMENT_SHARES },
+      { value: 'Blocked Users', key: MODAL_TYPES.BLOCKED_USERS },
+      { value: 'Referrals', key: MODAL_TYPES.REFERRALS },
+    ],
+    []
+  );
+
+  const dispatch = useDispatch();
+
+  const handleClick = useCallback((key: string) => {
+    dispatch(setActiveModal(key));
+  }, []);
+
   return (
     <ModalContainerFullScreen>
       <ModalHeaderComponent
@@ -47,9 +59,10 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
             boxSizing: 'border-box',
           }}
         >
-          {options.map((option: string, index) => (
+          {options.map((option: { value: string; key: string }, index) => (
             <>
-              <div
+              <Button
+                variant="default"
                 style={{
                   minHeight: '40px',
                   display: 'flex',
@@ -59,25 +72,13 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
                   textAlign: 'center',
                   width: '100%',
                   justifyContent: 'center',
+                  borderRadius: '0px',
                 }}
+                onClick={() => handleClick(option.key)}
               >
-                {[0, 1, 5].includes(index) ? (
-                  <Button
-                    variant="default"
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      justifyContent: 'start',
-                      borderRadius: '0px',
-                    }}
-                  >
-                    <Label>{option}</Label>
-                  </Button>
-                ) : (
-                  <Label>{option}</Label>
-                )}
+                <Label>{option.value}</Label>
                 {[2, 3, 4].includes(index) && <LabelData>0</LabelData>}
-              </div>
+              </Button>
               {index < 5 && <Divider />}
             </>
           ))}

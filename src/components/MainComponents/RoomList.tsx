@@ -27,6 +27,7 @@ import {
   SearchContainer,
   UserCount,
 } from '../styled/RoomListComponents';
+import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 
 interface RoomListProps {
   chats: IRoom[];
@@ -116,7 +117,7 @@ const RoomList: React.FC<RoomListProps> = ({
         label: 'Profile',
         icon: null,
         onClick: () => {
-          dispatch(setActiveModal('profile'));
+          dispatch(setActiveModal(MODAL_TYPES.PROFILE));
           console.log('Profile clicked');
         },
       },
@@ -124,7 +125,7 @@ const RoomList: React.FC<RoomListProps> = ({
         label: 'Settings',
         icon: null,
         onClick: () => {
-          dispatch(setActiveModal('settings'));
+          dispatch(setActiveModal(MODAL_TYPES.SETTINGS));
           console.log('Settings clicked');
         },
       },

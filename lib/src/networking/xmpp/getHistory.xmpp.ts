@@ -131,3 +131,35 @@ export const getHistory = async (
     return null;
   }
 };
+
+// import { Client, xml } from '@xmpp/client';
+
+// export const getHistory = async (
+//   client: Client,
+//   chatJID: string,
+//   max: number,
+//   before?: number
+// ) => {
+//   const id = `get-history:${Date.now().toString()}`;
+
+//   const message = xml(
+//     'iq',
+//     {
+//       type: 'set',
+//       to: chatJID,
+//       id: id,
+//     },
+//     xml(
+//       'query',
+//       { xmlns: 'urn:xmpp:mam:2' },
+//       xml(
+//         'set',
+//         { xmlns: 'http://jabber.org/protocol/rsm' },
+//         xml('max', {}, max.toString()),
+//         before ? xml('before', {}, before.toString()) : xml('before')
+//       )
+//     )
+//   );
+
+//   client?.send(message).catch((err) => console.log('err on load', err));
+// };
