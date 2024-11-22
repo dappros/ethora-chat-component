@@ -25,10 +25,10 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
     () => [
       { value: 'Manage Data', key: MODAL_TYPES.MANAGE_DATA },
       { value: 'Visiblility', key: MODAL_TYPES.VISIBILITY },
-      { value: 'Profile Shares', key: MODAL_TYPES.PROFILE_SHARES },
-      { value: 'Document Shares', key: MODAL_TYPES.DOCUMENT_SHARES },
-      { value: 'Blocked Users', key: MODAL_TYPES.BLOCKED_USERS },
-      { value: 'Referrals', key: MODAL_TYPES.REFERRALS },
+      // { value: 'Profile Shares', key: MODAL_TYPES.PROFILE_SHARES },
+      // { value: 'Document Shares', key: MODAL_TYPES.DOCUMENT_SHARES },
+      // { value: 'Blocked Users', key: MODAL_TYPES.BLOCKED_USERS },
+      // { value: 'Referrals', key: MODAL_TYPES.REFERRALS },
     ],
     []
   );

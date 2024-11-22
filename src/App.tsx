@@ -24,7 +24,7 @@ function App() {
           config={{
             // disableHeader: true,
             colors: { primary: '#5E3FDE', secondary: '#E1E4FE' },
-            disableRooms: true,
+            // disableRooms: true,
             defaultLogin: true,
             // jwtLogin: {
             //   enabled: true,

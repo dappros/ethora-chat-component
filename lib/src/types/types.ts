@@ -1,3 +1,5 @@
+import { MODAL_TYPES } from '../helpers/constants/MODAL_TYPES';
+
 export interface IUser {
   id: string;
   name: string | null;
@@ -178,3 +180,5 @@ export interface MessageProps {
 }
 
 export interface MediaMessageType {}
+
+export type ModalType = (typeof MODAL_TYPES)[keyof typeof MODAL_TYPES];

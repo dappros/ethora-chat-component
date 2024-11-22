@@ -1,12 +1,12 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { IConfig, IUser, User } from '../types/types';
+import { IConfig, IUser, ModalType, User } from '../types/types';
 import { localStorageConstants } from '../helpers/constants/LOCAL_STORAGE';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 
 interface ChatState {
   user: User;
   config?: IConfig;
-  activeModal?: 'settings' | 'profile' | 'chatprofile';
+  activeModal?: ModalType;
   selectedUser?: IUser;
 }
 
@@ -74,7 +74,7 @@ const initialState: ChatState = {
     isAssetsOpen: true,
     isAgreeWithTerms: false,
   },
-  config: undefined,
+  config: { colors: { primary: '#0052CD', secondary: '#F3F6FC' } },
 };
 
 export const chatSlice = createSlice({
@@ -90,10 +90,7 @@ export const chatSlice = createSlice({
     setConfig: (state, action: PayloadAction<IConfig | undefined>) => {
       state.config = action.payload;
     },
-    setActiveModal: (
-      state,
-      action: PayloadAction<'settings' | 'profile' | 'chatprofile' | undefined>
-    ) => {
+    setActiveModal: (state, action: PayloadAction<ModalType | undefined>) => {
       state.activeModal = action.payload;
     },
     setSelectedUser: (state, action: PayloadAction<IUser | undefined>) => {

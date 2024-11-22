@@ -53,6 +53,8 @@ const StyledInput = styled.input<{ animated?: boolean; expanded?: boolean }>`
     padding 0.7s ease-in-out;
   opacity: ${({ animated, expanded }) => (animated ? (expanded ? 1 : 0) : 1)};
   z-index: 1;
+  display: ${({ expanded, animated }) =>
+    animated ? (expanded ? 'inherit' : 'none') : 'inherit'};
 
   &::placeholder {
     opacity: ${({ animated, expanded }) => (animated && !expanded ? 0 : 1)};

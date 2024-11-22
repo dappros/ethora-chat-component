@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import styled from 'styled-components';
+import { EditIcon } from '../../assets/icons';
 
 interface ProfileImagePlaceholderProps {
   name?: string;
@@ -85,6 +86,24 @@ const FileInput = styled.input`
   display: none;
 `;
 
+const Overlay = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #fff;
+  border-radius: 50%;
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.7);
+  }
+`;
+
 export const ProfileImagePlaceholder: React.FC<
   ProfileImagePlaceholderProps
 > = ({
@@ -109,7 +128,7 @@ export const ProfileImagePlaceholder: React.FC<
 
     const words = fullName.trim().split(' ');
     const firstLetter = words[0]?.[0]?.toUpperCase() || '';
-    const secondLetter = words[1]?.[0]?.toUpperCase() || '';
+    const secondLetter = words[words.length - 1]?.[0]?.toUpperCase() || '';
 
     return firstLetter + secondLetter;
   };
@@ -140,6 +159,7 @@ export const ProfileImagePlaceholder: React.FC<
         size={size}
         isClickable={active || (role === 'participant' && !!upload?.active)}
         onClick={handleAvatarClick}
+        style={{ fontSize: size >= 64 ? '24px' : '18px' }}
       >
         {icon ? (
           <AvatarImage src={icon} alt="avatar icon" size={size} />
@@ -147,12 +167,17 @@ export const ProfileImagePlaceholder: React.FC<
           getInitials()
         )}
         {upload?.active && (
-          <FileInput
-            type="file"
-            id="avatar-file-input"
-            accept="image/*"
-            onChange={handleFileChange}
-          />
+          <>
+            <FileInput
+              type="file"
+              id="avatar-file-input"
+              accept="image/*"
+              onChange={handleFileChange}
+            />
+            <Overlay>
+              <EditIcon style={{ color: '#fff', fontSize: size / 2 }} />
+            </Overlay>
+          </>
         )}
       </AvatarCircle>
       {remove?.enabled && icon && role !== 'participant' && (

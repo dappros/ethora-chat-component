@@ -75,8 +75,8 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
     <ModalContainerFullScreen>
       <ModalHeaderComponent
         handleCloseModal={handleCloseModal}
-        headerTitle={'ChatProfile'}
-        leftMenu={
+        headerTitle={'Chat Profile'}
+        rightMenu={
           <>
             <Button EndIcon={<QrIcon />} />
             <Button EndIcon={<MoreIcon />} />

@@ -66,6 +66,7 @@ const AudioMessage: React.FC<AudioMessageProps> = ({ src }) => {
         alignItems: 'center',
         gap: '10px',
         width: '100%',
+        zIndex: 1,
       }}
     >
       <Button

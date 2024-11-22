@@ -19,6 +19,7 @@ import {
   setActiveModal,
   setSelectedUser,
 } from '../../roomStore/chatSettingsSlice';
+import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
@@ -61,7 +62,7 @@ const Message: React.FC<MessageProps> = forwardRef<
   };
 
   const handleUserAvatarClick = (user: IUser): void => {
-    dispatch(setActiveModal('profile'));
+    dispatch(setActiveModal(MODAL_TYPES.PROFILE));
     dispatch(setSelectedUser(user));
   };
 
