@@ -47,6 +47,10 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
   const dispatch = useDispatch();
 
   useEffect(() => {
+    if (props?.config?.userLogin.enabled) {
+      dispatch(setUser(props?.config?.userLogin.user));
+    }
+
     //use localStorage, to check for user was already logged
 
     const storedUser: User = useLocalStorage(
@@ -95,7 +99,6 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
       };
       defaultLogin();
     }
-
     //if google - show login.tsx and process user there (there will be dispatch, set user)
     //if only ethora - show login with only ethora
     return () => {

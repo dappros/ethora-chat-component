@@ -144,6 +144,10 @@ export interface IConfig {
     enabled: boolean;
     handleBadlogin?: React.ReactElement;
   };
+  userLogin?: {
+    enabled: boolean;
+    user: User;
+  };
   disableRooms?: boolean;
   defaultLogin?: boolean;
   disableInteractions?: boolean;
