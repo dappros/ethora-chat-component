@@ -8,7 +8,7 @@ interface ProfileImagePlaceholderProps {
   onClick?: () => void;
   size?: number;
   upload?: {
-    onUpload: (image: File) => void;
+    onUpload: (image: File | string) => void;
     active: boolean;
   };
   remove?: {

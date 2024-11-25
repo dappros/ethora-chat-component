@@ -46,6 +46,26 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   const [isInited, setInited] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
+  const [isChatVisible, setIsChatVisible] = useState(false);
+  const [isSmallScreen, setIsSmallScreen] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsSmallScreen(window.innerWidth < 768);
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [window.innerWidth]);
+
+  const handleItemClick = (value: boolean) => {
+    setIsChatVisible(value);
+  };
+
   const dispatch = useDispatch();
 
   const { user, activeModal } = useSelector(
@@ -60,6 +80,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     if (activeRoomJID !== chat.jid) {
       dispatch(setCurrentRoom({ roomJID: chat.jid }));
       dispatch(setIsLoading({ chatJID: chat.jid, loading: true }));
+      handleItemClick(true);
     }
   };
 
@@ -164,15 +185,36 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
               ...MainComponentStyles,
             }}
           >
-            {!config?.disableRooms && rooms && (
-              <RoomList
-                chats={Object.values(rooms)}
-                onRoomClick={handleChangeChat}
+            {!config?.disableRooms &&
+              rooms &&
+              (isSmallScreen ? (
+                !isChatVisible && (
+                  <RoomList
+                    chats={Object.values(rooms)}
+                    onRoomClick={handleChangeChat}
+                    isSmallScreen={isSmallScreen}
+                  />
+                )
+              ) : (
+                <RoomList
+                  chats={Object.values(rooms)}
+                  onRoomClick={handleChangeChat}
+                />
+              ))}
+            {isSmallScreen ? (
+              isChatVisible ? (
+                <ChatRoom
+                  CustomMessageComponent={CustomMessageComponent || Message}
+                  handleBackClick={
+                    isChatVisible ? () => handleItemClick(false) : undefined
+                  }
+                />
+              ) : null
+            ) : (
+              <ChatRoom
+                CustomMessageComponent={CustomMessageComponent || Message}
               />
             )}
-            <ChatRoom
-              CustomMessageComponent={CustomMessageComponent || Message}
-            />
             <Modal
               modal={activeModal}
               setOpenModal={(value?: ModalType) =>

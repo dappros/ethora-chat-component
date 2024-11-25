@@ -7,7 +7,7 @@ import RoomList from './RoomList';
 import { IRoom } from '../../types/types';
 import { ProfileImagePlaceholder } from './ProfileImagePlaceholder';
 import Button from '../styled/Button';
-import { LeaveIcon, MoreIcon, ReportIcon } from '../../assets/icons';
+import { BackIcon, LeaveIcon, MoreIcon, ReportIcon } from '../../assets/icons';
 import { RootState } from '../../roomStore';
 import { useDispatch, useSelector } from 'react-redux';
 import Composing from '../styled/StyledInputComponents/Composing';
@@ -23,9 +23,13 @@ import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 
 interface ChatHeaderProps {
   currentRoom: IRoom;
+  handleBackClick?: (value: boolean) => void;
 }
 
-const ChatHeader: React.FC<ChatHeaderProps> = ({ currentRoom }) => {
+const ChatHeader: React.FC<ChatHeaderProps> = ({
+  currentRoom,
+  handleBackClick,
+}) => {
   const dispatch = useDispatch();
   const { client } = useXmppClient();
 
@@ -82,6 +86,12 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ currentRoom }) => {
     <ChatContainerHeader>
       {/* todo add here list of rooms */}
       <div style={{ display: 'flex', gap: '8px' }}>
+        {handleBackClick && (
+          <Button
+            EndIcon={<BackIcon />}
+            onClick={() => handleBackClick(false)}
+          />
+        )}
         {config?.chatHeaderBurgerMenu && rooms && (
           <RoomList
             chats={Object.values(rooms)}

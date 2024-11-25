@@ -33,12 +33,14 @@ interface RoomListProps {
   chats: IRoom[];
   burgerMenu?: boolean;
   onRoomClick?: (chat: IRoom) => void;
+  isSmallScreen?: boolean;
 }
 
 const RoomList: React.FC<RoomListProps> = ({
   chats,
   burgerMenu = false,
   onRoomClick,
+  isSmallScreen,
 }) => {
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -147,7 +149,10 @@ const RoomList: React.FC<RoomListProps> = ({
         burgerMenu={burgerMenu}
         open={open}
         ref={containerRef}
-        style={config?.roomListStyles}
+        style={{
+          ...config?.roomListStyles,
+          ...(isSmallScreen ? { width: '100%' } : {}),
+        }}
       >
         {(open || !burgerMenu) && (
           <ScollableContainer>

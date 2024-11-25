@@ -13,10 +13,11 @@ import NoMessagesPlaceholder from './NoMessagesPlaceholder.tsx';
 
 interface ChatRoomProps {
   CustomMessageComponent?: any;
+  handleBackClick?: (value: boolean) => void;
 }
 
 const ChatRoom: React.FC<ChatRoomProps> = React.memo(
-  ({ CustomMessageComponent }) => {
+  ({ CustomMessageComponent, handleBackClick }) => {
     const { client } = useXmppClient();
     const dispatch = useDispatch();
 
@@ -220,7 +221,10 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         }}
       >
         {!config?.disableHeader && (
-          <ChatHeader currentRoom={roomsList[activeRoomJID]} />
+          <ChatHeader
+            currentRoom={roomsList[activeRoomJID]}
+            handleBackClick={handleBackClick}
+          />
         )}
         {loading || globalLoading ? (
           <Loader color={config?.colors?.primary} />

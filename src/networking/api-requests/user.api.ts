@@ -27,3 +27,12 @@ export function deleteMe() {
 export function updateMe(data: any) {
   return http.put('/users', data);
 }
+
+export async function updateProfile(fd: FormData): Promise<string> {
+  try {
+    const response = await http.put('/users', fd);
+    return response.data;
+  } catch (error) {
+    throw new Error('Error updating profile');
+  }
+}

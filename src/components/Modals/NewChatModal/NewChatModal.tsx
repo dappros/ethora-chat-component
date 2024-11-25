@@ -26,15 +26,36 @@ const NewChatModal: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [roomName, setRoomName] = useState('');
   const [roomDescription, setRoomDescription] = useState('');
+  const [isRoomNameValid, setIsRoomNameValid] = useState(false);
+  const [isRoomDescriptionValid, setIsRoomDescriptionValid] = useState(false);
 
   const handleOpenModal = () => setIsModalOpen(true);
   const handleCloseModal = () => setIsModalOpen(false);
 
+  const handleRoomNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setRoomName(value);
+    setIsRoomNameValid(value.length >= 2);
+  };
+
+  const handleRoomDescriptionChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const value = e.target.value;
+    setRoomDescription(value);
+    setIsRoomDescriptionValid(value.length >= 2);
+  };
+
   const handleCreateRoom = async () => {
-    const newChatJid = await client.createRoomStanza(roomName, roomDescription);
-    await client.getRooms();
-    dispatch(setCurrentRoom({ roomJID: newChatJid }));
-    setIsModalOpen(false);
+    if (isRoomNameValid && isRoomDescriptionValid) {
+      const newChatJid = await client.createRoomStanza(
+        roomName,
+        roomDescription
+      );
+      await client.getRooms();
+      dispatch(setCurrentRoom({ roomJID: newChatJid }));
+      setIsModalOpen(false);
+    }
   };
 
   return (
@@ -74,15 +95,20 @@ const NewChatModal: React.FC = () => {
               <StyledInput
                 id="roomName"
                 value={roomName}
-                onChange={(e) => setRoomName(e.target.value)}
+                onChange={handleRoomNameChange}
                 placeholder="Enter Room Name"
+                style={{
+                  borderColor: isRoomNameValid ? 'green' : 'red',
+                }}
               />
-
               <StyledInput
                 id="roomDescription"
                 value={roomDescription}
-                onChange={(e) => setRoomDescription(e.target.value)}
+                onChange={handleRoomDescriptionChange}
                 placeholder="Enter Description"
+                style={{
+                  borderColor: isRoomDescriptionValid ? 'green' : 'red',
+                }}
               />
             </GroupContainer>
 
@@ -97,7 +123,12 @@ const NewChatModal: React.FC = () => {
               <Button
                 onClick={handleCreateRoom}
                 text={'Create'}
-                style={{ width: '100%' }}
+                style={{
+                  width: '100%',
+                  opacity: isRoomNameValid && isRoomDescriptionValid ? 1 : 0.5,
+                  pointerEvents:
+                    isRoomNameValid && isRoomDescriptionValid ? 'auto' : 'none',
+                }}
                 unstyled
                 variant="filled"
               />
