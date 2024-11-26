@@ -28,6 +28,7 @@ import {
   UserCount,
 } from '../styled/RoomListComponents';
 import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
+import { useXmppClient } from '../../context/xmppProvider';
 
 interface RoomListProps {
   chats: IRoom[];
@@ -42,6 +43,7 @@ const RoomList: React.FC<RoomListProps> = ({
   onRoomClick,
   isSmallScreen,
 }) => {
+  const { client, setClient } = useXmppClient();
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -111,6 +113,10 @@ const RoomList: React.FC<RoomListProps> = ({
   const handleLogout = useCallback(() => {
     dispatch(logout());
     dispatch(setLogoutState());
+    if (client) {
+      client.close();
+      setClient(null);
+    }
   }, []);
 
   const menuOptions = useMemo(
@@ -157,10 +163,12 @@ const RoomList: React.FC<RoomListProps> = ({
         {(open || !burgerMenu) && (
           <ScollableContainer>
             <SearchContainer>
-              <DropdownMenu
-                options={menuOptions}
-                // onClose={dispatch(setActiveModal())}
-              />
+              {!config?.disableRoomMenu && (
+                <DropdownMenu
+                  options={menuOptions}
+                  // onClose={dispatch(setActiveModal())}
+                />
+              )}
               <SearchInput
                 icon={<SearchIcon height={'20px'} />}
                 value={searchTerm}
@@ -171,7 +179,9 @@ const RoomList: React.FC<RoomListProps> = ({
 
               <NewChatModal />
             </SearchContainer>
-            <div style={{ flexGrow: 1, overflowY: 'auto' }}>
+            <div
+              style={{ flexGrow: 1, overflowY: 'auto', paddingBottom: '16px' }}
+            >
               {filteredChats.map((chat: IRoom, index: React.Key) => (
                 <>
                   <ChatItem

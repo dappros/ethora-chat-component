@@ -1,10 +1,8 @@
 import { MODAL_TYPES } from '../helpers/constants/MODAL_TYPES';
 
-export interface IUser {
+export interface IUser extends Partial<User> {
   id: string;
   name: string | null;
-  avatar?: string | null;
-  xmmpPass?: string | null;
   userJID?: string | null;
   token: string;
   refreshToken: string;
@@ -89,9 +87,9 @@ export interface User {
   _id: string;
   firstName: string;
   lastName: string;
-  email: string;
-  username: string;
-  profileImage: string;
+  email?: string;
+  username?: string;
+  profileImage?: string;
   emails?: [
     {
       loginType: string;
@@ -117,6 +115,7 @@ export interface User {
   isProfileOpen?: boolean;
   isAssetsOpen?: boolean;
   isAgreeWithTerms?: boolean;
+  isSuperAdmin?: any;
 }
 
 export interface XmppState {
@@ -146,7 +145,7 @@ export interface IConfig {
   };
   userLogin?: {
     enabled: boolean;
-    user: User;
+    user: User | null;
   };
   disableRooms?: boolean;
   defaultLogin?: boolean;
@@ -156,6 +155,7 @@ export interface IConfig {
   roomListStyles?: React.CSSProperties;
   chatRoomStyles?: React.CSSProperties;
   setRoomJidInPath?: boolean;
+  disableRoomMenu?: boolean;
 }
 
 export interface StorageUser {

@@ -4,7 +4,7 @@ import { EditIcon } from '../../assets/icons';
 
 interface ProfileImagePlaceholderProps {
   name?: string;
-  icon?: string;
+  icon?: string | File;
   onClick?: () => void;
   size?: number;
   upload?: {
@@ -162,7 +162,11 @@ export const ProfileImagePlaceholder: React.FC<
         style={{ fontSize: size >= 64 ? '24px' : '18px' }}
       >
         {icon ? (
-          <AvatarImage src={icon} alt="avatar icon" size={size} />
+          <AvatarImage
+            src={typeof icon === 'string' ? icon : URL.createObjectURL(icon)}
+            alt="avatar icon"
+            size={size}
+          />
         ) : (
           getInitials()
         )}

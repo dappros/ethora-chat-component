@@ -10,6 +10,7 @@ import { uploadFile } from '../../networking/api-requests/auth.api';
 import { useXmppClient } from '../../context/xmppProvider.tsx';
 import ChatHeader from './ChatHeader.tsx';
 import NoMessagesPlaceholder from './NoMessagesPlaceholder.tsx';
+import NewChatModal from '../Modals/NewChatModal/NewChatModal.tsx';
 
 interface ChatRoomProps {
   CustomMessageComponent?: any;
@@ -194,11 +195,27 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       }
     }, [activeRoomJID, Object.keys(roomsList).length]);
 
-    if (
-      !activeRoomJID ||
-      Object.keys(roomsList)?.length < 1 ||
-      !roomsList?.[activeRoomJID]
-    ) {
+    if (Object.keys(roomsList)?.length < 1 && !loading && !globalLoading) {
+      return (
+        <div
+          style={{
+            height: '100%',
+            width: '100%',
+            alignItems: 'center',
+            display: 'flex',
+            justifyContent: 'center',
+            backgroundColor: '#fff',
+            flexDirection: 'column',
+            gap: 16,
+          }}
+        >
+          No room. Let's create one!
+          <NewChatModal />
+        </div>
+      );
+    }
+
+    if (!activeRoomJID || !roomsList?.[activeRoomJID]) {
       return (
         <div
           style={{
@@ -228,6 +245,8 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         )}
         {loading || globalLoading ? (
           <Loader color={config?.colors?.primary} />
+        ) : Object.keys(roomsList).length < 1 ? (
+          <>No rooms</>
         ) : roomsList[activeRoomJID]?.messages &&
           roomsList[activeRoomJID]?.messages.length < 1 ? (
           <div

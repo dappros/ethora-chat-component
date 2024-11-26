@@ -33,6 +33,7 @@ function App() {
             //   handleBadlogin: null,
             // },
             googleLogin: { enabled: true, firebaseConfig: config },
+            userLogin: { enabled: true, user: null },
             // disableInteractions: true,
             chatRoomStyles: { borderRadius: '16px' },
             roomListStyles: { borderRadius: '16px' },

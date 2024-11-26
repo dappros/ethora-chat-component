@@ -91,7 +91,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
         />
         <CenterContainer>
           <ProfileImagePlaceholder
-            icon={(modalUser?.profileImage || modalUser?.avatar) ?? null}
+            icon={modalUser?.profileImage ?? null}
             name={modalUser?.name ?? modalUser?.firstName}
             size={120}
           />
@@ -101,13 +101,13 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 ? `${modalUser?.name}`
                 : `${modalUser?.firstName} ${modalUser?.lastName}`}
             </UserName>
-            <UserStatus>Status</UserStatus>
+            {/* <UserStatus>Status</UserStatus> */}
           </UserInfo>
           <BorderedContainer>
             <Label>About</Label>
             <LabelData>
-              {modalUser?.description && modalUser?.description !== ''
-                ? modalUser?.description
+              {modalUser?.description && modalUser?.description?.length > 4
+                ? modalUser.description
                 : 'No description'}
             </LabelData>
           </BorderedContainer>

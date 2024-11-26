@@ -87,6 +87,16 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   const { client, initializeClient, setClient } = useXmppClient();
 
   useEffect(() => {
+    return () => {
+      if (client && user.xmppPassword === '') {
+        console.log('closing client');
+        client.close();
+        setClient(null);
+      }
+    };
+  }, [user.xmppPassword]);
+
+  useEffect(() => {
     if (roomJID) {
       dispatch(setCurrentRoom({ roomJID: roomJID }));
     }
@@ -108,15 +118,12 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
               user.defaultWallet?.walletAddress,
               user.xmppPassword
             ).then((client) => {
-              client
-                .getRooms()
-                .then(() => {
-                  // client.getChatsPrivateStoreRequestStanza();
-                  setClient(client);
-                })
-                .finally(() => setInited(true));
+              client.getRooms().then(() => {
+                // client.getChatsPrivateStoreRequestStanza();
+                setClient(client);
+              });
             });
-
+            setInited(true);
             refresh();
           } else {
             if (!activeRoomJID) {
@@ -136,7 +143,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     };
 
     initXmmpClient();
-  }, [user]);
+  }, [user.xmppPassword]);
 
   // functionality to handle unreadmessages
   useEffect(() => {

@@ -36,7 +36,9 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
   const [firstName, setFirstName] = useState(modalUser?.firstName || '');
   const [lastName, setLastName] = useState(modalUser?.lastName || '');
   const [description, setDescription] = useState(modalUser?.description || '');
-  const [profileImage, setProfileImage] = useState<string | File>();
+  const [profileImage, setProfileImage] = useState<string | File>(
+    modalUser?.profileImage
+  );
 
   const onSave = async () => {
     try {
@@ -56,15 +58,15 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
       fd.append('lastName', lastName);
       fd.append('description', description);
 
-      const newProfileIcon = await updateProfile(fd);
-      console.log(fd);
+      const { user } = await updateProfile(fd);
+
       dispatch(
         updateUser({
           updates: {
             firstName,
             lastName,
             description,
-            profileImage: newProfileIcon,
+            profileImage: user?.profileImage,
           },
         })
       );
@@ -75,7 +77,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
     }
   };
 
-  const handleProfileImageChange = (image: string) => {
+  const handleProfileImageChange = (image: File) => {
     setProfileImage(image);
   };
 
@@ -102,7 +104,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
       />
       <CenterContainer>
         <ProfileImagePlaceholder
-          icon={modalUser?.profileImage}
+          icon={profileImage}
           name={`${firstName} ${lastName}`}
           size={120}
           upload={{

@@ -5,10 +5,11 @@ import {
   addRoomMessage,
   setComposing,
   setCurrentRoom,
+  setIsLoading,
   setRoomRole,
   updateRoom,
 } from '../roomStore/roomsSlice';
-import { IRoom } from '../types/types';
+import { IMessage, IRoom } from '../types/types';
 
 // TO DO: we are thinking to refactor this code in the following way:
 // each stanza will be parsed for 'type'
@@ -66,7 +67,7 @@ export const createMessage = async (
     console.log('Invalid arguments: data, id, and from are required.');
   }
 
-  const message = {
+  const message: IMessage = {
     id: id,
     body: body.getText(),
     roomJID: from,
@@ -81,8 +82,7 @@ export const createMessage = async (
     user: {
       id: data.senderWalletAddress,
       name: `${data.senderFirstName} ${data.senderLastName}`,
-      avatar: data.photoURL,
-      jid: data.senderJID,
+      profileImage: data.photoURL,
       token: data.token,
       refreshToken: data.refreshToken,
     },
