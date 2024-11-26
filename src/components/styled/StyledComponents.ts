@@ -28,7 +28,7 @@ export const ChatContainerHeaderLabel = styled.div`
 
 export const MessagesScroll = styled.div<{ color?: string }>`
   position: relative;
-  height: calc(100%);
+  height: calc(100% - 24px);
   overflow: hidden;
   overflow-y: scroll;
   top: 0;
@@ -36,7 +36,7 @@ export const MessagesScroll = styled.div<{ color?: string }>`
   right: 0;
   bottom: 0;
   background-color: #f3f6fc;
-  padding: 0px 16px;
+  padding: 16px 16px;
 
   transition: height 0.3s ease-in-out; /* Smooth height transition */
 

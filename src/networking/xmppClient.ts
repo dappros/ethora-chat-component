@@ -21,7 +21,7 @@ import { getHistory } from './xmpp/getHistory.xmpp';
 import { sendTextMessage } from './xmpp/sendTextMessage.xmpp';
 import { deleteMessage } from './xmpp/deleteMessage.xmpp';
 import { presenceInRoom } from './xmpp/presenceInRoom.xmpp';
-import { getLastMessageArchive } from './xmpp/getLastMessageArchive.xmpp';
+import { getLastMessage } from './xmpp/getLastMessageArchive.xmpp';
 import { createRoom } from './xmpp/createRoom.xmpp';
 import { setRoomImage } from './xmpp/setRoomImage.xmpp';
 import { getRoomMembers } from './xmpp/getRoomMembers.xmpp';
@@ -225,52 +225,9 @@ export class XmppClient {
 
   //room functions
 
-  async createRoomStanza(title: string, description: string) {
-    return await createRoom(title, description, this.client);
+  async createRoomStanza(title: string, description: string, to?: string) {
+    return await createRoom(title, description, this.client, to);
   }
-
-  // async actionCreatePrivateChat(withUsername: string, withFirstName: string) {
-  //   const meUsername = state.me.xmppUsername;
-  //   const meFirstName = state.me.firstName;
-
-  //   const chatLocalId = [meUsername, withUsername].sort().join('.');
-  //   const chatTitle = [meFirstName, withFirstName].sort().join(' and ');
-
-  //   const existingChatIndex = state.chatList.findIndex((chat) =>
-  //     chat.id.startsWith(chatLocalId)
-  //   );
-
-  //   if (existingChatIndex !== -1) {
-  //     console.log('private chat with id ', chatLocalId, ' already exists');
-  //     this.inviteRoomRequest(
-  //       `${withUsername}@${this.client?.host}`,
-  //       `${chatLocalId}@${this.client?.conference}`
-  //     );
-  //     state.doOpenChat(state.chatList[existingChatIndex].id);
-  //     return;
-  //   }
-
-  //   let roomId;
-  //   let isCreatePrivateRoomError = false;
-
-  //   try {
-  //     roomId = await createPrivateRoom(chatLocalId, chatTitle, '');
-  //   } catch (e) {
-  //     isCreatePrivateRoomError = true;
-  //   }
-
-  //   if (isCreatePrivateRoomError) {
-  //     await actionJoinChat(`${chatLocalId}@${ws.conference}`);
-  //     await actionInviteToPrivateChat(
-  //       `${withUsername}@${ws.host}`,
-  //       `${chatLocalId}@${ws.conference}`
-  //     );
-  //   } else {
-  //     await actionJoinChat(`${chatLocalId}@${ws.conference}`);
-  //     state.doChatCreated(roomId, chatTitle, '');
-  //     await actionInviteToPrivateChat(`${withUsername}@${ws.host}`, roomId);
-  //   }
-  // }
 
   // inviteRoomRequest(to: string, roomJid: string) {
   //   const id = `invite-rooms:${Date.now().toString()}`;
@@ -295,12 +252,17 @@ export class XmppClient {
     presenceInRoom(this.client, roomJID);
   };
 
-  getHistoryStanza = async (chatJID: string, max: number, before?: number) => {
-    await getHistory(this.client, chatJID, max, before);
+  getHistoryStanza = async (
+    chatJID: string,
+    max: number,
+    before?: number,
+    id?: string
+  ) => {
+    await getHistory(this.client, chatJID, max, before, id);
   };
 
   getLastMessageArchiveStanza(roomJID: string) {
-    getLastMessageArchive(this.client, roomJID);
+    getLastMessage(this.client, roomJID);
   }
 
   setRoomImageStanza = (

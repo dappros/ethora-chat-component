@@ -161,9 +161,11 @@ const countNewerMessages = (
   messages: IMessage[],
   timestamp: number
 ): number => {
-  return messages.filter((message) => {
-    return Number(message.id) < timestamp;
-  }).length;
+  if (timestamp !== 0) {
+    return messages.filter((message) => {
+      return Number(message.id) < timestamp;
+    }).length;
+  } else return 0;
 };
 
 export const {

@@ -41,9 +41,11 @@ export function createRoomPresence(roomId: string, client: Client) {
               unsubscribe();
               resolve(true);
             } else {
-              console.log('createRoomPresence:reject');
+              console.log(
+                'createRoomPresence:reject, such room already exists'
+              );
               unsubscribe();
-              reject('no 201 & 110');
+              resolve(true);
             }
           } else {
             unsubscribe();

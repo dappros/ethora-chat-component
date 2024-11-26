@@ -6,9 +6,10 @@ export const getHistory = async (
   client: Client,
   chatJID: string,
   max: number,
-  before?: number
+  before?: number,
+  otherId?: string
 ) => {
-  const id = `get-history:${Date.now().toString()}`;
+  const id = otherId ?? `get-history:${Date.now().toString()}`;
 
   let stanzaHdlrPointer: {
     (el: Element): void;

@@ -4,7 +4,12 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../roomStore';
 import MessageList from './MessageList';
 import SendInput from '../styled/SendInput';
-import { addRoomMessage, setIsLoading } from '../../roomStore/roomsSlice';
+import {
+  addRoomMessage,
+  deleteRoomMessage,
+  setIsLoading,
+  setLastViewedTimestamp,
+} from '../../roomStore/roomsSlice';
 import Loader from '../styled/Loader';
 import { uploadFile } from '../../networking/api-requests/auth.api';
 import { useXmppClient } from '../../context/xmppProvider.tsx';
@@ -38,6 +43,35 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       () => roomsList[activeRoomJID]?.messages || [],
       [roomsList, activeRoomJID]
     );
+
+    useEffect(() => {
+      dispatch(
+        setLastViewedTimestamp({
+          chatJID: activeRoomJID,
+          timestamp: 0,
+        })
+      );
+      return () => {
+        if (client) {
+          client.actionSetTimestampToPrivateStoreStanza(
+            activeRoomJID,
+            new Date().getTime()
+          );
+        }
+        dispatch(
+          setLastViewedTimestamp({
+            chatJID: activeRoomJID,
+            timestamp: new Date().getTime(),
+          })
+        );
+        dispatch(
+          deleteRoomMessage({
+            roomJID: activeRoomJID,
+            messageId: 'delimiter-new',
+          })
+        );
+      };
+    }, [activeRoomJID]);
 
     useEffect(() => {
       if (config?.setRoomJidInPath && activeRoomJID) {

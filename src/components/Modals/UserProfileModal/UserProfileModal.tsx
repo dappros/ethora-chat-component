@@ -17,9 +17,16 @@ import { RootState } from '../../../roomStore';
 import { ProfileImagePlaceholder } from '../../MainComponents/ProfileImagePlaceholder';
 import Button from '../../styled/Button';
 import DropdownMenu from '../../DropdownMenu/DropdownMenu';
-import { logout, setSelectedUser } from '../../../roomStore/chatSettingsSlice';
-import { setLogoutState } from '../../../roomStore/roomsSlice';
+import {
+  logout,
+  setActiveModal,
+  setSelectedUser,
+} from '../../../roomStore/chatSettingsSlice';
+import { setCurrentRoom, setLogoutState } from '../../../roomStore/roomsSlice';
 import EditUserModal from './EditUserModal';
+import { walletToUsername } from '../../../helpers/walletUsername';
+import { CONFERENCE_DOMAIN } from '../../../helpers/constants/PLATFORM_CONSTANTS';
+import { useXmppClient } from '../../../context/xmppProvider';
 
 interface UserProfileModalProps {
   handleCloseModal: any;
@@ -29,6 +36,8 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   handleCloseModal,
 }) => {
   const dispatch = useDispatch();
+
+  const { client } = useXmppClient();
 
   const { config, user, selectedUser } = useSelector(
     (state: RootState) => state.chatSettingStore
@@ -64,7 +73,33 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     setIsEditing(true);
   }, []);
 
-  const handlePrivateMessage = useCallback(() => {}, [selectedUser]);
+  const handlePrivateMessage = useCallback(async () => {
+    const myUsername = walletToUsername(user.defaultWallet.walletAddress);
+    const selectedUserUsername = walletToUsername(selectedUser.id);
+
+    const combinedWalletAddress = [myUsername, selectedUserUsername]
+      .sort()
+      .join('_');
+
+    const roomJid = combinedWalletAddress.toLowerCase();
+
+    const combinedUsersName = [
+      user.firstName,
+      selectedUser.name?.split(' ')?.[0],
+    ]
+      .sort()
+      .join(' and ');
+
+    const newRoomJid = await client.createRoomStanza(
+      combinedUsersName,
+      `Private chat ${combinedUsersName}`,
+      roomJid
+    );
+
+    if (newRoomJid) await client.getRooms();
+    dispatch(setCurrentRoom({ roomJID: newRoomJid }));
+    dispatch(setActiveModal());
+  }, [selectedUser]);
 
   const modalUser: any = selectedUser ?? user;
 

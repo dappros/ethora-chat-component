@@ -46,7 +46,8 @@ export const ChatItem = styled.div<{ active: boolean; bg?: string }>`
   display: flex;
   justify-content: space-between;
   border-radius: 16px;
-  padding: 10px;
+  gap: 16px;
+  padding: 8px;
   cursor: pointer;
   background-color: ${({ active, bg }) =>
     active ? (bg ? bg : '#0052CD') : '#fff'};

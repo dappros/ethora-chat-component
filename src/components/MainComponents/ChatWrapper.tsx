@@ -119,7 +119,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
               user.xmppPassword
             ).then((client) => {
               client.getRooms().then(() => {
-                // client.getChatsPrivateStoreRequestStanza();
+                client.getChatsPrivateStoreRequestStanza();
                 setClient(client);
               });
             });
@@ -145,7 +145,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     initXmmpClient();
   }, [user.xmppPassword]);
 
-  // functionality to handle unreadmessages
+  // functionality to handle unreadmessages if user leaves tab
   useEffect(() => {
     const updateLastReadTimeStamp = () => {
       if (client) {
@@ -163,7 +163,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     };
 
     const handleBeforeUnload = () => {
-      updateLastReadTimeStamp();
+      // updateLastReadTimeStamp();
     };
 
     window.addEventListener('blur', handleBeforeUnload);
