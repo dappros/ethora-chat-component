@@ -125,17 +125,19 @@ export const SendButton = styled.button`
 //
 //
 //
-export const CustomMessageContainer = styled.div<{ isUser: boolean }>`
+export const CustomMessageContainer = styled.div<{ isUser: boolean, reply: number }>`
   display: flex;
   flex-direction: ${(props) => (!props.isUser ? 'row' : 'row-reverse')};
   align-items: end;
   margin: 10px 0;
   gap: 5px;
-  position: 'relative';
+  position: relative;
+  margin-bottom: ${(props) => (!!props.reply && '40px')}
 `;
 
 export const CustomMessageBubble = styled.div<{ isUser: boolean }>`
   max-width: 60%;
+  min-width: 15%;
   padding: 8px 16px;
   border-radius: ${(props) =>
     props.isUser ? '15px 15px 0px 15px' : '15px 15px 15px 0px'};
@@ -145,7 +147,7 @@ export const CustomMessageBubble = styled.div<{ isUser: boolean }>`
   display: flex;
   flex-direction: column;
   background-color: ${(props) => (props.isUser ? '#E7EDF9' : '#FFFFFF')};
-  position: 'relative';
+  position: relative;
 `;
 
 export const CustomMessageText = styled.p`

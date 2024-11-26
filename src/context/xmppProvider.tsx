@@ -25,7 +25,6 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
   const [client, setClient] = useState<XmppClient | null>(null);
   const [password, setPassword] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
-  const [reconnectAttempts, setReconnectAttempts] = useState<number>(0);
 
   const initializeClient = async (
     password: string,
@@ -51,7 +50,6 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
       });
 
       setClient(newClient);
-      setReconnectAttempts(0);
       return newClient;
     } catch (error) {
       console.log(error, 'error with initializing client');
@@ -60,16 +58,9 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
   };
 
   const reconnectClient = () => {
-    if (client && client.status !== 'offline' && reconnectAttempts < 3) {
+    if (client) {
       console.log('Attempting to reconnect...');
       client.scheduleReconnect();
-      setReconnectAttempts((prev) => prev + 1);
-    } else if (client?.status === 'offline') {
-      console.log('Client is offline. Not attempting to reconnect.');
-    } else if (reconnectAttempts >= 3) {
-      console.log(
-        'Maximum reconnect attempts reached. Stopping further attempts.'
-      );
     } else if (password && email) {
       console.log('No active client found. Reinitializing...');
       initializeClient(password, email).catch((error) => {
@@ -79,11 +70,11 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
   };
 
   useEffect(() => {
-    if (client && client.status === 'offline' && reconnectAttempts < 3) {
-      reconnectClient();
+    if (client) {
+      client.status === 'ofline' && reconnectClient();
     }
     return () => {};
-  }, [client, reconnectAttempts]);
+  }, [client]);
 
   return (
     <XmppContext.Provider

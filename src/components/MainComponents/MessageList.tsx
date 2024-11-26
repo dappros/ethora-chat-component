@@ -28,6 +28,8 @@ interface MessageListProps<TMessage extends IMessage> {
   ) => Promise<void>;
   loading: boolean;
   config?: IConfig;
+  isReply?: boolean;
+  activeMessage?: IMessage;
 }
 const MessageList = <TMessage extends IMessage>({
   CustomMessage,
@@ -36,12 +38,38 @@ const MessageList = <TMessage extends IMessage>({
   roomJID,
   config,
   loading,
+  isReply,
+  activeMessage,
 }: MessageListProps<TMessage>) => {
   const { composing, lastViewedTimestamp, messages } = useSelector(
     (state: RootState) => state.rooms.rooms[roomJID]
   );
 
-  const memoizedMessages = useMemo(() => messages, [messages.length]);
+  const addReplyMessages = useMemo(() => {
+    return messages.map((message) => {
+      const newMessage = {
+        ...message,
+        reply: messages.filter((mess) => mess.mainMessage && JSON.parse(mess.mainMessage).id === message.id),
+      };
+  
+      return newMessage;
+    })
+  }, [messages.length]);
+
+  const memoizedMessages = useMemo(() => {
+    if(isReply) {
+      return messages.filter((item: IMessage) =>
+          item.roomJID.includes(roomJID) &&
+          item.isReply &&
+          JSON.parse(item.mainMessage).id === activeMessage.id
+      );
+    } else {
+      return addReplyMessages.filter((item: IMessage) =>
+        !item.isReply &&
+        !item.mainMessage
+    );
+    }
+  }, [messages.length]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);

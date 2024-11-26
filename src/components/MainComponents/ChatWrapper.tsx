@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState } from 'react';
+import React, { FC, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import ChatRoom from './ChatRoom';
 import { setActiveModal, setConfig } from '../../roomStore/chatSettingsSlice';
@@ -25,6 +25,7 @@ import { refresh } from '../../networking/apiClient';
 import RoomList from './RoomList';
 import { StyledLoaderWrapper } from '../styled/StyledComponents';
 import Modal from '../Modals/Modal/Modal';
+import ThreadWrapper from '../Thread/ThreadWrapper';
 
 interface ChatWrapperProps {
   token?: string;
@@ -46,26 +47,6 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   const [isInited, setInited] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
-  const [isChatVisible, setIsChatVisible] = useState(false);
-  const [isSmallScreen, setIsSmallScreen] = useState(false);
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsSmallScreen(window.innerWidth < 768);
-    };
-
-    handleResize();
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, [window.innerWidth]);
-
-  const handleItemClick = (value: boolean) => {
-    setIsChatVisible(value);
-  };
-
   const dispatch = useDispatch();
 
   const { user, activeModal } = useSelector(
@@ -76,11 +57,16 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     (state: RootState) => state.rooms
   );
 
+  const activeMessage = useMemo(() => {
+    if (activeRoomJID) {
+      return rooms[activeRoomJID].messages.find((message) => message.activeMessage);
+    }
+  }, [rooms, activeRoomJID]);
+
   const handleChangeChat = (chat: IRoom) => {
     if (activeRoomJID !== chat.jid) {
       dispatch(setCurrentRoom({ roomJID: chat.jid }));
       dispatch(setIsLoading({ chatJID: chat.jid, loading: true }));
-      handleItemClick(true);
     }
   };
 
@@ -185,42 +171,28 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
               ...MainComponentStyles,
             }}
           >
-            {!config?.disableRooms &&
-              rooms &&
-              (isSmallScreen ? (
-                !isChatVisible && (
-                  <RoomList
-                    chats={Object.values(rooms)}
-                    onRoomClick={handleChangeChat}
-                    isSmallScreen={isSmallScreen}
-                  />
-                )
-              ) : (
-                <RoomList
-                  chats={Object.values(rooms)}
-                  onRoomClick={handleChangeChat}
-                />
-              ))}
-            {isSmallScreen ? (
-              isChatVisible ? (
-                <ChatRoom
-                  CustomMessageComponent={CustomMessageComponent || Message}
-                  handleBackClick={
-                    isChatVisible ? () => handleItemClick(false) : undefined
-                  }
-                />
-              ) : null
-            ) : (
-              <ChatRoom
-                CustomMessageComponent={CustomMessageComponent || Message}
+            {!config?.disableRooms && rooms && (
+              <RoomList
+                chats={Object.values(rooms)}
+                onRoomClick={handleChangeChat}
               />
             )}
+
             <Modal
               modal={activeModal}
               setOpenModal={(value?: ModalType) =>
                 dispatch(setActiveModal(value))
               }
             />
+            {activeMessage?.activeMessage ?
+              <ThreadWrapper
+                activeMessage={activeMessage}
+                user={user}
+                customMessageComponent={CustomMessageComponent || Message}
+              />
+              : <ChatRoom CustomMessageComponent={CustomMessageComponent || Message}
+            />
+            }
           </ChatWrapperBox>
         ) : (
           <StyledLoaderWrapper>

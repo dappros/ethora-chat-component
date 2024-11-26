@@ -78,6 +78,8 @@ export const createMessage = async (
     locationPreview: data?.locationPreview,
     mimetype: data?.mimetype,
     location: data?.location,
+    isReply: false,
+    mainMessage: '',
     user: {
       id: data.senderWalletAddress,
       name: `${data.senderFirstName} ${data.senderLastName}`,

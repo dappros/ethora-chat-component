@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
+  EmptySection,
   CenterContainer,
   UserInfo,
   UserName,
@@ -19,7 +20,7 @@ import Button from '../../styled/Button';
 import DropdownMenu from '../../DropdownMenu/DropdownMenu';
 import { logout, setSelectedUser } from '../../../roomStore/chatSettingsSlice';
 import { setLogoutState } from '../../../roomStore/roomsSlice';
-import EditUserModal from './EditUserModal';
+import InputWithLabel from '../../styled/StyledInput';
 
 interface UserProfileModalProps {
   handleCloseModal: any;
@@ -30,8 +31,8 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
 }) => {
   const dispatch = useDispatch();
 
-  const { config, user, selectedUser } = useSelector(
-    (state: RootState) => state.chatSettingStore
+  const config = useSelector(
+    (state: RootState) => state.chatSettingStore.config
   );
 
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -63,6 +64,10 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const EditClick = useCallback(() => {
     setIsEditing(true);
   }, []);
+
+  const { user, selectedUser } = useSelector(
+    (state: RootState) => state.chatSettingStore
+  );
 
   const handlePrivateMessage = useCallback(() => {}, [selectedUser]);
 
@@ -105,11 +110,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
           </UserInfo>
           <BorderedContainer>
             <Label>About</Label>
-            <LabelData>
-              {modalUser?.description && modalUser?.description !== ''
-                ? modalUser?.description
-                : 'No description'}
-            </LabelData>
+            <LabelData>User's description</LabelData>
           </BorderedContainer>
           {selectedUser && (
             <ActionButton
@@ -120,7 +121,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
               Message
             </ActionButton>
           )}
-          {/* <EmptySection /> */}
+          <EmptySection />
         </CenterContainer>
       </>
     ),
@@ -129,11 +130,74 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   const EditingBody = useMemo(
     () => (
-      <EditUserModal
-        setIsEditing={setIsEditing}
-        modalUser={modalUser}
-        config={config}
-      />
+      <>
+        <ModalHeaderComponent
+          leftMenu={
+            <Button
+              onClick={() => setIsEditing(false)}
+              style={{ padding: '13px 8px', width: '100%' }}
+            >
+              Cancel
+            </Button>
+          }
+          rightMenu={
+            !selectedUser && (
+              <Button
+                onClick={() => setIsEditing(false)}
+                variant="outlined"
+                style={{ width: '128px' }}
+              >
+                Save
+              </Button>
+            )
+          }
+        />
+        <CenterContainer>
+          <ProfileImagePlaceholder
+            icon={(modalUser?.profileImage || modalUser?.avatar) ?? null}
+            name={modalUser?.name ?? modalUser?.firstName}
+            size={120}
+            upload={{
+              onUpload: () => {},
+              active: true,
+            }}
+          />
+        </CenterContainer>
+        <div
+          style={{
+            boxSizing: 'border-box',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '32px',
+            width: '52%',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <InputWithLabel
+            color={config?.colors?.primary}
+            placeholder="Name"
+            label={'Name'}
+            // value={message}
+            // onChange={handleInputChange}
+            // onKeyDown={handleKeyDown}
+            // onFocus={handleFocus}
+            // onBlur={handleBlur}
+            // disabled={isLoading}
+          />
+          <InputWithLabel
+            color={config?.colors?.primary}
+            placeholder="About"
+            label={'About'}
+            // value={message}
+            // onChange={handleInputChange}
+            // onKeyDown={handleKeyDown}
+            // onFocus={handleFocus}
+            // onBlur={handleBlur}
+            // disabled={isLoading}
+          />
+        </div>
+      </>
     ),
     [modalUser]
   );

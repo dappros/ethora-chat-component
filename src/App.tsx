@@ -15,7 +15,7 @@ function App() {
         backgroundColor: '#f5f5f5',
       }}
     >
-      <div style={{ height: '500px', width: '800px' }}>
+      <div style={{ height: '100%', width: '100%' }}>
         <ReduxWrapper
           // random 5f9a4603b2b5bbfa6b228b642127c56d03b778ad594c52b755e605c977303979@conference.xmpp.ethoradev.com
           // deppx 57834759e627abd4ee3d10b4df859d1665753c208206419e5ffaa0e384137ba3@conference.xmpp.ethoradev.com
@@ -39,7 +39,7 @@ function App() {
           }}
           MainComponentStyles={{
             width: '100%',
-            height: '500px',
+            height: '100%',
             borderRadius: '16px',
             border: '1px solid #E4E4E7',
             overflow: 'hidden',

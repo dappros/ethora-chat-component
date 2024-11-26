@@ -87,16 +87,6 @@ export const chatSlice = createSlice({
         unpackAndTransform(action.payload)
       );
     },
-    updateUser(state, action: PayloadAction<{ updates: Partial<User> }>) {
-      const { updates } = action.payload;
-      const user = state.user;
-      if (user) {
-        state.user = {
-          ...user,
-          ...updates,
-        };
-      }
-    },
     setConfig: (state, action: PayloadAction<IConfig | undefined>) => {
       state.config = action.payload;
     },
@@ -135,7 +125,6 @@ export const {
   logout,
   setActiveModal,
   setSelectedUser,
-  updateUser,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

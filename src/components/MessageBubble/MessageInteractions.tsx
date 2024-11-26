@@ -13,17 +13,20 @@ import {
 } from '../../helpers/constants/MESSAGE_INTERACTIONS';
 import { IMessage } from '../../types/types';
 import { useXmppClient } from '../../context/xmppProvider';
+import { setActiveMessage } from '../../roomStore/roomsSlice';
 
 interface MessageInteractionsProps {
   message: IMessage;
   contextMenu: { visible: boolean; x: number; y: number };
   setContextMenu: ({ visible, x, y }) => void;
+  handleReplyMessage: () => void;
 }
 
 const MessageInteractions: React.FC<MessageInteractionsProps> = ({
   message,
   contextMenu,
   setContextMenu,
+  handleReplyMessage: replyMessage,
 }) => {
   const { client } = useXmppClient();
   const dispatch = useDispatch();
@@ -47,6 +50,14 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
     navigator.clipboard.writeText(text);
   };
 
+  const handleReplyMessage = () => {
+    // console.log("message", message);
+    // console.log("contextMenu", contextMenu);
+    // console.log("setContextMenu", setContextMenu);
+    // console.log(MESSAGE_INTERACTIONS.REPLY);
+    replyMessage();
+  }
+
   if (config?.disableInteractions || !contextMenu.visible) return null;
 
   return (
@@ -65,7 +76,7 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
           <MESSAGE_INTERACTIONS_ICONS.SEND_ITEM />{' '}
         </MenuItem>
         <Delimeter />
-        <MenuItem onClick={() => console.log(MESSAGE_INTERACTIONS.REPLY)}>
+        <MenuItem onClick={handleReplyMessage}>
           {MESSAGE_INTERACTIONS.REPLY}
           <MESSAGE_INTERACTIONS_ICONS.REPLY />{' '}
         </MenuItem>

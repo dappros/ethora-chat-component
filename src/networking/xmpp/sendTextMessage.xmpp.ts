@@ -9,7 +9,9 @@ export const sendTextMessage = (
   walletAddress: string,
   userMessage: string,
   notDisplayedValue?: string,
-  devServer?: string
+  isReply?: boolean,
+  mainMessage?: string,
+  devServer?: string,
 ) => {
   const id = `send-message:${Date.now().toString()}`;
 
@@ -35,6 +37,8 @@ export const sendTextMessage = (
         quickReplies: '',
         notDisplayedValue: '',
         showInChannel: true,
+        isReply: isReply,
+        mainMessage: mainMessage,
       }),
       xml('body', {}, userMessage)
     );

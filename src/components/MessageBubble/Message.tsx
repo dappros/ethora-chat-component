@@ -20,6 +20,8 @@ import {
   setSelectedUser,
 } from '../../roomStore/chatSettingsSlice';
 import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
+import { BottomReplyContainer } from './BottomReplyContainer';
+import { setActiveMessage } from '../../roomStore/roomsSlice';
 
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
@@ -66,9 +68,13 @@ const Message: React.FC<MessageProps> = forwardRef<
     dispatch(setSelectedUser(user));
   };
 
+  const handleReplyMessage = () => {
+    dispatch(setActiveMessage({ id: message.id, chatJID: message.roomJid }));
+  };
+
   return (
     <>
-      <CustomMessageContainer key={message.id} isUser={isUser} ref={ref}>
+      <CustomMessageContainer key={message.id} isUser={isUser} reply={message?.reply?.length} ref={ref}>
         {!isUser && (
           <CustomMessagePhotoContainer
             onClick={() => handleUserAvatarClick(message.user)}
@@ -106,6 +112,9 @@ const Message: React.FC<MessageProps> = forwardRef<
             {message?.pending && 'sending...'}
             {new Date(message.date).toLocaleTimeString()}
           </CustomMessageTimestamp>
+          {message?.reply?.length
+            ? <BottomReplyContainer onClick={handleReplyMessage} reply={message?.reply}/>
+            : <div/>}
         </CustomMessageBubble>
       </CustomMessageContainer>
 
@@ -114,6 +123,7 @@ const Message: React.FC<MessageProps> = forwardRef<
           message={message}
           setContextMenu={setContextMenu}
           contextMenu={contextMenu}
+          handleReplyMessage={handleReplyMessage}
         />
       )}
     </>
