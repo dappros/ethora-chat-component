@@ -1,10 +1,8 @@
 import { configureStore, combineReducers } from '@reduxjs/toolkit';
-import createSagaMiddleware from 'redux-saga';
 import chatSettingsReducer from './chatSettingsSlice';
 import roomsSlice from './roomsSlice';
 import { IRoom } from '../types/types';
-
-const sagaMiddleware = createSagaMiddleware();
+import { unreadMiddleware } from './Middleware/unreadMidlleware';
 
 const rootReducer = combineReducers({
   chatSettingStore: chatSettingsReducer,
@@ -27,7 +25,7 @@ export const store = configureStore({
         ignoredPaths: ['chat.messages.timestamp'],
         serializableCheck: false,
       },
-    }).concat(sagaMiddleware),
+    }).concat(unreadMiddleware),
 });
 
 export type RootState = ReturnType<typeof rootReducer>;

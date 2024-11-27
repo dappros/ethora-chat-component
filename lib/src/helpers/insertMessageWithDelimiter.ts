@@ -38,6 +38,10 @@ export function insertMessageWithDelimiter(
           body: 'New Messages',
           roomJID: '',
         });
+
+        if (lastViewedTimestamp.toString() === '0') {
+          roomMessages.splice(delimiterIndex, 1);
+        }
       }
     }
   } else if (

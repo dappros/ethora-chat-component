@@ -28,6 +28,8 @@ import {
   UserCount,
 } from '../styled/RoomListComponents';
 import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
+import { useXmppClient } from '../../context/xmppProvider';
+import ChatRoomItem from '../RoomComponents/ChatRoomItem';
 
 interface RoomListProps {
   chats: IRoom[];
@@ -42,6 +44,7 @@ const RoomList: React.FC<RoomListProps> = ({
   onRoomClick,
   isSmallScreen,
 }) => {
+  const { client, setClient } = useXmppClient();
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -111,6 +114,10 @@ const RoomList: React.FC<RoomListProps> = ({
   const handleLogout = useCallback(() => {
     dispatch(logout());
     dispatch(setLogoutState());
+    if (client) {
+      client.close();
+      setClient(null);
+    }
   }, []);
 
   const menuOptions = useMemo(
@@ -151,16 +158,18 @@ const RoomList: React.FC<RoomListProps> = ({
         ref={containerRef}
         style={{
           ...config?.roomListStyles,
-          ...(isSmallScreen ? { width: '100%' } : {}),
+          ...(isSmallScreen ? { width: '100%' } : { maxWidth: '432px' }),
         }}
       >
         {(open || !burgerMenu) && (
           <ScollableContainer>
             <SearchContainer>
-              <DropdownMenu
-                options={menuOptions}
-                // onClose={dispatch(setActiveModal())}
-              />
+              {!config?.disableRoomMenu && (
+                <DropdownMenu
+                  options={menuOptions}
+                  // onClose={dispatch(setActiveModal())}
+                />
+              )}
               <SearchInput
                 icon={<SearchIcon height={'20px'} />}
                 value={searchTerm}
@@ -171,46 +180,19 @@ const RoomList: React.FC<RoomListProps> = ({
 
               <NewChatModal />
             </SearchContainer>
-            <div style={{ flexGrow: 1, overflowY: 'auto' }}>
-              {filteredChats.map((chat: IRoom, index: React.Key) => (
+            <div
+              style={{ flexGrow: 1, overflowY: 'auto', paddingBottom: '16px' }}
+            >
+              {filteredChats.map((chat: IRoom, index: number) => (
                 <>
-                  <ChatItem
-                    key={index}
-                    active={isChatActive(chat)}
-                    onClick={() => performClick(chat)}
-                    bg={config?.colors?.primary}
-                  >
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'start',
-                        width: '100%',
-                        gap: '8px',
-                      }}
-                    >
-                      <ProfileImagePlaceholder
-                        name={chat.name}
-                        icon={chat?.icon}
-                      />
-                      <ChatInfo>
-                        <ChatName>{chat.name}</ChatName>
-                        <LastMessage
-                          style={{ color: '#141414', fontWeight: 600 }}
-                        >
-                          {chat?.lastRoomMessage?.name &&
-                            `${chat?.lastRoomMessage?.name}:`}
-                        </LastMessage>
-                        <LastMessage>{chat?.lastRoomMessage?.body}</LastMessage>
-                      </ChatInfo>
-                    </div>
-                    <div style={{ textAlign: 'right', display: 'flex' }}>
-                      <UserCount active={isChatActive(chat)}>
-                        {chat.usersCnt}
-                      </UserCount>
-                      {/* <div>{chat.lastMessageTime}</div> */}
-                    </div>
-                  </ChatItem>
-                  <Divider />
+                  <ChatRoomItem
+                    chat={chat}
+                    index={index}
+                    isChatActive={isChatActive(chat)}
+                    performClick={performClick}
+                    config={config}
+                  />
+                  {index < filteredChats.length - 1 && <Divider />}
                 </>
               ))}
             </div>

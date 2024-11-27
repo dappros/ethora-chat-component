@@ -73,6 +73,16 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   const { client, initializeClient, setClient } = useXmppClient();
 
   useEffect(() => {
+    return () => {
+      if (client && user.xmppPassword === '') {
+        console.log('closing client');
+        client.close();
+        setClient(null);
+      }
+    };
+  }, [user.xmppPassword]);
+
+  useEffect(() => {
     if (roomJID) {
       dispatch(setCurrentRoom({ roomJID: roomJID }));
     }
@@ -94,22 +104,23 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
               user.defaultWallet?.walletAddress,
               user.xmppPassword
             ).then((client) => {
-              client
-                .getRooms()
-                .then(() => {
-                  // client.getChatsPrivateStoreRequestStanza();
-                  setClient(client);
-                })
-                .finally(() => setInited(true));
+              client.getRooms().then(() => {
+                client.getChatsPrivateStoreRequestStanza();
+                setClient(client);
+              });
             });
-
-            refresh();
+            setInited(true);
+            {
+              !config?.disableRefresh && refresh();
+            }
           } else {
             if (!activeRoomJID) {
               client.getRooms();
             }
             setInited(true);
-            refresh();
+            {
+              !config?.disableRefresh && refresh();
+            }
           }
         }
         dispatch(setIsLoading({ loading: false }));
@@ -122,9 +133,9 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     };
 
     initXmmpClient();
-  }, [user]);
+  }, [user.xmppPassword]);
 
-  // functionality to handle unreadmessages
+  // functionality to handle unreadmessages if user leaves tab
   useEffect(() => {
     const updateLastReadTimeStamp = () => {
       if (client) {
@@ -142,7 +153,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     };
 
     const handleBeforeUnload = () => {
-      updateLastReadTimeStamp();
+      // updateLastReadTimeStamp();
     };
 
     window.addEventListener('blur', handleBeforeUnload);

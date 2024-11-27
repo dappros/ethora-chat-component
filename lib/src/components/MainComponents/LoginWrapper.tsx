@@ -47,6 +47,12 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
   const dispatch = useDispatch();
 
   useEffect(() => {
+    if (props?.config?.userLogin?.enabled && props?.config?.userLogin?.user) {
+      console.log('hehrehre');
+      dispatch(setUser(props.config.userLogin.user));
+      return;
+    }
+
     //use localStorage, to check for user was already logged
 
     const storedUser: User = useLocalStorage(
@@ -80,6 +86,8 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
     if (
       !props.config?.googleLogin &&
       !props.config?.defaultLogin &&
+      !props.config?.jwtLogin &&
+      !props.config?.userLogin &&
       user.xmppUsername === ''
     ) {
       const defaultLogin = async () => {
@@ -95,7 +103,6 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
       };
       defaultLogin();
     }
-
     //if google - show login.tsx and process user there (there will be dispatch, set user)
     //if only ethora - show login with only ethora
     return () => {

@@ -4,12 +4,18 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../roomStore';
 import MessageList from './MessageList';
 import SendInput from '../styled/SendInput';
-import { addRoomMessage, setIsLoading } from '../../roomStore/roomsSlice';
+import {
+  addRoomMessage,
+  deleteRoomMessage,
+  setIsLoading,
+  setLastViewedTimestamp,
+} from '../../roomStore/roomsSlice';
 import Loader from '../styled/Loader';
 import { uploadFile } from '../../networking/api-requests/auth.api';
 import { useXmppClient } from '../../context/xmppProvider.tsx';
 import ChatHeader from './ChatHeader.tsx';
 import NoMessagesPlaceholder from './NoMessagesPlaceholder.tsx';
+import NewChatModal from '../Modals/NewChatModal/NewChatModal.tsx';
 
 interface ChatRoomProps {
   CustomMessageComponent?: any;
@@ -36,6 +42,35 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       () => roomsList[activeRoomJID]?.messages || [],
       [roomsList, activeRoomJID]
     );
+
+    useEffect(() => {
+      dispatch(
+        setLastViewedTimestamp({
+          chatJID: activeRoomJID,
+          timestamp: 0,
+        })
+      );
+      return () => {
+        if (client) {
+          client.actionSetTimestampToPrivateStoreStanza(
+            activeRoomJID,
+            new Date().getTime()
+          );
+        }
+        dispatch(
+          setLastViewedTimestamp({
+            chatJID: activeRoomJID,
+            timestamp: new Date().getTime(),
+          })
+        );
+        dispatch(
+          deleteRoomMessage({
+            roomJID: activeRoomJID,
+            messageId: 'delimiter-new',
+          })
+        );
+      };
+    }, [activeRoomJID]);
 
     useEffect(() => {
       if (config?.setRoomJidInPath && activeRoomJID) {
@@ -96,7 +131,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         `${user.firstName} ${user.lastName}`,
         true
       );
-    }, []);
+    }, [activeRoomJID]);
 
     const sendEndComposing = useCallback(() => {
       client.sendTypingRequestStanza(
@@ -104,7 +139,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         `${user.firstName} ${user.lastName}`,
         false
       );
-    }, []);
+    }, [activeRoomJID]);
 
     const loadMoreMessages = useCallback(
       async (chatJID: string, max: number, idOfMessageBefore?: number) => {
@@ -191,13 +226,37 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       } else if (!roomsList?.[activeRoomJID]) {
         initialPresenceAndHistory();
       }
+
+      if (config?.defaultRooms) {
+        config?.defaultRooms.map((room) => {
+          client.presenceInRoomStanza(room.jid);
+        });
+        client.getRooms();
+        getDefaultHistory();
+      }
     }, [activeRoomJID, Object.keys(roomsList).length]);
 
-    if (
-      !activeRoomJID ||
-      Object.keys(roomsList)?.length < 1 ||
-      !roomsList?.[activeRoomJID]
-    ) {
+    if (Object.keys(roomsList)?.length < 1 && !loading && !globalLoading) {
+      return (
+        <div
+          style={{
+            height: '100%',
+            width: '100%',
+            alignItems: 'center',
+            display: 'flex',
+            justifyContent: 'center',
+            backgroundColor: '#fff',
+            flexDirection: 'column',
+            gap: 16,
+          }}
+        >
+          No room. Let's create one!
+          <NewChatModal />
+        </div>
+      );
+    }
+
+    if (!activeRoomJID || !roomsList?.[activeRoomJID]) {
       return (
         <div
           style={{
@@ -224,6 +283,8 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         )}
         {loading || globalLoading ? (
           <Loader color={config?.colors?.primary} />
+        ) : Object.keys(roomsList).length < 1 ? (
+          <>No rooms</>
         ) : roomsList[activeRoomJID]?.messages &&
           roomsList[activeRoomJID]?.messages.length < 1 ? (
           <div

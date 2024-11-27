@@ -7,7 +7,7 @@ import React, {
 } from 'react';
 import XmppClient from '../networking/xmppClient';
 
-// Declare XmppContext with both client and initializeClient, ensuring client is not null
+// Declare XmppContext
 interface XmppContextType {
   client: XmppClient;
   setClient: (client: XmppClient | null) => void;
@@ -20,7 +20,9 @@ interface XmppProviderProps {
   children: ReactNode;
 }
 
-// Provider component for XmppClient
+// Singleton reference for XmppClient
+let singletonClient: XmppClient | null = null;
+
 export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
   const [client, setClient] = useState<XmppClient | null>(null);
   const [password, setPassword] = useState<string | null>(null);
@@ -31,11 +33,15 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
     password: string,
     email: string
   ): Promise<XmppClient> => {
-    setPassword(password);
-    setEmail(email);
+    if (singletonClient) {
+      console.log('Returning existing client.');
+      setClient(singletonClient);
+      return singletonClient;
+    }
 
     try {
       const newClient = new XmppClient(password, email);
+      singletonClient = newClient;
 
       await new Promise<void>((resolve, reject) => {
         const checkStatus = () => {
@@ -50,21 +56,28 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
         checkStatus();
       });
 
+      setPassword(password);
+      setEmail(email);
       setClient(newClient);
       setReconnectAttempts(0);
       return newClient;
     } catch (error) {
-      console.log(error, 'error with initializing client');
+      console.error('Error initializing client:', error);
+      singletonClient = null;
       throw error;
     }
   };
 
   const reconnectClient = () => {
-    if (client && client.status !== 'offline' && reconnectAttempts < 3) {
+    if (
+      singletonClient &&
+      singletonClient.status !== 'offline' &&
+      reconnectAttempts < 3
+    ) {
       console.log('Attempting to reconnect...');
-      client.scheduleReconnect();
+      singletonClient.scheduleReconnect();
       setReconnectAttempts((prev) => prev + 1);
-    } else if (client?.status === 'offline') {
+    } else if (singletonClient?.status === 'offline') {
       console.log('Client is offline. Not attempting to reconnect.');
     } else if (reconnectAttempts >= 3) {
       console.log(
@@ -94,7 +107,6 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
   );
 };
 
-// Hook to use XmppClient and initializeClient
 export const useXmppClient = () => {
   const context = useContext(XmppContext);
   if (!context) {

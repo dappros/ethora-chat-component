@@ -11,7 +11,7 @@ import { IConfig, IMessage, User } from '../../types/types';
 import SystemMessage from './SystemMessage';
 import DateLabel from '../styled/DateLabel';
 import Loader from '../styled/Loader';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
 import Composing from '../styled/StyledInputComponents/Composing';
 import { validateMessages } from '../../helpers/validator';
@@ -42,6 +42,8 @@ const MessageList = <TMessage extends IMessage>({
   isReply,
   activeMessage,
 }: MessageListProps<TMessage>) => {
+  const dispatch = useDispatch();
+
   const { composing, lastViewedTimestamp, messages } = useSelector(
     (state: RootState) => state.rooms.rooms[roomJID]
   );
@@ -233,7 +235,7 @@ const MessageList = <TMessage extends IMessage>({
           }
 
           // todo finish unread messages
-          if (message.id === 'delimiter-new' && lastViewedTimestamp) {
+          if (message.id === 'delimiter-new') {
             return <NewMessageLabel color={config?.colors?.primary} />;
           }
 
@@ -262,7 +264,7 @@ const MessageList = <TMessage extends IMessage>({
             </React.Fragment>
           );
         })}
-        {!config?.disableHeader && composing && (
+        {config?.disableHeader && composing && (
           <Composing usersTyping={['User']} />
         )}
       </MessagesScroll>

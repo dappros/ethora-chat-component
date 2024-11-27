@@ -93,10 +93,10 @@ const Message: React.FC<MessageProps> = forwardRef<
           <CustomMessagePhotoContainer
             onClick={() => handleUserAvatarClick(message.user)}
           >
-            {message.user.avatar ? (
+            {message.user?.profileImage && message.user.profileImage !== '' ? (
               <CustomMessagePhoto
                 src={
-                  message.user.avatar ||
+                  message.user.profileImage ||
                   'https://soccerpointeclaire.com/wp-content/uploads/2021/06/default-profile-pic-e1513291410505.jpg'
                 }
                 alt="userIcon"

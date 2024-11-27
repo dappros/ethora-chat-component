@@ -20,6 +20,7 @@ import { updateRoom } from '../../../roomStore/roomsSlice';
 import Loader from '../../styled/Loader';
 import Button from '../../styled/Button';
 import { MoreIcon, QrIcon } from '../../../assets/icons';
+import OperationalModal from '../../OperationalModal/OperationalModal';
 
 interface ChatProfileModalProps {
   handleCloseModal: any;
@@ -29,6 +30,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   handleCloseModal,
 }) => {
   const [loading, setLoading] = useState<boolean>(false);
+  const [visible, setVisible] = useState<boolean>(false);
 
   const dispatch = useDispatch();
   const { client } = useXmppClient();
@@ -72,14 +74,14 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   };
 
   return (
-    <ModalContainerFullScreen>
+    <ModalContainerFullScreen style={{ position: 'relative' }}>
       <ModalHeaderComponent
         handleCloseModal={handleCloseModal}
         headerTitle={'Chat Profile'}
         rightMenu={
           <>
-            <Button EndIcon={<QrIcon />} />
-            <Button EndIcon={<MoreIcon />} />
+            <Button EndIcon={<QrIcon />} onClick={() => setVisible(true)} />
+            {/* <Button EndIcon={<MoreIcon />} /> */}
           </>
         }
       />
@@ -164,6 +166,11 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
           )}
         </BorderedContainer>
       </CenterContainer>
+      <OperationalModal
+        isVisible={visible}
+        setVisible={setVisible}
+        chatJid={activeRoom.jid}
+      />
     </ModalContainerFullScreen>
   );
 };

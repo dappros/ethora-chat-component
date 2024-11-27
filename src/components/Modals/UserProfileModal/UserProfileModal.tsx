@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  EmptySection,
   CenterContainer,
   UserInfo,
   UserName,
@@ -18,9 +17,16 @@ import { RootState } from '../../../roomStore';
 import { ProfileImagePlaceholder } from '../../MainComponents/ProfileImagePlaceholder';
 import Button from '../../styled/Button';
 import DropdownMenu from '../../DropdownMenu/DropdownMenu';
-import { logout, setSelectedUser } from '../../../roomStore/chatSettingsSlice';
-import { setLogoutState } from '../../../roomStore/roomsSlice';
-import InputWithLabel from '../../styled/StyledInput';
+import {
+  logout,
+  setActiveModal,
+  setSelectedUser,
+} from '../../../roomStore/chatSettingsSlice';
+import { setCurrentRoom, setLogoutState } from '../../../roomStore/roomsSlice';
+import EditUserModal from './EditUserModal';
+import { walletToUsername } from '../../../helpers/walletUsername';
+import { CONFERENCE_DOMAIN } from '../../../helpers/constants/PLATFORM_CONSTANTS';
+import { useXmppClient } from '../../../context/xmppProvider';
 
 interface UserProfileModalProps {
   handleCloseModal: any;
@@ -31,8 +37,10 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
 }) => {
   const dispatch = useDispatch();
 
-  const config = useSelector(
-    (state: RootState) => state.chatSettingStore.config
+  const { client } = useXmppClient();
+
+  const { config, user, selectedUser } = useSelector(
+    (state: RootState) => state.chatSettingStore
   );
 
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -65,11 +73,36 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     setIsEditing(true);
   }, []);
 
-  const { user, selectedUser } = useSelector(
-    (state: RootState) => state.chatSettingStore
-  );
+  const handlePrivateMessage = useCallback(async () => {
+    const myUsername = walletToUsername(user.defaultWallet.walletAddress);
+    const selectedUserUsername = walletToUsername(selectedUser.id);
 
-  const handlePrivateMessage = useCallback(() => {}, [selectedUser]);
+    const combinedWalletAddress = [myUsername, selectedUserUsername]
+      .sort()
+      .join('.');
+
+    const roomJid = combinedWalletAddress.toLowerCase();
+
+    const combinedUsersName = [
+      user.firstName,
+      selectedUser.name?.split(' ')?.[0],
+    ]
+      .sort()
+      .join(' and ');
+
+    const newRoomJid = await client.createRoomStanza(
+      combinedUsersName,
+      `Private chat ${combinedUsersName}`,
+      roomJid
+    );
+
+    if (newRoomJid) {
+      await client.inviteRoomRequest(selectedUserUsername, newRoomJid);
+      await client.getRooms();
+    }
+    dispatch(setCurrentRoom({ roomJID: newRoomJid }));
+    dispatch(setActiveModal());
+  }, [selectedUser]);
 
   const modalUser: any = selectedUser ?? user;
 
@@ -96,7 +129,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
         />
         <CenterContainer>
           <ProfileImagePlaceholder
-            icon={(modalUser?.profileImage || modalUser?.avatar) ?? null}
+            icon={modalUser?.profileImage ?? null}
             name={modalUser?.name ?? modalUser?.firstName}
             size={120}
           />
@@ -106,11 +139,15 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 ? `${modalUser?.name}`
                 : `${modalUser?.firstName} ${modalUser?.lastName}`}
             </UserName>
-            <UserStatus>Status</UserStatus>
+            {/* <UserStatus>Status</UserStatus> */}
           </UserInfo>
           <BorderedContainer>
             <Label>About</Label>
-            <LabelData>User's description</LabelData>
+            <LabelData>
+              {modalUser?.description && modalUser?.description?.length > 4
+                ? modalUser.description
+                : 'No description'}
+            </LabelData>
           </BorderedContainer>
           {selectedUser && (
             <ActionButton
@@ -121,7 +158,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
               Message
             </ActionButton>
           )}
-          <EmptySection />
+          {/* <EmptySection /> */}
         </CenterContainer>
       </>
     ),
@@ -130,74 +167,11 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   const EditingBody = useMemo(
     () => (
-      <>
-        <ModalHeaderComponent
-          leftMenu={
-            <Button
-              onClick={() => setIsEditing(false)}
-              style={{ padding: '13px 8px', width: '100%' }}
-            >
-              Cancel
-            </Button>
-          }
-          rightMenu={
-            !selectedUser && (
-              <Button
-                onClick={() => setIsEditing(false)}
-                variant="outlined"
-                style={{ width: '128px' }}
-              >
-                Save
-              </Button>
-            )
-          }
-        />
-        <CenterContainer>
-          <ProfileImagePlaceholder
-            icon={(modalUser?.profileImage || modalUser?.avatar) ?? null}
-            name={modalUser?.name ?? modalUser?.firstName}
-            size={120}
-            upload={{
-              onUpload: () => {},
-              active: true,
-            }}
-          />
-        </CenterContainer>
-        <div
-          style={{
-            boxSizing: 'border-box',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '32px',
-            width: '52%',
-            justifyContent: 'center',
-            alignItems: 'center',
-          }}
-        >
-          <InputWithLabel
-            color={config?.colors?.primary}
-            placeholder="Name"
-            label={'Name'}
-            // value={message}
-            // onChange={handleInputChange}
-            // onKeyDown={handleKeyDown}
-            // onFocus={handleFocus}
-            // onBlur={handleBlur}
-            // disabled={isLoading}
-          />
-          <InputWithLabel
-            color={config?.colors?.primary}
-            placeholder="About"
-            label={'About'}
-            // value={message}
-            // onChange={handleInputChange}
-            // onKeyDown={handleKeyDown}
-            // onFocus={handleFocus}
-            // onBlur={handleBlur}
-            // disabled={isLoading}
-          />
-        </div>
-      </>
+      <EditUserModal
+        setIsEditing={setIsEditing}
+        modalUser={modalUser}
+        config={config}
+      />
     ),
     [modalUser]
   );

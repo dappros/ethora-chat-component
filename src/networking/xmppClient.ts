@@ -3,6 +3,7 @@ import { walletToUsername } from '../helpers/walletUsername';
 import {
   handleComposing,
   onDeleteMessage,
+  onChatInvite,
   onGetChatRooms,
   onGetLastMessageArchive,
   onGetMembers,
@@ -22,7 +23,7 @@ import { getHistory } from './xmpp/getHistory.xmpp';
 import { sendTextMessage } from './xmpp/sendTextMessage.xmpp';
 import { deleteMessage } from './xmpp/deleteMessage.xmpp';
 import { presenceInRoom } from './xmpp/presenceInRoom.xmpp';
-import { getLastMessageArchive } from './xmpp/getLastMessageArchive.xmpp';
+import { getLastMessage } from './xmpp/getLastMessageArchive.xmpp';
 import { createRoom } from './xmpp/createRoom.xmpp';
 import { setRoomImage } from './xmpp/setRoomImage.xmpp';
 import { getRoomMembers } from './xmpp/getRoomMembers.xmpp';
@@ -120,6 +121,7 @@ export class XmppClient {
         onMessageHistory(stanza);
         onGetLastMessageArchive(stanza, this);
         handleComposing(stanza, this.username);
+        onChatInvite(stanza, this);
         break;
       case 'presence':
         onPresenceInRoom(stanza);
@@ -227,8 +229,23 @@ export class XmppClient {
 
   //room functions
 
-  async createRoomStanza(title: string, description: string) {
-    return await createRoom(title, description, this.client);
+  async createRoomStanza(title: string, description: string, to?: string) {
+    return await createRoom(title, description, this.client, to);
+  }
+
+  async inviteRoomRequest(to: string, roomJid: string) {
+    const id = `invite-rooms:${Date.now().toString()}`;
+
+    const xmlMessage = xml(
+      'message',
+      {
+        to: roomJid,
+        id: id,
+      },
+      xml('x', 'http://jabber.org/protocol/muc#user', xml('invite', { to: to }))
+    );
+
+    this.client.send(xmlMessage);
   }
 
   leaveTheRoomStanza = (roomJID: string) => {
@@ -239,12 +256,17 @@ export class XmppClient {
     presenceInRoom(this.client, roomJID);
   };
 
-  getHistoryStanza = async (chatJID: string, max: number, before?: number) => {
-    await getHistory(this.client, chatJID, max, before);
+  getHistoryStanza = async (
+    chatJID: string,
+    max: number,
+    before?: number,
+    id?: string
+  ) => {
+    await getHistory(this.client, chatJID, max, before, id);
   };
 
   getLastMessageArchiveStanza(roomJID: string) {
-    getLastMessageArchive(this.client, roomJID);
+    getLastMessage(this.client, roomJID);
   }
 
   setRoomImageStanza = (
@@ -312,7 +334,9 @@ export class XmppClient {
     chatId: string,
     timestamp: number
   ) {
-    await actionSetTimestampToPrivateStore(this.client, chatId, timestamp);
+    try {
+      await actionSetTimestampToPrivateStore(this.client, chatId, timestamp);
+    } catch (error) {}
   }
 
   sendMediaMessageStanza(roomJID: string, data: any) {

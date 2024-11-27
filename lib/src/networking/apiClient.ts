@@ -58,36 +58,38 @@ const processQueue = (newAccessToken: string) => {
 http.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config;
+    if (!store.getState().chatSettingStore?.config?.disableRefresh) {
+      const originalRequest = error.config;
 
-    if (!error.response || error.response.status !== 401) {
-      throw error;
-    }
-    if (
-      originalRequest.url === '/users/login/refresh' ||
-      originalRequest.url === '/users/login'
-    ) {
-      return Promise.reject(error);
-    }
+      if (!error.response || error.response.status !== 401) {
+        throw error;
+      }
+      if (
+        originalRequest.url === '/users/login/refresh' ||
+        originalRequest.url === '/users/login'
+      ) {
+        return Promise.reject(error);
+      }
 
-    originalRequest._retry = true;
+      originalRequest._retry = true;
 
-    if (isRefreshing) {
-      const retryOriginalRequest = addRequestToQueue(originalRequest);
+      if (isRefreshing) {
+        const retryOriginalRequest = addRequestToQueue(originalRequest);
 
-      return retryOriginalRequest;
-    } else {
-      isRefreshing = true;
-      try {
-        const tokens = await refresh();
-        console.log('tokens', tokens);
-        isRefreshing = false;
-        originalRequest.headers['Authorization'] = tokens.data.token;
-        processQueue(tokens.data.token);
-        return http(originalRequest);
-      } catch (error) {
-        isRefreshing = false;
-        return error;
+        return retryOriginalRequest;
+      } else {
+        isRefreshing = true;
+        try {
+          const tokens = await refresh();
+          console.log('tokens', tokens);
+          isRefreshing = false;
+          originalRequest.headers['Authorization'] = tokens.data.token;
+          processQueue(tokens.data.token);
+          return http(originalRequest);
+        } catch (error) {
+          isRefreshing = false;
+          return error;
+        }
       }
     }
   }
