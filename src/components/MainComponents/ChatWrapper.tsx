@@ -211,15 +211,6 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           </StyledLoaderWrapper>
         )}
       </>
-      <div style={{
-        backgroundColor: 'black',
-        color: 'blue',
-        zIndex: 1000,
-        position: 'absolute',
-        top: 0
-        }}>
-        DELETE
-      </div>
     </>
   );
 };
