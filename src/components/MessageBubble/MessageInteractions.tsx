@@ -59,42 +59,44 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
   if (config?.disableInteractions || !contextMenu.visible) return null;
 
   return (
-    <Overlay onClick={closeContextMenu}>
-      <ContextMenu
-        style={{ top: contextMenu.y, left: contextMenu.x }}
-        onClick={closeContextMenu}
-      >
-        {/* <MenuItem onClick={() => console.log(MESSAGE_INTERACTIONS.SEND_COINS)}>
-          {MESSAGE_INTERACTIONS.SEND_COINS}
-          <MESSAGE_INTERACTIONS_ICONS.SEND_COINS />{' '}
-        </MenuItem>
-        <Delimeter />
-        <MenuItem onClick={() => console.log(MESSAGE_INTERACTIONS.SEND_ITEM)}>
-          {MESSAGE_INTERACTIONS.SEND_ITEM}
-          <MESSAGE_INTERACTIONS_ICONS.SEND_ITEM />{' '}
-        </MenuItem> */}
-        {/* <Delimeter /> */}
-        <MenuItem onClick={handleReplyMessage}>
-          {MESSAGE_INTERACTIONS.REPLY}
-          <MESSAGE_INTERACTIONS_ICONS.REPLY />{' '}
-        </MenuItem>
-        <Delimeter />
-        <MenuItem onClick={() => handleCopyMessage(message.body)}>
-          {MESSAGE_INTERACTIONS.COPY}
-          <MESSAGE_INTERACTIONS_ICONS.COPY />
-        </MenuItem>
-        <Delimeter />
-        <MenuItem onClick={handleDeleteMessage}>
-          {MESSAGE_INTERACTIONS.DELETE}
-          <MESSAGE_INTERACTIONS_ICONS.DELETE />{' '}
-        </MenuItem>
-        <Delimeter />
-        <MenuItem onClick={() => console.log(MESSAGE_INTERACTIONS.REPORT)}>
-          {MESSAGE_INTERACTIONS.REPORT}
-          <MESSAGE_INTERACTIONS_ICONS.REPORT />{' '}
-        </MenuItem>
-      </ContextMenu>
-    </Overlay>
+    <>
+      {!message.isDeleted && <Overlay onClick={closeContextMenu}>
+        <ContextMenu
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+          onClick={closeContextMenu}
+        >
+          {/* <MenuItem onClick={() => console.log(MESSAGE_INTERACTIONS.SEND_COINS)}>
+            {MESSAGE_INTERACTIONS.SEND_COINS}
+            <MESSAGE_INTERACTIONS_ICONS.SEND_COINS />{' '}
+          </MenuItem>
+          <Delimeter />
+          <MenuItem onClick={() => console.log(MESSAGE_INTERACTIONS.SEND_ITEM)}>
+            {MESSAGE_INTERACTIONS.SEND_ITEM}
+            <MESSAGE_INTERACTIONS_ICONS.SEND_ITEM />{' '}
+          </MenuItem> */}
+          {/* <Delimeter /> */}
+          <MenuItem onClick={handleReplyMessage}>
+            {MESSAGE_INTERACTIONS.REPLY}
+            <MESSAGE_INTERACTIONS_ICONS.REPLY />{' '}
+          </MenuItem>
+          <Delimeter />
+          <MenuItem onClick={() => handleCopyMessage(message.body)}>
+            {MESSAGE_INTERACTIONS.COPY}
+            <MESSAGE_INTERACTIONS_ICONS.COPY />
+          </MenuItem>
+          <Delimeter />
+          <MenuItem onClick={handleDeleteMessage}>
+            {MESSAGE_INTERACTIONS.DELETE}
+            <MESSAGE_INTERACTIONS_ICONS.DELETE />{' '}
+          </MenuItem>
+          <Delimeter />
+          <MenuItem onClick={() => console.log(MESSAGE_INTERACTIONS.REPORT)}>
+            {MESSAGE_INTERACTIONS.REPORT}
+            <MESSAGE_INTERACTIONS_ICONS.REPORT />{' '}
+          </MenuItem>
+        </ContextMenu>
+      </Overlay>}
+    </>
   );
 };
 

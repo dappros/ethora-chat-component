@@ -106,7 +106,7 @@ const Message: React.FC<MessageProps> = forwardRef<
             )}
           </CustomMessagePhotoContainer>
         )}
-        <CustomMessageBubble deleted={message.body === 'deleted'} isUser={isUser} onContextMenu={handleContextMenu}>
+        <CustomMessageBubble deleted={message.isDeleted} isUser={isUser} onContextMenu={handleContextMenu}>
 
           {!isUser && (
             <CustomUserName isUser={isUser} color={config?.colors?.primary}>
@@ -129,10 +129,9 @@ const Message: React.FC<MessageProps> = forwardRef<
             />
           ) : (
             <CustomMessageText>
-              {message.body === 'deleted'
+              {message.isDeleted
                 ? <div style={{
                     display: 'flex',
-                    flexDirection: isUser ? 'row' : 'row-reverse',
                     alignItems: 'center',
                     gap: 5,
                     paddingTop: 5

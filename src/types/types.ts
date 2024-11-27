@@ -30,6 +30,7 @@ export interface IMessage {
   showInChannel?: string;
   activeMessage?: boolean;
   isReply?: boolean;
+  isDeleted?: boolean;
   mainMessage?: string;
   reply?: IReply[];
 }

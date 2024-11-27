@@ -55,7 +55,7 @@ const MessageList = <TMessage extends IMessage>({
   
       return newMessage;
     })
-  }, [messages.length]);
+  }, [messages]);
 
   const isUserActiveMessage = useMemo(() => (
     activeMessage && activeMessage.user.id === user.walletAddress
@@ -75,7 +75,7 @@ const MessageList = <TMessage extends IMessage>({
         !item.mainMessage 
       );
     }
-  }, [messages.length]);
+  }, [messages]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);

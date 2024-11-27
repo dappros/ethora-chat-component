@@ -2,6 +2,7 @@ import xmpp, { Client, xml } from '@xmpp/client';
 import { walletToUsername } from '../helpers/walletUsername';
 import {
   handleComposing,
+  onDeleteMessage,
   onGetChatRooms,
   onGetLastMessageArchive,
   onGetMembers,
@@ -114,6 +115,7 @@ export class XmppClient {
   handleStanza(stanza: any) {
     switch (stanza.name) {
       case 'message':
+        onDeleteMessage(stanza);
         onRealtimeMessage(stanza);
         onMessageHistory(stanza);
         onGetLastMessageArchive(stanza, this);

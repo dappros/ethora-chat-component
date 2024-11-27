@@ -3,6 +3,7 @@ import { store } from '../roomStore';
 import {
   addRoom,
   addRoomMessage,
+  deleteRoomMessage,
   setComposing,
   setCurrentRoom,
   setRoomRole,
@@ -79,6 +80,7 @@ export const createMessage = async (
     mimetype: data?.mimetype,
     location: data?.location,
     isReply: false,
+    isDeleted: body.children[0] === 'deleted',
     mainMessage: '',
     user: {
       id: data.senderWalletAddress,
@@ -101,7 +103,8 @@ const onRealtimeMessage = async (stanza: Element) => {
     !stanza.getChild('composing') &&
     !stanza.getChild('paused') &&
     !stanza.getChild('subject') &&
-    !stanza.is('iq')
+    !stanza.is('iq') &&
+    stanza.attrs.id !== 'deleteMessageStanza'
   ) {
     const body = stanza?.getChild('body');
     const archived = stanza?.getChild('archived');
@@ -139,6 +142,22 @@ const onRealtimeMessage = async (stanza: Element) => {
   }
 };
 
+const onDeleteMessage = async (stanza: Element) => {
+  if (stanza.attrs.id === 'deleteMessageStanza') {
+    const deleted = stanza.getChild('delete');
+    const stanzaId = stanza.getChild('stanza-id');
+
+    if (!deleted) {
+      return;
+    }
+
+    store.dispatch(deleteRoomMessage({
+      roomJID: stanzaId.attrs.by,
+      messageId: deleted.attrs.id,
+    }));
+  };
+};
+
 const onMessageHistory = async (stanza: any) => {
   if (
     stanza.is('message') &&
@@ -173,8 +192,6 @@ const onMessageHistory = async (stanza: any) => {
       }
     }
 
-    // console.log(stanza.attrs.from);
-
     if (
       !data?.attrs ||
       !data.attrs.senderFirstName ||
@@ -187,7 +204,7 @@ const onMessageHistory = async (stanza: any) => {
       // );
       return;
     }
-
+   
     const message = await createMessage(
       data.attrs,
       body,
@@ -328,4 +345,5 @@ export {
   onNewRoomCreated,
   onGetMembers,
   onGetRoomInfo,
+  onDeleteMessage,
 };

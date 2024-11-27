@@ -57,13 +57,11 @@ export const roomsStore = createSlice({
     ) {
       const { roomJID, messageId } = action.payload;
       if (state.rooms[roomJID]) {
-        const roomMessages = state.rooms[roomJID].messages;
-        const messageIndex = roomMessages.findIndex(
-          (msg) => msg.id === messageId
-        );
-        if (messageIndex !== -1) {
-          roomMessages.splice(messageIndex, 1);
-        }
+        state.rooms[roomJID].messages.map((message) => {
+          if (message.id === messageId ) {
+            message.isDeleted = true;
+          }
+        })
       }
     },
     addRoomMessage(
