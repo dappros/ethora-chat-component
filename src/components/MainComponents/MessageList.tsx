@@ -16,9 +16,10 @@ import { RootState } from '../../roomStore';
 import Composing from '../styled/StyledInputComponents/Composing';
 import { validateMessages } from '../../helpers/validator';
 import NewMessageLabel from '../styled/NewMessageLabel';
+import TreadLabel from '../styled/TreadLabel';
 
 interface MessageListProps<TMessage extends IMessage> {
-  CustomMessage?: React.ComponentType<{ message: IMessage; isUser: boolean }>;
+  CustomMessage?: React.ComponentType<{ message: IMessage; isUser: boolean, isReply?: boolean }>;
   user: User;
   roomJID: string;
   loadMoreMessages: (
@@ -56,6 +57,10 @@ const MessageList = <TMessage extends IMessage>({
     })
   }, [messages.length]);
 
+  const isUserActiveMessage = useMemo(() => (
+    activeMessage && activeMessage.user.id === user.walletAddress
+  ), [activeMessage, user.walletAddress]);
+
   const memoizedMessages = useMemo(() => {
     if(isReply) {
       return messages.filter((item: IMessage) =>
@@ -64,10 +69,11 @@ const MessageList = <TMessage extends IMessage>({
           JSON.parse(item.mainMessage).id === activeMessage.id
       );
     } else {
-      return addReplyMessages.filter((item: IMessage) =>
+      return addReplyMessages.filter((item: IMessage) => 
+        item.showInChannel === 'true' ||
         !item.isReply &&
-        !item.mainMessage
-    );
+        !item.mainMessage 
+      );
     }
   }, [messages.length]);
 
@@ -196,6 +202,12 @@ const MessageList = <TMessage extends IMessage>({
         color={config?.colors?.primary}
       >
         {loading && <Loader color={config?.colors?.primary} />}
+        {activeMessage &&
+          <React.Fragment>
+            <CustomMessage message={activeMessage} isUser={isUserActiveMessage} />
+            <TreadLabel reply={memoizedMessages.length} colors={config?.colors} />
+          </React.Fragment>
+        }
         {memoizedMessages.map((message) => {
           const isUser = message.user.id === user.walletAddress;
           const messageDate = new Date(message.date);
@@ -229,7 +241,7 @@ const MessageList = <TMessage extends IMessage>({
 
           return (
             <React.Fragment key={message.id}>
-              {showDateLabel && message.id !== 'delimiter-new' && (
+              {showDateLabel && !activeMessage && message.id !== 'delimiter-new' && (
                 <DateLabel date={messageDate} colors={config?.colors} />
               )}
               {!CustomMessage ? (
@@ -241,7 +253,11 @@ const MessageList = <TMessage extends IMessage>({
                   <MessageText>{message.body}</MessageText>
                 </MessageComponent>
               ) : (
-                <MessageComponent message={message} isUser={isUser} />
+                <MessageComponent
+                  message={message}
+                  isUser={isUser}
+                  isReply={isReply}
+                />
               )}
             </React.Fragment>
           );

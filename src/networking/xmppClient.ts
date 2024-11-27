@@ -272,6 +272,7 @@ export class XmppClient {
     userMessage: string,
     notDisplayedValue?: string,
     isReply?: boolean,
+    showInChannel?: boolean,
     mainMessage?: string,
   ) => {
     sendTextMessage(
@@ -284,6 +285,7 @@ export class XmppClient {
       userMessage,
       notDisplayedValue,
       isReply,
+      showInChannel,
       mainMessage,
       this.devServer || 'xmpp.ethoradev.com:5443'
     );

@@ -27,6 +27,7 @@ export interface IMessage {
   location?: string;
   pending?: boolean;
   timestamp?: number;
+  showInChannel?: string;
   activeMessage?: boolean;
   isReply?: boolean;
   mainMessage?: string;
@@ -185,6 +186,7 @@ export interface StorageUser {
 export interface MessageProps {
   message: IMessage;
   isUser: boolean;
+  isReply?: boolean;
 }
 
 export interface MediaMessageType {}

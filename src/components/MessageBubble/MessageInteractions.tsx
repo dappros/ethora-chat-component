@@ -20,6 +20,7 @@ interface MessageInteractionsProps {
   contextMenu: { visible: boolean; x: number; y: number };
   setContextMenu: ({ visible, x, y }) => void;
   handleReplyMessage: () => void;
+  handleDeleteMessage: () => void;
 }
 
 const MessageInteractions: React.FC<MessageInteractionsProps> = ({
@@ -27,13 +28,14 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
   contextMenu,
   setContextMenu,
   handleReplyMessage: replyMessage,
+  handleDeleteMessage,
 }) => {
   const { client } = useXmppClient();
   const dispatch = useDispatch();
 
-  // const handleDeleteMessage = (room: string, msgId: string) => {
-  //   dispatch(deleteRoomMessage({ roomJID: room, messageId: msgId }));
-  //   client.deleteMessageStanza(room, msgId);
+  // const handleDeleteMessage = (roomJid: string, messageId: string) => {
+  //   // dispatch(deleteRoomMessage({ roomJID: room, messageId: msgId }));
+  //   client.deleteMessageStanza(roomJid, messageId);
   // };
 
   const config = useSelector(
@@ -51,10 +53,6 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
   };
 
   const handleReplyMessage = () => {
-    // console.log("message", message);
-    // console.log("contextMenu", contextMenu);
-    // console.log("setContextMenu", setContextMenu);
-    // console.log(MESSAGE_INTERACTIONS.REPLY);
     replyMessage();
   }
 
@@ -66,7 +64,7 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
         style={{ top: contextMenu.y, left: contextMenu.x }}
         onClick={closeContextMenu}
       >
-        <MenuItem onClick={() => console.log(MESSAGE_INTERACTIONS.SEND_COINS)}>
+        {/* <MenuItem onClick={() => console.log(MESSAGE_INTERACTIONS.SEND_COINS)}>
           {MESSAGE_INTERACTIONS.SEND_COINS}
           <MESSAGE_INTERACTIONS_ICONS.SEND_COINS />{' '}
         </MenuItem>
@@ -74,28 +72,19 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
         <MenuItem onClick={() => console.log(MESSAGE_INTERACTIONS.SEND_ITEM)}>
           {MESSAGE_INTERACTIONS.SEND_ITEM}
           <MESSAGE_INTERACTIONS_ICONS.SEND_ITEM />{' '}
-        </MenuItem>
-        <Delimeter />
+        </MenuItem> */}
+        {/* <Delimeter /> */}
         <MenuItem onClick={handleReplyMessage}>
           {MESSAGE_INTERACTIONS.REPLY}
           <MESSAGE_INTERACTIONS_ICONS.REPLY />{' '}
         </MenuItem>
         <Delimeter />
-        <MenuItem
-          onClick={() => {
-            console.log(MESSAGE_INTERACTIONS.COPY);
-            handleCopyMessage(message.body);
-          }}
-        >
+        <MenuItem onClick={() => handleCopyMessage(message.body)}>
           {MESSAGE_INTERACTIONS.COPY}
           <MESSAGE_INTERACTIONS_ICONS.COPY />
         </MenuItem>
         <Delimeter />
-        <MenuItem
-          onClick={() => {
-            console.log(MESSAGE_INTERACTIONS.DELETE);
-          }}
-        >
+        <MenuItem onClick={handleDeleteMessage}>
           {MESSAGE_INTERACTIONS.DELETE}
           <MESSAGE_INTERACTIONS_ICONS.DELETE />{' '}
         </MenuItem>

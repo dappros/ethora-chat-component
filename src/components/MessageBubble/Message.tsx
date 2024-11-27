@@ -21,12 +21,16 @@ import {
 } from '../../roomStore/chatSettingsSlice';
 import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 import { BottomReplyContainer } from './BottomReplyContainer';
-import { setActiveMessage } from '../../roomStore/roomsSlice';
+import { deleteRoomMessage, setActiveMessage } from '../../roomStore/roomsSlice';
+import { MessageReply } from './MessageReply';
+import { useXmppClient } from '../../context/xmppProvider';
+import { DeleteIcon } from '../../assets/icons';
 
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
   MessageProps
->(({ message, isUser }, ref) => {
+>(({ message, isUser, isReply }, ref) => {
+  const { client } = useXmppClient();
   const dispatch = useDispatch();
   const config = useSelector(
     (state: RootState) => state.chatSettingStore.config
@@ -69,7 +73,17 @@ const Message: React.FC<MessageProps> = forwardRef<
   };
 
   const handleReplyMessage = () => {
-    dispatch(setActiveMessage({ id: message.id, chatJID: message.roomJid }));
+    if(!isReply && message.mainMessage) {
+      const messageCore = JSON.parse(message.mainMessage);
+      return dispatch(setActiveMessage({ id: messageCore.id, chatJID: messageCore.roomJid }));
+    };
+
+    return dispatch(setActiveMessage({ id: message.id, chatJID: message.roomJid }));
+  };
+
+  const handleDeleteMessage = () => {
+    // dispatch(deleteRoomMessage({ roomJID: message.roomJid, messageId: message.id }));
+    client.deleteMessageStanza(message.roomJid, message.id);
   };
 
   return (
@@ -92,12 +106,20 @@ const Message: React.FC<MessageProps> = forwardRef<
             )}
           </CustomMessagePhotoContainer>
         )}
-        <CustomMessageBubble isUser={isUser} onContextMenu={handleContextMenu}>
+        <CustomMessageBubble deleted={message.body === 'deleted'} isUser={isUser} onContextMenu={handleContextMenu}>
+
           {!isUser && (
             <CustomUserName isUser={isUser} color={config?.colors?.primary}>
               {message.user.name}
             </CustomUserName>
           )}
+            {!isReply && message.mainMessage &&
+              <MessageReply
+                handleReplyMessage={handleReplyMessage}
+                isUser={isUser}
+                text={JSON.parse(message.mainMessage).text}
+              />
+            }
           {message?.isMediafile === 'true' ? (
             <MediaMessage
               mimeType={message.mimetype}
@@ -106,7 +128,33 @@ const Message: React.FC<MessageProps> = forwardRef<
               message={message}
             />
           ) : (
-            <CustomMessageText>{message.body}</CustomMessageText>
+            <CustomMessageText>
+              {message.body === 'deleted'
+                ? <div style={{
+                    display: 'flex',
+                    flexDirection: isUser ? 'row' : 'row-reverse',
+                    alignItems: 'center',
+                    gap: 5,
+                    paddingTop: 5
+                    }}
+                  >
+                  <div
+                    style={{
+                      padding: '5px',
+                      backgroundColor: '#CCCCCC',
+                      borderRadius: '7px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <DeleteIcon width={18} height={18} fill='#8C8C8C'/>
+                  </div>
+                    <p style={{margin: 0, color: '#8C8C8C'}}> This message was deleted.</p>
+                  </div>
+                : <span>{message.body}</span>
+              }
+            </CustomMessageText>
           )}
           <CustomMessageTimestamp>
             {message?.pending && 'sending...'}
@@ -124,6 +172,7 @@ const Message: React.FC<MessageProps> = forwardRef<
           setContextMenu={setContextMenu}
           contextMenu={contextMenu}
           handleReplyMessage={handleReplyMessage}
+          handleDeleteMessage={handleDeleteMessage}
         />
       )}
     </>

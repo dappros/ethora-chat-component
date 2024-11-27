@@ -1,6 +1,6 @@
 import { FC, useCallback, useState } from 'react';
 import { IMessage } from '../../types/types';
-import { ChatContainer } from '../styled/StyledComponents';
+import { AlsoCheckbox, AlsoContainer, ChatContainer } from '../styled/StyledComponents';
 import { Message } from '../MessageBubble/Message';
 import SendInput from '../styled/SendInput';
 import { useDispatch, useSelector } from 'react-redux';
@@ -25,15 +25,17 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
 }) => {
   const { client } = useXmppClient();
   const dispatch = useDispatch();
-  const { config, loading } =
+  const { config, loading, roomsList } =
   useSelector((state: RootState) => ({
     loading:
       state.rooms.rooms[state.rooms.activeRoomJID]?.isLoading || false,
     globalLoading: state.rooms.isLoading,
     config: state.chatSettingStore.config,
+    roomsList: state.rooms.rooms,
   }));
 
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+  const [isChecked, setIsChecked] = useState<boolean>(false);
 
   const isUser = activeMessage.user.id === user.walletAddress;
 
@@ -82,10 +84,11 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
         message,
         '',
         true,
+        isChecked,
         createMainMessageForThread(activeMessage),
       );
     },
-    [activeMessage.roomJID]
+    [activeMessage.roomJID, isChecked]
   );
 
   const sendMedia = useCallback(
@@ -116,7 +119,7 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
               attachmentId: item?._id,
               wrappable: true,
               roomJid: activeMessage.roomJID,
-              isPrivate: item?.isPrivate,
+              showInChannel: isChecked,
               isReply: true,
               mainMessage: createMainMessageForThread(activeMessage),
               __v: item.__v,
@@ -154,16 +157,11 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
   return (
     <ChatContainer
       style={{
-        height: "100%",
-        justifyContent: "space-between",
-        overflow: "auto"
-      }}>
-      <div>
-        <ModalHeaderComponent headerTitle="Thread" handleCloseModal={closeThread}/>
-        <div style={{ padding: "0 16px"}}>
-          <Message message={activeMessage} isUser={isUser} />
-        </div>
-      </div>
+        overflow: 'auto',
+        ...config?.chatRoomStyles,
+      }}
+    >
+      <ModalHeaderComponent headerTitle="Thread" handleCloseModal={closeThread}/>
       <MessageList
         loadMoreMessages={loadMoreMessages}
         CustomMessage={CustomMessageComponent}
@@ -174,6 +172,26 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
         activeMessage={activeMessage}
         isReply
       />
+      <AlsoContainer>
+        <AlsoCheckbox
+          accentColor={config.colors.primary || '#0052CD'}
+          type="checkbox"
+          checked={isChecked}
+          onChange={(e) => setIsChecked(e.target.checked)}
+        />
+        <span>Also send to room</span>
+        <a
+          style={{
+            color: config.colors.primary || '#0052CD',
+            fontWeight: 500,
+            cursor:'pointer',
+            borderBottom: "1px solid",
+          }}
+          onClick={closeThread}
+        >
+          {roomsList[activeMessage.roomJid].name}
+        </a>
+      </AlsoContainer>
       <SendInput
         sendMedia={sendMedia}
         sendMessage={sendMessage}

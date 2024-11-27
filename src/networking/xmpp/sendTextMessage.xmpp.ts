@@ -10,6 +10,7 @@ export const sendTextMessage = (
   userMessage: string,
   notDisplayedValue?: string,
   isReply?: boolean,
+  showInChannel?: boolean,
   mainMessage?: string,
   devServer?: string,
 ) => {
@@ -36,9 +37,9 @@ export const sendTextMessage = (
         tokenAmount: 0,
         quickReplies: '',
         notDisplayedValue: '',
-        showInChannel: true,
-        isReply: isReply,
-        mainMessage: mainMessage,
+        showInChannel: showInChannel || false,
+        isReply: isReply || false,
+        mainMessage: mainMessage || '',
       }),
       xml('body', {}, userMessage)
     );
