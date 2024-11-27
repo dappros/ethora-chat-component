@@ -206,13 +206,17 @@ const onMessageHistory = async (stanza: any) => {
 const handleComposing = async (stanza: Element, currentUser: string) => {
   if (stanza.getChild('paused') || stanza.getChild('composing')) {
     const composingUser = stanza.attrs?.from?.split('/')?.[1];
+    console.log(
+      stanza.getChild('data').attrs?.fullName,
+      stanza.attrs?.from.split('/')[0]
+    );
+
     if (
       composingUser &&
       currentUser.toLowerCase() !== composingUser?.replace(/_/g, '')
     ) {
       const chatJID = stanza.attrs?.from.split('/')[0];
 
-      console.log(stanza.getChild('data').attrs?.fullName);
       let composingList = [];
 
       !!stanza?.getChild('composing')
@@ -312,47 +316,52 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
       );
 
       if (!isRoomAlreadyAdded) {
-        const roomData: IRoom = {
-          jid: result?.attrs?.jid || '',
-          name: result?.attrs?.name || '',
-          id: '',
-          title: result?.attrs?.name || '',
-          usersCnt: Number(result?.attrs?.users_cnt || 0),
-          messages: [],
-          isLoading: false,
-          roomBg:
-            result?.attrs?.room_background !== 'none'
-              ? result?.attrs?.room_background
-              : null,
-          icon:
-            result?.attrs?.room_thumbnail !== 'none'
-              ? result?.attrs?.room_thumbnail
-              : null,
-          unreadMessages: 0,
-        };
+        try {
+          const roomData: IRoom = {
+            jid: result?.attrs?.jid || '',
+            name: result?.attrs?.name || '',
+            id: '',
+            title: result?.attrs?.name || '',
+            usersCnt: Number(result?.attrs?.users_cnt || 0),
+            messages: [],
+            isLoading: false,
+            roomBg:
+              result?.attrs?.room_background !== 'none'
+                ? result?.attrs?.room_background
+                : null,
+            icon:
+              result?.attrs?.room_thumbnail !== 'none'
+                ? result?.attrs?.room_thumbnail
+                : null,
+            unreadMessages: 0,
+          };
 
-        store.dispatch(addRoom({ roomData: { ...roomData } }));
+          store.dispatch(addRoom({ roomData: { ...roomData } }));
 
-        let lastViewedTimestamp = '0';
-        if (result?.attrs?.jid) {
-          lastViewedTimestamp = await xmpp.getChatsPrivateStoreRequestStanza();
-        }
+          let lastViewedTimestamp = '0';
+          if (result?.attrs?.jid) {
+            lastViewedTimestamp =
+              await xmpp.getChatsPrivateStoreRequestStanza();
+          }
 
-        store.dispatch(
-          setLastViewedTimestamp({
-            chatJID: roomData.jid,
-            timestamp: Number(
-              lastViewedTimestamp?.split(':')?.[1]?.split('}')?.[0] || 0
-            ),
-          })
-        );
+          store.dispatch(
+            setLastViewedTimestamp({
+              chatJID: roomData.jid,
+              timestamp: Number(
+                lastViewedTimestamp?.split(':')?.[1]?.split('}')?.[0] || 0
+              ),
+            })
+          );
 
-        if (!store.getState().rooms.activeRoomJID) {
-          store.dispatch(setCurrentRoom({ roomJID: roomData.jid }));
-        }
+          if (!store.getState().rooms.activeRoomJID) {
+            store.dispatch(setCurrentRoom({ roomJID: roomData.jid }));
+          }
 
-        if (roomData.jid) {
-          xmpp.presenceInRoomStanza(roomData.jid);
+          if (roomData.jid) {
+            xmpp.presenceInRoomStanza(roomData.jid);
+          }
+        } catch (error) {
+          console.log(error);
         }
       }
     });

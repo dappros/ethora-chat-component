@@ -326,7 +326,9 @@ export class XmppClient {
     chatId: string,
     timestamp: number
   ) {
-    await actionSetTimestampToPrivateStore(this.client, chatId, timestamp);
+    try {
+      await actionSetTimestampToPrivateStore(this.client, chatId, timestamp);
+    } catch (error) {}
   }
 
   sendMediaMessageStanza(roomJID: string, data: any) {

@@ -6,7 +6,9 @@ import {
   ChatInfo,
   ChatName,
   LastMessage,
+  UserCount,
 } from '../styled/RoomListComponents';
+import Composing from '../styled/StyledInputComponents/Composing';
 
 interface ChatRoomItemProps {
   chat: IRoom;
@@ -45,6 +47,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
             width: '100%',
             gap: '16px',
             height: '24px',
+            justifyContent: 'space-between',
           }}
         >
           <ChatInfo>
@@ -54,42 +57,50 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
             </LastMessage>
             <LastMessage>{chat?.lastRoomMessage?.body}</LastMessage>
           </ChatInfo>
+          <UserCount active={isChatActive}>{chat.usersCnt}</UserCount>
         </div>
         <div
           style={{
             textAlign: 'right',
             display: 'flex',
             width: '100%',
-            justifyContent: 'end',
+            justifyContent: 'space-between',
             alignItems: 'center',
           }}
         >
-          {chat.lastRoomMessage && (
-            <div
-              style={{
-                display: 'flex',
-                width: '100%',
-                flexDirection: 'column',
-                alignItems: 'start',
-              }}
-            >
-              <div
-                style={{
-                  height: '20px',
-                  fontWeight: '600',
-                }}
-              >
-                {chat.lastRoomMessage?.name || 'asdads'}:
-              </div>
-              <div
-                style={{
-                  height: '20px',
-                }}
-              >
-                {chat.lastRoomMessage?.body || 'Chat created'}
-              </div>
-            </div>
-          )}
+          {!isChatActive
+            ? chat.composing && (
+                <Composing
+                  usersTyping={chat.composingList}
+                  style={{ color: !isChatActive ? '#141414' : '#fff' }}
+                />
+              )
+            : chat.lastRoomMessage && (
+                <div
+                  style={{
+                    display: 'flex',
+                    width: '100%',
+                    flexDirection: 'column',
+                    alignItems: 'start',
+                  }}
+                >
+                  <div
+                    style={{
+                      height: '20px',
+                      fontWeight: '600',
+                    }}
+                  >
+                    {chat.lastRoomMessage?.name || 'asdads'}:
+                  </div>
+                  <div
+                    style={{
+                      height: '20px',
+                    }}
+                  >
+                    {chat.lastRoomMessage?.body || 'Chat created'}
+                  </div>
+                </div>
+              )}
           {chat.unreadMessages > 0 && (
             <div
               style={{
@@ -106,14 +117,12 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
+                marginLeft: 'auto',
               }}
             >
               {chat.unreadMessages}
             </div>
           )}
-          {/* <UserCount active={isChatActive(chat)}>
-        {chat.usersCnt}
-      </UserCount> */}
         </div>
       </div>
     </ChatItem>

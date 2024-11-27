@@ -132,7 +132,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         `${user.firstName} ${user.lastName}`,
         true
       );
-    }, []);
+    }, [activeRoomJID]);
 
     const sendEndComposing = useCallback(() => {
       client.sendTypingRequestStanza(
@@ -140,7 +140,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         `${user.firstName} ${user.lastName}`,
         false
       );
-    }, []);
+    }, [activeRoomJID]);
 
     const loadMoreMessages = useCallback(
       async (chatJID: string, max: number, idOfMessageBefore?: number) => {
