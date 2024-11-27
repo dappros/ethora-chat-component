@@ -97,10 +97,15 @@ export const roomsStore = createSlice({
     },
     setComposing(
       state,
-      action: PayloadAction<{ chatJID: string; composing: boolean }>
+      action: PayloadAction<{
+        chatJID: string;
+        composing: boolean;
+        composingList?: string[];
+      }>
     ) {
-      const { chatJID, composing } = action.payload;
+      const { chatJID, composing, composingList } = action.payload;
       state.rooms[chatJID].composing = composing;
+      state.rooms[chatJID].composingList = composingList;
     },
     setIsLoading: (
       state,

@@ -212,10 +212,20 @@ const handleComposing = async (stanza: Element, currentUser: string) => {
     ) {
       const chatJID = stanza.attrs?.from.split('/')[0];
 
+      console.log(stanza.getChild('data').attrs?.fullName);
+      let composingList = [];
+
+      !!stanza?.getChild('composing')
+        ? composingList.push(
+            stanza.getChild('data').attrs?.fullName?.split(' ')?.[0] || 'User'
+          )
+        : composingList.pop();
+
       store.dispatch(
         setComposing({
           chatJID: chatJID,
           composing: !!stanza?.getChild('composing'),
+          composingList,
         })
       );
     }
