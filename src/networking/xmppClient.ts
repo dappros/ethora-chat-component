@@ -2,6 +2,7 @@ import xmpp, { Client, xml } from '@xmpp/client';
 import { walletToUsername } from '../helpers/walletUsername';
 import {
   handleComposing,
+  onChatInvite,
   onGetChatRooms,
   onGetLastMessageArchive,
   onGetMembers,
@@ -118,6 +119,7 @@ export class XmppClient {
         onMessageHistory(stanza);
         onGetLastMessageArchive(stanza, this);
         handleComposing(stanza, this.username);
+        onChatInvite(stanza, this);
         break;
       case 'presence':
         onPresenceInRoom(stanza);
@@ -229,7 +231,7 @@ export class XmppClient {
     return await createRoom(title, description, this.client, to);
   }
 
-  inviteRoomRequest(to: string, roomJid: string) {
+  async inviteRoomRequest(to: string, roomJid: string) {
     const id = `invite-rooms:${Date.now().toString()}`;
 
     const xmlMessage = xml(

@@ -79,7 +79,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
     const combinedWalletAddress = [myUsername, selectedUserUsername]
       .sort()
-      .join('_');
+      .join('.');
 
     const roomJid = combinedWalletAddress.toLowerCase();
 
@@ -97,7 +97,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     );
 
     if (newRoomJid) {
-      client.inviteRoomRequest(selectedUserUsername, newRoomJid);
+      await client.inviteRoomRequest(selectedUserUsername, newRoomJid);
       await client.getRooms();
     }
     dispatch(setCurrentRoom({ roomJID: newRoomJid }));

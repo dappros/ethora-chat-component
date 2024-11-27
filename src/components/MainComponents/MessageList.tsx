@@ -16,7 +16,6 @@ import { RootState } from '../../roomStore';
 import Composing from '../styled/StyledInputComponents/Composing';
 import { validateMessages } from '../../helpers/validator';
 import NewMessageLabel from '../styled/NewMessageLabel';
-import { setLastViewedTimestamp } from '../../roomStore/roomsSlice';
 
 interface MessageListProps<TMessage extends IMessage> {
   CustomMessage?: React.ComponentType<{ message: IMessage; isUser: boolean }>;

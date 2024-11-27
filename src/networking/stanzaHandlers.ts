@@ -240,6 +240,28 @@ const onPresenceInRoom = (stanza: Element | any) => {
   }
 };
 
+const onChatInvite = async (stanza: Element, client: any) => {
+  if (stanza.is('message') && stanza.attrs['type'] !== 'groupchat') {
+    // check if it is invite
+    const chatId = stanza.attrs.from;
+    const xEls = stanza.getChildren('x');
+
+    for (const el of xEls) {
+      const child = el.getChild('invite');
+
+      if (child) {
+        const chat = store.getState().rooms.rooms[chatId];
+        if (chat) {
+          return;
+        }
+
+        await client.presenceInRoomStanza(chatId);
+        await client.getRooms();
+      }
+    }
+  }
+};
+
 const onGetMembers = (stanza: Element) => {
   const jid = store.getState().rooms.activeRoomJID;
   if (stanza.attrs.id.toString() === 'roomMemberInfo') {
@@ -260,6 +282,7 @@ const onGetMembers = (stanza: Element) => {
     store.dispatch(updateRoom({ jid, updates: { roomMembers } }));
   }
 };
+
 const onGetRoomInfo = (stanza: Element) => {
   if (stanza.attrs.id === 'roomInfo' && !stanza.getChild('error')) {
   }
@@ -346,4 +369,5 @@ export {
   onNewRoomCreated,
   onGetMembers,
   onGetRoomInfo,
+  onChatInvite,
 };
