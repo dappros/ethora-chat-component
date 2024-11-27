@@ -157,12 +157,13 @@ export interface IConfig {
   setRoomJidInPath?: boolean;
   disableRoomMenu?: boolean;
   defaultRooms?: string[] | ConfigRoom[];
+  disableRefresh?: boolean;
 }
 
 interface ConfigRoom {
   jid: string;
   pinned: boolean;
-  _id: string;
+  _id?: string;
 }
 
 export interface StorageUser {

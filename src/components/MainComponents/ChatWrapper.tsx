@@ -124,13 +124,17 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
               });
             });
             setInited(true);
-            refresh();
+            {
+              !config?.disableRefresh && refresh();
+            }
           } else {
             if (!activeRoomJID) {
               client.getRooms();
             }
             setInited(true);
-            refresh();
+            {
+              !config?.disableRefresh && refresh();
+            }
           }
         }
         dispatch(setIsLoading({ loading: false }));
