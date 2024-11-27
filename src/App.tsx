@@ -38,6 +38,23 @@ function App() {
             // disableInteractions: true,
             chatRoomStyles: { borderRadius: '16px' },
             roomListStyles: { borderRadius: '16px' },
+            defaultRooms: [
+              {
+                jid: '5f9a4603b2b5bbfa6b228b642127c56d03b778ad594c52b755e605c977303979@conference.xmpp.ethoradev.com',
+                pinned: true,
+                _id: '6672807fef55364c13703235',
+              },
+              {
+                jid: '6c00199ef7fb86d09b10f70c353411c70fe7f75847cacdb322c813416bcc33ab@conference.xmpp.ethoradev.com',
+                pinned: false,
+                _id: '6672807fef55364c13703236',
+              },
+              {
+                jid: 'd673a602b47d524ba6a95102cc71fc3f308b31d64454498078a056cf54e5a2b4@conference.xmpp.ethoradev.com',
+                pinned: false,
+                _id: '6672807fef55364c13703237',
+              },
+            ],
           }}
           MainComponentStyles={{
             width: '100%',

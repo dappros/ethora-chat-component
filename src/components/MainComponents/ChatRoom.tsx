@@ -227,6 +227,14 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       } else if (!roomsList?.[activeRoomJID]) {
         initialPresenceAndHistory();
       }
+
+      if (config?.defaultRooms) {
+        config?.defaultRooms.map((room) => {
+          client.presenceInRoomStanza(room.jid);
+        });
+        client.getRooms();
+        getDefaultHistory();
+      }
     }, [activeRoomJID, Object.keys(roomsList).length]);
 
     if (Object.keys(roomsList)?.length < 1 && !loading && !globalLoading) {

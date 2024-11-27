@@ -156,6 +156,13 @@ export interface IConfig {
   chatRoomStyles?: React.CSSProperties;
   setRoomJidInPath?: boolean;
   disableRoomMenu?: boolean;
+  defaultRooms?: string[] | ConfigRoom[];
+}
+
+interface ConfigRoom {
+  jid: string;
+  pinned: boolean;
+  _id: string;
 }
 
 export interface StorageUser {

@@ -229,20 +229,20 @@ export class XmppClient {
     return await createRoom(title, description, this.client, to);
   }
 
-  // inviteRoomRequest(to: string, roomJid: string) {
-  //   const id = `invite-rooms:${Date.now().toString()}`;
+  inviteRoomRequest(to: string, roomJid: string) {
+    const id = `invite-rooms:${Date.now().toString()}`;
 
-  //   const xmlMessage = xml(
-  //     'message',
-  //     {
-  //       to: roomJid,
-  //       id: id,
-  //     },
-  //     xml('x', 'http://jabber.org/protocol/muc#user', xml('invite', { to: to }))
-  //   );
+    const xmlMessage = xml(
+      'message',
+      {
+        to: roomJid,
+        id: id,
+      },
+      xml('x', 'http://jabber.org/protocol/muc#user', xml('invite', { to: to }))
+    );
 
-  //   this.client.send(xmlMessage);
-  // }
+    this.client.send(xmlMessage);
+  }
 
   leaveTheRoomStanza = (roomJID: string) => {
     leaveTheRoom(roomJID, this.client);
