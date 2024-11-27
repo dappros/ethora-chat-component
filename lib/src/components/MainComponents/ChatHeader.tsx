@@ -126,7 +126,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
               style={{ color: '#8C8C8C', fontSize: '14px' }}
             >
               {composing ? (
-                <Composing usersTyping={['User']} />
+                <Composing usersTyping={currentRoom?.composingList} />
               ) : (
                 `${currentRoom?.usersCnt} users`
               )}

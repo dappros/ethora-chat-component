@@ -1,6 +1,6 @@
 import { Client, xml } from '@xmpp/client';
 
-export function getLastMessageArchive(client: Client, roomJID: string) {
+export function getLastMessage(client: Client, roomJID: string) {
   const message = xml(
     'iq',
     {

@@ -97,10 +97,15 @@ export const roomsStore = createSlice({
     },
     setComposing(
       state,
-      action: PayloadAction<{ chatJID: string; composing: boolean }>
+      action: PayloadAction<{
+        chatJID: string;
+        composing: boolean;
+        composingList?: string[];
+      }>
     ) {
-      const { chatJID, composing } = action.payload;
+      const { chatJID, composing, composingList } = action.payload;
       state.rooms[chatJID].composing = composing;
+      state.rooms[chatJID].composingList = composingList;
     },
     setIsLoading: (
       state,
@@ -161,9 +166,11 @@ const countNewerMessages = (
   messages: IMessage[],
   timestamp: number
 ): number => {
-  return messages.filter((message) => {
-    return Number(message.id) < timestamp;
-  }).length;
+  if (timestamp !== 0) {
+    return messages.filter((message) => {
+      return Number(message.id) < timestamp;
+    }).length;
+  } else return 0;
 };
 
 export const {

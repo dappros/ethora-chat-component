@@ -73,7 +73,7 @@ const Message: React.FC<MessageProps> = forwardRef<
           <CustomMessagePhotoContainer
             onClick={() => handleUserAvatarClick(message.user)}
           >
-            {message.user.profileImage ? (
+            {message.user?.profileImage && message.user.profileImage !== '' ? (
               <CustomMessagePhoto
                 src={
                   message.user.profileImage ||

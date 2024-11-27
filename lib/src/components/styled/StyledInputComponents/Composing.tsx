@@ -3,7 +3,7 @@ import styled, { keyframes } from 'styled-components';
 
 // Define props
 interface ComposingProps {
-  usersTyping: string[];
+  usersTyping?: string[];
 }
 
 // Dot animation using keyframes
@@ -44,7 +44,7 @@ const Dot = styled.span`
 `;
 
 // Composing component
-const Composing: FC<ComposingProps> = ({ usersTyping }) => {
+const Composing: FC<ComposingProps> = ({ usersTyping = ['User'] }) => {
   let typingText: string;
 
   if (usersTyping.length === 1) {
