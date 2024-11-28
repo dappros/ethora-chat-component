@@ -12,6 +12,7 @@ import {
   updateRoom,
 } from '../roomStore/roomsSlice';
 import { IMessage, IRoom } from '../types/types';
+import { setDeleteModal } from '../roomStore/chatSettingsSlice';
 
 // TO DO: we are thinking to refactor this code in the following way:
 // each stanza will be parsed for 'type'
@@ -156,6 +157,7 @@ const onDeleteMessage = async (stanza: Element) => {
       roomJID: stanzaId.attrs.by,
       messageId: deleted.attrs.id,
     }));
+    store.dispatch(setDeleteModal({isDeleteModal: false}))
   };
 };
 

@@ -204,4 +204,10 @@ export interface MessageProps {
 
 export interface MediaMessageType {}
 
+export interface DeleteModal {
+  isDeleteModal: boolean;
+  roomJid?: string;
+  messageId?: string;
+}
+
 export type ModalType = (typeof MODAL_TYPES)[keyof typeof MODAL_TYPES];

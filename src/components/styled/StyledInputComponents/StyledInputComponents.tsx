@@ -113,3 +113,25 @@ export const StyledInput = styled.input<{}>`
     transition: opacity 0.7s ease-in-out;
   }
 `;
+
+export const TextareaInput = styled.textarea<{}>`
+  padding: 16px 12px 0;
+  background-color: #f5f7f9;
+  border: none;
+  outline: none;
+  font-size: 16px;
+  color: #000;
+  transition:
+    width 0.7s ease-in-out,
+    padding 0.7s ease-in-out;
+  opacity: 1;
+  z-index: 1;
+  border-radius: 16px;
+  overflow: hidden;
+  resize: none;
+
+  &::placeholder {
+    opacity: 1;
+    transition: opacity 0.7s ease-in-out;
+  }
+`;

@@ -17,6 +17,7 @@ import { Avatar } from './Avatar';
 import MessageInteractions from './MessageInteractions';
 import {
   setActiveModal,
+  setDeleteModal,
   setSelectedUser,
 } from '../../roomStore/chatSettingsSlice';
 import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
@@ -82,8 +83,9 @@ const Message: React.FC<MessageProps> = forwardRef<
   };
 
   const handleDeleteMessage = () => {
+    dispatch(setDeleteModal({ isDeleteModal: true, roomJid: message.roomJid, messageId: message.id}))
     // dispatch(deleteRoomMessage({ roomJID: message.roomJid, messageId: message.id }));
-    client.deleteMessageStanza(message.roomJid, message.id);
+    // client.deleteMessageStanza(message.roomJid, message.id);
   };
 
   return (

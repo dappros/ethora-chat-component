@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { IConfig, IUser, ModalType, User } from '../types/types';
+import { DeleteModal, IConfig, IUser, ModalType, User } from '../types/types';
 import { localStorageConstants } from '../helpers/constants/LOCAL_STORAGE';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 
@@ -7,6 +7,7 @@ interface ChatState {
   user: User;
   config?: IConfig;
   activeModal?: ModalType;
+  deleteModal?: DeleteModal;
   selectedUser?: IUser;
 }
 
@@ -74,6 +75,11 @@ const initialState: ChatState = {
     isAssetsOpen: true,
     isAgreeWithTerms: false,
   },
+  deleteModal: {
+    isDeleteModal: false,
+    roomJid: '',
+    messageId: '',
+  },
   config: { colors: { primary: '#0052CD', secondary: '#F3F6FC' } },
 };
 
@@ -102,6 +108,9 @@ export const chatSlice = createSlice({
     },
     setActiveModal: (state, action: PayloadAction<ModalType | undefined>) => {
       state.activeModal = action.payload;
+    },
+    setDeleteModal: (state, action: PayloadAction<DeleteModal | undefined>) => {
+      state.deleteModal = action.payload;
     },
     setSelectedUser: (state, action: PayloadAction<IUser | undefined>) => {
       state.selectedUser = action.payload;
@@ -134,6 +143,7 @@ export const {
   refreshTokens,
   logout,
   setActiveModal,
+  setDeleteModal,
   setSelectedUser,
   updateUser,
 } = chatSlice.actions;

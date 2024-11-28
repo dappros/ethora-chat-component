@@ -1,7 +1,7 @@
 import React, { FC, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import ChatRoom from './ChatRoom';
-import { setActiveModal, setConfig } from '../../roomStore/chatSettingsSlice';
+import { setActiveModal, setConfig, setDeleteModal } from '../../roomStore/chatSettingsSlice';
 import { ChatWrapperBox } from '../styled/ChatWrapperBox';
 import { Overlay, StyledModal } from '../styled/MediaModal';
 import { Message } from '../MessageBubble/Message';
@@ -26,6 +26,7 @@ import RoomList from './RoomList';
 import { StyledLoaderWrapper } from '../styled/StyledComponents';
 import Modal from '../Modals/Modal/Modal';
 import ThreadWrapper from '../Thread/ThreadWrapper';
+import { ModalWrapper } from '../Modals/ModalWrapper/ModalWrapper';
 
 interface ChatWrapperProps {
   token?: string;
@@ -44,14 +45,18 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   config,
   roomJID,
 }) => {
-  const [isInited, setInited] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-
-  const dispatch = useDispatch();
-
-  const { user, activeModal } = useSelector(
+  const { user, activeModal, deleteModal } = useSelector(
     (state: RootState) => state.chatSettingStore
   );
+
+  const [isInited, setInited] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  // const [isModalDeleteOpen, setIsModalDeleteOpen] = useState(false);
+
+  const dispatch = useDispatch();
+  const { client, initializeClient, setClient } = useXmppClient();
+
+
 
   const { rooms, activeRoomJID } = useSelector(
     (state: RootState) => state.rooms
@@ -70,7 +75,14 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     }
   };
 
-  const { client, initializeClient, setClient } = useXmppClient();
+  const handleDeleteClick = () => {
+    client.deleteMessageStanza(deleteModal.roomJid, deleteModal.messageId);
+    dispatch(setDeleteModal({isDeleteModal: false}));
+  };
+
+  const handleCloseDeleteModal = () => {
+    dispatch(setDeleteModal({isDeleteModal: false}));
+  };
 
   useEffect(() => {
     return () => {
@@ -211,6 +223,14 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           </StyledLoaderWrapper>
         )}
       </>
+      {deleteModal.isDeleteModal && <ModalWrapper
+        title='Delete Message'
+        description='Are you sure you want to delete this message?'
+        buttonText='Delete'
+        backgroundColorButton='#E53935'
+        handleClick={handleDeleteClick}
+        handleCloseModal={handleCloseDeleteModal}
+      />}
     </>
   );
 };
