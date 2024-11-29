@@ -19,7 +19,11 @@ import NewMessageLabel from '../styled/NewMessageLabel';
 import TreadLabel from '../styled/TreadLabel';
 
 interface MessageListProps<TMessage extends IMessage> {
-  CustomMessage?: React.ComponentType<{ message: IMessage; isUser: boolean, isReply?: boolean }>;
+  CustomMessage?: React.ComponentType<{
+    message: IMessage;
+    isUser: boolean;
+    isReply?: boolean;
+  }>;
   user: User;
   roomJID: string;
   loadMoreMessages: (
@@ -47,36 +51,41 @@ const MessageList = <TMessage extends IMessage>({
   const { composing, lastViewedTimestamp, messages } = useSelector(
     (state: RootState) => state.rooms.rooms[roomJID]
   );
-  
+
   const addReplyMessages = useMemo(() => {
     return messages.map((message) => {
       const newMessage = {
         ...message,
-        reply: messages.filter((mess) => !!mess.mainMessage && JSON.parse(mess.mainMessage).id === message.id),
+        reply: messages.filter(
+          (mess) =>
+            !!mess.mainMessage && JSON.parse(mess.mainMessage).id === message.id
+        ),
       };
-  
+
       return newMessage;
-    })
+    });
   }, [messages, messages.length]);
 
-  const isUserActiveMessage = useMemo(() => (
-    activeMessage && activeMessage.user.id === user.walletAddress
-  ), [activeMessage, user.walletAddress]);
+  const isUserActiveMessage = useMemo(
+    () => activeMessage && activeMessage.user.id === user.walletAddress,
+    [activeMessage, user.walletAddress]
+  );
 
   const memoizedMessages = useMemo(() => {
-    if(isReply) {
-      return addReplyMessages.filter((item: IMessage) =>
-          item.roomJID.includes(roomJID) &&
+    if (isReply) {
+      return addReplyMessages.filter(
+        (item: IMessage) =>
+          item.roomJid.includes(roomJID) &&
           item.isReply &&
           item.isReply === 'true' &&
           item.mainMessage &&
           JSON.parse(item.mainMessage).id === activeMessage.id
       );
     } else {
-      return addReplyMessages.filter((item: IMessage) => 
-        item.showInChannel === 'true' ||
-        (!item.isReply ||item.isReply === 'false')&&
-        !item.mainMessage 
+      return addReplyMessages.filter(
+        (item: IMessage) =>
+          item.showInChannel === 'true' ||
+          ((!item.isReply || item.isReply === 'false') && !item.mainMessage)
       );
     }
   }, [messages, messages.length]);
@@ -124,7 +133,7 @@ const MessageList = <TMessage extends IMessage>({
         isLoadingMore.current = true;
 
         loadMoreMessages(
-          memoizedMessages[0].roomJID,
+          memoizedMessages[0].roomJid,
           30,
           Number(memoizedMessages[0].id)
         ).finally(() => {
@@ -206,12 +215,18 @@ const MessageList = <TMessage extends IMessage>({
         color={config?.colors?.primary}
       >
         {loading && <Loader color={config?.colors?.primary} />}
-        {activeMessage &&
+        {activeMessage && (
           <React.Fragment>
-            <CustomMessage message={activeMessage} isUser={isUserActiveMessage} />
-            <TreadLabel reply={memoizedMessages.length} colors={config?.colors} />
+            <CustomMessage
+              message={activeMessage}
+              isUser={isUserActiveMessage}
+            />
+            <TreadLabel
+              reply={memoizedMessages.length}
+              colors={config?.colors}
+            />
           </React.Fragment>
-        }
+        )}
         {memoizedMessages.map((message) => {
           const isUser = message.user.id === user.walletAddress;
           const messageDate = new Date(message.date);
@@ -245,9 +260,11 @@ const MessageList = <TMessage extends IMessage>({
 
           return (
             <React.Fragment key={message.id}>
-              {showDateLabel && !activeMessage && message.id !== 'delimiter-new' && (
-                <DateLabel date={messageDate} colors={config?.colors} />
-              )}
+              {showDateLabel &&
+                !activeMessage &&
+                message.id !== 'delimiter-new' && (
+                  <DateLabel date={messageDate} colors={config?.colors} />
+                )}
               {!CustomMessage ? (
                 <MessageComponent message={message} isUser={isUser}>
                   <MessageTimestamp>
