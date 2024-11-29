@@ -94,9 +94,7 @@ const SendInput: React.FC<SendInputProps> = ({
   );
 
   useEffect(() => {
-    if(editMessage) {
       setMessage(editMessage);
-    }
   }, [editMessage]);
 
   const handleSendClick = useCallback(
