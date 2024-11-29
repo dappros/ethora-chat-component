@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { DeleteModal, IConfig, IUser, ModalType, User } from '../types/types';
+import { DeleteModal, EditAction, IConfig, IUser, ModalType, User } from '../types/types';
 import { localStorageConstants } from '../helpers/constants/LOCAL_STORAGE';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 

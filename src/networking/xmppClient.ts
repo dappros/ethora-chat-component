@@ -12,6 +12,7 @@ import {
   onNewRoomCreated,
   onPresenceInRoom,
   onRealtimeMessage,
+  onEditMessage,
 } from './stanzaHandlers';
 
 import { sendMediaMessage } from './xmpp/sendMediaMessage.xmpp';
@@ -29,6 +30,7 @@ import { setRoomImage } from './xmpp/setRoomImage.xmpp';
 import { getRoomMembers } from './xmpp/getRoomMembers.xmpp';
 import { getRoomInfo } from './xmpp/getRoomInfo.xmpp';
 import { leaveTheRoom } from './xmpp/leaveTheRoom.xmpp';
+import { editMessage } from './xmpp/editMessage.xmpp';
 
 export class XmppClient {
   client!: Client;
@@ -117,6 +119,7 @@ export class XmppClient {
     switch (stanza.name) {
       case 'message':
         onDeleteMessage(stanza);
+        onEditMessage(stanza);
         onRealtimeMessage(stanza);
         onMessageHistory(stanza);
         onGetLastMessageArchive(stanza, this);
@@ -317,6 +320,10 @@ export class XmppClient {
 
   deleteMessageStanza(room: string, msgId: string) {
     deleteMessage(this.client, room, msgId);
+  }
+
+  editMessageStanza(room: string, msgId: string, text: string) {
+    editMessage(this.client, room, msgId, text);
   }
 
   sendTypingRequestStanza(chatId: string, fullName: string, start: boolean) {

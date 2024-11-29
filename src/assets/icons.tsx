@@ -637,7 +637,7 @@ export const ChatIcon = ({ color = '#fff', ...props }) => (
   </svg>
 );
 
-export const EditIcon = ({ color = '#fff', ...props }) => (
+export const EditIcon = ({ color = '#000', ...props }) => (
   <svg
     width="24"
     height="24"

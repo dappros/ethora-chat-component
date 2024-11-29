@@ -18,6 +18,7 @@ import { RootState } from '../../roomStore';
 import Loader from '../styled/Loader';
 import {
   setCurrentRoom,
+  setEditAction,
   setIsLoading,
   setLastViewedTimestamp,
 } from '../../roomStore/roomsSlice';
@@ -72,6 +73,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     if (activeRoomJID !== chat.jid) {
       dispatch(setCurrentRoom({ roomJID: chat.jid }));
       dispatch(setIsLoading({ chatJID: chat.jid, loading: true }));
+      dispatch(setEditAction({isEdit: false}))
     }
   };
 

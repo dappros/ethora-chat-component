@@ -4,6 +4,7 @@ import {
   addRoom,
   addRoomMessage,
   deleteRoomMessage,
+  editRoomMessage,
   setComposing,
   setCurrentRoom,
   setIsLoading,
@@ -158,6 +159,23 @@ const onDeleteMessage = async (stanza: Element) => {
       messageId: deleted.attrs.id,
     }));
     store.dispatch(setDeleteModal({isDeleteModal: false}))
+  };
+};
+
+const onEditMessage = async (stanza: Element) => {
+  if (stanza.attrs.id.includes('edit-message')) {
+    const stanzaId = stanza.getChild('stanza-id');
+    const replace = stanza.getChild('replace');
+
+    if(!stanzaId && !replace) {
+      return;
+    };
+
+    store.dispatch(editRoomMessage({
+      roomJID: stanzaId.attrs.by,
+      messageId: replace.attrs.id,
+      text: replace.attrs.text
+    }))
   };
 };
 
@@ -400,5 +418,6 @@ export {
   onGetMembers,
   onGetRoomInfo,
   onDeleteMessage,
+  onEditMessage,
   onChatInvite,
 };

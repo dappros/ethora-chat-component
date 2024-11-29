@@ -10,7 +10,8 @@ import { useXmppClient } from '../../context/xmppProvider';
 import { uploadFile } from '../../networking/api-requests/auth.api';
 import MessageList from '../MainComponents/MessageList';
 import ModalHeaderComponent from '../Modals/ModalHeaderComponent';
-import { setCloseActiveMessage } from '../../roomStore/roomsSlice';
+import { setCloseActiveMessage, setEditAction } from '../../roomStore/roomsSlice';
+import { EditWrapper } from '../MainComponents/EditWrapper';
 
 interface ThreadWrapperProps {
   activeMessage: IMessage;
@@ -25,13 +26,14 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
 }) => {
   const { client } = useXmppClient();
   const dispatch = useDispatch();
-  const { config, loading, roomsList } =
+  const { config, loading, roomsList, editAction } =
   useSelector((state: RootState) => ({
     loading:
       state.rooms.rooms[state.rooms.activeRoomJID]?.isLoading || false,
     globalLoading: state.rooms.isLoading,
     config: state.chatSettingStore.config,
     roomsList: state.rooms.rooms,
+    editAction: state.rooms.editAction,
   }));
 
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
@@ -73,22 +75,32 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
     return JSON.stringify(data);
   };
 
-  const sendMessage = useCallback(
-    (message: string) => {
-      client?.sendMessage(
-        activeMessage.roomJID,
-        user.firstName,
-        user.lastName,
-        '',
-        user.walletAddress,
-        message,
-        '',
-        true,
-        isChecked,
-        createMainMessageForThread(activeMessage),
-      );
+  const sendMessage = useCallback((message: string) => {
+      if( editAction.isEdit) {
+        client?.editMessageStanza(
+          editAction.roomJid,
+          editAction.messageId,
+          message,
+        );
+
+        dispatch(setEditAction({ isEdit: false }));
+        return;
+      } else {
+        client?.sendMessage(
+          activeMessage.roomJID,
+          user.firstName,
+          user.lastName,
+          '',
+          user.walletAddress,
+          message,
+          '',
+          true,
+          isChecked,
+          createMainMessageForThread(activeMessage),
+        );
+      }
     },
-    [activeMessage.roomJID, isChecked]
+    [activeMessage.roomJID, isChecked, editAction]
   );
 
   const sendMedia = useCallback(
@@ -150,8 +162,13 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
     );
   }, []);
 
+  const onCloseEdit = () => {
+    dispatch(setEditAction({ isEdit: false }));
+  }
+
   const closeThread = () => {
-    dispatch(setCloseActiveMessage({ chatJID: activeMessage.roomJID}));
+    dispatch(setCloseActiveMessage({ chatJID: activeMessage.roomJid}));
+    dispatch(setEditAction({ isEdit: false }));
   };
 
   return (
@@ -166,7 +183,7 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
         loadMoreMessages={loadMoreMessages}
         CustomMessage={CustomMessageComponent}
         user={user}
-        roomJID={activeMessage.roomJID}
+        roomJID={activeMessage.roomJid}
         config={config}
         loading={isLoadingMore}
         activeMessage={activeMessage}
@@ -192,6 +209,7 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
           {roomsList[activeMessage.roomJid].name}
         </a>
       </AlsoContainer>
+      {editAction.isEdit && <EditWrapper text ={editAction.text} onClose={onCloseEdit}/>}
       <SendInput
         sendMedia={sendMedia}
         sendMessage={sendMessage}

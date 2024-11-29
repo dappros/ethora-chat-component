@@ -27,7 +27,7 @@ export interface IMessage {
   timestamp?: number;
   showInChannel?: string;
   activeMessage?: boolean;
-  isReply?: boolean;
+  isReply?: boolean | string;
   isDeleted?: boolean;
   mainMessage?: string;
   reply?: IReply[];
@@ -208,6 +208,13 @@ export interface DeleteModal {
   isDeleteModal: boolean;
   roomJid?: string;
   messageId?: string;
+}
+
+export interface EditAction {
+  isEdit: boolean;
+  roomJid?: string;
+  messageId?: string;
+  text?: string;
 }
 
 export type ModalType = (typeof MODAL_TYPES)[keyof typeof MODAL_TYPES];

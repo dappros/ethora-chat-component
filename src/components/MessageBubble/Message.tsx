@@ -22,7 +22,7 @@ import {
 } from '../../roomStore/chatSettingsSlice';
 import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 import { BottomReplyContainer } from './BottomReplyContainer';
-import { deleteRoomMessage, setActiveMessage } from '../../roomStore/roomsSlice';
+import { setActiveMessage, setEditAction } from '../../roomStore/roomsSlice';
 import { MessageReply } from './MessageReply';
 import { useXmppClient } from '../../context/xmppProvider';
 import { DeleteIcon } from '../../assets/icons';
@@ -74,6 +74,8 @@ const Message: React.FC<MessageProps> = forwardRef<
   };
 
   const handleReplyMessage = () => {
+    dispatch(setEditAction({ isEdit: false }));
+
     if(!isReply && message.mainMessage) {
       const messageCore = JSON.parse(message.mainMessage);
       return dispatch(setActiveMessage({ id: messageCore.id, chatJID: messageCore.roomJid }));
@@ -83,10 +85,14 @@ const Message: React.FC<MessageProps> = forwardRef<
   };
 
   const handleDeleteMessage = () => {
-    dispatch(setDeleteModal({ isDeleteModal: true, roomJid: message.roomJid, messageId: message.id}))
+    dispatch(setDeleteModal({ isDeleteModal: true, roomJid: message.roomJid, messageId: message.id }))
     // dispatch(deleteRoomMessage({ roomJID: message.roomJid, messageId: message.id }));
     // client.deleteMessageStanza(message.roomJid, message.id);
   };
+
+  const handleEditMessage = () => {
+    dispatch(setEditAction({ isEdit: true, roomJid: message.roomJid, messageId: message.id, text: message.body }));
+  }
 
   return (
     <>
@@ -169,11 +175,13 @@ const Message: React.FC<MessageProps> = forwardRef<
 
       {!config?.disableInteractions && (
         <MessageInteractions
+          isUser={isUser}
           message={message}
           setContextMenu={setContextMenu}
           contextMenu={contextMenu}
           handleReplyMessage={handleReplyMessage}
           handleDeleteMessage={handleDeleteMessage}
+          handleEditMessage={handleEditMessage}
         />
       )}
     </>

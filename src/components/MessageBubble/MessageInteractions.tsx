@@ -16,19 +16,23 @@ import { useXmppClient } from '../../context/xmppProvider';
 import { setActiveMessage } from '../../roomStore/roomsSlice';
 
 interface MessageInteractionsProps {
+  isUser?: boolean;
   message: IMessage;
   contextMenu: { visible: boolean; x: number; y: number };
   setContextMenu: ({ visible, x, y }) => void;
   handleReplyMessage: () => void;
   handleDeleteMessage: () => void;
+  handleEditMessage: () => void;
 }
 
 const MessageInteractions: React.FC<MessageInteractionsProps> = ({
+  isUser,
   message,
   contextMenu,
   setContextMenu,
   handleReplyMessage: replyMessage,
   handleDeleteMessage,
+  handleEditMessage,
 }) => {
   const { client } = useXmppClient();
   const dispatch = useDispatch();
@@ -85,15 +89,23 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
             <MESSAGE_INTERACTIONS_ICONS.COPY />
           </MenuItem>
           <Delimeter />
+          {isUser && 
+            <>
+              <MenuItem onClick={handleEditMessage}>
+                {MESSAGE_INTERACTIONS.EDIT}
+                <MESSAGE_INTERACTIONS_ICONS.EDIT />{' '}
+              </MenuItem>
+              <Delimeter />
+            </>}
           <MenuItem onClick={handleDeleteMessage}>
             {MESSAGE_INTERACTIONS.DELETE}
             <MESSAGE_INTERACTIONS_ICONS.DELETE />{' '}
           </MenuItem>
-          <Delimeter />
+          {/* <Delimeter />
           <MenuItem onClick={() => console.log(MESSAGE_INTERACTIONS.REPORT)}>
             {MESSAGE_INTERACTIONS.REPORT}
             <MESSAGE_INTERACTIONS_ICONS.REPORT />{' '}
-          </MenuItem>
+          </MenuItem> */}
         </ContextMenu>
       </Overlay>}
     </>

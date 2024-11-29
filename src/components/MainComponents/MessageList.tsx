@@ -47,17 +47,17 @@ const MessageList = <TMessage extends IMessage>({
   const { composing, lastViewedTimestamp, messages } = useSelector(
     (state: RootState) => state.rooms.rooms[roomJID]
   );
-
+  
   const addReplyMessages = useMemo(() => {
     return messages.map((message) => {
       const newMessage = {
         ...message,
-        reply: messages.filter((mess) => mess.mainMessage && JSON.parse(mess.mainMessage).id === message.id),
+        reply: messages.filter((mess) => !!mess.mainMessage && JSON.parse(mess.mainMessage).id === message.id),
       };
   
       return newMessage;
     })
-  }, [messages]);
+  }, [messages, messages.length]);
 
   const isUserActiveMessage = useMemo(() => (
     activeMessage && activeMessage.user.id === user.walletAddress
@@ -65,19 +65,21 @@ const MessageList = <TMessage extends IMessage>({
 
   const memoizedMessages = useMemo(() => {
     if(isReply) {
-      return messages.filter((item: IMessage) =>
+      return addReplyMessages.filter((item: IMessage) =>
           item.roomJID.includes(roomJID) &&
           item.isReply &&
+          item.isReply === 'true' &&
+          item.mainMessage &&
           JSON.parse(item.mainMessage).id === activeMessage.id
       );
     } else {
       return addReplyMessages.filter((item: IMessage) => 
         item.showInChannel === 'true' ||
-        !item.isReply &&
+        (!item.isReply ||item.isReply === 'false')&&
         !item.mainMessage 
       );
     }
-  }, [messages]);
+  }, [messages, messages.length]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);

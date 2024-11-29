@@ -5,8 +5,8 @@ import { RootState } from '../../roomStore';
 import MessageList from './MessageList';
 import SendInput from '../styled/SendInput';
 import {
-  addRoomMessage,
   deleteRoomMessage,
+  setEditAction,
   setIsLoading,
   setLastViewedTimestamp,
 } from '../../roomStore/roomsSlice';
@@ -16,6 +16,7 @@ import { useXmppClient } from '../../context/xmppProvider.tsx';
 import ChatHeader from './ChatHeader.tsx';
 import NoMessagesPlaceholder from './NoMessagesPlaceholder.tsx';
 import NewChatModal from '../Modals/NewChatModal/NewChatModal.tsx';
+import { EditWrapper } from './EditWrapper.tsx';
 
 interface ChatRoomProps {
   CustomMessageComponent?: any;
@@ -27,7 +28,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     const dispatch = useDispatch();
 
     const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
-    const { roomsList, loading, user, activeRoomJID, globalLoading, config } =
+    const { roomsList, loading, user, activeRoomJID, globalLoading, config, editAction } =
       useSelector((state: RootState) => ({
         activeRoomJID: state.rooms.activeRoomJID,
         roomsList: state.rooms.rooms,
@@ -36,6 +37,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         user: state.chatSettingStore.user,
         globalLoading: state.rooms.isLoading,
         config: state.chatSettingStore.config,
+        editAction: state.rooms.editAction,
       }));
 
     const roomMessages = useMemo(
@@ -96,6 +98,26 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
 
     const sendMessage = useCallback(
       (message: string) => {
+        if( editAction.isEdit) {
+          client?.editMessageStanza(
+            editAction.roomJid,
+            editAction.messageId,
+            message,
+          );
+
+          dispatch(setEditAction({isEdit: false }));
+          return;
+        } else {
+          client?.sendMessage(
+            activeRoomJID,
+            user.firstName,
+            user.lastName,
+            '',
+            user.walletAddress,
+            message
+          );
+        };
+
         // dispatch(
         //   addRoomMessage({
         //     roomJID: currentRoom.jid,
@@ -113,16 +135,9 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         //     },
         //   })
         // );
-        client?.sendMessage(
-          activeRoomJID,
-          user.firstName,
-          user.lastName,
-          '',
-          user.walletAddress,
-          message
-        );
+
       },
-      [activeRoomJID]
+      [activeRoomJID, editAction]
     );
 
     const sendStartComposing = useCallback(() => {
@@ -195,6 +210,10 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       },
       [client, activeRoomJID]
     );
+
+    const onCloseEdit = () => {
+      dispatch(setEditAction({ isEdit: false }));
+    }
 
     useEffect(() => {
       const getDefaultHistory = async () => {
@@ -308,7 +327,9 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             isReply={false}
           />
         )}
+        {editAction.isEdit && <EditWrapper text ={editAction.text} onClose={onCloseEdit}/>}
         <SendInput
+          editMessage={editAction.text}
           sendMessage={sendMessage}
           sendMedia={sendMedia}
           config={config}
