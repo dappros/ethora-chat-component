@@ -52,6 +52,7 @@ export const createMessageFromXml = async (
   const message: IMessage = {
     id: id,
     body: body.getText(),
+    roomJid: from,
     roomJID: from,
     date: new Date(+id?.slice(0, 13)).toISOString(),
     key: `${Date.now() + Number(id)}`,
