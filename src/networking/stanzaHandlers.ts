@@ -5,12 +5,12 @@ import {
   addRoomMessage,
   setComposing,
   setCurrentRoom,
-  setIsLoading,
   setLastViewedTimestamp,
   setRoomRole,
   updateRoom,
 } from '../roomStore/roomsSlice';
-import { IMessage, IRoom } from '../types/types';
+import { IRoom } from '../types/types';
+import { createMessageFromXml } from '../helpers/createMessageFromXml';
 
 // TO DO: we are thinking to refactor this code in the following way:
 // each stanza will be parsed for 'type'
@@ -19,79 +19,6 @@ import { IMessage, IRoom } from '../types/types';
 // then handlers for different types will work with a Javascript object
 // types: standard, coin transfer, is composing, attachment (media), token (nft) or smart contract
 // types can be added into our chat protocol (XMPP stanza add field type="") to make it easier to parse here
-
-export const createMessage = async (
-  data: {
-    [x: string]: any;
-    coinsInMessage?: any;
-    numberOfReplies?: any;
-    isSystemMessage?: any;
-    isMediafile?: any;
-    locationPreview?: any;
-    mimetype?: any;
-    location?: any;
-    senderWalletAddress?: any;
-    senderFirstName?: any;
-    senderLastName?: any;
-    photoURL?: any;
-    senderJID?: any;
-    token?: any;
-    refreshToken?: any;
-    roomJid?: any;
-    tokenAmount?: any;
-    quickReplie?: any;
-    notDisplayedValue?: any;
-    showInChannel?: any;
-
-    //attachment
-    attachmentId?: any;
-    createdAt?: any;
-    expiresAt?: any;
-    fileName?: any;
-    originalName?: any;
-    ownerKey?: any;
-    receiverMessageId?: any;
-    size?: any;
-    updatedAt?: any;
-    userId?: any;
-  },
-  body: Element | undefined,
-  id: string,
-  from: any
-): Promise<any> => {
-  // change to iMESSAGES
-  if (!body || typeof body.getText !== 'function') {
-    throw new Error("Invalid body: 'getText' method is missing.");
-  }
-
-  if (!data || !id || !from) {
-    console.log('Invalid arguments: data, id, and from are required.');
-  }
-
-  const message: IMessage = {
-    id: id,
-    body: body.getText(),
-    roomJID: from,
-    date: new Date(+id?.slice(0, 13)).toISOString(),
-    key: `${Date.now() + Number(id)}`,
-    numberOfReplies: data?.numberOfReplies,
-    isSystemMessage: data?.isSystemMessage,
-    isMediafile: data?.isMediafile,
-    locationPreview: data?.locationPreview,
-    mimetype: data?.mimetype,
-    location: data?.location,
-    user: {
-      id: data.senderWalletAddress,
-      name: `${data.senderFirstName} ${data.senderLastName}`,
-      profileImage: data.photoURL,
-      token: data.token,
-      refreshToken: data.refreshToken,
-    },
-    ...data,
-  };
-
-  return message;
-};
 
 //core default
 const onRealtimeMessage = async (stanza: Element) => {
@@ -121,7 +48,7 @@ const onRealtimeMessage = async (stanza: Element) => {
       return;
     }
 
-    const message = await createMessage(
+    const message = await createMessageFromXml(
       data.attrs,
       body,
       id,
@@ -158,9 +85,7 @@ const onMessageHistory = async (stanza: any) => {
       .getChild('result')
       ?.getChild('forwarded')
       ?.getChild('delay');
-
     const id = stanza.getChild('result')?.attrs.id;
-
     if (!delay) {
       if (stanza.getChild('subject')) {
         console.log('Subject.');
@@ -171,9 +96,7 @@ const onMessageHistory = async (stanza: any) => {
         return;
       }
     }
-
     // console.log(stanza.attrs.from);
-
     if (
       !data?.attrs ||
       !data.attrs.senderFirstName ||
@@ -186,14 +109,12 @@ const onMessageHistory = async (stanza: any) => {
       // );
       return;
     }
-
-    const message = await createMessage(
+    const message = await createMessageFromXml(
       data.attrs,
       body,
       id,
       stanza.attrs.from
     );
-
     store.dispatch(
       addRoomMessage({
         roomJID: stanza.attrs.from,
@@ -298,7 +219,6 @@ const onGetLastMessageArchive = (stanza: Element, xmpp: any) => {
 };
 
 const onNewRoomCreated = (stanza: Element, xmpp: any) => {
-  console.log(stanza.attrs.from);
   store.dispatch(setCurrentRoom({ roomJID: stanza.attrs.from }));
   xmpp.getRooms();
 };
@@ -344,6 +264,10 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
               await xmpp.getChatsPrivateStoreRequestStanza();
           }
 
+          if (!store.getState().rooms.activeRoomJID) {
+            store.dispatch(setCurrentRoom({ roomJID: roomData.jid }));
+          }
+
           store.dispatch(
             setLastViewedTimestamp({
               chatJID: roomData.jid,
@@ -353,16 +277,10 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
             })
           );
 
-          if (!store.getState().rooms.activeRoomJID) {
-            store.dispatch(setCurrentRoom({ roomJID: roomData.jid }));
-          }
-
           if (roomData.jid) {
             xmpp.presenceInRoomStanza(roomData.jid);
           }
-        } catch (error) {
-          console.log(error);
-        }
+        } catch (error) {}
       }
     });
   }

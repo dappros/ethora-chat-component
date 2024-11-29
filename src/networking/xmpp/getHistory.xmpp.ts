@@ -8,7 +8,7 @@ export const getHistory = async (
   max: number,
   before?: number,
   otherId?: string
-) => {
+): Promise<any> => {
   const id = otherId ?? `get-history:${Date.now().toString()}`;
 
   let stanzaHdlrPointer: {
@@ -126,6 +126,7 @@ export const getHistory = async (
 
   try {
     const res = await Promise.race([responsePromise, timeoutPromise]);
+    console.log('history res', res);
     return res;
   } catch (e) {
     console.log('=-> error in', chatJID, e);

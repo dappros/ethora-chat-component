@@ -158,6 +158,7 @@ export interface IConfig {
   disableRoomMenu?: boolean;
   defaultRooms?: string[] | ConfigRoom[];
   disableRefresh?: boolean;
+  betaChatsLoading?: true;
 }
 
 interface ConfigRoom {

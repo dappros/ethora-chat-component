@@ -68,39 +68,45 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
             alignItems: 'center',
           }}
         >
-          {!isChatActive
-            ? chat.composing && (
-                <Composing
-                  usersTyping={chat.composingList}
-                  style={{ color: !isChatActive ? '#141414' : '#fff' }}
-                />
-              )
-            : chat.lastRoomMessage && (
+          {chat.composing ? (
+            <Composing
+              usersTyping={chat.composingList}
+              style={{ color: !isChatActive ? '#141414' : '#fff' }}
+            />
+          ) : (
+            config?.betaChatsLoading &&
+            chat?.messages?.[chat?.messages.length - 1]?.body && (
+              <div
+                style={{
+                  display: 'flex',
+                  width: '80%',
+                  flexDirection: 'column',
+                  alignItems: 'start',
+                }}
+              >
                 <div
                   style={{
-                    display: 'flex',
-                    width: '100%',
-                    flexDirection: 'column',
-                    alignItems: 'start',
+                    height: '20px',
+                    fontWeight: '600',
                   }}
                 >
-                  <div
-                    style={{
-                      height: '20px',
-                      fontWeight: '600',
-                    }}
-                  >
-                    {chat.lastRoomMessage?.name || 'asdads'}:
-                  </div>
-                  <div
-                    style={{
-                      height: '20px',
-                    }}
-                  >
-                    {chat.lastRoomMessage?.body || 'Chat created'}
-                  </div>
+                  {chat?.messages?.[chat?.messages.length - 1].user.name || ''}:
                 </div>
-              )}
+                <div
+                  style={{
+                    height: '20px',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    maxWidth: '200px',
+                  }}
+                >
+                  {chat?.messages?.[chat?.messages.length - 1].body ||
+                    'Chat created'}
+                </div>
+              </div>
+            )
+          )}
           {chat.unreadMessages > 0 && (
             <div
               style={{
