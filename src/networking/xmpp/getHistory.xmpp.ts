@@ -8,7 +8,7 @@ export const getHistory = async (
   max: number,
   before?: number,
   otherId?: string
-) => {
+): Promise<any> => {
   const id = otherId ?? `get-history:${Date.now().toString()}`;
 
   let stanzaHdlrPointer: {

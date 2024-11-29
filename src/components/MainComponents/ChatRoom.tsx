@@ -7,6 +7,7 @@ import SendInput from '../styled/SendInput';
 import {
   deleteRoomMessage,
   setEditAction,
+  setCurrentRoom,
   setIsLoading,
   setLastViewedTimestamp,
 } from '../../roomStore/roomsSlice';
@@ -17,6 +18,8 @@ import ChatHeader from './ChatHeader.tsx';
 import NoMessagesPlaceholder from './NoMessagesPlaceholder.tsx';
 import NewChatModal from '../Modals/NewChatModal/NewChatModal.tsx';
 import { EditWrapper } from './EditWrapper.tsx';
+import useMessageLoaderQueue from '../../hooks/useMessageLoaderQueue.tsx';
+import { NoSelectedChatIcon } from '../../assets/icons.tsx';
 
 interface ChatRoomProps {
   CustomMessageComponent?: any;
@@ -78,23 +81,26 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       if (config?.setRoomJidInPath && activeRoomJID) {
         const chatJidUrl = activeRoomJID.split('@')[0];
 
-        const basePath = window.location.pathname
-          .split('/')
-          .slice(0, -1)
-          .join('/');
-        const newUrl = `${basePath}/${chatJidUrl}`;
+        const searchParams = new URLSearchParams(window.location.search);
+        searchParams.set('chatId', chatJidUrl);
+
+        const newUrl = `${window.location.pathname}?${searchParams.toString()}`;
 
         window.history.pushState(null, '', newUrl);
+      } else if (!activeRoomJID && Object.values(roomsList).length > 0) {
+        dispatch(setCurrentRoom({ roomJID: roomsList[0]?.jid }));
       }
 
       return () => {
-        window.history.pushState(
-          null,
-          '',
-          window.location.pathname.split('/').slice(0, -1).join('/')
-        );
+        if (config?.setRoomJidInPath) {
+          const searchParams = new URLSearchParams(window.location.search);
+          searchParams.delete('chatId');
+
+          const newUrl = `${window.location.pathname}?${searchParams.toString()}`;
+          window.history.pushState(null, '', newUrl);
+        }
       };
-    }, [activeRoomJID]);
+    }, [activeRoomJID, roomsList?.length]);
 
     const sendMessage = useCallback(
       (message: string) => {
@@ -215,6 +221,22 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       dispatch(setEditAction({ isEdit: false }));
     }
 
+    const queueMessageLoader = useCallback(
+      async (chatJID: string, max: number) => {
+        client?.getHistoryStanza(chatJID, max);
+      },
+      [globalLoading, isLoadingMore]
+    );
+
+    if (config?.betaChatsLoading) {
+      useMessageLoaderQueue(
+        Object.keys(roomsList),
+        globalLoading,
+        loading,
+        queueMessageLoader
+      );
+    }
+
     useEffect(() => {
       const getDefaultHistory = async () => {
         client.getHistoryStanza(activeRoomJID, 30).then(() => {
@@ -283,9 +305,38 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             width: '100%',
             alignItems: 'center',
             display: 'flex',
+            justifyContent: 'center',
+            flexDirection: 'column',
+            gap: '16px',
           }}
         >
-          <Loader color={config?.colors?.primary} />
+          <NoSelectedChatIcon />
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              alignItems: 'center',
+            }}
+          >
+            <div
+              style={{
+                fontSize: '16px',
+                color: '#141414',
+                fontWeight: 600,
+              }}
+            >
+              Start a Conversation
+            </div>
+            <div
+              style={{
+                fontSize: '14px',
+                color: '#141414',
+              }}
+            >
+              Choose a chat to start messaging.
+            </div>
+          </div>
         </div>
       );
     }
@@ -302,8 +353,8 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         )}
         {loading || globalLoading ? (
           <Loader color={config?.colors?.primary} />
-        ) : Object.keys(roomsList).length < 1 ? (
-          <>No rooms</>
+        ) : Object.keys(roomsList).length < 1 || !activeRoomJID ? (
+          <NoSelectedChatIcon />
         ) : roomsList[activeRoomJID]?.messages &&
           roomsList[activeRoomJID]?.messages.length < 1 ? (
           <div

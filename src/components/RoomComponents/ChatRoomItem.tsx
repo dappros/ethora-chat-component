@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { IConfig, IRoom } from '../../types/types';
 import { ProfileImagePlaceholder } from '../MainComponents/ProfileImagePlaceholder';
 import {
@@ -25,6 +25,18 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
   performClick,
   config,
 }) => {
+  const lastMessage = useMemo(
+    () => chat?.messages?.[chat?.messages.length - 1],
+    [chat?.messages?.length]
+  );
+
+  const formatTimeToHHMM = (isoTime: string | Date): string => {
+    const date = new Date(isoTime);
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  };
+
   return (
     <ChatItem
       key={index}
@@ -43,7 +55,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
         <div
           style={{
             display: 'flex',
-            alignItems: 'start',
+            alignItems: 'center',
             width: '100%',
             gap: '16px',
             height: '24px',
@@ -52,12 +64,18 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
         >
           <ChatInfo>
             <ChatName>{chat.name}</ChatName>
-            <LastMessage style={{ color: '#141414', fontWeight: 600 }}>
-              {chat?.lastRoomMessage?.name && `${chat?.lastRoomMessage?.name}:`}
-            </LastMessage>
-            <LastMessage>{chat?.lastRoomMessage?.body}</LastMessage>
           </ChatInfo>
-          <UserCount active={isChatActive}>{chat.usersCnt}</UserCount>
+          {lastMessage && (
+            <UserCount
+              style={{
+                color: !isChatActive ? '#8C8C8C' : '#fff',
+                fontSize: '12px',
+              }}
+              active={isChatActive}
+            >
+              {formatTimeToHHMM(lastMessage.date)}
+            </UserCount>
+          )}
         </div>
         <div
           style={{
@@ -68,39 +86,44 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
             alignItems: 'center',
           }}
         >
-          {!isChatActive
-            ? chat.composing && (
-                <Composing
-                  usersTyping={chat.composingList}
-                  style={{ color: !isChatActive ? '#141414' : '#fff' }}
-                />
-              )
-            : chat.lastRoomMessage && (
+          {chat.composing ? (
+            <Composing
+              usersTyping={chat.composingList}
+              style={{ color: !isChatActive ? '#141414' : '#fff' }}
+            />
+          ) : (
+            config?.betaChatsLoading &&
+            lastMessage?.body && (
+              <div
+                style={{
+                  display: 'flex',
+                  width: '80%',
+                  flexDirection: 'column',
+                  alignItems: 'start',
+                }}
+              >
                 <div
                   style={{
-                    display: 'flex',
-                    width: '100%',
-                    flexDirection: 'column',
-                    alignItems: 'start',
+                    height: '20px',
+                    fontWeight: '600',
                   }}
                 >
-                  <div
-                    style={{
-                      height: '20px',
-                      fontWeight: '600',
-                    }}
-                  >
-                    {chat.lastRoomMessage?.name || 'asdads'}:
-                  </div>
-                  <div
-                    style={{
-                      height: '20px',
-                    }}
-                  >
-                    {chat.lastRoomMessage?.body || 'Chat created'}
-                  </div>
+                  {lastMessage.user.name || ''}:
                 </div>
-              )}
+                <div
+                  style={{
+                    height: '20px',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    maxWidth: '200px',
+                  }}
+                >
+                  {lastMessage.body || 'Chat created'}
+                </div>
+              </div>
+            )
+          )}
           {chat.unreadMessages > 0 && (
             <div
               style={{

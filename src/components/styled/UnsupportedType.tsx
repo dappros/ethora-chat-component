@@ -43,7 +43,6 @@ const FileDownload: React.FC<FileDownloadProps> = ({
   return (
     <UnsupportedContainer onClick={() => downloadFile(fileUrl, fileName)}>
       <FileName>{fileName}</FileName>
-      <ActionButton />
     </UnsupportedContainer>
   );
 };

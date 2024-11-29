@@ -1,4 +1,5 @@
 import ChatProfileModal from '../../components/Modals/ChatProfileModal/ChatProfileModal';
+import FilePreviewModal from '../../components/Modals/FilePreviewModal/FilePreviewModal';
 import BlockedUsersModal from '../../components/Modals/SettingsModals/BlockedUsers/BlockedUsersModal';
 import DocumentSharesModal from '../../components/Modals/SettingsModals/DocumentShares/DocumentSharesModal';
 import ManageDataModal from '../../components/Modals/SettingsModals/ManageDataModal/ManageDataModal';
@@ -20,6 +21,8 @@ export const MODAL_TYPES = {
   BLOCKED_USERS: 'blocked_users',
 
   REFERRALS: 'referrals',
+
+  FILE_PREVIEW: 'file_preview',
 
   // SETTINGS: 'Settings',
   // PROFILE: 'Profile',
@@ -46,4 +49,5 @@ export const MODAL_COMPONENTS: Record<
   [MODAL_TYPES.DOCUMENT_SHARES]: DocumentSharesModal,
   [MODAL_TYPES.PROFILE_SHARES]: ProfileSharesModal,
   [MODAL_TYPES.BLOCKED_USERS]: BlockedUsersModal,
+  [MODAL_TYPES.FILE_PREVIEW]: FilePreviewModal,
 };

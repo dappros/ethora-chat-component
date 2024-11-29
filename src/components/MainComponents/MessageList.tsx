@@ -191,10 +191,10 @@ const MessageList = <TMessage extends IMessage>({
     }
   }, [memoizedMessages.length, composing]);
 
-  if (!validateMessages(memoizedMessages)) {
-    console.log("Invalid 'messages' props provided to MessageList.");
-    return null;
-  }
+  // if (!validateMessages(memoizedMessages)) {
+  //   console.log("Invalid 'messages' props provided to MessageList.");
+  //   return null;
+  // }
 
   let lastDateLabel: string | null = null;
 

@@ -166,9 +166,9 @@ export class XmppClient {
     }
   }
 
-  close() {
+  async close() {
     if (this.client) {
-      this.client
+      await this.client
         .stop()
         .then(() => {
           console.log('Client connection closed.');
@@ -265,7 +265,7 @@ export class XmppClient {
     before?: number,
     id?: string
   ) => {
-    await getHistory(this.client, chatJID, max, before, id);
+    return await getHistory(this.client, chatJID, max, before, id);
   };
 
   getLastMessageArchiveStanza(roomJID: string) {

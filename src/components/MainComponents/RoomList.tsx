@@ -111,13 +111,13 @@ const RoomList: React.FC<RoomListProps> = ({
     [activeRoomJID]
   );
 
-  const handleLogout = useCallback(() => {
-    dispatch(logout());
-    dispatch(setLogoutState());
+  const handleLogout = useCallback(async () => {
     if (client) {
-      client.close();
+      await client.close();
       setClient(null);
     }
+    dispatch(setLogoutState());
+    dispatch(logout());
   }, []);
 
   const menuOptions = useMemo(
@@ -181,7 +181,7 @@ const RoomList: React.FC<RoomListProps> = ({
               <NewChatModal />
             </SearchContainer>
             <div
-              style={{ flexGrow: 1, overflowY: 'auto', paddingBottom: '16px' }}
+              style={{ flexGrow: 1, overflowY: 'auto', padding: '16px 0px' }}
             >
               {filteredChats.map((chat: IRoom, index: number) => (
                 <>
