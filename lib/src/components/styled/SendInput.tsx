@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import {
   FileIcon,
   FilePreview,
@@ -17,6 +17,7 @@ import { AttachIcon, RemoveIcon, SendIcon } from '../../assets/icons';
 interface SendInputProps {
   sendMessage: (message: string) => void;
   isLoading: boolean;
+  editMessage?: string;
   sendMedia: (data: any, type: string) => void;
   config?: IConfig;
   onFocus?: () => void;
@@ -29,6 +30,7 @@ const SendInput: React.FC<SendInputProps> = ({
   onFocus,
   onBlur,
   config,
+  editMessage,
   isLoading,
 }) => {
   const [message, setMessage] = useState('');
@@ -90,6 +92,10 @@ const SendInput: React.FC<SendInputProps> = ({
     },
     []
   );
+
+  useEffect(() => {
+      setMessage(editMessage);
+  }, [editMessage]);
 
   const handleSendClick = useCallback(
     (audioUrl?: string) => {

@@ -2,6 +2,7 @@ import xmpp, { Client, xml } from '@xmpp/client';
 import { walletToUsername } from '../helpers/walletUsername';
 import {
   handleComposing,
+  onDeleteMessage,
   onChatInvite,
   onGetChatRooms,
   onGetLastMessageArchive,
@@ -11,6 +12,7 @@ import {
   onNewRoomCreated,
   onPresenceInRoom,
   onRealtimeMessage,
+  onEditMessage,
 } from './stanzaHandlers';
 
 import { sendMediaMessage } from './xmpp/sendMediaMessage.xmpp';
@@ -28,6 +30,7 @@ import { setRoomImage } from './xmpp/setRoomImage.xmpp';
 import { getRoomMembers } from './xmpp/getRoomMembers.xmpp';
 import { getRoomInfo } from './xmpp/getRoomInfo.xmpp';
 import { leaveTheRoom } from './xmpp/leaveTheRoom.xmpp';
+import { editMessage } from './xmpp/editMessage.xmpp';
 
 export class XmppClient {
   client!: Client;
@@ -104,9 +107,9 @@ export class XmppClient {
 
     this.client.on('error', (error) => {
       console.error('XMPP client error:', error);
-      if (this.status !== 'online') {
-        this.scheduleReconnect();
-      }
+      // if (this.status !== 'online') {
+      //   this.scheduleReconnect();
+      // }
     });
 
     this.client.on('stanza', (stanza) => this.handleStanza(stanza));
@@ -115,6 +118,8 @@ export class XmppClient {
   handleStanza(stanza: any) {
     switch (stanza.name) {
       case 'message':
+        onDeleteMessage(stanza);
+        onEditMessage(stanza);
         onRealtimeMessage(stanza);
         onMessageHistory(stanza);
         onGetLastMessageArchive(stanza, this);
@@ -161,9 +166,9 @@ export class XmppClient {
     }
   }
 
-  close() {
+  async close() {
     if (this.client) {
-      this.client
+      await this.client
         .stop()
         .then(() => {
           console.log('Client connection closed.');
@@ -260,7 +265,7 @@ export class XmppClient {
     before?: number,
     id?: string
   ) => {
-    await getHistory(this.client, chatJID, max, before, id);
+    return await getHistory(this.client, chatJID, max, before, id);
   };
 
   getLastMessageArchiveStanza(roomJID: string) {
@@ -292,7 +297,10 @@ export class XmppClient {
     photo: string,
     walletAddress: string,
     userMessage: string,
-    notDisplayedValue?: string
+    notDisplayedValue?: string,
+    isReply?: boolean,
+    showInChannel?: boolean,
+    mainMessage?: string
   ) => {
     sendTextMessage(
       this.client,
@@ -303,12 +311,19 @@ export class XmppClient {
       walletAddress,
       userMessage,
       notDisplayedValue,
+      isReply,
+      showInChannel,
+      mainMessage,
       this.devServer || 'xmpp.ethoradev.com:5443'
     );
   };
 
   deleteMessageStanza(room: string, msgId: string) {
     deleteMessage(this.client, room, msgId);
+  }
+
+  editMessageStanza(room: string, msgId: string, text: string) {
+    editMessage(this.client, room, msgId, text);
   }
 
   sendTypingRequestStanza(chatId: string, fullName: string, start: boolean) {

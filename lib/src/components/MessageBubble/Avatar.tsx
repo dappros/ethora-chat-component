@@ -1,10 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { CSSProperties, useMemo } from 'react';
 import styled from 'styled-components';
 
 interface AvatarProps {
   username?: string;
   firstName?: string;
   lastName?: string;
+  style?: CSSProperties;
 }
 
 const backgroundColors = ['#f44336', '#2196f3', '#4caf50', '#ff9800'];
@@ -27,6 +28,7 @@ export const Avatar: React.FC<AvatarProps> = ({
   username,
   firstName,
   lastName,
+  style,
 }) => {
   const getInitials = () => {
     if (firstName && lastName) {
@@ -50,5 +52,5 @@ export const Avatar: React.FC<AvatarProps> = ({
     return lightColors.includes(bgColor) ? '#000' : '#fff';
   };
 
-  return <AvatarCircle bgColor={'#2196f3'}>{getInitials()}</AvatarCircle>;
+  return <AvatarCircle style={style} bgColor={'#2196f3'}>{getInitials()}</AvatarCircle>;
 };

@@ -58,32 +58,26 @@ const DocumentSharesModal: React.FC<DocumentSharesModalProps> = ({
               Listed below are your currently active document sharing links. You
               can share or delete them.
             </SharedSettingsLabelData>
-            <BorderedContainer
-              style={{
-                padding: '16px 8px',
-                boxSizing: 'border-box',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '16px',
-              }}
-            >
+            <BorderedContainer>
               <div
                 style={{
                   display: 'flex',
+                  padding: '8px',
                   width: '100%',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  boxSizing: 'border-box',
                 }}
               >
-                <SharedSettingsStyledLabel>
-                  List of shares
-                </SharedSettingsStyledLabel>
+                <div>List of shares</div>
                 <div style={{ display: 'flex', flexDirection: 'row' }}>
-                  {/* <div>
-                    <SearchInput style={{ width: '20px' }} direction="right" />
-                  </div> */}
-                  {/* <div>
+                  <div>
+                    <SearchInput
+                      animated
+                      icon={<SearchIcon />}
+                      direction="right"
+                    />
+                  </div>
+                  <div>
                     <DropdownMenu
                       sortFunction={function (value: string): void {
                         throw new Error('Function not implemented.');
@@ -91,16 +85,11 @@ const DocumentSharesModal: React.FC<DocumentSharesModalProps> = ({
                       icon={''}
                       values={['Name', 'Surname']}
                     />
-                  </div> */}
+                  </div>
                   <Button
                     variant="filled"
                     StartIcon={<PlusIcon />}
-                    style={{
-                      width: '100%',
-                      padding: '8px 14.5px',
-                      borderRadius: '12px',
-                      height: '40px',
-                    }}
+                    style={{ width: '100%' }}
                   >
                     Add New Share
                   </Button>

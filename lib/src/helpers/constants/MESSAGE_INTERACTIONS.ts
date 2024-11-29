@@ -1,6 +1,7 @@
 import {
   CopyIcon,
   DeleteIcon,
+  EditIcon,
   ReplyIcon,
   ReportIcon,
   SendCoinIcon,
@@ -12,6 +13,7 @@ export const MESSAGE_INTERACTIONS = {
   SEND_ITEM: 'Send item',
   REPLY: 'Reply',
   COPY: 'Copy',
+  EDIT: 'Edit',
   DELETE: 'Delete',
   REPORT: 'Report',
 };
@@ -21,6 +23,7 @@ export const MESSAGE_INTERACTIONS_ICONS = {
   SEND_ITEM: SendItemIcon,
   REPLY: ReplyIcon,
   COPY: CopyIcon,
+  EDIT: EditIcon,
   DELETE: DeleteIcon,
   REPORT: ReportIcon,
 };

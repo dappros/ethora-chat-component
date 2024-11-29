@@ -13,7 +13,7 @@ export interface IMessage {
   user: IUser;
   date: Date | string; // date converted from id / timestamp (e.g. "2024-02-18T03:24:33.102Z")
   body: string; // message body
-  roomJID: string; // room id
+  roomJid: string; // room id
   key?: string; // workaround to solve a problem of messages uniqueness - additional, local timestamp to solve when XMPP server sends duplicate timestamps (TO DO: depricate / review)
   coinsInMessage?: string | number; // store only - message coins counter
   numberOfReplies?: number[] | number; // store only - array of replies in a thread (if applicable) - includes messages IDs so that client app can display relevant message previews for the thread
@@ -24,7 +24,15 @@ export interface IMessage {
   location?: string;
   pending?: boolean;
   timestamp?: number;
+  showInChannel?: string;
+  activeMessage?: boolean;
+  isReply?: boolean | string;
+  isDeleted?: boolean;
+  mainMessage?: string;
+  reply?: IReply[];
 }
+
+export interface IReply extends IMessage {}
 
 export interface IRoom {
   id: string;
@@ -158,6 +166,7 @@ export interface IConfig {
   disableRoomMenu?: boolean;
   defaultRooms?: string[] | ConfigRoom[];
   disableRefresh?: boolean;
+  betaChatsLoading?: true;
 }
 
 interface ConfigRoom {
@@ -189,8 +198,22 @@ export interface StorageUser {
 export interface MessageProps {
   message: IMessage;
   isUser: boolean;
+  isReply?: boolean;
 }
 
 export interface MediaMessageType {}
+
+export interface DeleteModal {
+  isDeleteModal: boolean;
+  roomJid?: string;
+  messageId?: string;
+}
+
+export interface EditAction {
+  isEdit: boolean;
+  roomJid?: string;
+  messageId?: string;
+  text?: string;
+}
 
 export type ModalType = (typeof MODAL_TYPES)[keyof typeof MODAL_TYPES];

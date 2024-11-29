@@ -24,8 +24,20 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
 
   return (
     isVisible && (
-      <Overlay style={{ position: 'absolute' }}>
-        <StyledModal style={{ borderRadius: '16px' }}>
+      <Overlay
+        style={{
+          position: 'absolute',
+        }}
+      >
+        <StyledModal
+          style={{
+            borderRadius: '16px',
+            width: 'auto',
+            height: 'auto',
+            padding: '32px 64px',
+            minWidth: '480px',
+          }}
+        >
           <CloseButton
             onClick={() => setVisible(false)}
             style={{ fontSize: 24 }}
@@ -58,9 +70,14 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
                 display: 'flex',
                 gap: '8px',
                 alignItems: 'center',
+                minWidth: '400px',
               }}
             >
-              <StyledInput value={chatJid} disabled={true} />
+              <StyledInput
+                value={chatJid}
+                disabled={true}
+                style={{ width: '80%' }}
+              />
               <Button text="Copy" onClick={handleCopyClick} />
             </div>
           </div>

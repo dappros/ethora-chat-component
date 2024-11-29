@@ -28,6 +28,7 @@ export function sendMediaMessage(client: Client, roomJID: string, data: any) {
     waveForm: data.waveForm,
     attachmentId: data?.attachmentId,
     isReply: data?.isReply,
+    showInChannel: data?.showInChannel,
     mainMessage: data?.mainMessage,
     roomJid: data?.roomJid,
   };

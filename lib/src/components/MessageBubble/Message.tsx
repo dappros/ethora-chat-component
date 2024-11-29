@@ -17,14 +17,21 @@ import { Avatar } from './Avatar';
 import MessageInteractions from './MessageInteractions';
 import {
   setActiveModal,
+  setDeleteModal,
   setSelectedUser,
 } from '../../roomStore/chatSettingsSlice';
 import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
+import { BottomReplyContainer } from './BottomReplyContainer';
+import { setActiveMessage, setEditAction } from '../../roomStore/roomsSlice';
+import { MessageReply } from './MessageReply';
+import { useXmppClient } from '../../context/xmppProvider';
+import { DeleteIcon } from '../../assets/icons';
 
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
   MessageProps
->(({ message, isUser }, ref) => {
+>(({ message, isUser, isReply }, ref) => {
+  const { client } = useXmppClient();
   const dispatch = useDispatch();
   const config = useSelector(
     (state: RootState) => state.chatSettingStore.config
@@ -66,9 +73,30 @@ const Message: React.FC<MessageProps> = forwardRef<
     dispatch(setSelectedUser(user));
   };
 
+  const handleReplyMessage = () => {
+    dispatch(setEditAction({ isEdit: false }));
+
+    if(!isReply && message.mainMessage) {
+      const messageCore = JSON.parse(message.mainMessage);
+      return dispatch(setActiveMessage({ id: messageCore.id, chatJID: messageCore.roomJid }));
+    };
+
+    return dispatch(setActiveMessage({ id: message.id, chatJID: message.roomJid }));
+  };
+
+  const handleDeleteMessage = () => {
+    dispatch(setDeleteModal({ isDeleteModal: true, roomJid: message.roomJid, messageId: message.id }))
+    // dispatch(deleteRoomMessage({ roomJID: message.roomJid, messageId: message.id }));
+    // client.deleteMessageStanza(message.roomJid, message.id);
+  };
+
+  const handleEditMessage = () => {
+    dispatch(setEditAction({ isEdit: true, roomJid: message.roomJid, messageId: message.id, text: message.body }));
+  }
+
   return (
     <>
-      <CustomMessageContainer key={message.id} isUser={isUser} ref={ref}>
+      <CustomMessageContainer key={message.id} isUser={isUser} reply={message?.reply?.length} ref={ref}>
         {!isUser && (
           <CustomMessagePhotoContainer
             onClick={() => handleUserAvatarClick(message.user)}
@@ -86,12 +114,20 @@ const Message: React.FC<MessageProps> = forwardRef<
             )}
           </CustomMessagePhotoContainer>
         )}
-        <CustomMessageBubble isUser={isUser} onContextMenu={handleContextMenu}>
+        <CustomMessageBubble deleted={message.isDeleted} isUser={isUser} onContextMenu={handleContextMenu}>
+
           {!isUser && (
             <CustomUserName isUser={isUser} color={config?.colors?.primary}>
               {message.user.name}
             </CustomUserName>
           )}
+            {!isReply && message.mainMessage &&
+              <MessageReply
+                handleReplyMessage={handleReplyMessage}
+                isUser={isUser}
+                text={JSON.parse(message.mainMessage).text}
+              />
+            }
           {message?.isMediafile === 'true' ? (
             <MediaMessage
               mimeType={message.mimetype}
@@ -100,20 +136,53 @@ const Message: React.FC<MessageProps> = forwardRef<
               message={message}
             />
           ) : (
-            <CustomMessageText>{message.body}</CustomMessageText>
+            <CustomMessageText>
+              {message.isDeleted
+                ? <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    paddingTop: 5
+                    }}
+                  >
+                  <div
+                    style={{
+                      padding: '5px',
+                      backgroundColor: '#CCCCCC',
+                      borderRadius: '7px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <DeleteIcon width={18} height={18} fill='#8C8C8C'/>
+                  </div>
+                    <p style={{margin: 0, color: '#8C8C8C'}}> This message was deleted.</p>
+                  </div>
+                : <span>{message.body}</span>
+              }
+            </CustomMessageText>
           )}
           <CustomMessageTimestamp>
             {message?.pending && 'sending...'}
             {new Date(message.date).toLocaleTimeString()}
           </CustomMessageTimestamp>
+          {message?.reply?.length
+            ? <BottomReplyContainer onClick={handleReplyMessage} reply={message?.reply}/>
+            : <div/>}
         </CustomMessageBubble>
       </CustomMessageContainer>
 
       {!config?.disableInteractions && (
         <MessageInteractions
+          isReply={isReply}
+          isUser={isUser}
           message={message}
           setContextMenu={setContextMenu}
           contextMenu={contextMenu}
+          handleReplyMessage={handleReplyMessage}
+          handleDeleteMessage={handleDeleteMessage}
+          handleEditMessage={handleEditMessage}
         />
       )}
     </>

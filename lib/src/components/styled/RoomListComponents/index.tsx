@@ -16,12 +16,14 @@ export const Container = styled.div<{ burgerMenu?: boolean; open?: boolean }>`
           display: flex;
           flex-direction: column;
           background-color: #fff;
-          padding: 16px 12px;
+          padding: 16px;
+          padding-top: 0px;
           z-index: 1000;
           border-right: 1px solid var(--Colors-Border-border-primary, #f0f0f0);
         `
       : css`
-          padding: 16px 12px;
+          padding: 16px;
+          padding-top: 0px;
           overflow: auto;
           display: relative;
           z-index: 2;
@@ -63,9 +65,10 @@ export const SearchContainer = styled.div<{}>`
   display: flex;
   gap: 16px;
   align-items: center;
+  justify-content: center;
   width: 100%;
   height: 50px;
-  padding-bottom: 12px;
+  padding: 12px 0px;
 `;
 
 export const ScollableContainer = styled.div<{}>`

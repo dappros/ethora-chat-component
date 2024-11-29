@@ -9,7 +9,10 @@ export const sendTextMessage = (
   walletAddress: string,
   userMessage: string,
   notDisplayedValue?: string,
-  devServer?: string
+  isReply?: boolean,
+  showInChannel?: boolean,
+  mainMessage?: string,
+  devServer?: string,
 ) => {
   const id = `send-message:${Date.now().toString()}`;
 
@@ -34,7 +37,9 @@ export const sendTextMessage = (
         tokenAmount: 0,
         quickReplies: '',
         notDisplayedValue: '',
-        showInChannel: true,
+        showInChannel: showInChannel || false,
+        isReply: isReply || false,
+        mainMessage: mainMessage || '',
       }),
       xml('body', {}, userMessage)
     );

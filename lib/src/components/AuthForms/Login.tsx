@@ -229,7 +229,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
               fontWeight: '400',
             }}
             onClick={() =>
-              window.open('https://demo.ethora.com/register', '_blank')
+              window.open('https://ethora.ethoradev.com/register', '_blank')
             }
           >
             Sign Up to Ethora

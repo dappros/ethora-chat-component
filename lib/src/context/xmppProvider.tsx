@@ -20,9 +20,6 @@ interface XmppProviderProps {
   children: ReactNode;
 }
 
-// Singleton reference for XmppClient
-let singletonClient: XmppClient | null = null;
-
 export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
   const [client, setClient] = useState<XmppClient | null>(null);
   const [password, setPassword] = useState<string | null>(null);
@@ -33,15 +30,15 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
     password: string,
     email: string
   ): Promise<XmppClient> => {
-    if (singletonClient) {
+    if (client) {
       console.log('Returning existing client.');
-      setClient(singletonClient);
-      return singletonClient;
+      setClient(client);
+      return client;
     }
 
     try {
       const newClient = new XmppClient(password, email);
-      singletonClient = newClient;
+      setClient(newClient);
 
       await new Promise<void>((resolve, reject) => {
         const checkStatus = () => {
@@ -63,27 +60,23 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
       return newClient;
     } catch (error) {
       console.error('Error initializing client:', error);
-      singletonClient = null;
+      setClient(null);
       throw error;
     }
   };
 
   const reconnectClient = () => {
-    if (
-      singletonClient &&
-      singletonClient.status !== 'offline' &&
-      reconnectAttempts < 3
-    ) {
+    if (client && client.status !== 'offline' && reconnectAttempts < 3) {
       console.log('Attempting to reconnect...');
-      singletonClient.scheduleReconnect();
+      client.scheduleReconnect();
       setReconnectAttempts((prev) => prev + 1);
-    } else if (singletonClient?.status === 'offline') {
+    } else if (client?.status === 'offline') {
       console.log('Client is offline. Not attempting to reconnect.');
     } else if (reconnectAttempts >= 3) {
       console.log(
         'Maximum reconnect attempts reached. Stopping further attempts.'
       );
-    } else if (password && email) {
+    } else if (password && email && reconnectAttempts <= 3) {
       console.log('No active client found. Reinitializing...');
       initializeClient(password, email).catch((error) => {
         console.error('Reconnection failed:', error);

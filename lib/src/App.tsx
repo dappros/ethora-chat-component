@@ -15,7 +15,7 @@ function App() {
         backgroundColor: '#f5f5f5',
       }}
     >
-      <div style={{ height: '500px', width: '800px' }}>
+      <div style={{ height: '100%', width: '100%' }}>
         <ReduxWrapper
           // roomJID="0x6816810a7_fe04_f_c9b800f9_d11564_c0e4a_e_c25_d78.0x912_b587_d8c931256_d35898829690_d1_d956bf_f8c9@conference.xmpp.ethoradev.com"
           // random 5f9a4603b2b5bbfa6b228b642127c56d03b778ad594c52b755e605c977303979@conference.xmpp.ethoradev.com
@@ -55,10 +55,12 @@ function App() {
                 _id: '6672807fef55364c13703237',
               },
             ],
+            betaChatsLoading: true,
+            setRoomJidInPath: true,
           }}
           MainComponentStyles={{
             width: '100%',
-            height: '500px',
+            height: '100%',
             borderRadius: '16px',
             border: '1px solid #E4E4E7',
             overflow: 'hidden',

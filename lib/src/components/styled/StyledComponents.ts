@@ -125,17 +125,19 @@ export const SendButton = styled.button`
 //
 //
 //
-export const CustomMessageContainer = styled.div<{ isUser: boolean }>`
+export const CustomMessageContainer = styled.div<{ isUser: boolean, reply: number }>`
   display: flex;
   flex-direction: ${(props) => (!props.isUser ? 'row' : 'row-reverse')};
   align-items: end;
   margin: 10px 0;
   gap: 5px;
-  position: 'relative';
+  position: relative;
+  margin-bottom: ${(props) => (!!props.reply && '40px')}
 `;
 
-export const CustomMessageBubble = styled.div<{ isUser: boolean }>`
+export const CustomMessageBubble = styled.div<{ isUser: boolean, deleted: boolean }>`
   max-width: 60%;
+  min-width: 15%;
   padding: 8px 16px;
   border-radius: ${(props) =>
     props.isUser ? '15px 15px 0px 15px' : '15px 15px 15px 0px'};
@@ -144,8 +146,8 @@ export const CustomMessageBubble = styled.div<{ isUser: boolean }>`
   text-align: left;
   display: flex;
   flex-direction: column;
-  background-color: ${(props) => (props.isUser ? '#E7EDF9' : '#FFFFFF')};
-  position: 'relative';
+  background-color: ${(props) => (props.deleted ? '#dfdfdf' : props.isUser ? '#E7EDF9' : '#FFFFFF')};
+  position: relative;
 `;
 
 export const CustomMessageText = styled.p`
@@ -251,3 +253,21 @@ export const OrDelimiter = styled.div`
     right: 0;
   }
 `;
+
+export const AlsoContainer = styled.div`
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  background-color: #0052CD0D;
+  font-size: 14px;
+  padding: 10px 28px;
+  text-align: start;
+`;
+
+export const AlsoCheckbox = styled.input<{ accentColor: string }>`
+  width: 16px;
+  height: 16px;
+  border-radius: #0052CD;
+  accent-color: #5E3FDE;
+  accent-color: ${(props) => (props.accentColor)};
+`

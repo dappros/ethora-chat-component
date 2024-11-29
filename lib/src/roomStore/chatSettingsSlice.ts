@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { IConfig, IUser, ModalType, User } from '../types/types';
+import { DeleteModal, EditAction, IConfig, IUser, ModalType, User } from '../types/types';
 import { localStorageConstants } from '../helpers/constants/LOCAL_STORAGE';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 
@@ -7,7 +7,9 @@ interface ChatState {
   user: User;
   config?: IConfig;
   activeModal?: ModalType;
+  deleteModal?: DeleteModal;
   selectedUser?: IUser;
+  activeFile?: any;
 }
 
 const unpackAndTransform = (input?: User): User => {
@@ -74,6 +76,11 @@ const initialState: ChatState = {
     isAssetsOpen: true,
     isAgreeWithTerms: false,
   },
+  deleteModal: {
+    isDeleteModal: false,
+    roomJid: '',
+    messageId: '',
+  },
   config: { colors: { primary: '#0052CD', secondary: '#F3F6FC' } },
 };
 
@@ -102,6 +109,12 @@ export const chatSlice = createSlice({
     },
     setActiveModal: (state, action: PayloadAction<ModalType | undefined>) => {
       state.activeModal = action.payload;
+    },
+    setActiveFile: (state, action: PayloadAction<any>) => {
+      state.activeFile = action.payload;
+    },
+    setDeleteModal: (state, action: PayloadAction<DeleteModal | undefined>) => {
+      state.deleteModal = action.payload;
     },
     setSelectedUser: (state, action: PayloadAction<IUser | undefined>) => {
       state.selectedUser = action.payload;
@@ -134,8 +147,10 @@ export const {
   refreshTokens,
   logout,
   setActiveModal,
+  setDeleteModal,
   setSelectedUser,
   updateUser,
+  setActiveFile,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

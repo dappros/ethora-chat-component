@@ -34,7 +34,7 @@ export const CloseButton = styled.button`
 export const ModalContainer = styled.div`
   background: white;
   border-radius: 24px;
-  padding: 32px;
+  padding: 32px 64px;
   box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
@@ -49,6 +49,13 @@ export const ModalContainer = styled.div`
 export const ModalTitle = styled.h2`
   font-size: 1.5em;
   margin: 0;
+  font-weight: 400;
+`;
+
+export const ModalDescription = styled.p`
+  font-size: 14px;
+  margin: 0;
+  font-weight: 400;
 `;
 
 export const GroupContainer = styled.div`
@@ -111,6 +118,8 @@ export const UserInfo = styled.div`
   width: 100%;
   display: flex;
   flex-direction: column;
+  justify-content: center;
+  align-items: center;
 `;
 
 export const UserName = styled.div`
@@ -131,6 +140,7 @@ export const BorderedContainer = styled.div`
   border: 1px solid #f0f0f0;
   display: flex;
   flex-direction: column;
+  padding: 16px;
 `;
 
 export const LabelData = styled.div`

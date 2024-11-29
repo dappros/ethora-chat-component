@@ -16,9 +16,14 @@ import { RootState } from '../../roomStore';
 import Composing from '../styled/StyledInputComponents/Composing';
 import { validateMessages } from '../../helpers/validator';
 import NewMessageLabel from '../styled/NewMessageLabel';
+import TreadLabel from '../styled/TreadLabel';
 
 interface MessageListProps<TMessage extends IMessage> {
-  CustomMessage?: React.ComponentType<{ message: IMessage; isUser: boolean }>;
+  CustomMessage?: React.ComponentType<{
+    message: IMessage;
+    isUser: boolean;
+    isReply?: boolean;
+  }>;
   user: User;
   roomJID: string;
   loadMoreMessages: (
@@ -28,6 +33,8 @@ interface MessageListProps<TMessage extends IMessage> {
   ) => Promise<void>;
   loading: boolean;
   config?: IConfig;
+  isReply?: boolean;
+  activeMessage?: IMessage;
 }
 const MessageList = <TMessage extends IMessage>({
   CustomMessage,
@@ -36,6 +43,8 @@ const MessageList = <TMessage extends IMessage>({
   roomJID,
   config,
   loading,
+  isReply,
+  activeMessage,
 }: MessageListProps<TMessage>) => {
   const dispatch = useDispatch();
 
@@ -43,21 +52,43 @@ const MessageList = <TMessage extends IMessage>({
     (state: RootState) => state.rooms.rooms[roomJID]
   );
 
-  // useEffect(() => {
-  //   dispatch(
-  //     setLastViewedTimestamp({
-  //       chatJID: roomJID,
-  //       timestamp: 0,
-  //     })
-  //   );
+  const addReplyMessages = useMemo(() => {
+    return messages.map((message) => {
+      const newMessage = {
+        ...message,
+        reply: messages.filter(
+          (mess) =>
+            !!mess.mainMessage && JSON.parse(mess.mainMessage).id === message.id
+        ),
+      };
 
-  //   return () => {};
-  // }, [roomJID]);
+      return newMessage;
+    });
+  }, [messages, messages.length]);
 
-  const memoizedMessages = useMemo(
-    () => messages,
-    [messages.length, roomJID, lastViewedTimestamp]
+  const isUserActiveMessage = useMemo(
+    () => activeMessage && activeMessage.user.id === user.walletAddress,
+    [activeMessage, user.walletAddress]
   );
+
+  const memoizedMessages = useMemo(() => {
+    if (isReply) {
+      return addReplyMessages.filter(
+        (item: IMessage) =>
+          item.roomJid.includes(roomJID) &&
+          item.isReply &&
+          item.isReply === 'true' &&
+          item.mainMessage &&
+          JSON.parse(item.mainMessage).id === activeMessage.id
+      );
+    } else {
+      return addReplyMessages.filter(
+        (item: IMessage) =>
+          item.showInChannel === 'true' ||
+          ((!item.isReply || item.isReply === 'false') && !item.mainMessage)
+      );
+    }
+  }, [messages, messages.length]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);
@@ -102,7 +133,7 @@ const MessageList = <TMessage extends IMessage>({
         isLoadingMore.current = true;
 
         loadMoreMessages(
-          memoizedMessages[0].roomJID,
+          memoizedMessages[0].roomJid,
           30,
           Number(memoizedMessages[0].id)
         ).finally(() => {
@@ -169,10 +200,10 @@ const MessageList = <TMessage extends IMessage>({
     }
   }, [memoizedMessages.length, composing]);
 
-  if (!validateMessages(memoizedMessages)) {
-    console.log("Invalid 'messages' props provided to MessageList.");
-    return null;
-  }
+  // if (!validateMessages(memoizedMessages)) {
+  //   console.log("Invalid 'messages' props provided to MessageList.");
+  //   return null;
+  // }
 
   let lastDateLabel: string | null = null;
 
@@ -184,6 +215,18 @@ const MessageList = <TMessage extends IMessage>({
         color={config?.colors?.primary}
       >
         {loading && <Loader color={config?.colors?.primary} />}
+        {activeMessage && (
+          <React.Fragment>
+            <CustomMessage
+              message={activeMessage}
+              isUser={isUserActiveMessage}
+            />
+            <TreadLabel
+              reply={memoizedMessages.length}
+              colors={config?.colors}
+            />
+          </React.Fragment>
+        )}
         {memoizedMessages.map((message) => {
           const isUser = message.user.id === user.walletAddress;
           const messageDate = new Date(message.date);
@@ -217,9 +260,11 @@ const MessageList = <TMessage extends IMessage>({
 
           return (
             <React.Fragment key={message.id}>
-              {showDateLabel && message.id !== 'delimiter-new' && (
-                <DateLabel date={messageDate} colors={config?.colors} />
-              )}
+              {showDateLabel &&
+                !activeMessage &&
+                message.id !== 'delimiter-new' && (
+                  <DateLabel date={messageDate} colors={config?.colors} />
+                )}
               {!CustomMessage ? (
                 <MessageComponent message={message} isUser={isUser}>
                   <MessageTimestamp>
@@ -229,7 +274,11 @@ const MessageList = <TMessage extends IMessage>({
                   <MessageText>{message.body}</MessageText>
                 </MessageComponent>
               ) : (
-                <MessageComponent message={message} isUser={isUser} />
+                <MessageComponent
+                  message={message}
+                  isUser={isUser}
+                  isReply={isReply}
+                />
               )}
             </React.Fragment>
           );

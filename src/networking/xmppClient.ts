@@ -107,9 +107,9 @@ export class XmppClient {
 
     this.client.on('error', (error) => {
       console.error('XMPP client error:', error);
-      if (this.status !== 'online') {
-        this.scheduleReconnect();
-      }
+      // if (this.status !== 'online') {
+      //   this.scheduleReconnect();
+      // }
     });
 
     this.client.on('stanza', (stanza) => this.handleStanza(stanza));
@@ -300,7 +300,7 @@ export class XmppClient {
     notDisplayedValue?: string,
     isReply?: boolean,
     showInChannel?: boolean,
-    mainMessage?: string,
+    mainMessage?: string
   ) => {
     sendTextMessage(
       this.client,

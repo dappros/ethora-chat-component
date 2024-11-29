@@ -1,10 +1,11 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { IMessage, IRoom } from '../types/types';
+import { EditAction, IMessage, IRoom } from '../types/types';
 import { insertMessageWithDelimiter } from '../helpers/insertMessageWithDelimiter';
 
 interface RoomMessagesState {
   rooms: { [jid: string]: IRoom };
   activeRoomJID: string;
+  editAction?: EditAction;
   isLoading: boolean;
 }
 
@@ -12,6 +13,12 @@ const initialState: RoomMessagesState = {
   rooms: {},
   activeRoomJID: null,
   isLoading: false,
+  editAction: {
+    isEdit: false,
+    roomJid: '',
+    messageId: '',
+    text: '',
+  },
 };
 
 export const roomsStore = createSlice({
@@ -57,13 +64,37 @@ export const roomsStore = createSlice({
     ) {
       const { roomJID, messageId } = action.payload;
       if (state.rooms[roomJID]) {
-        const roomMessages = state.rooms[roomJID].messages;
-        const messageIndex = roomMessages.findIndex(
-          (msg) => msg.id === messageId
-        );
-        if (messageIndex !== -1) {
-          roomMessages.splice(messageIndex, 1);
+        state.rooms[roomJID].messages.map((message) => {
+          if (message.id === messageId ) {
+            message.isDeleted = true;
+          }
+        })
+      }
+    },
+    setEditAction: (state, action: PayloadAction<EditAction | undefined>) => {
+      const { isEdit } = action.payload;
+      if(isEdit) {
+        state.editAction = action.payload;
+      } else {
+        state.editAction = {
+          isEdit: false,
+          roomJid: '', 
+          messageId: '',
+          text: '',
         }
+      }
+    },
+    editRoomMessage(
+      state,
+      action: PayloadAction<{ roomJID: string; messageId: string, text: string }>
+    ) {
+      const { roomJID, messageId, text } = action.payload;
+      if (state.rooms[roomJID]) {
+        state.rooms[roomJID].messages.map((message) => {
+          if (message.id === messageId ) {
+            message.body = text;
+          };
+        });
       }
     },
     addRoomMessage(
@@ -159,6 +190,24 @@ export const roomsStore = createSlice({
       state.activeRoomJID = null;
       state.isLoading = false;
     },
+    setActiveMessage: (state, action: PayloadAction<{ id: string, chatJID: string }>) => {
+      const { id, chatJID } = action.payload;
+
+      state.rooms[chatJID].messages.map((message) => {
+        if(message.id === id) {
+          message.activeMessage = true;
+        } else {
+          message.activeMessage = false;
+        }
+      });
+    },
+    setCloseActiveMessage: (state, action: PayloadAction<{ chatJID: string }>) => {
+      const { chatJID } = action.payload;
+
+      state.rooms[chatJID].messages.map((message) => {
+          message.activeMessage = false;
+      });
+    },
   },
 });
 
@@ -179,6 +228,8 @@ export const {
   setRoomMessages,
   addRoomMessage,
   deleteRoomMessage,
+  setEditAction,
+  editRoomMessage,
   setComposing,
   setIsLoading,
   setLastViewedTimestamp,
@@ -186,6 +237,8 @@ export const {
   setCurrentRoom,
   setRoomRole,
   setLogoutState,
+  setActiveMessage,
+  setCloseActiveMessage,
   deleteRoom,
   updateRoom,
 } = roomsStore.actions;
