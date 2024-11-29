@@ -126,7 +126,6 @@ export const getHistory = async (
 
   try {
     const res = await Promise.race([responsePromise, timeoutPromise]);
-    console.log('history res', res);
     return res;
   } catch (e) {
     console.log('=-> error in', chatJID, e);

@@ -8,6 +8,7 @@ interface ChatState {
   config?: IConfig;
   activeModal?: ModalType;
   selectedUser?: IUser;
+  activeFile?: any;
 }
 
 const unpackAndTransform = (input?: User): User => {
@@ -103,6 +104,9 @@ export const chatSlice = createSlice({
     setActiveModal: (state, action: PayloadAction<ModalType | undefined>) => {
       state.activeModal = action.payload;
     },
+    setActiveFile: (state, action: PayloadAction<any>) => {
+      state.activeFile = action.payload;
+    },
     setSelectedUser: (state, action: PayloadAction<IUser | undefined>) => {
       state.selectedUser = action.payload;
     },
@@ -136,6 +140,7 @@ export const {
   setActiveModal,
   setSelectedUser,
   updateUser,
+  setActiveFile,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

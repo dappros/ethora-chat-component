@@ -95,10 +95,14 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
           }}
           remove={{ enabled: true, onRemoveClick }}
           role={activeRoom?.role}
+          size={128}
         />
         <UserInfo>
           <UserName>{activeRoom.name}</UserName>
-          <UserStatus>{activeRoom.usersCnt} members</UserStatus>
+          <UserStatus>
+            {activeRoom.usersCnt}{' '}
+            {activeRoom.usersCnt > 1 ? 'members' : 'member'}
+          </UserStatus>
         </UserInfo>
         <BorderedContainer>
           <LabelData>Description</LabelData>
