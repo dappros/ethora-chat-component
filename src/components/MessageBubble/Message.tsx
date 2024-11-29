@@ -175,6 +175,7 @@ const Message: React.FC<MessageProps> = forwardRef<
 
       {!config?.disableInteractions && (
         <MessageInteractions
+          isReply={isReply}
           isUser={isUser}
           message={message}
           setContextMenu={setContextMenu}

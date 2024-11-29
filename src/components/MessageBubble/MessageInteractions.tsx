@@ -16,6 +16,7 @@ import { useXmppClient } from '../../context/xmppProvider';
 import { setActiveMessage } from '../../roomStore/roomsSlice';
 
 interface MessageInteractionsProps {
+  isReply?: boolean;
   isUser?: boolean;
   message: IMessage;
   contextMenu: { visible: boolean; x: number; y: number };
@@ -26,6 +27,7 @@ interface MessageInteractionsProps {
 }
 
 const MessageInteractions: React.FC<MessageInteractionsProps> = ({
+  isReply,
   isUser,
   message,
   contextMenu,
@@ -79,11 +81,15 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
             <MESSAGE_INTERACTIONS_ICONS.SEND_ITEM />{' '}
           </MenuItem> */}
           {/* <Delimeter /> */}
-          <MenuItem onClick={handleReplyMessage}>
-            {MESSAGE_INTERACTIONS.REPLY}
-            <MESSAGE_INTERACTIONS_ICONS.REPLY />{' '}
-          </MenuItem>
-          <Delimeter />
+          {!isReply &&
+            <>
+              <MenuItem onClick={handleReplyMessage}>
+                {MESSAGE_INTERACTIONS.REPLY}
+                <MESSAGE_INTERACTIONS_ICONS.REPLY />{' '}
+              </MenuItem>
+              <Delimeter />
+            </>
+          }
           <MenuItem onClick={() => handleCopyMessage(message.body)}>
             {MESSAGE_INTERACTIONS.COPY}
             <MESSAGE_INTERACTIONS_ICONS.COPY />
