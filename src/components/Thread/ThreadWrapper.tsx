@@ -211,7 +211,7 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
           checked={isChecked}
           onChange={(e) => setIsChecked(e.target.checked)}
         />
-        <span>Also send to room</span>
+        <span>Also send to</span>
         <a
           style={{
             color: config.colors.primary || '#0052CD',
@@ -228,6 +228,7 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
         <EditWrapper text={editAction.text} onClose={onCloseEdit} />
       )}
       <SendInput
+        editMessage={editAction.text}
         sendMedia={sendMedia}
         sendMessage={sendMessage}
         config={config}
