@@ -34,6 +34,7 @@ const ReplyContainer = styled.button`
 const AvatarCircle = styled.div`
     height: 24px;
     width: 24px;
+    margin-left: -10px;
 
     @media (max-width: 700px) {
       height: 20px;
@@ -67,7 +68,6 @@ export const BottomReplyContainer: FC<BottomReplyContainerProps> = ({
               key={item.id}
               username={item.name}
               style={{
-                marginLeft: '-10px',
                 height: '100%',
                 width: '100%',
                 border: 'solid 1px #ffffff',
