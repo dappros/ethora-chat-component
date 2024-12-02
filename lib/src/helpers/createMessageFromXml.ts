@@ -38,7 +38,8 @@ export const createMessageFromXml = async (
   },
   body: Element | undefined,
   id: string,
-  from: any
+  from: any,
+  deleted?: boolean
 ): Promise<any> => {
   // change to iMESSAGES
   if (!body || typeof body.getText !== 'function') {
@@ -68,6 +69,7 @@ export const createMessageFromXml = async (
       token: data.token,
       refreshToken: data.refreshToken,
     },
+    isDeleted: deleted,
     ...data,
   };
 

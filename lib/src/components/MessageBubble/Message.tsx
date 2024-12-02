@@ -76,27 +76,49 @@ const Message: React.FC<MessageProps> = forwardRef<
   const handleReplyMessage = () => {
     dispatch(setEditAction({ isEdit: false }));
 
-    if(!isReply && message.mainMessage) {
+    if (!isReply && message.mainMessage) {
       const messageCore = JSON.parse(message.mainMessage);
-      return dispatch(setActiveMessage({ id: messageCore.id, chatJID: messageCore.roomJid }));
-    };
+      return dispatch(
+        setActiveMessage({ id: messageCore.id, chatJID: messageCore.roomJid })
+      );
+    }
 
-    return dispatch(setActiveMessage({ id: message.id, chatJID: message.roomJid }));
+    return dispatch(
+      setActiveMessage({ id: message.id, chatJID: message.roomJid })
+    );
   };
 
   const handleDeleteMessage = () => {
-    dispatch(setDeleteModal({ isDeleteModal: true, roomJid: message.roomJid, messageId: message.id }))
+    dispatch(
+      setDeleteModal({
+        isDeleteModal: true,
+        roomJid: message.roomJid,
+        messageId: message.id,
+      })
+    );
     // dispatch(deleteRoomMessage({ roomJID: message.roomJid, messageId: message.id }));
     // client.deleteMessageStanza(message.roomJid, message.id);
   };
 
   const handleEditMessage = () => {
-    dispatch(setEditAction({ isEdit: true, roomJid: message.roomJid, messageId: message.id, text: message.body }));
-  }
+    dispatch(
+      setEditAction({
+        isEdit: true,
+        roomJid: message.roomJid,
+        messageId: message.id,
+        text: message.body,
+      })
+    );
+  };
 
   return (
     <>
-      <CustomMessageContainer key={message.id} isUser={isUser} reply={message?.reply?.length} ref={ref}>
+      <CustomMessageContainer
+        key={message.id}
+        isUser={isUser}
+        reply={message?.reply?.length}
+        ref={ref}
+      >
         {!isUser && (
           <CustomMessagePhotoContainer
             onClick={() => handleUserAvatarClick(message.user)}
@@ -114,21 +136,24 @@ const Message: React.FC<MessageProps> = forwardRef<
             )}
           </CustomMessagePhotoContainer>
         )}
-        <CustomMessageBubble deleted={message.isDeleted} isUser={isUser} onContextMenu={handleContextMenu}>
-
+        <CustomMessageBubble
+          deleted={message.isDeleted}
+          isUser={isUser}
+          onContextMenu={handleContextMenu}
+        >
           {!isUser && (
             <CustomUserName isUser={isUser} color={config?.colors?.primary}>
               {message.user.name}
             </CustomUserName>
           )}
-            {!isReply && message.mainMessage &&
-              <MessageReply
-                handleReplyMessage={handleReplyMessage}
-                isUser={isUser}
-                text={JSON.parse(message.mainMessage).text}
-              />
-            }
-          {message?.isMediafile === 'true' ? (
+          {!isReply && message.mainMessage && (
+            <MessageReply
+              handleReplyMessage={handleReplyMessage}
+              isUser={isUser}
+              text={JSON.parse(message.mainMessage).text}
+            />
+          )}
+          {message?.isMediafile === 'true' && !message?.isDeleted ? (
             <MediaMessage
               mimeType={message.mimetype}
               messageText={message.locationPreview}
@@ -137,14 +162,15 @@ const Message: React.FC<MessageProps> = forwardRef<
             />
           ) : (
             <CustomMessageText>
-              {message.isDeleted
-                ? <div style={{
+              {message.isDeleted ? (
+                <div
+                  style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: 5,
-                    paddingTop: 5
-                    }}
-                  >
+                    paddingTop: 5,
+                  }}
+                >
                   <div
                     style={{
                       padding: '5px',
@@ -152,24 +178,32 @@ const Message: React.FC<MessageProps> = forwardRef<
                       borderRadius: '7px',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center'
+                      justifyContent: 'center',
                     }}
                   >
-                    <DeleteIcon width={18} height={18} fill='#8C8C8C'/>
+                    <DeleteIcon width={18} height={18} fill="#8C8C8C" />
                   </div>
-                    <p style={{margin: 0, color: '#8C8C8C'}}> This message was deleted.</p>
-                  </div>
-                : <span>{message.body}</span>
-              }
+                  <p style={{ margin: 0, color: '#8C8C8C' }}>
+                    This message was deleted.
+                  </p>
+                </div>
+              ) : (
+                <span>{message.body}</span>
+              )}
             </CustomMessageText>
           )}
           <CustomMessageTimestamp>
             {message?.pending && 'sending...'}
             {new Date(message.date).toLocaleTimeString()}
           </CustomMessageTimestamp>
-          {message?.reply?.length
-            ? <BottomReplyContainer onClick={handleReplyMessage} reply={message?.reply}/>
-            : <div/>}
+          {message?.reply?.length ? (
+            <BottomReplyContainer
+              onClick={handleReplyMessage}
+              reply={message?.reply}
+            />
+          ) : (
+            <div />
+          )}
         </CustomMessageBubble>
       </CustomMessageContainer>
 

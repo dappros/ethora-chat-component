@@ -38,6 +38,12 @@ const onRealtimeMessage = async (stanza: Element) => {
     const data = stanza?.getChild('data');
     const id = archived?.attrs.id;
 
+    const deleted = stanza
+      .getChild('result')
+      ?.getChild('forwarded')
+      ?.getChild('message')
+      ?.getChild('deleted');
+
     if (!data) {
       console.log(stanza.toString());
       console.log('Missing data elements in real-time message.');
@@ -56,7 +62,8 @@ const onRealtimeMessage = async (stanza: Element) => {
       data.attrs,
       body,
       id,
-      stanza.attrs.from
+      stanza.attrs.from,
+      !!deleted
     );
 
     store.dispatch(
@@ -123,6 +130,12 @@ const onMessageHistory = async (stanza: any) => {
       ?.getChild('forwarded')
       ?.getChild('message')
       ?.getChild('data');
+    const deleted = stanza
+      .getChild('result')
+      ?.getChild('forwarded')
+      ?.getChild('message')
+      ?.getChild('deleted');
+
     const delay = stanza
       .getChild('result')
       ?.getChild('forwarded')
@@ -139,6 +152,7 @@ const onMessageHistory = async (stanza: any) => {
       }
     }
     // console.log(stanza.attrs.from);
+
     if (
       !data?.attrs ||
       !data.attrs.senderFirstName ||
@@ -155,7 +169,8 @@ const onMessageHistory = async (stanza: any) => {
       data.attrs,
       body,
       id,
-      stanza.attrs.from
+      stanza.attrs.from,
+      !!deleted
     );
     store.dispatch(
       addRoomMessage({

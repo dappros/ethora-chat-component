@@ -92,7 +92,6 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
               style={{ color: !isChatActive ? '#141414' : '#fff' }}
             />
           ) : (
-            config?.betaChatsLoading &&
             lastMessage?.body && (
               <div
                 style={{

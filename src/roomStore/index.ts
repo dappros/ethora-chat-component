@@ -21,8 +21,8 @@ export const store = configureStore({
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
-        ignoredActions: ['chat/addMessage'],
-        ignoredPaths: ['chat.messages.timestamp'],
+        ignoredActions: ['chat/addMessage', 'chatSettingStore/setStoreClient'],
+        ignoredPaths: ['chat.messages.timestamp', 'chatSettingStore.client'],
         serializableCheck: false,
       },
     }).concat(unreadMiddleware),
