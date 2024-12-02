@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Button from '../../styled/Button';
 import { AddNewIcon, AddPhotoIcon } from '../../../assets/icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../../roomStore';
-import { StyledInput } from '../../styled/StyledInputComponents/StyledInputComponents';
 import { useXmppClient } from '../../../context/xmppProvider';
 import {
   CloseButton,
@@ -13,6 +12,7 @@ import {
   ModalTitle,
 } from '../styledModalComponents';
 import { setCurrentRoom } from '../../../roomStore/roomsSlice';
+import InputWithLabel from '../../styled/StyledInput';
 
 const NewChatModal: React.FC = () => {
   const config = useSelector(
@@ -20,21 +20,69 @@ const NewChatModal: React.FC = () => {
   );
 
   const dispatch = useDispatch();
-
   const { client } = useXmppClient();
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [roomName, setRoomName] = useState('');
-  const [roomDescription, setRoomDescription] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [roomName, setRoomName] = useState<string>('');
+  const [roomDescription, setRoomDescription] = useState<string>('');
+  const [errors, setErrors] = useState({ name: '', description: '' });
+
+  const isValid = useMemo(
+    () => roomName.length >= 3 && roomDescription.length >= 5,
+    [roomName, roomDescription]
+  );
+
+  const validateRoomName = (name: string) => {
+    if (name.trim().length < 3) {
+      return 'Room name must be at least 3 characters.';
+    }
+    return '';
+  };
+
+  const validateRoomDescription = (description: string) => {
+    if (description.trim().length < 5) {
+      return 'Room description must be at least 5 characters.';
+    }
+    return '';
+  };
+
+  const handleRoomNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('adsasd');
+    const name = e.target.value;
+    setRoomName(name);
+    setErrors((prevErrors) => ({
+      ...prevErrors,
+      name: validateRoomName(name),
+    }));
+  };
+
+  const handleRoomDescriptionChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const description = e.target.value;
+    setRoomDescription(description);
+    setErrors((prevErrors) => ({
+      ...prevErrors,
+      description: validateRoomDescription(description),
+    }));
+  };
 
   const handleOpenModal = () => setIsModalOpen(true);
   const handleCloseModal = () => setIsModalOpen(false);
 
   const handleCreateRoom = async () => {
-    const newChatJid = await client.createRoomStanza(roomName, roomDescription);
-    await client.getRooms();
-    dispatch(setCurrentRoom({ roomJID: newChatJid }));
-    setIsModalOpen(false);
+    if (isValid) {
+      const newChatJid = await client.createRoomStanza(
+        roomName,
+        roomDescription
+      );
+      await client.getRooms();
+      dispatch(setCurrentRoom({ roomJID: newChatJid }));
+      setIsModalOpen(false);
+      setErrors({ name: '', description: '' });
+      setRoomName('');
+      setRoomDescription('');
+    }
   };
 
   return (
@@ -69,20 +117,30 @@ const NewChatModal: React.FC = () => {
               onClick={() => console.log('add image')}
             />
             <GroupContainer
-              style={{ flexDirection: 'column', position: 'relative' }}
+              style={{
+                flexDirection: 'column',
+                position: 'relative',
+                boxSizing: 'border-box',
+                width: '100%',
+              }}
             >
-              <StyledInput
+              <InputWithLabel
+                style={{ flex: 1 }}
                 id="roomName"
                 value={roomName}
-                onChange={(e) => setRoomName(e.target.value)}
+                onChange={handleRoomNameChange}
                 placeholder="Enter Room Name"
+                helperText={errors.name}
+                error={!!errors.name}
               />
-
-              <StyledInput
+              <InputWithLabel
+                style={{ flex: 1 }}
                 id="roomDescription"
                 value={roomDescription}
-                onChange={(e) => setRoomDescription(e.target.value)}
+                onChange={handleRoomDescriptionChange}
                 placeholder="Enter Description"
+                helperText={errors.description}
+                error={!!errors.description}
               />
             </GroupContainer>
 
@@ -100,6 +158,7 @@ const NewChatModal: React.FC = () => {
                 style={{ width: '100%' }}
                 unstyled
                 variant="filled"
+                disabled={!isValid}
               />
             </GroupContainer>
           </ModalContainer>

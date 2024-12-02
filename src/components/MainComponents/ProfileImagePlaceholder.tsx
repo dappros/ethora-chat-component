@@ -175,7 +175,7 @@ export const ProfileImagePlaceholder: React.FC<
             <FileInput
               type="file"
               id="avatar-file-input"
-              accept="image/*"
+              accept="image/png, image/jpeg"
               onChange={handleFileChange}
             />
             <Overlay>

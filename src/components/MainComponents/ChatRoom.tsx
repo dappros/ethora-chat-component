@@ -23,25 +23,32 @@ import { NoSelectedChatIcon } from '../../assets/icons.tsx';
 
 interface ChatRoomProps {
   CustomMessageComponent?: any;
+  handleBackClick?: (value: boolean) => void;
 }
 
 const ChatRoom: React.FC<ChatRoomProps> = React.memo(
-  ({ CustomMessageComponent }) => {
+  ({ CustomMessageComponent, handleBackClick }) => {
     const { client } = useXmppClient();
     const dispatch = useDispatch();
 
     const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
-    const { roomsList, loading, user, activeRoomJID, globalLoading, config, editAction } =
-      useSelector((state: RootState) => ({
-        activeRoomJID: state.rooms.activeRoomJID,
-        roomsList: state.rooms.rooms,
-        loading:
-          state.rooms.rooms[state.rooms.activeRoomJID]?.isLoading || false,
-        user: state.chatSettingStore.user,
-        globalLoading: state.rooms.isLoading,
-        config: state.chatSettingStore.config,
-        editAction: state.rooms.editAction,
-      }));
+    const {
+      roomsList,
+      loading,
+      user,
+      activeRoomJID,
+      globalLoading,
+      config,
+      editAction,
+    } = useSelector((state: RootState) => ({
+      activeRoomJID: state.rooms.activeRoomJID,
+      roomsList: state.rooms.rooms,
+      loading: state.rooms.rooms[state.rooms.activeRoomJID]?.isLoading || false,
+      user: state.chatSettingStore.user,
+      globalLoading: state.rooms.isLoading,
+      config: state.chatSettingStore.config,
+      editAction: state.rooms.editAction,
+    }));
 
     const roomMessages = useMemo(
       () => roomsList[activeRoomJID]?.messages || [],
@@ -104,14 +111,14 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
 
     const sendMessage = useCallback(
       (message: string) => {
-        if( editAction.isEdit) {
+        if (editAction.isEdit) {
           client?.editMessageStanza(
             editAction.roomJid,
             editAction.messageId,
-            message,
+            message
           );
 
-          dispatch(setEditAction({isEdit: false }));
+          dispatch(setEditAction({ isEdit: false }));
           return;
         } else {
           client?.sendMessage(
@@ -122,7 +129,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             user.walletAddress,
             message
           );
-        };
+        }
 
         // dispatch(
         //   addRoomMessage({
@@ -141,7 +148,6 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         //     },
         //   })
         // );
-
       },
       [activeRoomJID, editAction]
     );
@@ -219,7 +225,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
 
     const onCloseEdit = () => {
       dispatch(setEditAction({ isEdit: false }));
-    }
+    };
 
     const queueMessageLoader = useCallback(
       async (chatJID: string, max: number) => {
@@ -227,15 +233,6 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       },
       [globalLoading, isLoadingMore]
     );
-
-    if (config?.betaChatsLoading) {
-      useMessageLoaderQueue(
-        Object.keys(roomsList),
-        globalLoading,
-        loading,
-        queueMessageLoader
-      );
-    }
 
     useEffect(() => {
       const getDefaultHistory = async () => {
@@ -276,6 +273,13 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         getDefaultHistory();
       }
     }, [activeRoomJID, Object.keys(roomsList).length]);
+
+    useMessageLoaderQueue(
+      Object.keys(roomsList),
+      globalLoading,
+      loading,
+      queueMessageLoader
+    );
 
     if (Object.keys(roomsList)?.length < 1 && !loading && !globalLoading) {
       return (
@@ -349,7 +353,10 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         }}
       >
         {!config?.disableHeader && (
-          <ChatHeader currentRoom={roomsList[activeRoomJID]} />
+          <ChatHeader
+            currentRoom={roomsList[activeRoomJID]}
+            handleBackClick={handleBackClick}
+          />
         )}
         {loading || globalLoading ? (
           <Loader color={config?.colors?.primary} />
@@ -378,7 +385,9 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             isReply={false}
           />
         )}
-        {editAction.isEdit && <EditWrapper text ={editAction.text} onClose={onCloseEdit}/>}
+        {editAction.isEdit && (
+          <EditWrapper text={editAction.text} onClose={onCloseEdit} />
+        )}
         <SendInput
           editMessage={editAction.text}
           sendMessage={sendMessage}
