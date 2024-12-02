@@ -146,6 +146,7 @@ export const chatSlice = createSlice({
     logout: (state) => {
       state.user = unpackAndTransform();
       state.config = undefined;
+      state.client = undefined;
 
       localStorage.removeItem(localStorageConstants.ETHORA_USER);
     },
