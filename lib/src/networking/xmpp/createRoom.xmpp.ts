@@ -21,6 +21,12 @@ export async function createRoom(
     await createRoomPresence(roomId, client);
     await setMeAsOwner(roomId, client);
     await roomConfig(roomId, title, description, client);
+
+    // await Promise.all([
+    //   createRoomPresence(roomId, client),
+    //   setMeAsOwner(roomId, client),
+    //   roomConfig(roomId, title, description, client),
+    // ]);
   } catch (error) {
     console.log(error);
   }

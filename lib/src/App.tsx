@@ -55,7 +55,6 @@ function App() {
                 _id: '6672807fef55364c13703237',
               },
             ],
-            betaChatsLoading: true,
             setRoomJidInPath: true,
           }}
           MainComponentStyles={{

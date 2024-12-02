@@ -31,6 +31,7 @@ import { getRoomMembers } from './xmpp/getRoomMembers.xmpp';
 import { getRoomInfo } from './xmpp/getRoomInfo.xmpp';
 import { leaveTheRoom } from './xmpp/leaveTheRoom.xmpp';
 import { editMessage } from './xmpp/editMessage.xmpp';
+import { CHAT_DOMAIN } from '../helpers/constants/PLATFORM_CONSTANTS';
 
 export class XmppClient {
   client!: Client;
@@ -245,7 +246,11 @@ export class XmppClient {
         to: roomJid,
         id: id,
       },
-      xml('x', 'http://jabber.org/protocol/muc#user', xml('invite', { to: to }))
+      xml(
+        'x',
+        'http://jabber.org/protocol/muc#user',
+        xml('invite', { to: to + CHAT_DOMAIN })
+      )
     );
 
     this.client.send(xmlMessage);
@@ -330,8 +335,8 @@ export class XmppClient {
     sendTypingRequest(this.client, chatId, fullName, start);
   }
 
-  getChatsPrivateStoreRequestStanza = () =>
-    getChatsPrivateStoreRequest(this.client);
+  getChatsPrivateStoreRequestStanza = async () =>
+    await getChatsPrivateStoreRequest(this.client);
 
   async setChatsPrivateStoreRequestStanza(jsonObj: string) {
     await setChatsPrivateStoreRequest(this.client, jsonObj);

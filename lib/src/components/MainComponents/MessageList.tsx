@@ -252,7 +252,7 @@ const MessageList = <TMessage extends IMessage>({
           }
 
           // todo finish unread messages
-          if (message.id === 'delimiter-new') {
+          if (message.id === 'delimiter-new' && message.isReply === 'false') {
             return <NewMessageLabel color={config?.colors?.primary} />;
           }
 
