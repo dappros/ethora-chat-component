@@ -34,8 +34,9 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
 }) => {
   const { client } = useXmppClient();
   const dispatch = useDispatch();
-  const { config, loading, roomsList, editAction } = useSelector(
+  const { config, loading, roomsList, editAction, activeRoomJid } = useSelector(
     (state: RootState) => ({
+      activeRoomJid: state.rooms.activeRoomJID,
       loading: state.rooms.rooms[state.rooms.activeRoomJID]?.isLoading || false,
       globalLoading: state.rooms.isLoading,
       config: state.chatSettingStore.config,
@@ -157,7 +158,7 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
 
   const sendStartComposing = useCallback(() => {
     client.sendTypingRequestStanza(
-      activeMessage.roomJid,
+      activeRoomJid,
       `${user.firstName} ${user.lastName}`,
       true
     );
@@ -165,7 +166,7 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
 
   const sendEndComposing = useCallback(() => {
     client.sendTypingRequestStanza(
-      activeMessage.roomJid,
+      activeRoomJid,
       `${user.firstName} ${user.lastName}`,
       false
     );

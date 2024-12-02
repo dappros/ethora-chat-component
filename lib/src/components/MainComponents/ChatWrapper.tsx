@@ -127,6 +127,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     }
 
     const initXmmpClient = async () => {
+      dispatch(setConfig(config));
       try {
         if (!user.defaultWallet || user?.defaultWallet.walletAddress === '') {
           setShowModal(true);
@@ -223,7 +224,9 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     <>
       {showModal && (
         <Overlay>
-          <StyledModal>Unsuccessfull login. Try again</StyledModal>
+          <StyledModal>
+            There was an error. Please, refresh the page
+          </StyledModal>
         </Overlay>
       )}
       <>
