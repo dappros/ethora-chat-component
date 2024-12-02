@@ -14,8 +14,8 @@ const ReplyContainer = styled.button<{isUser: boolean}>`
   box-shadow: 0px 0px 8px 0px rgba(185, 198, 199, 1);
   background-color: #ffffff;
   bottom: -24px;
-  left: ${(props) => props.isUser && '50px'};
-  right: ${(props) => !props.isUser && '10px'};
+  left: ${(props) => !props.isUser && '50px'};
+  right: ${(props) => props.isUser && '10px'};
   font-size: 14px;
   padding: 4px 8px 4px 16px;
   border-radius: 20px;
