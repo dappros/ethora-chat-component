@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Provider } from 'react-redux';
 import { store } from '../../roomStore';
 import { ConfigUser, IConfig, MessageProps } from '../../types/types';
@@ -17,12 +17,18 @@ interface ChatWrapperProps {
   config?: IConfig;
 }
 
-export const ReduxWrapper: React.FC<ChatWrapperProps> = ({ ...props }) => {
-  return (
-    <XmppProvider>
-      <Provider store={store}>
-        <LoginWrapper {...props} />
-      </Provider>
-    </XmppProvider>
-  );
-};
+export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
+  ({ ...props }) => {
+    const memoizedConfig = useMemo(() => {
+      return props.config;
+    }, [props.config]);
+
+    return (
+      <XmppProvider>
+        <Provider store={store}>
+          <LoginWrapper config={memoizedConfig} {...props} />
+        </Provider>
+      </XmppProvider>
+    );
+  }
+);

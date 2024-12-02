@@ -5,6 +5,7 @@ import {
   setActiveModal,
   setConfig,
   setDeleteModal,
+  setStoreClient,
 } from '../../roomStore/chatSettingsSlice';
 import { ChatWrapperBox } from '../styled/ChatWrapperBox';
 import { Overlay, StyledModal } from '../styled/MediaModal';
@@ -50,9 +51,12 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   config,
   roomJID,
 }) => {
-  const { user, activeModal, deleteModal } = useSelector(
-    (state: RootState) => state.chatSettingStore
-  );
+  const {
+    user,
+    activeModal,
+    deleteModal,
+    client: storedClient,
+  } = useSelector((state: RootState) => state.chatSettingStore);
 
   const [isInited, setInited] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -122,16 +126,13 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
       dispatch(setCurrentRoom({ roomJID: roomJID }));
     }
 
-    dispatch(setConfig(config));
-    dispatch(setIsLoading({ loading: true }));
-
     const initXmmpClient = async () => {
       try {
         if (!user.defaultWallet || user?.defaultWallet.walletAddress === '') {
           setShowModal(true);
           console.log('Error, no user');
         } else {
-          if (!client) {
+          if (!client && !storedClient) {
             setShowModal(false);
 
             console.log('No client, so initing one');
@@ -141,9 +142,19 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             ).then((client) => {
               client.getRooms().then(() => {
                 client.getChatsPrivateStoreRequestStanza();
+                dispatch(setStoreClient(client));
                 setClient(client);
               });
             });
+            setInited(true);
+            {
+              !config?.disableRefresh && refresh();
+            }
+          } else if (storedClient) {
+            setClient(client);
+            if (!activeRoomJID) {
+              client.getRooms();
+            }
             setInited(true);
             {
               !config?.disableRefresh && refresh();
@@ -168,7 +179,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     };
 
     initXmmpClient();
-  }, [user.xmppPassword]);
+  }, [user.xmppPassword, user.defaultWallet]);
 
   // functionality to handle unreadmessages if user leaves tab
   useEffect(() => {

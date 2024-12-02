@@ -1,5 +1,12 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { DeleteModal, EditAction, IConfig, IUser, ModalType, User } from '../types/types';
+import {
+  DeleteModal,
+  EditAction,
+  IConfig,
+  IUser,
+  ModalType,
+  User,
+} from '../types/types';
 import { localStorageConstants } from '../helpers/constants/LOCAL_STORAGE';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 
@@ -10,6 +17,7 @@ interface ChatState {
   deleteModal?: DeleteModal;
   selectedUser?: IUser;
   activeFile?: any;
+  client?: any;
 }
 
 const unpackAndTransform = (input?: User): User => {
@@ -116,6 +124,9 @@ export const chatSlice = createSlice({
     setDeleteModal: (state, action: PayloadAction<DeleteModal | undefined>) => {
       state.deleteModal = action.payload;
     },
+    setStoreClient: (state, action: PayloadAction<any>) => {
+      state.client = action.payload;
+    },
     setSelectedUser: (state, action: PayloadAction<IUser | undefined>) => {
       state.selectedUser = action.payload;
     },
@@ -151,6 +162,7 @@ export const {
   setSelectedUser,
   updateUser,
   setActiveFile,
+  setStoreClient,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;
