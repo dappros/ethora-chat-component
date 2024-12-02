@@ -152,10 +152,10 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
               config?.refreshTokens?.enabled && refresh();
             }
           } else if (storedClient) {
-            setClient(client);
+            setClient(storedClient);
             if (!activeRoomJID) {
-              client.getRooms().then(() => {
-                client.getChatsPrivateStoreRequestStanza();
+              storedClient.getRooms().then(() => {
+                storedClient.getChatsPrivateStoreRequestStanza();
               });
             }
             setInited(true);
