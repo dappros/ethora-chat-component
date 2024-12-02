@@ -232,15 +232,22 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         await client?.getChatsPrivateStoreRequestStanza();
 
         client?.getHistoryStanza(chatJID, max);
+        client?.getChatsPrivateStoreRequestStanza();
       },
       [globalLoading, loading]
     );
 
+    useMessageLoaderQueue(
+      Object.keys(roomsList),
+      globalLoading,
+      loading,
+      queueMessageLoader
+    );
+
     useEffect(() => {
       const getDefaultHistory = async () => {
-        client.getHistoryStanza(activeRoomJID, 30).then(() => {
-          dispatch(setIsLoading({ loading: false, chatJID: activeRoomJID }));
-        });
+        await client.getHistoryStanza(activeRoomJID, 30);
+        dispatch(setIsLoading({ loading: false, chatJID: activeRoomJID }));
       };
 
       const initialPresenceAndHistory = async () => {
@@ -275,13 +282,6 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         getDefaultHistory();
       }
     }, [activeRoomJID, Object.keys(roomsList).length]);
-
-    useMessageLoaderQueue(
-      Object.keys(roomsList),
-      globalLoading,
-      loading,
-      queueMessageLoader
-    );
 
     if (Object.keys(roomsList)?.length < 1 && !loading && !globalLoading) {
       return (

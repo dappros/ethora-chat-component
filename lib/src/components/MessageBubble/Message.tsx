@@ -194,7 +194,10 @@ const Message: React.FC<MessageProps> = forwardRef<
           )}
           <CustomMessageTimestamp>
             {message?.pending && 'sending...'}
-            {new Date(message.date).toLocaleTimeString()}
+            {new Date(message.date).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
           </CustomMessageTimestamp>
           {message?.reply?.length ? (
             <BottomReplyContainer

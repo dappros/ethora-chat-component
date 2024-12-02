@@ -75,7 +75,7 @@ const MessageList = <TMessage extends IMessage>({
     if (isReply) {
       return addReplyMessages.filter(
         (item: IMessage) =>
-          item.roomJid.includes(roomJID) &&
+          item.roomJid === roomJID &&
           item.isReply &&
           item.isReply === 'true' &&
           item.mainMessage &&

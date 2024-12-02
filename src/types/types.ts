@@ -165,7 +165,7 @@ export interface IConfig {
   setRoomJidInPath?: boolean;
   disableRoomMenu?: boolean;
   defaultRooms?: string[] | ConfigRoom[];
-  disableRefresh?: boolean;
+  refreshTokens?: { enabled: boolean; refreshFunction?: any };
 }
 
 interface ConfigRoom {

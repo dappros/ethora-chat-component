@@ -65,35 +65,39 @@ export const roomsStore = createSlice({
       const { roomJID, messageId } = action.payload;
       if (state.rooms[roomJID]) {
         state.rooms[roomJID].messages.map((message) => {
-          if (message.id === messageId ) {
+          if (message.id === messageId) {
             message.isDeleted = true;
           }
-        })
+        });
       }
     },
     setEditAction: (state, action: PayloadAction<EditAction | undefined>) => {
       const { isEdit } = action.payload;
-      if(isEdit) {
+      if (isEdit) {
         state.editAction = action.payload;
       } else {
         state.editAction = {
           isEdit: false,
-          roomJid: '', 
+          roomJid: '',
           messageId: '',
           text: '',
-        }
+        };
       }
     },
     editRoomMessage(
       state,
-      action: PayloadAction<{ roomJID: string; messageId: string, text: string }>
+      action: PayloadAction<{
+        roomJID: string;
+        messageId: string;
+        text: string;
+      }>
     ) {
       const { roomJID, messageId, text } = action.payload;
       if (state.rooms[roomJID]) {
         state.rooms[roomJID].messages.map((message) => {
-          if (message.id === messageId ) {
+          if (message.id === messageId) {
             message.body = text;
-          };
+          }
         });
       }
     },
@@ -155,10 +159,12 @@ export const roomsStore = createSlice({
       const { chatJID, timestamp } = action.payload;
       if (state.rooms[chatJID]) {
         state.rooms[chatJID].lastViewedTimestamp = timestamp;
-        state.rooms[chatJID].unreadMessages = countNewerMessages(
-          state.rooms[chatJID].messages,
-          timestamp
-        );
+        if (timestamp) {
+          state.rooms[chatJID].unreadMessages = countNewerMessages(
+            state.rooms[chatJID].messages,
+            timestamp
+          );
+        }
       }
     },
     setRoomRole: (
@@ -190,22 +196,28 @@ export const roomsStore = createSlice({
       state.activeRoomJID = null;
       state.isLoading = false;
     },
-    setActiveMessage: (state, action: PayloadAction<{ id: string, chatJID: string }>) => {
+    setActiveMessage: (
+      state,
+      action: PayloadAction<{ id: string; chatJID: string }>
+    ) => {
       const { id, chatJID } = action.payload;
 
       state.rooms[chatJID].messages.map((message) => {
-        if(message.id === id) {
+        if (message.id === id) {
           message.activeMessage = true;
         } else {
           message.activeMessage = false;
         }
       });
     },
-    setCloseActiveMessage: (state, action: PayloadAction<{ chatJID: string }>) => {
+    setCloseActiveMessage: (
+      state,
+      action: PayloadAction<{ chatJID: string }>
+    ) => {
       const { chatJID } = action.payload;
 
       state.rooms[chatJID].messages.map((message) => {
-          message.activeMessage = false;
+        message.activeMessage = false;
       });
     },
   },

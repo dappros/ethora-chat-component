@@ -25,8 +25,8 @@ import {
 import { setCurrentRoom, setLogoutState } from '../../../roomStore/roomsSlice';
 import EditUserModal from './EditUserModal';
 import { walletToUsername } from '../../../helpers/walletUsername';
-import { CONFERENCE_DOMAIN } from '../../../helpers/constants/PLATFORM_CONSTANTS';
 import { useXmppClient } from '../../../context/xmppProvider';
+import Loader from '../../styled/Loader';
 
 interface UserProfileModalProps {
   handleCloseModal: any;
@@ -44,6 +44,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   );
 
   const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
 
   const handleBackClick = useCallback(() => {
     dispatch(setSelectedUser());
@@ -74,6 +75,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   }, []);
 
   const handlePrivateMessage = useCallback(async () => {
+    setLoading(true);
     const myUsername = walletToUsername(user.defaultWallet.walletAddress);
     const selectedUserUsername = walletToUsername(selectedUser.id);
 
@@ -100,6 +102,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
       await client.inviteRoomRequest(selectedUserUsername, newRoomJid);
       await client.getRooms();
     }
+    setLoading(false);
     dispatch(setCurrentRoom({ roomJID: newRoomJid }));
     dispatch(setActiveModal());
   }, [selectedUser]);
@@ -149,14 +152,18 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 : 'No description'}
             </LabelData>
           </BorderedContainer>
-          {selectedUser && (
-            <ActionButton
-              StartIcon={<ChatIcon />}
-              onClick={handlePrivateMessage}
-              variant="filled"
-            >
-              Message
-            </ActionButton>
+          {loading ? (
+            <Loader />
+          ) : (
+            selectedUser && (
+              <ActionButton
+                StartIcon={<ChatIcon />}
+                onClick={handlePrivateMessage}
+                variant="filled"
+              >
+                Message
+              </ActionButton>
+            )
           )}
           {/* <EmptySection /> */}
         </CenterContainer>
