@@ -179,6 +179,7 @@ const Message: React.FC<MessageProps> = forwardRef<
         </CustomMessageBubble>
         {message?.reply?.length ? (
             <BottomReplyContainer
+              isUser={isUser}
               onClick={handleReplyMessage}
               reply={message?.reply}
             />

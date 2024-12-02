@@ -4,16 +4,18 @@ import { Avatar } from './Avatar';
 import { styled } from 'styled-components';
 
 interface BottomReplyContainerProps {
+  isUser: boolean;
   reply: IReply[];
   onClick: () => void;
 }
 
-const ReplyContainer = styled.button`
+const ReplyContainer = styled.button<{isUser: boolean}>`
   position: absolute;
   box-shadow: 0px 0px 8px 0px rgba(185, 198, 199, 1);
   background-color: #ffffff;
-  bottom: -28px;
-  left: 50px;
+  bottom: -24px;
+  left: ${(props) => props.isUser && '50px'};
+  right: ${(props) => !props.isUser && '10px'};
   font-size: 14px;
   padding: 4px 8px 4px 16px;
   border-radius: 20px;
@@ -43,6 +45,7 @@ const AvatarCircle = styled.div`
 `
 
 export const BottomReplyContainer: FC<BottomReplyContainerProps> = ({
+  isUser,
   reply,
   onClick,
 }) => {
@@ -60,7 +63,7 @@ export const BottomReplyContainer: FC<BottomReplyContainerProps> = ({
   }, [reply]);
 
   return (
-    <ReplyContainer onClick={onClick}>
+    <ReplyContainer onClick={onClick} isUser={isUser}>
       <div style={{ display: 'flex' }}>
         {uniqueUsers.map((item) => (
           <AvatarCircle>
