@@ -330,8 +330,8 @@ export class XmppClient {
     sendTypingRequest(this.client, chatId, fullName, start);
   }
 
-  getChatsPrivateStoreRequestStanza = () =>
-    getChatsPrivateStoreRequest(this.client);
+  getChatsPrivateStoreRequestStanza = async () =>
+    await getChatsPrivateStoreRequest(this.client);
 
   async setChatsPrivateStoreRequestStanza(jsonObj: string) {
     await setChatsPrivateStoreRequest(this.client, jsonObj);

@@ -229,9 +229,11 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
 
     const queueMessageLoader = useCallback(
       async (chatJID: string, max: number) => {
+        await client?.getChatsPrivateStoreRequestStanza();
+
         client?.getHistoryStanza(chatJID, max);
       },
-      [globalLoading, isLoadingMore]
+      [globalLoading, loading]
     );
 
     useEffect(() => {
