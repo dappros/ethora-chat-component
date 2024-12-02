@@ -25,7 +25,7 @@ import { BottomReplyContainer } from './BottomReplyContainer';
 import { setActiveMessage, setEditAction } from '../../roomStore/roomsSlice';
 import { MessageReply } from './MessageReply';
 import { useXmppClient } from '../../context/xmppProvider';
-import { DeleteIcon } from '../../assets/icons';
+import { DeletedMessage } from './DeletedMessage';
 
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
@@ -163,30 +163,7 @@ const Message: React.FC<MessageProps> = forwardRef<
           ) : (
             <CustomMessageText>
               {message.isDeleted ? (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 5,
-                    paddingTop: 5,
-                  }}
-                >
-                  <div
-                    style={{
-                      padding: '5px',
-                      backgroundColor: '#CCCCCC',
-                      borderRadius: '7px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <DeleteIcon width={18} height={18} fill="#8C8C8C" />
-                  </div>
-                  <p style={{ margin: 0, color: '#8C8C8C' }}>
-                    This message was deleted.
-                  </p>
-                </div>
+                <DeletedMessage />
               ) : (
                 <span>{message.body}</span>
               )}
@@ -199,15 +176,16 @@ const Message: React.FC<MessageProps> = forwardRef<
               minute: '2-digit',
             })}
           </CustomMessageTimestamp>
-          {message?.reply?.length ? (
+        </CustomMessageBubble>
+        {message?.reply?.length ? (
             <BottomReplyContainer
+              isUser={isUser}
               onClick={handleReplyMessage}
               reply={message?.reply}
             />
           ) : (
             <div />
           )}
-        </CustomMessageBubble>
       </CustomMessageContainer>
 
       {!config?.disableInteractions && (
