@@ -125,17 +125,23 @@ export const SendButton = styled.button`
 //
 //
 //
-export const CustomMessageContainer = styled.div<{ isUser: boolean, reply: number }>`
+export const CustomMessageContainer = styled.div<{
+  isUser: boolean;
+  reply: number;
+}>`
   display: flex;
   flex-direction: ${(props) => (!props.isUser ? 'row' : 'row-reverse')};
   align-items: end;
   margin: 10px 0;
   gap: 5px;
   position: relative;
-  margin-bottom: ${(props) => (!!props.reply && '40px')}
+  margin-bottom: ${(props) => !!props.reply && '40px'};
 `;
 
-export const CustomMessageBubble = styled.div<{ isUser: boolean, deleted: boolean }>`
+export const CustomMessageBubble = styled.div<{
+  isUser: boolean;
+  deleted: boolean;
+}>`
   max-width: 60%;
   min-width: 15%;
   padding: 8px 16px;
@@ -146,7 +152,8 @@ export const CustomMessageBubble = styled.div<{ isUser: boolean, deleted: boolea
   text-align: left;
   display: flex;
   flex-direction: column;
-  background-color: ${(props) => (props.deleted ? '#dfdfdf' : props.isUser ? '#E7EDF9' : '#FFFFFF')};
+  background-color: ${(props) =>
+    props.deleted ? '#dfdfdf' : props.isUser ? '#E7EDF9' : '#FFFFFF'};
   position: relative;
 `;
 
@@ -177,9 +184,16 @@ export const CustomMessagePhoto = styled.img`
   margin-left: auto;
   margin-right: auto;
   border-radius: 100px;
+
+  transition: box-shadow 0.2s ease-in-out;
+
+  &:hover {
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+  }
 `;
 
 export const CustomMessagePhotoContainer = styled.div`
+  cursor: pointer;
   margin: 0;
 `;
 
@@ -258,7 +272,7 @@ export const AlsoContainer = styled.div`
   align-items: center;
   display: flex;
   gap: 8px;
-  background-color: #0052CD0D;
+  background-color: #0052cd0d;
   font-size: 14px;
   padding: 10px 28px;
   text-align: start;
@@ -267,7 +281,7 @@ export const AlsoContainer = styled.div`
 export const AlsoCheckbox = styled.input<{ accentColor: string }>`
   width: 16px;
   height: 16px;
-  border-radius: #0052CD;
-  accent-color: #5E3FDE;
-  accent-color: ${(props) => (props.accentColor)};
-`
+  border-radius: #0052cd;
+  accent-color: #5e3fde;
+  accent-color: ${(props) => props.accentColor};
+`;

@@ -22,6 +22,12 @@ const AvatarCircle = styled.div<{ bgColor: string; textColor?: string }>`
   font-size: 16px;
   font-weight: bold;
   cursor: pointer;
+
+  transition: box-shadow 0.2s ease-in-out;
+
+  &:hover {
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+  }
 `;
 
 export const Avatar: React.FC<AvatarProps> = ({
@@ -52,5 +58,9 @@ export const Avatar: React.FC<AvatarProps> = ({
     return lightColors.includes(bgColor) ? '#000' : '#fff';
   };
 
-  return <AvatarCircle style={style} bgColor={'#2196f3'}>{getInitials()}</AvatarCircle>;
+  return (
+    <AvatarCircle style={style} bgColor={'#2196f3'}>
+      {getInitials()}
+    </AvatarCircle>
+  );
 };

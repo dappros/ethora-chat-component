@@ -58,37 +58,53 @@ const processQueue = (newAccessToken: string) => {
 http.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (!store.getState().chatSettingStore?.config?.disableRefresh) {
-      const originalRequest = error.config;
-
-      if (!error.response || error.response.status !== 401) {
-        throw error;
-      }
+    if (!store.getState().chatSettingStore?.config?.refreshTokens?.enabled) {
       if (
-        originalRequest.url === '/users/login/refresh' ||
-        originalRequest.url === '/users/login'
+        store.getState().chatSettingStore?.config?.refreshTokens
+          ?.refreshFunction
       ) {
-        return Promise.reject(error);
-      }
-
-      originalRequest._retry = true;
-
-      if (isRefreshing) {
-        const retryOriginalRequest = addRequestToQueue(originalRequest);
-
-        return retryOriginalRequest;
+        const { refreshToken, accessToken } = store
+          .getState()
+          .chatSettingStore?.config?.refreshTokens?.refreshFunction();
+        store.dispatch(
+          refreshTokens({
+            token: accessToken,
+            refreshToken: refreshToken,
+          })
+        );
+        return;
       } else {
-        isRefreshing = true;
-        try {
-          const tokens = await refresh();
-          console.log('tokens', tokens);
-          isRefreshing = false;
-          originalRequest.headers['Authorization'] = tokens.data.token;
-          processQueue(tokens.data.token);
-          return http(originalRequest);
-        } catch (error) {
-          isRefreshing = false;
-          return error;
+        const originalRequest = error.config;
+
+        if (!error.response || error.response.status !== 401) {
+          throw error;
+        }
+        if (
+          originalRequest.url === '/users/login/refresh' ||
+          originalRequest.url === '/users/login'
+        ) {
+          return Promise.reject(error);
+        }
+
+        originalRequest._retry = true;
+
+        if (isRefreshing) {
+          const retryOriginalRequest = addRequestToQueue(originalRequest);
+
+          return retryOriginalRequest;
+        } else {
+          isRefreshing = true;
+          try {
+            const tokens = await refresh();
+            console.log('tokens', tokens);
+            isRefreshing = false;
+            originalRequest.headers['Authorization'] = tokens.data.token;
+            processQueue(tokens.data.token);
+            return http(originalRequest);
+          } catch (error) {
+            isRefreshing = false;
+            return error;
+          }
         }
       }
     }

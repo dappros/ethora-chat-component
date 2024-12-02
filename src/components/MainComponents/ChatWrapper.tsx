@@ -148,24 +148,29 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             });
             setInited(true);
             {
-              !config?.disableRefresh && refresh();
+              config?.refreshTokens?.enabled && refresh();
             }
           } else if (storedClient) {
             setClient(client);
             if (!activeRoomJID) {
-              client.getRooms();
+              client.getRooms().then(() => {
+                client.getChatsPrivateStoreRequestStanza();
+              });
             }
             setInited(true);
             {
-              !config?.disableRefresh && refresh();
+              config?.refreshTokens?.enabled && refresh();
             }
           } else {
             if (!activeRoomJID) {
-              client.getRooms();
+              client.getRooms().then(() => {
+                client.getChatsPrivateStoreRequestStanza();
+              });
             }
+            client.getChatsPrivateStoreRequestStanza();
             setInited(true);
             {
-              !config?.disableRefresh && refresh();
+              config?.refreshTokens?.enabled && refresh();
             }
           }
         }
