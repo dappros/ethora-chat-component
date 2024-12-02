@@ -13,6 +13,7 @@ const ReplyContainer = styled.button`
   box-shadow: 0px 0px 8px 0px rgba(185, 198, 199, 1);
   background-color: #ffffff;
   bottom: -28px;
+  left: 50px;
   font-size: 14px;
   padding: 4px 8px 4px 16px;
   border-radius: 20px;
@@ -23,7 +24,22 @@ const ReplyContainer = styled.button`
   font-weight: 600;
   border: none;
   cursor: pointer;
+
+    @media (max-width: 675px) {
+    font-size: 12px;
+      bottom: -24px;
+  }
 `;
+
+const AvatarCircle = styled.div`
+    height: 24px;
+    width: 24px;
+
+    @media (max-width: 700px) {
+      height: 20px;
+      width: 20px;
+  }
+`
 
 export const BottomReplyContainer: FC<BottomReplyContainerProps> = ({
   reply,
@@ -46,17 +62,20 @@ export const BottomReplyContainer: FC<BottomReplyContainerProps> = ({
     <ReplyContainer onClick={onClick}>
       <div style={{ display: 'flex' }}>
         {uniqueUsers.map((item) => (
-          <Avatar
-            key={item.id}
-            username={item.name}
-            style={{
-              marginLeft: '-10px',
-              height: '24px',
-              width: '24px',
-              border: 'solid 1px #ffffff',
-              fontSize: '11px',
-            }}
-          />
+          <AvatarCircle>
+            <Avatar
+              key={item.id}
+              username={item.name}
+              style={{
+                marginLeft: '-10px',
+                height: '100%',
+                width: '100%',
+                border: 'solid 1px #ffffff',
+                fontSize: '11px',
+              }}
+            />
+          </AvatarCircle>
+
         ))}
       </div>
       <span>
