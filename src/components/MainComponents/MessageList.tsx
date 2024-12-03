@@ -1,22 +1,21 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from 'react';
 import {
-  Message,
-  UserName,
-  MessageText,
-  MessageTimestamp,
   MessagesScroll,
   MessagesList,
 } from '../styled/StyledComponents';
 import { IConfig, IMessage, User } from '../../types/types';
-import SystemMessage from './SystemMessage';
-import DateLabel from '../styled/DateLabel';
 import Loader from '../styled/Loader';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
 import Composing from '../styled/StyledInputComponents/Composing';
-import { validateMessages } from '../../helpers/validator';
-import NewMessageLabel from '../styled/NewMessageLabel';
 import TreadLabel from '../styled/TreadLabel';
+import { MessageContainer } from './MessageContainer';
+import { useRoomState } from '../../hooks/useRoomState';
 
 interface MessageListProps<TMessage extends IMessage> {
   CustomMessage?: React.ComponentType<{
@@ -35,7 +34,8 @@ interface MessageListProps<TMessage extends IMessage> {
   config?: IConfig;
   isReply?: boolean;
   activeMessage?: IMessage;
-}
+};
+
 const MessageList = <TMessage extends IMessage>({
   CustomMessage,
   user,
@@ -46,11 +46,7 @@ const MessageList = <TMessage extends IMessage>({
   isReply,
   activeMessage,
 }: MessageListProps<TMessage>) => {
-  const dispatch = useDispatch();
-
-  const { composing, lastViewedTimestamp, messages } = useSelector(
-    (state: RootState) => state.rooms.rooms[roomJID]
-  );
+  const { composing, messages } = useRoomState(roomJID).room;
 
   const addReplyMessages = useMemo(() => {
     return messages.map((message) => {
@@ -100,7 +96,7 @@ const MessageList = <TMessage extends IMessage>({
   const timeoutRef = useRef<number>(0);
   const scrollParams = useRef<{ top: number; height: number } | null>(null);
   const atBottom = useRef<boolean>(true);
-
+  
   const getScrollParams = (): { top: number; height: number } | null => {
     const content = containerRef.current;
     if (!content) {
@@ -124,6 +120,7 @@ const MessageList = <TMessage extends IMessage>({
 
   const checkIfLoadMoreMessages = useCallback(() => {
     const params = getScrollParams();
+
     if (!params) return;
 
     if (params.top < 150 && !isLoadingMore.current) {
@@ -228,59 +225,19 @@ const MessageList = <TMessage extends IMessage>({
           </React.Fragment>
         )}
         {memoizedMessages.map((message) => {
-          const isUser = message.user.id === user.walletAddress;
-          const messageDate = new Date(message.date);
-          const currentDateLabel = messageDate.toDateString();
-
-          const showDateLabel = currentDateLabel !== lastDateLabel;
-          if (showDateLabel) {
-            lastDateLabel = currentDateLabel;
-          }
-
-          if (message.isSystemMessage === 'true') {
-            return (
-              <React.Fragment key={message.id}>
-                {showDateLabel && (
-                  <DateLabel date={messageDate} colors={config?.colors} />
-                )}
-                <SystemMessage
-                  messageText={message.body}
-                  colors={config?.colors}
-                />
-              </React.Fragment>
-            );
-          }
-
-          // todo finish unread messages
-          if (message.id === 'delimiter-new' && message.isReply === 'false') {
-            return <NewMessageLabel color={config?.colors?.primary} />;
-          }
-
-          const MessageComponent = CustomMessage || Message;
-
+          const messageDate = new Date(message.date).toDateString();
+          const showDateLabel = messageDate !== lastDateLabel;
+          lastDateLabel = messageDate;
           return (
-            <React.Fragment key={message.id}>
-              {showDateLabel &&
-                !activeMessage &&
-                message.id !== 'delimiter-new' && (
-                  <DateLabel date={messageDate} colors={config?.colors} />
-                )}
-              {!CustomMessage ? (
-                <MessageComponent message={message} isUser={isUser}>
-                  <MessageTimestamp>
-                    {messageDate.toLocaleTimeString()}
-                  </MessageTimestamp>
-                  <UserName>{message.user.name}: </UserName>
-                  <MessageText>{message.body}</MessageText>
-                </MessageComponent>
-              ) : (
-                <MessageComponent
-                  message={message}
-                  isUser={isUser}
-                  isReply={isReply}
-                />
-              )}
-            </React.Fragment>
+            <MessageContainer
+              CustomMessage={CustomMessage}
+              message={message}
+              activeMessage={activeMessage}
+              config={config}
+              walletAddress={user.walletAddress}
+              isReply={isReply}
+              showDateLabel={showDateLabel}
+            />
           );
         })}
         {config?.disableHeader && composing && (

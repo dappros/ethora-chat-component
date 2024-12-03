@@ -1,4 +1,3 @@
-import React from 'react';
 import { NoMessages } from '../../assets/icons';
 
 const NoMessagesPlaceholder = () => {

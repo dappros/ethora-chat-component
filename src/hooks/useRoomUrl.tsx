@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { setCurrentRoom } from '../roomStore/roomsSlice';
-import { IConfig } from '../types/types';
+import { IConfig, IRoom } from '../types/types';
 
-export const useRoomUrl = (activeRoomJID: string, roomsList: any, config: IConfig) => {
+export const useRoomUrl = (activeRoomJID: string, roomsList:  Record<string, IRoom>, config: IConfig) => {
   const dispatch = useDispatch();
 
   useEffect(() => {

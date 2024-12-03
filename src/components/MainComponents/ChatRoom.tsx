@@ -18,11 +18,14 @@ import ChatHeader from './ChatHeader.tsx';
 import NoMessagesPlaceholder from './NoMessagesPlaceholder.tsx';
 import NewChatModal from '../Modals/NewChatModal/NewChatModal.tsx';
 import { EditWrapper } from './EditWrapper.tsx';
-import useMessageLoaderQueue from '../../hooks/useMessageLoaderQueue.tsx';
 import { NoSelectedChatIcon } from '../../assets/icons.tsx';
 import { ChooseChatMessage } from './ChooseChatMessage.tsx';
 import { useRoomUrl } from '../../hooks/useRoomUrl.tsx';
+import useMessageLoaderQueue from '../../hooks/useMessageLoaderQueue.tsx';
 import { useSendMessage } from '../../hooks/useSendMessage.tsx';
+import { useRoomInitialization } from '../../hooks/useRoomInitialization.tsx';
+import { useRoomState } from '../../hooks/useRoomState.tsx';
+import { useChatSettingState } from '../../hooks/useChatSettingState.tsx';
 
 interface ChatRoomProps {
   CustomMessageComponent?: any;
@@ -35,29 +38,66 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     const dispatch = useDispatch();
 
     const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+
+    const {user, config} = useChatSettingState();
     const {
       roomsList,
-      loading,
-      user,
       activeRoomJID,
-      globalLoading,
-      config,
       editAction,
-    } = useSelector((state: RootState) => ({
-      activeRoomJID: state.rooms.activeRoomJID,
-      roomsList: state.rooms.rooms,
-      loading: state.rooms.rooms[state.rooms.activeRoomJID]?.isLoading || false,
-      user: state.chatSettingStore.user,
-      globalLoading: state.rooms.isLoading,
-      config: state.chatSettingStore.config,
-      editAction: state.rooms.editAction,
-    }));
+      loading,
+      globalLoading,
+      roomMessages
+    } = useRoomState();
     const { sendMessage: sendMs, sendMedia: sendMessageMedia} = useSendMessage();
 
-    const roomMessages = useMemo(
-      () => roomsList[activeRoomJID]?.messages || [],
-      [roomsList, activeRoomJID]
+    const sendMessage = useCallback((message: string) => {
+      sendMs(message, activeRoomJID);
+    }, [activeRoomJID]);
+
+    const sendMedia = useCallback((data: any, type: string) => {
+      sendMessageMedia(data, type, activeRoomJID);
+    }, [activeRoomJID])
+
+    const sendStartComposing = useCallback(() => {
+      client.sendTypingRequestStanza(
+        activeRoomJID,
+        `${user.firstName} ${user.lastName}`,
+        true
+      );
+    }, [activeRoomJID]);
+
+    const sendEndComposing = useCallback(() => {
+      client.sendTypingRequestStanza(
+        activeRoomJID,
+        `${user.firstName} ${user.lastName}`,
+        false
+      );
+    }, [activeRoomJID]);
+
+    const loadMoreMessages = useCallback(
+      async (chatJID: string, max: number, idOfMessageBefore?: number) => {
+        if (!isLoadingMore) {
+          setIsLoadingMore(true);
+          client?.getHistoryStanza(chatJID, max, idOfMessageBefore).then(() => {
+            setIsLoadingMore(false);
+          });
+        }
+      },
+      [client]
     );
+
+    const queueMessageLoader = useCallback(
+      async (chatJID: string, max: number) => {
+        await client?.getChatsPrivateStoreRequestStanza();
+
+        client?.getHistoryStanza(chatJID, max);
+      },
+      [globalLoading, loading]
+    );
+    
+    const onCloseEdit = () => {
+      dispatch(setEditAction({ isEdit: false }));
+    };
 
     useEffect(() => {
       dispatch(
@@ -88,57 +128,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       };
     }, [activeRoomJID]);
 
-    useRoomUrl(activeRoomJID, roomsList, config);
-
-    const sendMessage = (message: string) => {
-      sendMs(message, activeRoomJID);
-    }
-
-    const sendMedia = (data: any, type: string) => {
-      sendMessageMedia(data, type, activeRoomJID);
-    }
-
-    const sendStartComposing = useCallback(() => {
-      client.sendTypingRequestStanza(
-        activeRoomJID,
-        `${user.firstName} ${user.lastName}`,
-        true
-      );
-    }, [activeRoomJID]);
-
-    const sendEndComposing = useCallback(() => {
-      client.sendTypingRequestStanza(
-        activeRoomJID,
-        `${user.firstName} ${user.lastName}`,
-        false
-      );
-    }, [activeRoomJID]);
-
-    const loadMoreMessages = useCallback(
-      async (chatJID: string, max: number, idOfMessageBefore?: number) => {
-        if (!isLoadingMore) {
-          setIsLoadingMore(true);
-          client?.getHistoryStanza(chatJID, max, idOfMessageBefore).then(() => {
-            setIsLoadingMore(false);
-          });
-        }
-      },
-      [client]
-    );
-
-    const onCloseEdit = () => {
-      dispatch(setEditAction({ isEdit: false }));
-    };
-
-    const queueMessageLoader = useCallback(
-      async (chatJID: string, max: number) => {
-        await client?.getChatsPrivateStoreRequestStanza();
-
-        client?.getHistoryStanza(chatJID, max);
-      },
-      [globalLoading, loading]
-    );
-
+    // hooks useEffect
     useMessageLoaderQueue(
       Object.keys(roomsList),
       globalLoading,
@@ -146,44 +136,15 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       queueMessageLoader
     );
 
-    useEffect(() => {
-      const getDefaultHistory = async () => {
-        await client.getHistoryStanza(activeRoomJID, 30);
-        dispatch(setIsLoading({ loading: false, chatJID: activeRoomJID }));
-      };
+    useRoomUrl(activeRoomJID, roomsList, config);
 
-      const initialPresenceAndHistory = async () => {
-        if (!roomsList[activeRoomJID]) {
-          client.presenceInRoomStanza(activeRoomJID);
-          await client.getRooms();
-          await getDefaultHistory();
-        } else {
-          getDefaultHistory();
-        }
-      };
+    useRoomInitialization(
+      activeRoomJID,
+      roomsList,
+      config,
+      roomMessages.length
+    );
 
-      dispatch(setIsLoading({ loading: true, chatJID: activeRoomJID }));
-
-      if (Object.keys(roomsList)?.length > 0) {
-        if (!roomsList?.[activeRoomJID] && Object.keys(roomsList).length > 0) {
-          initialPresenceAndHistory();
-        } else if (roomMessages.length < 1) {
-          getDefaultHistory();
-        } else {
-          dispatch(setIsLoading({ loading: false, chatJID: activeRoomJID }));
-        }
-      } else if (!roomsList?.[activeRoomJID]) {
-        initialPresenceAndHistory();
-      }
-
-      if (config?.defaultRooms) {
-        config?.defaultRooms.map((room) => {
-          client.presenceInRoomStanza(room.jid);
-        });
-        client.getRooms();
-        getDefaultHistory();
-      }
-    }, [activeRoomJID, Object.keys(roomsList).length]);
 
     if (Object.keys(roomsList)?.length < 1 && !loading && !globalLoading) {
       return (

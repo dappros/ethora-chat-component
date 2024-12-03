@@ -33,6 +33,7 @@ import { StyledLoaderWrapper } from '../styled/StyledComponents';
 import Modal from '../Modals/Modal/Modal';
 import ThreadWrapper from '../Thread/ThreadWrapper';
 import { ModalWrapper } from '../Modals/ModalWrapper/ModalWrapper';
+import { useChatSettingState } from '../../hooks/useChatSettingState';
 
 interface ChatWrapperProps {
   token?: string;
@@ -56,7 +57,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     activeModal,
     deleteModal,
     client: storedClient,
-  } = useSelector((state: RootState) => state.chatSettingStore);
+  } = useChatSettingState();
 
   const [isInited, setInited] = useState(false);
   const [showModal, setShowModal] = useState(false);
