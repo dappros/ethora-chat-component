@@ -20,6 +20,19 @@ export const ChatContainerHeader = styled.div`
   justify-content: space-between;
 `;
 
+export const ChatContainerHeaderBoxInfo = styled.div`
+  display: flex;
+  gap: 8px;
+  cursor: pointer;
+`;
+
+export const ChatContainerHeaderInfo = styled.div`
+  text-align: start;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+`;
+
 export const ChatContainerHeaderLabel = styled.div`
   color: #141414;
   font-weight: 600;

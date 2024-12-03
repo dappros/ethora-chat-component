@@ -44,6 +44,20 @@ const AvatarCircle = styled.div`
   }
 `
 
+const CircleCurrent = styled.div`
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 1px solid #F0F0F0;
+  border-radius: 50%;
+  background-color: #ffffff;
+  color: #8C8C8C;
+  font-size: 11px;
+  font-weight: 100;
+`
+
 export const BottomReplyContainer: FC<BottomReplyContainerProps> = ({
   isUser,
   reply,
@@ -65,7 +79,7 @@ export const BottomReplyContainer: FC<BottomReplyContainerProps> = ({
   return (
     <ReplyContainer onClick={onClick} isUser={isUser}>
       <div style={{ display: 'flex' }}>
-        {uniqueUsers.map((item) => (
+        {uniqueUsers.slice(0, 3).map((item) => (
           <AvatarCircle>
             <Avatar
               key={item.id}
@@ -73,13 +87,19 @@ export const BottomReplyContainer: FC<BottomReplyContainerProps> = ({
               style={{
                 height: '100%',
                 width: '100%',
-                border: 'solid 1px #ffffff',
+                border: 'solid 1px #F0F0F0',
                 fontSize: '11px',
               }}
             />
           </AvatarCircle>
-
         ))}
+        {uniqueUsers.length > 3 && (
+          <AvatarCircle>
+            <CircleCurrent>
+              +{uniqueUsers.length - 3}
+            </CircleCurrent>
+          </AvatarCircle>
+        )}
       </div>
       <span>
         {reply.length} {reply.length > 1 ? 'replies' : 'reply'}

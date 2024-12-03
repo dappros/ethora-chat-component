@@ -20,6 +20,9 @@ import NewChatModal from '../Modals/NewChatModal/NewChatModal.tsx';
 import { EditWrapper } from './EditWrapper.tsx';
 import useMessageLoaderQueue from '../../hooks/useMessageLoaderQueue.tsx';
 import { NoSelectedChatIcon } from '../../assets/icons.tsx';
+import { ChooseChatMessage } from './ChooseChatMessage.tsx';
+import { useRoomUrl } from '../../hooks/useRoomUrl.tsx';
+import { useSendMessage } from '../../hooks/useSendMessage.tsx';
 
 interface ChatRoomProps {
   CustomMessageComponent?: any;
@@ -49,6 +52,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       config: state.chatSettingStore.config,
       editAction: state.rooms.editAction,
     }));
+    const { sendMessage: sendMs, sendMedia: sendMessageMedia} = useSendMessage();
 
     const roomMessages = useMemo(
       () => roomsList[activeRoomJID]?.messages || [],
@@ -84,101 +88,11 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       };
     }, [activeRoomJID]);
 
-    useEffect(() => {
-      if (config?.setRoomJidInPath && activeRoomJID) {
-        const chatJidUrl = activeRoomJID.split('@')[0];
+    useRoomUrl(activeRoomJID, roomsList, config);
 
-        const searchParams = new URLSearchParams(window.location.search);
-        searchParams.set('chatId', chatJidUrl);
-
-        const newUrl = `${window.location.pathname}?${searchParams.toString()}`;
-
-        window.history.pushState(null, '', newUrl);
-      } else if (!activeRoomJID && Object.values(roomsList).length > 0) {
-        dispatch(setCurrentRoom({ roomJID: roomsList[0]?.jid }));
-      }
-
-      return () => {
-        if (config?.setRoomJidInPath) {
-          const searchParams = new URLSearchParams(window.location.search);
-          searchParams.delete('chatId');
-
-          const newUrl = `${window.location.pathname}?${searchParams.toString()}`;
-          window.history.pushState(null, '', newUrl);
-        }
-      };
-    }, [activeRoomJID, roomsList?.length]);
-
-    const sendMessage = useCallback(
-      (message: string) => {
-        if (editAction.isEdit) {
-          client?.editMessageStanza(
-            editAction.roomJid,
-            editAction.messageId,
-            message
-          );
-
-          dispatch(setEditAction({ isEdit: false }));
-          return;
-        } else {
-          client?.sendMessage(
-            activeRoomJID,
-            user.firstName,
-            user.lastName,
-            '',
-            user.walletAddress,
-            message
-          );
-        }
-
-        // dispatch(
-        //   addRoomMessage({
-        //     roomJID: currentRoom.jid,
-        //     message: {
-        //       id: getHighResolutionTimestamp(),
-        //       user: {
-        //         ...user,
-        //         id: user.walletAddress,
-        //         name: user.firstName + " " + user.lastName,
-        //       },
-        //       date: new Date().toISOString(),
-        //       body: message,
-        //       roomJID: currentRoom.jid,
-        //       // pending: true,
-        //     },
-        //   })
-        // );
-      },
-      [activeRoomJID, editAction]
-    );
-
-    const sendStartComposing = useCallback(() => {
-      client.sendTypingRequestStanza(
-        activeRoomJID,
-        `${user.firstName} ${user.lastName}`,
-        true
-      );
-    }, [activeRoomJID]);
-
-    const sendEndComposing = useCallback(() => {
-      client.sendTypingRequestStanza(
-        activeRoomJID,
-        `${user.firstName} ${user.lastName}`,
-        false
-      );
-    }, [activeRoomJID]);
-
-    const loadMoreMessages = useCallback(
-      async (chatJID: string, max: number, idOfMessageBefore?: number) => {
-        if (!isLoadingMore) {
-          setIsLoadingMore(true);
-          client?.getHistoryStanza(chatJID, max, idOfMessageBefore).then(() => {
-            setIsLoadingMore(false);
-          });
-        }
-      },
-      [client]
-    );
+    const sendMessage = (message: string) => {
+      sendMs(message);
+    }
 
     const sendMedia = useCallback(
       async (data: any, type: string) => {
@@ -221,6 +135,34 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
           });
       },
       [client, activeRoomJID]
+    );
+
+    const sendStartComposing = useCallback(() => {
+      client.sendTypingRequestStanza(
+        activeRoomJID,
+        `${user.firstName} ${user.lastName}`,
+        true
+      );
+    }, [activeRoomJID]);
+
+    const sendEndComposing = useCallback(() => {
+      client.sendTypingRequestStanza(
+        activeRoomJID,
+        `${user.firstName} ${user.lastName}`,
+        false
+      );
+    }, [activeRoomJID]);
+
+    const loadMoreMessages = useCallback(
+      async (chatJID: string, max: number, idOfMessageBefore?: number) => {
+        if (!isLoadingMore) {
+          setIsLoadingMore(true);
+          client?.getHistoryStanza(chatJID, max, idOfMessageBefore).then(() => {
+            setIsLoadingMore(false);
+          });
+        }
+      },
+      [client]
     );
 
     const onCloseEdit = () => {
@@ -304,45 +246,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
 
     if (!activeRoomJID || !roomsList?.[activeRoomJID]) {
       return (
-        <div
-          style={{
-            height: '100%',
-            width: '100%',
-            alignItems: 'center',
-            display: 'flex',
-            justifyContent: 'center',
-            flexDirection: 'column',
-            gap: '16px',
-          }}
-        >
-          <NoSelectedChatIcon />
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px',
-              alignItems: 'center',
-            }}
-          >
-            <div
-              style={{
-                fontSize: '16px',
-                color: '#141414',
-                fontWeight: 600,
-              }}
-            >
-              Start a Conversation
-            </div>
-            <div
-              style={{
-                fontSize: '14px',
-                color: '#141414',
-              }}
-            >
-              Choose a chat to start messaging.
-            </div>
-          </div>
-        </div>
+        <ChooseChatMessage/>
       );
     }
 
@@ -365,16 +269,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
           <NoSelectedChatIcon />
         ) : roomsList[activeRoomJID]?.messages &&
           roomsList[activeRoomJID]?.messages.length < 1 ? (
-          <div
-            style={{
-              height: '100%',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-          >
-            <NoMessagesPlaceholder />
-          </div>
+          <NoMessagesPlaceholder />
         ) : (
           <MessageList
             loadMoreMessages={loadMoreMessages}
