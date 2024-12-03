@@ -11,7 +11,7 @@ export const useSendMessage = () => {
 
   const {
     user,
-    activeRoomJID,
+    // activeRoomJID,
     editAction,
   } = useSelector((state: RootState) => ({
     activeRoomJID: state.rooms.activeRoomJID,
@@ -20,7 +20,12 @@ export const useSendMessage = () => {
   }));
   
   const sendMessage = useCallback(
-    (message: string) => {
+    ( message: string,
+      activeRoomJID: string,
+      isReply?: boolean,
+      isChecked?: boolean,
+      mainMessage?: string,
+    ) => {
       if (editAction.isEdit) {
         client?.editMessageStanza(
           editAction.roomJid,
@@ -37,7 +42,12 @@ export const useSendMessage = () => {
           user.lastName,
           '',
           user.walletAddress,
-          message
+          message,
+          '',
+          isReply || false,
+          isChecked || false,
+          mainMessage || '',
+
         );
       }
 
@@ -59,11 +69,17 @@ export const useSendMessage = () => {
       //   })
       // );
     },
-    [activeRoomJID, editAction]
+    [editAction]
   );
 
   const sendMedia = useCallback(
-    async (data: any, type: string) => {
+    async (data: any,
+          type: string,
+          activeRoomJID: string,
+          isReply?: boolean,
+          isChecked?: boolean,
+          mainMessage?: string,
+        ) => {
       let mediaData: FormData | null = new FormData();
       mediaData.append('files', data);
 
@@ -91,6 +107,9 @@ export const useSendMessage = () => {
               attachmentId: item?._id,
               wrappable: true,
               roomJid: activeRoomJID,
+              showInChannel: isChecked || false,
+              isReply: isReply || false,
+              mainMessage: mainMessage || '',
               isPrivate: item?.isPrivate,
               __v: item.__v,
             };
@@ -102,7 +121,7 @@ export const useSendMessage = () => {
           console.error('Upload failed', error);
         });
     },
-    [client, activeRoomJID]
+    [client]
   );
 
   return {

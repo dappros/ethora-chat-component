@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { ChatContainer } from '../styled/StyledComponents';
+import { ChatContainer, NonRoomChat } from '../styled/StyledComponents';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../roomStore';
 import MessageList from './MessageList';
@@ -91,51 +91,12 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     useRoomUrl(activeRoomJID, roomsList, config);
 
     const sendMessage = (message: string) => {
-      sendMs(message);
+      sendMs(message, activeRoomJID);
     }
 
-    const sendMedia = useCallback(
-      async (data: any, type: string) => {
-        let mediaData: FormData | null = new FormData();
-        mediaData.append('files', data);
-
-        uploadFile(mediaData)
-          .then((response) => {
-            console.log('Upload successful', response);
-            response.data.results.map(async (item: any) => {
-              const data = {
-                firstName: user.firstName,
-                lastName: user.lastName,
-                walletAddress: user.walletAddress,
-                createdAt: item.createdAt,
-                expiresAt: item.expiresAt,
-                fileName: item.filename,
-                isVisible: item?.isVisible,
-                location: item.location,
-                locationPreview: item.locationPreview,
-                mimetype: item.mimetype,
-                originalName: item?.originalname,
-                ownerKey: item?.ownerKey,
-                size: item.size,
-                duration: item?.duration,
-                updatedAt: item?.updatedAt,
-                userId: item?.userId,
-                attachmentId: item?._id,
-                wrappable: true,
-                roomJid: activeRoomJID,
-                isPrivate: item?.isPrivate,
-                __v: item.__v,
-              };
-              console.log(data, 'data to send media');
-              client?.sendMediaMessageStanza(activeRoomJID, data);
-            });
-          })
-          .catch((error) => {
-            console.error('Upload failed', error);
-          });
-      },
-      [client, activeRoomJID]
-    );
+    const sendMedia = (data: any, type: string) => {
+      sendMessageMedia(data, type, activeRoomJID);
+    }
 
     const sendStartComposing = useCallback(() => {
       client.sendTypingRequestStanza(
@@ -226,21 +187,10 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
 
     if (Object.keys(roomsList)?.length < 1 && !loading && !globalLoading) {
       return (
-        <div
-          style={{
-            height: '100%',
-            width: '100%',
-            alignItems: 'center',
-            display: 'flex',
-            justifyContent: 'center',
-            backgroundColor: '#fff',
-            flexDirection: 'column',
-            gap: 16,
-          }}
-        >
+        <NonRoomChat>
           No room. Let's create one!
           <NewChatModal />
-        </div>
+        </NonRoomChat>
       );
     }
 

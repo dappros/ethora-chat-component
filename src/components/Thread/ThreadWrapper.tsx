@@ -17,6 +17,7 @@ import {
   setEditAction,
 } from '../../roomStore/roomsSlice';
 import { EditWrapper } from '../MainComponents/EditWrapper';
+import { useSendMessage } from '../../hooks/useSendMessage';
 
 interface ThreadWrapperProps {
   activeMessage: IMessage;
@@ -43,7 +44,8 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
       editAction: state.rooms.editAction,
     })
   );
-
+  const { sendMessage: sendMs, sendMedia: sendMessageMedia} = useSendMessage();
+  
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
   const [isChecked, setIsChecked] = useState<boolean>(false);
 
@@ -83,77 +85,26 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
     return JSON.stringify(data);
   };
 
-  const sendMessage = useCallback(
-    (message: string) => {
-      if (editAction.isEdit) {
-        client?.editMessageStanza(
-          editAction.roomJid,
-          editAction.messageId,
-          message
-        );
+  const sendMessage = (message: string) => {
+    sendMs(
+      message,
+      activeMessage.roomJid,
+      true,
+      isChecked,
+      createMainMessageForThread(activeMessage)
+    );
+  }
 
-        dispatch(setEditAction({ isEdit: false }));
-        return;
-      } else {
-        client?.sendMessage(
-          activeMessage.roomJid,
-          user.firstName,
-          user.lastName,
-          '',
-          user.walletAddress,
-          message,
-          '',
-          true,
-          isChecked,
-          createMainMessageForThread(activeMessage)
-        );
-      }
-    },
-    [activeMessage.roomJid, isChecked, editAction]
-  );
-
-  const sendMedia = useCallback(
-    async (data: any, type: string) => {
-      let mediaData: FormData | null = new FormData();
-      mediaData.append('files', data);
-
-      uploadFile(mediaData)
-        .then((response) => {
-          response.data.results.map(async (item: any) => {
-            const data = {
-              firstName: user.firstName,
-              lastName: user.lastName,
-              walletAddress: user.walletAddress,
-              createdAt: item.createdAt,
-              expiresAt: item.expiresAt,
-              fileName: item.filename,
-              isVisible: item?.isVisible,
-              location: item.location,
-              locationPreview: item.locationPreview,
-              mimetype: item.mimetype,
-              originalName: item?.originalname,
-              ownerKey: item?.ownerKey,
-              size: item.size,
-              duration: item?.duration,
-              updatedAt: item?.updatedAt,
-              userId: item?.userId,
-              attachmentId: item?._id,
-              wrappable: true,
-              roomJid: activeMessage.roomJid,
-              showInChannel: isChecked,
-              isReply: true,
-              mainMessage: createMainMessageForThread(activeMessage),
-              __v: item.__v,
-            };
-            client?.sendMediaMessageStanza(activeMessage.roomJid, data);
-          });
-        })
-        .catch((error) => {
-          console.error('Upload failed', error);
-        });
-    },
-    [client, activeMessage.roomJid]
-  );
+  const sendMedia = (data: any, type: string) => {
+    sendMessageMedia(
+      data,
+      type,
+      activeMessage.roomJid,
+      true,
+      true,
+      createMainMessageForThread(activeMessage),
+    );
+  }
 
   const sendStartComposing = useCallback(() => {
     client.sendTypingRequestStanza(

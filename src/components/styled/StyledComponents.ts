@@ -39,6 +39,17 @@ export const ChatContainerHeaderLabel = styled.div`
   font-size: 16px;
 `;
 
+export const NonRoomChat = styled.div`
+  height: 100%;
+  width: 100%;
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  background-color: #fff;
+  flex-direction: column;
+  gap: 16;
+`;
+
 export const MessagesScroll = styled.div<{ color?: string }>`
   position: relative;
   height: calc(100%);
