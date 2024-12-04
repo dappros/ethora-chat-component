@@ -8,40 +8,33 @@ import { IconButton } from './StyledComponents';
 import { DownloadIcon } from '../../assets/icons';
 import { IConfig } from '../../types/types';
 import { ActionButton } from './ActionButton';
+import { useDispatch } from 'react-redux';
+import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
+import {
+  setActiveFile,
+  setActiveModal,
+} from '../../roomStore/chatSettingsSlice';
 
 interface FileDownloadProps {
-  fileUrl: string;
   fileName: string;
-  config?: IConfig;
+  fileURL: string;
+  mimetype: string;
 }
 
-const downloadFile = (fileUrl: string, fileName: string) => {
-  fetch(fileUrl, {
-    method: 'GET',
-    headers: {},
-  })
-    .then((response) => {
-      response.arrayBuffer().then(function (buffer) {
-        const url = window.URL.createObjectURL(new Blob([buffer]));
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', fileName);
-        document.body.appendChild(link);
-        link.click();
-      });
-    })
-    .catch((err) => {
-      console.error(err);
-    });
-};
-
 const FileDownload: React.FC<FileDownloadProps> = ({
-  fileUrl,
   fileName,
-  config,
+  fileURL,
+  mimetype,
 }) => {
+  const dispatch = useDispatch();
+
+  const handleOpen = () => {
+    dispatch(setActiveFile({ fileName, fileURL, mimetype }));
+    dispatch(setActiveModal(MODAL_TYPES.FILE_PREVIEW));
+  };
+
   return (
-    <UnsupportedContainer onClick={() => downloadFile(fileUrl, fileName)}>
+    <UnsupportedContainer onClick={handleOpen}>
       <FileName>{fileName}</FileName>
     </UnsupportedContainer>
   );

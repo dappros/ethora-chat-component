@@ -1,10 +1,16 @@
 import React from 'react';
 import styled from 'styled-components';
-import { CloseIcon, DownloadIcon } from '../../assets/icons';
-import { Overlay, StyledModal } from './MediaModal';
+import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
+import { useDispatch } from 'react-redux';
+import {
+  setActiveFile,
+  setActiveModal,
+} from '../../roomStore/chatSettingsSlice';
 
 interface CustomMessageVideoProps {
-  videoUrl: string | undefined;
+  fileName: string;
+  fileURL: string;
+  mimetype: string;
 }
 
 export const Container = styled.div`
@@ -56,74 +62,29 @@ export const IconButton = styled.button`
   pointer-events: auto;
 `;
 
-const download = (link: string) => {
-  console.log(link);
-  fetch(link, {
-    method: 'GET',
-    headers: {},
-  })
-    .then((response) => {
-      response.arrayBuffer().then(function (buffer) {
-        const url = window.URL.createObjectURL(new Blob([buffer]));
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', 'MEDIA-ETHORA.mp4');
-        document.body.appendChild(link);
-        link.click();
-      });
-    })
-    .catch((err) => {
-      console.log(err);
-    });
-};
-
 const CustomMessageVideo: React.FC<CustomMessageVideoProps> = ({
-  videoUrl,
+  fileName,
+  fileURL,
+  mimetype,
 }) => {
-  const [open, setOpen] = React.useState(false);
+  const dispatch = useDispatch();
+
   const handleOpen = (e: React.MouseEvent<HTMLVideoElement, MouseEvent>) => {
+    dispatch(setActiveFile({ fileName, fileURL, mimetype }));
+    dispatch(setActiveModal(MODAL_TYPES.FILE_PREVIEW));
     e.preventDefault();
     e.stopPropagation();
-    setOpen(true);
-  };
-  const handleClose = () => setOpen(false);
-
-  const downloadVideo = () => {
-    videoUrl && download(videoUrl);
   };
 
   return (
     <Container>
       <FixedSizeVideo
-        src={videoUrl}
+        src={fileURL}
         controls
         autoPlay={false}
         onClick={(e) => handleOpen(e)}
         style={{ cursor: 'pointer', maxWidth: '100%' }}
       />
-      {open && (
-        <Overlay>
-          <StyledModal>
-            <ModalContent>
-              <FullScreenVideo src={videoUrl} controls autoPlay={false} />
-              <ButtonContainer>
-                {videoUrl && (
-                  <IconButton
-                    onClick={downloadVideo}
-                    aria-label="Download"
-                    style={{ height: '50px', width: '50px' }}
-                  >
-                    <DownloadIcon />
-                  </IconButton>
-                )}
-                <IconButton onClick={handleClose} aria-label="Close">
-                  <CloseIcon />
-                </IconButton>
-              </ButtonContainer>
-            </ModalContent>
-          </StyledModal>
-        </Overlay>
-      )}
     </Container>
   );
 };

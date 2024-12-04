@@ -16,6 +16,7 @@ import { RootState } from '../../roomStore';
 import { Avatar } from './Avatar';
 import MessageInteractions from './MessageInteractions';
 import {
+  setActiveFile,
   setActiveModal,
   setDeleteModal,
   setSelectedUser,
@@ -178,14 +179,14 @@ const Message: React.FC<MessageProps> = forwardRef<
           </CustomMessageTimestamp>
         </CustomMessageBubble>
         {message?.reply?.length ? (
-            <BottomReplyContainer
-              isUser={isUser}
-              onClick={handleReplyMessage}
-              reply={message?.reply}
-            />
-          ) : (
-            <div />
-          )}
+          <BottomReplyContainer
+            isUser={isUser}
+            onClick={handleReplyMessage}
+            reply={message?.reply}
+          />
+        ) : (
+          <div />
+        )}
       </CustomMessageContainer>
 
       {!config?.disableInteractions && (

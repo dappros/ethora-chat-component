@@ -4,6 +4,7 @@ import {
   EditAction,
   IConfig,
   IUser,
+  ModalFile,
   ModalType,
   User,
 } from '../types/types';
@@ -16,7 +17,7 @@ interface ChatState {
   activeModal?: ModalType;
   deleteModal?: DeleteModal;
   selectedUser?: IUser;
-  activeFile?: any;
+  activeFile?: ModalFile;
   client?: any;
 }
 
@@ -118,7 +119,7 @@ export const chatSlice = createSlice({
     setActiveModal: (state, action: PayloadAction<ModalType | undefined>) => {
       state.activeModal = action.payload;
     },
-    setActiveFile: (state, action: PayloadAction<any>) => {
+    setActiveFile: (state, action: PayloadAction<ModalFile>) => {
       state.activeFile = action.payload;
     },
     setDeleteModal: (state, action: PayloadAction<DeleteModal | undefined>) => {
