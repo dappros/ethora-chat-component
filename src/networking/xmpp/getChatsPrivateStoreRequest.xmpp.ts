@@ -1,6 +1,8 @@
 import { Client, xml } from '@xmpp/client';
 import { Element } from 'ltx';
 import { createTimeoutPromise } from './createTimeoutPromise.xmpp';
+import { store } from '../../roomStore';
+import { setLastViewedTimestamp } from '../../roomStore/roomsSlice';
 
 export async function getChatsPrivateStoreRequest(client: Client) {
   const id = `get-chats-private-req:${Date.now().toString()}`;
@@ -15,17 +17,37 @@ export async function getChatsPrivateStoreRequest(client: Client) {
   };
 
   const responsePromise = new Promise((resolve, _reject) => {
-    stanzaHdlrPointer = (stanza: Element) => {
-      if (stanza.is('iq') && stanza.attrs.id === id) {
-        let chatjson = stanza.getChild('query')?.getChild('chatjson');
+    try {
+      stanzaHdlrPointer = (stanza: Element) => {
+        if (stanza.is('iq') && stanza.attrs.id === id) {
+          let chatjson = stanza.getChild('query')?.getChild('chatjson');
 
-        if (chatjson) {
-          resolve(chatjson.attrs.value);
-        } else {
-          resolve(null);
+          if (chatjson) {
+            const roomTimestampObject = JSON.parse(chatjson.attrs.value);
+            const roomTimestampArray = Object.entries(roomTimestampObject).map(
+              ([jid, timestamp]) => ({
+                jid,
+                timestamp,
+              })
+            );
+            roomTimestampArray.forEach(({ jid, timestamp }) => {
+              if (jid) {
+                store.dispatch(
+                  setLastViewedTimestamp({
+                    chatJID: jid,
+                    timestamp: Number(timestamp || 0),
+                  })
+                );
+              }
+            });
+          } else {
+            resolve(null);
+          }
         }
-      }
-    };
+      };
+    } catch (error) {
+      console.log('err', error);
+    }
 
     client.on('stanza', stanzaHdlrPointer);
 

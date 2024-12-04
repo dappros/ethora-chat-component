@@ -35,24 +35,31 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
 
     const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
 
-    const {user, config} = useChatSettingState();
+    const { user, config } = useChatSettingState();
     const {
       roomsList,
       activeRoomJID,
       editAction,
       loading,
       globalLoading,
-      roomMessages
+      roomMessages,
     } = useRoomState();
-    const { sendMessage: sendMs, sendMedia: sendMessageMedia} = useSendMessage();
+    const { sendMessage: sendMs, sendMedia: sendMessageMedia } =
+      useSendMessage();
 
-    const sendMessage = useCallback((message: string) => {
-      sendMs(message, activeRoomJID);
-    }, [activeRoomJID]);
+    const sendMessage = useCallback(
+      (message: string) => {
+        sendMs(message, activeRoomJID);
+      },
+      [activeRoomJID]
+    );
 
-    const sendMedia = useCallback((data: any, type: string) => {
-      sendMessageMedia(data, type, activeRoomJID);
-    }, [activeRoomJID])
+    const sendMedia = useCallback(
+      (data: any, type: string) => {
+        sendMessageMedia(data, type, activeRoomJID);
+      },
+      [activeRoomJID]
+    );
 
     const sendStartComposing = useCallback(() => {
       client.sendTypingRequestStanza(
@@ -84,13 +91,15 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
 
     const queueMessageLoader = useCallback(
       async (chatJID: string, max: number) => {
-        await client?.getChatsPrivateStoreRequestStanza();
-
-        client?.getHistoryStanza(chatJID, max);
+        try {
+          client?.getHistoryStanza(chatJID, max);
+        } catch (error) {
+          console.log('Error in loading queue messages');
+        }
       },
       [globalLoading, loading]
     );
-    
+
     const onCloseEdit = () => {
       dispatch(setEditAction({ isEdit: false }));
     };
@@ -106,7 +115,8 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         if (client) {
           client.actionSetTimestampToPrivateStoreStanza(
             activeRoomJID,
-            new Date().getTime()
+            new Date().getTime(),
+            Object.keys(roomsList)
           );
         }
         dispatch(
@@ -141,7 +151,6 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       roomMessages.length
     );
 
-
     if (Object.keys(roomsList)?.length < 1 && !loading && !globalLoading) {
       return (
         <NonRoomChat>
@@ -152,9 +161,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     }
 
     if (!activeRoomJID || !roomsList?.[activeRoomJID]) {
-      return (
-        <ChooseChatMessage/>
-      );
+      return <ChooseChatMessage />;
     }
 
     return (

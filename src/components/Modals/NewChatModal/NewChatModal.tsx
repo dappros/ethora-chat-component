@@ -76,7 +76,7 @@ const NewChatModal: React.FC = () => {
         roomName,
         roomDescription
       );
-      await client.getRooms();
+      await client.getRoomsStanza();
       dispatch(setCurrentRoom({ roomJID: newChatJid }));
       setIsModalOpen(false);
       setErrors({ name: '', description: '' });

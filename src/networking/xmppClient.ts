@@ -1,22 +1,7 @@
 import xmpp, { Client, xml } from '@xmpp/client';
 import { walletToUsername } from '../helpers/walletUsername';
-import {
-  handleComposing,
-  onDeleteMessage,
-  onChatInvite,
-  onGetChatRooms,
-  onGetLastMessageArchive,
-  onGetMembers,
-  onGetRoomInfo,
-  onMessageHistory,
-  onNewRoomCreated,
-  onPresenceInRoom,
-  onRealtimeMessage,
-  onEditMessage,
-} from './stanzaHandlers';
 
 import { sendMediaMessage } from './xmpp/sendMediaMessage.xmpp';
-import { setChatsPrivateStoreRequest } from './xmpp/setChatsPrivateStoreRequest.xmpp';
 import { getChatsPrivateStoreRequest } from './xmpp/getChatsPrivateStoreRequest.xmpp';
 import { actionSetTimestampToPrivateStore } from './xmpp/actionSetTimestampToPrivateStore.xmpp';
 import { sendTypingRequest } from './xmpp/sendTypingRequest.xmpp';
@@ -31,7 +16,9 @@ import { getRoomMembers } from './xmpp/getRoomMembers.xmpp';
 import { getRoomInfo } from './xmpp/getRoomInfo.xmpp';
 import { leaveTheRoom } from './xmpp/leaveTheRoom.xmpp';
 import { editMessage } from './xmpp/editMessage.xmpp';
-import { CHAT_DOMAIN } from '../helpers/constants/PLATFORM_CONSTANTS';
+import { inviteRoomRequest } from './xmpp/inviteRoomRequest.xmpp';
+import { getRooms } from './xmpp/getRooms.xmpp';
+import { handleStanza } from './xmpp/handleStanzas.xmpp';
 
 export class XmppClient {
   client!: Client;
@@ -113,36 +100,7 @@ export class XmppClient {
       // }
     });
 
-    this.client.on('stanza', (stanza) => this.handleStanza(stanza));
-  }
-
-  handleStanza(stanza: any) {
-    switch (stanza.name) {
-      case 'message':
-        onDeleteMessage(stanza);
-        onEditMessage(stanza);
-        onRealtimeMessage(stanza);
-        onMessageHistory(stanza);
-        onGetLastMessageArchive(stanza, this);
-        handleComposing(stanza, this.username);
-        onChatInvite(stanza, this);
-        break;
-      case 'presence':
-        onPresenceInRoom(stanza);
-        break;
-      case 'iq':
-        onGetChatRooms(stanza, this);
-        onRealtimeMessage(stanza);
-        onPresenceInRoom(stanza);
-        onGetMembers(stanza);
-        onGetRoomInfo(stanza);
-        break;
-      case 'room-config':
-        onNewRoomCreated(stanza, this);
-        break;
-      default:
-        console.log('Unhandled stanza type:', stanza.name);
-    }
+    this.client.on('stanza', (stanza) => handleStanza(stanza, this.client));
   }
 
   scheduleReconnect() {
@@ -183,52 +141,8 @@ export class XmppClient {
     }
   }
 
-  unsubscribe(address: string) {
-    try {
-      const message = xml(
-        'iq',
-        {
-          from: this.client?.jid?.toString(),
-          to: address,
-          type: 'set',
-          id: 'unsubscribe',
-        },
-        xml('unsubscribe', { xmlns: 'urn:xmpp:mucsub:0' })
-      );
-      this.client.send(message);
-    } catch (error) {
-      console.error('Error while unsubscribing:', error);
-    }
-  }
-
-  getRooms = () => {
-    return new Promise((resolve, reject) => {
-      try {
-        const message = xml(
-          'iq',
-          {
-            type: 'get',
-            from: this.client.jid?.toString(),
-            id: 'getUserRooms',
-          },
-          xml('query', { xmlns: 'ns:getrooms' })
-        );
-
-        this.client
-          .send(message)
-          .then(() => {
-            console.log('getRooms successfully sent');
-            resolve('Request to get rooms sent successfully');
-          })
-          .catch((error: any) => {
-            console.error('Failed to send getRooms request:', error);
-            reject(error);
-          });
-      } catch (error) {
-        console.error('An error occurred while getting rooms:', error);
-        reject(error);
-      }
-    });
+  getRoomsStanza = async () => {
+    await getRooms(this.client);
   };
 
   //room functions
@@ -237,23 +151,8 @@ export class XmppClient {
     return await createRoom(title, description, this.client, to);
   }
 
-  async inviteRoomRequest(to: string, roomJid: string) {
-    const id = `invite-rooms:${Date.now().toString()}`;
-
-    const xmlMessage = xml(
-      'message',
-      {
-        to: roomJid,
-        id: id,
-      },
-      xml(
-        'x',
-        'http://jabber.org/protocol/muc#user',
-        xml('invite', { to: to + CHAT_DOMAIN })
-      )
-    );
-
-    this.client.send(xmlMessage);
+  async inviteRoomRequestStanza(to: string, roomJid: string) {
+    await inviteRoomRequest(this.client, to, roomJid);
   }
 
   leaveTheRoomStanza = (roomJID: string) => {
@@ -335,19 +234,27 @@ export class XmppClient {
     sendTypingRequest(this.client, chatId, fullName, start);
   }
 
-  getChatsPrivateStoreRequestStanza = async () =>
-    await getChatsPrivateStoreRequest(this.client);
-
-  async setChatsPrivateStoreRequestStanza(jsonObj: string) {
-    await setChatsPrivateStoreRequest(this.client, jsonObj);
-  }
+  getChatsPrivateStoreRequestStanza = async () => {
+    try {
+      return await getChatsPrivateStoreRequest(this.client);
+    } catch (error) {
+      console.log(error);
+      return null;
+    }
+  };
 
   async actionSetTimestampToPrivateStoreStanza(
     chatId: string,
-    timestamp: number
+    timestamp: number,
+    chats?: string[]
   ) {
     try {
-      await actionSetTimestampToPrivateStore(this.client, chatId, timestamp);
+      await actionSetTimestampToPrivateStore(
+        this.client,
+        chatId,
+        timestamp,
+        chats
+      );
     } catch (error) {}
   }
 

@@ -142,7 +142,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
               user.defaultWallet?.walletAddress,
               user.xmppPassword
             ).then((client) => {
-              client.getRooms().then(() => {
+              client.getRoomsStanza().then(() => {
                 client.getChatsPrivateStoreRequestStanza();
                 dispatch(setStoreClient(client));
                 setClient(client);
@@ -155,7 +155,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           } else if (storedClient) {
             setClient(storedClient);
             if (!activeRoomJID) {
-              storedClient.getRooms().then(() => {
+              storedClient.getRoomsStanza().then(() => {
                 storedClient.getChatsPrivateStoreRequestStanza();
               });
             }
@@ -165,7 +165,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             }
           } else {
             if (!activeRoomJID) {
-              client.getRooms().then(() => {
+              client.getRoomsStanza().then(() => {
                 client.getChatsPrivateStoreRequestStanza();
               });
             }

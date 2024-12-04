@@ -4,7 +4,7 @@ const useMessageLoaderQueue = (
   roomsList: string[],
   globalLoading: boolean,
   loading: boolean,
-  loadMoreMessages: (roomJid: string, max: number) => void
+  loadMoreMessages: (roomJid: string, max: number) => Promise<any>
 ) => {
   const [queueActive, setQueueActive] = useState(false);
   const [processedChats, setProcessedChats] = useState<Set<string>>(new Set());
@@ -14,9 +14,9 @@ const useMessageLoaderQueue = (
     const processQueue = () => {
       if (!globalLoading && processedChats.size !== roomsList.length) {
         console.log('Processing queue...');
-        roomsList.forEach((room) => {
+        roomsList.forEach(async (room) => {
           if (!processedChats.has(room)) {
-            loadMoreMessages(room, 20);
+            await loadMoreMessages(room, 20);
             setProcessedChats((prev) => new Set(prev).add(room));
           }
         });

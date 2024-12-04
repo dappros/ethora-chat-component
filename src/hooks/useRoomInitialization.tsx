@@ -1,14 +1,14 @@
-import { useEffect } from "react";
-import { setIsLoading } from "../roomStore/roomsSlice";
-import { useXmppClient } from "../context/xmppProvider";
-import { IConfig, IRoom } from "../types/types";
-import { useDispatch } from "react-redux";
+import { useEffect } from 'react';
+import { setIsLoading } from '../roomStore/roomsSlice';
+import { useXmppClient } from '../context/xmppProvider';
+import { IConfig, IRoom } from '../types/types';
+import { useDispatch } from 'react-redux';
 
 export const useRoomInitialization = (
   activeRoomJID: string,
   roomsList: Record<string, IRoom>,
   config: IConfig,
-  messageLength: number,
+  messageLength: number
 ) => {
   const { client } = useXmppClient();
   const dispatch = useDispatch();
@@ -22,7 +22,7 @@ export const useRoomInitialization = (
     const initialPresenceAndHistory = async () => {
       if (!roomsList[activeRoomJID]) {
         client.presenceInRoomStanza(activeRoomJID);
-        await client.getRooms();
+        await client.getRoomsStanza();
         await getDefaultHistory();
       } else {
         getDefaultHistory();
@@ -34,7 +34,7 @@ export const useRoomInitialization = (
     if (Object.keys(roomsList)?.length > 0) {
       if (!roomsList?.[activeRoomJID] && Object.keys(roomsList).length > 0) {
         initialPresenceAndHistory();
-      // } else if (roomMessages.length < 1) {
+        // } else if (roomMessages.length < 1) {
       } else if (messageLength < 1) {
         getDefaultHistory();
       } else {
@@ -48,7 +48,7 @@ export const useRoomInitialization = (
       config?.defaultRooms.map((room) => {
         client.presenceInRoomStanza(room.jid);
       });
-      client.getRooms();
+      client.getRoomsStanza();
       getDefaultHistory();
     }
   }, [activeRoomJID, Object.keys(roomsList).length]);

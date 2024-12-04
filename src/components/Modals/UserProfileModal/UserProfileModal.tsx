@@ -99,8 +99,8 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     );
 
     if (newRoomJid) {
-      await client.inviteRoomRequest(selectedUserUsername, newRoomJid);
-      await client.getRooms();
+      await client.inviteRoomRequestStanza(selectedUserUsername, newRoomJid);
+      await client.getRoomsStanza();
     }
     setLoading(false);
     dispatch(setCurrentRoom({ roomJID: newRoomJid }));

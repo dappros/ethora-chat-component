@@ -238,7 +238,7 @@ const onChatInvite = async (stanza: Element, client: any) => {
         }
 
         await client.presenceInRoomStanza(chatId);
-        await client.getRooms();
+        await client.getRoomsStanza();
       }
     }
   }
@@ -277,7 +277,7 @@ const onGetLastMessageArchive = (stanza: Element, xmpp: any) => {
 
 const onNewRoomCreated = (stanza: Element, xmpp: any) => {
   store.dispatch(setCurrentRoom({ roomJID: stanza.attrs.from }));
-  xmpp.getRooms();
+  xmpp.getRoomsStanza();
 };
 
 const onGetChatRooms = (stanza: Element, xmpp: any) => {
@@ -311,28 +311,14 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
                 ? result?.attrs?.room_thumbnail
                 : null,
             unreadMessages: 0,
+            lastViewedTimestamp: 0,
           };
 
           store.dispatch(addRoom({ roomData: { ...roomData } }));
 
-          let lastViewedTimestamp = '0';
-          if (result?.attrs?.jid) {
-            lastViewedTimestamp =
-              await xmpp.getChatsPrivateStoreRequestStanza();
-          }
-
           if (!store.getState().rooms.activeRoomJID) {
             store.dispatch(setCurrentRoom({ roomJID: roomData.jid }));
           }
-
-          store.dispatch(
-            setLastViewedTimestamp({
-              chatJID: roomData.jid,
-              timestamp: Number(
-                lastViewedTimestamp?.split(':')?.[1]?.split('}')?.[0] || 0
-              ),
-            })
-          );
 
           if (roomData.jid) {
             xmpp.presenceInRoomStanza(roomData.jid);
