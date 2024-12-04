@@ -14,7 +14,7 @@ interface MessageContainerProps {
   CustomMessage?: React.ComponentType<{
     message: IMessage;
     isUser: boolean;
-    isReply?: boolean;
+    isReply: boolean;
   }>;
   message: IMessage;
   activeMessage: IMessage;
@@ -59,7 +59,7 @@ export const MessageContainer: FC<MessageContainerProps> = ({
       {showDateLabel && !activeMessage && message.id !== 'delimiter-new' && (
         <DateLabel date={messageDate} colors={config?.colors} />
       )}
-      <MessageComponent message={message} isUser={isUser}>
+      <MessageComponent message={message} isUser={isUser} isReply={isReply}>
         {!CustomMessage ? (
           <>
             <MessageTimestamp>

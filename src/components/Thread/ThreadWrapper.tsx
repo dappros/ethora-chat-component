@@ -9,7 +9,6 @@ import SendInput from '../styled/SendInput';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
 import { useXmppClient } from '../../context/xmppProvider';
-import { uploadFile } from '../../networking/api-requests/auth.api';
 import MessageList from '../MainComponents/MessageList';
 import ModalHeaderComponent from '../Modals/ModalHeaderComponent';
 import {
@@ -18,6 +17,9 @@ import {
 } from '../../roomStore/roomsSlice';
 import { EditWrapper } from '../MainComponents/EditWrapper';
 import { useSendMessage } from '../../hooks/useSendMessage';
+import { createMainMessageForThread } from '../../helpers/createMainMessageForThread';
+import { useRoomState } from '../../hooks/useRoomState';
+import { useChatSettingState } from '../../hooks/useChatSettingState';
 
 interface ThreadWrapperProps {
   activeMessage: IMessage;
@@ -25,6 +27,7 @@ interface ThreadWrapperProps {
   customMessageComponent?: React.ComponentType<{
     message: IMessage;
     isUser: boolean;
+    isReply: boolean;
   }>;
 }
 
@@ -35,21 +38,13 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
 }) => {
   const { client } = useXmppClient();
   const dispatch = useDispatch();
-  const { config, loading, roomsList, editAction } = useSelector(
-    (state: RootState) => ({
-      loading: state.rooms.rooms[state.rooms.activeRoomJID]?.isLoading || false,
-      globalLoading: state.rooms.isLoading,
-      config: state.chatSettingStore.config,
-      roomsList: state.rooms.rooms,
-      editAction: state.rooms.editAction,
-    })
-  );
+
+  const {loading, globalLoading, roomsList, editAction} = useRoomState();
+  const { config} = useChatSettingState();
   const { sendMessage: sendMs, sendMedia: sendMessageMedia} = useSendMessage();
   
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
   const [isChecked, setIsChecked] = useState<boolean>(false);
-
-  const isUser = activeMessage.user.id === user.walletAddress;
 
   const loadMoreMessages = useCallback(
     async (chatJID: string, max: number, idOfMessageBefore?: number) => {
@@ -63,29 +58,7 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
     [client]
   );
 
-  const createMainMessageForThread = (message): string => {
-    const data = {
-      text: message.body,
-      id: message.id,
-      userName: activeMessage.user.name,
-      createdAt: message.date,
-      imageLocation: message.location,
-      imagePreview: message.locationPreview,
-      mimeType: message.mimetype,
-      size: '',
-      duration: '',
-      waveForm: '',
-      attachmentId: '',
-      wrappable: '',
-      nftActionType: '',
-      contractAddress: '',
-      roomJid: activeMessage.roomJid,
-      nftId: '',
-    };
-    return JSON.stringify(data);
-  };
-
-  const sendMessage = (message: string) => {
+  const sendMessage = useCallback((message: string) => {
     sendMs(
       message,
       activeMessage.roomJid,
@@ -93,9 +66,9 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
       isChecked,
       createMainMessageForThread(activeMessage)
     );
-  }
+  }, [activeMessage]);
 
-  const sendMedia = (data: any, type: string) => {
+  const sendMedia = useCallback((data: any, type: string) => {
     sendMessageMedia(
       data,
       type,
@@ -104,7 +77,7 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
       true,
       createMainMessageForThread(activeMessage),
     );
-  }
+  }, [activeMessage]);
 
   const sendStartComposing = useCallback(() => {
     client.sendTypingRequestStanza(

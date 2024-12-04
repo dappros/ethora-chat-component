@@ -19,7 +19,7 @@ interface MessageListProps<TMessage extends IMessage> {
   CustomMessage?: React.ComponentType<{
     message: IMessage;
     isUser: boolean;
-    isReply?: boolean;
+    isReply: boolean;
   }>;
   user: User;
   roomJID: string;
@@ -30,7 +30,7 @@ interface MessageListProps<TMessage extends IMessage> {
   ) => Promise<void>;
   loading: boolean;
   config?: IConfig;
-  isReply?: boolean;
+  isReply: boolean;
   activeMessage?: IMessage;
 };
 
@@ -215,6 +215,7 @@ const MessageList = <TMessage extends IMessage>({
             <CustomMessage
               message={activeMessage}
               isUser={isUserActiveMessage}
+              isReply={isReply}
             />
             <TreadLabel
               reply={memoizedMessages.length}

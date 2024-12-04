@@ -197,7 +197,7 @@ export interface StorageUser {
 export interface MessageProps {
   message: IMessage;
   isUser: boolean;
-  isReply?: boolean;
+  isReply: boolean;
 }
 
 export interface MediaMessageType {}
