@@ -27,13 +27,9 @@ export class XmppClient {
   service: string;
   conference: string;
   username: string;
-  onclose: () => void;
-  onmessage: (data: any) => void;
   status: string = 'offline';
-  activeChat: string;
 
   password = '';
-  resource = '';
   reconnectAttempts = 0;
   maxReconnectAttempts = 5;
   reconnectDelay = 2000;
@@ -84,7 +80,6 @@ export class XmppClient {
     this.client.on('disconnect', () => {
       console.log('Disconnected from server.');
       this.status = 'offline';
-      this.onclose?.();
     });
 
     this.client.on('online', () => {
@@ -131,7 +126,6 @@ export class XmppClient {
         .stop()
         .then(() => {
           console.log('Client connection closed.');
-          this.onclose();
         })
         .catch((error) => {
           console.error('Error closing the client:', error);

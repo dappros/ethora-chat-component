@@ -93,7 +93,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
           >
             Unable to open the uploaded document. The file format is not
             supported by the system. Please upload a file in a compatible
-            format.
+            format. You still can dowload this file.
           </div>
         );
     }
