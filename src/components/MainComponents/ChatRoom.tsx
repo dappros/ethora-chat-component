@@ -1,18 +1,14 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ChatContainer, NonRoomChat } from '../styled/StyledComponents';
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../../roomStore';
+import { useDispatch } from 'react-redux';
 import MessageList from './MessageList';
 import SendInput from '../styled/SendInput';
 import {
   deleteRoomMessage,
   setEditAction,
-  setCurrentRoom,
-  setIsLoading,
   setLastViewedTimestamp,
 } from '../../roomStore/roomsSlice';
 import Loader from '../styled/Loader';
-import { uploadFile } from '../../networking/api-requests/auth.api';
 import { useXmppClient } from '../../context/xmppProvider.tsx';
 import ChatHeader from './ChatHeader.tsx';
 import NoMessagesPlaceholder from './NoMessagesPlaceholder.tsx';

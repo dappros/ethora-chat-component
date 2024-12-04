@@ -15,7 +15,6 @@ interface MediaMessageProps {
 const MediaMessage: React.FC<MediaMessageProps> = ({
   mimeType,
   location,
-  message,
   messageText,
 }) => {
   if (mimeType)

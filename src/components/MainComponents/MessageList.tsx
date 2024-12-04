@@ -10,8 +10,6 @@ import {
 } from '../styled/StyledComponents';
 import { IConfig, IMessage, User } from '../../types/types';
 import Loader from '../styled/Loader';
-import { useSelector } from 'react-redux';
-import { RootState } from '../../roomStore';
 import Composing from '../styled/StyledInputComponents/Composing';
 import TreadLabel from '../styled/TreadLabel';
 import { MessageContainer } from './MessageContainer';
