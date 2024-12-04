@@ -127,6 +127,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     }
 
     const initXmmpClient = async () => {
+      dispatch(setConfig(config));
       try {
         if (!user.defaultWallet || user?.defaultWallet.walletAddress === '') {
           setShowModal(true);
@@ -151,10 +152,10 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
               config?.refreshTokens?.enabled && refresh();
             }
           } else if (storedClient) {
-            setClient(client);
+            setClient(storedClient);
             if (!activeRoomJID) {
-              client.getRooms().then(() => {
-                client.getChatsPrivateStoreRequestStanza();
+              storedClient.getRooms().then(() => {
+                storedClient.getChatsPrivateStoreRequestStanza();
               });
             }
             setInited(true);
@@ -223,7 +224,9 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     <>
       {showModal && (
         <Overlay>
-          <StyledModal>Unsuccessfull login. Try again</StyledModal>
+          <StyledModal>
+            There was an error. Please, refresh the page
+          </StyledModal>
         </Overlay>
       )}
       <>

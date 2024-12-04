@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { store } from '../roomStore';
 
-import { refreshTokens } from '../roomStore/chatSettingsSlice';
+import { logout, refreshTokens } from '../roomStore/chatSettingsSlice';
 
 const baseURL = 'https://api.ethoradev.com/v1';
 
@@ -14,23 +14,28 @@ export function refresh(): Promise<{
 }> {
   return new Promise((resolve, reject) => {
     const user = store.getState().chatSettingStore.user;
-    http
-      .post(
-        '/users/login/refresh',
-        {},
-        { headers: { Authorization: user.refreshToken } }
-      )
-      .then((response) => {
-        store.dispatch(
-          refreshTokens({
-            token: response.data.token,
-            refreshToken: response.data.refreshToken,
-          })
-        );
-      })
-      .catch((error) => {
-        reject(error);
-      });
+    try {
+      http
+        .post(
+          '/users/login/refresh',
+          {},
+          { headers: { Authorization: user.refreshToken } }
+        )
+        .then((response) => {
+          store.dispatch(
+            refreshTokens({
+              token: response.data.token,
+              refreshToken: response.data.refreshToken,
+            })
+          );
+        })
+        .catch((error) => {
+          reject(error);
+        });
+    } catch (error) {
+      console.log('errr');
+      store.dispatch(logout());
+    }
   });
 }
 

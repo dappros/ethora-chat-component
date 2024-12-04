@@ -6,8 +6,7 @@ import {
   ChatContainer,
 } from '../styled/StyledComponents';
 import SendInput from '../styled/SendInput';
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '../../roomStore';
+import { useDispatch } from 'react-redux';
 import { useXmppClient } from '../../context/xmppProvider';
 import MessageList from '../MainComponents/MessageList';
 import ModalHeaderComponent from '../Modals/ModalHeaderComponent';
@@ -39,10 +38,10 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
   const { client } = useXmppClient();
   const dispatch = useDispatch();
 
-  const {loading, globalLoading, roomsList, editAction} = useRoomState();
-  const { config} = useChatSettingState();
-  const { sendMessage: sendMs, sendMedia: sendMessageMedia} = useSendMessage();
-  
+  const { loading, globalLoading, roomsList, editAction } = useRoomState();
+  const { config } = useChatSettingState();
+  const { sendMessage: sendMs, sendMedia: sendMessageMedia } = useSendMessage();
+
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
   const [isChecked, setIsChecked] = useState<boolean>(false);
 
@@ -58,26 +57,32 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
     [client]
   );
 
-  const sendMessage = useCallback((message: string) => {
-    sendMs(
-      message,
-      activeMessage.roomJid,
-      true,
-      isChecked,
-      createMainMessageForThread(activeMessage)
-    );
-  }, [activeMessage]);
+  const sendMessage = useCallback(
+    (message: string) => {
+      sendMs(
+        message,
+        activeMessage.roomJid,
+        true,
+        isChecked,
+        createMainMessageForThread(activeMessage)
+      );
+    },
+    [activeMessage]
+  );
 
-  const sendMedia = useCallback((data: any, type: string) => {
-    sendMessageMedia(
-      data,
-      type,
-      activeMessage.roomJid,
-      true,
-      true,
-      createMainMessageForThread(activeMessage),
-    );
-  }, [activeMessage]);
+  const sendMedia = useCallback(
+    (data: any, type: string) => {
+      sendMessageMedia(
+        data,
+        type,
+        activeMessage.roomJid,
+        true,
+        true,
+        createMainMessageForThread(activeMessage)
+      );
+    },
+    [activeMessage]
+  );
 
   const sendStartComposing = useCallback(() => {
     client.sendTypingRequestStanza(
