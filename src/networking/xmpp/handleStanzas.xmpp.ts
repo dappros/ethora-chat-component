@@ -13,29 +13,29 @@ import {
   onNewRoomCreated,
 } from '../stanzaHandlers';
 
-export function handleStanza(stanza: any, client: any) {
+export function handleStanza(stanza: any, xmppWs: any) {
   switch (stanza.name) {
     case 'message':
       onDeleteMessage(stanza);
       onEditMessage(stanza);
       onRealtimeMessage(stanza);
       onMessageHistory(stanza);
-      onGetLastMessageArchive(stanza, client);
-      handleComposing(stanza, client.username);
-      onChatInvite(stanza, client);
+      onGetLastMessageArchive(stanza, xmppWs);
+      handleComposing(stanza, xmppWs.username);
+      onChatInvite(stanza, xmppWs);
       break;
     case 'presence':
       onPresenceInRoom(stanza);
       break;
     case 'iq':
-      onGetChatRooms(stanza, client);
+      onGetChatRooms(stanza, xmppWs);
       onRealtimeMessage(stanza);
       onPresenceInRoom(stanza);
       onGetMembers(stanza);
       onGetRoomInfo(stanza);
       break;
     case 'room-config':
-      onNewRoomCreated(stanza, client);
+      onNewRoomCreated(stanza, xmppWs);
       break;
     default:
       console.log('Unhandled stanza type:', stanza.name);

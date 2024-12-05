@@ -1,7 +1,6 @@
 import { xml } from '@xmpp/client';
 
 export const getRoomMembers = (roomJID: string, client: any) => {
-  client.activeChat = roomJID;
   const message = xml(
     'iq',
     {

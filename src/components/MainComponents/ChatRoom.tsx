@@ -22,6 +22,7 @@ import { useSendMessage } from '../../hooks/useSendMessage.tsx';
 import { useRoomInitialization } from '../../hooks/useRoomInitialization.tsx';
 import { useRoomState } from '../../hooks/useRoomState.tsx';
 import { useChatSettingState } from '../../hooks/useChatSettingState.tsx';
+import useComposing from '../../hooks/useComposing.tsx';
 
 interface ChatRoomProps {
   CustomMessageComponent?: any;
@@ -46,6 +47,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     } = useRoomState();
     const { sendMessage: sendMs, sendMedia: sendMessageMedia } =
       useSendMessage();
+    const { sendStartComposing, sendEndComposing } = useComposing();
 
     const sendMessage = useCallback(
       (message: string) => {
@@ -60,22 +62,6 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       },
       [activeRoomJID]
     );
-
-    const sendStartComposing = useCallback(() => {
-      client.sendTypingRequestStanza(
-        activeRoomJID,
-        `${user.firstName} ${user.lastName}`,
-        true
-      );
-    }, [activeRoomJID]);
-
-    const sendEndComposing = useCallback(() => {
-      client.sendTypingRequestStanza(
-        activeRoomJID,
-        `${user.firstName} ${user.lastName}`,
-        false
-      );
-    }, [activeRoomJID]);
 
     const loadMoreMessages = useCallback(
       async (chatJID: string, max: number, idOfMessageBefore?: number) => {

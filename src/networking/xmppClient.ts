@@ -95,7 +95,9 @@ export class XmppClient {
       // }
     });
 
-    this.client.on('stanza', (stanza) => handleStanza(stanza, this.client));
+    this.client.on('stanza', (stanza) => {
+      handleStanza.bind(this, stanza, this)();
+    });
   }
 
   scheduleReconnect() {
