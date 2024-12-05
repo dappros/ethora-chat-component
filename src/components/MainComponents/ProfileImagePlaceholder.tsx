@@ -1,7 +1,14 @@
 import React, { useMemo } from 'react';
 import styled from 'styled-components';
 import { EditIcon } from '../../assets/icons';
-import { AvatarCircle, AvatarImage, FileInput, Overlay, RemoveButton, Wrapper } from '../styled/StyledComponents';
+import {
+  AvatarCircle,
+  AvatarImage,
+  FileInput,
+  Overlay,
+  RemoveButton,
+  Wrapper,
+} from '../styled/StyledComponents';
 
 interface ProfileImagePlaceholderProps {
   name?: string;
@@ -18,6 +25,8 @@ interface ProfileImagePlaceholderProps {
   };
   role?: string;
   active?: boolean;
+  placeholderIcon?: React.ReactNode;
+  disableOverlay?: boolean;
 }
 
 const backgroundColors = ['#f44336', '#2196f3', '#4caf50', '#ff9800'];
@@ -30,8 +39,10 @@ export const ProfileImagePlaceholder: React.FC<
   size = 64,
   upload,
   remove,
-  role = 'participant',
+  role,
   active = false,
+  placeholderIcon,
+  disableOverlay,
 }) => {
   const randomColor = useMemo(() => {
     if (!icon) {
@@ -85,6 +96,8 @@ export const ProfileImagePlaceholder: React.FC<
             alt="avatar icon"
             size={size}
           />
+        ) : placeholderIcon ? (
+          placeholderIcon
         ) : (
           getInitials()
         )}
@@ -96,9 +109,11 @@ export const ProfileImagePlaceholder: React.FC<
               accept="image/png, image/jpeg"
               onChange={handleFileChange}
             />
-            <Overlay>
-              <EditIcon style={{ color: '#fff', fontSize: size / 2 }} />
-            </Overlay>
+            {!disableOverlay && (
+              <Overlay>
+                <EditIcon style={{ fontSize: size / 2 }} color="#fff" />
+              </Overlay>
+            )}
           </>
         )}
       </AvatarCircle>

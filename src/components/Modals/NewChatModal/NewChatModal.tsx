@@ -11,8 +11,10 @@ import {
   ModalContainer,
   ModalTitle,
 } from '../styledModalComponents';
-import { setCurrentRoom } from '../../../roomStore/roomsSlice';
+import { setCurrentRoom, updateRoom } from '../../../roomStore/roomsSlice';
 import InputWithLabel from '../../styled/StyledInput';
+import { uploadFile } from '../../../networking/api-requests/auth.api';
+import { ProfileImagePlaceholder } from '../../MainComponents/ProfileImagePlaceholder';
 
 const NewChatModal: React.FC = () => {
   const config = useSelector(
@@ -25,6 +27,7 @@ const NewChatModal: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [roomName, setRoomName] = useState<string>('');
   const [roomDescription, setRoomDescription] = useState<string>('');
+  const [profileImage, setProfileImage] = useState<string | File | null>(null);
   const [errors, setErrors] = useState({ name: '', description: '' });
 
   const isValid = useMemo(
@@ -70,14 +73,35 @@ const NewChatModal: React.FC = () => {
   const handleOpenModal = () => setIsModalOpen(true);
   const handleCloseModal = () => setIsModalOpen(false);
 
+  const onUpload = async (file: File) => {
+    setProfileImage(file);
+  };
+
+  const onRemoveClick = async () => {
+    setProfileImage(null);
+  };
+
   const handleCreateRoom = async () => {
     if (isValid) {
+      let mediaData: FormData | null = new FormData();
+      mediaData.append('files', profileImage);
+
+      const uploadResult = await uploadFile(mediaData);
+
+      const location = uploadResult?.data?.results?.[0]?.location;
+      if (!location) {
+        throw new Error('No location found in upload result.');
+      }
+
       const newChatJid = await client.createRoomStanza(
         roomName,
         roomDescription
       );
-      await client.getRoomsStanza();
+
+      client.setRoomImageStanza(newChatJid, location, 'icon', 'none');
+      client.getRoomsStanza();
       dispatch(setCurrentRoom({ roomJID: newChatJid }));
+      dispatch(updateRoom({ jid: newChatJid, updates: { icon: location } }));
       setIsModalOpen(false);
       setErrors({ name: '', description: '' });
       setRoomName('');
@@ -106,15 +130,14 @@ const NewChatModal: React.FC = () => {
               &times;
             </CloseButton>
             <ModalTitle>Create New Chat</ModalTitle>
-            <Button
-              EndIcon={<AddPhotoIcon style={{ borderRadius: 100 }} />}
-              style={{
-                width: '120px',
-                height: '120px',
-                borderRadius: 100,
-              }}
-              unstyled
-              onClick={() => console.log('add image')}
+            <ProfileImagePlaceholder
+              size={120}
+              upload={{ active: true, onUpload }}
+              remove={{ enabled: true, onRemoveClick }}
+              placeholderIcon={<AddPhotoIcon />}
+              icon={profileImage}
+              disableOverlay={!profileImage}
+              role="user"
             />
             <GroupContainer
               style={{
