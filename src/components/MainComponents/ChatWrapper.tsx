@@ -34,6 +34,7 @@ import Modal from '../Modals/Modal/Modal';
 import ThreadWrapper from '../Thread/ThreadWrapper';
 import { ModalWrapper } from '../Modals/ModalWrapper/ModalWrapper';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { CONFERENCE_DOMAIN } from '../../helpers/constants/PLATFORM_CONSTANTS';
 
 interface ChatWrapperProps {
   token?: string;
@@ -121,6 +122,18 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
       }
     };
   }, [user.xmppPassword]);
+
+  useEffect(() => {
+    const url = window.location.href;
+    const urlObj = new URL(url);
+    const searchParams = urlObj.searchParams;
+    const chatId = searchParams.get('chatId');
+
+    if (chatId) {
+      const cleanChatId = chatId.split('@')[0];
+      dispatch(setCurrentRoom({ roomJID: cleanChatId + CONFERENCE_DOMAIN }));
+    }
+  }, []);
 
   useEffect(() => {
     if (roomJID) {

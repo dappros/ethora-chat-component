@@ -4,6 +4,7 @@ import { CloseButton } from '../Modals/styledModalComponents';
 import { Overlay, StyledModal } from '../styled/MediaModal';
 import { StyledInput } from '../styled/StyledInputComponents/StyledInputComponents';
 import Button from '../styled/Button';
+import { QRCODE_URL } from '../../helpers/constants/PLATFORM_CONSTANTS';
 
 interface OperationalModalProps {
   isVisible: boolean;
@@ -17,9 +18,7 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
   setVisible,
 }) => {
   const handleCopyClick = () => {
-    navigator.clipboard.writeText(
-      `https://beta.ethora.com/app/chat/${chatJid}`
-    );
+    navigator.clipboard.writeText(`${QRCODE_URL}${chatJid}`);
   };
 
   return (
@@ -60,7 +59,7 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
                   height: '70%',
                   maxWidth: '100%',
                 }}
-                value={`https://beta.ethora.com/app/chat/${chatJid}`}
+                value={`${QRCODE_URL}${chatJid}`}
                 viewBox={`0 0 256 256`}
               />
             </div>
