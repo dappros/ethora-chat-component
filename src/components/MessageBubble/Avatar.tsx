@@ -1,5 +1,6 @@
 import React, { CSSProperties, useMemo } from 'react';
 import styled from 'styled-components';
+import { nameToColor } from '../../helpers/hashcolor';
 
 interface AvatarProps {
   username?: string;
@@ -36,6 +37,10 @@ export const Avatar: React.FC<AvatarProps> = ({
   lastName,
   style,
 }) => {
+  const { backgroundColor, textColor } = nameToColor(
+    username ? username : firstName
+  );
+
   const getInitials = () => {
     if (firstName && lastName) {
       return `${firstName[0]}${lastName[0]}`.toUpperCase();
@@ -48,18 +53,8 @@ export const Avatar: React.FC<AvatarProps> = ({
     return '??';
   };
 
-  const randomColor = useMemo(() => {
-    const index = Math.floor(Math.random() * backgroundColors.length);
-    return backgroundColors[index];
-  }, []);
-
-  const getTextColor = (bgColor: string) => {
-    const lightColors = ['#4caf50', '#ff9800'];
-    return lightColors.includes(bgColor) ? '#000' : '#fff';
-  };
-
   return (
-    <AvatarCircle style={style} bgColor={'#2196f3'}>
+    <AvatarCircle style={style} bgColor={backgroundColor} textColor={textColor}>
       {getInitials()}
     </AvatarCircle>
   );

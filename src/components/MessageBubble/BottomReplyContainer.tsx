@@ -9,7 +9,7 @@ interface BottomReplyContainerProps {
   onClick: () => void;
 }
 
-const ReplyContainer = styled.button<{isUser: boolean}>`
+const ReplyContainer = styled.button<{ isUser: boolean }>`
   position: absolute;
   box-shadow: 0px 0px 8px 0px rgba(185, 198, 199, 1);
   background-color: #ffffff;
@@ -27,22 +27,22 @@ const ReplyContainer = styled.button<{isUser: boolean}>`
   border: none;
   cursor: pointer;
 
-    @media (max-width: 675px) {
+  @media (max-width: 675px) {
     font-size: 12px;
-      bottom: -24px;
+    bottom: -24px;
   }
 `;
 
 const AvatarCircle = styled.div`
-    height: 24px;
-    width: 24px;
-    margin-left: -10px;
+  height: 24px;
+  width: 24px;
+  margin-left: -10px;
 
-    @media (max-width: 700px) {
-      height: 20px;
-      width: 20px;
+  @media (max-width: 700px) {
+    height: 20px;
+    width: 20px;
   }
-`
+`;
 
 const CircleCurrent = styled.div`
   width: 100%;
@@ -50,13 +50,13 @@ const CircleCurrent = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
-  border: 1px solid #F0F0F0;
+  border: 1px solid #f0f0f0;
   border-radius: 50%;
   background-color: #ffffff;
-  color: #8C8C8C;
+  color: #8c8c8c;
   font-size: 11px;
   font-weight: 100;
-`
+`;
 
 export const BottomReplyContainer: FC<BottomReplyContainerProps> = ({
   isUser,
@@ -64,17 +64,18 @@ export const BottomReplyContainer: FC<BottomReplyContainerProps> = ({
   onClick,
 }) => {
   const uniqueUsers: IUser[] = useMemo(() => {
-    return Object.values(
-      reply.reduce((acc, item) => {
-        if (!acc[item.user.id]) {
-          acc[item.user.id] = {
-            ...item.user,
-          };
-        }
-        return acc;
-      }, {})
-    );
+    const userMap = new Map<string, IUser>();
+
+    reply.forEach((item) => {
+      if (!userMap.has(item.user.id)) {
+        userMap.set(item.user.id, { ...item.user });
+      }
+    });
+
+    return Array.from(userMap.values());
   }, [reply]);
+
+  //TODO Add user avatars
 
   return (
     <ReplyContainer onClick={onClick} isUser={isUser}>
@@ -95,9 +96,7 @@ export const BottomReplyContainer: FC<BottomReplyContainerProps> = ({
         ))}
         {uniqueUsers.length > 3 && (
           <AvatarCircle>
-            <CircleCurrent>
-              +{uniqueUsers.length - 3}
-            </CircleCurrent>
+            <CircleCurrent>+{uniqueUsers.length - 3}</CircleCurrent>
           </AvatarCircle>
         )}
       </div>

@@ -9,6 +9,7 @@ import {
   RemoveButton,
   Wrapper,
 } from '../styled/StyledComponents';
+import { nameToColor } from '../../helpers/hashcolor';
 
 interface ProfileImagePlaceholderProps {
   name?: string;
@@ -52,6 +53,8 @@ export const ProfileImagePlaceholder: React.FC<
     return '';
   }, [icon]);
 
+  const { backgroundColor, textColor } = nameToColor(name);
+
   const getTwoUppercaseLetters = (fullName: string) => {
     if (!fullName) return '';
 
@@ -79,16 +82,17 @@ export const ProfileImagePlaceholder: React.FC<
 
   return (
     <Wrapper
-      bgColor={icon ? 'transparent' : randomColor}
+      bgColor={icon ? 'transparent' : backgroundColor}
       size={size}
       isClickable={active || !!upload?.active}
     >
       <AvatarCircle
-        bgColor={icon ? 'transparent' : randomColor}
+        bgColor={icon ? 'transparent' : backgroundColor}
         size={size}
         isClickable={active || (role === 'participant' && !!upload?.active)}
         onClick={handleAvatarClick}
         style={{ fontSize: size >= 64 ? '24px' : '18px' }}
+        color={textColor}
       >
         {icon ? (
           <AvatarImage
