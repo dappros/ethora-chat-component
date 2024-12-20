@@ -27,7 +27,7 @@ const AudioMessage: React.FC<AudioMessageProps> = ({ src }) => {
       cursorColor: 'transparent',
       height: 32,
       barWidth: 3,
-      barHeight: 6,
+      barHeight: 7,
       barGap: 2,
       barRadius: 1000,
     });
@@ -87,7 +87,7 @@ const AudioMessage: React.FC<AudioMessageProps> = ({ src }) => {
       />
       <Button
         onClick={changeSpeed}
-        style={{ color: '#141414', fontSize: 14 }}
+        style={{ color: '#141414', fontSize: 14, zIndex: 0 }}
         text={`${playbackRate}X`}
       />
     </div>

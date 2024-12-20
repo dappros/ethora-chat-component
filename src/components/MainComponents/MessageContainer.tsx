@@ -37,7 +37,7 @@ export const MessageContainer: FC<MessageContainerProps> = ({
 
   const messageDate = new Date(message.date);
 
-  if (message.isSystemMessage === 'true') {
+  if (message?.isSystemMessage === 'true') {
     return (
       <Fragment key={message.id}>
         {showDateLabel && (
@@ -48,7 +48,7 @@ export const MessageContainer: FC<MessageContainerProps> = ({
     );
   }
 
-  if (message.id === 'delimiter-new' && message.isReply === 'false') {
+  if (message?.id === 'delimiter-new') {
     return <NewMessageLabel color={config?.colors?.primary} />;
   }
 

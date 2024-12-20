@@ -177,7 +177,7 @@ const Message: React.FC<MessageProps> = forwardRef<
             />
           ) : (
             <CustomMessageText>
-              {message.isDeleted && message.id !== 'delimeter-new' ? (
+              {message.isDeleted && message.id !== 'delimiter-new' ? (
                 <DeletedMessage />
               ) : (
                 <span>{message.body}</span>
