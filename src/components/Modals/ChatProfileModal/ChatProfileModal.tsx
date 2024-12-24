@@ -21,6 +21,7 @@ import Loader from '../../styled/Loader';
 import Button from '../../styled/Button';
 import { MoreIcon, QrIcon } from '../../../assets/icons';
 import OperationalModal from '../../OperationalModal/OperationalModal';
+import Switch from '../../MainComponents/Switch';
 
 interface ChatProfileModalProps {
   handleCloseModal: any;
@@ -33,6 +34,8 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   const [visible, setVisible] = useState<boolean>(false);
 
   const dispatch = useDispatch();
+  const { config } = useSelector((state: RootState) => state.chatSettingStore);
+
   const { client } = useXmppClient();
   const activeRoom = useSelector((state: RootState) => getActiveRoom(state));
 
@@ -107,6 +110,23 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         <BorderedContainer>
           <LabelData>Description</LabelData>
           <Label>Chat's Description</Label>
+        </BorderedContainer>
+        <BorderedContainer
+          style={{
+            justifyContent: 'space-between',
+            flexDirection: 'row',
+            alignItems: 'center',
+          }}
+        >
+          <Label>Notifications</Label>
+          <Label>
+            <Switch
+              onToggle={function (isOn: boolean): void {
+                throw new Error('Function not implemented.');
+              }}
+              bgColor={config?.colors?.primary}
+            />
+          </Label>
         </BorderedContainer>
         <BorderedContainer style={{ padding: '8px 16px' }}>
           {loading ? (
