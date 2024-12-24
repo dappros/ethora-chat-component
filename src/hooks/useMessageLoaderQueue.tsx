@@ -4,7 +4,8 @@ const useMessageLoaderQueue = (
   roomsList: string[],
   globalLoading: boolean,
   loading: boolean,
-  loadMoreMessages: (roomJid: string, max: number) => Promise<any>
+  loadMoreMessages: (roomJid: string, max: number) => Promise<any>,
+  isInited?: boolean
 ) => {
   const [queueActive, setQueueActive] = useState(false);
   const [processedChats, setProcessedChats] = useState<Set<string>>(new Set());

@@ -120,14 +120,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       };
     }, [activeRoomJID]);
 
-    // hooks useEffect
-    useMessageLoaderQueue(
-      Object.keys(roomsList),
-      globalLoading,
-      loading,
-      queueMessageLoader
-    );
-
+    // hooks useEffects
     useRoomUrl(activeRoomJID, roomsList, config);
 
     useRoomInitialization(

@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo, useState } from 'react';
+import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import ChatRoom from './ChatRoom';
 import {
@@ -35,6 +35,9 @@ import ThreadWrapper from '../Thread/ThreadWrapper';
 import { ModalWrapper } from '../Modals/ModalWrapper/ModalWrapper';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { CONFERENCE_DOMAIN } from '../../helpers/constants/PLATFORM_CONSTANTS';
+import { walletToUsername } from '../../helpers/walletUsername';
+import useMessageLoaderQueue from '../../hooks/useMessageLoaderQueue';
+import { useRoomState } from '../../hooks/useRoomState';
 
 interface ChatWrapperProps {
   token?: string;
@@ -157,6 +160,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             ).then((client) => {
               client.getRoomsStanza().then(() => {
                 client.getChatsPrivateStoreRequestStanza();
+                client.setVCardStanza(`${user.firstName} ${user.lastName}`);
                 dispatch(setStoreClient(client));
                 setClient(client);
               });
@@ -170,6 +174,9 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             if (!activeRoomJID) {
               storedClient.getRoomsStanza().then(() => {
                 storedClient.getChatsPrivateStoreRequestStanza();
+                storedClient.setVCardStanza(
+                  `${user.firstName} ${user.lastName}`
+                );
               });
             }
             setInited(true);
@@ -180,6 +187,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             if (!activeRoomJID) {
               client.getRoomsStanza().then(() => {
                 client.getChatsPrivateStoreRequestStanza();
+                client.setVCardStanza(`${user.firstName} ${user.lastName}`);
               });
             }
             client.getChatsPrivateStoreRequestStanza();
@@ -230,6 +238,27 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
       window.removeEventListener('offline', handleBeforeUnload);
     };
   }, [client, room?.jid]);
+
+  const { roomsList, loading, globalLoading } = useRoomState();
+
+  const queueMessageLoader = useCallback(
+    async (chatJID: string, max: number) => {
+      try {
+        client?.getHistoryStanza(chatJID, max);
+      } catch (error) {
+        console.log('Error in loading queue messages');
+      }
+    },
+    [globalLoading, loading, isInited]
+  );
+
+  useMessageLoaderQueue(
+    Object.keys(roomsList),
+    globalLoading,
+    loading,
+    queueMessageLoader,
+    isInited
+  );
 
   if (user.xmppPassword === '' && user.xmppUsername === '')
     return <LoginForm config={config} />;

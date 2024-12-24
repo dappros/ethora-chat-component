@@ -1,3 +1,4 @@
+import { Client } from '@xmpp/client';
 import { MODAL_TYPES } from '../helpers/constants/MODAL_TYPES';
 
 export interface IUser extends Partial<User> {
@@ -221,4 +222,81 @@ export interface ModalFile {
   fileName: string;
   fileURL: string;
   mimetype: string;
+}
+
+//xmppClientWs
+
+export interface XmppClientInterface {
+  client: Client;
+  devServer?: string;
+  host: string;
+  service: string;
+  conference: string;
+  username: string;
+  status: string;
+
+  password: string;
+  reconnectAttempts: number;
+  maxReconnectAttempts: number;
+  reconnectDelay: number;
+
+  checkOnline(): boolean;
+  initializeClient(): void;
+  attachEventListeners(): void;
+  scheduleReconnect(): void;
+  reconnect(): void;
+  close(): Promise<void>;
+
+  getRoomsStanza(): Promise<void>;
+  createRoomStanza(
+    title: string,
+    description: string,
+    to?: string
+  ): Promise<any>;
+  inviteRoomRequestStanza(to: string, roomJid: string): Promise<void>;
+  leaveTheRoomStanza(roomJID: string): void;
+  presenceInRoomStanza(roomJID: string): void;
+  getHistoryStanza(
+    chatJID: string,
+    max: number,
+    before?: number,
+    id?: string
+  ): Promise<any>;
+  getLastMessageArchiveStanza(roomJID: string): void;
+  setRoomImageStanza(
+    roomJid: string,
+    roomThumbnail: string,
+    type: string,
+    roomBackground?: string
+  ): void;
+  getRoomInfoStanza(roomJID: string): void;
+  getRoomMembersStanza(roomJID: string): void;
+  setVCardStanza(xmppUsername: string): void;
+
+  sendMessage(
+    roomJID: string,
+    firstName: string,
+    lastName: string,
+    photo: string,
+    walletAddress: string,
+    userMessage: string,
+    notDisplayedValue?: string,
+    isReply?: boolean,
+    showInChannel?: boolean,
+    mainMessage?: string
+  ): void;
+  deleteMessageStanza(room: string, msgId: string): void;
+  editMessageStanza(room: string, msgId: string, text: string): void;
+  sendTypingRequestStanza(
+    chatId: string,
+    fullName: string,
+    start: boolean
+  ): void;
+  getChatsPrivateStoreRequestStanza(): Promise<any>;
+  actionSetTimestampToPrivateStoreStanza(
+    chatId: string,
+    timestamp: number,
+    chats?: string[]
+  ): Promise<void>;
+  sendMediaMessageStanza(roomJID: string, data: any): void;
 }

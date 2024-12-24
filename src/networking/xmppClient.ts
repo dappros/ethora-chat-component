@@ -19,8 +19,10 @@ import { editMessage } from './xmpp/editMessage.xmpp';
 import { inviteRoomRequest } from './xmpp/inviteRoomRequest.xmpp';
 import { getRooms } from './xmpp/getRooms.xmpp';
 import { handleStanza } from './xmpp/handleStanzas.xmpp';
+import { setVcard } from './xmpp/setVCard.xmpp';
+import { XmppClientInterface } from '../types/types';
 
-export class XmppClient {
+export class XmppClient implements XmppClientInterface {
   client!: Client;
   devServer: string | undefined;
   host: string;
@@ -188,6 +190,10 @@ export class XmppClient {
   getRoomMembersStanza = (roomJID: string) => {
     getRoomMembers(roomJID, this.client);
   };
+
+  setVCardStanza(xmppUsername: string) {
+    setVcard(xmppUsername, this.client);
+  }
 
   //messages
   sendMessage = (
