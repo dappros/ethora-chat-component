@@ -166,6 +166,7 @@ const Message: React.FC<MessageProps> = forwardRef<
               handleReplyMessage={handleReplyMessage}
               isUser={isUser}
               text={JSON.parse(message.mainMessage).text}
+              color={config?.colors?.primary}
             />
           )}
           {message?.isMediafile === 'true' && !message?.isDeleted ? (

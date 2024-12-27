@@ -17,7 +17,6 @@ import { EditWrapper } from './EditWrapper.tsx';
 import { NoSelectedChatIcon } from '../../assets/icons.tsx';
 import { ChooseChatMessage } from './ChooseChatMessage.tsx';
 import { useRoomUrl } from '../../hooks/useRoomUrl.tsx';
-import useMessageLoaderQueue from '../../hooks/useMessageLoaderQueue.tsx';
 import { useSendMessage } from '../../hooks/useSendMessage.tsx';
 import { useRoomInitialization } from '../../hooks/useRoomInitialization.tsx';
 import { useRoomState } from '../../hooks/useRoomState.tsx';
@@ -73,17 +72,6 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         }
       },
       [client]
-    );
-
-    const queueMessageLoader = useCallback(
-      async (chatJID: string, max: number) => {
-        try {
-          client?.getHistoryStanza(chatJID, max);
-        } catch (error) {
-          console.log('Error in loading queue messages');
-        }
-      },
-      [globalLoading, loading]
     );
 
     const onCloseEdit = () => {
