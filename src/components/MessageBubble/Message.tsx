@@ -25,11 +25,13 @@ import { BottomReplyContainer } from './BottomReplyContainer';
 import { setActiveMessage, setEditAction } from '../../roomStore/roomsSlice';
 import { MessageReply } from './MessageReply';
 import { DeletedMessage } from './DeletedMessage';
+import { useXmppClient } from '../../context/xmppProvider';
 
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
   MessageProps
 >(({ message, isUser, isReply }, ref) => {
+  const { client } = useXmppClient();
   const dispatch = useDispatch();
   const config = useSelector(
     (state: RootState) => state.chatSettingStore.config
@@ -124,6 +126,11 @@ const Message: React.FC<MessageProps> = forwardRef<
     );
   };
 
+  const handleReactionMessage = (emoji) => {
+    console.log('emoji--- send', emoji);
+    client.sendMessageReactionStanza(message.id, message.roomJid, emoji);
+  };
+
   return (
     <>
       <CustomMessageContainer
@@ -214,6 +221,7 @@ const Message: React.FC<MessageProps> = forwardRef<
           handleReplyMessage={handleReplyMessage}
           handleDeleteMessage={handleDeleteMessage}
           handleEditMessage={handleEditMessage}
+          handleReactionMessage={handleReactionMessage}
         />
       )}
     </>

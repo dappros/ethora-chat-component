@@ -33,6 +33,7 @@ interface MessageInteractionsProps {
   handleReplyMessage: () => void;
   handleDeleteMessage: () => void;
   handleEditMessage: () => void;
+  handleReactionMessage: (reaction) => void;
 }
 
 const MessageInteractions: React.FC<MessageInteractionsProps> = ({
@@ -44,6 +45,7 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
   handleReplyMessage: replyMessage,
   handleDeleteMessage: deleteMessage,
   handleEditMessage,
+  handleReactionMessage,
 }) => {
   const [reactions, setReactions] = useState<string[]>([]);
   const [showPicker, setShowPicker] = useState(false);
@@ -80,17 +82,17 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
   };
 
   const handleEmojiSelect = (emoji, e: React.MouseEvent) => {
-    e.stopPropagation();
-    console.log('emoji', emoji);
-    if (!reactions.includes(emoji.native)) {
-      setReactions([...reactions, emoji.native]);
+    if (e.target !== e.currentTarget) {
+      console.log('emoji', emoji);
+      handleReactionMessage(emoji.id);
+      closeMenu();
     }
   };
 
-  const handleReactionClick = (reaction: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleReactionClick = (reaction: string) => {
     const emoji: EmojiData = (emojiData as any).emojis[reaction];
     console.log('emoji', emoji);
+    // handleReactionMessage(reaction);
   };
 
   const getEmojiById = (id: string) => {
@@ -151,7 +153,7 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
                 <ReactionBadge
                   key={id}
                   className="apple-emoji"
-                  onClick={(e) => handleReactionClick(id, e)}
+                  onClick={() => handleReactionClick(id)}
                 >
                   {getEmojiById(id)}
                 </ReactionBadge>

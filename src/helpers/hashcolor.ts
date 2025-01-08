@@ -1,7 +1,7 @@
 export function nameToColor(name: string): {
   backgroundColor: string;
   textColor: string;
-} {
+} | null {
   /**
    * Generate a consistent background color and readable text color from a string.
    *
@@ -9,6 +9,9 @@ export function nameToColor(name: string): {
    * @returns An object with `backgroundColor` and `textColor`.
    */
 
+  if(!name) {
+    return { backgroundColor: "transparent", textColor: "" };
+  }
   // Generate a hash code from the name
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
