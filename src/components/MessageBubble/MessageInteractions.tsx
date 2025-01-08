@@ -60,18 +60,19 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
 
   const handleReplyMessage = () => {
     replyMessage();
-  }
+  };
 
   if (config?.disableInteractions || !contextMenu.visible) return null;
 
   return (
     <>
-      {!message.isDeleted && <Overlay onClick={closeContextMenu}>
-        <ContextMenu
-          style={{ top: contextMenu.y, left: contextMenu.x }}
-          onClick={closeContextMenu}
-        >
-          {/* <MenuItem onClick={() => console.log(MESSAGE_INTERACTIONS.SEND_COINS)}>
+      {!message.isDeleted && (
+        <Overlay onClick={closeContextMenu}>
+          <ContextMenu
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+            onClick={closeContextMenu}
+          >
+            {/* <MenuItem onClick={() => console.log(MESSAGE_INTERACTIONS.SEND_COINS)}>
             {MESSAGE_INTERACTIONS.SEND_COINS}
             <MESSAGE_INTERACTIONS_ICONS.SEND_COINS />{' '}
           </MenuItem>
@@ -80,40 +81,47 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
             {MESSAGE_INTERACTIONS.SEND_ITEM}
             <MESSAGE_INTERACTIONS_ICONS.SEND_ITEM />{' '}
           </MenuItem> */}
-          {/* <Delimeter /> */}
-          {!isReply &&
-            <>
-              <MenuItem onClick={handleReplyMessage}>
-                {MESSAGE_INTERACTIONS.REPLY}
-                <MESSAGE_INTERACTIONS_ICONS.REPLY />{' '}
-              </MenuItem>
-              <Delimeter />
-            </>
-          }
-          <MenuItem onClick={() => handleCopyMessage(message.body)}>
-            {MESSAGE_INTERACTIONS.COPY}
-            <MESSAGE_INTERACTIONS_ICONS.COPY />
-          </MenuItem>
-          <Delimeter />
-          {isUser && 
-            <>
-              <MenuItem onClick={handleEditMessage}>
-                {MESSAGE_INTERACTIONS.EDIT}
-                <MESSAGE_INTERACTIONS_ICONS.EDIT />{' '}
-              </MenuItem>
-              <Delimeter />
-            </>}
-          <MenuItem onClick={handleDeleteMessage}>
-            {MESSAGE_INTERACTIONS.DELETE}
-            <MESSAGE_INTERACTIONS_ICONS.DELETE />{' '}
-          </MenuItem>
-          {/* <Delimeter />
+            {/* <Delimeter /> */}
+            {!isReply && (
+              <>
+                <MenuItem onClick={handleReplyMessage}>
+                  {MESSAGE_INTERACTIONS.REPLY}
+                  <MESSAGE_INTERACTIONS_ICONS.REPLY />{' '}
+                </MenuItem>
+                <Delimeter />
+              </>
+            )}
+            <MenuItem onClick={() => handleCopyMessage(message.body)}>
+              {MESSAGE_INTERACTIONS.COPY}
+              <MESSAGE_INTERACTIONS_ICONS.COPY />
+            </MenuItem>
+            <MenuItem
+              onClick={() => client.sendMessageReactionStanza(message.id, '🐢')}
+            >
+              {MESSAGE_INTERACTIONS.REACTION}
+            </MenuItem>
+            <Delimeter />
+            {isUser && (
+              <>
+                <MenuItem onClick={handleEditMessage}>
+                  {MESSAGE_INTERACTIONS.EDIT}
+                  <MESSAGE_INTERACTIONS_ICONS.EDIT />{' '}
+                </MenuItem>
+                <Delimeter />
+              </>
+            )}
+            <MenuItem onClick={handleDeleteMessage}>
+              {MESSAGE_INTERACTIONS.DELETE}
+              <MESSAGE_INTERACTIONS_ICONS.DELETE />{' '}
+            </MenuItem>
+            {/* <Delimeter />
           <MenuItem onClick={() => console.log(MESSAGE_INTERACTIONS.REPORT)}>
             {MESSAGE_INTERACTIONS.REPORT}
             <MESSAGE_INTERACTIONS_ICONS.REPORT />{' '}
           </MenuItem> */}
-        </ContextMenu>
-      </Overlay>}
+          </ContextMenu>
+        </Overlay>
+      )}
     </>
   );
 };

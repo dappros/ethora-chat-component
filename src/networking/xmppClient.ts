@@ -21,6 +21,7 @@ import { getRooms } from './xmpp/getRooms.xmpp';
 import { handleStanza } from './xmpp/handleStanzas.xmpp';
 import { setVcard } from './xmpp/setVCard.xmpp';
 import { XmppClientInterface } from '../types/types';
+import { sendMessageReaction } from './xmpp/sendMessageReaction.xmpp';
 
 export class XmppClient implements XmppClientInterface {
   client!: Client;
@@ -223,6 +224,10 @@ export class XmppClient implements XmppClientInterface {
       this.devServer || 'xmpp.ethoradev.com:5443'
     );
   };
+
+  sendMessageReactionStanza(messageId: string, reactionSymbol?: any) {
+    sendMessageReaction(this.client, messageId, reactionSymbol);
+  }
 
   deleteMessageStanza(room: string, msgId: string) {
     deleteMessage(this.client, room, msgId);
