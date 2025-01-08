@@ -33,6 +33,8 @@ const onRealtimeMessage = async (stanza: Element) => {
     !stanza.is('iq') &&
     stanza.attrs.id !== 'deleteMessageStanza'
   ) {
+    //here logic to add interactions
+
     const body = stanza?.getChild('body');
     const archived = stanza?.getChild('archived');
     const data = stanza?.getChild('data');
@@ -115,6 +117,8 @@ const onEditMessage = async (stanza: Element) => {
 };
 
 const onMessageHistory = async (stanza: any) => {
+  //here logic to add interactions and here too
+
   if (
     stanza.is('message') &&
     stanza.children[0].attrs.xmlns === 'urn:xmpp:mam:2'
