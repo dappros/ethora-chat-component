@@ -3,13 +3,18 @@ import { Client, xml } from '@xmpp/client';
 export function sendMessageReaction(
   client: Client,
   messageId: string,
+  roomJid: string,
   reactionSymbol?: any
 ) {
+  const id = `message-reaction:${Date.now().toString()}`;
+
   const message = xml(
     'message',
     {
-      id: 'sendReaction',
-      type: 'chat',
+      id: id,
+      type: 'groupchat',
+      from: client.jid?.toString(),
+      to: roomJid,
     },
     xml(
       'reactions',

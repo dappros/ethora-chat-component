@@ -96,7 +96,13 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
               <MESSAGE_INTERACTIONS_ICONS.COPY />
             </MenuItem>
             <MenuItem
-              onClick={() => client.sendMessageReactionStanza(message.id, '🐢')}
+              onClick={() =>
+                client.sendMessageReactionStanza(
+                  message.id,
+                  message.roomJid,
+                  '🐢'
+                )
+              }
             >
               {MESSAGE_INTERACTIONS.REACTION}
             </MenuItem>
