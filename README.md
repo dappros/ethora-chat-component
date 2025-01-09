@@ -148,6 +148,11 @@ body {
 
 After these changes you can modify **MainComponentStyles** for your chat.
 
+## Architecture Diagram
+![CleanShot 2025-01-09 at 13 14 37@2x](https://github.com/user-attachments/assets/4d187bbb-6697-4e96-97d3-3a4a4b7e8adf)
+
+
+
 ## Use cases and functionalities details
 
 ### LOGIN FUNCTIONALITY
