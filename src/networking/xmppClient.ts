@@ -228,9 +228,10 @@ export class XmppClient implements XmppClientInterface {
   sendMessageReactionStanza(
     messageId: string,
     roomJid: string,
-    reactionSymbol?: any
+    reactionsList: string[],
+    reactionSymbol?: any,
   ) {
-    sendMessageReaction(this.client, messageId, roomJid, reactionSymbol);
+    sendMessageReaction(this.client, messageId, roomJid, reactionsList, reactionSymbol);
   }
 
   deleteMessageStanza(room: string, msgId: string) {

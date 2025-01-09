@@ -31,6 +31,7 @@ export interface IMessage {
   isDeleted?: boolean;
   mainMessage?: string;
   reply?: IReply[];
+  reactions?: string[];
 }
 
 export interface IReply extends IMessage {}
@@ -216,6 +217,12 @@ export interface EditAction {
   text?: string;
 }
 
+export interface ReactionAction {
+  roomJID: string;
+  messageId: string;
+  reactions: string[];
+}
+
 export type ModalType = (typeof MODAL_TYPES)[keyof typeof MODAL_TYPES];
 
 export interface ModalFile {
@@ -284,6 +291,12 @@ export interface XmppClientInterface {
     isReply?: boolean,
     showInChannel?: boolean,
     mainMessage?: string
+  ): void;
+  sendMessageReactionStanza(
+    messageId: string,
+    roomJid: string,
+    reactionsList: string[],
+    reactionSymbol?: any
   ): void;
   deleteMessageStanza(room: string, msgId: string): void;
   editMessageStanza(room: string, msgId: string, text: string): void;

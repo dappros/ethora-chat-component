@@ -4,9 +4,12 @@ export function sendMessageReaction(
   client: Client,
   messageId: string,
   roomJid: string,
-  reactionSymbol?: any
+  reactionsList: string[],
+  reactionSymbol?: any,
 ) {
   const id = `message-reaction:${Date.now().toString()}`;
+
+  console.log('reactionsList', reactionsList);
 
   const message = xml(
     'message',
@@ -22,7 +25,8 @@ export function sendMessageReaction(
         id: messageId,
         xmlns: 'urn:xmpp:reactions:0',
       },
-      xml('reaction', {}, reactionSymbol ?? '👋')
+      ...reactionsList.map((reaction) => xml('reaction', {}, reaction ?? ''))
+      // xml('reaction', {}, reactionSymbol ?? '👋'),
     ),
     xml('store', { xmlns: 'urn:xmpp:hints' })
   );

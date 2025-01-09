@@ -89,10 +89,13 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
     }
   };
 
-  const handleReactionClick = (reaction: string) => {
-    const emoji: EmojiData = (emojiData as any).emojis[reaction];
-    console.log('emoji', emoji);
-    // handleReactionMessage(reaction);
+  const handleReactionClick = (reaction: string, e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      const emoji: EmojiData = (emojiData as any).emojis[reaction];
+      console.log('emoji', emoji);
+      handleReactionMessage(reaction);
+      closeMenu();
+    }
   };
 
   const getEmojiById = (id: string) => {
@@ -153,7 +156,7 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
                 <ReactionBadge
                   key={id}
                   className="apple-emoji"
-                  onClick={() => handleReactionClick(id)}
+                  onClick={(e) => handleReactionClick(id, e)}
                 >
                   {getEmojiById(id)}
                 </ReactionBadge>

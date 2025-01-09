@@ -1,4 +1,10 @@
-import React, { forwardRef, useRef, useState } from 'react';
+import React, {
+  forwardRef,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { IUser, MessageProps } from '../../types/types';
 import {
   CustomMessageTimestamp,
@@ -26,6 +32,7 @@ import { setActiveMessage, setEditAction } from '../../roomStore/roomsSlice';
 import { MessageReply } from './MessageReply';
 import { DeletedMessage } from './DeletedMessage';
 import { useXmppClient } from '../../context/xmppProvider';
+import emojiData from '@emoji-mart/data';
 
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
@@ -126,9 +133,39 @@ const Message: React.FC<MessageProps> = forwardRef<
     );
   };
 
-  const handleReactionMessage = (emoji) => {
+  console.log('message', message);
+  const memoEmoji = (id: string) => {
+    const emoji = (emojiData as any).emojis[id];
+    return emoji ? emoji.skins[0].native : '';
+  };
+
+  const handleReactionMessage = (emoji: string) => {
+    const arr = [];
+    if (!message.reactions.length) {
+      arr.push(emoji);
+      return client.sendMessageReactionStanza(message.id, message.roomJid, [
+        emoji,
+      ]);
+    }
+    if (message.reactions.includes(emoji)) {
+      const filterEmoji = message.reactions.filter((reaction) => {
+        return reaction !== emoji;
+      });
+
+      return client.sendMessageReactionStanza(
+        message.id,
+        message.roomJid,
+        filterEmoji
+      );
+    }
+
     console.log('emoji--- send', emoji);
-    client.sendMessageReactionStanza(message.id, message.roomJid, emoji);
+    console.log('message.id', message.id);
+    console.log('message.roomJid', message.roomJid);
+    client.sendMessageReactionStanza(message.id, message.roomJid, [
+      ...message.reactions,
+      emoji,
+    ]);
   };
 
   return (
@@ -209,6 +246,8 @@ const Message: React.FC<MessageProps> = forwardRef<
         ) : (
           <div />
         )}
+        {message.reactions &&
+          message.reactions.map((reaction) => memoEmoji(reaction))}
       </CustomMessageContainer>
 
       {!config?.disableInteractions && (

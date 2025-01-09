@@ -88,6 +88,8 @@ const NewChatModal: React.FC = () => {
 
       const uploadResult = await uploadFile(mediaData);
 
+      console.log('mediaData', mediaData);
+
       const location = uploadResult?.data?.results?.[0]?.location;
       if (!location) {
         throw new Error('No location found in upload result.');
