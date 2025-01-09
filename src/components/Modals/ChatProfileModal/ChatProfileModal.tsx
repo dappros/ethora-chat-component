@@ -59,13 +59,15 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
 
       const location = uploadResult?.data?.results?.[0]?.location;
       if (!location) {
-        throw new Error('No location found in upload result.');
+        console.log('No location found in upload result.');
       }
 
-      client.setRoomImageStanza(activeRoom.jid, location, 'icon', 'none');
-      dispatch(
-        updateRoom({ jid: activeRoom.jid, updates: { icon: location } })
-      );
+      if (location) {
+        client.setRoomImageStanza(activeRoom.jid, location, 'icon', 'none');
+        dispatch(
+          updateRoom({ jid: activeRoom.jid, updates: { icon: location } })
+        );
+      }
     } catch (error) {
       console.error('File upload failed or location is missing:', error);
     }
@@ -111,7 +113,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
           <LabelData>Description</LabelData>
           <Label>Chat's Description</Label>
         </BorderedContainer>
-        <BorderedContainer
+        {/* <BorderedContainer
           style={{
             justifyContent: 'space-between',
             flexDirection: 'row',
@@ -127,7 +129,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
               bgColor={config?.colors?.primary}
             />
           </Label>
-        </BorderedContainer>
+        </BorderedContainer> */}
         <BorderedContainer style={{ padding: '8px 16px' }}>
           {loading ? (
             <Loader />

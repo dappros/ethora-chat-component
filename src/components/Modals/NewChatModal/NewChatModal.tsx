@@ -90,7 +90,7 @@ const NewChatModal: React.FC = () => {
 
       const location = uploadResult?.data?.results?.[0]?.location;
       if (!location) {
-        throw new Error('No location found in upload result.');
+        console.log('No location found in upload result.');
       }
 
       const newChatJid = await client.createRoomStanza(
@@ -98,10 +98,14 @@ const NewChatModal: React.FC = () => {
         roomDescription
       );
 
-      client.setRoomImageStanza(newChatJid, location, 'icon', 'none');
       client.getRoomsStanza();
       dispatch(setCurrentRoom({ roomJID: newChatJid }));
-      dispatch(updateRoom({ jid: newChatJid, updates: { icon: location } }));
+
+      if (location) {
+        client.setRoomImageStanza(newChatJid, location, 'icon', 'none');
+        dispatch(updateRoom({ jid: newChatJid, updates: { icon: location } }));
+      }
+
       setIsModalOpen(false);
       setErrors({ name: '', description: '' });
       setRoomName('');
