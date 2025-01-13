@@ -1,4 +1,10 @@
-import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import React, {
+  useState,
+  useRef,
+  useCallback,
+  useMemo,
+  useEffect,
+} from 'react';
 import {
   FileIcon,
   FilePreview,
@@ -94,7 +100,7 @@ const SendInput: React.FC<SendInputProps> = ({
   );
 
   useEffect(() => {
-      setMessage(editMessage);
+    setMessage(editMessage);
   }, [editMessage]);
 
   const handleSendClick = useCallback(

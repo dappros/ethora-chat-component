@@ -31,7 +31,7 @@ export const getRooms = async (client: Client): Promise<any> => {
     });
   });
 
-  const timeoutPromise = createTimeoutPromise(10000, unsubscribe);
+  const timeoutPromise = createTimeoutPromise(2000, unsubscribe);
 
   try {
     return await Promise.race([responsePromise, timeoutPromise]);

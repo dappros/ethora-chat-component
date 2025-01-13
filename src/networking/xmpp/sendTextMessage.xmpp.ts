@@ -14,7 +14,7 @@ export const sendTextMessage = (
   mainMessage?: string,
   devServer?: string
 ) => {
-  const id = Date.now().toString();
+  const id = `send-text-message-${Date.now().toString()}`;
 
   try {
     const message = xml(

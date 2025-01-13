@@ -59,8 +59,13 @@ export const ProfileImagePlaceholder: React.FC<
     if (!fullName) return '';
 
     const words = fullName.trim().split(' ');
-    const firstLetter = words[0]?.[0]?.toUpperCase() || '';
-    const secondLetter = words[words.length - 1]?.[0]?.toUpperCase() || '';
+
+    const firstLetter = /^[a-zA-Zа-яА-ЯёЁ]$/.test(words[0]?.[0] || '')
+      ? words[0][0].toUpperCase()
+      : '';
+    const secondLetter = /^[a-zA-Zа-яА-ЯёЁ]$/.test(words[1]?.[0] || '')
+      ? words[1][0].toUpperCase()
+      : '';
 
     return firstLetter + secondLetter;
   };

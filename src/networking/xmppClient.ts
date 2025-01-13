@@ -240,7 +240,7 @@ export class XmppClient implements XmppClientInterface {
     try {
       return await getChatsPrivateStoreRequest(this.client);
     } catch (error) {
-      console.log(error);
+      console.log('error getChatsPrivateStoreRequest', error);
       return null;
     }
   };

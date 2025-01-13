@@ -122,6 +122,11 @@ const Message: React.FC<MessageProps> = forwardRef<
         text: message.body,
       })
     );
+    setContextMenu({
+      visible: false,
+      x: null,
+      y: null,
+    });
   };
 
   return (

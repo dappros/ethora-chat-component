@@ -44,8 +44,11 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       globalLoading,
       roomMessages,
     } = useRoomState();
-    const { sendMessage: sendMs, sendMedia: sendMessageMedia } =
-      useSendMessage();
+    const {
+      sendMessage: sendMs,
+      sendMedia: sendMessageMedia,
+      sendEditMessage,
+    } = useSendMessage();
     const { sendStartComposing, sendEndComposing } = useComposing();
 
     const sendMessage = useCallback(
@@ -144,7 +147,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             handleBackClick={handleBackClick}
           />
         )}
-        {loading || globalLoading ? (
+        {globalLoading ? (
           <Loader color={config?.colors?.primary} />
         ) : Object.keys(roomsList).length < 1 || !activeRoomJID ? (
           <NoSelectedChatIcon />
@@ -167,7 +170,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         )}
         <SendInput
           editMessage={editAction.text}
-          sendMessage={sendMessage}
+          sendMessage={editAction.isEdit ? sendEditMessage : sendMessage}
           sendMedia={sendMedia}
           config={config}
           onFocus={sendStartComposing}

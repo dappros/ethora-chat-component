@@ -64,13 +64,12 @@ export const roomsStore = createSlice({
     ) {
       const { roomJID, messageId } = action.payload;
       if (state.rooms[roomJID]) {
-        state.rooms[roomJID].messages.map((message) => {
-          if (message.id === messageId) {
-            message.isDeleted = true;
-          }
-        });
+        state.rooms[roomJID].messages = state.rooms[roomJID].messages.filter(
+          (message) => message.id !== messageId
+        );
       }
     },
+
     setEditAction: (state, action: PayloadAction<EditAction | undefined>) => {
       const { isEdit } = action.payload;
       if (isEdit) {
@@ -150,7 +149,9 @@ export const roomsStore = createSlice({
       if (chatJID && state.rooms?.[chatJID]) {
         state.rooms[chatJID].isLoading = loading;
       }
-      state.isLoading = loading;
+      if (!chatJID) {
+        state.isLoading = loading;
+      }
     },
     setLastViewedTimestamp: (
       state,
