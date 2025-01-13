@@ -229,9 +229,15 @@ export class XmppClient implements XmppClientInterface {
     messageId: string,
     roomJid: string,
     reactionsList: string[],
-    reactionSymbol?: any,
+    reactionSymbol?: any
   ) {
-    sendMessageReaction(this.client, messageId, roomJid, reactionsList, reactionSymbol);
+    sendMessageReaction(
+      this.client,
+      messageId,
+      roomJid,
+      reactionsList,
+      reactionSymbol
+    );
   }
 
   deleteMessageStanza(room: string, msgId: string) {
@@ -250,7 +256,7 @@ export class XmppClient implements XmppClientInterface {
     try {
       return await getChatsPrivateStoreRequest(this.client);
     } catch (error) {
-      console.log(error);
+      console.log('error getChatsPrivateStoreRequest', error);
       return null;
     }
   };

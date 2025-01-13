@@ -130,30 +130,34 @@ const onEditMessage = async (stanza: Element) => {
 
 const onReactionHistory = async (stanza: any) => {
   const reactions = stanza
-  .getChild('result')
-  ?.getChild('forwarded')
-  ?.getChild('message')
-  ?.getChild('reactions');
+    .getChild('result')
+    ?.getChild('forwarded')
+    ?.getChild('message')
+    ?.getChild('reactions');
 
-  if(!reactions) {
+  if (!reactions) {
     return;
   }
 
   const stanzaId = stanza
-  .getChild('result')
-  ?.getChild('forwarded')
-  ?.getChild('message')
-  ?.getChild('stanza-id');
+    .getChild('result')
+    ?.getChild('forwarded')
+    ?.getChild('message')
+    ?.getChild('stanza-id');
 
   const messageId = reactions.attrs.id;
 
-  const reactionList: string[] = reactions.children.map((emoji) => emoji.children[0]);
+  const reactionList: string[] = reactions.children.map(
+    (emoji: { children: any[] }) => emoji.children[0]
+  );
 
-  store.dispatch(setReactions({
-    roomJID: stanzaId.attrs.by,
-    messageId,
-    reactions: reactionList,
-  }));
+  store.dispatch(
+    setReactions({
+      roomJID: stanzaId.attrs.by,
+      messageId,
+      reactions: reactionList,
+    })
+  );
 };
 
 const onMessageHistory = async (stanza: any) => {
@@ -364,6 +368,7 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
           if (roomData.jid) {
             xmpp.presenceInRoomStanza(roomData.jid);
           }
+          xmpp.getChatsPrivateStoreRequestStanza();
         } catch (error) {}
       }
     });

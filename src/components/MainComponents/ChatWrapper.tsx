@@ -159,7 +159,6 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
               user.xmppPassword
             ).then((client) => {
               client.getRoomsStanza().then(() => {
-                client.getChatsPrivateStoreRequestStanza();
                 client.setVCardStanza(`${user.firstName} ${user.lastName}`);
                 dispatch(setStoreClient(client));
                 setClient(client);
@@ -173,7 +172,6 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             setClient(storedClient);
             if (!activeRoomJID) {
               storedClient.getRoomsStanza().then(() => {
-                storedClient.getChatsPrivateStoreRequestStanza();
                 storedClient.setVCardStanza(
                   `${user.firstName} ${user.lastName}`
                 );
@@ -186,11 +184,9 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           } else {
             if (!activeRoomJID) {
               client.getRoomsStanza().then(() => {
-                client.getChatsPrivateStoreRequestStanza();
                 client.setVCardStanza(`${user.firstName} ${user.lastName}`);
               });
             }
-            client.getChatsPrivateStoreRequestStanza();
             setInited(true);
             {
               config?.refreshTokens?.enabled && refresh();
@@ -256,8 +252,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     Object.keys(roomsList),
     globalLoading,
     loading,
-    queueMessageLoader,
-    isInited
+    queueMessageLoader
   );
 
   if (user.xmppPassword === '' && user.xmppUsername === '')

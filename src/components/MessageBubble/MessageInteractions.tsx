@@ -151,35 +151,37 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
           <ContainerInteractions
             style={{ top: contextMenu.y, left: contextMenu.x }}
           >
-            <ReactionContainer>
-              {fixedEmojiIds.map((id) => (
-                <ReactionBadge
-                  key={id}
-                  className="apple-emoji"
-                  onClick={(e) => handleReactionClick(id, e)}
+            {config?.emotionsEnabled && (
+              <ReactionContainer>
+                {fixedEmojiIds.map((id) => (
+                  <ReactionBadge
+                    key={id}
+                    className="apple-emoji"
+                    onClick={(e) => handleReactionClick(id, e)}
+                  >
+                    {getEmojiById(id)}
+                  </ReactionBadge>
+                ))}
+                <ArrowButton
+                  isRotated={showPicker}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const { adjustedX, adjustedY } = calculatePickerPosition(
+                      contextMenu.x,
+                      contextMenu.y
+                    );
+                    setContextMenu({
+                      visible: true,
+                      x: adjustedX,
+                      y: adjustedY,
+                    });
+                    setShowPicker(!showPicker);
+                  }}
                 >
-                  {getEmojiById(id)}
-                </ReactionBadge>
-              ))}
-              <ArrowButton
-                isRotated={showPicker}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const { adjustedX, adjustedY } = calculatePickerPosition(
-                    contextMenu.x,
-                    contextMenu.y
-                  );
-                  setContextMenu({
-                    visible: true,
-                    x: adjustedX,
-                    y: adjustedY,
-                  });
-                  setShowPicker(!showPicker);
-                }}
-              >
-                <DownArrowIcon />
-              </ArrowButton>
-            </ReactionContainer>
+                  <DownArrowIcon />
+                </ArrowButton>
+              </ReactionContainer>
+            )}
 
             {showPicker && (
               <Picker
@@ -233,10 +235,12 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
                   <Delimeter />
                 </>
               )}
-              <MenuItem onClick={handleDeleteMessage}>
-                {MESSAGE_INTERACTIONS.DELETE}
-                <MESSAGE_INTERACTIONS_ICONS.DELETE />{' '}
-              </MenuItem>
+              {isUser && (
+                <MenuItem onClick={handleDeleteMessage}>
+                  {MESSAGE_INTERACTIONS.DELETE}
+                  <MESSAGE_INTERACTIONS_ICONS.DELETE />{' '}
+                </MenuItem>
+              )}
               {/* <Delimeter />
           <MenuItem onClick={() => console.log(MESSAGE_INTERACTIONS.REPORT)}>
             {MESSAGE_INTERACTIONS.REPORT}

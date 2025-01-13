@@ -8,8 +8,7 @@ export async function getChatsPrivateStoreRequest(client: Client) {
   const id = `get-chats-private-req:${Date.now().toString()}`;
   let stanzaHdlrPointer: {
     (el: Element): void;
-    (stanza: Element): void;
-    (el: Element): void;
+    (stanza: any): void;
   };
 
   const unsubscribe = () => {
@@ -40,6 +39,7 @@ export async function getChatsPrivateStoreRequest(client: Client) {
                 );
               }
             });
+            resolve(roomTimestampObject);
           } else {
             resolve(null);
           }
@@ -69,5 +69,11 @@ export async function getChatsPrivateStoreRequest(client: Client) {
 
   const timeoutPromise = createTimeoutPromise(2000, unsubscribe);
 
-  return Promise.race([responsePromise, timeoutPromise]);
+  try {
+    const res = await Promise.race([responsePromise, timeoutPromise]);
+    return res;
+  } catch (e) {
+    console.log('=-> error in getting last read timestamps', e);
+    return null;
+  }
 }

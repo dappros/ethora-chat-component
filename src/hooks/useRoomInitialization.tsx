@@ -15,6 +15,7 @@ export const useRoomInitialization = (
 
   useEffect(() => {
     const getDefaultHistory = async () => {
+      dispatch(setIsLoading({ loading: true, chatJID: activeRoomJID }));
       await client.getHistoryStanza(activeRoomJID, 30);
       dispatch(setIsLoading({ loading: false, chatJID: activeRoomJID }));
     };
@@ -33,6 +34,7 @@ export const useRoomInitialization = (
 
     if (Object.keys(roomsList)?.length > 0) {
       if (!roomsList?.[activeRoomJID] && Object.keys(roomsList).length > 0) {
+        dispatch(setIsLoading({ loading: true }));
         initialPresenceAndHistory();
         // } else if (roomMessages.length < 1) {
       } else if (messageLength < 1) {

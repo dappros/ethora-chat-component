@@ -131,9 +131,13 @@ const Message: React.FC<MessageProps> = forwardRef<
         text: message.body,
       })
     );
+    setContextMenu({
+      visible: false,
+      x: null,
+      y: null,
+    });
   };
 
-  console.log('message', message);
   const memoEmoji = (id: string) => {
     const emoji = (emojiData as any).emojis[id];
     return emoji ? emoji.skins[0].native : '';
@@ -141,7 +145,7 @@ const Message: React.FC<MessageProps> = forwardRef<
 
   const handleReactionMessage = (emoji: string) => {
     const arr = [];
-    if (!message.reactions.length) {
+    if (!message?.reactions?.length) {
       arr.push(emoji);
       return client.sendMessageReactionStanza(message.id, message.roomJid, [
         emoji,
@@ -159,9 +163,6 @@ const Message: React.FC<MessageProps> = forwardRef<
       );
     }
 
-    console.log('emoji--- send', emoji);
-    console.log('message.id', message.id);
-    console.log('message.roomJid', message.roomJid);
     client.sendMessageReactionStanza(message.id, message.roomJid, [
       ...message.reactions,
       emoji,

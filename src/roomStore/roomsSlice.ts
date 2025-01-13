@@ -84,16 +84,19 @@ export const roomsStore = createSlice({
         };
       }
     },
-    setReactions: (state, action: PayloadAction<ReactionAction | undefined>) => {
+    setReactions: (
+      state,
+      action: PayloadAction<ReactionAction | undefined>
+    ) => {
       const { roomJID, messageId, reactions } = action.payload;
 
       if (state.rooms[roomJID]) {
         state.rooms[roomJID].messages.map((message) => {
           if (message.id === messageId) {
             message.reactions = reactions;
-          };
+          }
         });
-      };
+      }
     },
     editRoomMessage(
       state,
@@ -161,7 +164,9 @@ export const roomsStore = createSlice({
       if (chatJID && state.rooms?.[chatJID]) {
         state.rooms[chatJID].isLoading = loading;
       }
-      state.isLoading = loading;
+      if (!chatJID) {
+        state.isLoading = loading;
+      }
     },
     setLastViewedTimestamp: (
       state,

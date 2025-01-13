@@ -144,7 +144,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             handleBackClick={handleBackClick}
           />
         )}
-        {loading || globalLoading ? (
+        {globalLoading ? (
           <Loader color={config?.colors?.primary} />
         ) : Object.keys(roomsList).length < 1 || !activeRoomJID ? (
           <NoSelectedChatIcon />
@@ -158,7 +158,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             user={user}
             roomJID={activeRoomJID}
             config={config}
-            loading={isLoadingMore}
+            loading={loading || isLoadingMore}
             isReply={false}
           />
         )}

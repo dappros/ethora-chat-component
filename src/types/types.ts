@@ -168,6 +168,7 @@ export interface IConfig {
   disableRoomMenu?: boolean;
   defaultRooms?: string[] | ConfigRoom[];
   refreshTokens?: { enabled: boolean; refreshFunction?: any };
+  emotionsEnabled?: boolean;
 }
 
 interface ConfigRoom {
