@@ -83,10 +83,26 @@ const onRealtimeMessage = async (stanza: Element) => {
 
 const onReactionMessage = async (stanza: Element) => {
   if (stanza?.attrs?.id?.includes('message-reaction')) {
-    const reaction = stanza.getChild('reactions');
-    console.log('stanza', stanza);
-    console.log('reaction', reaction);
-    console.log('reactionBody', reaction.children[0]);
+    const reactions = stanza.getChild('reactions');
+    const stanzaId = stanza.getChild('stanza-id');
+
+    // const reaction = stanza.getChild('reactions')?.getChildren('reaction');
+    // const emojiList: string[] = reactions.children.map((reaction) => reaction.children[0]);
+
+    const emojiList: string[] = reactions.getChildren('reaction').map((reaction) => reaction.text());
+
+    // console.log('stanza!-----!', stanza);
+    // console.log('!!!-----reaction----!!!', reaction);
+    // console.log('reactions!-----!++++++', reactions);
+    // console.log('emojiList', emojiList);
+    // console.log('id-->><<', reactions.attrs.id);
+    // console.log('stanzaId', stanzaId);
+
+    store.dispatch(setReactions({
+      roomJID: stanzaId.attrs.by,
+      messageId: reactions.attrs.id,
+      reactions: emojiList,
+    }));
   }
 };
 
