@@ -22,7 +22,7 @@ export async function getChatsPrivateStoreRequest(client: Client) {
         if (stanza.is('iq') && stanza.attrs.id === id) {
           let chatjson = stanza.getChild('query')?.getChild('chatjson');
 
-          if (chatjson) {
+          if (chatjson && chatjson?.attrs?.value) {
             const roomTimestampObject = JSON.parse(chatjson.attrs.value);
             const roomTimestampArray = Object.entries(roomTimestampObject).map(
               ([jid, timestamp]) => ({
