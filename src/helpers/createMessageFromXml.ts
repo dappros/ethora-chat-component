@@ -8,6 +8,7 @@ export const createMessageFromXml = async (
   data: IMessageWithNewData
 ): Promise<IMessage> => {
   if (!data?.body) {
+    console.log(data);
     throw new Error("Invalid body: 'getText' method is missing.");
   }
 
@@ -17,7 +18,6 @@ export const createMessageFromXml = async (
 
   const message: IMessage = {
     ...data,
-    ...data.data,
   };
 
   return message;

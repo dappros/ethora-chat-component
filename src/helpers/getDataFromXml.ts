@@ -73,14 +73,14 @@ interface DataXml {
 }
 
 export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
-  const fullData = stanza
-    .getChild('result')
-    ?.getChild('forwarded')
-    ?.getChild('message');
-
+  const fullData =
+    stanza.getChild('result')?.getChild('forwarded')?.getChild('message') ||
+    stanza;
   // console.log("stanza -->", stanza.toString());
   const data = fullData?.getChild('data');
-  const id = stanza.getChild('result')?.attrs.id;
+  const id =
+    stanza.getChild('result')?.attrs.id ||
+    stanza.getChild('archived')?.attrs.id;
   const body = fullData?.getChild('body')?.getText() || undefined;
   const deleted = !!fullData?.getChild('deleted');
   const translations = fullData?.getChild('translations')?.attrs?.value
@@ -107,7 +107,7 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
   };
 
   return {
-    data: { ...data.attrs },
+    data: { ...data?.attrs },
     id,
     body,
     roomJid,

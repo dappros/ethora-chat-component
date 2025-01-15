@@ -47,6 +47,7 @@ const onRealtimeMessage = async (stanza: Element) => {
       data,
       id,
       body,
+      ...data.data,
       ...rest,
     });
 
@@ -157,6 +158,7 @@ const onMessageHistory = async (stanza: any) => {
       data,
       id,
       body,
+      ...data.data,
       ...rest,
     });
 
