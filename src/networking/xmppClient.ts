@@ -21,6 +21,7 @@ import { getRooms } from './xmpp/getRooms.xmpp';
 import { handleStanza } from './xmpp/handleStanzas.xmpp';
 import { setVcard } from './xmpp/setVCard.xmpp';
 import { XmppClientInterface } from '../types/types';
+import { createPrivateRoom } from './xmpp/createPrivateRoom.xmpp';
 
 export class XmppClient implements XmppClientInterface {
   client!: Client;
@@ -86,6 +87,7 @@ export class XmppClient implements XmppClientInterface {
 
     this.client.on('online', () => {
       console.log('Client is online.', new Date());
+      this.client.send(xml('presence'));
       this.status = 'online';
       this.reconnectAttempts = 0;
     });
@@ -145,8 +147,8 @@ export class XmppClient implements XmppClientInterface {
 
   //room functions
 
-  async createRoomStanza(title: string, description: string, to?: string) {
-    return await createRoom(title, description, this.client, to);
+  async createRoomStanza(title: string, description: string) {
+    return await createRoom(title, description, this.client);
   }
 
   async inviteRoomRequestStanza(to: string, roomJid: string) {
@@ -258,6 +260,14 @@ export class XmppClient implements XmppClientInterface {
         chats
       );
     } catch (error) {}
+  }
+
+  async createPrivateRoomStanza(
+    title: string,
+    description: string,
+    to: string
+  ) {
+    return await createPrivateRoom(title, description, to, this.client);
   }
 
   sendMediaMessageStanza(roomJID: string, data: any) {

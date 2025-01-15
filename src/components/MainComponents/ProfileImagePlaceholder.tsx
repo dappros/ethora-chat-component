@@ -97,7 +97,7 @@ export const ProfileImagePlaceholder: React.FC<
         isClickable={active || (role === 'participant' && !!upload?.active)}
         onClick={handleAvatarClick}
         style={{ fontSize: size >= 64 ? '24px' : '18px' }}
-        color={textColor}
+        color={textColor || ''}
       >
         {icon ? (
           <AvatarImage
