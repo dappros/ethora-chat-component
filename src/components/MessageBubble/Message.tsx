@@ -33,6 +33,7 @@ import { MessageReply } from './MessageReply';
 import { DeletedMessage } from './DeletedMessage';
 import { useXmppClient } from '../../context/xmppProvider';
 import emojiData from '@emoji-mart/data';
+import { CustomDivider } from './CustomDivider';
 
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
@@ -222,13 +223,23 @@ const Message: React.FC<MessageProps> = forwardRef<
               message={message}
             />
           ) : (
-            <CustomMessageText>
-              {message.isDeleted && message.id !== 'delimiter-new' ? (
-                <DeletedMessage />
-              ) : (
-                <span>{message.body}</span>
+            <>
+              <CustomMessageText>
+                {message.isDeleted && message.id !== 'delimiter-new' ? (
+                  <DeletedMessage />
+                ) : (
+                  <span>{message.body}</span>
+                )}
+              </CustomMessageText>
+              {message.langSource && (
+                <>
+                  <CustomDivider configColor={config?.colors?.primary} />
+                  <CustomMessageText>
+                    {message.translations?.['pt']?.translatedText}
+                  </CustomMessageText>
+                </>
               )}
-            </CustomMessageText>
+            </>
           )}
           <CustomMessageTimestamp>
             {message?.pending && 'sending...'}
@@ -244,10 +255,9 @@ const Message: React.FC<MessageProps> = forwardRef<
             onClick={handleReplyMessage}
             reply={message?.reply}
           />
-        ) : (
-          <div />
-        )}
-        {message.reactions &&
+        ) : undefined}
+        {config.emotionsEnabled &&
+          message.reactions &&
           message.reactions.map((reaction) => memoEmoji(reaction))}
       </CustomMessageContainer>
 

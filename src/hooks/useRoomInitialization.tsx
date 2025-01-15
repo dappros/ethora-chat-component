@@ -36,7 +36,6 @@ export const useRoomInitialization = (
       if (!roomsList?.[activeRoomJID] && Object.keys(roomsList).length > 0) {
         dispatch(setIsLoading({ loading: true }));
         initialPresenceAndHistory();
-        // } else if (roomMessages.length < 1) {
       } else if (messageLength < 1) {
         getDefaultHistory();
       } else {
@@ -47,11 +46,21 @@ export const useRoomInitialization = (
     }
 
     if (config?.defaultRooms) {
-      config?.defaultRooms.map((room) => {
-        client.presenceInRoomStanza(room.jid);
-      });
-      client.getRoomsStanza();
-      getDefaultHistory();
+      const allRoomsPresent = config.defaultRooms.every((room) =>
+        Object.keys(roomsList).includes(
+          typeof room !== 'string' ? room?.jid : room
+        )
+      );
+
+      if (!allRoomsPresent) {
+        console.log('here');
+        config.defaultRooms.map((room) => {
+          client.presenceInRoomStanza(room.jid);
+        });
+        client.getRoomsStanza();
+        getDefaultHistory();
+      }
     }
+    setIsLoading({ loading: false });
   }, [activeRoomJID, Object.keys(roomsList).length]);
 };

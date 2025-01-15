@@ -160,6 +160,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             ).then((client) => {
               client.getRoomsStanza().then(() => {
                 client.setVCardStanza(`${user.firstName} ${user.lastName}`);
+                client.getChatsPrivateStoreRequestStanza();
                 dispatch(setStoreClient(client));
                 setClient(client);
               });
@@ -172,6 +173,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             setClient(storedClient);
             if (!activeRoomJID) {
               storedClient.getRoomsStanza().then(() => {
+                storedClient.getChatsPrivateStoreRequestStanza();
                 storedClient.setVCardStanza(
                   `${user.firstName} ${user.lastName}`
                 );
@@ -184,6 +186,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           } else {
             if (!activeRoomJID) {
               client.getRoomsStanza().then(() => {
+                storedClient.getChatsPrivateStoreRequestStanza();
                 client.setVCardStanza(`${user.firstName} ${user.lastName}`);
               });
             }

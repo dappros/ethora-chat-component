@@ -12,7 +12,11 @@ const useMessageLoaderQueue = (
 
   useEffect(() => {
     const processQueue = () => {
-      if (!loading && processedChats.size !== roomsList.length) {
+      if (
+        !globalLoading &&
+        !loading &&
+        processedChats.size !== roomsList.length
+      ) {
         console.log('Processing queue...');
         roomsList.forEach(async (room) => {
           if (!processedChats.has(room)) {

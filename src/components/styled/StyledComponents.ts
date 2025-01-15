@@ -186,6 +186,17 @@ export const CustomMessageText = styled.p`
   word-wrap: break-word;
 `;
 
+export const TranslateTextLabel = styled.p`
+  font-weight: 600;
+  font-size: 12px;
+  color: #0052cd;
+`;
+
+export const TranslateWrapper = styled.p`
+  display: flex;
+  gap: 2px;
+`;
+
 export const CustomUserName = styled.span<{ isUser: boolean; color?: string }>`
   font-family: 'Open Sans', sans-serif;
   font-weight: 600;

@@ -1,12 +1,13 @@
 import { Client } from '@xmpp/client';
 import { MODAL_TYPES } from '../helpers/constants/MODAL_TYPES';
+import { TranslationObject } from '../helpers/transformTranslatations';
 
 export interface IUser extends Partial<User> {
   id: string;
   name: string | null;
   userJID?: string | null;
-  token: string;
-  refreshToken: string;
+  token?: string;
+  refreshToken?: string;
 }
 
 export interface IMessage {
@@ -32,6 +33,8 @@ export interface IMessage {
   mainMessage?: string;
   reply?: IReply[];
   reactions?: string[];
+  translations?: TranslationObject;
+  langSource?: string;
 }
 
 export interface IReply extends IMessage {}
@@ -169,6 +172,7 @@ export interface IConfig {
   defaultRooms?: string[] | ConfigRoom[];
   refreshTokens?: { enabled: boolean; refreshFunction?: any };
   emotionsEnabled?: boolean;
+  logsDisabled?: boolean;
 }
 
 interface ConfigRoom {
@@ -306,11 +310,28 @@ export interface XmppClientInterface {
     fullName: string,
     start: boolean
   ): void;
-  getChatsPrivateStoreRequestStanza(): Promise<any>;
+  getChatsPrivateStoreRequestStanza(skipSetInStore?: boolean): Promise<any>;
   actionSetTimestampToPrivateStoreStanza(
     chatId: string,
     timestamp: number,
     chats?: string[]
   ): Promise<void>;
   sendMediaMessageStanza(roomJID: string, data: any): void;
+  createPrivateRoomStanza(
+    title: string,
+    description: string,
+    to: string
+  ): Promise<string>;
 }
+
+export type Iso639_1Codes = 'en' | 'es' | 'pt' | 'ht' | 'zh';
+
+export interface Language {
+  iso639_1: Iso639_1Codes;
+  name: string;
+}
+
+export type LanguageOptions = {
+  languages: Array<Language>;
+  language?: Iso639_1Codes;
+};

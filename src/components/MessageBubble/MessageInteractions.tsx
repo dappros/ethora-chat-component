@@ -21,6 +21,8 @@ import Picker from '@emoji-mart/react';
 import emojiData, { Emoji as EmojiData } from '@emoji-mart/data';
 
 import '../../index.css';
+import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { useRoomState } from '../../hooks/useRoomState';
 
 const fixedEmojiIds = ['joy', 'heart', 'fire', '+1', 'smile', 'scream'];
 
@@ -50,9 +52,8 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
   const [reactions, setReactions] = useState<string[]>([]);
   const [showPicker, setShowPicker] = useState(false);
 
-  const config = useSelector(
-    (state: RootState) => state.chatSettingStore.config
-  );
+  const { config } = useChatSettingState();
+  const { activeRoomJID, roomsList } = useRoomState();
 
   const closeMenu = () => {
     if (!config?.disableInteractions) {
@@ -235,7 +236,7 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
                   <Delimeter />
                 </>
               )}
-              {isUser && (
+              {(isUser || roomsList?.[activeRoomJID].role === 'moderator') && (
                 <MenuItem onClick={handleDeleteMessage}>
                   {MESSAGE_INTERACTIONS.DELETE}
                   <MESSAGE_INTERACTIONS_ICONS.DELETE />{' '}
