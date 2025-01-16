@@ -1,9 +1,9 @@
-import { FC, useCallback } from "react";
-import { useXmppClient } from "../context/xmppProvider";
-import { useDispatch, useSelector } from "react-redux";
-import { setEditAction } from "../roomStore/roomsSlice";
-import { uploadFile } from "../networking/api-requests/auth.api";
-import { RootState } from "../roomStore";
+import { FC, useCallback } from 'react';
+import { useXmppClient } from '../context/xmppProvider';
+import { useDispatch, useSelector } from 'react-redux';
+import { setEditAction } from '../roomStore/roomsSlice';
+import { uploadFile } from '../networking/api-requests/auth.api';
+import { RootState } from '../roomStore';
 
 export const useSendMessage = () => {
   const { client } = useXmppClient();
@@ -18,13 +18,14 @@ export const useSendMessage = () => {
     user: state.chatSettingStore.user,
     editAction: state.rooms.editAction,
   }));
-  
+
   const sendMessage = useCallback(
-    ( message: string,
+    (
+      message: string,
       activeRoomJID: string,
       isReply?: boolean,
       isChecked?: boolean,
-      mainMessage?: string,
+      mainMessage?: string
     ) => {
       if (editAction.isEdit) {
         client?.editMessageStanza(
@@ -46,8 +47,7 @@ export const useSendMessage = () => {
           '',
           isReply || false,
           isChecked || false,
-          mainMessage || '',
-
+          mainMessage || ''
         );
       }
 
@@ -73,13 +73,14 @@ export const useSendMessage = () => {
   );
 
   const sendMedia = useCallback(
-    async (data: any,
-          type: string,
-          activeRoomJID: string,
-          isReply?: boolean,
-          isChecked?: boolean,
-          mainMessage?: string,
-        ) => {
+    async (
+      data: any,
+      type: string,
+      activeRoomJID: string,
+      isReply?: boolean,
+      isChecked?: boolean,
+      mainMessage?: string
+    ) => {
       let mediaData: FormData | null = new FormData();
       mediaData.append('files', data);
 
@@ -126,6 +127,6 @@ export const useSendMessage = () => {
 
   return {
     sendMessage,
-    sendMedia
-  }
-}
+    sendMedia,
+  };
+};

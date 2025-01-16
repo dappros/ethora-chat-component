@@ -133,7 +133,6 @@ const Message: React.FC<MessageProps> = forwardRef<
     );
   };
 
-  console.log('message', message);
   const memoEmoji = (id: string) => {
     const emoji = (emojiData as any).emojis[id];
     return emoji ? emoji.skins[0].native : '';
