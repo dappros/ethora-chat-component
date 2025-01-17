@@ -25,11 +25,14 @@ import { BottomReplyContainer } from './BottomReplyContainer';
 import { setActiveMessage, setEditAction } from '../../roomStore/roomsSlice';
 import { MessageReply } from './MessageReply';
 import { DeletedMessage } from './DeletedMessage';
+import { useXmppClient } from '../../context/xmppProvider';
+import emojiData from '@emoji-mart/data';
 
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
   MessageProps
 >(({ message, isUser, isReply }, ref) => {
+  const { client } = useXmppClient();
   const dispatch = useDispatch();
   const config = useSelector(
     (state: RootState) => state.chatSettingStore.config
@@ -129,6 +132,37 @@ const Message: React.FC<MessageProps> = forwardRef<
     });
   };
 
+  const memoEmoji = (id: string) => {
+    const emoji = (emojiData as any).emojis[id];
+    return emoji ? emoji.skins[0].native : '';
+  };
+
+  const handleReactionMessage = (emoji: string) => {
+    const arr = [];
+    if (!message.reactions.length) {
+      arr.push(emoji);
+      return client.sendMessageReactionStanza(message.id, message.roomJid, [
+        emoji,
+      ]);
+    }
+    if (message.reactions.includes(emoji)) {
+      const filterEmoji = message.reactions.filter((reaction) => {
+        return reaction !== emoji;
+      });
+
+      return client.sendMessageReactionStanza(
+        message.id,
+        message.roomJid,
+        filterEmoji
+      );
+    }
+
+    client.sendMessageReactionStanza(message.id, message.roomJid, [
+      ...message.reactions,
+      emoji,
+    ]);
+  };
+
   return (
     <>
       <CustomMessageContainer
@@ -207,6 +241,8 @@ const Message: React.FC<MessageProps> = forwardRef<
         ) : (
           <div />
         )}
+        {message?.reactions &&
+          message.reactions.map((reaction) => memoEmoji(reaction))}
       </CustomMessageContainer>
 
       {!config?.disableInteractions && (
@@ -219,6 +255,7 @@ const Message: React.FC<MessageProps> = forwardRef<
           handleReplyMessage={handleReplyMessage}
           handleDeleteMessage={handleDeleteMessage}
           handleEditMessage={handleEditMessage}
+          handleReactionMessage={handleReactionMessage}
         />
       )}
     </>

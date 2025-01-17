@@ -7,7 +7,7 @@ import {
   editRoomMessage,
   setComposing,
   setCurrentRoom,
-  setLastViewedTimestamp,
+  setReactions,
   setRoomRole,
   updateRoom,
 } from '../roomStore/roomsSlice';
@@ -31,8 +31,12 @@ const onRealtimeMessage = async (stanza: Element) => {
     !stanza.getChild('paused') &&
     !stanza.getChild('subject') &&
     !stanza.is('iq') &&
-    stanza.attrs.id !== 'deleteMessageStanza'
+    stanza.attrs.id !== 'deleteMessageStanza' &&
+    !stanza.attrs.id.includes('message-reaction')
   ) {
+    //here logic to add interactions
+    console.log('stanza.attrs.id', stanza.attrs.id);
+
     const body = stanza?.getChild('body');
     const archived = stanza?.getChild('archived');
     const data = stanza?.getChild('data');
@@ -76,6 +80,15 @@ const onRealtimeMessage = async (stanza: Element) => {
   }
 };
 
+const onReactionMessage = async (stanza: Element) => {
+  if (stanza?.attrs?.id?.includes('message-reaction')) {
+    const reaction = stanza.getChild('reactions');
+    console.log('stanza', stanza);
+    console.log('reaction', reaction);
+    console.log('reactionBody', reaction.children[0]);
+  }
+};
+
 const onDeleteMessage = async (stanza: Element) => {
   if (stanza.attrs.id === 'deleteMessageStanza') {
     const deleted = stanza.getChild('delete');
@@ -114,7 +127,41 @@ const onEditMessage = async (stanza: Element) => {
   }
 };
 
+const onReactionHistory = async (stanza: any) => {
+  const reactions = stanza
+    .getChild('result')
+    ?.getChild('forwarded')
+    ?.getChild('message')
+    ?.getChild('reactions');
+
+  if (!reactions) {
+    return;
+  }
+
+  const stanzaId = stanza
+    .getChild('result')
+    ?.getChild('forwarded')
+    ?.getChild('message')
+    ?.getChild('stanza-id');
+
+  const messageId = reactions.attrs.id;
+
+  const reactionList: string[] = reactions.children.map(
+    (emoji) => emoji.children[0]
+  );
+
+  store.dispatch(
+    setReactions({
+      roomJID: stanzaId.attrs.by,
+      messageId,
+      reactions: reactionList,
+    })
+  );
+};
+
 const onMessageHistory = async (stanza: any) => {
+  //here logic to add interactions and here too
+
   if (
     stanza.is('message') &&
     stanza.children[0].attrs.xmlns === 'urn:xmpp:mam:2'
@@ -141,6 +188,7 @@ const onMessageHistory = async (stanza: any) => {
       ?.getChild('forwarded')
       ?.getChild('delay');
     const id = stanza.getChild('result')?.attrs.id;
+
     if (!delay) {
       if (stanza.getChild('subject')) {
         console.log('Subject.');
@@ -329,12 +377,14 @@ export {
   onRealtimeMessage,
   onMessageHistory,
   onPresenceInRoom,
+  onReactionHistory,
   onGetLastMessageArchive,
   handleComposing,
   onGetChatRooms,
   onNewRoomCreated,
   onGetMembers,
   onGetRoomInfo,
+  onReactionMessage,
   onDeleteMessage,
   onEditMessage,
   onChatInvite,

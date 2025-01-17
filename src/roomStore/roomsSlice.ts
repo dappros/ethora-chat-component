@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { EditAction, IMessage, IRoom } from '../types/types';
+import { EditAction, IMessage, IRoom, ReactionAction } from '../types/types';
 import { insertMessageWithDelimiter } from '../helpers/insertMessageWithDelimiter';
 
 interface RoomMessagesState {
@@ -67,6 +67,19 @@ export const roomsStore = createSlice({
         state.rooms[roomJID].messages = state.rooms[roomJID].messages.filter(
           (message) => message.id !== messageId
         );
+      }
+    },
+    setReactions: (
+      state,
+      action: PayloadAction<ReactionAction | undefined>
+    ) => {
+      const { roomJID, messageId, reactions } = action.payload;
+      if (state.rooms[roomJID]) {
+        state.rooms[roomJID].messages.map((message) => {
+          if (message.id === messageId) {
+            message.reactions = reactions;
+          }
+        });
       }
     },
 
@@ -254,6 +267,7 @@ export const {
   setCloseActiveMessage,
   deleteRoom,
   updateRoom,
+  setReactions,
 } = roomsStore.actions;
 
 export default roomsStore.reducer;

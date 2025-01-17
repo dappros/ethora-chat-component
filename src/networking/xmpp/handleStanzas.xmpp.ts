@@ -11,6 +11,8 @@ import {
   onGetMembers,
   onGetRoomInfo,
   onNewRoomCreated,
+  onReactionMessage,
+  onReactionHistory,
 } from '../stanzaHandlers';
 
 export function handleStanza(stanza: any, xmppWs: any) {
@@ -23,6 +25,8 @@ export function handleStanza(stanza: any, xmppWs: any) {
       onGetLastMessageArchive(stanza, xmppWs);
       handleComposing(stanza, xmppWs.username);
       onChatInvite(stanza, xmppWs);
+      onReactionMessage(stanza);
+      onReactionHistory(stanza);
       break;
     case 'presence':
       onPresenceInRoom(stanza);
