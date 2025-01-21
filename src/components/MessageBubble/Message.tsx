@@ -1,4 +1,4 @@
-import React, { forwardRef, useRef, useState } from 'react';
+import React, { forwardRef, useCallback, useRef, useState } from 'react';
 import { IUser, MessageProps } from '../../types/types';
 import {
   CustomMessageTimestamp,
@@ -8,6 +8,7 @@ import {
   CustomUserName,
   CustomMessagePhoto,
   CustomMessagePhotoContainer,
+  MessageFooter,
 } from '../styled/StyledComponents';
 import MediaMessage from '../MainComponents/MediaMessage';
 import { useDispatch, useSelector } from 'react-redux';
@@ -25,11 +26,17 @@ import { BottomReplyContainer } from './BottomReplyContainer';
 import { setActiveMessage, setEditAction } from '../../roomStore/roomsSlice';
 import { MessageReply } from './MessageReply';
 import { DeletedMessage } from './DeletedMessage';
+import { useXmppClient } from '../../context/xmppProvider';
+import { MessageReaction } from './MessageReaction';
+import { useChatSettingState } from '../../hooks/useChatSettingState';
 
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
   MessageProps
 >(({ message, isUser, isReply }, ref) => {
+  const { client } = useXmppClient();
+  const { user, client: storedClient } = useChatSettingState();
+
   const dispatch = useDispatch();
   const config = useSelector(
     (state: RootState) => state.chatSettingStore.config
@@ -129,38 +136,38 @@ const Message: React.FC<MessageProps> = forwardRef<
     });
   };
 
-  const memoEmoji = (id: string) => {
-    const emoji = (emojiData as any).emojis[id];
-    return emoji ? emoji.skins[0].native : '';
-  };
-
   const handleReactionMessage = (emoji: string) => {
-    const arr = [];
-    if (!message.reactions.length) {
-      arr.push(emoji);
-      return client.sendMessageReactionStanza(message.id, message.roomJid, [
-        emoji,
-      ]);
+    if (!message.reaction) {
+      return client.sendMessageReactionStanza(
+        message.id,
+        message.roomJid,
+        [emoji],
+        { firstName: user.firstName, lastName: user.lastName }
+      );
     }
-    if (message.reactions.includes(emoji)) {
-      const filterEmoji = message.reactions.filter((reaction) => {
-        return reaction !== emoji;
-      });
+    if (
+      message.reaction &&
+      message.reaction[user.xmppUsername] &&
+      message.reaction[user.xmppUsername].emoji.includes(emoji)
+    ) {
+      const filterEmoji = message.reaction[user.xmppUsername].emoji.filter(
+        (reaction) => reaction !== emoji
+      );
 
       return client.sendMessageReactionStanza(
         message.id,
         message.roomJid,
-        filterEmoji
+        filterEmoji,
+        { firstName: user.firstName, lastName: user.lastName }
       );
     }
 
-    console.log('emoji--- send', emoji);
-    console.log('message.id', message.id);
-    console.log('message.roomJid', message.roomJid);
-    client.sendMessageReactionStanza(message.id, message.roomJid, [
-      ...message.reactions,
-      emoji,
-    ]);
+    client.sendMessageReactionStanza(
+      message.id,
+      message.roomJid,
+      [...(message.reaction[user.xmppUsername]?.emoji || []), emoji],
+      { firstName: user.firstName, lastName: user.lastName }
+    );
   };
 
   return (
@@ -169,6 +176,7 @@ const Message: React.FC<MessageProps> = forwardRef<
         key={message.id}
         isUser={isUser}
         reply={message?.reply?.length}
+        reaction={!!message?.reaction?.length}
         ref={ref}
       >
         {!isUser && (
@@ -232,15 +240,23 @@ const Message: React.FC<MessageProps> = forwardRef<
             })}
           </CustomMessageTimestamp>
         </CustomMessageBubble>
-        {message?.reply?.length ? (
-          <BottomReplyContainer
-            isUser={isUser}
-            onClick={handleReplyMessage}
-            reply={message?.reply}
-          />
-        ) : (
-          <div />
-        )}
+        <MessageFooter isUser={isUser}>
+          {message?.reply?.length && message.reaction ? (
+            <BottomReplyContainer
+              isUser={isUser}
+              onClick={handleReplyMessage}
+              reply={message?.reply}
+              color={config.colors?.primary}
+            />
+          ) : null}
+          {message.reaction && (
+            <MessageReaction
+              reaction={message.reaction}
+              changeReaction={handleReactionMessage}
+              color={config.colors?.primary}
+            />
+          )}
+        </MessageFooter>
       </CustomMessageContainer>
 
       {!config?.disableInteractions && (
@@ -253,6 +269,7 @@ const Message: React.FC<MessageProps> = forwardRef<
           handleReplyMessage={handleReplyMessage}
           handleDeleteMessage={handleDeleteMessage}
           handleEditMessage={handleEditMessage}
+          handleReactionMessage={handleReactionMessage}
         />
       )}
     </>

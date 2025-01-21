@@ -11,11 +11,15 @@ import {
   onGetMembers,
   onGetRoomInfo,
   onNewRoomCreated,
+  onReactionMessage,
+  onReactionHistory,
 } from '../stanzaHandlers';
 
 export function handleStanza(stanza: any, xmppWs: any) {
   switch (stanza.name) {
     case 'message':
+      onReactionMessage(stanza);
+      onReactionHistory(stanza);
       onDeleteMessage(stanza);
       onEditMessage(stanza);
       onRealtimeMessage(stanza);
