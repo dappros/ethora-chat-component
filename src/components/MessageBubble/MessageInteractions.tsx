@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  ArrowButton,
+  ContainerInteractions,
   ArrowButton,
   ContainerInteractions,
   ContextMenu,
@@ -8,7 +11,10 @@ import {
   Overlay,
   ReactionBadge,
   ReactionContainer,
+  ReactionBadge,
+  ReactionContainer,
 } from '../ContextMenu/ContextMenuComponents';
+import { useSelector } from 'react-redux';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
 import {
@@ -44,7 +50,9 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
   setContextMenu,
   handleReplyMessage: replyMessage,
   handleDeleteMessage: deleteMessage,
+  handleDeleteMessage: deleteMessage,
   handleEditMessage,
+  handleReactionMessage,
   handleReactionMessage,
 }) => {
   const [reactions, setReactions] = useState<string[]>([]);
@@ -54,6 +62,7 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
     (state: RootState) => state.chatSettingStore.config
   );
 
+  const closeMenu = () => {
   const closeMenu = () => {
     if (!config?.disableInteractions) {
       setContextMenu({ visible: false, x: 0, y: 0 });
@@ -66,15 +75,89 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
     }
   };
 
+  const closeContextMenu = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      closeMenu();
+    }
+  };
+
   const handleCopyMessage = (text: string) => {
     navigator.clipboard.writeText(text);
+    closeMenu();
     closeMenu();
   };
 
   const handleReplyMessage = () => {
     replyMessage();
     closeMenu();
+    closeMenu();
   };
+
+  const handleDeleteMessage = () => {
+    deleteMessage();
+    closeMenu();
+  };
+
+  const handleEmojiSelect = (emoji, e: React.MouseEvent) => {
+    if (e.target !== e.currentTarget) {
+      console.log('emoji', emoji);
+      handleReactionMessage(emoji.id);
+      closeMenu();
+    }
+  };
+
+  const handleReactionClick = (reaction: string, e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      const emoji: EmojiData = (emojiData as any).emojis[reaction];
+      console.log('emoji', emoji);
+      handleReactionMessage(reaction);
+      closeMenu();
+    }
+  };
+
+  const getEmojiById = (id: string) => {
+    const emoji = (emojiData as any).emojis[id];
+    return emoji ? emoji.skins[0].native : '';
+  };
+
+  const calculatePickerPosition = (x: number, y: number) => {
+    const pickerWidth = 320;
+    const pickerHeight = 435;
+
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+
+    let adjustedX = x;
+    let adjustedY = y;
+
+    if (x + pickerWidth > windowWidth) {
+      adjustedX = windowWidth - pickerWidth - 10;
+    }
+
+    if (y + pickerHeight > windowHeight) {
+      adjustedY = windowHeight - pickerHeight - 10;
+    }
+
+    return { adjustedX, adjustedY };
+  };
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (showPicker) {
+        const { adjustedX, adjustedY } = calculatePickerPosition(
+          contextMenu.x,
+          contextMenu.y
+        );
+        setContextMenu({ visible: true, x: adjustedX, y: adjustedY });
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [showPicker, contextMenu.x, contextMenu.y]);
 
   const handleDeleteMessage = () => {
     deleteMessage();
@@ -148,6 +231,7 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
     <>
       {!message.isDeleted && (
         <Overlay onClick={closeContextMenu}>
+          <ContainerInteractions
           <ContainerInteractions
             style={{ top: contextMenu.y, left: contextMenu.x }}
           >
@@ -241,6 +325,8 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
             {MESSAGE_INTERACTIONS.REPORT}
             <MESSAGE_INTERACTIONS_ICONS.REPORT />{' '}
           </MenuItem> */}
+            </ContextMenu>
+          </ContainerInteractions>
             </ContextMenu>
           </ContainerInteractions>
         </Overlay>

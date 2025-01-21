@@ -245,6 +245,21 @@ export class XmppClient implements XmppClientInterface {
     editMessage(this.client, room, msgId, text);
   }
 
+  sendMessageReactionStanza(
+    messageId: string,
+    roomJid: string,
+    reactionsList: string[],
+    reactionSymbol?: any
+  ) {
+    sendMessageReaction(
+      this.client,
+      messageId,
+      roomJid,
+      reactionsList,
+      reactionSymbol
+    );
+  }
+
   sendTypingRequestStanza(chatId: string, fullName: string, start: boolean) {
     sendTypingRequest(this.client, chatId, fullName, start);
   }

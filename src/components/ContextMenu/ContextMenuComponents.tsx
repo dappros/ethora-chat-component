@@ -46,11 +46,9 @@ export const StyledPicker = styled(Picker)`
 `;
 
 export const ContextMenu = styled.div`
-  position: absolute;
-  z-index: 1000;
   max-width: 240px;
-  margin-top: 16px;
   background-color: white;
+  margin-top: 16px;
   border-radius: 8px;
   box-shadow: 0px 0px 6px -2px #12121908;
   box-shadow: 0px 0px 16px -4px #12121914;

@@ -238,6 +238,12 @@ export interface ModalFile {
   mimetype: string;
 }
 
+export interface ReactionAction {
+  roomJID: string;
+  messageId: string;
+  reactions: string[];
+}
+
 //xmppClientWs
 
 export interface XmppClientInterface {
@@ -325,4 +331,10 @@ export interface XmppClientInterface {
     description: string,
     to: string
   ): Promise<string>;
+  sendMessageReactionStanza(
+    messageId: string,
+    roomJid: string,
+    reactionsList: string[],
+    reactionSymbol?: any
+  ): void;
 }

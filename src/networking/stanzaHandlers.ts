@@ -36,6 +36,9 @@ const onRealtimeMessage = async (stanza: Element) => {
     stanza.attrs.id !== 'deleteMessageStanza'  &&
     !stanza.attrs.id.includes('message-reaction')
   ) {
+    //here logic to add interactions
+    console.log('stanza.attrs.id', stanza.attrs.id);
+
     const body = stanza?.getChild('body');
     const archived = stanza?.getChild('archived');
     const data = stanza?.getChild('data');
@@ -181,6 +184,8 @@ const onReactionHistory = async (stanza: any) => {
 };
 
 const onMessageHistory = async (stanza: any) => {
+  //here logic to add interactions and here too
+
   if (
     stanza.is('message') &&
     stanza.children[0].attrs.xmlns === 'urn:xmpp:mam:2'
@@ -207,6 +212,7 @@ const onMessageHistory = async (stanza: any) => {
       ?.getChild('forwarded')
       ?.getChild('delay');
     const id = stanza.getChild('result')?.attrs.id;
+
     if (!delay) {
       if (stanza.getChild('subject')) {
         console.log('Subject.');
