@@ -1,5 +1,6 @@
 import { Client } from '@xmpp/client';
 import { MODAL_TYPES } from '../helpers/constants/MODAL_TYPES';
+import { TranslationObject } from '../helpers/transformTranslatations';
 
 export interface IUser extends Partial<User> {
   id: string;
@@ -31,6 +32,8 @@ export interface IMessage {
   isDeleted?: boolean;
   mainMessage?: string;
   reply?: IReply[];
+  translations?: TranslationObject;
+  langSource?: string;
 }
 
 export interface IReply extends IMessage {}
@@ -167,6 +170,7 @@ export interface IConfig {
   disableRoomMenu?: boolean;
   defaultRooms?: string[] | ConfigRoom[];
   refreshTokens?: { enabled: boolean; refreshFunction?: any };
+  enableTranslates?: boolean;
 }
 
 interface ConfigRoom {
@@ -305,3 +309,15 @@ export interface XmppClientInterface {
     to: string
   ): Promise<string>;
 }
+
+export type Iso639_1Codes = 'en' | 'es' | 'pt' | 'ht' | 'zh';
+
+export interface Language {
+  iso639_1: Iso639_1Codes;
+  name: string;
+}
+
+export type LanguageOptions = {
+  languages: Array<Language>;
+  language?: Iso639_1Codes;
+};

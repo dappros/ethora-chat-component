@@ -25,6 +25,7 @@ import { BottomReplyContainer } from './BottomReplyContainer';
 import { setActiveMessage, setEditAction } from '../../roomStore/roomsSlice';
 import { MessageReply } from './MessageReply';
 import { DeletedMessage } from './DeletedMessage';
+import MessageTranslations from './MessageTranslations';
 
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
@@ -190,6 +191,10 @@ const Message: React.FC<MessageProps> = forwardRef<
               )}
             </CustomMessageText>
           )}
+
+          {config?.enableTranslates && (
+            <MessageTranslations message={message} config={config} />
+          )}
           <CustomMessageTimestamp>
             {message?.pending && 'sending...'}
             {new Date(message.date).toLocaleTimeString([], {
@@ -208,7 +213,6 @@ const Message: React.FC<MessageProps> = forwardRef<
           <div />
         )}
       </CustomMessageContainer>
-
       {!config?.disableInteractions && (
         <MessageInteractions
           isReply={isReply}

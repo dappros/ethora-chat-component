@@ -4,8 +4,10 @@ import { useDispatch, useSelector } from 'react-redux';
 import { setEditAction } from '../roomStore/roomsSlice';
 import { uploadFile } from '../networking/api-requests/auth.api';
 import { RootState } from '../roomStore';
+import { useChatSettingState } from './useChatSettingState';
 
 export const useSendMessage = () => {
+  const { config } = useChatSettingState();
   const { client } = useXmppClient();
   const dispatch = useDispatch();
 
@@ -37,18 +39,33 @@ export const useSendMessage = () => {
         dispatch(setEditAction({ isEdit: false }));
         return;
       } else {
-        client?.sendMessage(
-          activeRoomJID,
-          user.firstName,
-          user.lastName,
-          '',
-          user.walletAddress,
-          message,
-          '',
-          isReply || false,
-          isChecked || false,
-          mainMessage || ''
-        );
+        if (config?.enableTranslates) {
+          client?.sendTextMessageWithTranslateTagStanza(
+            activeRoomJID,
+            user.firstName,
+            user.lastName,
+            '',
+            user.walletAddress,
+            message,
+            '',
+            isReply || false,
+            isChecked || false,
+            mainMessage || ''
+          );
+        } else {
+          client?.sendTextMessageWithTranslateTagStanza(
+            activeRoomJID,
+            user.firstName,
+            user.lastName,
+            '',
+            user.walletAddress,
+            message,
+            '',
+            isReply || false,
+            isChecked || false,
+            mainMessage || ''
+          );
+        }
       }
 
       // dispatch(
