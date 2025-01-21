@@ -5,8 +5,8 @@ export interface IUser extends Partial<User> {
   id: string;
   name: string | null;
   userJID?: string | null;
-  token: string;
-  refreshToken: string;
+  token?: string;
+  refreshToken?: string;
 }
 
 export interface IMessage {
@@ -31,7 +31,6 @@ export interface IMessage {
   isDeleted?: boolean;
   mainMessage?: string;
   reply?: IReply[];
-  reactions?: string[];
 }
 
 export interface IReply extends IMessage {}
@@ -217,12 +216,6 @@ export interface EditAction {
   text?: string;
 }
 
-export interface ReactionAction {
-  roomJID: string;
-  messageId: string;
-  reactions: string[];
-}
-
 export type ModalType = (typeof MODAL_TYPES)[keyof typeof MODAL_TYPES];
 
 export interface ModalFile {
@@ -292,12 +285,6 @@ export interface XmppClientInterface {
     showInChannel?: boolean,
     mainMessage?: string
   ): void;
-  sendMessageReactionStanza(
-    messageId: string,
-    roomJid: string,
-    reactionsList: string[],
-    reactionSymbol?: any
-  ): void;
   deleteMessageStanza(room: string, msgId: string): void;
   editMessageStanza(room: string, msgId: string, text: string): void;
   sendTypingRequestStanza(
@@ -312,4 +299,9 @@ export interface XmppClientInterface {
     chats?: string[]
   ): Promise<void>;
   sendMediaMessageStanza(roomJID: string, data: any): void;
+  createPrivateRoomStanza(
+    title: string,
+    description: string,
+    to: string
+  ): Promise<string>;
 }

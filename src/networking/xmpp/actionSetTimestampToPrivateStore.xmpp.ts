@@ -25,7 +25,6 @@ export async function actionSetTimestampToPrivateStore(
     storeObj[chatId] = timestamp;
 
     const str = JSON.stringify(storeObj);
-    str[chatId] = timestamp;
     await setChatsPrivateStoreRequest(client, str);
     return true;
   } else {

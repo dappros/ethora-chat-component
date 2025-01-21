@@ -762,28 +762,3 @@ export const SaveIcon = ({ color = '#8C8C8C', ...props }) => (
     />
   </svg>
 );
-
-export const DownArrowIcon = ({
-  fill = '#E7EDF9',
-  color = '#0052CD',
-  ...props
-}) => (
-  <svg
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    {...props}
-  >
-    <path
-      d="M0 12C0 5.37258 5.37258 0 12 0C18.6274 0 24 5.37258 24 12C24 18.6274 18.6274 24 12 24C5.37258 24 0 18.6274 0 12Z"
-      fill={fill}
-    />
-    <path
-      d="M7.66602 9.79997L11.9993 14.1333L16.3327 9.79997"
-      stroke={color}
-      stroke-linecap="round"
-    />
-  </svg>
-);

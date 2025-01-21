@@ -92,7 +92,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
       .sort()
       .join(' and ');
 
-    const newRoomJid = await client.createRoomStanza(
+    const newRoomJid = await client.createPrivateRoomStanza(
       combinedUsersName,
       `Private chat ${combinedUsersName}`,
       roomJid

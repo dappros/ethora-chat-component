@@ -72,6 +72,20 @@ export const useSendMessage = () => {
     [editAction]
   );
 
+  const sendEditMessage = useCallback(
+    (message: string) => {
+      client?.editMessageStanza(
+        editAction.roomJid,
+        editAction.messageId,
+        message
+      );
+
+      dispatch(setEditAction({ isEdit: false }));
+      return;
+    },
+    [editAction]
+  );
+
   const sendMedia = useCallback(
     async (
       data: any,
@@ -128,5 +142,6 @@ export const useSendMessage = () => {
   return {
     sendMessage,
     sendMedia,
+    sendEditMessage,
   };
 };

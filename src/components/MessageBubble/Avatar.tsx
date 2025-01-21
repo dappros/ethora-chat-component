@@ -42,13 +42,32 @@ export const Avatar: React.FC<AvatarProps> = ({
   );
 
   const getInitials = () => {
+    const isAlphabetic = (char: string) => /^[a-zA-Zа-яА-ЯёЁ]$/.test(char);
+
     if (firstName && lastName) {
-      return `${firstName[0]}${lastName[0]}`.toUpperCase();
+      const firstInitial = isAlphabetic(firstName[0])
+        ? firstName[0].toUpperCase()
+        : '';
+      const lastInitial = isAlphabetic(lastName[0])
+        ? lastName[0].toUpperCase()
+        : '';
+      return `${firstInitial}${lastInitial}`;
     } else if (username) {
       const names = username.split(' ');
-      return names.length > 1
-        ? `${names[0][0]}${names[1][0]}`.toUpperCase()
-        : `${names[0][0]}`.toUpperCase();
+      if (names.length > 1) {
+        const firstInitial = isAlphabetic(names[0][0])
+          ? names[0][0].toUpperCase()
+          : '';
+        const secondInitial = isAlphabetic(names[1][0])
+          ? names[1][0].toUpperCase()
+          : '';
+        return `${firstInitial}${secondInitial}`;
+      } else {
+        const singleInitial = isAlphabetic(names[0][0])
+          ? names[0][0].toUpperCase()
+          : '';
+        return `${singleInitial}`;
+      }
     }
     return '??';
   };

@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { EditAction, IMessage, IRoom, ReactionAction } from '../types/types';
+import { EditAction, IMessage, IRoom } from '../types/types';
 import { insertMessageWithDelimiter } from '../helpers/insertMessageWithDelimiter';
 
 interface RoomMessagesState {
@@ -64,13 +64,12 @@ export const roomsStore = createSlice({
     ) {
       const { roomJID, messageId } = action.payload;
       if (state.rooms[roomJID]) {
-        state.rooms[roomJID].messages.map((message) => {
-          if (message.id === messageId) {
-            message.isDeleted = true;
-          }
-        });
+        state.rooms[roomJID].messages = state.rooms[roomJID].messages.filter(
+          (message) => message.id !== messageId
+        );
       }
     },
+
     setEditAction: (state, action: PayloadAction<EditAction | undefined>) => {
       const { isEdit } = action.payload;
       if (isEdit) {
@@ -83,17 +82,6 @@ export const roomsStore = createSlice({
           text: '',
         };
       }
-    },
-    setReactions: (state, action: PayloadAction<ReactionAction | undefined>) => {
-      const { roomJID, messageId, reactions } = action.payload;
-
-      if (state.rooms[roomJID]) {
-        state.rooms[roomJID].messages.map((message) => {
-          if (message.id === messageId) {
-            message.reactions = reactions;
-          };
-        });
-      };
     },
     editRoomMessage(
       state,
@@ -161,7 +149,9 @@ export const roomsStore = createSlice({
       if (chatJID && state.rooms?.[chatJID]) {
         state.rooms[chatJID].isLoading = loading;
       }
-      state.isLoading = loading;
+      if (!chatJID) {
+        state.isLoading = loading;
+      }
     },
     setLastViewedTimestamp: (
       state,
@@ -262,7 +252,6 @@ export const {
   setLogoutState,
   setActiveMessage,
   setCloseActiveMessage,
-  setReactions,
   deleteRoom,
   updateRoom,
 } = roomsStore.actions;

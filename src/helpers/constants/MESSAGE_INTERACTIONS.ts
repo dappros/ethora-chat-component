@@ -16,7 +16,6 @@ export const MESSAGE_INTERACTIONS = {
   EDIT: 'Edit',
   DELETE: 'Delete',
   REPORT: 'Report',
-  REACTION: 'React',
 };
 
 export const MESSAGE_INTERACTIONS_ICONS = {

@@ -38,9 +38,13 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
   const { client } = useXmppClient();
   const dispatch = useDispatch();
 
-  const { loading, globalLoading, roomsList, editAction } = useRoomState();
+  const { loading, roomsList, editAction } = useRoomState();
   const { config } = useChatSettingState();
-  const { sendMessage: sendMs, sendMedia: sendMessageMedia } = useSendMessage();
+  const {
+    sendMessage: sendMs,
+    sendMedia: sendMessageMedia,
+    sendEditMessage,
+  } = useSendMessage();
 
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
   const [isChecked, setIsChecked] = useState<boolean>(false);
@@ -67,7 +71,7 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
         createMainMessageForThread(activeMessage)
       );
     },
-    [activeMessage]
+    [activeMessage, isChecked]
   );
 
   const sendMedia = useCallback(
@@ -159,7 +163,7 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
       <SendInput
         editMessage={editAction.text}
         sendMedia={sendMedia}
-        sendMessage={sendMessage}
+        sendMessage={editAction.isEdit ? sendEditMessage : sendMessage}
         config={config}
         onFocus={sendStartComposing}
         onBlur={sendEndComposing}

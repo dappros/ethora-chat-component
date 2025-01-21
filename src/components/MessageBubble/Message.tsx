@@ -1,10 +1,4 @@
-import React, {
-  forwardRef,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { forwardRef, useRef, useState } from 'react';
 import { IUser, MessageProps } from '../../types/types';
 import {
   CustomMessageTimestamp,
@@ -31,14 +25,11 @@ import { BottomReplyContainer } from './BottomReplyContainer';
 import { setActiveMessage, setEditAction } from '../../roomStore/roomsSlice';
 import { MessageReply } from './MessageReply';
 import { DeletedMessage } from './DeletedMessage';
-import { useXmppClient } from '../../context/xmppProvider';
-import emojiData from '@emoji-mart/data';
 
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
   MessageProps
 >(({ message, isUser, isReply }, ref) => {
-  const { client } = useXmppClient();
   const dispatch = useDispatch();
   const config = useSelector(
     (state: RootState) => state.chatSettingStore.config
@@ -131,6 +122,11 @@ const Message: React.FC<MessageProps> = forwardRef<
         text: message.body,
       })
     );
+    setContextMenu({
+      visible: false,
+      x: null,
+      y: null,
+    });
   };
 
   const memoEmoji = (id: string) => {
@@ -245,8 +241,6 @@ const Message: React.FC<MessageProps> = forwardRef<
         ) : (
           <div />
         )}
-        {message.reactions &&
-          message.reactions.map((reaction) => memoEmoji(reaction))}
       </CustomMessageContainer>
 
       {!config?.disableInteractions && (
@@ -259,7 +253,6 @@ const Message: React.FC<MessageProps> = forwardRef<
           handleReplyMessage={handleReplyMessage}
           handleDeleteMessage={handleDeleteMessage}
           handleEditMessage={handleEditMessage}
-          handleReactionMessage={handleReactionMessage}
         />
       )}
     </>

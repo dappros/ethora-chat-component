@@ -1,6 +1,6 @@
 {
   "name": "@ethora/chat-component",
-  "version": "24.12.40",
+  "version": "25.01.02",
   "type": "module",
   "main": "dist/main.js",
   "types": "dist/main.d.ts",
@@ -16,8 +16,6 @@
     "lint:fix": "npx eslint --fix && prettier . --write"
   },
   "dependencies": {
-    "@emoji-mart/data": "^1.2.1",
-    "@emoji-mart/react": "^1.1.1",
     "@reduxjs/toolkit": "^2.2.1",
     "@types/react": "^18.2.65",
     "@types/react-dom": "^18.2.22",

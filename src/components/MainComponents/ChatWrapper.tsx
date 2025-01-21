@@ -157,13 +157,33 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             await initializeClient(
               user.defaultWallet?.walletAddress,
               user.xmppPassword
-            ).then((client) => {
-              client.getRoomsStanza().then(() => {
-                client.getChatsPrivateStoreRequestStanza();
-                client.setVCardStanza(`${user.firstName} ${user.lastName}`);
-                dispatch(setStoreClient(client));
-                setClient(client);
-              });
+            ).then(async (client) => {
+              await client.getRoomsStanza();
+              await client
+                ?.getChatsPrivateStoreRequestStanza()
+                .then(
+                  (roomTimestampObject: [jid: string, timestamp: string]) => {
+                    const roomTimestampArray = Object.entries(
+                      roomTimestampObject
+                    ).map(([jid, timestamp]) => ({
+                      jid,
+                      timestamp,
+                    }));
+                    roomTimestampArray.forEach(({ jid, timestamp }) => {
+                      if (jid) {
+                        dispatch(
+                          setLastViewedTimestamp({
+                            chatJID: jid,
+                            timestamp: Number(timestamp || 0),
+                          })
+                        );
+                      }
+                    });
+                    client.setVCardStanza(`${user.firstName} ${user.lastName}`);
+                    dispatch(setStoreClient(client));
+                    setClient(client);
+                  }
+                );
             });
             setInited(true);
             {
@@ -172,12 +192,32 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           } else if (storedClient) {
             setClient(storedClient);
             if (!activeRoomJID) {
-              storedClient.getRoomsStanza().then(() => {
-                storedClient.getChatsPrivateStoreRequestStanza();
-                storedClient.setVCardStanza(
-                  `${user.firstName} ${user.lastName}`
+              await storedClient.getRoomsStanza();
+              await storedClient
+                ?.getChatsPrivateStoreRequestStanza()
+                .then(
+                  (roomTimestampObject: [jid: string, timestamp: string]) => {
+                    const roomTimestampArray = Object.entries(
+                      roomTimestampObject
+                    ).map(([jid, timestamp]) => ({
+                      jid,
+                      timestamp,
+                    }));
+                    roomTimestampArray.forEach(({ jid, timestamp }) => {
+                      if (jid) {
+                        dispatch(
+                          setLastViewedTimestamp({
+                            chatJID: jid,
+                            timestamp: Number(timestamp || 0),
+                          })
+                        );
+                      }
+                    });
+                    storedClient.setVCardStanza(
+                      `${user.firstName} ${user.lastName}`
+                    );
+                  }
                 );
-              });
             }
             setInited(true);
             {
@@ -185,12 +225,31 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             }
           } else {
             if (!activeRoomJID) {
-              client.getRoomsStanza().then(() => {
-                client.getChatsPrivateStoreRequestStanza();
-                client.setVCardStanza(`${user.firstName} ${user.lastName}`);
-              });
+              await client.getRoomsStanza();
+              await client
+                ?.getChatsPrivateStoreRequestStanza()
+                .then(
+                  (roomTimestampObject: [jid: string, timestamp: string]) => {
+                    const roomTimestampArray = Object.entries(
+                      roomTimestampObject
+                    ).map(([jid, timestamp]) => ({
+                      jid,
+                      timestamp,
+                    }));
+                    roomTimestampArray.forEach(({ jid, timestamp }) => {
+                      if (jid) {
+                        dispatch(
+                          setLastViewedTimestamp({
+                            chatJID: jid,
+                            timestamp: Number(timestamp || 0),
+                          })
+                        );
+                      }
+                    });
+                    client.setVCardStanza(`${user.firstName} ${user.lastName}`);
+                  }
+                );
             }
-            client.getChatsPrivateStoreRequestStanza();
             setInited(true);
             {
               config?.refreshTokens?.enabled && refresh();
@@ -256,8 +315,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     Object.keys(roomsList),
     globalLoading,
     loading,
-    queueMessageLoader,
-    isInited
+    queueMessageLoader
   );
 
   if (user.xmppPassword === '' && user.xmppUsername === '')
