@@ -270,7 +270,6 @@ const Message: React.FC<MessageProps> = forwardRef<
           handleDeleteMessage={handleDeleteMessage}
           handleEditMessage={handleEditMessage}
           handleReactionMessage={handleReactionMessage}
-          handleReactionMessage={handleReactionMessage}
         />
       )}
     </>

@@ -170,8 +170,8 @@ const onReactionHistory = async (stanza: any) => {
   const reactionList: string[] = reactions.children.map((emoji) => emoji.children[0]);
   const from: string = reactions.attrs.from;
   const dataReaction = {
-    firstName: data.attrs.senderFirstName,
-    lastName: data.attrs.senderLastName,
+    senderFirstName: data.attrs.senderFirstName,
+    senderLastName: data.attrs.senderLastName,
   }
 
   store.dispatch(setReactions({
