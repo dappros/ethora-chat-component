@@ -36,8 +36,7 @@ export const useRoomInitialization = (
       if (!roomsList?.[activeRoomJID] && Object.keys(roomsList).length > 0) {
         dispatch(setIsLoading({ loading: true, chatJID: activeRoomJID }));
         initialPresenceAndHistory();
-        // } else if (roomMessages.length < 1) {
-      } else if (messageLength < 1) {
+      } else if (messageLength < 15) {
         getDefaultHistory();
       } else {
         dispatch(setIsLoading({ loading: false, chatJID: activeRoomJID }));

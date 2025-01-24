@@ -11,6 +11,7 @@ import {
 import { localStorageConstants } from '../helpers/constants/LOCAL_STORAGE';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { walletToUsername } from '../helpers/walletUsername';
+import XmppClient from '../networking/xmppClient';
 
 interface ChatState {
   user: User;
@@ -19,7 +20,8 @@ interface ChatState {
   deleteModal?: DeleteModal;
   selectedUser?: IUser;
   activeFile?: ModalFile;
-  client?: any;
+  client?: XmppClient;
+  langSource?: string;
 }
 
 const unpackAndTransform = (input?: User): User => {
@@ -98,7 +100,7 @@ const initialState: ChatState = {
 };
 
 export const chatSlice = createSlice({
-  name: 'chat',
+  name: 'chatSettingStore',
   initialState,
   reducers: {
     setUser: (state, action: PayloadAction<User>) => {
@@ -135,6 +137,9 @@ export const chatSlice = createSlice({
     setSelectedUser: (state, action: PayloadAction<IUser | undefined>) => {
       state.selectedUser = action.payload;
     },
+    setLangSource: (state, action: PayloadAction<string | undefined>) => {
+      state.langSource = action.payload;
+    },
     refreshTokens: (
       state,
       action: PayloadAction<{ token: string; refreshToken: string }>
@@ -169,6 +174,7 @@ export const {
   updateUser,
   setActiveFile,
   setStoreClient,
+  setLangSource,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

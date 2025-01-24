@@ -264,7 +264,7 @@ export interface XmppClientInterface {
     chatJID: string,
     max: number,
     before?: number,
-    id?: string
+    otherStanzaId?: string
   ): Promise<any>;
   getLastMessageArchiveStanza(roomJID: string): void;
   setRoomImageStanza(

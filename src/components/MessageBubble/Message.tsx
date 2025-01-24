@@ -26,15 +26,14 @@ import { setActiveMessage, setEditAction } from '../../roomStore/roomsSlice';
 import { MessageReply } from './MessageReply';
 import { DeletedMessage } from './DeletedMessage';
 import MessageTranslations from './MessageTranslations';
+import { useChatSettingState } from '../../hooks/useChatSettingState';
 
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
   MessageProps
 >(({ message, isUser, isReply }, ref) => {
   const dispatch = useDispatch();
-  const config = useSelector(
-    (state: RootState) => state.chatSettingStore.config
-  );
+  const { config, langSource } = useChatSettingState();
 
   const [contextMenu, setContextMenu] = !config?.disableInteractions
     ? useState<{ visible: boolean; x: number; y: number }>({
@@ -193,7 +192,11 @@ const Message: React.FC<MessageProps> = forwardRef<
           )}
 
           {config?.enableTranslates && (
-            <MessageTranslations message={message} config={config} />
+            <MessageTranslations
+              message={message}
+              config={config}
+              langSource={langSource}
+            />
           )}
           <CustomMessageTimestamp>
             {message?.pending && 'sending...'}

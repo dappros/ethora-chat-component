@@ -20,6 +20,7 @@ import DropdownMenu from '../../DropdownMenu/DropdownMenu';
 import {
   logout,
   setActiveModal,
+  setLangSource,
   setSelectedUser,
 } from '../../../roomStore/chatSettingsSlice';
 import { setCurrentRoom, setLogoutState } from '../../../roomStore/roomsSlice';
@@ -27,6 +28,8 @@ import EditUserModal from './EditUserModal';
 import { walletToUsername } from '../../../helpers/walletUsername';
 import { useXmppClient } from '../../../context/xmppProvider';
 import Loader from '../../styled/Loader';
+import { Iso639_1Codes } from '../../../types/types';
+import Select from '../../MainComponents/Select';
 
 interface UserProfileModalProps {
   handleCloseModal: any;
@@ -69,6 +72,19 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     ],
     []
   );
+
+  const languageOptions = [
+    { name: 'English', id: 'en' },
+    { name: 'Spanish', id: 'es' },
+    { name: 'Portuguese', id: 'pt' },
+    { name: 'Haitian Creole', id: 'ht' },
+    { name: 'Chinese', id: 'zh' },
+  ];
+
+  const handleSelect = (selected: { name: string; id: Iso639_1Codes }) => {
+    console.log('Selected Language:', selected);
+    dispatch(setLangSource(selected.id));
+  };
 
   const EditClick = useCallback(() => {
     setIsEditing(true);
@@ -144,6 +160,16 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
             </UserName>
             {/* <UserStatus>Status</UserStatus> */}
           </UserInfo>
+          {config?.enableTranslates && (
+            <BorderedContainer>
+              <Select
+                options={languageOptions}
+                placeholder={'Select your language'}
+                onSelect={handleSelect}
+                accentColor={config?.colors?.primary}
+              />
+            </BorderedContainer>
+          )}
           <BorderedContainer>
             <Label>About</Label>
             <LabelData>

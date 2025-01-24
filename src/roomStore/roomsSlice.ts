@@ -110,11 +110,15 @@ export const roomsStore = createSlice({
     ) {
       const { roomJID, message, start } = action.payload;
 
-      if (!state.rooms[roomJID]?.messages) {
+      const roomMessages = state.rooms[roomJID]?.messages;
+
+      if (!roomMessages) {
         state.rooms[roomJID].messages = [];
       }
 
-      const roomMessages = state.rooms[roomJID].messages;
+      if (roomMessages.some((msg) => msg.id === message.id)) {
+        return;
+      }
 
       if (roomMessages.length === 0 || start) {
         roomMessages.unshift(message);
