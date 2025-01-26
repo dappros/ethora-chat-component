@@ -160,7 +160,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
             </UserName>
             {/* <UserStatus>Status</UserStatus> */}
           </UserInfo>
-          {config?.enableTranslates && (
+          {!selectedUser && config?.enableTranslates && (
             <BorderedContainer>
               <Select
                 options={languageOptions}

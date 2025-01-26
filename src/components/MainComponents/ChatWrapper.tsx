@@ -36,6 +36,9 @@ import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { CONFERENCE_DOMAIN } from '../../helpers/constants/PLATFORM_CONSTANTS';
 import useMessageLoaderQueue from '../../hooks/useMessageLoaderQueue';
 import { useRoomState } from '../../hooks/useRoomState';
+import { initRoomsPresence } from '../../helpers/initRoomsPresence';
+import { updatedChatLastTimestamps } from '../../helpers/updatedChatLastTimestamps';
+import { updateMessagesTillLast } from '../../helpers/updateMessagesTillLast';
 
 interface ChatWrapperProps {
   token?: string;
@@ -150,43 +153,41 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
               user.defaultWallet?.walletAddress,
               user.xmppPassword
             ).then(async (client) => {
-              await client.getRoomsStanza();
+              if (Object.keys(roomsList).length > 0) {
+                await initRoomsPresence(client, roomsList);
+              } else {
+                await client.getRoomsStanza();
+              }
               await client
                 ?.getChatsPrivateStoreRequestStanza()
                 .then(
                   (roomTimestampObject: [jid: string, timestamp: string]) => {
-                    const roomTimestampArray = Object.entries(
-                      roomTimestampObject
-                    ).map(([jid, timestamp]) => ({
-                      jid,
-                      timestamp,
-                    }));
-                    console.log(
-                      'getting roomTimestampArray',
-                      roomTimestampArray
-                    );
-
-                    roomTimestampArray.forEach(({ jid, timestamp }) => {
-                      if (jid) {
-                        dispatch(
-                          setLastViewedTimestamp({
-                            chatJID: jid,
-                            timestamp: Number(timestamp || 0),
-                          })
-                        );
-                      }
-                    });
+                    updatedChatLastTimestamps(roomTimestampObject, dispatch);
                     client.setVCardStanza(`${user.firstName} ${user.lastName}`);
                     setClient(client);
                   }
                 );
             });
             setInited(true);
+            await updateMessagesTillLast(rooms, client);
             {
               config?.refreshTokens?.enabled && refresh();
             }
           } else {
+            if (Object.keys(roomsList).length > 0) {
+              initRoomsPresence(client, roomsList);
+              await client
+                ?.getChatsPrivateStoreRequestStanza()
+                .then(
+                  (roomTimestampObject: [jid: string, timestamp: string]) => {
+                    updatedChatLastTimestamps(roomTimestampObject, dispatch);
+                    client.setVCardStanza(`${user.firstName} ${user.lastName}`);
+                    setClient(client);
+                  }
+                );
+            }
             setInited(true);
+            await updateMessagesTillLast(rooms, client);
             {
               config?.refreshTokens?.enabled && refresh();
             }
@@ -249,6 +250,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
   useMessageLoaderQueue(
     Object.keys(roomsList),
+    roomsList,
     globalLoading,
     loading,
     queueMessageLoader

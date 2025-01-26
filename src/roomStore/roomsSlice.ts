@@ -239,6 +239,18 @@ const countNewerMessages = (
   } else return 0;
 };
 
+export const getLastMessageTimestamp = (
+  state: RoomMessagesState,
+  jid: string
+): string | null => {
+  const room = state.rooms[jid];
+  if (!room || room.messages.length === 0) {
+    return null;
+  }
+  const lastMessage = room.messages[room.messages.length - 1];
+  return lastMessage.id;
+};
+
 export const {
   addRoom,
   deleteAllRooms,

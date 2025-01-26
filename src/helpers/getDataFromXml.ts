@@ -52,6 +52,21 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
     profileImage: photoURL,
   };
 
+  if (id === 7916022727914) {
+    console.log({
+      data: { ...data?.attrs },
+      id,
+      body,
+      roomJid,
+      date,
+      user,
+      deleted,
+      translations,
+      langSource,
+    });
+    console.log(stanza.toString());
+  }
+
   return {
     data: { ...data?.attrs },
     id,
