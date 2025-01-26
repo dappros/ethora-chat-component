@@ -15,23 +15,35 @@ interface MediaMessageProps {
 const MediaMessage: React.FC<MediaMessageProps> = ({
   mimeType,
   location,
-  message,
   messageText,
 }) => {
   if (mimeType)
     switch (true) {
       case mimeType.startsWith('image/'):
-        return <CustomMessageImage imageAlt="image" imageUrl={messageText} />;
+        return (
+          <CustomMessageImage
+            fileName="image"
+            fileURL={messageText}
+            mimetype={mimeType}
+          />
+        );
       case mimeType.startsWith('video/'):
-        return <CustomMessageVideo videoUrl={location} />;
+        return (
+          <CustomMessageVideo
+            fileName="image"
+            fileURL={location}
+            mimetype={mimeType}
+          />
+        );
       case mimeType.startsWith('audio/') ||
         mimeType.includes('application/octet-stream'):
         return <AudioMessage src={location} />;
       default:
         return (
           <FileDownload
-            fileUrl={location ? location : ''}
+            fileURL={location ? location : ''}
             fileName={location?.split('/')?.pop() || 'MediaFile'}
+            mimetype={mimeType}
           />
         );
     }

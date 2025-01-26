@@ -1,6 +1,15 @@
 import React, { useMemo } from 'react';
 import styled from 'styled-components';
 import { EditIcon } from '../../assets/icons';
+import {
+  AvatarCircle,
+  AvatarImage,
+  FileInput,
+  Overlay,
+  RemoveButton,
+  Wrapper,
+} from '../styled/StyledComponents';
+import { nameToColor } from '../../helpers/hashcolor';
 
 interface ProfileImagePlaceholderProps {
   name?: string;
@@ -17,92 +26,9 @@ interface ProfileImagePlaceholderProps {
   };
   role?: string;
   active?: boolean;
+  placeholderIcon?: React.ReactNode;
+  disableOverlay?: boolean;
 }
-
-const backgroundColors = ['#f44336', '#2196f3', '#4caf50', '#ff9800'];
-
-const Wrapper = styled.div<{
-  bgColor: string;
-  size?: number;
-  isClickable: boolean;
-}>`
-  width: ${({ size }) => `${size}px` || '64px'};
-  height: ${({ size }) => `${size}px` || '64px'};
-  border-radius: 50%;
-  background-color: ${({ bgColor }) => bgColor};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  font-weight: bold;
-  cursor: ${({ isClickable }) => (isClickable ? 'pointer' : 'default')};
-  position: relative;
-`;
-
-const AvatarCircle = styled.div<{
-  bgColor: string;
-  size?: number;
-  isClickable: boolean;
-}>`
-  width: ${({ size }) => `${size}px` || '64px'};
-  height: ${({ size }) => `${size}px` || '64px'};
-  border-radius: 50%;
-  background-color: ${({ bgColor }) => bgColor};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  font-weight: bold;
-  cursor: ${({ isClickable }) => (isClickable ? 'pointer' : 'default')};
-  overflow: hidden;
-`;
-
-const AvatarImage = styled.img<{ size?: number }>`
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-`;
-
-const RemoveButton = styled.button`
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  width: 20px;
-  height: 20px;
-  background: rgba(0, 0, 0, 0.5);
-  color: #fff;
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  line-height: 0;
-  padding: 0;
-`;
-
-const FileInput = styled.input`
-  display: none;
-`;
-
-const Overlay = styled.div`
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: #fff;
-  border-radius: 50%;
-  &:hover {
-    background-color: rgba(0, 0, 0, 0.7);
-  }
-`;
 
 export const ProfileImagePlaceholder: React.FC<
   ProfileImagePlaceholderProps
@@ -112,23 +38,24 @@ export const ProfileImagePlaceholder: React.FC<
   size = 64,
   upload,
   remove,
-  role = 'participant',
+  role,
   active = false,
+  placeholderIcon,
+  disableOverlay,
 }) => {
-  const randomColor = useMemo(() => {
-    if (!icon) {
-      const index = Math.floor(Math.random() * backgroundColors.length);
-      return backgroundColors[index];
-    }
-    return '';
-  }, [icon]);
+  const { backgroundColor } = nameToColor(name);
 
   const getTwoUppercaseLetters = (fullName: string) => {
     if (!fullName) return '';
 
     const words = fullName.trim().split(' ');
-    const firstLetter = words[0]?.[0]?.toUpperCase() || '';
-    const secondLetter = words[words.length - 1]?.[0]?.toUpperCase() || '';
+
+    const firstLetter = /^[a-zA-Zа-яА-ЯёЁ]$/.test(words[0]?.[0] || '')
+      ? words[0][0].toUpperCase()
+      : '';
+    const secondLetter = /^[a-zA-Zа-яА-ЯёЁ]$/.test(words[1]?.[0] || '')
+      ? words[1][0].toUpperCase()
+      : '';
 
     return firstLetter + secondLetter;
   };
@@ -150,12 +77,12 @@ export const ProfileImagePlaceholder: React.FC<
 
   return (
     <Wrapper
-      bgColor={icon ? 'transparent' : randomColor}
+      bgColor={icon ? 'transparent' : backgroundColor}
       size={size}
       isClickable={active || !!upload?.active}
     >
       <AvatarCircle
-        bgColor={icon ? 'transparent' : randomColor}
+        bgColor={icon ? 'transparent' : backgroundColor}
         size={size}
         isClickable={active || (role === 'participant' && !!upload?.active)}
         onClick={handleAvatarClick}
@@ -167,6 +94,8 @@ export const ProfileImagePlaceholder: React.FC<
             alt="avatar icon"
             size={size}
           />
+        ) : placeholderIcon ? (
+          placeholderIcon
         ) : (
           getInitials()
         )}
@@ -178,9 +107,11 @@ export const ProfileImagePlaceholder: React.FC<
               accept="image/png, image/jpeg"
               onChange={handleFileChange}
             />
-            <Overlay>
-              <EditIcon style={{ color: '#fff', fontSize: size / 2 }} />
-            </Overlay>
+            {!disableOverlay && (
+              <Overlay>
+                <EditIcon style={{ fontSize: size / 2 }} color="#fff" />
+              </Overlay>
+            )}
           </>
         )}
       </AvatarCircle>

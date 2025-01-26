@@ -1,4 +1,4 @@
-import React, { forwardRef, useState } from 'react';
+import React, { forwardRef, useRef, useState } from 'react';
 import { IUser, MessageProps } from '../../types/types';
 import {
   CustomMessageTimestamp,
@@ -24,18 +24,16 @@ import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 import { BottomReplyContainer } from './BottomReplyContainer';
 import { setActiveMessage, setEditAction } from '../../roomStore/roomsSlice';
 import { MessageReply } from './MessageReply';
-import { useXmppClient } from '../../context/xmppProvider';
 import { DeletedMessage } from './DeletedMessage';
+import MessageTranslations from './MessageTranslations';
+import { useChatSettingState } from '../../hooks/useChatSettingState';
 
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
   MessageProps
 >(({ message, isUser, isReply }, ref) => {
-  const { client } = useXmppClient();
   const dispatch = useDispatch();
-  const config = useSelector(
-    (state: RootState) => state.chatSettingStore.config
-  );
+  const { config, langSource } = useChatSettingState();
 
   const [contextMenu, setContextMenu] = !config?.disableInteractions
     ? useState<{ visible: boolean; x: number; y: number }>({
@@ -45,15 +43,15 @@ const Message: React.FC<MessageProps> = forwardRef<
       })
     : [null, null];
 
-  const handleContextMenu = (event: React.MouseEvent) => {
+  const handleContextMenu = (event: React.MouseEvent | React.TouchEvent) => {
     if (config?.disableInteractions) return;
 
     event.preventDefault();
     const menuWidth = 240;
     const menuHeight = 310;
 
-    const x = event.clientX;
-    const y = event.clientY;
+    const x = 'touches' in event ? event.touches[0].clientX : event.clientX;
+    const y = 'touches' in event ? event.touches[0].clientY : event.clientY;
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
 
@@ -66,6 +64,21 @@ const Message: React.FC<MessageProps> = forwardRef<
       x: adjustedX,
       y: adjustedY,
     });
+  };
+
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleTouchStart = (event: React.TouchEvent) => {
+    timerRef.current = setTimeout(() => {
+      handleContextMenu(event);
+    }, 500);
+  };
+
+  const handleTouchEnd = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
   };
 
   const handleUserAvatarClick = (user: IUser): void => {
@@ -109,6 +122,11 @@ const Message: React.FC<MessageProps> = forwardRef<
         text: message.body,
       })
     );
+    setContextMenu({
+      visible: false,
+      x: null,
+      y: null,
+    });
   };
 
   return (
@@ -140,6 +158,8 @@ const Message: React.FC<MessageProps> = forwardRef<
           deleted={message.isDeleted}
           isUser={isUser}
           onContextMenu={handleContextMenu}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
         >
           {!isUser && (
             <CustomUserName isUser={isUser} color={config?.colors?.primary}>
@@ -151,6 +171,7 @@ const Message: React.FC<MessageProps> = forwardRef<
               handleReplyMessage={handleReplyMessage}
               isUser={isUser}
               text={JSON.parse(message.mainMessage).text}
+              color={config?.colors?.primary}
             />
           )}
           {message?.isMediafile === 'true' && !message?.isDeleted ? (
@@ -162,12 +183,20 @@ const Message: React.FC<MessageProps> = forwardRef<
             />
           ) : (
             <CustomMessageText>
-              {message.isDeleted ? (
+              {message.isDeleted && message.id !== 'delimiter-new' ? (
                 <DeletedMessage />
               ) : (
                 <span>{message.body}</span>
               )}
             </CustomMessageText>
+          )}
+
+          {config?.enableTranslates && (
+            <MessageTranslations
+              message={message}
+              config={config}
+              langSource={langSource}
+            />
           )}
           <CustomMessageTimestamp>
             {message?.pending && 'sending...'}
@@ -178,16 +207,15 @@ const Message: React.FC<MessageProps> = forwardRef<
           </CustomMessageTimestamp>
         </CustomMessageBubble>
         {message?.reply?.length ? (
-            <BottomReplyContainer
-              isUser={isUser}
-              onClick={handleReplyMessage}
-              reply={message?.reply}
-            />
-          ) : (
-            <div />
-          )}
+          <BottomReplyContainer
+            isUser={isUser}
+            onClick={handleReplyMessage}
+            reply={message?.reply}
+          />
+        ) : (
+          <div />
+        )}
       </CustomMessageContainer>
-
       {!config?.disableInteractions && (
         <MessageInteractions
           isReply={isReply}

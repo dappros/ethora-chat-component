@@ -1,25 +1,28 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback } from 'react';
 import {
   ChatContainerHeader,
+  ChatContainerHeaderBoxInfo,
+  ChatContainerHeaderInfo,
   ChatContainerHeaderLabel,
 } from '../styled/StyledComponents';
 import RoomList from './RoomList';
 import { IRoom } from '../../types/types';
 import { ProfileImagePlaceholder } from './ProfileImagePlaceholder';
 import Button from '../styled/Button';
-import { BackIcon, LeaveIcon, MoreIcon, ReportIcon } from '../../assets/icons';
-import { RootState } from '../../roomStore';
-import { useDispatch, useSelector } from 'react-redux';
+import { BackIcon } from '../../assets/icons';
+import { useDispatch } from 'react-redux';
 import Composing from '../styled/StyledInputComponents/Composing';
 import {
   deleteRoom,
   setCurrentRoom,
   setIsLoading,
 } from '../../roomStore/roomsSlice';
-import DropdownMenu from '../DropdownMenu/DropdownMenu';
 import { useXmppClient } from '../../context/xmppProvider';
 import { setActiveModal } from '../../roomStore/chatSettingsSlice';
 import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
+import { RoomMenu } from '../MenuRoom/MenuRoom';
+import { useRoomState } from '../../hooks/useRoomState';
+import { useChatSettingState } from '../../hooks/useChatSettingState';
 
 interface ChatHeaderProps {
   currentRoom: IRoom;
@@ -33,17 +36,9 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const dispatch = useDispatch();
   const { client } = useXmppClient();
 
-  const { composing } = useSelector(
-    (state: RootState) => state.rooms.rooms[currentRoom.jid]
-  );
-
-  const config = useSelector(
-    (state: RootState) => state.chatSettingStore.config
-  );
-
-  const { rooms, activeRoomJID } = useSelector(
-    (state: RootState) => state.rooms
-  );
+  const {roomsList, activeRoomJID} = useRoomState(currentRoom.jid);
+  const {composing} = useRoomState(currentRoom.jid).room;
+  const {config} = useChatSettingState();
 
   const handleChangeChat = (chat: IRoom) => {
     dispatch(setCurrentRoom({ roomJID: chat.jid }));
@@ -54,33 +49,11 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     client.leaveTheRoomStanza(activeRoomJID);
     dispatch(deleteRoom({ jid: activeRoomJID }));
 
-    const nextRoomJID = Object.keys(rooms)[0] || null;
+    const nextRoomJID = Object.keys(roomsList)[0] || null;
     if (nextRoomJID) {
       dispatch(setCurrentRoom({ roomJID: nextRoomJID }));
     }
-  }, [activeRoomJID, rooms, dispatch, client]);
-
-  const menuOptions = useMemo(
-    () => [
-      {
-        label: 'Report',
-        icon: <ReportIcon />,
-        onClick: () => {
-          console.log('Report clicked');
-        },
-        styles: { color: 'red' },
-      },
-      {
-        label: 'Leave',
-        icon: <LeaveIcon />,
-        onClick: () => {
-          handleLeaveClick();
-        },
-        styles: { color: 'red' },
-      },
-    ],
-    [activeRoomJID]
-  );
+  }, [activeRoomJID, roomsList, dispatch, client]);
 
   return (
     <ChatContainerHeader>
@@ -92,15 +65,14 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
             onClick={() => handleBackClick(false)}
           />
         )}
-        {config?.chatHeaderBurgerMenu && rooms && (
+        {config?.chatHeaderBurgerMenu && roomsList && (
           <RoomList
-            chats={Object.values(rooms)}
+            chats={Object.values(roomsList)}
             burgerMenu
             onRoomClick={handleChangeChat}
           />
         )}
-        <div
-          style={{ display: 'flex', gap: '8px', cursor: 'pointer' }}
+        <ChatContainerHeaderBoxInfo
           onClick={() => dispatch(setActiveModal(MODAL_TYPES.CHAT_PROFILE))}
         >
           <div>
@@ -111,14 +83,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
               active={true}
             />
           </div>
-          <div
-            style={{
-              textAlign: 'start',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2,
-            }}
-          >
+          <ChatContainerHeaderInfo>
             <ChatContainerHeaderLabel>
               {currentRoom?.title}
             </ChatContainerHeaderLabel>
@@ -131,23 +96,13 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                 `${currentRoom?.usersCnt} users`
               )}
             </ChatContainerHeaderLabel>
-          </div>
-        </div>
+          </ChatContainerHeaderInfo>
+        </ChatContainerHeaderBoxInfo>
       </div>
 
       <div style={{ display: 'flex', gap: 16 }}>
         {/* <SearchInput animated icon={<SearchIcon />} /> */}
-        <DropdownMenu
-          position="left"
-          options={menuOptions}
-          openButton={
-            <Button
-              style={{ padding: 8, maxHeight: '40px' }}
-              EndIcon={<MoreIcon />}
-              unstyled
-            />
-          }
-        />
+        <RoomMenu handleLeaveClick={handleLeaveClick} />
       </div>
     </ChatContainerHeader>
   );

@@ -1,11 +1,13 @@
+import { Client } from '@xmpp/client';
 import { MODAL_TYPES } from '../helpers/constants/MODAL_TYPES';
+import { TranslationObject } from '../helpers/transformTranslatations';
 
 export interface IUser extends Partial<User> {
   id: string;
   name: string | null;
   userJID?: string | null;
-  token: string;
-  refreshToken: string;
+  token?: string;
+  refreshToken?: string;
 }
 
 export interface IMessage {
@@ -30,6 +32,8 @@ export interface IMessage {
   isDeleted?: boolean;
   mainMessage?: string;
   reply?: IReply[];
+  translations?: TranslationObject;
+  langSource?: string;
 }
 
 export interface IReply extends IMessage {}
@@ -166,6 +170,7 @@ export interface IConfig {
   disableRoomMenu?: boolean;
   defaultRooms?: string[] | ConfigRoom[];
   refreshTokens?: { enabled: boolean; refreshFunction?: any };
+  enableTranslates?: boolean;
 }
 
 interface ConfigRoom {
@@ -197,7 +202,7 @@ export interface StorageUser {
 export interface MessageProps {
   message: IMessage;
   isUser: boolean;
-  isReply?: boolean;
+  isReply: boolean;
 }
 
 export interface MediaMessageType {}
@@ -216,3 +221,103 @@ export interface EditAction {
 }
 
 export type ModalType = (typeof MODAL_TYPES)[keyof typeof MODAL_TYPES];
+
+export interface ModalFile {
+  fileName: string;
+  fileURL: string;
+  mimetype: string;
+}
+
+//xmppClientWs
+
+export interface XmppClientInterface {
+  client: Client;
+  devServer?: string;
+  host: string;
+  service: string;
+  conference: string;
+  username: string;
+  status: string;
+
+  password: string;
+  reconnectAttempts: number;
+  maxReconnectAttempts: number;
+  reconnectDelay: number;
+
+  checkOnline(): boolean;
+  initializeClient(): void;
+  attachEventListeners(): void;
+  scheduleReconnect(): void;
+  reconnect(): void;
+  close(): Promise<void>;
+
+  getRoomsStanza(): Promise<void>;
+  createRoomStanza(
+    title: string,
+    description: string,
+    to?: string
+  ): Promise<any>;
+  inviteRoomRequestStanza(to: string, roomJid: string): Promise<void>;
+  leaveTheRoomStanza(roomJID: string): void;
+  presenceInRoomStanza(roomJID: string): void;
+  getHistoryStanza(
+    chatJID: string,
+    max: number,
+    before?: number,
+    otherStanzaId?: string
+  ): Promise<any>;
+  getLastMessageArchiveStanza(roomJID: string): void;
+  setRoomImageStanza(
+    roomJid: string,
+    roomThumbnail: string,
+    type: string,
+    roomBackground?: string
+  ): void;
+  getRoomInfoStanza(roomJID: string): void;
+  getRoomMembersStanza(roomJID: string): void;
+  setVCardStanza(xmppUsername: string): void;
+
+  sendMessage(
+    roomJID: string,
+    firstName: string,
+    lastName: string,
+    photo: string,
+    walletAddress: string,
+    userMessage: string,
+    notDisplayedValue?: string,
+    isReply?: boolean,
+    showInChannel?: boolean,
+    mainMessage?: string
+  ): void;
+  deleteMessageStanza(room: string, msgId: string): void;
+  editMessageStanza(room: string, msgId: string, text: string): void;
+  sendTypingRequestStanza(
+    chatId: string,
+    fullName: string,
+    start: boolean
+  ): void;
+  getChatsPrivateStoreRequestStanza(): Promise<any>;
+  actionSetTimestampToPrivateStoreStanza(
+    chatId: string,
+    timestamp: number,
+    chats?: string[]
+  ): Promise<void>;
+  sendMediaMessageStanza(roomJID: string, data: any): void;
+  createPrivateRoomStanza(
+    title: string,
+    description: string,
+    to: string
+  ): Promise<string>;
+}
+
+export type Iso639_1Codes = 'en' | 'es' | 'pt' | 'ht' | 'zh';
+
+export interface Language {
+  iso639_1: Iso639_1Codes;
+  name: string;
+}
+
+export type LanguageOptions = {
+  languages: Array<Language>;
+  language?: Iso639_1Codes;
+};

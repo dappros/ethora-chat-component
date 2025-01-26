@@ -1,25 +1,47 @@
 import { useEffect, useState, useRef } from 'react';
+import { IRoom } from '../types/types';
 
 const useMessageLoaderQueue = (
   roomsList: string[],
+  rooms: {
+    [jid: string]: IRoom;
+  },
   globalLoading: boolean,
   loading: boolean,
-  loadMoreMessages: (roomJid: string, max: number) => void
+  loadMoreMessages: (roomJid: string, max: number) => Promise<any>
 ) => {
   const [queueActive, setQueueActive] = useState(false);
   const [processedChats, setProcessedChats] = useState<Set<string>>(new Set());
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const processQueue = () => {
-      if (!globalLoading && processedChats.size !== roomsList.length) {
-        console.log('Processing queue...');
-        roomsList.forEach((room) => {
-          if (!processedChats.has(room)) {
-            loadMoreMessages(room, 20);
+    const processQueue = async () => {
+      if (
+        !globalLoading &&
+        !loading &&
+        processedChats.size !== roomsList.length
+      ) {
+        const batchSize = 3;
+        const batchedRooms = roomsList.filter(
+          (room) => !processedChats.has(room)
+        );
+
+        for (let i = 0; i < batchedRooms.length; i += batchSize) {
+          const currentBatch = batchedRooms.slice(i, i + batchSize);
+
+          for (const room of currentBatch) {
+            if (!roomHasMoreRooms(rooms[room]) && !rooms[room]?.noMessages) {
+              try {
+                await loadMoreMessages(room, 10);
+              } catch (error) {
+                console.error(`Error processing room ${room}:`, error);
+              }
+              await new Promise((res) => setTimeout(res, 500));
+            }
             setProcessedChats((prev) => new Set(prev).add(room));
           }
-        });
+        }
+        console.log('Processed queue');
       }
     };
 
@@ -54,6 +76,10 @@ const useMessageLoaderQueue = (
     processedChats,
     loading,
   ]);
+};
+
+const roomHasMoreRooms = (room: IRoom, max: number = 20) => {
+  return room.messages.length > max;
 };
 
 export default useMessageLoaderQueue;

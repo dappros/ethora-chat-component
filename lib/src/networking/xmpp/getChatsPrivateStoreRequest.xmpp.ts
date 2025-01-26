@@ -1,13 +1,14 @@
 import { Client, xml } from '@xmpp/client';
 import { Element } from 'ltx';
 import { createTimeoutPromise } from './createTimeoutPromise.xmpp';
+import { store } from '../../roomStore';
+import { setLastViewedTimestamp } from '../../roomStore/roomsSlice';
 
 export async function getChatsPrivateStoreRequest(client: Client) {
   const id = `get-chats-private-req:${Date.now().toString()}`;
   let stanzaHdlrPointer: {
     (el: Element): void;
-    (stanza: Element): void;
-    (el: Element): void;
+    (stanza: any): void;
   };
 
   const unsubscribe = () => {
@@ -15,17 +16,22 @@ export async function getChatsPrivateStoreRequest(client: Client) {
   };
 
   const responsePromise = new Promise((resolve, _reject) => {
-    stanzaHdlrPointer = (stanza: Element) => {
-      if (stanza.is('iq') && stanza.attrs.id === id) {
-        let chatjson = stanza.getChild('query')?.getChild('chatjson');
+    try {
+      stanzaHdlrPointer = (stanza: Element) => {
+        if (stanza.is('iq') && stanza.attrs.id === id) {
+          let chatjson = stanza.getChild('query')?.getChild('chatjson');
 
-        if (chatjson) {
-          resolve(chatjson.attrs.value);
-        } else {
-          resolve(null);
+          if (chatjson && chatjson?.attrs?.value) {
+            const roomTimestampObject = JSON.parse(chatjson.attrs.value);
+            resolve(roomTimestampObject);
+          } else {
+            resolve(null);
+          }
         }
-      }
-    };
+      };
+    } catch (error) {
+      console.log('err', error);
+    }
 
     client.on('stanza', stanzaHdlrPointer);
 
@@ -47,5 +53,11 @@ export async function getChatsPrivateStoreRequest(client: Client) {
 
   const timeoutPromise = createTimeoutPromise(2000, unsubscribe);
 
-  return Promise.race([responsePromise, timeoutPromise]);
+  try {
+    const res = await Promise.race([responsePromise, timeoutPromise]);
+    return res;
+  } catch (e) {
+    console.log('=-> error in getting last read timestamps', e);
+    return null;
+  }
 }

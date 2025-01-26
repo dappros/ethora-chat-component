@@ -1,11 +1,10 @@
-import React, { FC, useEffect, useMemo, useState } from 'react';
+import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import ChatRoom from './ChatRoom';
 import {
   setActiveModal,
   setConfig,
   setDeleteModal,
-  setStoreClient,
 } from '../../roomStore/chatSettingsSlice';
 import { ChatWrapperBox } from '../styled/ChatWrapperBox';
 import { Overlay, StyledModal } from '../styled/MediaModal';
@@ -33,6 +32,13 @@ import { StyledLoaderWrapper } from '../styled/StyledComponents';
 import Modal from '../Modals/Modal/Modal';
 import ThreadWrapper from '../Thread/ThreadWrapper';
 import { ModalWrapper } from '../Modals/ModalWrapper/ModalWrapper';
+import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { CONFERENCE_DOMAIN } from '../../helpers/constants/PLATFORM_CONSTANTS';
+import useMessageLoaderQueue from '../../hooks/useMessageLoaderQueue';
+import { useRoomState } from '../../hooks/useRoomState';
+import { initRoomsPresence } from '../../helpers/initRoomsPresence';
+import { updatedChatLastTimestamps } from '../../helpers/updatedChatLastTimestamps';
+import { updateMessagesTillLast } from '../../helpers/updateMessagesTillLast';
 
 interface ChatWrapperProps {
   token?: string;
@@ -51,16 +57,10 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   config,
   roomJID,
 }) => {
-  const {
-    user,
-    activeModal,
-    deleteModal,
-    client: storedClient,
-  } = useSelector((state: RootState) => state.chatSettingStore);
+  const { user, activeModal, deleteModal } = useChatSettingState();
 
   const [isInited, setInited] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  // const [isModalDeleteOpen, setIsModalDeleteOpen] = useState(false);
 
   const [isChatVisible, setIsChatVisible] = useState(false);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
@@ -122,6 +122,18 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   }, [user.xmppPassword]);
 
   useEffect(() => {
+    const url = window.location.href;
+    const urlObj = new URL(url);
+    const searchParams = urlObj.searchParams;
+    const chatId = searchParams.get('chatId');
+
+    if (chatId) {
+      const cleanChatId = chatId.split('@')[0];
+      dispatch(setCurrentRoom({ roomJID: cleanChatId + CONFERENCE_DOMAIN }));
+    }
+  }, []);
+
+  useEffect(() => {
     if (roomJID) {
       dispatch(setCurrentRoom({ roomJID: roomJID }));
     }
@@ -133,43 +145,49 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           setShowModal(true);
           console.log('Error, no user');
         } else {
-          if (!client && !storedClient) {
+          if (!client) {
             setShowModal(false);
 
             console.log('No client, so initing one');
             await initializeClient(
               user.defaultWallet?.walletAddress,
               user.xmppPassword
-            ).then((client) => {
-              client.getRooms().then(() => {
-                client.getChatsPrivateStoreRequestStanza();
-                dispatch(setStoreClient(client));
-                setClient(client);
-              });
+            ).then(async (client) => {
+              if (Object.keys(roomsList).length > 0) {
+                await initRoomsPresence(client, roomsList);
+              } else {
+                await client.getRoomsStanza();
+              }
+              await client
+                ?.getChatsPrivateStoreRequestStanza()
+                .then(
+                  (roomTimestampObject: [jid: string, timestamp: string]) => {
+                    updatedChatLastTimestamps(roomTimestampObject, dispatch);
+                    client.setVCardStanza(`${user.firstName} ${user.lastName}`);
+                    setClient(client);
+                  }
+                );
             });
             setInited(true);
-            {
-              config?.refreshTokens?.enabled && refresh();
-            }
-          } else if (storedClient) {
-            setClient(storedClient);
-            if (!activeRoomJID) {
-              storedClient.getRooms().then(() => {
-                storedClient.getChatsPrivateStoreRequestStanza();
-              });
-            }
-            setInited(true);
+            await updateMessagesTillLast(rooms, client);
             {
               config?.refreshTokens?.enabled && refresh();
             }
           } else {
-            if (!activeRoomJID) {
-              client.getRooms().then(() => {
-                client.getChatsPrivateStoreRequestStanza();
-              });
+            if (Object.keys(roomsList).length > 0) {
+              initRoomsPresence(client, roomsList);
+              await client
+                ?.getChatsPrivateStoreRequestStanza()
+                .then(
+                  (roomTimestampObject: [jid: string, timestamp: string]) => {
+                    updatedChatLastTimestamps(roomTimestampObject, dispatch);
+                    client.setVCardStanza(`${user.firstName} ${user.lastName}`);
+                    setClient(client);
+                  }
+                );
             }
-            client.getChatsPrivateStoreRequestStanza();
             setInited(true);
+            await updateMessagesTillLast(rooms, client);
             {
               config?.refreshTokens?.enabled && refresh();
             }
@@ -185,7 +203,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     };
 
     initXmmpClient();
-  }, [user.xmppPassword, user.defaultWallet]);
+  }, [user.xmppPassword, user.defaultWallet.walletAddress]);
 
   // functionality to handle unreadmessages if user leaves tab
   useEffect(() => {
@@ -216,6 +234,27 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
       window.removeEventListener('offline', handleBeforeUnload);
     };
   }, [client, room?.jid]);
+
+  const { roomsList, loading, globalLoading } = useRoomState();
+
+  const queueMessageLoader = useCallback(
+    async (chatJID: string, max: number) => {
+      try {
+        client?.getHistoryStanza(chatJID, max);
+      } catch (error) {
+        console.log('Error in loading queue messages');
+      }
+    },
+    [globalLoading, loading, isInited]
+  );
+
+  useMessageLoaderQueue(
+    Object.keys(roomsList),
+    roomsList,
+    globalLoading,
+    loading,
+    queueMessageLoader
+  );
 
   if (user.xmppPassword === '' && user.xmppUsername === '')
     return <LoginForm config={config} />;

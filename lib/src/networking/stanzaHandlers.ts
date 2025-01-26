@@ -14,6 +14,7 @@ import {
 import { IRoom } from '../types/types';
 import { createMessageFromXml } from '../helpers/createMessageFromXml';
 import { setDeleteModal } from '../roomStore/chatSettingsSlice';
+import { getDataFromXml } from '../helpers/getDataFromXml';
 
 // TO DO: we are thinking to refactor this code in the following way:
 // each stanza will be parsed for 'type'
@@ -31,40 +32,22 @@ const onRealtimeMessage = async (stanza: Element) => {
     !stanza.getChild('paused') &&
     !stanza.getChild('subject') &&
     !stanza.is('iq') &&
-    stanza.attrs.id !== 'deleteMessageStanza'
+    stanza?.attrs?.id !== 'deleteMessageStanza' &&
+    !stanza?.attrs?.id?.includes('message-reaction')
   ) {
-    const body = stanza?.getChild('body');
-    const archived = stanza?.getChild('archived');
-    const data = stanza?.getChild('data');
-    const id = archived?.attrs.id;
-
-    const deleted = stanza
-      .getChild('result')
-      ?.getChild('forwarded')
-      ?.getChild('message')
-      ?.getChild('deleted');
+    const { data, id, body, ...rest } = await getDataFromXml(stanza);
 
     if (!data) {
-      console.log(stanza.toString());
-      console.log('Missing data elements in real-time message.');
+      console.log('No data in stanza');
       return;
     }
 
-    if (!data.attrs.senderJID) {
-      console.log(stanza.toString());
-      console.log(data.attrs.senderJID);
-
-      console.log('Missing sender information in real-time message.');
-      return;
-    }
-
-    const message = await createMessageFromXml(
-      data.attrs,
-      body,
+    const message = await createMessageFromXml({
+      data,
       id,
-      stanza.attrs.from,
-      !!deleted
-    );
+      body,
+      ...rest,
+    });
 
     store.dispatch(
       addRoomMessage({
@@ -119,59 +102,20 @@ const onMessageHistory = async (stanza: any) => {
     stanza.is('message') &&
     stanza.children[0].attrs.xmlns === 'urn:xmpp:mam:2'
   ) {
-    // console.log("stanza -->", stanza.toString());
-    const body = stanza
-      .getChild('result')
-      ?.getChild('forwarded')
-      ?.getChild('message')
-      ?.getChild('body');
-    const data = stanza
-      .getChild('result')
-      ?.getChild('forwarded')
-      ?.getChild('message')
-      ?.getChild('data');
-    const deleted = stanza
-      .getChild('result')
-      ?.getChild('forwarded')
-      ?.getChild('message')
-      ?.getChild('deleted');
+    const { data, id, body, ...rest } = await getDataFromXml(stanza);
 
-    const delay = stanza
-      .getChild('result')
-      ?.getChild('forwarded')
-      ?.getChild('delay');
-    const id = stanza.getChild('result')?.attrs.id;
-    if (!delay) {
-      if (stanza.getChild('subject')) {
-        console.log('Subject.');
-        return;
-      }
-      if (!data || !body || !id) {
-        console.log('Missing required elements in message history.');
-        return;
-      }
-    }
-    // console.log(stanza.attrs.from);
-
-    if (
-      !data?.attrs ||
-      !data.attrs.senderFirstName ||
-      !data.attrs.senderLastName ||
-      !data.attrs.senderJID
-    ) {
-      // console.log(
-      //   "Missing sender information in message history.",
-      //   stanza.toString()
-      // );
+    if (!data) {
+      console.log('No data in stanza');
       return;
     }
-    const message = await createMessageFromXml(
-      data.attrs,
-      body,
+
+    const message = await createMessageFromXml({
+      data,
       id,
-      stanza.attrs.from,
-      !!deleted
-    );
+      body,
+      ...rest,
+    });
+
     store.dispatch(
       addRoomMessage({
         roomJID: stanza.attrs.from,
@@ -184,14 +128,10 @@ const onMessageHistory = async (stanza: any) => {
 const handleComposing = async (stanza: Element, currentUser: string) => {
   if (stanza.getChild('paused') || stanza.getChild('composing')) {
     const composingUser = stanza.attrs?.from?.split('/')?.[1];
-    console.log(
-      stanza.getChild('data').attrs?.fullName,
-      stanza.attrs?.from.split('/')[0]
-    );
 
     if (
       composingUser &&
-      currentUser.toLowerCase() !== composingUser?.replace(/_/g, '')
+      currentUser?.toLowerCase() !== composingUser?.replace(/_/g, '')
     ) {
       const chatJID = stanza.attrs?.from.split('/')[0];
 
@@ -238,7 +178,7 @@ const onChatInvite = async (stanza: Element, client: any) => {
         }
 
         await client.presenceInRoomStanza(chatId);
-        await client.getRooms();
+        await client.getRoomsStanza();
       }
     }
   }
@@ -277,7 +217,7 @@ const onGetLastMessageArchive = (stanza: Element, xmpp: any) => {
 
 const onNewRoomCreated = (stanza: Element, xmpp: any) => {
   store.dispatch(setCurrentRoom({ roomJID: stanza.attrs.from }));
-  xmpp.getRooms();
+  xmpp.getRoomsStanza();
 };
 
 const onGetChatRooms = (stanza: Element, xmpp: any) => {
@@ -311,28 +251,14 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
                 ? result?.attrs?.room_thumbnail
                 : null,
             unreadMessages: 0,
+            lastViewedTimestamp: 0,
           };
 
           store.dispatch(addRoom({ roomData: { ...roomData } }));
 
-          let lastViewedTimestamp = '0';
-          if (result?.attrs?.jid) {
-            lastViewedTimestamp =
-              await xmpp.getChatsPrivateStoreRequestStanza();
-          }
-
           if (!store.getState().rooms.activeRoomJID) {
             store.dispatch(setCurrentRoom({ roomJID: roomData.jid }));
           }
-
-          store.dispatch(
-            setLastViewedTimestamp({
-              chatJID: roomData.jid,
-              timestamp: Number(
-                lastViewedTimestamp?.split(':')?.[1]?.split('}')?.[0] || 0
-              ),
-            })
-          );
 
           if (roomData.jid) {
             xmpp.presenceInRoomStanza(roomData.jid);

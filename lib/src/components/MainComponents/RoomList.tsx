@@ -6,7 +6,6 @@ import React, {
   useMemo,
 } from 'react';
 import { IRoom } from '../../types/types';
-import { ProfileImagePlaceholder } from './ProfileImagePlaceholder';
 import { SearchInput } from '../InputComponents/Search';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
@@ -17,19 +16,15 @@ import NewChatModal from '../Modals/NewChatModal/NewChatModal';
 import { setLogoutState } from '../../roomStore/roomsSlice';
 import {
   BurgerButton,
-  ChatInfo,
-  ChatItem,
-  ChatName,
   Container,
   Divider,
-  LastMessage,
   ScollableContainer,
   SearchContainer,
-  UserCount,
 } from '../styled/RoomListComponents';
 import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 import { useXmppClient } from '../../context/xmppProvider';
 import ChatRoomItem from '../RoomComponents/ChatRoomItem';
+import { useChatSettingState } from '../../hooks/useChatSettingState';
 
 interface RoomListProps {
   chats: IRoom[];
@@ -50,9 +45,7 @@ const RoomList: React.FC<RoomListProps> = ({
 
   const dispatch = useDispatch();
 
-  const config = useSelector(
-    (state: RootState) => state.chatSettingStore.config
-  );
+  const {config} = useChatSettingState();
 
   const { activeRoomJID } = useSelector((state: RootState) => state.rooms);
 
