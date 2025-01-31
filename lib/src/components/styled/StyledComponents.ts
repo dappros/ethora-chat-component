@@ -146,9 +146,7 @@ export const SendButton = styled.button`
     background-color: #0056b3;
   }
 `;
-//
-//
-//
+
 export const CustomMessageContainer = styled.div<{
   isUser: boolean;
   reply: number;

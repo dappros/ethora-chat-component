@@ -228,6 +228,16 @@ export class XmppClient implements XmppClientInterface {
     );
   };
 
+  // sendMessageReactionStanza(
+  //   messageId: string,
+  //   roomJid: string,
+  //   reactionsList: string[],
+  //   data: any,
+  //   reactionSymbol?: any,
+  // ) {
+  //   sendMessageReaction(this.client, messageId, roomJid, reactionsList, data, reactionSymbol);
+  // }
+
   sendTextMessageWithTranslateTagStanza = (
     roomJID: string,
     firstName: string,

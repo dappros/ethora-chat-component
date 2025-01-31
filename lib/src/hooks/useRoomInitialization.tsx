@@ -4,6 +4,9 @@ import { useXmppClient } from '../context/xmppProvider';
 import { IConfig, IRoom } from '../types/types';
 import { useDispatch } from 'react-redux';
 
+const countUndefinedText = (arr: { text?: string }[]) =>
+  arr.filter((item) => item.text === undefined).length;
+
 export const useRoomInitialization = (
   activeRoomJID: string,
   roomsList: Record<string, IRoom>,
@@ -16,7 +19,15 @@ export const useRoomInitialization = (
   useEffect(() => {
     const getDefaultHistory = async () => {
       dispatch(setIsLoading({ loading: true, chatJID: activeRoomJID }));
-      await client.getHistoryStanza(activeRoomJID, 30);
+      const res = await client.getHistoryStanza(activeRoomJID, 30);
+      if (countUndefinedText(res) > 0) {
+        // make it more optimized
+        await client.getHistoryStanza(
+          activeRoomJID,
+          20 + countUndefinedText(res),
+          res[0].id
+        );
+      }
       dispatch(setIsLoading({ loading: false, chatJID: activeRoomJID }));
     };
 

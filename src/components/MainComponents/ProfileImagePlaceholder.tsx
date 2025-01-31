@@ -79,12 +79,12 @@ export const ProfileImagePlaceholder: React.FC<
     <Wrapper
       bgColor={icon ? 'transparent' : backgroundColor}
       size={size}
-      isclickable={active || !!upload?.active}
+      isClickable={active || !!upload?.active}
     >
       <AvatarCircle
         bgColor={icon ? 'transparent' : backgroundColor}
         size={size}
-        isclickable={active || (role === 'participant' && !!upload?.active)}
+        isClickable={active || (role === 'participant' && !!upload?.active)}
         onClick={handleAvatarClick}
         style={{ fontSize: size >= 64 ? '24px' : '18px' }}
       >

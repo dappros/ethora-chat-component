@@ -47,9 +47,10 @@ export const getHistory = async (
         let mainMessages: Record<string, string>[] = [];
 
         for (const msg of messages) {
+          const reactions = msg?.getChild('reactions');
           const text = msg.getChild('body')?.getText();
 
-          if (text) {
+          if (text || reactions) {
             let parsedEl: Record<string, string> = {};
 
             parsedEl.text = text;

@@ -48,7 +48,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
     try {
       const authData = await loginEmail(email, password);
 
-      if (authData?.response?.status === 401) {
+      if (authData?.status === 401) {
         setErrors((prev) => ({
           ...prev,
           password: 'You entered wrong data. Try again',

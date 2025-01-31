@@ -40,7 +40,7 @@ export interface IMessage {
 export interface ReactionMessage {
   emoji: string[];
   data: Record<string, string>;
-} 
+}
 
 export interface IReply extends IMessage {}
 
@@ -317,7 +317,7 @@ export interface XmppClientInterface {
     roomJid: string,
     reactionsList: string[],
     data: any,
-    reactionSymbol?: any,
+    reactionSymbol?: any
   ): void;
   deleteMessageStanza(room: string, msgId: string): void;
   editMessageStanza(room: string, msgId: string, text: string): void;

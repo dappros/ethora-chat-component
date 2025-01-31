@@ -69,13 +69,16 @@ export const roomsStore = createSlice({
         );
       }
     },
-    setReactions: (state, action: PayloadAction<ReactionAction | undefined>) => {
+    setReactions: (
+      state,
+      action: PayloadAction<ReactionAction | undefined>
+    ) => {
       const { roomJID, messageId, reactions, from, data } = action.payload;
 
       if (state.rooms[roomJID]) {
         state.rooms[roomJID].messages.map((message) => {
           if (message.id === messageId) {
-            if(from) {
+            if (from) {
               if (!message.reaction) {
                 message.reaction = {};
               }
@@ -83,12 +86,12 @@ export const roomsStore = createSlice({
               const fromId = from.split('@')[0];
               message.reaction[fromId] = {
                 emoji: reactions,
-                data: data
+                data: data,
               };
             }
-          };
+          }
         });
-      };
+      }
     },
     setEditAction: (state, action: PayloadAction<EditAction | undefined>) => {
       const { isEdit } = action.payload;
