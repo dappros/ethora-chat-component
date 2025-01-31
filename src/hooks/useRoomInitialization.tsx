@@ -30,16 +30,14 @@ export const useRoomInitialization = (
       }
     };
 
-    dispatch(setIsLoading({ loading: true, chatJID: activeRoomJID }));
-
     if (Object.keys(roomsList)?.length > 0) {
       if (!roomsList?.[activeRoomJID] && Object.keys(roomsList).length > 0) {
         dispatch(setIsLoading({ loading: true, chatJID: activeRoomJID }));
         initialPresenceAndHistory();
-      } else if (messageLength < 15) {
+      } else if (messageLength < 20) {
         getDefaultHistory();
       } else {
-        dispatch(setIsLoading({ loading: false, chatJID: activeRoomJID }));
+        getDefaultHistory();
       }
     } else if (!roomsList?.[activeRoomJID]) {
       initialPresenceAndHistory();

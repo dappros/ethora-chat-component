@@ -42,7 +42,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   const { client } = useXmppClient();
 
-  const { config, user, selectedUser } = useSelector(
+  const { config, user, selectedUser, langSource } = useSelector(
     (state: RootState) => state.chatSettingStore
   );
 
@@ -82,7 +82,6 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   ];
 
   const handleSelect = (selected: { name: string; id: Iso639_1Codes }) => {
-    console.log('Selected Language:', selected);
     dispatch(setLangSource(selected.id));
   };
 
@@ -124,6 +123,12 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   }, [selectedUser]);
 
   const modalUser: any = selectedUser ?? user;
+
+  const findLanguage = () => {
+    if (langSource)
+      return languageOptions.find((lang) => lang.id === langSource);
+    else return undefined;
+  };
 
   const DefaultBody = useMemo(
     () => (
@@ -167,6 +172,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 placeholder={'Select your language'}
                 onSelect={handleSelect}
                 accentColor={config?.colors?.primary}
+                selectedValue={findLanguage()}
               />
             </BorderedContainer>
           )}

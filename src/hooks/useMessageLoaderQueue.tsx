@@ -36,7 +36,7 @@ const useMessageLoaderQueue = (
               } catch (error) {
                 console.error(`Error processing room ${room}:`, error);
               }
-              await new Promise((res) => setTimeout(res, 500));
+              await new Promise((res) => setTimeout(res, 200));
             }
             setProcessedChats((prev) => new Set(prev).add(room));
           }
@@ -79,7 +79,7 @@ const useMessageLoaderQueue = (
 };
 
 const roomHasMoreRooms = (room: IRoom, max: number = 20) => {
-  return room.messages.length > max;
+  return room.messages?.length > max;
 };
 
 export default useMessageLoaderQueue;

@@ -159,17 +159,19 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
                 await client.getRoomsStanza();
               }
               await client
-                ?.getChatsPrivateStoreRequestStanza()
+                .getChatsPrivateStoreRequestStanza()
                 .then(
-                  (roomTimestampObject: [jid: string, timestamp: string]) => {
+                  async (
+                    roomTimestampObject: [jid: string, timestamp: string]
+                  ) => {
                     updatedChatLastTimestamps(roomTimestampObject, dispatch);
                     client.setVCardStanza(`${user.firstName} ${user.lastName}`);
+                    await updateMessagesTillLast(rooms, client);
                     setClient(client);
                   }
                 );
             });
             setInited(true);
-            await updateMessagesTillLast(rooms, client);
             {
               config?.refreshTokens?.enabled && refresh();
             }
@@ -177,17 +179,19 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             if (Object.keys(roomsList).length > 0) {
               initRoomsPresence(client, roomsList);
               await client
-                ?.getChatsPrivateStoreRequestStanza()
+                .getChatsPrivateStoreRequestStanza()
                 .then(
-                  (roomTimestampObject: [jid: string, timestamp: string]) => {
+                  async (
+                    roomTimestampObject: [jid: string, timestamp: string]
+                  ) => {
                     updatedChatLastTimestamps(roomTimestampObject, dispatch);
                     client.setVCardStanza(`${user.firstName} ${user.lastName}`);
+                    await updateMessagesTillLast(rooms, client);
                     setClient(client);
                   }
                 );
             }
             setInited(true);
-            await updateMessagesTillLast(rooms, client);
             {
               config?.refreshTokens?.enabled && refresh();
             }

@@ -110,6 +110,8 @@ export const roomsStore = createSlice({
     ) {
       const { roomJID, message, start } = action.payload;
 
+      if (!message?.body) return; // change when reactions are ready
+
       const roomMessages = state.rooms[roomJID]?.messages;
 
       if (!roomMessages) {

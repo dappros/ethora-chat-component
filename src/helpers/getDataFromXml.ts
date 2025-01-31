@@ -39,9 +39,9 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
   const langSource = fullData?.getChild('translate')?.attrs?.source;
   const roomJid = data?.attrs?.['roomJID'];
   const senderFirstName =
-    data?.attrs?.['firstName'] || data?.attrs?.senderFirstName;
+    data?.attrs?.['firstName'] || data?.attrs?.senderFirstName || '';
   const senderLastName =
-    data?.attrs?.['lastName'] || data?.attrs?.senderLastName;
+    data?.attrs?.['lastName'] || data?.attrs?.senderLastName || '';
   const photoURL = data?.attrs?.['photo'];
   const senderWalletAddress =
     data?.attrs?.['walletAddress'] || data?.attrs?.senderWalletAddress;

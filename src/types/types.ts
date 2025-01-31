@@ -39,7 +39,6 @@ export interface IMessage {
 export interface IReply extends IMessage {}
 
 export interface IRoom {
-  id: string;
   name: string;
   jid: string;
   title: string;
@@ -48,7 +47,9 @@ export interface IRoom {
   isLoading: boolean;
   roomBg: string;
 
+  id?: string;
   lastMessage?: string;
+  lastMessageTimestamp?: number;
   lastRoomMessage?: RoomLastMessage;
   icon?: string;
   composing?: boolean;
@@ -112,6 +113,8 @@ export interface User {
   ];
   appId: string;
   xmppPassword: string;
+
+  langSource?: Iso639_1Codes;
 
   homeScreen?: string;
   registrationChannelType?: string;
