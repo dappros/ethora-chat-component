@@ -9,7 +9,7 @@ export const getRooms = async (client: Client): Promise<any> => {
     client.off('stanza', stanzaHdlrPointer);
   };
 
-  const responsePromise = new Promise((resolve, reject) => {
+  const responsePromise = new Promise<void>((resolve, reject) => {
     stanzaHdlrPointer = (stanza) => {};
 
     client.on('stanza', stanzaHdlrPointer);
@@ -29,6 +29,7 @@ export const getRooms = async (client: Client): Promise<any> => {
       unsubscribe();
       reject(err);
     });
+    resolve();
   });
 
   const timeoutPromise = createTimeoutPromise(2000, unsubscribe);

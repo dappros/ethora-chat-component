@@ -129,6 +129,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
     if (chatId) {
       const cleanChatId = chatId.split('@')[0];
+
       dispatch(setCurrentRoom({ roomJID: cleanChatId + CONFERENCE_DOMAIN }));
     }
   }, []);

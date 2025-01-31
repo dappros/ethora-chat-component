@@ -33,15 +33,15 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
   const deleted = !!fullData?.getChild('deleted');
   const translations = fullData?.getChild('translations')?.attrs?.value
     ? transformArrayToObject(
-        JSON.parse(fullData.getChild('translations').attrs.value).translates
+        JSON.parse(fullData.getChild('translations')!.attrs.value).translates
       )
     : undefined;
   const langSource = fullData?.getChild('translate')?.attrs?.source;
   const roomJid = data?.attrs?.['roomJID'];
   const senderFirstName =
-    data?.attrs?.['firstName'] || data?.attrs?.senderFirstName;
+    data?.attrs?.['firstName'] || data?.attrs?.senderFirstName || '';
   const senderLastName =
-    data?.attrs?.['lastName'] || data?.attrs?.senderLastName;
+    data?.attrs?.['lastName'] || data?.attrs?.senderLastName || '';
   const photoURL = data?.attrs?.['photo'];
   const senderWalletAddress =
     data?.attrs?.['walletAddress'] || data?.attrs?.senderWalletAddress;
@@ -51,21 +51,6 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
     name: `${senderFirstName} ${senderLastName}`,
     profileImage: photoURL,
   };
-
-  if (id === 7916022727914) {
-    console.log({
-      data: { ...data?.attrs },
-      id,
-      body,
-      roomJid,
-      date,
-      user,
-      deleted,
-      translations,
-      langSource,
-    });
-    console.log(stanza.toString());
-  }
 
   return {
     data: { ...data?.attrs },

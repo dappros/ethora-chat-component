@@ -36,9 +36,9 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const dispatch = useDispatch();
   const { client } = useXmppClient();
 
-  const {roomsList, activeRoomJID} = useRoomState(currentRoom.jid);
-  const {composing} = useRoomState(currentRoom.jid).room;
-  const {config} = useChatSettingState();
+  const { roomsList, activeRoomJID } = useRoomState(currentRoom.jid);
+  const { composing } = useRoomState(currentRoom.jid).room;
+  const { config } = useChatSettingState();
 
   const handleChangeChat = (chat: IRoom) => {
     dispatch(setCurrentRoom({ roomJID: chat.jid }));
@@ -48,6 +48,16 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const handleLeaveClick = useCallback(() => {
     client.leaveTheRoomStanza(activeRoomJID);
     dispatch(deleteRoom({ jid: activeRoomJID }));
+
+    if (
+      Object.keys(roomsList).length < 1 ||
+      activeRoomJID === Object.keys(roomsList)[0]
+    ) {
+      const newUrl = `${window.location.pathname}`;
+      window.history.pushState(null, '', newUrl);
+      dispatch(setCurrentRoom({ roomJID: null }));
+      return;
+    }
 
     const nextRoomJID = Object.keys(roomsList)[0] || null;
     if (nextRoomJID) {

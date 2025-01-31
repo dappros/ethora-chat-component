@@ -192,11 +192,12 @@ export const roomsStore = createSlice({
         state.rooms[chatJID].noMessages = value;
       }
     },
-    setCurrentRoom: (state, action: PayloadAction<{ roomJID: string }>) => {
+    setCurrentRoom: (
+      state,
+      action: PayloadAction<{ roomJID: string | null }>
+    ) => {
       const { roomJID } = action.payload;
-      if (roomJID) {
-        state.activeRoomJID = roomJID;
-      }
+      state.activeRoomJID = roomJID;
     },
     setLogoutState: (state) => {
       state.rooms = {};

@@ -22,6 +22,7 @@ export const useRoomInitialization = (
 
     const initialPresenceAndHistory = async () => {
       if (!roomsList[activeRoomJID]) {
+        // console.log('bug1'); here is bug when deleting last room
         client.presenceInRoomStanza(activeRoomJID);
         await client.getRoomsStanza();
         await getDefaultHistory();
@@ -30,16 +31,14 @@ export const useRoomInitialization = (
       }
     };
 
-    dispatch(setIsLoading({ loading: true, chatJID: activeRoomJID }));
-
     if (Object.keys(roomsList)?.length > 0) {
       if (!roomsList?.[activeRoomJID] && Object.keys(roomsList).length > 0) {
         dispatch(setIsLoading({ loading: true, chatJID: activeRoomJID }));
         initialPresenceAndHistory();
-      } else if (messageLength < 15) {
+      } else if (messageLength < 20) {
         getDefaultHistory();
       } else {
-        dispatch(setIsLoading({ loading: false, chatJID: activeRoomJID }));
+        getDefaultHistory();
       }
     } else if (!roomsList?.[activeRoomJID]) {
       initialPresenceAndHistory();

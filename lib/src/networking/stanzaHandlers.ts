@@ -15,7 +15,6 @@ import { IRoom } from '../types/types';
 import { createMessageFromXml } from '../helpers/createMessageFromXml';
 import { setDeleteModal } from '../roomStore/chatSettingsSlice';
 import { getDataFromXml } from '../helpers/getDataFromXml';
-
 // TO DO: we are thinking to refactor this code in the following way:
 // each stanza will be parsed for 'type'
 // then it will be handled based on the type
@@ -237,7 +236,6 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
           const roomData: IRoom = {
             jid: result?.attrs?.jid || '',
             name: result?.attrs?.name || '',
-            id: '',
             title: result?.attrs?.name || '',
             usersCnt: Number(result?.attrs?.users_cnt || 0),
             messages: [],

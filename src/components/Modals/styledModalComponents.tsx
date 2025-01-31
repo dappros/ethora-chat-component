@@ -50,6 +50,7 @@ export const ModalTitle = styled.h2`
   font-size: 1.5em;
   margin: 0;
   font-weight: 400;
+  color: #141414;
 `;
 
 export const ModalDescription = styled.p`

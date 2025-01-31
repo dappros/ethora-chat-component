@@ -7,7 +7,7 @@ import { RootState } from '../roomStore';
 import { useChatSettingState } from './useChatSettingState';
 
 export const useSendMessage = () => {
-  const { config } = useChatSettingState();
+  const { config, langSource } = useChatSettingState();
   const { client } = useXmppClient();
   const dispatch = useDispatch();
 
@@ -39,7 +39,7 @@ export const useSendMessage = () => {
         dispatch(setEditAction({ isEdit: false }));
         return;
       } else {
-        if (config?.enableTranslates) {
+        if (langSource && config?.enableTranslates) {
           client?.sendTextMessageWithTranslateTagStanza(
             activeRoomJID,
             user.firstName,

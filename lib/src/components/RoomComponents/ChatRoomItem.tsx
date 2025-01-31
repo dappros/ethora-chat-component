@@ -32,9 +32,24 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
 
   const formatTimeToHHMM = (isoTime: string | Date): string => {
     const date = new Date(isoTime);
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    return `${hours}:${minutes}`;
+    const now = new Date();
+
+    if (date.getFullYear() !== now.getFullYear()) {
+      const year = date.getFullYear();
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const day = date.getDate().toString().padStart(2, '0');
+      return `${year}/${month}/${day}`;
+    }
+
+    if (date.toDateString() === now.toDateString()) {
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      return `${hours}:${minutes}`;
+    } else {
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const day = date.getDate().toString().padStart(2, '0');
+      return `${month}/${day}`;
+    }
   };
 
   return (

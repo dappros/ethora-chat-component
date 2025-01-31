@@ -101,6 +101,7 @@ const NewChatModal: React.FC = () => {
       );
 
       client.getRoomsStanza();
+
       dispatch(setCurrentRoom({ roomJID: newChatJid }));
 
       if (location) {

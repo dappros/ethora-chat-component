@@ -21,5 +21,16 @@ export function useLocalStorage<T>(key: string) {
     }
   };
 
-  return { get, set };
+  const update = (updates: Partial<T>) => {
+    const currentValue = get();
+    if (currentValue) {
+      const newValue = { ...currentValue, ...updates };
+      set(newValue);
+    } else {
+      console.warn('No existing data found, initializing with updates.');
+      set(updates as T);
+    }
+  };
+
+  return { get, set, update };
 }

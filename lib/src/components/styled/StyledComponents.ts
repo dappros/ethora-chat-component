@@ -344,6 +344,7 @@ export const AvatarCircle = styled.div<{
   font-weight: bold;
   cursor: ${({ isClickable }) => (isClickable ? 'pointer' : 'default')};
   overflow: hidden;
+  line-height: 16px;
 `;
 
 export const AvatarImage = styled.img<{ size?: number }>`

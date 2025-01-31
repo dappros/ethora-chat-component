@@ -58,6 +58,7 @@ export const ChatItem = styled.div<{ active: boolean; bg?: string }>`
     background-color: ${({ active, bg }) =>
       active ? getTintedColor(bg ? bg : '#0052CD') : 'rgba(0, 0, 0, 0.05)'};
   }
+  color: #141414;
 `;
 
 export const SearchContainer = styled.div<{}>`

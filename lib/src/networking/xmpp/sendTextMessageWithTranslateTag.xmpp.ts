@@ -32,7 +32,7 @@ export const sendTextMessageWithTranslateTag = (
         ...stanzaMessage,
       }),
       xml('body', {}, stanzaMessage.userMessage),
-      xml('translate', { source: source || 'es' })
+      xml('translate', { source: source })
     );
 
     client.send(message);
