@@ -1,3 +1,4 @@
+import { Element } from 'ltx';
 import {
   onDeleteMessage,
   onEditMessage,
@@ -14,8 +15,10 @@ import {
   onReactionMessage,
   onReactionHistory,
 } from '../stanzaHandlers';
+import XmppClient from '../xmppClient';
 
-export function handleStanza(stanza: any, xmppWs: any) {
+export function handleStanza(stanza: Element, xmppWs: XmppClient) {
+  if (stanza?.attrs?.type === 'headline') return;
   switch (stanza.name) {
     case 'message':
       onReactionMessage(stanza);

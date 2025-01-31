@@ -21,6 +21,7 @@ import Loader from '../../styled/Loader';
 import Button from '../../styled/Button';
 import { MoreIcon, QrIcon } from '../../../assets/icons';
 import OperationalModal from '../../OperationalModal/OperationalModal';
+import Switch from '../../MainComponents/Switch';
 
 interface ChatProfileModalProps {
   handleCloseModal: any;
@@ -33,6 +34,8 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   const [visible, setVisible] = useState<boolean>(false);
 
   const dispatch = useDispatch();
+  const { config } = useSelector((state: RootState) => state.chatSettingStore);
+
   const { client } = useXmppClient();
   const activeRoom = useSelector((state: RootState) => getActiveRoom(state));
 
@@ -56,13 +59,15 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
 
       const location = uploadResult?.data?.results?.[0]?.location;
       if (!location) {
-        throw new Error('No location found in upload result.');
+        console.log('No location found in upload result.');
       }
 
-      client.setRoomImageStanza(activeRoom.jid, location, 'icon', 'none');
-      dispatch(
-        updateRoom({ jid: activeRoom.jid, updates: { icon: location } })
-      );
+      if (location) {
+        client.setRoomImageStanza(activeRoom.jid, location, 'icon', 'none');
+        dispatch(
+          updateRoom({ jid: activeRoom.jid, updates: { icon: location } })
+        );
+      }
     } catch (error) {
       console.error('File upload failed or location is missing:', error);
     }
@@ -108,6 +113,23 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
           <LabelData>Description</LabelData>
           <Label>Chat's Description</Label>
         </BorderedContainer>
+        {/* <BorderedContainer
+          style={{
+            justifyContent: 'space-between',
+            flexDirection: 'row',
+            alignItems: 'center',
+          }}
+        >
+          <Label>Notifications</Label>
+          <Label>
+            <Switch
+              onToggle={function (isOn: boolean): void {
+                throw new Error('Function not implemented.');
+              }}
+              bgColor={config?.colors?.primary}
+            />
+          </Label>
+        </BorderedContainer> */}
         <BorderedContainer style={{ padding: '8px 16px' }}>
           {loading ? (
             <Loader />

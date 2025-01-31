@@ -12,9 +12,9 @@ export const sendTextMessage = (
   isReply?: boolean,
   showInChannel?: boolean,
   mainMessage?: string,
-  devServer?: string,
+  devServer?: string
 ) => {
-  const id = `send-message:${Date.now().toString()}`;
+  const id = `send-text-message-${Date.now().toString()}`;
 
   try {
     const message = xml(

@@ -23,6 +23,7 @@ import { setVcard } from './xmpp/setVCard.xmpp';
 import { XmppClientInterface } from '../types/types';
 import { createPrivateRoom } from './xmpp/createPrivateRoom.xmpp';
 import { sendMessageReaction } from './xmpp/sendMessageReaction.xmpp';
+import { sendTextMessageWithTranslateTag } from './xmpp/sendTextMessageWithTranslateTag.xmpp';
 
 export class XmppClient implements XmppClientInterface {
   client!: Client;
@@ -88,9 +89,9 @@ export class XmppClient implements XmppClientInterface {
 
     this.client.on('online', () => {
       console.log('Client is online.', new Date());
-      this.client.send(xml('presence'));
       this.status = 'online';
       this.reconnectAttempts = 0;
+      this.client.send(xml('presence'));
     });
 
     this.client.on('error', (error) => {
@@ -168,9 +169,9 @@ export class XmppClient implements XmppClientInterface {
     chatJID: string,
     max: number,
     before?: number,
-    id?: string
+    otherStanzaId?: string
   ) => {
-    return await getHistory(this.client, chatJID, max, before, id);
+    return await getHistory(this.client, chatJID, max, before, otherStanzaId);
   };
 
   getLastMessageArchiveStanza(roomJID: string) {
@@ -227,15 +228,46 @@ export class XmppClient implements XmppClientInterface {
     );
   };
 
-  sendMessageReactionStanza(
-    messageId: string,
-    roomJid: string,
-    reactionsList: string[],
-    data: any,
-    reactionSymbol?: any,
-  ) {
-    sendMessageReaction(this.client, messageId, roomJid, reactionsList, data, reactionSymbol);
-  }
+  // sendMessageReactionStanza(
+  //   messageId: string,
+  //   roomJid: string,
+  //   reactionsList: string[],
+  //   data: any,
+  //   reactionSymbol?: any,
+  // ) {
+  //   sendMessageReaction(this.client, messageId, roomJid, reactionsList, data, reactionSymbol);
+  // }
+
+  sendTextMessageWithTranslateTagStanza = (
+    roomJID: string,
+    firstName: string,
+    lastName: string,
+    photo: string,
+    walletAddress: string,
+    userMessage: string,
+    notDisplayedValue?: string,
+    isReply?: boolean,
+    showInChannel?: boolean,
+    mainMessage?: string
+  ) => {
+    sendTextMessageWithTranslateTag(
+      this.client,
+      {
+        roomJID,
+        firstName,
+        lastName,
+        photo,
+        walletAddress,
+        userMessage,
+        notDisplayedValue,
+        isReply,
+        showInChannel,
+        mainMessage,
+        devServer: this.devServer || 'xmpp.ethoradev.com:5443',
+      },
+      'es'
+    );
+  };
 
   deleteMessageStanza(room: string, msgId: string) {
     deleteMessage(this.client, room, msgId);

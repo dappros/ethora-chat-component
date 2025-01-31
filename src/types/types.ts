@@ -1,5 +1,6 @@
 import { Client } from '@xmpp/client';
 import { MODAL_TYPES } from '../helpers/constants/MODAL_TYPES';
+import { TranslationObject } from '../helpers/transformTranslatations';
 
 export interface IUser extends Partial<User> {
   id: string;
@@ -32,6 +33,8 @@ export interface IMessage {
   mainMessage?: string;
   reply?: IReply[];
   reaction?: Record<string, ReactionMessage>;
+  translations?: TranslationObject;
+  langSource?: string;
 }
 
 export interface ReactionMessage {
@@ -42,7 +45,6 @@ export interface ReactionMessage {
 export interface IReply extends IMessage {}
 
 export interface IRoom {
-  id: string;
   name: string;
   jid: string;
   title: string;
@@ -51,7 +53,9 @@ export interface IRoom {
   isLoading: boolean;
   roomBg: string;
 
+  id?: string;
   lastMessage?: string;
+  lastMessageTimestamp?: number;
   lastRoomMessage?: RoomLastMessage;
   icon?: string;
   composing?: boolean;
@@ -116,6 +120,8 @@ export interface User {
   appId: string;
   xmppPassword: string;
 
+  langSource?: Iso639_1Codes;
+
   homeScreen?: string;
   registrationChannelType?: string;
   updatedAt?: string;
@@ -173,6 +179,7 @@ export interface IConfig {
   disableRoomMenu?: boolean;
   defaultRooms?: string[] | ConfigRoom[];
   refreshTokens?: { enabled: boolean; refreshFunction?: any };
+  enableTranslates?: boolean;
 }
 
 interface ConfigRoom {
@@ -280,7 +287,7 @@ export interface XmppClientInterface {
     chatJID: string,
     max: number,
     before?: number,
-    id?: string
+    otherStanzaId?: string
   ): Promise<any>;
   getLastMessageArchiveStanza(roomJID: string): void;
   setRoomImageStanza(
@@ -338,3 +345,15 @@ export interface XmppClientInterface {
     reactionSymbol?: any
   ): void;
 }
+
+export type Iso639_1Codes = 'en' | 'es' | 'pt' | 'ht' | 'zh';
+
+export interface Language {
+  iso639_1: Iso639_1Codes;
+  name: string;
+}
+
+export type LanguageOptions = {
+  languages: Array<Language>;
+  language?: Iso639_1Codes;
+};

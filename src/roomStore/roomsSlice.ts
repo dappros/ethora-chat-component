@@ -130,11 +130,17 @@ export const roomsStore = createSlice({
     ) {
       const { roomJID, message, start } = action.payload;
 
-      if (!state.rooms[roomJID]?.messages) {
+      if (!message?.body) return; // change when reactions are ready
+
+      const roomMessages = state.rooms[roomJID]?.messages;
+
+      if (!roomMessages) {
         state.rooms[roomJID].messages = [];
       }
 
-      const roomMessages = state.rooms[roomJID].messages;
+      if (roomMessages.some((msg) => msg.id === message.id)) {
+        return;
+      }
 
       if (roomMessages.length === 0 || start) {
         roomMessages.unshift(message);
@@ -253,6 +259,18 @@ const countNewerMessages = (
       return Number(message.id) < timestamp;
     }).length;
   } else return 0;
+};
+
+export const getLastMessageTimestamp = (
+  state: RoomMessagesState,
+  jid: string
+): string | null => {
+  const room = state.rooms[jid];
+  if (!room || room.messages.length === 0) {
+    return null;
+  }
+  const lastMessage = room.messages[room.messages.length - 1];
+  return lastMessage.id;
 };
 
 export const {

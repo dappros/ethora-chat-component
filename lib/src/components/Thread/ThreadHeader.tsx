@@ -1,4 +1,4 @@
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { ChatContainerHeader, ChatContainerHeaderLabel } from '../styled/StyledComponents';
 import Button from '../styled/Button';
 import { CloseIcon } from '../../assets/icons';

@@ -3,11 +3,19 @@ import { useDispatch } from 'react-redux';
 import { setCurrentRoom } from '../roomStore/roomsSlice';
 import { IConfig, IRoom } from '../types/types';
 
-export const useRoomUrl = (activeRoomJID: string, roomsList:  Record<string, IRoom>, config: IConfig) => {
+export const useRoomUrl = (
+  activeRoomJID: string,
+  roomsList: Record<string, IRoom>,
+  config: IConfig
+) => {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    if (config?.setRoomJidInPath && activeRoomJID) {
+    if (
+      config?.setRoomJidInPath &&
+      activeRoomJID &&
+      typeof activeRoomJID === 'string'
+    ) {
       const chatJidUrl = activeRoomJID.split('@')[0];
 
       const searchParams = new URLSearchParams(window.location.search);

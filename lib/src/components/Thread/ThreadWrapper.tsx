@@ -6,10 +6,8 @@ import {
   ChatContainer,
 } from '../styled/StyledComponents';
 import SendInput from '../styled/SendInput';
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '../../roomStore';
+import { useDispatch } from 'react-redux';
 import { useXmppClient } from '../../context/xmppProvider';
-import { uploadFile } from '../../networking/api-requests/auth.api';
 import MessageList from '../MainComponents/MessageList';
 import ModalHeaderComponent from '../Modals/ModalHeaderComponent';
 import {
@@ -17,6 +15,10 @@ import {
   setEditAction,
 } from '../../roomStore/roomsSlice';
 import { EditWrapper } from '../MainComponents/EditWrapper';
+import { useSendMessage } from '../../hooks/useSendMessage';
+import { createMainMessageForThread } from '../../helpers/createMainMessageForThread';
+import { useRoomState } from '../../hooks/useRoomState';
+import { useChatSettingState } from '../../hooks/useChatSettingState';
 
 interface ThreadWrapperProps {
   activeMessage: IMessage;
@@ -24,6 +26,7 @@ interface ThreadWrapperProps {
   customMessageComponent?: React.ComponentType<{
     message: IMessage;
     isUser: boolean;
+    isReply: boolean;
   }>;
 }
 
@@ -34,20 +37,17 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
 }) => {
   const { client } = useXmppClient();
   const dispatch = useDispatch();
-  const { config, loading, roomsList, editAction } = useSelector(
-    (state: RootState) => ({
-      loading: state.rooms.rooms[state.rooms.activeRoomJID]?.isLoading || false,
-      globalLoading: state.rooms.isLoading,
-      config: state.chatSettingStore.config,
-      roomsList: state.rooms.rooms,
-      editAction: state.rooms.editAction,
-    })
-  );
+
+  const { loading, roomsList, editAction } = useRoomState();
+  const { config } = useChatSettingState();
+  const {
+    sendMessage: sendMs,
+    sendMedia: sendMessageMedia,
+    sendEditMessage,
+  } = useSendMessage();
 
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
   const [isChecked, setIsChecked] = useState<boolean>(false);
-
-  const isUser = activeMessage.user.id === user.walletAddress;
 
   const loadMoreMessages = useCallback(
     async (chatJID: string, max: number, idOfMessageBefore?: number) => {
@@ -61,98 +61,31 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
     [client]
   );
 
-  const createMainMessageForThread = (message): string => {
-    const data = {
-      text: message.body,
-      id: message.id,
-      userName: activeMessage.user.name,
-      createdAt: message.date,
-      imageLocation: message.location,
-      imagePreview: message.locationPreview,
-      mimeType: message.mimetype,
-      size: '',
-      duration: '',
-      waveForm: '',
-      attachmentId: '',
-      wrappable: '',
-      nftActionType: '',
-      contractAddress: '',
-      roomJid: activeMessage.roomJid,
-      nftId: '',
-    };
-    return JSON.stringify(data);
-  };
-
   const sendMessage = useCallback(
     (message: string) => {
-      if (editAction.isEdit) {
-        client?.editMessageStanza(
-          editAction.roomJid,
-          editAction.messageId,
-          message
-        );
-
-        dispatch(setEditAction({ isEdit: false }));
-        return;
-      } else {
-        client?.sendMessage(
-          activeMessage.roomJid,
-          user.firstName,
-          user.lastName,
-          '',
-          user.walletAddress,
-          message,
-          '',
-          true,
-          isChecked,
-          createMainMessageForThread(activeMessage)
-        );
-      }
+      sendMs(
+        message,
+        activeMessage.roomJid,
+        true,
+        isChecked,
+        createMainMessageForThread(activeMessage)
+      );
     },
-    [activeMessage.roomJid, isChecked, editAction]
+    [activeMessage, isChecked]
   );
 
   const sendMedia = useCallback(
-    async (data: any, type: string) => {
-      let mediaData: FormData | null = new FormData();
-      mediaData.append('files', data);
-
-      uploadFile(mediaData)
-        .then((response) => {
-          response.data.results.map(async (item: any) => {
-            const data = {
-              firstName: user.firstName,
-              lastName: user.lastName,
-              walletAddress: user.walletAddress,
-              createdAt: item.createdAt,
-              expiresAt: item.expiresAt,
-              fileName: item.filename,
-              isVisible: item?.isVisible,
-              location: item.location,
-              locationPreview: item.locationPreview,
-              mimetype: item.mimetype,
-              originalName: item?.originalname,
-              ownerKey: item?.ownerKey,
-              size: item.size,
-              duration: item?.duration,
-              updatedAt: item?.updatedAt,
-              userId: item?.userId,
-              attachmentId: item?._id,
-              wrappable: true,
-              roomJid: activeMessage.roomJid,
-              showInChannel: isChecked,
-              isReply: true,
-              mainMessage: createMainMessageForThread(activeMessage),
-              __v: item.__v,
-            };
-            client?.sendMediaMessageStanza(activeMessage.roomJid, data);
-          });
-        })
-        .catch((error) => {
-          console.error('Upload failed', error);
-        });
+    (data: any, type: string) => {
+      sendMessageMedia(
+        data,
+        type,
+        activeMessage.roomJid,
+        true,
+        true,
+        createMainMessageForThread(activeMessage)
+      );
     },
-    [client, activeMessage.roomJid]
+    [activeMessage]
   );
 
   const sendStartComposing = useCallback(() => {
@@ -230,7 +163,7 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
       <SendInput
         editMessage={editAction.text}
         sendMedia={sendMedia}
-        sendMessage={sendMessage}
+        sendMessage={editAction.isEdit ? sendEditMessage : sendMessage}
         config={config}
         onFocus={sendStartComposing}
         onBlur={sendEndComposing}

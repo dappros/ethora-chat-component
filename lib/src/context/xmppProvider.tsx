@@ -76,7 +76,7 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
       console.log(
         'Maximum reconnect attempts reached. Stopping further attempts.'
       );
-    } else if (password && email && reconnectAttempts <= 3) {
+    } else if (password && email && reconnectAttempts >= 3) {
       console.log('No active client found. Reinitializing...');
       initializeClient(password, email).catch((error) => {
         console.error('Reconnection failed:', error);

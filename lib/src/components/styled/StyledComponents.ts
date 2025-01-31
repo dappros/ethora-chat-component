@@ -20,10 +20,34 @@ export const ChatContainerHeader = styled.div`
   justify-content: space-between;
 `;
 
+export const ChatContainerHeaderBoxInfo = styled.div`
+  display: flex;
+  gap: 8px;
+  cursor: pointer;
+`;
+
+export const ChatContainerHeaderInfo = styled.div`
+  text-align: start;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+`;
+
 export const ChatContainerHeaderLabel = styled.div`
   color: #141414;
   font-weight: 600;
   font-size: 16px;
+`;
+
+export const NonRoomChat = styled.div`
+  height: 100%;
+  width: 100%;
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  background-color: #fff;
+  flex-direction: column;
+  gap: 16;
 `;
 
 export const MessagesScroll = styled.div<{ color?: string }>`
@@ -284,4 +308,87 @@ export const AlsoCheckbox = styled.input<{ accentColor: string }>`
   border-radius: #0052cd;
   accent-color: #5e3fde;
   accent-color: ${(props) => props.accentColor};
+`;
+
+export const Wrapper = styled.div<{
+  bgColor: string;
+  size?: number;
+  isClickable: boolean;
+}>`
+  width: ${({ size }) => `${size}px` || '64px'};
+  height: ${({ size }) => `${size}px` || '64px'};
+  border-radius: 50%;
+  background-color: ${({ bgColor }) => bgColor};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: ${({ isClickable }) => (isClickable ? 'pointer' : 'default')};
+  position: relative;
+`;
+
+export const AvatarCircle = styled.div<{
+  bgColor: string;
+  size?: number;
+  isClickable: boolean;
+}>`
+  width: ${({ size }) => `${size}px` || '64px'};
+  height: ${({ size }) => `${size}px` || '64px'};
+  border-radius: 50%;
+  background-color: ${({ bgColor }) => bgColor};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: ${({ isClickable }) => (isClickable ? 'pointer' : 'default')};
+  overflow: hidden;
+`;
+
+export const AvatarImage = styled.img<{ size?: number }>`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+`;
+
+export const RemoveButton = styled.button`
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 20px;
+  height: 20px;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 0;
+  padding: 0;
+`;
+
+export const FileInput = styled.input`
+  display: none;
+`;
+
+export const Overlay = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #fff;
+  border-radius: 50%;
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.7);
+  }
 `;

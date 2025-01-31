@@ -1,59 +1,35 @@
 import React from 'react';
-import styled from 'styled-components';
+import { Container } from './StyledInputComponents/MediaComponents';
+import { useDispatch } from 'react-redux';
 import {
-  ButtonContainer,
-  Container,
-  FullScreenImage,
-  IconButton,
-  ModalContent,
-} from './StyledInputComponents/MediaComponents';
-import { CloseIcon, DownloadIcon } from '../../assets/icons';
-import { Overlay, StyledModal } from './MediaModal';
-import { IConfig } from '../../types/types';
-import { ActionButton } from './ActionButton';
+  setActiveFile,
+  setActiveModal,
+} from '../../roomStore/chatSettingsSlice';
+import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 interface CustomMessageImageProps {
-  imageUrl: string | undefined;
-  imageAlt: string;
+  fileURL: string;
+  fileName: string;
+  mimetype: string;
 }
 
-const download = (link: string) => {
-  fetch(link, {
-    method: 'GET',
-    headers: {},
-  })
-    .then((response) => {
-      response.arrayBuffer().then(function (buffer) {
-        const url = window.URL.createObjectURL(new Blob([buffer]));
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', 'MEDIA-ETHORA.png');
-        document.body.appendChild(link);
-        link.click();
-      });
-    })
-    .catch((err) => {
-      console.log(err);
-    });
-};
-
 const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
-  imageUrl,
-  imageAlt,
+  fileURL,
+  fileName,
+  mimetype,
 }) => {
-  const [open, setOpen] = React.useState(false);
-  const handleOpen = () => setOpen(true);
-  const handleClose = () => setOpen(false);
+  const dispatch = useDispatch();
 
-  const downloadImage = () => {
-    imageUrl && download(imageUrl);
+  const handleOpen = () => {
+    dispatch(setActiveFile({ fileName, fileURL, mimetype }));
+    dispatch(setActiveModal(MODAL_TYPES.FILE_PREVIEW));
   };
 
   return (
     <Container>
-      {imageUrl ? (
+      {fileURL ? (
         <img
-          src={imageUrl}
-          alt={imageAlt}
+          src={fileURL}
+          alt={fileName}
           onClick={handleOpen}
           style={{
             borderRadius: 16,
@@ -69,7 +45,7 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
       ) : (
         <img
           src="https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg"
-          alt={imageAlt}
+          alt={fileName}
           onClick={handleOpen}
           style={{
             borderRadius: 16,
@@ -78,35 +54,6 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
             maxHeight: '200px',
           }}
         />
-      )}
-      {open && (
-        <Overlay>
-          <StyledModal>
-            <ModalContent>
-              <FullScreenImage
-                src={
-                  imageUrl ||
-                  'https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg'
-                }
-                alt={imageAlt}
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src =
-                    'https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg';
-                }}
-              />
-              <ButtonContainer>
-                {imageUrl && (
-                  <ActionButton onClick={downloadImage} aria-label="Download" />
-                )}
-                <ActionButton
-                  onClick={handleClose}
-                  aria-label="Close"
-                  icon={<CloseIcon />}
-                />
-              </ButtonContainer>
-            </ModalContent>
-          </StyledModal>
-        </Overlay>
       )}
     </Container>
   );

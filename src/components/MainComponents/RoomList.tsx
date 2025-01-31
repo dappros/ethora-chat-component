@@ -81,8 +81,19 @@ const RoomList: React.FC<RoomListProps> = ({
 
     if (!chatsMap.has(lowerCaseSearchTerm)) {
       const result = chats
-        .filter((chat) => chat.name.toLowerCase().includes(lowerCaseSearchTerm))
-        .sort((a, b) => b.usersCnt - a.usersCnt);
+        .filter((chat) =>
+          chat.name?.toLowerCase().includes(lowerCaseSearchTerm)
+        )
+        .sort((a, b) => {
+          if (a.lastMessageTimestamp && b.lastMessageTimestamp) {
+            return b.lastMessageTimestamp - a.lastMessageTimestamp;
+          } else if (a.lastMessageTimestamp) {
+            return -1;
+          } else if (b.lastMessageTimestamp) {
+            return 1;
+          }
+          return b.usersCnt - a.usersCnt;
+        });
 
       chatsMap.set(lowerCaseSearchTerm, result);
     }

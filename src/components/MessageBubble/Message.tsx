@@ -28,6 +28,7 @@ import { MessageReply } from './MessageReply';
 import { DeletedMessage } from './DeletedMessage';
 import { useXmppClient } from '../../context/xmppProvider';
 import { MessageReaction } from './MessageReaction';
+import MessageTranslations from './MessageTranslations';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 
 const Message: React.FC<MessageProps> = forwardRef<
@@ -38,9 +39,7 @@ const Message: React.FC<MessageProps> = forwardRef<
   const { user, client: storedClient } = useChatSettingState();
 
   const dispatch = useDispatch();
-  const config = useSelector(
-    (state: RootState) => state.chatSettingStore.config
-  );
+  const { config, langSource } = useChatSettingState();
 
   const [contextMenu, setContextMenu] = !config?.disableInteractions
     ? useState<{ visible: boolean; x: number; y: number }>({
@@ -232,6 +231,14 @@ const Message: React.FC<MessageProps> = forwardRef<
               )}
             </CustomMessageText>
           )}
+
+          {!isUser && config?.enableTranslates && (
+            <MessageTranslations
+              message={message}
+              config={config}
+              langSource={langSource}
+            />
+          )}
           <CustomMessageTimestamp>
             {message?.pending && 'sending...'}
             {new Date(message.date).toLocaleTimeString([], {
@@ -258,7 +265,6 @@ const Message: React.FC<MessageProps> = forwardRef<
           )}
         </MessageFooter>
       </CustomMessageContainer>
-
       {!config?.disableInteractions && (
         <MessageInteractions
           isReply={isReply}

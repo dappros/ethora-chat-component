@@ -30,8 +30,6 @@ interface ProfileImagePlaceholderProps {
   disableOverlay?: boolean;
 }
 
-const backgroundColors = ['#f44336', '#2196f3', '#4caf50', '#ff9800'];
-
 export const ProfileImagePlaceholder: React.FC<
   ProfileImagePlaceholderProps
 > = ({
@@ -45,15 +43,7 @@ export const ProfileImagePlaceholder: React.FC<
   placeholderIcon,
   disableOverlay,
 }) => {
-  const randomColor = useMemo(() => {
-    if (!icon) {
-      const index = Math.floor(Math.random() * backgroundColors.length);
-      return backgroundColors[index];
-    }
-    return '';
-  }, [icon]);
-
-  const { backgroundColor, textColor } = nameToColor(name);
+  const { backgroundColor } = nameToColor(name);
 
   const getTwoUppercaseLetters = (fullName: string) => {
     if (!fullName) return '';
@@ -97,7 +87,6 @@ export const ProfileImagePlaceholder: React.FC<
         isclickable={active || (role === 'participant' && !!upload?.active)}
         onClick={handleAvatarClick}
         style={{ fontSize: size >= 64 ? '24px' : '18px' }}
-        color={textColor || ''}
       >
         {icon ? (
           <AvatarImage

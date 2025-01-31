@@ -4,11 +4,14 @@ import {
   EditAction,
   IConfig,
   IUser,
+  ModalFile,
   ModalType,
   User,
 } from '../types/types';
 import { localStorageConstants } from '../helpers/constants/LOCAL_STORAGE';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { walletToUsername } from '../helpers/walletUsername';
+import XmppClient from '../networking/xmppClient';
 
 interface ChatState {
   user: User;
@@ -16,8 +19,9 @@ interface ChatState {
   activeModal?: ModalType;
   deleteModal?: DeleteModal;
   selectedUser?: IUser;
-  activeFile?: any;
-  client?: any;
+  activeFile?: ModalFile;
+  client?: XmppClient;
+  langSource?: string;
 }
 
 const unpackAndTransform = (input?: User): User => {
@@ -43,7 +47,10 @@ const unpackAndTransform = (input?: User): User => {
     authMethod: input?.authMethod || '',
     resetPasswordExpires: input?.resetPasswordExpires || '',
     resetPasswordToken: input?.resetPasswordToken || '',
-    xmppUsername: input?.xmppUsername || '',
+    xmppUsername:
+      input?.xmppUsername ||
+      walletToUsername(input?.defaultWallet?.walletAddress) ||
+      '',
     roles: input?.roles || [],
     tags: input?.tags || [],
     __v: input?.__v || 0,
@@ -93,7 +100,7 @@ const initialState: ChatState = {
 };
 
 export const chatSlice = createSlice({
-  name: 'chat',
+  name: 'chatSettingStore',
   initialState,
   reducers: {
     setUser: (state, action: PayloadAction<User>) => {
@@ -118,7 +125,7 @@ export const chatSlice = createSlice({
     setActiveModal: (state, action: PayloadAction<ModalType | undefined>) => {
       state.activeModal = action.payload;
     },
-    setActiveFile: (state, action: PayloadAction<any>) => {
+    setActiveFile: (state, action: PayloadAction<ModalFile>) => {
       state.activeFile = action.payload;
     },
     setDeleteModal: (state, action: PayloadAction<DeleteModal | undefined>) => {
@@ -129,6 +136,9 @@ export const chatSlice = createSlice({
     },
     setSelectedUser: (state, action: PayloadAction<IUser | undefined>) => {
       state.selectedUser = action.payload;
+    },
+    setLangSource: (state, action: PayloadAction<string | undefined>) => {
+      state.langSource = action.payload;
     },
     refreshTokens: (
       state,
@@ -164,6 +174,7 @@ export const {
   updateUser,
   setActiveFile,
   setStoreClient,
+  setLangSource,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

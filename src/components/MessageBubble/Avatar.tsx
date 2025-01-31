@@ -9,14 +9,11 @@ interface AvatarProps {
   style?: CSSProperties;
 }
 
-const backgroundColors = ['#f44336', '#2196f3', '#4caf50', '#ff9800'];
-
 const AvatarCircle = styled.div<{ bgColor: string; textColor?: string }>`
   width: 40px;
   height: 40px;
   border-radius: 50%;
   background-color: ${({ bgColor }) => bgColor};
-  color: ${({ textColor }) => textColor};
   display: flex;
   align-items: center;
   justify-content: center;
@@ -37,9 +34,7 @@ export const Avatar: React.FC<AvatarProps> = ({
   lastName,
   style,
 }) => {
-  const { backgroundColor, textColor } = nameToColor(
-    username ? username : firstName
-  );
+  const { backgroundColor } = nameToColor(username ? username : firstName);
 
   const getInitials = () => {
     const isAlphabetic = (char: string) => /^[a-zA-Zа-яА-ЯёЁ]$/.test(char);
@@ -73,7 +68,7 @@ export const Avatar: React.FC<AvatarProps> = ({
   };
 
   return (
-    <AvatarCircle style={style} bgColor={backgroundColor} textColor={textColor}>
+    <AvatarCircle style={style} bgColor={backgroundColor}>
       {getInitials()}
     </AvatarCircle>
   );

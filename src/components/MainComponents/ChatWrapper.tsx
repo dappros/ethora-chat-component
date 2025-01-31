@@ -5,7 +5,6 @@ import {
   setActiveModal,
   setConfig,
   setDeleteModal,
-  setStoreClient,
 } from '../../roomStore/chatSettingsSlice';
 import { ChatWrapperBox } from '../styled/ChatWrapperBox';
 import { Overlay, StyledModal } from '../styled/MediaModal';
@@ -35,9 +34,11 @@ import ThreadWrapper from '../Thread/ThreadWrapper';
 import { ModalWrapper } from '../Modals/ModalWrapper/ModalWrapper';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { CONFERENCE_DOMAIN } from '../../helpers/constants/PLATFORM_CONSTANTS';
-import { walletToUsername } from '../../helpers/walletUsername';
 import useMessageLoaderQueue from '../../hooks/useMessageLoaderQueue';
 import { useRoomState } from '../../hooks/useRoomState';
+import { initRoomsPresence } from '../../helpers/initRoomsPresence';
+import { updatedChatLastTimestamps } from '../../helpers/updatedChatLastTimestamps';
+import { updateMessagesTillLast } from '../../helpers/updateMessagesTillLast';
 
 interface ChatWrapperProps {
   token?: string;
@@ -56,16 +57,10 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   config,
   roomJID,
 }) => {
-  const {
-    user,
-    activeModal,
-    deleteModal,
-    client: storedClient,
-  } = useChatSettingState();
+  const { user, activeModal, deleteModal } = useChatSettingState();
 
   const [isInited, setInited] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  // const [isModalDeleteOpen, setIsModalDeleteOpen] = useState(false);
 
   const [isChatVisible, setIsChatVisible] = useState(false);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
@@ -150,7 +145,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           setShowModal(true);
           console.log('Error, no user');
         } else {
-          if (!client && !storedClient) {
+          if (!client) {
             setShowModal(false);
 
             console.log('No client, so initing one');
@@ -158,29 +153,20 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
               user.defaultWallet?.walletAddress,
               user.xmppPassword
             ).then(async (client) => {
-              await client.getRoomsStanza();
+              if (Object.keys(roomsList).length > 0) {
+                await initRoomsPresence(client, roomsList);
+              } else {
+                await client.getRoomsStanza();
+              }
               await client
-                ?.getChatsPrivateStoreRequestStanza()
+                .getChatsPrivateStoreRequestStanza()
                 .then(
-                  (roomTimestampObject: [jid: string, timestamp: string]) => {
-                    const roomTimestampArray = Object.entries(
-                      roomTimestampObject
-                    ).map(([jid, timestamp]) => ({
-                      jid,
-                      timestamp,
-                    }));
-                    roomTimestampArray.forEach(({ jid, timestamp }) => {
-                      if (jid) {
-                        dispatch(
-                          setLastViewedTimestamp({
-                            chatJID: jid,
-                            timestamp: Number(timestamp || 0),
-                          })
-                        );
-                      }
-                    });
+                  async (
+                    roomTimestampObject: [jid: string, timestamp: string]
+                  ) => {
+                    updatedChatLastTimestamps(roomTimestampObject, dispatch);
                     client.setVCardStanza(`${user.firstName} ${user.lastName}`);
-                    dispatch(setStoreClient(client));
+                    await updateMessagesTillLast(rooms, client);
                     setClient(client);
                   }
                 );
@@ -189,64 +175,19 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             {
               config?.refreshTokens?.enabled && refresh();
             }
-          } else if (storedClient) {
-            setClient(storedClient);
-            if (!activeRoomJID) {
-              await storedClient.getRoomsStanza();
-              await storedClient
-                ?.getChatsPrivateStoreRequestStanza()
-                .then(
-                  (roomTimestampObject: [jid: string, timestamp: string]) => {
-                    const roomTimestampArray = Object.entries(
-                      roomTimestampObject
-                    ).map(([jid, timestamp]) => ({
-                      jid,
-                      timestamp,
-                    }));
-                    roomTimestampArray.forEach(({ jid, timestamp }) => {
-                      if (jid) {
-                        dispatch(
-                          setLastViewedTimestamp({
-                            chatJID: jid,
-                            timestamp: Number(timestamp || 0),
-                          })
-                        );
-                      }
-                    });
-                    storedClient.setVCardStanza(
-                      `${user.firstName} ${user.lastName}`
-                    );
-                  }
-                );
-            }
-            setInited(true);
-            {
-              config?.refreshTokens?.enabled && refresh();
-            }
           } else {
-            if (!activeRoomJID) {
-              await client.getRoomsStanza();
+            if (Object.keys(roomsList).length > 0) {
+              initRoomsPresence(client, roomsList);
               await client
-                ?.getChatsPrivateStoreRequestStanza()
+                .getChatsPrivateStoreRequestStanza()
                 .then(
-                  (roomTimestampObject: [jid: string, timestamp: string]) => {
-                    const roomTimestampArray = Object.entries(
-                      roomTimestampObject
-                    ).map(([jid, timestamp]) => ({
-                      jid,
-                      timestamp,
-                    }));
-                    roomTimestampArray.forEach(({ jid, timestamp }) => {
-                      if (jid) {
-                        dispatch(
-                          setLastViewedTimestamp({
-                            chatJID: jid,
-                            timestamp: Number(timestamp || 0),
-                          })
-                        );
-                      }
-                    });
+                  async (
+                    roomTimestampObject: [jid: string, timestamp: string]
+                  ) => {
+                    updatedChatLastTimestamps(roomTimestampObject, dispatch);
                     client.setVCardStanza(`${user.firstName} ${user.lastName}`);
+                    await updateMessagesTillLast(rooms, client);
+                    setClient(client);
                   }
                 );
             }
@@ -266,7 +207,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     };
 
     initXmmpClient();
-  }, [user.xmppPassword, user.defaultWallet]);
+  }, [user.xmppPassword, user.defaultWallet.walletAddress]);
 
   // functionality to handle unreadmessages if user leaves tab
   useEffect(() => {
@@ -313,6 +254,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
   useMessageLoaderQueue(
     Object.keys(roomsList),
+    roomsList,
     globalLoading,
     loading,
     queueMessageLoader

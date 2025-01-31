@@ -9,6 +9,8 @@ export const getHistory = async (
   before?: number,
   otherId?: string
 ): Promise<any> => {
+  if (typeof chatJID !== 'string') return;
+
   const id = otherId ?? `get-history:${Date.now().toString()}`;
 
   let stanzaHdlrPointer: {
