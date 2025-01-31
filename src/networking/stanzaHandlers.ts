@@ -65,16 +65,20 @@ const onReactionMessage = async (stanza: Element) => {
     const stanzaId = stanza.getChild('stanza-id');
     const data = stanza.getChild('data');
 
-    const emojiList: string[] = reactions.getChildren('reaction').map((reaction) => reaction.text());
+    const emojiList: string[] = reactions
+      .getChildren('reaction')
+      .map((reaction) => reaction.text());
     const from: string = reactions.attrs.from;
 
-    store.dispatch(setReactions({
-      roomJID: stanzaId.attrs.by,
-      messageId: reactions.attrs.id,
-      reactions: emojiList,
-      from,
-      data: data.attrs
-    }));
+    store.dispatch(
+      setReactions({
+        roomJID: stanzaId.attrs.by,
+        messageId: reactions.attrs.id,
+        reactions: emojiList,
+        from,
+        data: data.attrs,
+      })
+    );
   }
 };
 
@@ -117,47 +121,50 @@ const onEditMessage = async (stanza: Element) => {
 };
 
 const onReactionHistory = async (stanza: any) => {
-  const reactions = stanza
-  .getChild('result')
-  ?.getChild('forwarded')
-  ?.getChild('message')
-  ?.getChild('reactions');
-  const data = stanza
-  .getChild('result')
-  ?.getChild('forwarded')
-  ?.getChild('message')
-  ?.getChild('data');
-  const stanzaId = stanza
-  .getChild('result')
-  ?.getChild('forwarded')
-  ?.getChild('message')
-  ?.getChild('stanza-id');
+  try {
+    const reactions = stanza
+      .getChild('result')
+      ?.getChild('forwarded')
+      ?.getChild('message')
+      ?.getChild('reactions');
+    const data = stanza
+      .getChild('result')
+      ?.getChild('forwarded')
+      ?.getChild('message')
+      ?.getChild('data');
+    const stanzaId = stanza
+      .getChild('result')
+      ?.getChild('forwarded')
+      ?.getChild('message')
+      ?.getChild('stanza-id');
 
-  if(!reactions && !data && !stanzaId) {
-    console.log("!reactions && !data && !stanzaId");
+    if (!reactions && !data && !stanzaId && !reactions?.attrs) {
+      return;
+    }
+
+    const messageId = reactions.attrs.id;
+
+    const reactionList: string[] = reactions.children.map(
+      (emoji) => emoji.children[0]
+    );
+    const from: string = reactions.attrs.from;
+    const dataReaction = {
+      senderFirstName: data.attrs.senderFirstName,
+      senderLastName: data.attrs.senderLastName,
+    };
+
+    store.dispatch(
+      setReactions({
+        roomJID: stanzaId.attrs.by,
+        messageId,
+        reactions: reactionList,
+        from,
+        data: dataReaction,
+      })
+    );
+  } catch (error) {
     return;
   }
-
-  console.log("data history", data.attrs);
-  console.log("data stanzaId", stanzaId.attrs);
-
-
-  const messageId = reactions.attrs.id;
-
-  const reactionList: string[] = reactions.children.map((emoji) => emoji.children[0]);
-  const from: string = reactions.attrs.from;
-  const dataReaction = {
-    senderFirstName: data.attrs.senderFirstName,
-    senderLastName: data.attrs.senderLastName,
-  }
-
-  store.dispatch(setReactions({
-    roomJID: stanzaId.attrs.by,
-    messageId,
-    reactions: reactionList,
-    from,
-    data: dataReaction
-  }));
 };
 
 const onMessageHistory = async (stanza: any) => {

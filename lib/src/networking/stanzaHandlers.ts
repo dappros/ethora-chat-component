@@ -8,6 +8,7 @@ import {
   setComposing,
   setCurrentRoom,
   setLastViewedTimestamp,
+  setReactions,
   setRoomRole,
   updateRoom,
 } from '../roomStore/roomsSlice';
@@ -58,6 +59,29 @@ const onRealtimeMessage = async (stanza: Element) => {
   }
 };
 
+const onReactionMessage = async (stanza: Element) => {
+  if (stanza?.attrs?.id?.includes('message-reaction')) {
+    const reactions = stanza.getChild('reactions');
+    const stanzaId = stanza.getChild('stanza-id');
+    const data = stanza.getChild('data');
+
+    const emojiList: string[] = reactions
+      .getChildren('reaction')
+      .map((reaction) => reaction.text());
+    const from: string = reactions.attrs.from;
+
+    store.dispatch(
+      setReactions({
+        roomJID: stanzaId.attrs.by,
+        messageId: reactions.attrs.id,
+        reactions: emojiList,
+        from,
+        data: data.attrs,
+      })
+    );
+  }
+};
+
 const onDeleteMessage = async (stanza: Element) => {
   if (stanza.attrs.id === 'deleteMessageStanza') {
     const deleted = stanza.getChild('delete');
@@ -96,7 +120,56 @@ const onEditMessage = async (stanza: Element) => {
   }
 };
 
+const onReactionHistory = async (stanza: any) => {
+  try {
+    const reactions = stanza
+      .getChild('result')
+      ?.getChild('forwarded')
+      ?.getChild('message')
+      ?.getChild('reactions');
+    const data = stanza
+      .getChild('result')
+      ?.getChild('forwarded')
+      ?.getChild('message')
+      ?.getChild('data');
+    const stanzaId = stanza
+      .getChild('result')
+      ?.getChild('forwarded')
+      ?.getChild('message')
+      ?.getChild('stanza-id');
+
+    if (!reactions && !data && !stanzaId && !reactions?.attrs) {
+      return;
+    }
+
+    const messageId = reactions.attrs.id;
+
+    const reactionList: string[] = reactions.children.map(
+      (emoji) => emoji.children[0]
+    );
+    const from: string = reactions.attrs.from;
+    const dataReaction = {
+      senderFirstName: data.attrs.senderFirstName,
+      senderLastName: data.attrs.senderLastName,
+    };
+
+    store.dispatch(
+      setReactions({
+        roomJID: stanzaId.attrs.by,
+        messageId,
+        reactions: reactionList,
+        from,
+        data: dataReaction,
+      })
+    );
+  } catch (error) {
+    return;
+  }
+};
+
 const onMessageHistory = async (stanza: any) => {
+  //here logic to add interactions and here too
+
   if (
     stanza.is('message') &&
     stanza.children[0].attrs.xmlns === 'urn:xmpp:mam:2'
@@ -271,6 +344,7 @@ export {
   onRealtimeMessage,
   onMessageHistory,
   onPresenceInRoom,
+  onReactionHistory,
   onGetLastMessageArchive,
   handleComposing,
   onGetChatRooms,
@@ -279,5 +353,6 @@ export {
   onGetRoomInfo,
   onDeleteMessage,
   onEditMessage,
+  onReactionMessage,
   onChatInvite,
 };

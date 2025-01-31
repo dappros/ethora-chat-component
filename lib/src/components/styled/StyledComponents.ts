@@ -152,6 +152,7 @@ export const SendButton = styled.button`
 export const CustomMessageContainer = styled.div<{
   isUser: boolean;
   reply: number;
+  reaction: boolean
 }>`
   display: flex;
   flex-direction: ${(props) => (!props.isUser ? 'row' : 'row-reverse')};
@@ -159,7 +160,7 @@ export const CustomMessageContainer = styled.div<{
   margin: 10px 0;
   gap: 5px;
   position: relative;
-  margin-bottom: ${(props) => !!props.reply && '40px'};
+  margin-bottom: ${(props) => (!!props.reply || !!props.reaction) && '40px'};
 `;
 
 export const CustomMessageBubble = styled.div<{
@@ -249,6 +250,21 @@ export const IconButton = styled.button`
   align-items: center;
   gap: 5px;
   pointer-events: auto;
+`;
+
+export const MessageFooter = styled.div<{ isUser: boolean }>`
+  display: flex;
+  justify-content: flex-start;
+  position: absolute;
+  gap: 6px;
+  bottom: -25px;
+  left: ${(props) => !props.isUser && '50px'};
+  right: ${(props) => props.isUser && '10px'};
+
+  @media (max-width: 675px) {
+    font-size: 12px;
+    bottom: -24px;
+  }
 `;
 
 export const Line = styled.div`

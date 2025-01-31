@@ -32,9 +32,15 @@ export interface IMessage {
   isDeleted?: boolean;
   mainMessage?: string;
   reply?: IReply[];
+  reaction?: Record<string, ReactionMessage>;
   translations?: TranslationObject;
   langSource?: string;
 }
+
+export interface ReactionMessage {
+  emoji: string[];
+  data: Record<string, string>;
+} 
 
 export interface IReply extends IMessage {}
 
@@ -223,12 +229,26 @@ export interface EditAction {
   text?: string;
 }
 
+export interface ReactionAction {
+  roomJID: string;
+  messageId: string;
+  from: string;
+  reactions: string[];
+  data?: Record<string, string>;
+}
+
 export type ModalType = (typeof MODAL_TYPES)[keyof typeof MODAL_TYPES];
 
 export interface ModalFile {
   fileName: string;
   fileURL: string;
   mimetype: string;
+}
+
+export interface ReactionAction {
+  roomJID: string;
+  messageId: string;
+  reactions: string[];
 }
 
 //xmppClientWs
@@ -292,6 +312,13 @@ export interface XmppClientInterface {
     showInChannel?: boolean,
     mainMessage?: string
   ): void;
+  sendMessageReactionStanza(
+    messageId: string,
+    roomJid: string,
+    reactionsList: string[],
+    data: any,
+    reactionSymbol?: any,
+  ): void;
   deleteMessageStanza(room: string, msgId: string): void;
   editMessageStanza(room: string, msgId: string, text: string): void;
   sendTypingRequestStanza(
@@ -311,6 +338,12 @@ export interface XmppClientInterface {
     description: string,
     to: string
   ): Promise<string>;
+  sendMessageReactionStanza(
+    messageId: string,
+    roomJid: string,
+    reactionsList: string[],
+    reactionSymbol?: any
+  ): void;
 }
 
 export type Iso639_1Codes = 'en' | 'es' | 'pt' | 'ht' | 'zh';

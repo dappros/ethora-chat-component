@@ -12,6 +12,8 @@ import {
   onGetMembers,
   onGetRoomInfo,
   onNewRoomCreated,
+  onReactionMessage,
+  onReactionHistory,
 } from '../stanzaHandlers';
 import XmppClient from '../xmppClient';
 
@@ -19,6 +21,8 @@ export function handleStanza(stanza: Element, xmppWs: XmppClient) {
   if (stanza?.attrs?.type === 'headline') return;
   switch (stanza.name) {
     case 'message':
+      onReactionMessage(stanza);
+      onReactionHistory(stanza);
       onDeleteMessage(stanza);
       onEditMessage(stanza);
       onRealtimeMessage(stanza);
@@ -26,6 +30,8 @@ export function handleStanza(stanza: Element, xmppWs: XmppClient) {
       onGetLastMessageArchive(stanza, xmppWs);
       handleComposing(stanza, xmppWs.username);
       onChatInvite(stanza, xmppWs);
+      onReactionMessage(stanza);
+      onReactionHistory(stanza);
       break;
     case 'presence':
       onPresenceInRoom(stanza);

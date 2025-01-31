@@ -57,7 +57,7 @@ function App() {
             //   },
             // ],
             setRoomJidInPath: true,
-            enableTranslates: true,
+            // enableTranslates: true,
           }}
           MainComponentStyles={{
             width: '100%',

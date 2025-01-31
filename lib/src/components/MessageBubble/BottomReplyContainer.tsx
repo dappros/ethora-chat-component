@@ -3,34 +3,19 @@ import { IReply, IUser } from '../../types/types';
 import { Avatar } from './Avatar';
 import { styled } from 'styled-components';
 
-interface BottomReplyContainerProps {
-  isUser: boolean;
-  reply: IReply[];
-  onClick: () => void;
-}
-
-const ReplyContainer = styled.button<{ isUser: boolean }>`
-  position: absolute;
+const ReplyContainer = styled.button<{ isUser: boolean; color: string }>`
   box-shadow: 0px 0px 8px 0px rgba(185, 198, 199, 1);
   background-color: #ffffff;
-  bottom: -24px;
-  left: ${(props) => !props.isUser && '50px'};
-  right: ${(props) => props.isUser && '10px'};
   font-size: 14px;
   padding: 4px 8px 4px 16px;
   border-radius: 20px;
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #0052cd;
+  color: ${({ color }) => color || '#0052cd'};
   font-weight: 600;
   border: none;
   cursor: pointer;
-
-  @media (max-width: 675px) {
-    font-size: 12px;
-    bottom: -24px;
-  }
 `;
 
 const AvatarCircle = styled.div`
@@ -58,9 +43,17 @@ const CircleCurrent = styled.div`
   font-weight: 100;
 `;
 
+interface BottomReplyContainerProps {
+  isUser: boolean;
+  reply: IReply[];
+  color: string;
+  onClick: () => void;
+}
+
 export const BottomReplyContainer: FC<BottomReplyContainerProps> = ({
   isUser,
   reply,
+  color,
   onClick,
 }) => {
   const uniqueUsers: IUser[] = useMemo(() => {
@@ -78,7 +71,7 @@ export const BottomReplyContainer: FC<BottomReplyContainerProps> = ({
   //TODO Add user avatars
 
   return (
-    <ReplyContainer onClick={onClick} isUser={isUser}>
+    <ReplyContainer onClick={onClick} isUser={isUser} color={color}>
       <div style={{ display: 'flex' }}>
         {uniqueUsers.slice(0, 3).map((item) => (
           <AvatarCircle>
