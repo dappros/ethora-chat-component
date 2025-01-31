@@ -1,13 +1,5 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-} from 'react';
-import {
-  MessagesScroll,
-  MessagesList,
-} from '../styled/StyledComponents';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import { MessagesScroll, MessagesList } from '../styled/StyledComponents';
 import { IConfig, IMessage, User } from '../../types/types';
 import Loader from '../styled/Loader';
 import Composing from '../styled/StyledInputComponents/Composing';
@@ -32,7 +24,7 @@ interface MessageListProps<TMessage extends IMessage> {
   config?: IConfig;
   isReply: boolean;
   activeMessage?: IMessage;
-};
+}
 
 const MessageList = <TMessage extends IMessage>({
   CustomMessage,
@@ -94,7 +86,7 @@ const MessageList = <TMessage extends IMessage>({
   const timeoutRef = useRef<number>(0);
   const scrollParams = useRef<{ top: number; height: number } | null>(null);
   const atBottom = useRef<boolean>(true);
-  
+
   const getScrollParams = (): { top: number; height: number } | null => {
     const content = containerRef.current;
     if (!content) {
@@ -229,6 +221,7 @@ const MessageList = <TMessage extends IMessage>({
           lastDateLabel = messageDate;
           return (
             <MessageContainer
+              key={message.id}
               CustomMessage={CustomMessage}
               message={message}
               activeMessage={activeMessage}

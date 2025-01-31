@@ -190,6 +190,7 @@ const RoomList: React.FC<RoomListProps> = ({
               {filteredChats.map((chat: IRoom, index: number) => (
                 <>
                   <ChatRoomItem
+                    key={chat.id}
                     chat={chat}
                     index={index}
                     isChatActive={isChatActive(chat)}

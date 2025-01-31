@@ -22,6 +22,7 @@ import { handleStanza } from './xmpp/handleStanzas.xmpp';
 import { setVcard } from './xmpp/setVCard.xmpp';
 import { XmppClientInterface } from '../types/types';
 import { createPrivateRoom } from './xmpp/createPrivateRoom.xmpp';
+import { sendMessageReaction } from './xmpp/sendMessageReaction.xmpp';
 import { sendTextMessageWithTranslateTag } from './xmpp/sendTextMessageWithTranslateTag.xmpp';
 
 export class XmppClient implements XmppClientInterface {
@@ -227,6 +228,16 @@ export class XmppClient implements XmppClientInterface {
     );
   };
 
+  // sendMessageReactionStanza(
+  //   messageId: string,
+  //   roomJid: string,
+  //   reactionsList: string[],
+  //   data: any,
+  //   reactionSymbol?: any,
+  // ) {
+  //   sendMessageReaction(this.client, messageId, roomJid, reactionsList, data, reactionSymbol);
+  // }
+
   sendTextMessageWithTranslateTagStanza = (
     roomJID: string,
     firstName: string,
@@ -264,6 +275,21 @@ export class XmppClient implements XmppClientInterface {
 
   editMessageStanza(room: string, msgId: string, text: string) {
     editMessage(this.client, room, msgId, text);
+  }
+
+  sendMessageReactionStanza(
+    messageId: string,
+    roomJid: string,
+    reactionsList: string[],
+    reactionSymbol?: any
+  ) {
+    sendMessageReaction(
+      this.client,
+      messageId,
+      roomJid,
+      reactionsList,
+      reactionSymbol
+    );
   }
 
   sendTypingRequestStanza(chatId: string, fullName: string, start: boolean) {
