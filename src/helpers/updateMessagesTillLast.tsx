@@ -13,51 +13,53 @@ export const updateMessagesTillLast = async (
   messagesPerFetch = 5
 ) => {
   const roomEntries = Object.keys(rooms);
-  let processedIndex = 0;
+  if (roomEntries.length > 0) {
+    let processedIndex = 0;
 
-  while (processedIndex < roomEntries.length) {
-    const currentBatch = roomEntries.slice(
-      processedIndex,
-      processedIndex + batchSize
-    );
+    while (processedIndex < roomEntries.length) {
+      const currentBatch = roomEntries.slice(
+        processedIndex,
+        processedIndex + batchSize
+      );
 
-    await Promise.all(
-      currentBatch.map(async (jid, index) => {
-        try {
-          if (index > 0) await new Promise((res) => setTimeout(res, 500));
+      await Promise.all(
+        currentBatch.map(async (jid, index) => {
+          try {
+            if (index > 0) await new Promise((res) => setTimeout(res, 500));
 
-          const lastTimeStamp = getLastMessageTimestamp(
-            store.getState().rooms,
-            jid
-          );
-          if (!lastTimeStamp) return;
-
-          let counter = 0;
-          let isMessageFound = false;
-
-          while (!isMessageFound && counter < maxFetchAttempts) {
-            const fetchedMessages = await client.getHistoryStanza(
-              jid,
-              messagesPerFetch
+            const lastTimeStamp = getLastMessageTimestamp(
+              store.getState().rooms,
+              jid
             );
+            if (!lastTimeStamp) return;
 
-            if (!fetchedMessages.length) break;
+            let counter = 0;
+            let isMessageFound = false;
 
-            counter++;
-            isMessageFound = fetchedMessages.some(
-              (message: IMessage) =>
-                Number(message.id) === Number(lastTimeStamp)
-            );
+            while (!isMessageFound && counter < maxFetchAttempts) {
+              const fetchedMessages = await client.getHistoryStanza(
+                jid,
+                messagesPerFetch
+              );
+
+              if (!fetchedMessages.length) break;
+
+              counter++;
+              isMessageFound = fetchedMessages.some(
+                (message: IMessage) =>
+                  Number(message.id) === Number(lastTimeStamp)
+              );
+            }
+
+            // console.log(`${jid} now updated`);
+          } catch (error) {
+            console.error(`Error processing room ${jid}:`, error);
           }
+        })
+      );
 
-          // console.log(`${jid} now updated`);
-        } catch (error) {
-          console.error(`Error processing room ${jid}:`, error);
-        }
-      })
-    );
-
-    processedIndex += batchSize;
+      processedIndex += batchSize;
+    }
   }
 
   console.log('All rooms processed');

@@ -153,7 +153,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
               user.defaultWallet?.walletAddress,
               user.xmppPassword
             ).then(async (client) => {
-              if (Object.keys(roomsList).length > 0) {
+              if (roomsList && Object.keys(roomsList).length > 0) {
                 await initRoomsPresence(client, roomsList);
               } else {
                 await client.getRoomsStanza();
