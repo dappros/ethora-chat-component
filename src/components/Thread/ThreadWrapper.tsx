@@ -1,4 +1,4 @@
-import { FC, useCallback, useState } from 'react';
+import { FC, useCallback, useEffect, useState } from 'react';
 import { IMessage, User } from '../../types/types';
 import {
   AlsoCheckbox,
@@ -11,8 +11,10 @@ import { useXmppClient } from '../../context/xmppProvider';
 import MessageList from '../MainComponents/MessageList';
 import ModalHeaderComponent from '../Modals/ModalHeaderComponent';
 import {
+  deleteRoomMessage,
   setCloseActiveMessage,
   setEditAction,
+  setLastViewedTimestamp,
 } from '../../roomStore/roomsSlice';
 import { EditWrapper } from '../MainComponents/EditWrapper';
 import { useSendMessage } from '../../hooks/useSendMessage';
@@ -38,7 +40,7 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
   const { client } = useXmppClient();
   const dispatch = useDispatch();
 
-  const { loading, roomsList, editAction } = useRoomState();
+  const { loading, roomsList, editAction, activeRoomJID } = useRoomState();
   const { config } = useChatSettingState();
   const {
     sendMessage: sendMs,
@@ -52,7 +54,6 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
   const loadMoreMessages = useCallback(
     async (chatJID: string, max: number, idOfMessageBefore?: number) => {
       if (!isLoadingMore) {
-        setIsLoadingMore(true);
         client?.getHistoryStanza(chatJID, max, idOfMessageBefore).then(() => {
           setIsLoadingMore(false);
         });

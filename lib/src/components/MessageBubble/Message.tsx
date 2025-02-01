@@ -174,8 +174,8 @@ const Message: React.FC<MessageProps> = forwardRef<
       <CustomMessageContainer
         key={message.id}
         isUser={isUser}
-        reply={message?.reply?.length}
-        reaction={!!message?.reaction?.length}
+        reply={!!message?.reply?.length}
+        reaction={message?.reaction && !!Object.keys(message?.reaction)?.length}
         ref={ref}
       >
         {!isUser && (
@@ -248,7 +248,7 @@ const Message: React.FC<MessageProps> = forwardRef<
           </CustomMessageTimestamp>
         </CustomMessageBubble>
         <MessageFooter isUser={isUser}>
-          {message?.reply?.length && message.reaction ? (
+          {message?.reply?.length && message?.reply?.length > 0 ? (
             <BottomReplyContainer
               isUser={isUser}
               onClick={handleReplyMessage}

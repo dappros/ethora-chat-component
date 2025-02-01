@@ -149,8 +149,8 @@ export const SendButton = styled.button`
 
 export const CustomMessageContainer = styled.div<{
   isUser: boolean;
-  reply: number;
-  reaction: boolean
+  reply: boolean;
+  reaction: boolean;
 }>`
   display: flex;
   flex-direction: ${(props) => (!props.isUser ? 'row' : 'row-reverse')};

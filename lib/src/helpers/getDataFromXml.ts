@@ -4,8 +4,11 @@ import { transformArrayToObject } from './transformTranslatations';
 
 const extractTimestamp = (str: string, stanza?: any): string | null => {
   if (!str) return;
-  typeof str !== 'string' && console.log(str, stanza.toString());
-  const timestamp = str.slice(-13);
+  if (typeof str !== 'string') {
+    console.log(str, stanza.toString());
+    return undefined;
+  }
+  const timestamp = str.slice(-16);
   return timestamp;
 };
 
@@ -28,7 +31,7 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
   const data = fullData?.getChild('data') || stanza?.getChild('data');
   const id =
     stanza.getChild('result')?.attrs.id ||
-    extractTimestamp(stanza.attrs.id, stanza);
+    extractTimestamp(stanza?.getChild('stanza-id')?.attrs?.id, stanza);
 
   if (!id) return;
 

@@ -9,6 +9,7 @@ const ReactionContainer = styled.div`
   align-items: center;
   border: none;
   background: transparent;
+  z-index: 1;
 `;
 
 const ReactionBox = styled.button<{ color: string }>`

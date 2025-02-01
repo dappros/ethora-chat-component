@@ -20,7 +20,7 @@ export const useRoomInitialization = (
     const getDefaultHistory = async () => {
       dispatch(setIsLoading({ loading: true, chatJID: activeRoomJID }));
       const res = await client.getHistoryStanza(activeRoomJID, 30);
-      if (countUndefinedText(res) > 0) {
+      if (res && countUndefinedText(res) > 0) {
         // make it more optimized
         await client.getHistoryStanza(
           activeRoomJID,
@@ -49,7 +49,7 @@ export const useRoomInitialization = (
       } else if (messageLength < 20) {
         getDefaultHistory();
       } else {
-        getDefaultHistory();
+        dispatch(setIsLoading({ loading: false, chatJID: activeRoomJID }));
       }
     } else if (!roomsList?.[activeRoomJID]) {
       initialPresenceAndHistory();
