@@ -5,8 +5,8 @@ import {
   ReplyIcon,
   ReportIcon,
   SendCoinIcon,
-  SendItemIcon,
 } from '../../assets/icons';
+import { SendItemIcon } from '../../assets/images';
 
 export const MESSAGE_INTERACTIONS = {
   SEND_COINS: 'Send coins',
