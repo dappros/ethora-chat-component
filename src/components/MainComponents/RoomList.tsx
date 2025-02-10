@@ -75,6 +75,11 @@ const RoomList: React.FC<RoomListProps> = ({
     []
   );
 
+  const getLastMessage = useCallback(
+    (chat: IRoom) => chat?.messages?.[chat?.messages.length - 1],
+    []
+  );
+
   const filteredChats = useMemo(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
     const chatsMap = new Map<string, IRoom[]>();
@@ -85,14 +90,14 @@ const RoomList: React.FC<RoomListProps> = ({
           chat.name?.toLowerCase().includes(lowerCaseSearchTerm)
         )
         .sort((a, b) => {
-          if (a.lastMessageTimestamp && b.lastMessageTimestamp) {
-            return b.lastMessageTimestamp - a.lastMessageTimestamp;
-          } else if (a.lastMessageTimestamp) {
+          if (getLastMessage(a)?.id && getLastMessage(b)?.id) {
+            return Number(getLastMessage(b).id) - Number(getLastMessage(a).id);
+          } else if (getLastMessage(a)?.id) {
             return -1;
-          } else if (b.lastMessageTimestamp) {
+          } else if (getLastMessage(b)?.id) {
             return 1;
           }
-          return b.usersCnt - a.usersCnt;
+          return -1;
         });
 
       chatsMap.set(lowerCaseSearchTerm, result);
