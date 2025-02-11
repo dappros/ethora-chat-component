@@ -24,6 +24,7 @@ import { XmppClientInterface } from '../types/types';
 import { createPrivateRoom } from './xmpp/createPrivateRoom.xmpp';
 import { sendMessageReaction } from './xmpp/sendMessageReaction.xmpp';
 import { sendTextMessageWithTranslateTag } from './xmpp/sendTextMessageWithTranslateTag.xmpp';
+import { getRoomsPaged } from './xmpp/getRoomsPaged.xmpp';
 
 export class XmppClient implements XmppClientInterface {
   client!: Client;
@@ -146,6 +147,13 @@ export class XmppClient implements XmppClientInterface {
   getRoomsStanza = async () => {
     await getRooms(this.client);
   };
+
+  async getRoomsPagedStanza(
+    maxResults?: number,
+    after?: string | null
+  ): Promise<void> {
+    await getRoomsPaged(this.client);
+  }
 
   //room functions
 

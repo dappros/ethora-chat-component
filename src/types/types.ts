@@ -66,6 +66,12 @@ export interface IRoom {
   role?: string;
 
   roomMembers?: RoomMember[];
+
+  messageStats?: {
+    lastMessageTimestamp?: number;
+    firstMessageTimestamp?: number;
+  };
+  historyComplete?: boolean;
 }
 
 export interface RoomMember {
@@ -344,6 +350,7 @@ export interface XmppClientInterface {
     reactionsList: string[],
     reactionSymbol?: any
   ): void;
+  getRoomsPagedStanza(maxResults: number, after: string | null): void;
 }
 
 export type Iso639_1Codes = 'en' | 'es' | 'pt' | 'ht' | 'zh';

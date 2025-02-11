@@ -54,7 +54,7 @@ const chatSettingPersistConfig = {
 const roomsPersistConfig = {
   key: 'roomMessages',
   storage,
-  blacklist: ['editAction'],
+  blacklist: ['editAction', 'activeRoomJID'],
   transforms: [limitMessagesTransform, encryptor],
 };
 

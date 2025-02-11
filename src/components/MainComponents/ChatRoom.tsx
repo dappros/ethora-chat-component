@@ -82,6 +82,10 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     };
 
     useEffect(() => {
+      // client.getRoomsPagedStanza(
+      //   3,
+      //   'd673a602b47d524ba6a95102cc71fc3f308b31d64454498078a056cf54e5a2b4'
+      // );
       dispatch(
         setLastViewedTimestamp({
           chatJID: activeRoomJID,
