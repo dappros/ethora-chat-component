@@ -8,7 +8,7 @@ export const Container = styled.div`
   justify-content: center;
 `;
 
-export const FullScreenImage = styled.img`
+export const FullScreenImage = styled.button`
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -33,7 +33,6 @@ export const ButtonContainer = styled.div`
 `;
 
 export const IconButton = styled.button`
-  background: none;
   border: none;
   cursor: pointer;
   color: gray;
@@ -44,26 +43,55 @@ export const IconButton = styled.button`
   pointer-events: auto;
 `;
 
-export const UnsupportedContainer = styled.div`
+export const UnsupportedContainer = styled.button`
   display: flex;
+  flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  border: 1px solid #ddd;
   border-radius: 8px;
-  padding: 10px;
-  margin: 5px 0;
+  padding: 8px 10px;
   cursor: pointer;
-  background-color: #f9f9f9;
-  &:hover {
-    background-color: #f1f1f1;
-  }
+  gap: 8px;
+  background-color: #f3f6fc;
+  border: none;
 `;
 
-export const FileName = styled.div`
+export const BackgroundFile = styled.div`
+  border-radius: 8px;
+  width: 100%;
+  height: 100%;
+  background-color: #fff;
+`;
+
+export const FileInformation = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+`;
+
+export const FileName = styled.span`
+  font-size: 14px;
+  font-weight: 500;
   flex-grow: 1;
-  padding: 0 10px;
-  color: #333;
-  white-space: nowrap;
+  color: #141414;
   overflow: hidden;
-  text-overflow: ellipsis;
+  min-width: 100px;
+  text-align: start;
+`;
+
+export const FileSizeContainer = styled.div`
+  align-items: flex-start;
+  flex-direction: row;
+  background-color: #fff;
+  padding: 2px 8px;
+  border-radius: 40px;
+`;
+
+export const FileSize = styled.span`
+  color: #53575a;
+  overflow: hidden;
+  text-align: left;
+  font-weight: 500;
 `;

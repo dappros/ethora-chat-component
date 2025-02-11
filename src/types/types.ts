@@ -35,6 +35,8 @@ export interface IMessage {
   reaction?: Record<string, ReactionMessage>;
   translations?: TranslationObject;
   langSource?: string;
+  originalName?: string;
+  size?: string;
 }
 
 export interface ReactionMessage {

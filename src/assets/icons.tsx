@@ -752,3 +752,22 @@ export const DownArrowIcon = ({
     />
   </svg>
 );
+
+export const FileIcon = ({ fill = '#fff', color = '#0052CD', ...props }) => (
+  <svg
+    width="46"
+    height="46"
+    viewBox="0 0 40 40"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <rect width="40" height="40" rx="8" fill={fill || '#F2E6F6'} />
+    <path
+      d="M27 17V27C27 28.1046 26.1046 29 25 29H15C13.8954 29 13 28.1046 13 27V26V13C13 11.8954 13.8954 11 15 11H21M27 17L21 11M27 17H23C21.8954 17 21 16.1046 21 15V11"
+      stroke={color || '#60269E'}
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+  </svg>
+);
