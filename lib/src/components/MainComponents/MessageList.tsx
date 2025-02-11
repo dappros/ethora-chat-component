@@ -116,13 +116,13 @@ const MessageList = <TMessage extends IMessage>({
     if (params.top < 150 && !isLoadingMore.current) {
       scrollParams.current = getScrollParams();
       const firstMessage = memoizedMessages[0];
-      if (firstMessage?.user?.id) {
+      if (firstMessage?.id) {
         isLoadingMore.current = true;
 
         loadMoreMessages(
           memoizedMessages[0].roomJid,
           30,
-          Number(memoizedMessages[0].id)
+          Number(firstMessage.id)
         ).finally(() => {
           isLoadingMore.current = false;
           lastMessageRef.current =

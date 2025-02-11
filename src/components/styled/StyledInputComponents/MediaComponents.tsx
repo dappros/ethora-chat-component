@@ -8,7 +8,7 @@ export const Container = styled.div`
   justify-content: center;
 `;
 
-export const FullScreenImage = styled.button`
+export const FullScreenImage = styled.img`
   width: 100%;
   height: 100%;
   object-fit: contain;

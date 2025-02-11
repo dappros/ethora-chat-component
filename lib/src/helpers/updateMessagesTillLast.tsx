@@ -39,7 +39,8 @@ export const updateMessagesTillLast = async (
             while (!isMessageFound && counter < maxFetchAttempts) {
               const fetchedMessages = await client.getHistoryStanza(
                 jid,
-                messagesPerFetch
+                messagesPerFetch,
+                Number(store.getState().rooms.rooms[jid].messages[0].id)
               );
 
               if (!fetchedMessages.length) break;

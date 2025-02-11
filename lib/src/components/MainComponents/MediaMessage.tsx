@@ -16,7 +16,12 @@ const MediaMessage: React.FC<MediaMessageProps> = ({
   mimeType,
   location,
   messageText,
+  message,
 }) => {
+  const getFilename = () => {
+    return message.originalName || location?.split('/')?.pop() || 'MediaFile';
+  };
+
   if (mimeType)
     switch (true) {
       case mimeType.startsWith('image/'):
@@ -42,8 +47,9 @@ const MediaMessage: React.FC<MediaMessageProps> = ({
         return (
           <FileDownload
             fileURL={location ? location : ''}
-            fileName={location?.split('/')?.pop() || 'MediaFile'}
+            fileName={getFilename()}
             mimetype={mimeType}
+            size={message.size}
           />
         );
     }

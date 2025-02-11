@@ -241,3 +241,15 @@
 		</x>
 	</query>
 </iq>
+//
+get-history
+0x6_c394_b10_f5_da4141b99_d_b2_ad424_c5688c3f202_b3.0x_b46998202834_b455396508277f36f66d05_a_a_e8_f9
+<iq xmlns="jabber:client" xml:lang="en" to="0x_b46998202834_b455396508277f36f66d05_a_a_e8_f9@xmpp.ethoradev.com/85328763516285310342948706" from="0x6_c394_b10_f5_da4141b99_d_b2_ad424_c5688c3f202_b3.0x_b46998202834_b455396508277f36f66d05_a_a_e8_f9@conference.xmpp.ethoradev.com" type="result" id="get-history:1739214575011">
+	<fin complete="true" xmlns="urn:xmpp:mam:2">
+		<set xmlns="http://jabber.org/protocol/rsm">
+			<count>
+				2
+			</count>
+		</set>
+	</fin>
+</iq>
