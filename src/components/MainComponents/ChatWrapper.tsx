@@ -39,6 +39,7 @@ import { useRoomState } from '../../hooks/useRoomState';
 import { initRoomsPresence } from '../../helpers/initRoomsPresence';
 import { updatedChatLastTimestamps } from '../../helpers/updatedChatLastTimestamps';
 import { updateMessagesTillLast } from '../../helpers/updateMessagesTillLast';
+import { useMessageQueue } from '../../hooks/useMessageQueue';
 
 interface ChatWrapperProps {
   token?: string;
@@ -245,7 +246,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   const queueMessageLoader = useCallback(
     async (chatJID: string, max: number) => {
       try {
-        client?.getHistoryStanza(chatJID, max);
+        return client?.getHistoryStanza(chatJID, max);
       } catch (error) {
         console.log('Error in loading queue messages');
       }
@@ -260,6 +261,8 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     loading,
     queueMessageLoader
   );
+
+  // useMessageQueue(roomsList, activeRoomJID, queueMessageLoader);
 
   if (user.xmppPassword === '' && user.xmppUsername === '')
     return <LoginForm config={config} />;

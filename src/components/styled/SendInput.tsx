@@ -6,7 +6,6 @@ import React, {
   useEffect,
 } from 'react';
 import {
-  FileIcon,
   FilePreview,
   FilePreviewContainer,
   HiddenFileInput,
@@ -14,11 +13,12 @@ import {
   VideoPreview,
   InputContainer,
   MessageInput,
+  ImagePreview,
 } from './StyledInputComponents/StyledInputComponents';
 import AudioRecorder from '../InputComponents/AudioRecorder';
 import { IConfig } from '../../types/types';
 import Button from './Button';
-import { AttachIcon, RemoveIcon, SendIcon } from '../../assets/icons';
+import { AttachIcon, FileIcon, RemoveIcon, SendIcon } from '../../assets/icons';
 
 interface SendInputProps {
   sendMessage: (message: string) => void;
@@ -141,12 +141,11 @@ const SendInput: React.FC<SendInputProps> = ({
     const fileType = file.type.split('/')[0];
 
     if (fileType === 'image') {
-      return <FileIcon src={fileUrl} alt={file.name} />;
+      return <ImagePreview src={fileUrl} alt={file.name} />;
     } else if (fileType === 'video') {
       return <VideoPreview src={fileUrl} controls />;
     } else {
-      // return <FileIcon src={attachIcon} alt={file.name} />;
-      return <></>;
+      return <FileIcon alt={file.name} />;
     }
   }, []);
 

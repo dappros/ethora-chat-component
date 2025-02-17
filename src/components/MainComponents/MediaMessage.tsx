@@ -27,7 +27,7 @@ const MediaMessage: React.FC<MediaMessageProps> = ({
       case mimeType.startsWith('image/'):
         return (
           <CustomMessageImage
-            fileName="image"
+            fileName={message.originalName}
             fileURL={messageText}
             mimetype={mimeType}
           />
@@ -35,7 +35,7 @@ const MediaMessage: React.FC<MediaMessageProps> = ({
       case mimeType.startsWith('video/'):
         return (
           <CustomMessageVideo
-            fileName="image"
+            fileName={message.originalName}
             fileURL={location}
             mimetype={mimeType}
           />

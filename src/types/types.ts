@@ -56,7 +56,7 @@ export interface IRoom {
   roomBg: string;
 
   id?: string;
-  lastMessage?: string;
+  lastMessage?: LastMessage;
   lastMessageTimestamp?: number;
   lastRoomMessage?: RoomLastMessage;
   icon?: string;
@@ -242,6 +242,7 @@ export interface ReactionAction {
   messageId: string;
   from: string;
   reactions: string[];
+  latestReactionTimestamp?: string;
   data?: Record<string, string>;
 }
 
@@ -257,6 +258,12 @@ export interface ReactionAction {
   roomJID: string;
   messageId: string;
   reactions: string[];
+}
+
+export interface AddRoomMessageAction {
+  roomJID: string;
+  message: IMessage;
+  start?: boolean;
 }
 
 //xmppClientWs
@@ -366,3 +373,13 @@ export type LanguageOptions = {
   languages: Array<Language>;
   language?: Iso639_1Codes;
 };
+
+export interface LastMessage extends Omit<Partial<IMessage>, 'date'> {
+  body: string;
+  date?: string | Date;
+  emoji?: string;
+  locationPreview?: string;
+  filename?: string;
+  mimetype?: string;
+  originalName?: string;
+}

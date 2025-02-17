@@ -65,6 +65,9 @@ const onReactionMessage = async (stanza: Element) => {
   if (stanza?.attrs?.id?.includes('message-reaction')) {
     const reactions = stanza.getChild('reactions');
     const stanzaId = stanza.getChild('stanza-id');
+    const roomJid = stanzaId.attrs.by;
+    const timestamp = stanzaId.attrs.id;
+
     const data = stanza.getChild('data');
 
     const emojiList: string[] = reactions
@@ -74,8 +77,9 @@ const onReactionMessage = async (stanza: Element) => {
 
     store.dispatch(
       setReactions({
-        roomJID: stanzaId.attrs.by,
+        roomJID: roomJid,
         messageId: reactions.attrs.id,
+        latestReactionTimestamp: timestamp,
         reactions: emojiList,
         from,
         data: data.attrs,
@@ -155,10 +159,14 @@ const onReactionHistory = async (stanza: any) => {
       senderLastName: data.attrs.senderLastName,
     };
 
+    const roomJid = stanzaId.attrs.by;
+    const timestamp = stanzaId.attrs.id;
+
     store.dispatch(
       setReactions({
-        roomJID: stanzaId.attrs.by,
+        roomJID: roomJid,
         messageId,
+        latestReactionTimestamp: timestamp,
         reactions: reactionList,
         from,
         data: dataReaction,
@@ -170,8 +178,6 @@ const onReactionHistory = async (stanza: any) => {
 };
 
 const onMessageHistory = async (stanza: any) => {
-  //here logic to add interactions and here too
-
   if (
     stanza.is('message') &&
     stanza.children[0].attrs.xmlns === 'urn:xmpp:mam:2'

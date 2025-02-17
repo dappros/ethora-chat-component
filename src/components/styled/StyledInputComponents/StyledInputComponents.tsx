@@ -84,7 +84,7 @@ export const FilePreview = styled.div`
   background-color: #f9f9f9;
 `;
 
-export const FileIcon = styled.img`
+export const ImagePreview = styled.img`
   max-width: 80%;
   max-height: 80%;
 `;

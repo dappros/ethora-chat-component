@@ -316,6 +316,7 @@ export const NoMessages = ({ color = '#8C8C8C', ...props }) => (
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
     xmlnsXlink="http://www.w3.org/1999/xlink"
+    {...props}
   >
     <rect
       y="0.675903"
@@ -760,6 +761,7 @@ export const FileIcon = ({ fill = '#fff', color = '#0052CD', ...props }) => (
     viewBox="0 0 40 40"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
+    {...props}
   >
     <rect width="40" height="40" rx="8" fill={fill || '#F2E6F6'} />
     <path

@@ -3,7 +3,7 @@ import {
   CenterContainer,
   ModalContainerFullScreen,
 } from '../styledModalComponents';
-import { SaveIcon } from '../../../assets/icons';
+import { FileIcon, SaveIcon } from '../../../assets/icons';
 import ModalHeaderComponent from '../ModalHeaderComponent';
 import { useDispatch, useSelector } from 'react-redux';
 import Button from '../../styled/Button';
@@ -85,15 +85,25 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
         return (
           <div
             style={{
-              backgroundColor: '#FFF8ED',
-              borderRadius: '16px',
               display: 'flex',
-              padding: '16px',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
             }}
           >
-            Unable to open the uploaded document. The file format is not
-            supported by the system. Please upload a file in a compatible
-            format. You still can dowload this file.
+            <FileIcon style={{ minWidth: '100px', minHeight: '100px' }} />
+            <div
+              style={{
+                backgroundColor: '#FFF8ED',
+                borderRadius: '16px',
+                display: 'flex',
+                padding: '16px',
+              }}
+            >
+              Unable to open the uploaded document. The file format is not
+              supported by the system. Please upload a file in a compatible
+              format. You still can download this file.
+            </div>
           </div>
         );
     }

@@ -1,5 +1,11 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { EditAction, IMessage, IRoom, ReactionAction } from '../types/types';
+import {
+  AddRoomMessageAction,
+  EditAction,
+  IMessage,
+  IRoom,
+  ReactionAction,
+} from '../types/types';
 import { insertMessageWithDelimiter } from '../helpers/insertMessageWithDelimiter';
 
 interface RoomMessagesState {
@@ -123,17 +129,10 @@ export const roomsStore = createSlice({
         });
       }
     },
-    addRoomMessage(
-      state,
-      action: PayloadAction<{
-        roomJID: string;
-        message: IMessage;
-        start?: boolean;
-      }>
-    ) {
+    addRoomMessage(state, action: PayloadAction<AddRoomMessageAction>) {
       const { roomJID, message, start } = action.payload;
 
-      if (!message?.body) return; // change when reactions are ready
+      if (!message?.body) return;
 
       const roomMessages = state.rooms[roomJID]?.messages;
 

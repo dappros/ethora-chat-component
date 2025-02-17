@@ -1,14 +1,18 @@
-import React, { useMemo } from 'react';
-import { IConfig, IRoom } from '../../types/types';
+import React, { useCallback, useMemo } from 'react';
+import { IConfig, IMessage, IRoom, LastMessage } from '../../types/types';
 import { ProfileImagePlaceholder } from '../MainComponents/ProfileImagePlaceholder';
 import {
   ChatItem,
   ChatInfo,
   ChatName,
-  LastMessage,
   UserCount,
 } from '../styled/RoomListComponents';
 import Composing from '../styled/StyledInputComponents/Composing';
+import {
+  LastRoomMessageText,
+  NewMessageMarker,
+} from './styled/StyledRoomComponents';
+import LastMessageItem from './LastMessageItem';
 
 interface ChatRoomItemProps {
   chat: IRoom;
@@ -80,7 +84,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
           <ChatInfo>
             <ChatName>{chat.name}</ChatName>
           </ChatInfo>
-          {lastMessage && (
+          {lastMessage && lastMessage.date && (
             <UserCount
               style={{
                 color: !isChatActive ? '#8C8C8C' : '#fff',
@@ -106,59 +110,22 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
               usersTyping={chat.composingList}
               style={{ color: !isChatActive ? '#141414' : '#fff' }}
             />
-          ) : (
-            lastMessage?.body && (
-              <div
-                style={{
-                  display: 'flex',
-                  width: '80%',
-                  flexDirection: 'column',
-                  alignItems: 'start',
-                }}
-              >
-                <div
-                  style={{
-                    height: '20px',
-                    fontWeight: '600',
-                  }}
-                >
-                  {lastMessage.user.name || ''}:
-                </div>
-                <div
-                  style={{
-                    height: '20px',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    maxWidth: '200px',
-                  }}
-                >
-                  {lastMessage.body || 'Chat created'}
-                </div>
-              </div>
-            )
-          )}
+          ) : lastMessage?.body ? (
+            <LastMessageItem lastMessage={lastMessage} />
+          ) : chat.messages.length === 0 && chat.historyComplete ? (
+            <LastRoomMessageText>Room created</LastRoomMessageText>
+          ) : undefined}
           {chat.unreadMessages > 0 && (
-            <div
+            <NewMessageMarker
               style={{
-                borderRadius: '8px',
                 backgroundColor: isChatActive
                   ? '#fff'
                   : config?.colors?.primary,
                 color: isChatActive ? '#141414' : '#fff',
-                padding: '2px 2px',
-                fontWeight: 600,
-                minWidth: '24px',
-                minHeight: '24px',
-                fontSize: '14px',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                marginLeft: 'auto',
               }}
             >
               {chat.unreadMessages}
-            </div>
+            </NewMessageMarker>
           )}
         </div>
       </div>

@@ -1,21 +1,31 @@
-import React from 'react';
+import React, { FC } from 'react';
 import { CustomDivider } from './CustomDivider';
 import { IConfig, IMessage } from '../../types/types';
 import { CustomMessageText } from '../styled/StyledComponents';
-import { useChatSettingState } from '../../hooks/useChatSettingState';
 
-interface MessageTranslations {
+interface MessageTranslationsProps {
   message: IMessage;
-  langSource: string;
+  langSource?: string;
+  isUser: boolean;
   config?: IConfig;
 }
 
-const MessageTranslations = ({ message, langSource, config }) => {
+const MessageTranslations: FC<MessageTranslationsProps> = ({
+  message,
+  config,
+  isUser,
+  langSource,
+}) => {
   return (
+    message.langSource &&
     langSource &&
-    message.langSource && (
+    message.translations?.[langSource]?.translatedText && (
       <>
-        <CustomDivider configColor={config?.colors?.primary} />
+        <CustomDivider
+          isUser={isUser}
+          configColorUser={config?.colors?.secondary}
+          configColor={config?.colors?.primary}
+        />
         <CustomMessageText>
           {message.translations?.[langSource]?.translatedText}
         </CustomMessageText>

@@ -9,6 +9,7 @@ import { encryptTransform } from 'redux-persist-transform-encrypt';
 import { createTransform } from 'redux-persist';
 import { AnyAction } from 'redux-saga';
 import { newMessageMidlleware } from './Middleware/newMessageMidlleware';
+import { reactionsMiddleware } from './Middleware/reactionsMiddleware';
 
 const limitMessagesTransform = createTransform(
   (inboundState: { [jid: string]: IRoom }) => {

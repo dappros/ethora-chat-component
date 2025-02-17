@@ -10,7 +10,7 @@ export const updateMessagesTillLast = async (
   client: XmppClient,
   batchSize = 10,
   maxFetchAttempts = 3,
-  messagesPerFetch = 5
+  messagesPerFetch = 6
 ) => {
   const roomEntries = Object.keys(rooms);
   if (roomEntries.length > 0) {

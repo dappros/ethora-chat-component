@@ -79,6 +79,8 @@ export const FileName = styled.span`
   overflow: hidden;
   min-width: 100px;
   text-align: start;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 `;
 
 export const FileSizeContainer = styled.div`
