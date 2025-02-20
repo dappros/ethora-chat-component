@@ -32,12 +32,12 @@ const limitMessagesTransform = createTransform(
   (outboundState: { [jid: string]: IRoom }) => outboundState
 );
 
-const encryptor = encryptTransform({
-  secretKey: 'hey-this-is-dappros',
-  onError: (error) => {
-    console.error('Encryption error:', error);
-  },
-});
+// const encryptor = encryptTransform({
+//   secretKey: 'hey-this-is-dappros',
+//   onError: (error) => {
+//     console.error('Encryption error:', error);
+//   },
+// });
 
 const chatSettingPersistConfig = {
   key: 'chatSettingStore',
@@ -49,21 +49,21 @@ const chatSettingPersistConfig = {
     'selectedUser',
     'activeFile',
   ],
-  transforms: [encryptor],
+  // transforms: [encryptor],
 };
 
 const roomsPersistConfig = {
   key: 'roomMessages',
   storage,
   blacklist: ['editAction', 'activeRoomJID'],
-  transforms: [limitMessagesTransform, encryptor],
+  transforms: [limitMessagesTransform],
 };
 
 const persistConfig = {
   key: 'root',
   storage,
   whitelist: ['chatSettingStore', 'roomMessages'],
-  transforms: [encryptor],
+  // transforms: [encryptor],
 };
 
 const rootReducer = combineReducers({
@@ -77,7 +77,7 @@ const rootReducer = combineReducers({
 const persistedReducer: Reducer<RootState, AnyAction> = persistReducer(
   persistConfig,
   rootReducer
-);
+) as Reducer<RootState, AnyAction>;
 
 export const getActiveRoom = (state: RootState): IRoom | null => {
   const roomMessagesState = state.rooms;

@@ -67,7 +67,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
 
     const loadMoreMessages = useCallback(
       async (chatJID: string, max: number, idOfMessageBefore?: number) => {
-        if (!isLoadingMore && !roomsList[chatJID].historyComplete) {
+        if (!isLoadingMore && !roomsList?.[chatJID]?.historyComplete) {
           setIsLoadingMore(true);
           client?.getHistoryStanza(chatJID, max, idOfMessageBefore).then(() => {
             setIsLoadingMore(false);
