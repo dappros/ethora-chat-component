@@ -33,6 +33,7 @@ export interface IMessage {
   mainMessage?: string;
   reply?: IReply[];
   reaction?: Record<string, ReactionMessage>;
+  fileName?: string;
   translations?: TranslationObject;
   langSource?: string;
 }
@@ -168,6 +169,12 @@ export interface IConfig {
     enabled: boolean;
     user: User | null;
   };
+  customLogin?: {
+    enabled: boolean;
+    loginFunction: any; //() => Promise<User>
+  };
+  baseUrl?: string;
+  xmppSettings?: xmppSettingsInterface;
   disableRooms?: boolean;
   defaultLogin?: boolean;
   disableInteractions?: boolean;
@@ -179,7 +186,39 @@ export interface IConfig {
   disableRoomMenu?: boolean;
   defaultRooms?: string[] | ConfigRoom[];
   refreshTokens?: { enabled: boolean; refreshFunction?: any };
+  backgroundChat?: {
+    color?: string;
+    image?: any;
+  };
+  bubleMessage?: {
+    backgroundMessageUser?: string;
+    backgroundMessage?: string;
+    colorUser?: string;
+    color?: string;
+    borderRadius?: number;
+  };
+  headerLogo?: any;
+  headerMenu?: () => void;
+  headerChatMenu?: () => void;
+  customRooms?: {
+    rooms: PartialRoomWithMandatoryKeys[];
+    disableGetRooms?: boolean;
+    singleRoom: boolean;
+  };
   enableTranslates?: boolean;
+  disableRoomConfig?: boolean;
+  disableProfilesInteractions?: boolean;
+  disableUserCount?: boolean;
+  clearStoreBeforeInit?: boolean;
+}
+
+type PartialRoomWithMandatoryKeys = Partial<IRoom> &
+  Pick<IRoom, 'jid' | 'title'>;
+
+export interface xmppSettingsInterface {
+  devServer: string;
+  host: string;
+  conference?: string;
 }
 
 interface ConfigRoom {
@@ -206,6 +245,12 @@ export interface StorageUser {
   isAllowedNewAppCreate?: boolean;
   isAssetsOpen?: boolean;
   isProfileOpen?: boolean;
+}
+
+export interface xmppSettingsInterface {
+  devServer: string;
+  host: string;
+  conference?: string;
 }
 
 export interface MessageProps {
@@ -357,3 +402,19 @@ export type LanguageOptions = {
   languages: Array<Language>;
   language?: Iso639_1Codes;
 };
+
+export type MediaFile = {
+  uri: string;
+  type: string;
+  name: string;
+};
+
+export interface LastMessage extends Omit<Partial<IMessage>, 'date'> {
+  body: string;
+  date?: string | Date;
+  emoji?: string;
+  locationPreview?: string;
+  filename?: string;
+  mimetype?: string;
+  originalName?: string;
+}

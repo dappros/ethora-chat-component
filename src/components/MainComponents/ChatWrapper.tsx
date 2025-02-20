@@ -151,8 +151,9 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
             console.log('No client, so initing one');
             await initializeClient(
-              user.defaultWallet?.walletAddress,
-              user.xmppPassword
+              user?.defaultWallet?.walletAddress,
+              user?.xmppPassword,
+              config?.xmppSettings
             ).then(async (client) => {
               if (roomsList && Object.keys(roomsList).length > 0) {
                 await initRoomsPresence(client, roomsList);

@@ -20,7 +20,7 @@ import { inviteRoomRequest } from './xmpp/inviteRoomRequest.xmpp';
 import { getRooms } from './xmpp/getRooms.xmpp';
 import { handleStanza } from './xmpp/handleStanzas.xmpp';
 import { setVcard } from './xmpp/setVCard.xmpp';
-import { XmppClientInterface } from '../types/types';
+import { XmppClientInterface, xmppSettingsInterface } from '../types/types';
 import { createPrivateRoom } from './xmpp/createPrivateRoom.xmpp';
 import { sendMessageReaction } from './xmpp/sendMessageReaction.xmpp';
 import { sendTextMessageWithTranslateTag } from './xmpp/sendTextMessageWithTranslateTag.xmpp';
@@ -43,9 +43,17 @@ export class XmppClient implements XmppClientInterface {
     return this.client && this.client.status === 'online';
   }
 
-  constructor(username: string, password: string, devServer?: string) {
-    this.devServer = devServer;
-    const url = `wss://${this.devServer || 'xmpp.ethoradev.com:5443'}/ws`;
+  constructor(
+    username: string,
+    password: string,
+    xmppSettings?: xmppSettingsInterface
+  ) {
+    this.devServer =
+      xmppSettings?.devServer || `wss://xmpp.ethoradev.com:5443/ws`;
+    this.host = xmppSettings?.host || 'xmpp.ethoradev.com';
+    this.service = xmppSettings?.conference || 'conference.xmpp.ethoradev.com';
+
+    const url = this.devServer || `wss://xmpp.ethoradev.com:5443/ws`;
     // if (url.startsWith("wss")) {
     //   this.host = url.match(/wss:\/\/([^:/]+)/)[1];
     // } else {
@@ -59,12 +67,12 @@ export class XmppClient implements XmppClientInterface {
 
   initializeClient() {
     try {
-      const url = `wss://${this.devServer || 'xmpp.ethoradev.com:5443'}/ws`;
-      this.service = url;
+      const url = this.devServer || `wss://xmpp.ethoradev.com:5443/ws`;
+
       this.host = url.match(/wss:\/\/([^:/]+)/)?.[1] || '';
       this.conference = `conference.${this.host}`;
       console.log('+-+-+-+-+-+-+-+-+ ', { username: this.username });
-      this.service = url;
+      this.devServer = url;
 
       this.client = xmpp.client({
         service: url,
@@ -143,8 +151,8 @@ export class XmppClient implements XmppClientInterface {
     }
   }
 
-  getRoomsStanza = async () => {
-    await getRooms(this.client);
+  getRoomsStanza = async (disableGetRooms?: boolean) => {
+    !disableGetRooms && (await getRooms(this.client));
   };
 
   //room functions
@@ -224,7 +232,7 @@ export class XmppClient implements XmppClientInterface {
       isReply,
       showInChannel,
       mainMessage,
-      this.devServer || 'xmpp.ethoradev.com:5443'
+      this.devServer || `wss://'xmpp.ethoradev.com:5443'/ws`
     );
   };
 
