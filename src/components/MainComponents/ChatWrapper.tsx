@@ -152,8 +152,9 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
             console.log('No client, so initing one');
             await initializeClient(
-              user.defaultWallet?.walletAddress,
-              user.xmppPassword
+              user?.defaultWallet?.walletAddress,
+              user?.xmppPassword,
+              config?.xmppSettings
             ).then(async (client) => {
               if (roomsList && Object.keys(roomsList).length > 0) {
                 await initRoomsPresence(client, roomsList);
@@ -209,7 +210,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     };
 
     initXmmpClient();
-  }, [user.xmppPassword, user.defaultWallet.walletAddress]);
+  }, [user.xmppPassword, user.defaultWallet?.walletAddress]);
 
   // functionality to handle unreadmessages if user leaves tab
   useEffect(() => {
@@ -344,7 +345,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           </StyledLoaderWrapper>
         )}
       </>
-      {deleteModal.isDeleteModal && (
+      {deleteModal?.isDeleteModal && (
         <ModalWrapper
           title="Delete Message"
           description="Are you sure you want to delete this message?"

@@ -6,12 +6,17 @@ import React, {
   useEffect,
 } from 'react';
 import XmppClient from '../networking/xmppClient';
+import { xmppSettingsInterface } from '../types/types';
 
 // Declare XmppContext
 interface XmppContextType {
   client: XmppClient;
   setClient: (client: XmppClient | null) => void;
-  initializeClient: (password: string, email: string) => Promise<XmppClient>;
+  initializeClient: (
+    password: string,
+    email: string,
+    xmppSettings?: xmppSettingsInterface
+  ) => Promise<XmppClient>;
 }
 
 const XmppContext = createContext<XmppContextType | null>(null);
@@ -28,7 +33,8 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
 
   const initializeClient = async (
     password: string,
-    email: string
+    email: string,
+    xmppSettings?: xmppSettingsInterface
   ): Promise<XmppClient> => {
     if (client) {
       console.log('Returning existing client.');
@@ -37,7 +43,7 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
     }
 
     try {
-      const newClient = new XmppClient(password, email);
+      const newClient = new XmppClient(password, email, xmppSettings);
       setClient(newClient);
 
       await new Promise<void>((resolve, reject) => {
