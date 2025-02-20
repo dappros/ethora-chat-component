@@ -209,7 +209,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     };
 
     initXmmpClient();
-  }, [user.xmppPassword, user.defaultWallet.walletAddress]);
+  }, [user.xmppPassword, user.defaultWallet?.walletAddress]);
 
   // functionality to handle unreadmessages if user leaves tab
   useEffect(() => {
@@ -246,7 +246,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   const queueMessageLoader = useCallback(
     async (chatJID: string, max: number) => {
       try {
-        client?.getHistoryStanza(chatJID, max);
+        return client?.getHistoryStanza(chatJID, max);
       } catch (error) {
         console.log('Error in loading queue messages');
       }
@@ -261,6 +261,8 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     loading,
     queueMessageLoader
   );
+
+  // useMessageQueue(roomsList, activeRoomJID, queueMessageLoader);
 
   if (user.xmppPassword === '' && user.xmppUsername === '')
     return <LoginForm config={config} />;
@@ -342,7 +344,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           </StyledLoaderWrapper>
         )}
       </>
-      {deleteModal.isDeleteModal && (
+      {deleteModal?.isDeleteModal && (
         <ModalWrapper
           title="Delete Message"
           description="Are you sure you want to delete this message?"
