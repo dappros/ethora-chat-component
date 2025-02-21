@@ -43,7 +43,8 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
       )
     : undefined;
   const langSource = fullData?.getChild('translate')?.attrs?.source;
-  const roomJid = data?.attrs?.['roomJID'];
+  const roomJid =
+    data?.attrs?.['roomJID'] || fullData?.attrs?.['from']?.split('/')?.[0];
   const senderFirstName =
     data?.attrs?.['firstName'] || data?.attrs?.senderFirstName || '';
   const senderLastName =

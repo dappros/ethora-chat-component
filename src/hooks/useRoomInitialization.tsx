@@ -63,7 +63,7 @@ export const useRoomInitialization = (
       initialPresenceAndHistory();
     }
 
-    if (config?.defaultRooms) {
+    if (client && config?.defaultRooms) {
       config?.defaultRooms.map((room) => {
         client.presenceInRoomStanza(room.jid);
       });

@@ -103,7 +103,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
               {composing ? (
                 <Composing usersTyping={currentRoom?.composingList} />
               ) : (
-                `${currentRoom?.usersCnt} users`
+                `${currentRoom?.usersCnt} ${currentRoom?.usersCnt === 1 ? 'user' : 'users'}`
               )}
             </ChatContainerHeaderLabel>
           </ChatContainerHeaderInfo>

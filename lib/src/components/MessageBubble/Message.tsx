@@ -237,6 +237,7 @@ const Message: React.FC<MessageProps> = forwardRef<
               message={message}
               config={config}
               langSource={langSource}
+              isUser={isUser}
             />
           )}
           <CustomMessageTimestamp>
@@ -260,7 +261,8 @@ const Message: React.FC<MessageProps> = forwardRef<
             <MessageReaction
               reaction={message.reaction}
               changeReaction={handleReactionMessage}
-              color={config.colors?.primary}
+              color={config.colors?.primary || '#0052CD'}
+              userName={`${user.firstName} ${user.lastName}`}
             />
           )}
         </MessageFooter>

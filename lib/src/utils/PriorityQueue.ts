@@ -30,4 +30,16 @@ export class PriorityQueue<T> {
   size(): number {
     return this.items.length;
   }
+
+  find(predicate: (item: T) => boolean): T | undefined {
+    return this.items.find(predicate);
+  }
+
+  toArray(): T[] {
+    return [...this.items];
+  }
+
+  contains(predicate: (item: T) => boolean): boolean {
+    return this.items.some(predicate);
+  }
 }

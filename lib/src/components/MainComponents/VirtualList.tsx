@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
-import { IMessage } from '../../types/types';
+import { IMessage } from '../../../../src/types/types';
 
 interface VirtualizedListProps {
   data: IMessage[];

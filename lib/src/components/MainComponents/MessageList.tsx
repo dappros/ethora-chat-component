@@ -6,6 +6,7 @@ import Composing from '../styled/StyledInputComponents/Composing';
 import TreadLabel from '../styled/TreadLabel';
 import { MessageContainer } from './MessageContainer';
 import { useRoomState } from '../../hooks/useRoomState';
+import { VirtualizedList } from './VirtualList';
 
 interface MessageListProps<TMessage extends IMessage> {
   CustomMessage?: React.ComponentType<{
@@ -232,6 +233,28 @@ const MessageList = <TMessage extends IMessage>({
             />
           );
         })}
+        {/* <VirtualizedList
+          data={memoizedMessages}
+          renderItem={(message) => {
+            const messageDate = new Date(message.date).toDateString();
+            const showDateLabel = messageDate !== lastDateLabel;
+            lastDateLabel = messageDate;
+            return (
+              <MessageContainer
+                key={message.id}
+                CustomMessage={CustomMessage}
+                message={message}
+                activeMessage={activeMessage}
+                config={config}
+                walletAddress={user.walletAddress}
+                isReply={isReply}
+                showDateLabel={showDateLabel}
+              />
+            );
+          }}
+          itemHeight={100}
+          containerHeight={containerRef.current.clientHeight}
+        /> */}
         {config?.disableHeader && composing && (
           <Composing usersTyping={['User']} />
         )}

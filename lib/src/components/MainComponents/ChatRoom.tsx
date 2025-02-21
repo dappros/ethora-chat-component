@@ -67,14 +67,14 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
 
     const loadMoreMessages = useCallback(
       async (chatJID: string, max: number, idOfMessageBefore?: number) => {
-        if (!isLoadingMore) {
+        if (!isLoadingMore && !roomsList?.[chatJID]?.historyComplete) {
           setIsLoadingMore(true);
           client?.getHistoryStanza(chatJID, max, idOfMessageBefore).then(() => {
             setIsLoadingMore(false);
           });
         }
       },
-      [client]
+      [client?.client?.jid]
     );
 
     const onCloseEdit = () => {
@@ -92,6 +92,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
           timestamp: 0,
         })
       );
+      setIsLoadingMore(false);
       return () => {
         if (client) {
           client.actionSetTimestampToPrivateStoreStanza(
@@ -112,6 +113,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             messageId: 'delimiter-new',
           })
         );
+        setIsLoadingMore(false);
       };
     }, [activeRoomJID]);
 

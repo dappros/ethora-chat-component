@@ -145,7 +145,6 @@ export const useSendMessage = () => {
               isPrivate: item?.isPrivate,
               __v: item.__v,
             };
-            console.log(data, 'data to send media');
             client?.sendMediaMessageStanza(activeRoomJID, data);
           });
         })

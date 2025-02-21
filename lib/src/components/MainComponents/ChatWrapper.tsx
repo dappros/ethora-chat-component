@@ -9,17 +9,10 @@ import {
 import { ChatWrapperBox } from '../styled/ChatWrapperBox';
 import { Overlay, StyledModal } from '../styled/MediaModal';
 import { Message } from '../MessageBubble/Message';
-import {
-  IConfig,
-  IRoom,
-  MessageProps,
-  ModalType,
-  User,
-} from '../../types/types';
+import { IConfig, IRoom, MessageProps, ModalType } from '../../types/types';
 import { useXmppClient } from '../../context/xmppProvider';
 import LoginForm from '../AuthForms/Login';
 import { RootState } from '../../roomStore';
-import Loader from '../styled/Loader';
 import {
   setCurrentRoom,
   setEditAction,
@@ -28,7 +21,6 @@ import {
 } from '../../roomStore/roomsSlice';
 import { refresh } from '../../networking/apiClient';
 import RoomList from './RoomList';
-import { StyledLoaderWrapper } from '../styled/StyledComponents';
 import Modal from '../Modals/Modal/Modal';
 import ThreadWrapper from '../Thread/ThreadWrapper';
 import { ModalWrapper } from '../Modals/ModalWrapper/ModalWrapper';
@@ -39,7 +31,6 @@ import { useRoomState } from '../../hooks/useRoomState';
 import { initRoomsPresence } from '../../helpers/initRoomsPresence';
 import { updatedChatLastTimestamps } from '../../helpers/updatedChatLastTimestamps';
 import { updateMessagesTillLast } from '../../helpers/updateMessagesTillLast';
-import { useMessageQueue } from '../../hooks/useMessageQueue';
 
 interface ChatWrapperProps {
   token?: string;
@@ -152,8 +143,9 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
             console.log('No client, so initing one');
             await initializeClient(
-              user.defaultWallet?.walletAddress,
-              user.xmppPassword
+              user?.defaultWallet?.walletAddress,
+              user?.xmppPassword,
+              config?.xmppSettings
             ).then(async (client) => {
               if (roomsList && Object.keys(roomsList).length > 0) {
                 await initRoomsPresence(client, roomsList);
@@ -209,7 +201,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     };
 
     initXmmpClient();
-  }, [user.xmppPassword, user.defaultWallet.walletAddress]);
+  }, [user.xmppPassword, user.defaultWallet?.walletAddress]);
 
   // functionality to handle unreadmessages if user leaves tab
   useEffect(() => {
@@ -246,7 +238,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   const queueMessageLoader = useCallback(
     async (chatJID: string, max: number) => {
       try {
-        client?.getHistoryStanza(chatJID, max);
+        return client?.getHistoryStanza(chatJID, max);
       } catch (error) {
         console.log('Error in loading queue messages');
       }
@@ -277,74 +269,68 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
         </Overlay>
       )}
       <>
-        {isInited ? (
+        <ChatWrapperBox
+          style={{
+            ...MainComponentStyles,
+          }}
+        >
           <ChatWrapperBox
             style={{
               ...MainComponentStyles,
             }}
           >
-            <ChatWrapperBox
-              style={{
-                ...MainComponentStyles,
-              }}
-            >
-              {!config?.disableRooms &&
-                rooms &&
-                (isSmallScreen ? (
-                  !isChatVisible && (
-                    <RoomList
-                      chats={Object.values(rooms)}
-                      onRoomClick={handleChangeChat}
-                      isSmallScreen={isSmallScreen}
-                    />
-                  )
-                ) : (
+            {!config?.disableRooms &&
+              rooms &&
+              (isSmallScreen ? (
+                !isChatVisible && (
                   <RoomList
                     chats={Object.values(rooms)}
                     onRoomClick={handleChangeChat}
+                    isSmallScreen={isSmallScreen}
                   />
-                ))}
-              {isSmallScreen ? (
-                isChatVisible ? (
-                  activeMessage?.activeMessage ? (
-                    <ThreadWrapper
-                      activeMessage={activeMessage}
-                      user={user}
-                      customMessageComponent={CustomMessageComponent || Message}
-                    />
-                  ) : (
-                    <ChatRoom
-                      CustomMessageComponent={CustomMessageComponent || Message}
-                      handleBackClick={handleItemClick}
-                    />
-                  )
-                ) : null
-              ) : activeMessage?.activeMessage ? (
-                <ThreadWrapper
-                  activeMessage={activeMessage}
-                  user={user}
-                  customMessageComponent={CustomMessageComponent || Message}
-                />
+                )
               ) : (
-                <ChatRoom
-                  CustomMessageComponent={CustomMessageComponent || Message}
+                <RoomList
+                  chats={Object.values(rooms)}
+                  onRoomClick={handleChangeChat}
                 />
-              )}
-              <Modal
-                modal={activeModal}
-                setOpenModal={(value?: ModalType) =>
-                  dispatch(setActiveModal(value))
-                }
+              ))}
+            {isSmallScreen ? (
+              isChatVisible ? (
+                activeMessage?.activeMessage ? (
+                  <ThreadWrapper
+                    activeMessage={activeMessage}
+                    user={user}
+                    customMessageComponent={CustomMessageComponent || Message}
+                  />
+                ) : (
+                  <ChatRoom
+                    CustomMessageComponent={CustomMessageComponent || Message}
+                    handleBackClick={handleItemClick}
+                  />
+                )
+              ) : null
+            ) : activeMessage?.activeMessage ? (
+              <ThreadWrapper
+                activeMessage={activeMessage}
+                user={user}
+                customMessageComponent={CustomMessageComponent || Message}
               />
-            </ChatWrapperBox>
+            ) : (
+              <ChatRoom
+                CustomMessageComponent={CustomMessageComponent || Message}
+              />
+            )}
+            <Modal
+              modal={activeModal}
+              setOpenModal={(value?: ModalType) =>
+                dispatch(setActiveModal(value))
+              }
+            />
           </ChatWrapperBox>
-        ) : (
-          <StyledLoaderWrapper>
-            <Loader color={config?.colors?.primary} />
-          </StyledLoaderWrapper>
-        )}
+        </ChatWrapperBox>
       </>
-      {deleteModal.isDeleteModal && (
+      {deleteModal?.isDeleteModal && (
         <ModalWrapper
           title="Delete Message"
           description="Are you sure you want to delete this message?"

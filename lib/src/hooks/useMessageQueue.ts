@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { PriorityQueue } from '../utils/PriorityQueue';
-import { IRoom } from '../types/types';
+import { IMessage, IRoom } from '../types/types';
 import { setIsLoading } from '../roomStore/roomsSlice';
 
 interface QueuedRoom {
@@ -14,10 +14,15 @@ interface QueuedRoom {
 export const useMessageQueue = (
   rooms: { [jid: string]: IRoom },
   activeRoomJID: string,
-  loadMessages: (roomJid: string, max: number, before?: number) => Promise<any>
+  loadMessages: (
+    roomJid: string,
+    max: number,
+    before?: number
+  ) => Promise<IMessage[]>
 ) => {
   const dispatch = useDispatch();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [queueActive, setQueueActive] = useState(true);
   const messageQueue = useRef<PriorityQueue<QueuedRoom>>(
     new PriorityQueue((a, b) => b.priority - a.priority)
   );
@@ -25,92 +30,99 @@ export const useMessageQueue = (
 
   // Reset queue when active room changes
   useEffect(() => {
+    console.log('Updating message queue priorities');
     const queue = messageQueue.current;
-    queue.clear();
+    const updatedQueue = new PriorityQueue<QueuedRoom>(
+      (a, b) => b.priority - a.priority
+    );
 
-    // Push all non-active rooms to queue with lower priority
+    queue.toArray().forEach((room) => {
+      updatedQueue.push({
+        ...room,
+        priority: room.jid === activeRoomJID ? 10 : 1,
+      });
+    });
+
     Object.entries(rooms).forEach(([jid, room]) => {
-      if (jid !== activeRoomJID) {
-        queue.push({
+      console.log(queue);
+      if (
+        !processedMessages.current.has(jid) &&
+        !queue.contains((queueRoom) => queueRoom.jid === jid)
+      ) {
+        const priority = jid === activeRoomJID ? 10 : 1;
+        const messageLength = room.messages.length;
+        console.log(`Adding room: ${jid} to queue with priority: ${priority}`);
+        updatedQueue.push({
           jid,
-          priority: 1,
-          lastMessageId: room.messages[0]?.id,
-          messageCount: room.messages.length,
+          priority,
+          lastMessageId: room.messages[messageLength - 1]?.id,
+          messageCount: messageLength,
         });
       }
     });
 
-    // Push active room with highest priority
-    if (rooms[activeRoomJID]) {
-      queue.push({
-        jid: activeRoomJID,
-        priority: 10,
-        lastMessageId: rooms[activeRoomJID].messages[0]?.id,
-        messageCount: rooms[activeRoomJID].messages.length,
-      });
-    }
-  }, [activeRoomJID, rooms]);
+    messageQueue.current = updatedQueue;
+    setQueueActive(true);
+  }, [activeRoomJID, Object.keys(rooms).length]);
 
   // Process queue
   useEffect(() => {
     const processQueue = async () => {
-      if (isProcessing) return;
+      if (isProcessing || !queueActive) return;
 
       const queue = messageQueue.current;
-      if (queue.isEmpty()) return;
+      if (queue.isEmpty()) {
+        console.log('Message queue is empty, stopping processing');
+        setQueueActive(false);
+        return;
+      }
 
       setIsProcessing(true);
       const room = queue.pop();
+      console.log(
+        `Processing room: ${room.jid} with priority: ${room.priority}`
+      );
 
       try {
-        // Load messages in batches of 5 for active room
-        if (
-          room.jid === activeRoomJID &&
-          room.messageCount < 30 &&
-          !rooms[room.jid].historyComplete
-        ) {
+        if (room.messageCount < 30 && !rooms[room.jid].historyComplete) {
+          console.log(`Loading messages for room: ${room.jid}`);
           dispatch(setIsLoading({ chatJID: room.jid, loading: true }));
-          console.log('1');
-          await loadMessages(room.jid, 5, Number(room.lastMessageId));
+          await loadMessages(room.jid, 6, Number(room.lastMessageId));
 
-          // Re-queue if more messages needed
-          if (room.messageCount + 5 < 30) {
+          if (room.messageCount + 6 < 30 && !rooms[room.jid].historyComplete) {
+            console.log(`Re-queuing room: ${room.jid} for more messages`);
             queue.push({
               ...room,
-              messageCount: room.messageCount + 5,
+              messageCount: room.messageCount + 6,
             });
           }
         }
-        // Load up to 20 messages for other rooms
-        else if (room.messageCount < 20 && !rooms[room.jid].historyComplete) {
-          console.log('2');
-          await loadMessages(room.jid, 20, Number(room.lastMessageId));
-        }
 
-        // Clear history if last message missing after 20 loaded
         if (
           room.messageCount >= 20 &&
           !processedMessages.current.has(room.jid)
         ) {
           processedMessages.current.add(room.jid);
+          console.log(`Marking room: ${room.jid} as processed`);
           if (rooms[room.jid].messages.length >= 30) {
+            console.log(`Trimming messages for room: ${room.jid}`);
             rooms[room.jid].messages = rooms[room.jid].messages.slice(-30);
           }
         }
       } catch (error) {
-        console.error('Error processing message queue:', error);
-        // Re-queue failed room with lower priority
+        console.error(`Error processing room: ${room.jid}`, error);
         queue.push({
           ...room,
-          priority: room.priority - 1,
+          priority: Math.max(room.priority - 1, 1),
         });
       } finally {
         dispatch(setIsLoading({ chatJID: room.jid, loading: false }));
+        console.log(`Finished processing room: ${room.jid}`);
         setIsProcessing(false);
       }
     };
 
-    const interval = setInterval(processQueue, 1000);
+    const interval = setInterval(processQueue, 250);
     return () => clearInterval(interval);
-  }, [isProcessing, activeRoomJID, rooms, loadMessages]);
+  }, [isProcessing, queueActive, activeRoomJID, Object.keys(rooms).length]);
 };

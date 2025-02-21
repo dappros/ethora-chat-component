@@ -48,7 +48,6 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
   handleEditMessage,
   handleReactionMessage,
 }) => {
-  const [reactions, setReactions] = useState<string[]>([]);
   const { roomsList, activeRoomJID } = useRoomState();
   const [showPicker, setShowPicker] = useState(false);
 
@@ -94,7 +93,6 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
   const handleReactionClick = (reaction: string, e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
       const emoji: EmojiData = (emojiData as any).emojis[reaction];
-      console.log('emoji', emoji);
       handleReactionMessage(reaction);
       closeMenu();
     }
