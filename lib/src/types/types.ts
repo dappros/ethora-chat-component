@@ -38,6 +38,7 @@ export interface IMessage {
   langSource?: string;
   originalName?: string;
   size?: string;
+  xmppId?: string;
 }
 
 export interface ReactionMessage {
@@ -192,7 +193,7 @@ export interface IConfig {
   chatRoomStyles?: React.CSSProperties;
   setRoomJidInPath?: boolean;
   disableRoomMenu?: boolean;
-  defaultRooms?: string[] | ConfigRoom[];
+  defaultRooms?: ConfigRoom[];
   refreshTokens?: { enabled: boolean; refreshFunction?: any };
   backgroundChat?: {
     color?: string;
@@ -330,7 +331,6 @@ export interface XmppClientInterface {
   checkOnline(): boolean;
   initializeClient(): void;
   attachEventListeners(): void;
-  scheduleReconnect(): void;
   reconnect(): void;
   close(): Promise<void>;
 

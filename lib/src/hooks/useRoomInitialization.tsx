@@ -21,6 +21,7 @@ export const useRoomInitialization = (
       dispatch(setIsLoading({ loading: true, chatJID: activeRoomJID }));
       const res = await client.getHistoryStanza(activeRoomJID, 30);
       if (res && countUndefinedText(res) > 0) {
+        dispatch(setIsLoading({ loading: false, chatJID: activeRoomJID }));
         // make it more optimized
         await client.getHistoryStanza(
           activeRoomJID,
@@ -55,6 +56,7 @@ export const useRoomInitialization = (
         messageLength < 1 &&
         !roomsList?.[activeRoomJID].historyComplete
       ) {
+        dispatch(setIsLoading({ loading: true, chatJID: activeRoomJID }));
         getDefaultHistory();
       } else {
         dispatch(setIsLoading({ loading: false, chatJID: activeRoomJID }));
@@ -64,11 +66,18 @@ export const useRoomInitialization = (
     }
 
     if (client && config?.defaultRooms) {
-      config?.defaultRooms.map((room) => {
-        client.presenceInRoomStanza(room.jid);
-      });
-      client.getRoomsStanza();
-      getDefaultHistory();
+      const allExist = config?.defaultRooms.every(
+        (room) => roomsList[room.jid] !== undefined
+      );
+      if (roomsList && !allExist) {
+        config?.defaultRooms.map((room) => {
+          console.log('3');
+
+          client.presenceInRoomStanza(room.jid);
+          client.getRoomsStanza();
+          getDefaultHistory();
+        });
+      }
     }
   }, [activeRoomJID, Object.keys(roomsList).length]);
 };

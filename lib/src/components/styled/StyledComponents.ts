@@ -198,6 +198,10 @@ export const CustomMessageTimestamp = styled.span`
   font-size: 0.75rem;
   align-self: flex-end;
   color: #8f8f8f;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
 `;
 
 export const CustomMessagePhoto = styled.img`

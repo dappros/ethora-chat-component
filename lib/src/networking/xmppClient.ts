@@ -66,7 +66,7 @@ export class XmppClient implements XmppClientInterface {
     this.initializeClient();
   }
 
-  initializeClient() {
+  async initializeClient() {
     try {
       const url = this.devServer || `wss://xmpp.ethoradev.com:5443/ws`;
 
@@ -103,11 +103,14 @@ export class XmppClient implements XmppClientInterface {
       this.client.send(xml('presence'));
     });
 
+    this.client.on('connecting', () => {
+      console.log('Client is connecting...');
+      this.status = 'connecting';
+    });
+
     this.client.on('error', (error) => {
       console.error('XMPP client error:', error);
-      // if (this.status !== 'online') {
-      //   this.scheduleReconnect();
-      // }
+      this.status = 'error';
     });
 
     this.client.on('stanza', (stanza) => {
@@ -115,40 +118,53 @@ export class XmppClient implements XmppClientInterface {
     });
   }
 
-  scheduleReconnect() {
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('Max reconnect attempts reached. Giving up.');
+  async reconnect() {
+    if (this.status === 'connecting') {
+      console.log('Already attempting to connect, skipping reconnect');
       return;
     }
 
-    this.reconnectAttempts++;
-    console.log(`Reconnecting attempt ${this.reconnectAttempts}...`);
-    setTimeout(() => this.reconnect(), this.reconnectDelay);
-  }
-
-  reconnect() {
     console.log('Attempting to reconnect...');
-    if (this.client) {
-      this.client.stop().finally(() => {
-        this.initializeClient();
-      });
-    } else {
+    try {
+      if (this.client) {
+        await this.client.stop();
+      }
       this.initializeClient();
+
+      // Wait for connection to be established
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Connection timeout'));
+        }, 10000);
+
+        const checkStatus = () => {
+          if (this.status === 'online') {
+            clearTimeout(timeout);
+            resolve();
+          } else if (this.status === 'error') {
+            clearTimeout(timeout);
+            reject(new Error('Connection error'));
+          } else {
+            setTimeout(checkStatus, 500);
+          }
+        };
+        checkStatus();
+      });
+    } catch (error) {
+      console.error('Reconnection failed:', error);
+      throw error;
     }
   }
 
   async close() {
     if (this.client) {
-      await this.client
-        .stop()
-        .then(() => {
-          console.log('Client connection closed.');
-        })
-        .catch((error) => {
-          console.error('Error closing the client:', error);
-        });
-    } else {
-      console.log('No client to close.');
+      this.status = 'offline';
+      try {
+        await this.client.stop();
+        console.log('Client connection closed.');
+      } catch (error) {
+        console.error('Error closing the client:', error);
+      }
     }
   }
 
@@ -226,7 +242,8 @@ export class XmppClient implements XmppClientInterface {
     notDisplayedValue?: string,
     isReply?: boolean,
     showInChannel?: boolean,
-    mainMessage?: string
+    mainMessage?: string,
+    customId?: string
   ) => {
     sendTextMessage(
       this.client,
@@ -240,7 +257,8 @@ export class XmppClient implements XmppClientInterface {
       isReply,
       showInChannel,
       mainMessage,
-      this.devServer || `wss://'xmpp.ethoradev.com:5443'/ws`
+      this.devServer || `wss://'xmpp.ethoradev.com:5443'/ws`,
+      customId
     );
   };
 

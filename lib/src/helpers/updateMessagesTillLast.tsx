@@ -9,7 +9,7 @@ export const updateMessagesTillLast = async (
   },
   client: XmppClient,
   batchSize = 10,
-  maxFetchAttempts = 3,
+  maxFetchAttempts = 1,
   messagesPerFetch = 6
 ) => {
   const roomEntries = Object.keys(rooms);

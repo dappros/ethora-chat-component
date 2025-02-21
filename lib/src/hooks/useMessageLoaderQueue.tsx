@@ -30,7 +30,12 @@ const useMessageLoaderQueue = (
           const currentBatch = batchedRooms.slice(i, i + batchSize);
 
           for (const room of currentBatch) {
-            if (!roomHasMoreRooms(rooms[room]) && !rooms[room]?.noMessages) {
+            if (
+              roomHasMoreRooms(rooms[room]) &&
+              !rooms[room]?.noMessages &&
+              !rooms[room]?.historyComplete
+            ) {
+              console.log(room);
               try {
                 await loadMoreMessages(room, 10);
               } catch (error) {
@@ -79,7 +84,7 @@ const useMessageLoaderQueue = (
 };
 
 const roomHasMoreRooms = (room: IRoom, max: number = 20) => {
-  return room.messages?.length > max;
+  return room.messages?.length < max;
 };
 
 export default useMessageLoaderQueue;

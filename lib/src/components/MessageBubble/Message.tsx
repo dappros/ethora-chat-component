@@ -30,6 +30,7 @@ import { useXmppClient } from '../../context/xmppProvider';
 import { MessageReaction } from './MessageReaction';
 import MessageTranslations from './MessageTranslations';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { DoubleTick } from '../../assets/icons';
 
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
@@ -241,11 +242,12 @@ const Message: React.FC<MessageProps> = forwardRef<
             />
           )}
           <CustomMessageTimestamp>
-            {message?.pending && 'sending...'}
+            {isUser && message?.pending && 'sending...'}
             {new Date(message.date).toLocaleTimeString([], {
               hour: '2-digit',
               minute: '2-digit',
             })}
+            {isUser && !message?.pending && <DoubleTick />}
           </CustomMessageTimestamp>
         </CustomMessageBubble>
         <MessageFooter isUser={isUser}>
