@@ -4,6 +4,7 @@ import styled from 'styled-components';
 export const LastRoomMessageContainer = styled.div`
   display: flex;
   width: 80%;
+  max-width: 190px;
   flex-direction: column;
   align-items: flex-start;
 `;
@@ -14,7 +15,7 @@ export const LastRoomMessageName = styled.div`
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 200px;
+  max-width: 190px;
 `;
 
 export const LastRoomMessageText = styled.div`
@@ -22,7 +23,7 @@ export const LastRoomMessageText = styled.div`
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 200px;
+  max-width: 190px;
 `;
 
 export const NewMessageMarker = styled.div`

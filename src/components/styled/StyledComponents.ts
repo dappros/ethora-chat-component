@@ -7,6 +7,8 @@ export const ChatContainer = styled.div`
   width: 100%;
   box-sizing: border-box;
   background-color: #f3f6fc;
+  flex: 1;
+  min-width: 0;
   /* border: 10px solid yellow; */
 `;
 
