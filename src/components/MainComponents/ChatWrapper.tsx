@@ -31,6 +31,8 @@ import { useRoomState } from '../../hooks/useRoomState';
 import { initRoomsPresence } from '../../helpers/initRoomsPresence';
 import { updatedChatLastTimestamps } from '../../helpers/updatedChatLastTimestamps';
 import { updateMessagesTillLast } from '../../helpers/updateMessagesTillLast';
+import { StyledLoaderWrapper } from '../styled/StyledComponents';
+import Loader from '../styled/Loader';
 
 interface ChatWrapperProps {
   token?: string;
@@ -142,50 +144,51 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             setShowModal(false);
 
             console.log('No client, so initing one');
-            await initializeClient(
+            const newClient = await initializeClient(
               user?.defaultWallet?.walletAddress,
               user?.xmppPassword,
               config?.xmppSettings
-            ).then(async (client) => {
-              if (roomsList && Object.keys(roomsList).length > 0) {
-                await initRoomsPresence(client, roomsList);
-              } else {
-                await client.getRoomsStanza();
-              }
-              await client
-                .getChatsPrivateStoreRequestStanza()
-                .then(
-                  async (
-                    roomTimestampObject: [jid: string, timestamp: string]
-                  ) => {
-                    updatedChatLastTimestamps(roomTimestampObject, dispatch);
-                    client.setVCardStanza(`${user.firstName} ${user.lastName}`);
-                    await updateMessagesTillLast(rooms, client);
-                    setClient(client);
-                  }
-                );
+            ).then((client) => {
+              setInited(true);
+              return client;
             });
-            setInited(true);
+
+            if (roomsList && Object.keys(roomsList).length > 0) {
+              await initRoomsPresence(newClient, roomsList);
+            } else {
+              await newClient.getRoomsStanza();
+            }
+            await newClient
+              .getChatsPrivateStoreRequestStanza()
+              .then(
+                async (
+                  roomTimestampObject: [jid: string, timestamp: string]
+                ) => {
+                  updatedChatLastTimestamps(roomTimestampObject, dispatch);
+                  // newClient.setVCardStanza(
+                  //   `${user.firstName} ${user.lastName}`
+                  // );
+                  await updateMessagesTillLast(rooms, newClient);
+                  setClient(newClient);
+                }
+              );
+
             {
               config?.refreshTokens?.enabled && refresh();
             }
           } else {
-            if (Object.keys(roomsList).length > 0) {
-              initRoomsPresence(client, roomsList);
-              await client
-                .getChatsPrivateStoreRequestStanza()
-                .then(
-                  async (
-                    roomTimestampObject: [jid: string, timestamp: string]
-                  ) => {
-                    updatedChatLastTimestamps(roomTimestampObject, dispatch);
-                    client.setVCardStanza(`${user.firstName} ${user.lastName}`);
-                    await updateMessagesTillLast(rooms, client);
-                    setClient(client);
-                  }
-                );
-            }
             setInited(true);
+            await client
+              .getChatsPrivateStoreRequestStanza()
+              .then(
+                async (
+                  roomTimestampObject: [jid: string, timestamp: string]
+                ) => {
+                  updatedChatLastTimestamps(roomTimestampObject, dispatch);
+                  await updateMessagesTillLast(rooms, client);
+                  setClient(client);
+                }
+              );
             {
               config?.refreshTokens?.enabled && refresh();
             }
@@ -235,25 +238,6 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
   const { roomsList, loading, globalLoading } = useRoomState();
 
-  const queueMessageLoader = useCallback(
-    async (chatJID: string, max: number) => {
-      try {
-        return client?.getHistoryStanza(chatJID, max);
-      } catch (error) {
-        console.log('Error in loading queue messages');
-      }
-    },
-    [globalLoading, loading, isInited]
-  );
-
-  useMessageLoaderQueue(
-    Object.keys(roomsList),
-    roomsList,
-    globalLoading,
-    loading,
-    queueMessageLoader
-  );
-
   // useMessageQueue(roomsList, activeRoomJID, queueMessageLoader);
 
   if (user.xmppPassword === '' && user.xmppUsername === '')
@@ -268,7 +252,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           </StyledModal>
         </Overlay>
       )}
-      <>
+      {isInited ? (
         <ChatWrapperBox
           style={{
             ...MainComponentStyles,
@@ -329,7 +313,11 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             />
           </ChatWrapperBox>
         </ChatWrapperBox>
-      </>
+      ) : (
+        <StyledLoaderWrapper>
+          <Loader color={config?.colors?.primary} />
+        </StyledLoaderWrapper>
+      )}
       {deleteModal?.isDeleteModal && (
         <ModalWrapper
           title="Delete Message"

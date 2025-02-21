@@ -131,7 +131,7 @@ export const chatSlice = createSlice({
     setDeleteModal: (state, action: PayloadAction<DeleteModal | undefined>) => {
       state.deleteModal = action.payload;
     },
-    setStoreClient: (state, action: PayloadAction<any>) => {
+    setStoreClient: (state, action: PayloadAction<XmppClient>) => {
       state.client = action.payload;
     },
     setSelectedUser: (state, action: PayloadAction<IUser | undefined>) => {

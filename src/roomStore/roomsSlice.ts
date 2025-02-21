@@ -145,7 +145,15 @@ export const roomsStore = createSlice({
       }
 
       if (roomMessages.length === 0 || start) {
-        roomMessages.unshift(message);
+        const index = roomMessages.findIndex(
+          (msg) => msg.id === message.xmppId
+        );
+        if (index !== -1) {
+          roomMessages[index] = { ...message, id: message.id, pending: false };
+          delete roomMessages[index].xmppId;
+        } else {
+          roomMessages.unshift(message);
+        }
       } else {
         const lastViewedTimestamp = state.rooms[roomJID].lastViewedTimestamp
           ? new Date(state.rooms[roomJID].lastViewedTimestamp)

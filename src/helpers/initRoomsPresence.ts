@@ -6,6 +6,7 @@ export const initRoomsPresence = async (
   rooms: { [jid: string]: IRoom }
 ) => {
   console.log('Persisted presence');
+  if (!client) return null;
   return new Promise<void>((resolve, reject) => {
     Promise.all(
       Object.keys(rooms).map((jid) => {

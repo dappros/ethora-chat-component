@@ -22,6 +22,7 @@ import { useRoomInitialization } from '../../hooks/useRoomInitialization.tsx';
 import { useRoomState } from '../../hooks/useRoomState.tsx';
 import { useChatSettingState } from '../../hooks/useChatSettingState.tsx';
 import useComposing from '../../hooks/useComposing.tsx';
+import useMessageLoaderQueue from '../../hooks/useMessageLoaderQueue.tsx';
 
 interface ChatRoomProps {
   CustomMessageComponent?: any;
@@ -53,6 +54,12 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
 
     const sendMessage = useCallback(
       (message: string) => {
+        dispatch(
+          setLastViewedTimestamp({
+            chatJID: activeRoomJID,
+            timestamp: 0,
+          })
+        );
         sendMs(message, activeRoomJID);
       },
       [activeRoomJID]
@@ -82,10 +89,6 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     };
 
     useEffect(() => {
-      // client.getRoomsPagedStanza(
-      //   3,
-      //   'd673a602b47d524ba6a95102cc71fc3f308b31d64454498078a056cf54e5a2b4'
-      // );
       dispatch(
         setLastViewedTimestamp({
           chatJID: activeRoomJID,
@@ -127,6 +130,25 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       roomMessages.length
     );
 
+    const queueMessageLoader = useCallback(
+      async (chatJID: string, max: number) => {
+        try {
+          return client?.getHistoryStanza(chatJID, max);
+        } catch (error) {
+          console.log('Error in loading queue messages');
+        }
+      },
+      [globalLoading, loading]
+    );
+
+    useMessageLoaderQueue(
+      Object.keys(roomsList),
+      roomsList,
+      globalLoading,
+      loading,
+      queueMessageLoader
+    );
+
     if (Object.keys(roomsList)?.length < 1 && !loading && !globalLoading) {
       return (
         <NonRoomChat>
@@ -153,7 +175,9 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             handleBackClick={handleBackClick}
           />
         )}
-        {globalLoading ? (
+        {globalLoading ||
+        (!roomsList[activeRoomJID].historyComplete &&
+          roomsList[activeRoomJID].messages.length < 1) ? (
           <Loader color={config?.colors?.primary} />
         ) : Object.keys(roomsList).length < 1 || !activeRoomJID ? (
           <NoSelectedChatIcon />
@@ -181,7 +205,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
           config={config}
           onFocus={sendStartComposing}
           onBlur={sendEndComposing}
-          isLoading={loading}
+          isLoading={false}
         />
       </ChatContainer>
     );

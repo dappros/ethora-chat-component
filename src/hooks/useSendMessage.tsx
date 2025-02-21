@@ -1,7 +1,7 @@
 import { FC, useCallback } from 'react';
 import { useXmppClient } from '../context/xmppProvider';
 import { useDispatch, useSelector } from 'react-redux';
-import { setEditAction } from '../roomStore/roomsSlice';
+import { addRoomMessage, setEditAction } from '../roomStore/roomsSlice';
 import { uploadFile } from '../networking/api-requests/auth.api';
 import { RootState } from '../roomStore';
 import { useChatSettingState } from './useChatSettingState';
@@ -53,6 +53,26 @@ export const useSendMessage = () => {
             mainMessage || ''
           );
         } else {
+          const id = `send-text-message-${Date.now().toString()}`;
+
+          dispatch(
+            addRoomMessage({
+              roomJID: activeRoomJID,
+              message: {
+                id: id,
+                user: {
+                  ...user,
+                  id: user.walletAddress,
+                  name: user.firstName + ' ' + user.lastName,
+                },
+                date: new Date().toISOString(),
+                body: message,
+                roomJid: activeRoomJID,
+                pending: true,
+              },
+            })
+          );
+
           client?.sendMessage(
             activeRoomJID,
             user.firstName,
@@ -63,28 +83,11 @@ export const useSendMessage = () => {
             '',
             isReply || false,
             isChecked || false,
-            mainMessage || ''
+            mainMessage || '',
+            id
           );
         }
       }
-
-      // dispatch(
-      //   addRoomMessage({
-      //     roomJID: currentRoom.jid,
-      //     message: {
-      //       id: getHighResolutionTimestamp(),
-      //       user: {
-      //         ...user,
-      //         id: user.walletAddress,
-      //         name: user.firstName + " " + user.lastName,
-      //       },
-      //       date: new Date().toISOString(),
-      //       body: message,
-      //       roomJID: currentRoom.jid,
-      //       // pending: true,
-      //     },
-      //   })
-      // );
     },
     [editAction]
   );

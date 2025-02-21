@@ -7,6 +7,9 @@ import React, {
 } from 'react';
 import XmppClient from '../networking/xmppClient';
 import { xmppSettingsInterface } from '../types/types';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '../roomStore';
+import { setStoreClient } from '../roomStore/chatSettingsSlice';
 
 // Declare XmppContext
 interface XmppContextType {
@@ -74,7 +77,7 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
   const reconnectClient = () => {
     if (client && client.status !== 'offline' && reconnectAttempts < 3) {
       console.log('Attempting to reconnect...');
-      client.scheduleReconnect();
+      client.reconnect();
       setReconnectAttempts((prev) => prev + 1);
     } else if (client?.status === 'offline') {
       console.log('Client is offline. Not attempting to reconnect.');

@@ -1,3 +1,5 @@
-import { Chat } from '../src/main';
+import { Chat, XmppProvider } from '../src/main';
 
-export { Chat as ChatComponent };
+export { Chat as ChatComponent  };
+export {XmppProvider};
+
