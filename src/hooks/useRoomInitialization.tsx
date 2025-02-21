@@ -43,10 +43,18 @@ export const useRoomInitialization = (
     };
 
     if (Object.keys(roomsList)?.length > 0) {
-      if (!roomsList?.[activeRoomJID] && Object.keys(roomsList).length > 0) {
+      if (
+        activeRoomJID &&
+        !roomsList?.[activeRoomJID] &&
+        Object.keys(roomsList).length > 0
+      ) {
         dispatch(setIsLoading({ loading: true, chatJID: activeRoomJID }));
         initialPresenceAndHistory();
-      } else if (messageLength < 20) {
+      } else if (
+        activeRoomJID &&
+        messageLength < 1 &&
+        !roomsList?.[activeRoomJID].historyComplete
+      ) {
         getDefaultHistory();
       } else {
         dispatch(setIsLoading({ loading: false, chatJID: activeRoomJID }));

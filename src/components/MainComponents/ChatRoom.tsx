@@ -74,7 +74,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
           });
         }
       },
-      [client]
+      [client?.client?.jid]
     );
 
     const onCloseEdit = () => {
@@ -92,6 +92,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
           timestamp: 0,
         })
       );
+      setIsLoadingMore(false);
       return () => {
         if (client) {
           client.actionSetTimestampToPrivateStoreStanza(
@@ -112,6 +113,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             messageId: 'delimiter-new',
           })
         );
+        setIsLoadingMore(false);
       };
     }, [activeRoomJID]);
 
