@@ -168,6 +168,7 @@ const RoomList: React.FC<RoomListProps> = ({
         style={{
           ...config?.roomListStyles,
           ...(isSmallScreen ? { width: '100%' } : { maxWidth: '432px' }),
+          flex: isSmallScreen ? 1 : '0 1 432px',
         }}
       >
         {(open || !burgerMenu) && (
