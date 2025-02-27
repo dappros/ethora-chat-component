@@ -53,13 +53,22 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
 
   const loadMoreMessages = useCallback(
     async (chatJID: string, max: number, idOfMessageBefore?: number) => {
-      if (!isLoadingMore) {
-        client?.getHistoryStanza(chatJID, max, idOfMessageBefore).then(() => {
+      if (!isLoadingMore && !roomsList?.[chatJID]?.historyComplete) {
+        const lastMsgId =
+          typeof idOfMessageBefore !== 'string'
+            ? idOfMessageBefore
+            : Number(
+                roomsList[chatJID].messages[
+                  roomsList[chatJID].messages.length - 2
+                ].id
+              );
+        setIsLoadingMore(true);
+        client?.getHistoryStanza(chatJID, max, lastMsgId).then(() => {
           setIsLoadingMore(false);
         });
       }
     },
-    [client]
+    [client?.client?.jid]
   );
 
   const sendMessage = useCallback(

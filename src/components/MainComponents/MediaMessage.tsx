@@ -9,13 +9,13 @@ interface MediaMessageProps {
   mimeType?: string;
   message?: IMessage;
   location?: string;
-  messageText?: string;
+  locationPreview?: string;
 }
 
 const MediaMessage: React.FC<MediaMessageProps> = ({
   mimeType,
   location,
-  messageText,
+  locationPreview,
   message,
 }) => {
   const getFilename = () => {
@@ -28,8 +28,9 @@ const MediaMessage: React.FC<MediaMessageProps> = ({
         return (
           <CustomMessageImage
             fileName={message.originalName}
-            fileURL={messageText}
+            fileURL={location}
             mimetype={mimeType}
+            locationPreview={locationPreview}
           />
         );
       case mimeType.startsWith('video/'):
@@ -50,6 +51,7 @@ const MediaMessage: React.FC<MediaMessageProps> = ({
             fileName={getFilename()}
             mimetype={mimeType}
             size={message.size}
+            locationPreview={locationPreview}
           />
         );
     }

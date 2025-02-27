@@ -11,6 +11,7 @@ import { RootState } from '../../../roomStore';
 import { FullScreenImage } from '../../styled/StyledInputComponents/MediaComponents';
 import { FullScreenVideo } from '../../styled/VideoMessage';
 import { setActiveFile } from '../../../roomStore/chatSettingsSlice';
+import PdfViewer from './PdfView';
 
 interface FilePreviewModalProps {
   handleCloseModal: any;
@@ -81,6 +82,8 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
         return (
           <FullScreenVideo src={activeFile.fileURL} controls autoPlay={false} />
         );
+      case activeFile.mimetype.includes('/pdf'):
+        return <PdfViewer pdfUrl={activeFile.fileURL} />;
       default:
         return (
           <div
@@ -133,6 +136,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
           justifyContent: 'center',
           overflow: 'hidden',
           padding: '16px',
+          width: '90%',
         }}
       >
         {getMediaComponent}

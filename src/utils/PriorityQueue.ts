@@ -11,8 +11,10 @@ export class PriorityQueue<T> {
     this.items.sort(this.compare);
   }
 
-  pop(): T | undefined {
-    return this.items.shift();
+  //should take variable size, so it could pop more than 1 item
+  pop(size: number = 1): T[] {
+    const poppedItems = this.items.splice(0, size);
+    return poppedItems;
   }
 
   peek(): T | undefined {

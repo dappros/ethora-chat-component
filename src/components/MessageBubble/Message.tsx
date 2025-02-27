@@ -11,8 +11,7 @@ import {
   MessageFooter,
 } from '../styled/StyledComponents';
 import MediaMessage from '../MainComponents/MediaMessage';
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '../../roomStore';
+import { useDispatch } from 'react-redux';
 
 import { Avatar } from './Avatar';
 import MessageInteractions from './MessageInteractions';
@@ -219,7 +218,7 @@ const Message: React.FC<MessageProps> = forwardRef<
           {message?.isMediafile === 'true' && !message?.isDeleted ? (
             <MediaMessage
               mimeType={message.mimetype}
-              messageText={message.locationPreview}
+              locationPreview={message.locationPreview}
               location={message?.location}
               message={message}
             />
