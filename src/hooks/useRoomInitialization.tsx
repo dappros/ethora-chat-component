@@ -1,11 +1,11 @@
 import { useEffect } from 'react';
 import { setIsLoading } from '../roomStore/roomsSlice';
 import { useXmppClient } from '../context/xmppProvider';
-import { IConfig, IRoom } from '../types/types';
+import { IConfig, IMessage, IRoom } from '../types/types';
 import { useDispatch } from 'react-redux';
 
-const countUndefinedText = (arr: { text?: string }[]) =>
-  arr.filter((item) => item.text === undefined).length;
+const countUndefinedText = (arr: IMessage[]) =>
+  arr.filter((item) => item?.body === undefined)?.length;
 
 export const useRoomInitialization = (
   activeRoomJID: string,
@@ -26,7 +26,7 @@ export const useRoomInitialization = (
         await client.getHistoryStanza(
           activeRoomJID,
           20 + countUndefinedText(res),
-          res[0].id
+          Number(res[0].id)
         );
       }
       dispatch(setIsLoading({ loading: false, chatJID: activeRoomJID }));

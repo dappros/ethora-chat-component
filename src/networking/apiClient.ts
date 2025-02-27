@@ -7,7 +7,7 @@ const baseURL =
   store.getState().chatSettingStore?.config?.baseUrl ||
   'https://api.ethoradev.com/v1';
 
-console.log(store.getState().chatSettingStore?.config?.baseUrl);
+console.log('baseUrl', store.getState().chatSettingStore?.config?.baseUrl);
 
 const http = axios.create({
   baseURL,

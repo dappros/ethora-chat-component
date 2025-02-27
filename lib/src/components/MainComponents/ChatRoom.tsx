@@ -75,8 +75,16 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     const loadMoreMessages = useCallback(
       async (chatJID: string, max: number, idOfMessageBefore?: number) => {
         if (!isLoadingMore && !roomsList?.[chatJID]?.historyComplete) {
+          const lastMsgId =
+            typeof idOfMessageBefore !== 'string'
+              ? idOfMessageBefore
+              : Number(
+                  roomsList[chatJID].messages[
+                    roomsList[chatJID].messages.length - 2
+                  ].id
+                );
           setIsLoadingMore(true);
-          client?.getHistoryStanza(chatJID, max, idOfMessageBefore).then(() => {
+          client?.getHistoryStanza(chatJID, max, lastMsgId).then(() => {
             setIsLoadingMore(false);
           });
         }
@@ -128,25 +136,6 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       roomsList,
       config,
       roomMessages.length
-    );
-
-    const queueMessageLoader = useCallback(
-      async (chatJID: string, max: number) => {
-        try {
-          return client?.getHistoryStanza(chatJID, max);
-        } catch (error) {
-          console.log('Error in loading queue messages');
-        }
-      },
-      [globalLoading, loading]
-    );
-
-    useMessageLoaderQueue(
-      Object.keys(roomsList),
-      roomsList,
-      globalLoading,
-      loading,
-      queueMessageLoader
     );
 
     if (Object.keys(roomsList)?.length < 1 && !loading && !globalLoading) {

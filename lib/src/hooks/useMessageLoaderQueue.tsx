@@ -35,7 +35,6 @@ const useMessageLoaderQueue = (
               !rooms[room]?.noMessages &&
               !rooms[room]?.historyComplete
             ) {
-              console.log(room);
               try {
                 await loadMoreMessages(room, 10);
               } catch (error) {

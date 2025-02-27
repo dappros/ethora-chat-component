@@ -21,6 +21,7 @@ interface FileDownloadProps {
   fileURL: string;
   mimetype: string;
   size?: string;
+  locationPreview?: string;
 }
 
 const FileDownload: React.FC<FileDownloadProps> = ({
@@ -28,6 +29,7 @@ const FileDownload: React.FC<FileDownloadProps> = ({
   fileURL,
   mimetype,
   size,
+  locationPreview,
 }) => {
   const dispatch = useDispatch();
 
@@ -75,7 +77,25 @@ const FileDownload: React.FC<FileDownloadProps> = ({
   return (
     <UnsupportedContainer onClick={handleOpen}>
       <BackgroundFile>
-        <FileIcon />
+        {locationPreview ? (
+          <img
+            src={locationPreview}
+            alt={fileName}
+            onClick={handleOpen}
+            style={{
+              borderRadius: 16,
+              cursor: 'pointer',
+              maxWidth: '100px',
+              maxHeight: '60px',
+            }}
+            onError={(e) => {
+              (e.target as HTMLImageElement).src =
+                'https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg';
+            }}
+          />
+        ) : (
+          <FileIcon />
+        )}
       </BackgroundFile>
       <FileInformation>
         <FileName>{formatFileName(fileName, 20)}</FileName>

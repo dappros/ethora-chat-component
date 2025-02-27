@@ -22,6 +22,7 @@ interface DataXml {
   translations?: any;
   langSource?: string;
   xmppId?: string;
+  xmppFrom?: string;
   data: { [x: string]: any };
 }
 export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {

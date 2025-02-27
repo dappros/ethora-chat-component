@@ -293,33 +293,34 @@ const onGetRoomInfo = (stanza: Element) => {
 const onGetLastMessageArchive = (stanza: Element) => {
   if (stanza.attrs?.id && stanza.attrs?.id.toString().includes('get-history')) {
     const set = stanza?.getChild('fin')?.getChild('set');
+    if (set) {
+      const roomJid = stanza?.attrs?.from;
 
-    const roomJid = stanza?.attrs?.from;
+      if (roomJid) {
+        const fin = stanza?.getChild('fin');
 
-    if (roomJid) {
-      const first = set.getChildText('first');
-      const last = set.getChildText('last');
-      const fin = stanza.getChild('fin');
+        if (fin?.attrs?.complete) {
+          const first = set?.getChildText('first');
+          const last = set?.getChildText('last');
+          const historyComplete = getBooleanFromString(fin.attrs.complete);
+          const lastMessageTimestamp = getNumberFromString(last);
+          const firstMessageTimestamp = getNumberFromString(first);
 
-      if (fin?.attrs?.complete) {
-        const historyComplete = getBooleanFromString(fin.attrs.complete);
-        const lastMessageTimestamp = getNumberFromString(last);
-        const firstMessageTimestamp = getNumberFromString(first);
-
-        store.dispatch(
           store.dispatch(
-            updateRoom({
-              jid: roomJid,
-              updates: {
-                messageStats: {
-                  lastMessageTimestamp: lastMessageTimestamp,
-                  firstMessageTimestamp: firstMessageTimestamp,
+            store.dispatch(
+              updateRoom({
+                jid: roomJid,
+                updates: {
+                  messageStats: {
+                    lastMessageTimestamp: lastMessageTimestamp,
+                    firstMessageTimestamp: firstMessageTimestamp,
+                  },
+                  historyComplete: historyComplete,
                 },
-                historyComplete: historyComplete,
-              },
-            })
-          )
-        );
+              })
+            )
+          );
+        }
       }
     }
   }

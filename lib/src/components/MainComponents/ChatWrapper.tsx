@@ -33,6 +33,7 @@ import { updatedChatLastTimestamps } from '../../helpers/updatedChatLastTimestam
 import { updateMessagesTillLast } from '../../helpers/updateMessagesTillLast';
 import { StyledLoaderWrapper } from '../styled/StyledComponents';
 import Loader from '../styled/Loader';
+import { useMessageQueue } from '../../hooks/useMessageQueue';
 
 interface ChatWrapperProps {
   token?: string;
@@ -238,7 +239,24 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
   const { roomsList, loading, globalLoading } = useRoomState();
 
-  // useMessageQueue(roomsList, activeRoomJID, queueMessageLoader);
+  const queueMessageLoader = useCallback(
+    async (chatJID: string, max: number) => {
+      try {
+        return client?.getHistoryStanza(chatJID, max);
+      } catch (error) {
+        console.log('Error in loading queue messages');
+      }
+    },
+    [globalLoading, loading]
+  );
+
+  useMessageLoaderQueue(
+    Object.keys(roomsList),
+    roomsList,
+    globalLoading,
+    loading,
+    queueMessageLoader
+  );
 
   if (user.xmppPassword === '' && user.xmppUsername === '')
     return <LoginForm config={config} />;

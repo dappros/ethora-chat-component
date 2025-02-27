@@ -78,6 +78,8 @@ export interface IRoom {
   historyComplete?: boolean;
 }
 
+export interface IRoomCompressed extends Pick<IRoom, 'jid'> {}
+
 export interface RoomMember {
   ban_status: string;
   jid: string;
