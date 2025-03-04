@@ -241,12 +241,17 @@ const Message: React.FC<MessageProps> = forwardRef<
             />
           )}
           <CustomMessageTimestamp>
-            {isUser && message?.pending && 'sending...'}
+            {!config?.disableSentLogic &&
+              isUser &&
+              message?.pending &&
+              'sending...'}
             {new Date(message.date).toLocaleTimeString([], {
               hour: '2-digit',
               minute: '2-digit',
             })}
-            {isUser && !message?.pending && <DoubleTick />}
+            {!config?.disableSentLogic && isUser && !message?.pending && (
+              <DoubleTick />
+            )}
           </CustomMessageTimestamp>
         </CustomMessageBubble>
         <MessageFooter isUser={isUser}>

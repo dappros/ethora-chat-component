@@ -82,6 +82,7 @@ const ChatComponent = React.memo(() => {
       <ReduxWrapper
         config={{
           ...config,
+          disableSentLogic: true,
         }}
         MainComponentStyles={mainStyles}
       />

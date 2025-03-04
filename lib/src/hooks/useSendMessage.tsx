@@ -19,6 +19,7 @@ export const useSendMessage = () => {
     activeRoomJID: state.rooms.activeRoomJID,
     user: state.chatSettingStore.user,
     editAction: state.rooms.editAction,
+    config: state.chatSettingStore.config,
   }));
 
   const sendMessage = useCallback(
@@ -39,27 +40,28 @@ export const useSendMessage = () => {
         dispatch(setEditAction({ isEdit: false }));
         return;
       } else {
-        const id = `send-translate-message-${Date.now().toString()}`;
-
         if (config?.enableTranslates) {
-          dispatch(
-            addRoomMessage({
-              roomJID: activeRoomJID,
-              message: {
-                user: {
-                  ...user,
-                  id: user.walletAddress,
-                  name: user.firstName + ' ' + user.lastName,
+          if (!config?.disableSentLogic) {
+            const id = `send-translate-message-${Date.now().toString()}`;
+            dispatch(
+              addRoomMessage({
+                roomJID: activeRoomJID,
+                message: {
+                  user: {
+                    ...user,
+                    id: user.walletAddress,
+                    name: user.firstName + ' ' + user.lastName,
+                  },
+                  date: new Date().toISOString(),
+                  body: message,
+                  roomJid: activeRoomJID,
+                  pending: config?.disableSentLogic ? false : true,
+                  xmppFrom: `${activeRoomJID}/${user.xmppUsername}`,
+                  id: id,
                 },
-                date: new Date().toISOString(),
-                body: message,
-                roomJid: activeRoomJID,
-                pending: true,
-                xmppFrom: `${activeRoomJID}/${user.xmppUsername}`,
-                id: id,
-              },
-            })
-          );
+              })
+            );
+          }
 
           client?.sendTextMessageWithTranslateTagStanza(
             activeRoomJID,
@@ -76,25 +78,26 @@ export const useSendMessage = () => {
           );
         } else {
           const id = `send-text-message-${Date.now().toString()}`;
-
-          dispatch(
-            addRoomMessage({
-              roomJID: activeRoomJID,
-              message: {
-                id: id,
-                user: {
-                  ...user,
-                  id: user.walletAddress,
-                  name: user.firstName + ' ' + user.lastName,
+          if (!config?.disableSentLogic) {
+            dispatch(
+              addRoomMessage({
+                roomJID: activeRoomJID,
+                message: {
+                  id: id,
+                  user: {
+                    ...user,
+                    id: user.walletAddress,
+                    name: user.firstName + ' ' + user.lastName,
+                  },
+                  date: new Date().toISOString(),
+                  body: message,
+                  roomJid: activeRoomJID,
+                  pending: true,
+                  xmppFrom: `${activeRoomJID}/${user.xmppUsername}`,
                 },
-                date: new Date().toISOString(),
-                body: message,
-                roomJid: activeRoomJID,
-                pending: true,
-                xmppFrom: `${activeRoomJID}/${user.xmppUsername}`,
-              },
-            })
-          );
+              })
+            );
+          }
 
           client?.sendMessage(
             activeRoomJID,

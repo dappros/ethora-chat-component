@@ -222,6 +222,7 @@ export interface IConfig {
   disableProfilesInteractions?: boolean;
   disableUserCount?: boolean;
   clearStoreBeforeInit?: boolean;
+  disableSentLogic?: boolean;
 }
 
 type PartialRoomWithMandatoryKeys = Partial<IRoom> &
