@@ -39,6 +39,7 @@ export interface IMessage {
   originalName?: string;
   size?: string;
   xmppId?: string;
+  xmppFrom?: string;
 }
 
 export interface ReactionMessage {

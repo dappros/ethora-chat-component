@@ -18,7 +18,6 @@ export function insertMessageWithDelimiter(
     const index = roomMessages.findIndex((msg) => msg.id === message.xmppId);
     if (index !== -1) {
       roomMessages[index] = { ...message, id: message.id, pending: false };
-      delete roomMessages[index].xmppId;
     } else {
       roomMessages.push(message);
     }

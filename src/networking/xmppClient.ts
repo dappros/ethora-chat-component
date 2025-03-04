@@ -20,7 +20,11 @@ import { inviteRoomRequest } from './xmpp/inviteRoomRequest.xmpp';
 import { getRooms } from './xmpp/getRooms.xmpp';
 import { handleStanza } from './xmpp/handleStanzas.xmpp';
 import { setVcard } from './xmpp/setVCard.xmpp';
-import { XmppClientInterface, xmppSettingsInterface } from '../types/types';
+import {
+  Iso639_1Codes,
+  XmppClientInterface,
+  xmppSettingsInterface,
+} from '../types/types';
 import { createPrivateRoom } from './xmpp/createPrivateRoom.xmpp';
 import { sendMessageReaction } from './xmpp/sendMessageReaction.xmpp';
 import { sendTextMessageWithTranslateTag } from './xmpp/sendTextMessageWithTranslateTag.xmpp';
@@ -282,7 +286,8 @@ export class XmppClient implements XmppClientInterface {
     notDisplayedValue?: string,
     isReply?: boolean,
     showInChannel?: boolean,
-    mainMessage?: string
+    mainMessage?: string,
+    langSource?: Iso639_1Codes
   ) => {
     sendTextMessageWithTranslateTag(
       this.client,
@@ -299,7 +304,7 @@ export class XmppClient implements XmppClientInterface {
         mainMessage,
         devServer: this.devServer || 'xmpp.ethoradev.com:5443',
       },
-      'es'
+      langSource
     );
   };
 

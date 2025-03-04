@@ -7,7 +7,21 @@ import { IRoom } from './types/types';
 import { useUnreadMessagesCounter } from './hooks/useUnreadMessagesCounter';
 
 const Apps = () => {
-  return <div>Apps</div>;
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  return (
+    <div>
+      <button onClick={() => setIsChatOpen(!isChatOpen)}>setIsChatOpen</button>
+      {isChatOpen && (
+        <ReduxWrapper
+          config={{
+            enableTranslates: true,
+            // baseUrl: 'https://dev.api.platform.atomwcapps.com/v1',
+            setRoomJidInPath: true,
+          }}
+        />
+      )}
+    </div>
+  );
 };
 
 // Memoized chat component with configuration
@@ -68,7 +82,6 @@ const ChatComponent = React.memo(() => {
       <ReduxWrapper
         config={{
           ...config,
-          enableTranslates: true,
         }}
         MainComponentStyles={mainStyles}
       />

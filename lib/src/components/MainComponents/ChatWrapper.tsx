@@ -19,7 +19,7 @@ import {
   setIsLoading,
   setLastViewedTimestamp,
 } from '../../roomStore/roomsSlice';
-import { refresh } from '../../networking/apiClient';
+import { refresh, setBaseURL } from '../../networking/apiClient';
 import RoomList from './RoomList';
 import Modal from '../Modals/Modal/Modal';
 import ThreadWrapper from '../Thread/ThreadWrapper';
@@ -136,6 +136,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
     const initXmmpClient = async () => {
       dispatch(setConfig(config));
+      setBaseURL(config?.baseUrl);
       try {
         if (!user.defaultWallet || user?.defaultWallet.walletAddress === '') {
           setShowModal(true);

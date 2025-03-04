@@ -39,7 +39,28 @@ export const useSendMessage = () => {
         dispatch(setEditAction({ isEdit: false }));
         return;
       } else {
-        if (langSource && config?.enableTranslates) {
+        const id = `send-translate-message-${Date.now().toString()}`;
+
+        if (config?.enableTranslates) {
+          dispatch(
+            addRoomMessage({
+              roomJID: activeRoomJID,
+              message: {
+                user: {
+                  ...user,
+                  id: user.walletAddress,
+                  name: user.firstName + ' ' + user.lastName,
+                },
+                date: new Date().toISOString(),
+                body: message,
+                roomJid: activeRoomJID,
+                pending: true,
+                xmppFrom: `${activeRoomJID}/${user.xmppUsername}`,
+                id: id,
+              },
+            })
+          );
+
           client?.sendTextMessageWithTranslateTagStanza(
             activeRoomJID,
             user.firstName,
@@ -50,7 +71,8 @@ export const useSendMessage = () => {
             '',
             isReply || false,
             isChecked || false,
-            mainMessage || ''
+            mainMessage || '',
+            langSource || 'en'
           );
         } else {
           const id = `send-text-message-${Date.now().toString()}`;
@@ -69,6 +91,7 @@ export const useSendMessage = () => {
                 body: message,
                 roomJid: activeRoomJID,
                 pending: true,
+                xmppFrom: `${activeRoomJID}/${user.xmppUsername}`,
               },
             })
           );

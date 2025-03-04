@@ -24,14 +24,10 @@ export async function actionSetTimestampToPrivateStore(
   if (storeObj && typeof storeObj === 'object') {
     storeObj[chatId] = timestamp;
 
-    console.log(storeObj);
-
     const str = JSON.stringify(storeObj);
     await setChatsPrivateStoreRequest(client, str);
     return true;
   } else {
-    console.log(storeObj);
-
     await setChatsPrivateStoreRequest(
       client,
       populateChats(chats, timestamp.toString())

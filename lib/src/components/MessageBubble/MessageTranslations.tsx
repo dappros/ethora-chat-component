@@ -14,7 +14,7 @@ const MessageTranslations: FC<MessageTranslationsProps> = ({
   message,
   config,
   isUser,
-  langSource,
+  langSource = 'en',
 }) => {
   return (
     message.langSource &&

@@ -32,6 +32,7 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
 
   const data = fullData?.getChild('data') || stanza?.getChild('data');
   const xmppId = fullData?.attrs.id;
+  const xmppFrom = fullData?.attrs?.from;
   const id =
     stanza.getChild('result')?.attrs.id ||
     extractTimestamp(stanza?.getChild('stanza-id')?.attrs?.id, stanza);
@@ -73,5 +74,6 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
     translations,
     langSource,
     xmppId,
+    xmppFrom,
   };
 };

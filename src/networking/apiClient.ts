@@ -3,7 +3,7 @@ import { store } from '../roomStore';
 
 import { logout, refreshTokens } from '../roomStore/chatSettingsSlice';
 
-const baseURL =
+let baseURL =
   store.getState().chatSettingStore?.config?.baseUrl ||
   'https://api.ethoradev.com/v1';
 
@@ -12,6 +12,14 @@ console.log('baseUrl', store.getState().chatSettingStore?.config?.baseUrl);
 const http = axios.create({
   baseURL,
 });
+
+export function setBaseURL(newBaseURL: string | undefined) {
+  if (newBaseURL) {
+    console.log('upd to ,', newBaseURL);
+    baseURL = newBaseURL;
+    http.defaults.baseURL = newBaseURL;
+  }
+}
 
 export function refresh(): Promise<{
   data: { refreshToken: string; token: string };

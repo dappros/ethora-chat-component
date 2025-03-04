@@ -150,7 +150,6 @@ export const roomsStore = createSlice({
         );
         if (index !== -1) {
           roomMessages[index] = { ...message, id: message.id, pending: false };
-          delete roomMessages[index].xmppId;
         } else {
           roomMessages.unshift(message);
         }
