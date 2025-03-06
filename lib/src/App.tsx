@@ -2,8 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { ReduxWrapper } from './components/MainComponents/ReduxWrapper';
 import { XmppProvider } from './context/xmppProvider';
-import { useStoreConsole } from './helpers/storeConsole';
-import { IRoom } from './types/types';
 import { useUnreadMessagesCounter } from './hooks/useUnreadMessagesCounter';
 
 const Apps = () => {
@@ -94,12 +92,10 @@ ChatComponent.displayName = 'ChatComponent';
 
 // Main App component
 export default function App() {
-  const { unreadByRoom, hasUnread, totalCount } = useUnreadMessagesCounter();
+  const { totalCount } = useUnreadMessagesCounter();
 
-  console.log(hasUnread, totalCount);
-
-  const navigation = useMemo(
-    () => (
+  const navigation = useMemo(() => {
+    return (
       <nav
         className="flex flex-col space-y-2 p-4 bg-gray-100 h-screen"
         style={{ display: 'flex', gap: '12px' }}
@@ -128,9 +124,8 @@ export default function App() {
           </button>
         </Link>
       </nav>
-    ),
-    []
-  );
+    );
+  }, [totalCount]);
 
   return (
     <XmppProvider>

@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import { Provider } from 'react-redux';
 import { store, persistor } from '../../roomStore';
 import { ConfigUser, IConfig, MessageProps } from '../../types/types';
-import { XmppProvider } from '../../context/xmppProvider.tsx';
 import '../../index.css';
 import '../../helpers/storeConsole';
 import LoginWrapper from './LoginWrapper.tsx';
