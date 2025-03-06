@@ -23,9 +23,9 @@
     "@types/react-dom": "^18.2.22",
     "@types/styled-components": "^5.1.34",
     "@xmpp/client": "^0.13.1",
-    "axios": "^1.7.2",
+    "axios": "^1.7.4",
     "emoji-mart": "^5.6.0",
-    "firebase": "^10.13.2",
+    "firebase": "^11.4.0",
     "i": "^0.3.7",
     "js-sha256": "^0.11.0",
     "ltx": "^3.0.0",
@@ -58,8 +58,8 @@
     "eslint-plugin-react-refresh": "^0.4.7",
     "prettier": "3.2.5",
     "typescript": "^5.2.2",
-    "vite": "^5.3.1",
-    "vite-plugin-dts": "^3.9.1"
+    "vite": "^6.2.0",
+    "vite-plugin-dts": "^4.5.3"
   },
   "description": "1. npm create vite@latest 2. select name of project, select type (react/js) 3. cd project-name 4. npm i 5. npm i @ethora/chat-component 6. go to file src/App.tsx and replace it with this code",
   "directories": {
