@@ -28,8 +28,9 @@ export const Container = styled.div<{ burgerMenu?: boolean; open?: boolean }>`
           display: relative;
           z-index: 2;
           background-color: #fff;
-          min-width: 375px;
+          min-width: 335px;
           border-right: 1px solid var(--Colors-Border-border-primary, #f0f0f0);
+          min-width: 343px;
         `}
 `;
 

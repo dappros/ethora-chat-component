@@ -1,5 +1,11 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { EditAction, IMessage, IRoom, ReactionAction } from '../types/types';
+import {
+  AddRoomMessageAction,
+  EditAction,
+  IMessage,
+  IRoom,
+  ReactionAction,
+} from '../types/types';
 import { insertMessageWithDelimiter } from '../helpers/insertMessageWithDelimiter';
 
 interface RoomMessagesState {
@@ -123,17 +129,10 @@ export const roomsStore = createSlice({
         });
       }
     },
-    addRoomMessage(
-      state,
-      action: PayloadAction<{
-        roomJID: string;
-        message: IMessage;
-        start?: boolean;
-      }>
-    ) {
+    addRoomMessage(state, action: PayloadAction<AddRoomMessageAction>) {
       const { roomJID, message, start } = action.payload;
 
-      if (!message?.body) return; // change when reactions are ready
+      if (!message?.body) return;
 
       const roomMessages = state.rooms[roomJID]?.messages;
 
@@ -146,7 +145,14 @@ export const roomsStore = createSlice({
       }
 
       if (roomMessages.length === 0 || start) {
-        roomMessages.unshift(message);
+        const index = roomMessages.findIndex(
+          (msg) => msg.id === message.xmppId
+        );
+        if (index !== -1) {
+          roomMessages[index] = { ...message, id: message.id, pending: false };
+        } else {
+          roomMessages.unshift(message);
+        }
       } else {
         const lastViewedTimestamp = state.rooms[roomJID].lastViewedTimestamp
           ? new Date(state.rooms[roomJID].lastViewedTimestamp)

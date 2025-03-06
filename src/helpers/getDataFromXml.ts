@@ -21,6 +21,8 @@ interface DataXml {
   deleted?: boolean;
   translations?: any;
   langSource?: string;
+  xmppId?: string;
+  xmppFrom?: string;
   data: { [x: string]: any };
 }
 export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
@@ -29,6 +31,8 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
     stanza;
 
   const data = fullData?.getChild('data') || stanza?.getChild('data');
+  const xmppId = fullData?.attrs.id;
+  const xmppFrom = fullData?.attrs?.from;
   const id =
     stanza.getChild('result')?.attrs.id ||
     extractTimestamp(stanza?.getChild('stanza-id')?.attrs?.id, stanza);
@@ -43,7 +47,8 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
       )
     : undefined;
   const langSource = fullData?.getChild('translate')?.attrs?.source;
-  const roomJid = data?.attrs?.['roomJID'];
+  const roomJid =
+    data?.attrs?.['roomJID'] || fullData?.attrs?.['from']?.split('/')?.[0];
   const senderFirstName =
     data?.attrs?.['firstName'] || data?.attrs?.senderFirstName || '';
   const senderLastName =
@@ -68,5 +73,7 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
     deleted,
     translations,
     langSource,
+    xmppId,
+    xmppFrom,
   };
 };

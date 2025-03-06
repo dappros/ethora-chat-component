@@ -16,6 +16,8 @@ import { IRoom } from '../types/types';
 import { createMessageFromXml } from '../helpers/createMessageFromXml';
 import { setDeleteModal } from '../roomStore/chatSettingsSlice';
 import { getDataFromXml } from '../helpers/getDataFromXml';
+import { getBooleanFromString } from '../helpers/getBooleanFromString';
+import { getNumberFromString } from '../helpers/getNumberFromString';
 // TO DO: we are thinking to refactor this code in the following way:
 // each stanza will be parsed for 'type'
 // then it will be handled based on the type
@@ -63,6 +65,9 @@ const onReactionMessage = async (stanza: Element) => {
   if (stanza?.attrs?.id?.includes('message-reaction')) {
     const reactions = stanza.getChild('reactions');
     const stanzaId = stanza.getChild('stanza-id');
+    const roomJid = stanzaId.attrs.by;
+    const timestamp = stanzaId.attrs.id;
+
     const data = stanza.getChild('data');
 
     const emojiList: string[] = reactions
@@ -72,8 +77,9 @@ const onReactionMessage = async (stanza: Element) => {
 
     store.dispatch(
       setReactions({
-        roomJID: stanzaId.attrs.by,
+        roomJID: roomJid,
         messageId: reactions.attrs.id,
+        latestReactionTimestamp: timestamp,
         reactions: emojiList,
         from,
         data: data.attrs,
@@ -153,10 +159,14 @@ const onReactionHistory = async (stanza: any) => {
       senderLastName: data.attrs.senderLastName,
     };
 
+    const roomJid = stanzaId.attrs.by;
+    const timestamp = stanzaId.attrs.id;
+
     store.dispatch(
       setReactions({
-        roomJID: stanzaId.attrs.by,
+        roomJID: roomJid,
         messageId,
+        latestReactionTimestamp: timestamp,
         reactions: reactionList,
         from,
         data: dataReaction,
@@ -168,8 +178,6 @@ const onReactionHistory = async (stanza: any) => {
 };
 
 const onMessageHistory = async (stanza: any) => {
-  //here logic to add interactions and here too
-
   if (
     stanza.is('message') &&
     stanza.children[0].attrs.xmlns === 'urn:xmpp:mam:2'
@@ -282,8 +290,39 @@ const onGetRoomInfo = (stanza: Element) => {
   }
 };
 
-const onGetLastMessageArchive = (stanza: Element, xmpp: any) => {
-  if (stanza.attrs.id === 'GetLastArchive') {
+const onGetLastMessageArchive = (stanza: Element) => {
+  if (stanza.attrs?.id && stanza.attrs?.id.toString().includes('get-history')) {
+    const set = stanza?.getChild('fin')?.getChild('set');
+    if (set) {
+      const roomJid = stanza?.attrs?.from;
+
+      if (roomJid) {
+        const fin = stanza?.getChild('fin');
+
+        if (fin?.attrs?.complete) {
+          const first = set?.getChildText('first');
+          const last = set?.getChildText('last');
+          const historyComplete = getBooleanFromString(fin.attrs.complete);
+          const lastMessageTimestamp = getNumberFromString(last);
+          const firstMessageTimestamp = getNumberFromString(first);
+
+          store.dispatch(
+            store.dispatch(
+              updateRoom({
+                jid: roomJid,
+                updates: {
+                  messageStats: {
+                    lastMessageTimestamp: lastMessageTimestamp,
+                    firstMessageTimestamp: firstMessageTimestamp,
+                  },
+                  historyComplete: historyComplete,
+                },
+              })
+            )
+          );
+        }
+      }
+    }
   }
 };
 

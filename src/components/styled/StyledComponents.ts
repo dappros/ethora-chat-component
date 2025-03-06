@@ -7,6 +7,8 @@ export const ChatContainer = styled.div`
   width: 100%;
   box-sizing: border-box;
   background-color: #f3f6fc;
+  flex: 1;
+  min-width: 0;
   /* border: 10px solid yellow; */
 `;
 
@@ -198,6 +200,10 @@ export const CustomMessageTimestamp = styled.span`
   font-size: 0.75rem;
   align-self: flex-end;
   color: #8f8f8f;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
 `;
 
 export const CustomMessagePhoto = styled.img`

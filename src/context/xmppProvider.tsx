@@ -6,12 +6,20 @@ import React, {
   useEffect,
 } from 'react';
 import XmppClient from '../networking/xmppClient';
+import { xmppSettingsInterface } from '../types/types';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '../roomStore';
+import { setStoreClient } from '../roomStore/chatSettingsSlice';
 
 // Declare XmppContext
 interface XmppContextType {
   client: XmppClient;
   setClient: (client: XmppClient | null) => void;
-  initializeClient: (password: string, email: string) => Promise<XmppClient>;
+  initializeClient: (
+    password: string,
+    email: string,
+    xmppSettings?: xmppSettingsInterface
+  ) => Promise<XmppClient>;
 }
 
 const XmppContext = createContext<XmppContextType | null>(null);
@@ -28,7 +36,8 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
 
   const initializeClient = async (
     password: string,
-    email: string
+    email: string,
+    xmppSettings?: xmppSettingsInterface
   ): Promise<XmppClient> => {
     if (client) {
       console.log('Returning existing client.');
@@ -37,7 +46,7 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
     }
 
     try {
-      const newClient = new XmppClient(password, email);
+      const newClient = new XmppClient(password, email, xmppSettings);
       setClient(newClient);
 
       await new Promise<void>((resolve, reject) => {
@@ -68,7 +77,7 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
   const reconnectClient = () => {
     if (client && client.status !== 'offline' && reconnectAttempts < 3) {
       console.log('Attempting to reconnect...');
-      client.scheduleReconnect();
+      client.reconnect();
       setReconnectAttempts((prev) => prev + 1);
     } else if (client?.status === 'offline') {
       console.log('Client is offline. Not attempting to reconnect.');

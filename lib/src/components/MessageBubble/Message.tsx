@@ -11,8 +11,7 @@ import {
   MessageFooter,
 } from '../styled/StyledComponents';
 import MediaMessage from '../MainComponents/MediaMessage';
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '../../roomStore';
+import { useDispatch } from 'react-redux';
 
 import { Avatar } from './Avatar';
 import MessageInteractions from './MessageInteractions';
@@ -30,6 +29,7 @@ import { useXmppClient } from '../../context/xmppProvider';
 import { MessageReaction } from './MessageReaction';
 import MessageTranslations from './MessageTranslations';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { DoubleTick } from '../../assets/icons';
 
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
@@ -218,7 +218,7 @@ const Message: React.FC<MessageProps> = forwardRef<
           {message?.isMediafile === 'true' && !message?.isDeleted ? (
             <MediaMessage
               mimeType={message.mimetype}
-              messageText={message.locationPreview}
+              locationPreview={message.locationPreview}
               location={message?.location}
               message={message}
             />
@@ -237,14 +237,21 @@ const Message: React.FC<MessageProps> = forwardRef<
               message={message}
               config={config}
               langSource={langSource}
+              isUser={isUser}
             />
           )}
           <CustomMessageTimestamp>
-            {message?.pending && 'sending...'}
+            {!config?.disableSentLogic &&
+              isUser &&
+              message?.pending &&
+              'sending...'}
             {new Date(message.date).toLocaleTimeString([], {
               hour: '2-digit',
               minute: '2-digit',
             })}
+            {!config?.disableSentLogic && isUser && !message?.pending && (
+              <DoubleTick />
+            )}
           </CustomMessageTimestamp>
         </CustomMessageBubble>
         <MessageFooter isUser={isUser}>
@@ -260,7 +267,8 @@ const Message: React.FC<MessageProps> = forwardRef<
             <MessageReaction
               reaction={message.reaction}
               changeReaction={handleReactionMessage}
-              color={config.colors?.primary}
+              color={config.colors?.primary || '#0052CD'}
+              userName={`${user.firstName} ${user.lastName}`}
             />
           )}
         </MessageFooter>

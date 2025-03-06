@@ -48,7 +48,6 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
 
   useEffect(() => {
     if (props?.config?.userLogin?.enabled && props?.config?.userLogin?.user) {
-      console.log('hehrehre');
       dispatch(setUser(props.config.userLogin.user));
       return;
     }
@@ -59,7 +58,6 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
       '@ethora/chat-component-user'
     ).get() as User;
     if (storedUser) {
-      console.log('Login data storedUser', storedUser);
       dispatch(setUser(storedUser));
     }
 

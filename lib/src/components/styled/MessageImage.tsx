@@ -10,12 +10,14 @@ interface CustomMessageImageProps {
   fileURL: string;
   fileName: string;
   mimetype: string;
+  locationPreview?: string;
 }
 
 const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
   fileURL,
   fileName,
   mimetype,
+  locationPreview,
 }) => {
   const dispatch = useDispatch();
 
@@ -28,7 +30,7 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
     <Container>
       {fileURL ? (
         <img
-          src={fileURL}
+          src={locationPreview}
           alt={fileName}
           onClick={handleOpen}
           style={{

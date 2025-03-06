@@ -6,6 +6,7 @@ import Composing from '../styled/StyledInputComponents/Composing';
 import TreadLabel from '../styled/TreadLabel';
 import { MessageContainer } from './MessageContainer';
 import { useRoomState } from '../../hooks/useRoomState';
+import { VirtualizedList } from './VirtualList';
 
 interface MessageListProps<TMessage extends IMessage> {
   CustomMessage?: React.ComponentType<{
@@ -113,24 +114,27 @@ const MessageList = <TMessage extends IMessage>({
 
     if (!params) return;
 
-    if (params.top < 150 && !isLoadingMore.current) {
-      scrollParams.current = getScrollParams();
-      const firstMessage = memoizedMessages[0];
-      if (firstMessage?.user?.id) {
-        isLoadingMore.current = true;
+    if (params.top >= 150 || isLoadingMore.current) return;
 
-        loadMoreMessages(
-          memoizedMessages[0].roomJid,
-          30,
-          Number(memoizedMessages[0].id)
-        ).finally(() => {
-          isLoadingMore.current = false;
-          lastMessageRef.current =
-            memoizedMessages[memoizedMessages.length - 1];
-          restoreScrollPosition();
-        });
+    scrollParams.current = getScrollParams();
+
+    const [firstMessage, secondMessage] = memoizedMessages;
+    const firstMessageId =
+      firstMessage?.id === 'delimiter-new'
+        ? secondMessage?.id
+        : firstMessage?.id;
+
+    if (!firstMessageId) return;
+
+    isLoadingMore.current = true;
+
+    loadMoreMessages(firstMessage.roomJid, 30, Number(firstMessageId)).finally(
+      () => {
+        isLoadingMore.current = false;
+        lastMessageRef.current = memoizedMessages[memoizedMessages.length - 1];
+        restoreScrollPosition();
       }
-    }
+    );
   }, [loadMoreMessages, memoizedMessages.length]);
 
   const checkAtBottom = () => {
@@ -232,6 +236,28 @@ const MessageList = <TMessage extends IMessage>({
             />
           );
         })}
+        {/* <VirtualizedList
+          data={memoizedMessages}
+          renderItem={(message) => {
+            const messageDate = new Date(message.date).toDateString();
+            const showDateLabel = messageDate !== lastDateLabel;
+            lastDateLabel = messageDate;
+            return (
+              <MessageContainer
+                key={message.id}
+                CustomMessage={CustomMessage}
+                message={message}
+                activeMessage={activeMessage}
+                config={config}
+                walletAddress={user.walletAddress}
+                isReply={isReply}
+                showDateLabel={showDateLabel}
+              />
+            );
+          }}
+          itemHeight={100}
+          containerHeight={containerRef.current.clientHeight}
+        /> */}
         {config?.disableHeader && composing && (
           <Composing usersTyping={['User']} />
         )}

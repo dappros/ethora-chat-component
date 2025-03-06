@@ -1,6 +1,6 @@
 {
   "name": "@ethora/chat-component",
-  "version": "25.01.17",
+  "version": "25.02.10",
   "type": "module",
   "main": "dist/main.js",
   "types": "dist/main.d.ts",
@@ -34,6 +34,7 @@
     "react-dom": "^18.3.1",
     "react-qr-code": "^2.0.15",
     "react-redux": "^9.1.0",
+    "react-router-dom": "^7.1.5",
     "redux": "^5.0.1",
     "redux-persist": "^6.0.0",
     "redux-persist-transform-encrypt": "^5.1.1",

@@ -22,6 +22,7 @@ import { useRoomInitialization } from '../../hooks/useRoomInitialization.tsx';
 import { useRoomState } from '../../hooks/useRoomState.tsx';
 import { useChatSettingState } from '../../hooks/useChatSettingState.tsx';
 import useComposing from '../../hooks/useComposing.tsx';
+import useMessageLoaderQueue from '../../hooks/useMessageLoaderQueue.tsx';
 
 interface ChatRoomProps {
   CustomMessageComponent?: any;
@@ -53,6 +54,12 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
 
     const sendMessage = useCallback(
       (message: string) => {
+        dispatch(
+          setLastViewedTimestamp({
+            chatJID: activeRoomJID,
+            timestamp: 0,
+          })
+        );
         sendMs(message, activeRoomJID);
       },
       [activeRoomJID]
@@ -67,14 +74,22 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
 
     const loadMoreMessages = useCallback(
       async (chatJID: string, max: number, idOfMessageBefore?: number) => {
-        if (!isLoadingMore) {
+        if (!isLoadingMore && !roomsList?.[chatJID]?.historyComplete) {
+          const lastMsgId =
+            typeof idOfMessageBefore !== 'string'
+              ? idOfMessageBefore
+              : Number(
+                  roomsList[chatJID].messages[
+                    roomsList[chatJID].messages.length - 2
+                  ].id
+                );
           setIsLoadingMore(true);
-          client?.getHistoryStanza(chatJID, max, idOfMessageBefore).then(() => {
+          client?.getHistoryStanza(chatJID, max, lastMsgId).then(() => {
             setIsLoadingMore(false);
           });
         }
       },
-      [client]
+      [client?.client?.jid]
     );
 
     const onCloseEdit = () => {
@@ -88,6 +103,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
           timestamp: 0,
         })
       );
+      setIsLoadingMore(false);
       return () => {
         if (client) {
           client.actionSetTimestampToPrivateStoreStanza(
@@ -108,6 +124,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             messageId: 'delimiter-new',
           })
         );
+        setIsLoadingMore(false);
       };
     }, [activeRoomJID]);
 
@@ -147,7 +164,9 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             handleBackClick={handleBackClick}
           />
         )}
-        {globalLoading ? (
+        {globalLoading ||
+        (!roomsList[activeRoomJID].historyComplete &&
+          roomsList[activeRoomJID].messages.length < 1) ? (
           <Loader color={config?.colors?.primary} />
         ) : Object.keys(roomsList).length < 1 || !activeRoomJID ? (
           <NoSelectedChatIcon />
@@ -175,7 +194,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
           config={config}
           onFocus={sendStartComposing}
           onBlur={sendEndComposing}
-          isLoading={loading}
+          isLoading={false}
         />
       </ChatContainer>
     );

@@ -33,8 +33,13 @@ export interface IMessage {
   mainMessage?: string;
   reply?: IReply[];
   reaction?: Record<string, ReactionMessage>;
+  fileName?: string;
   translations?: TranslationObject;
   langSource?: string;
+  originalName?: string;
+  size?: string;
+  xmppId?: string;
+  xmppFrom?: string;
 }
 
 export interface ReactionMessage {
@@ -54,7 +59,7 @@ export interface IRoom {
   roomBg: string;
 
   id?: string;
-  lastMessage?: string;
+  lastMessage?: LastMessage;
   lastMessageTimestamp?: number;
   lastRoomMessage?: RoomLastMessage;
   icon?: string;
@@ -66,7 +71,15 @@ export interface IRoom {
   role?: string;
 
   roomMembers?: RoomMember[];
+
+  messageStats?: {
+    lastMessageTimestamp?: number;
+    firstMessageTimestamp?: number;
+  };
+  historyComplete?: boolean;
 }
+
+export interface IRoomCompressed extends Pick<IRoom, 'jid'> {}
 
 export interface RoomMember {
   ban_status: string;
@@ -168,6 +181,12 @@ export interface IConfig {
     enabled: boolean;
     user: User | null;
   };
+  customLogin?: {
+    enabled: boolean;
+    loginFunction: any; //() => Promise<User>
+  };
+  baseUrl?: string;
+  xmppSettings?: xmppSettingsInterface;
   disableRooms?: boolean;
   defaultLogin?: boolean;
   disableInteractions?: boolean;
@@ -177,9 +196,42 @@ export interface IConfig {
   chatRoomStyles?: React.CSSProperties;
   setRoomJidInPath?: boolean;
   disableRoomMenu?: boolean;
-  defaultRooms?: string[] | ConfigRoom[];
+  defaultRooms?: ConfigRoom[];
   refreshTokens?: { enabled: boolean; refreshFunction?: any };
+  backgroundChat?: {
+    color?: string;
+    image?: any;
+  };
+  bubleMessage?: {
+    backgroundMessageUser?: string;
+    backgroundMessage?: string;
+    colorUser?: string;
+    color?: string;
+    borderRadius?: number;
+  };
+  headerLogo?: any;
+  headerMenu?: () => void;
+  headerChatMenu?: () => void;
+  customRooms?: {
+    rooms: PartialRoomWithMandatoryKeys[];
+    disableGetRooms?: boolean;
+    singleRoom: boolean;
+  };
   enableTranslates?: boolean;
+  disableRoomConfig?: boolean;
+  disableProfilesInteractions?: boolean;
+  disableUserCount?: boolean;
+  clearStoreBeforeInit?: boolean;
+  disableSentLogic?: boolean;
+}
+
+type PartialRoomWithMandatoryKeys = Partial<IRoom> &
+  Pick<IRoom, 'jid' | 'title'>;
+
+export interface xmppSettingsInterface {
+  devServer: string;
+  host: string;
+  conference?: string;
 }
 
 interface ConfigRoom {
@@ -208,6 +260,12 @@ export interface StorageUser {
   isProfileOpen?: boolean;
 }
 
+export interface xmppSettingsInterface {
+  devServer: string;
+  host: string;
+  conference?: string;
+}
+
 export interface MessageProps {
   message: IMessage;
   isUser: boolean;
@@ -234,6 +292,7 @@ export interface ReactionAction {
   messageId: string;
   from: string;
   reactions: string[];
+  latestReactionTimestamp?: string;
   data?: Record<string, string>;
 }
 
@@ -249,6 +308,12 @@ export interface ReactionAction {
   roomJID: string;
   messageId: string;
   reactions: string[];
+}
+
+export interface AddRoomMessageAction {
+  roomJID: string;
+  message: IMessage;
+  start?: boolean;
 }
 
 //xmppClientWs
@@ -270,7 +335,6 @@ export interface XmppClientInterface {
   checkOnline(): boolean;
   initializeClient(): void;
   attachEventListeners(): void;
-  scheduleReconnect(): void;
   reconnect(): void;
   close(): Promise<void>;
 
@@ -344,6 +408,7 @@ export interface XmppClientInterface {
     reactionsList: string[],
     reactionSymbol?: any
   ): void;
+  getRoomsPagedStanza(maxResults: number, after: string | null): void;
 }
 
 export type Iso639_1Codes = 'en' | 'es' | 'pt' | 'ht' | 'zh';
@@ -357,3 +422,19 @@ export type LanguageOptions = {
   languages: Array<Language>;
   language?: Iso639_1Codes;
 };
+
+export type MediaFile = {
+  uri: string;
+  type: string;
+  name: string;
+};
+
+export interface LastMessage extends Omit<Partial<IMessage>, 'date'> {
+  body: string;
+  date?: string | Date;
+  emoji?: string;
+  locationPreview?: string;
+  filename?: string;
+  mimetype?: string;
+  originalName?: string;
+}

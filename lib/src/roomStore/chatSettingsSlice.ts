@@ -1,8 +1,8 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import {
   DeleteModal,
-  EditAction,
   IConfig,
+  Iso639_1Codes,
   IUser,
   ModalFile,
   ModalType,
@@ -21,7 +21,7 @@ interface ChatState {
   selectedUser?: IUser;
   activeFile?: ModalFile;
   client?: XmppClient;
-  langSource?: string;
+  langSource?: Iso639_1Codes;
 }
 
 const unpackAndTransform = (input?: User): User => {
@@ -120,6 +120,7 @@ export const chatSlice = createSlice({
       }
     },
     setConfig: (state, action: PayloadAction<IConfig | undefined>) => {
+      console.log('setting ', action.payload);
       state.config = action.payload;
     },
     setActiveModal: (state, action: PayloadAction<ModalType | undefined>) => {
@@ -131,13 +132,16 @@ export const chatSlice = createSlice({
     setDeleteModal: (state, action: PayloadAction<DeleteModal | undefined>) => {
       state.deleteModal = action.payload;
     },
-    setStoreClient: (state, action: PayloadAction<any>) => {
+    setStoreClient: (state, action: PayloadAction<XmppClient>) => {
       state.client = action.payload;
     },
     setSelectedUser: (state, action: PayloadAction<IUser | undefined>) => {
       state.selectedUser = action.payload;
     },
-    setLangSource: (state, action: PayloadAction<string | undefined>) => {
+    setLangSource: (
+      state,
+      action: PayloadAction<Iso639_1Codes | undefined>
+    ) => {
       state.langSource = action.payload;
     },
     refreshTokens: (

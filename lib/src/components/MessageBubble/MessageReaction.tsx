@@ -53,12 +53,14 @@ interface MessageReactionProps {
   color: string;
   reaction: Record<string, ReactionMessage>;
   changeReaction: (reaction: string) => void;
+  userName?: string;
 }
 
 export const MessageReaction: FC<MessageReactionProps> = ({
   reaction,
   color,
   changeReaction,
+  userName,
 }) => {
   const memoEmoji = (id: string) => {
     const emoji = (emojiData as any).emojis[id];
@@ -92,7 +94,12 @@ export const MessageReaction: FC<MessageReactionProps> = ({
         <ReactionBox
           key={emoji}
           onClick={() => changeReaction(emoji)}
-          color={color}
+          color={userName && details.users.includes(userName) ? '#fff' : color}
+          style={{
+            backgroundColor: !details.users.includes(userName || '')
+              ? '#fff'
+              : color,
+          }}
         >
           {memoEmoji(emoji)} {details.count}
           <Tooltip className="tooltip">{details.users.join(', ')}</Tooltip>

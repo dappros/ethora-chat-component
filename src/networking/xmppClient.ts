@@ -20,10 +20,15 @@ import { inviteRoomRequest } from './xmpp/inviteRoomRequest.xmpp';
 import { getRooms } from './xmpp/getRooms.xmpp';
 import { handleStanza } from './xmpp/handleStanzas.xmpp';
 import { setVcard } from './xmpp/setVCard.xmpp';
-import { XmppClientInterface } from '../types/types';
+import {
+  Iso639_1Codes,
+  XmppClientInterface,
+  xmppSettingsInterface,
+} from '../types/types';
 import { createPrivateRoom } from './xmpp/createPrivateRoom.xmpp';
 import { sendMessageReaction } from './xmpp/sendMessageReaction.xmpp';
 import { sendTextMessageWithTranslateTag } from './xmpp/sendTextMessageWithTranslateTag.xmpp';
+import { getRoomsPaged } from './xmpp/getRoomsPaged.xmpp';
 
 export class XmppClient implements XmppClientInterface {
   client!: Client;
@@ -43,9 +48,17 @@ export class XmppClient implements XmppClientInterface {
     return this.client && this.client.status === 'online';
   }
 
-  constructor(username: string, password: string, devServer?: string) {
-    this.devServer = devServer;
-    const url = `wss://${this.devServer || 'xmpp.ethoradev.com:5443'}/ws`;
+  constructor(
+    username: string,
+    password: string,
+    xmppSettings?: xmppSettingsInterface
+  ) {
+    this.devServer =
+      xmppSettings?.devServer || `wss://xmpp.ethoradev.com:5443/ws`;
+    this.host = xmppSettings?.host || 'xmpp.ethoradev.com';
+    this.service = xmppSettings?.conference || 'conference.xmpp.ethoradev.com';
+
+    const url = this.devServer || `wss://xmpp.ethoradev.com:5443/ws`;
     // if (url.startsWith("wss")) {
     //   this.host = url.match(/wss:\/\/([^:/]+)/)[1];
     // } else {
@@ -57,14 +70,14 @@ export class XmppClient implements XmppClientInterface {
     this.initializeClient();
   }
 
-  initializeClient() {
+  async initializeClient() {
     try {
-      const url = `wss://${this.devServer || 'xmpp.ethoradev.com:5443'}/ws`;
-      this.service = url;
+      const url = this.devServer || `wss://xmpp.ethoradev.com:5443/ws`;
+
       this.host = url.match(/wss:\/\/([^:/]+)/)?.[1] || '';
       this.conference = `conference.${this.host}`;
       console.log('+-+-+-+-+-+-+-+-+ ', { username: this.username });
-      this.service = url;
+      this.devServer = url;
 
       this.client = xmpp.client({
         service: url,
@@ -94,11 +107,14 @@ export class XmppClient implements XmppClientInterface {
       this.client.send(xml('presence'));
     });
 
+    this.client.on('connecting', () => {
+      console.log('Client is connecting...');
+      this.status = 'connecting';
+    });
+
     this.client.on('error', (error) => {
       console.error('XMPP client error:', error);
-      // if (this.status !== 'online') {
-      //   this.scheduleReconnect();
-      // }
+      this.status = 'error';
     });
 
     this.client.on('stanza', (stanza) => {
@@ -106,46 +122,66 @@ export class XmppClient implements XmppClientInterface {
     });
   }
 
-  scheduleReconnect() {
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('Max reconnect attempts reached. Giving up.');
+  async reconnect() {
+    if (this.status === 'connecting') {
+      console.log('Already attempting to connect, skipping reconnect');
       return;
     }
 
-    this.reconnectAttempts++;
-    console.log(`Reconnecting attempt ${this.reconnectAttempts}...`);
-    setTimeout(() => this.reconnect(), this.reconnectDelay);
-  }
-
-  reconnect() {
     console.log('Attempting to reconnect...');
-    if (this.client) {
-      this.client.stop().finally(() => {
-        this.initializeClient();
-      });
-    } else {
+    try {
+      if (this.client) {
+        await this.client.stop();
+      }
       this.initializeClient();
+
+      // Wait for connection to be established
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Connection timeout'));
+        }, 10000);
+
+        const checkStatus = () => {
+          if (this.status === 'online') {
+            clearTimeout(timeout);
+            resolve();
+          } else if (this.status === 'error') {
+            clearTimeout(timeout);
+            reject(new Error('Connection error'));
+          } else {
+            setTimeout(checkStatus, 500);
+          }
+        };
+        checkStatus();
+      });
+    } catch (error) {
+      console.error('Reconnection failed:', error);
+      throw error;
     }
   }
 
   async close() {
     if (this.client) {
-      await this.client
-        .stop()
-        .then(() => {
-          console.log('Client connection closed.');
-        })
-        .catch((error) => {
-          console.error('Error closing the client:', error);
-        });
-    } else {
-      console.log('No client to close.');
+      this.status = 'offline';
+      try {
+        await this.client.stop();
+        console.log('Client connection closed.');
+      } catch (error) {
+        console.error('Error closing the client:', error);
+      }
     }
   }
 
-  getRoomsStanza = async () => {
-    await getRooms(this.client);
+  getRoomsStanza = async (disableGetRooms?: boolean) => {
+    !disableGetRooms && (await getRooms(this.client));
   };
+
+  async getRoomsPagedStanza(
+    maxResults?: number,
+    after?: string | null
+  ): Promise<void> {
+    await getRoomsPaged(this.client);
+  }
 
   //room functions
 
@@ -210,7 +246,8 @@ export class XmppClient implements XmppClientInterface {
     notDisplayedValue?: string,
     isReply?: boolean,
     showInChannel?: boolean,
-    mainMessage?: string
+    mainMessage?: string,
+    customId?: string
   ) => {
     sendTextMessage(
       this.client,
@@ -224,7 +261,8 @@ export class XmppClient implements XmppClientInterface {
       isReply,
       showInChannel,
       mainMessage,
-      this.devServer || 'xmpp.ethoradev.com:5443'
+      this.devServer || `wss://'xmpp.ethoradev.com:5443'/ws`,
+      customId
     );
   };
 
@@ -248,7 +286,8 @@ export class XmppClient implements XmppClientInterface {
     notDisplayedValue?: string,
     isReply?: boolean,
     showInChannel?: boolean,
-    mainMessage?: string
+    mainMessage?: string,
+    langSource?: Iso639_1Codes
   ) => {
     sendTextMessageWithTranslateTag(
       this.client,
@@ -265,7 +304,7 @@ export class XmppClient implements XmppClientInterface {
         mainMessage,
         devServer: this.devServer || 'xmpp.ethoradev.com:5443',
       },
-      'es'
+      langSource
     );
   };
 

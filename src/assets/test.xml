@@ -17,6 +17,22 @@
 		</forwarded>
 	</result>
 </message>
+//
+<message xmlns="jabber:client" to="0x_b46998202834_b455396508277f36f66d05_a_a_e8_f9@xmpp.ethoradev.com/83567038000300810213249042" from="5f9a4603b2b5bbfa6b228b642127c56d03b778ad594c52b755e605c977303979@conference.xmpp.ethoradev.com">
+	<result id="1739806397073165" xmlns="urn:xmpp:mam:2">
+		<forwarded xmlns="urn:xmpp:forward:0">
+			<message xml:lang="en" from="5f9a4603b2b5bbfa6b228b642127c56d03b778ad594c52b755e605c977303979@conference.xmpp.ethoradev.com/0x80f_f29_dcd7_e6_dd7c_c90_b47f_ed45669c_f021a0_e_c6" type="groupchat" xmlns="jabber:client">
+				<archived by="5f9a4603b2b5bbfa6b228b642127c56d03b778ad594c52b755e605c977303979@conference.xmpp.ethoradev.com" id="1739806397073165" xmlns="urn:xmpp:mam:tmp" />
+				<stanza-id by="5f9a4603b2b5bbfa6b228b642127c56d03b778ad594c52b755e605c977303979@conference.xmpp.ethoradev.com" id="1739806397073165" xmlns="urn:xmpp:sid:0" />
+				<data xmlns="jabber:client" fullName="AI Assistant" senderFirstName="AI Assistant" senderLastName="AI" showInChannel="true" />
+				<body>
+					There is no prominent figure known as Elon Trump. Elon Musk is the CEO of Tesla and SpaceX, while Donald Trump is a former President of the United States.
+				</body>
+			</message>
+			<delay from="conference.xmpp.ethoradev.com" stamp="2025-02-17T15:33:17.073165Z" xmlns="urn:xmpp:delay" />
+		</forwarded>
+	</result>
+</message>
 //realtime
 <message xmlns="jabber:client" xml:lang="en" to="3ca9c8541c020dee4ff34077dd1006323464eca35353cd74cde2b71bfa6b2156@case-any-place-iframe-xmpp-dev.atomwcapps.com/1727199505078" from="da866751f3915731b5e408a2a2531355f7eba2f2c5bc00c5126889a5995e9bd6@conference.case-any-place-iframe-xmpp-dev.atomwcapps.com/3ca9c8541c020dee4ff34077dd1006323464eca35353cd74cde2b71bfa6b2156" type="groupchat" id="send-message:1727199609430">
 	<archived by="da866751f3915731b5e408a2a2531355f7eba2f2c5bc00c5126889a5995e9bd6@conference.case-any-place-iframe-xmpp-dev.atomwcapps.com" id="1727199609620712" xmlns="urn:xmpp:mam:tmp" />
@@ -240,4 +256,16 @@
 			</field>
 		</x>
 	</query>
+</iq>
+//
+get-history
+0x6_c394_b10_f5_da4141b99_d_b2_ad424_c5688c3f202_b3.0x_b46998202834_b455396508277f36f66d05_a_a_e8_f9
+<iq xmlns="jabber:client" xml:lang="en" to="0x_b46998202834_b455396508277f36f66d05_a_a_e8_f9@xmpp.ethoradev.com/85328763516285310342948706" from="0x6_c394_b10_f5_da4141b99_d_b2_ad424_c5688c3f202_b3.0x_b46998202834_b455396508277f36f66d05_a_a_e8_f9@conference.xmpp.ethoradev.com" type="result" id="get-history:1739214575011">
+	<fin complete="true" xmlns="urn:xmpp:mam:2">
+		<set xmlns="http://jabber.org/protocol/rsm">
+			<count>
+				2
+			</count>
+		</set>
+	</fin>
 </iq>

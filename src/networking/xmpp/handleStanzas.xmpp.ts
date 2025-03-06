@@ -27,7 +27,6 @@ export function handleStanza(stanza: Element, xmppWs: XmppClient) {
       onEditMessage(stanza);
       onRealtimeMessage(stanza);
       onMessageHistory(stanza);
-      onGetLastMessageArchive(stanza, xmppWs);
       handleComposing(stanza, xmppWs.username);
       onChatInvite(stanza, xmppWs);
       onReactionMessage(stanza);
@@ -42,6 +41,7 @@ export function handleStanza(stanza: Element, xmppWs: XmppClient) {
       onPresenceInRoom(stanza);
       onGetMembers(stanza);
       onGetRoomInfo(stanza);
+      onGetLastMessageArchive(stanza);
       break;
     case 'room-config':
       onNewRoomCreated(stanza, xmppWs);

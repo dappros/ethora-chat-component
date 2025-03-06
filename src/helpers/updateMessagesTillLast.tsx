@@ -1,6 +1,9 @@
 import XmppClient from '../networking/xmppClient';
 import { store } from '../roomStore';
-import { getLastMessageTimestamp } from '../roomStore/roomsSlice';
+import {
+  getLastMessageTimestamp,
+  setRoomMessages,
+} from '../roomStore/roomsSlice';
 import { IMessage, IRoom } from '../types/types';
 
 export const updateMessagesTillLast = async (
@@ -8,8 +11,8 @@ export const updateMessagesTillLast = async (
     [jid: string]: IRoom;
   },
   client: XmppClient,
-  batchSize = 10,
-  maxFetchAttempts = 3,
+  batchSize = 5,
+  maxFetchAttempts = 4,
   messagesPerFetch = 5
 ) => {
   const roomEntries = Object.keys(rooms);
@@ -22,36 +25,62 @@ export const updateMessagesTillLast = async (
         processedIndex + batchSize
       );
 
+      const lastTimestampsByJid = currentBatch.reduce(
+        (acc, current: string) => {
+          acc[current] = getLastMessageTimestamp(
+            store.getState().rooms,
+            current
+          );
+          return acc;
+        },
+        {}
+      );
+
       await Promise.all(
         currentBatch.map(async (jid, index) => {
           try {
-            if (index > 0) await new Promise((res) => setTimeout(res, 500));
-
-            const lastTimeStamp = getLastMessageTimestamp(
-              store.getState().rooms,
-              jid
-            );
-            if (!lastTimeStamp) return;
+            if (index > 0) await new Promise((res) => setTimeout(res, 125));
 
             let counter = 0;
             let isMessageFound = false;
+            let currentJidNewMessages: IMessage[] = [];
+
+            const lastCachedMessagesTimeStamp = lastTimestampsByJid[jid];
+            if (!lastCachedMessagesTimeStamp) return;
 
             while (!isMessageFound && counter < maxFetchAttempts) {
+              const lastMessageId =
+                counter > 0 ? currentJidNewMessages[0]?.id : undefined;
+
               const fetchedMessages = await client.getHistoryStanza(
                 jid,
-                messagesPerFetch
+                messagesPerFetch,
+                Number(lastMessageId)
               );
 
               if (!fetchedMessages.length) break;
 
               counter++;
-              isMessageFound = fetchedMessages.some(
-                (message: IMessage) =>
-                  Number(message.id) === Number(lastTimeStamp)
-              );
-            }
 
-            // console.log(`${jid} now updated`);
+              currentJidNewMessages = [
+                ...fetchedMessages,
+                ...currentJidNewMessages,
+              ];
+
+              isMessageFound = currentJidNewMessages.some(
+                (message: IMessage) =>
+                  Number(message.id) === Number(lastCachedMessagesTimeStamp)
+              );
+
+              if (!isMessageFound && !(counter <= maxFetchAttempts - 1)) {
+                store.dispatch(
+                  setRoomMessages({
+                    roomJID: jid,
+                    messages: currentJidNewMessages,
+                  })
+                );
+              }
+            }
           } catch (error) {
             console.error(`Error processing room ${jid}:`, error);
           }

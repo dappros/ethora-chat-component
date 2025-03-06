@@ -10,19 +10,23 @@ const useComposing = () => {
   const { user } = useChatSettingState();
 
   const sendStartComposing = useCallback(() => {
-    client.sendTypingRequestStanza(
-      activeRoomJID,
-      `${user.firstName} ${user.lastName}`,
-      true
-    );
+    if (client) {
+      client.sendTypingRequestStanza(
+        activeRoomJID,
+        `${user.firstName} ${user.lastName}`,
+        true
+      );
+    }
   }, [activeRoomJID]);
 
   const sendEndComposing = useCallback(() => {
-    client.sendTypingRequestStanza(
-      activeRoomJID,
-      `${user.firstName} ${user.lastName}`,
-      false
-    );
+    if (client) {
+      client.sendTypingRequestStanza(
+        activeRoomJID,
+        `${user.firstName} ${user.lastName}`,
+        false
+      );
+    }
   }, [activeRoomJID]);
 
   useEffect(() => {

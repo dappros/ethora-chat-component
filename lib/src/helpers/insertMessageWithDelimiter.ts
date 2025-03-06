@@ -1,8 +1,9 @@
+import { IMessage } from '../types/types';
 import { isDateAfter, isDateBefore } from './dateComparison';
 
 export function insertMessageWithDelimiter(
-  roomMessages: any[],
-  message: { id: any; date: any },
+  roomMessages: Partial<IMessage>[],
+  message: IMessage,
   lastViewedTimestamp: { toString: () => string }
 ) {
   const existingMessage = roomMessages.find((msg) => msg.id === message.id);
@@ -14,7 +15,12 @@ export function insertMessageWithDelimiter(
   const firstMessage = roomMessages[0];
 
   if (isDateAfter(newMessageDate.toString(), lastMessage.date.toString())) {
-    roomMessages.push(message);
+    const index = roomMessages.findIndex((msg) => msg.id === message.xmppId);
+    if (index !== -1) {
+      roomMessages[index] = { ...message, id: message.id, pending: false };
+    } else {
+      roomMessages.push(message);
+    }
 
     if (
       lastViewedTimestamp &&
@@ -36,7 +42,7 @@ export function insertMessageWithDelimiter(
           },
           date: new Date().toString(),
           body: 'New Messages',
-          roomJID: '',
+          roomJid: '',
         });
 
         if (lastViewedTimestamp.toString() === '0') {

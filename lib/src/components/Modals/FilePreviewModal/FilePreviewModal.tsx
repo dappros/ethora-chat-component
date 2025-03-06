@@ -3,7 +3,7 @@ import {
   CenterContainer,
   ModalContainerFullScreen,
 } from '../styledModalComponents';
-import { SaveIcon } from '../../../assets/icons';
+import { FileIcon, SaveIcon } from '../../../assets/icons';
 import ModalHeaderComponent from '../ModalHeaderComponent';
 import { useDispatch, useSelector } from 'react-redux';
 import Button from '../../styled/Button';
@@ -11,6 +11,7 @@ import { RootState } from '../../../roomStore';
 import { FullScreenImage } from '../../styled/StyledInputComponents/MediaComponents';
 import { FullScreenVideo } from '../../styled/VideoMessage';
 import { setActiveFile } from '../../../roomStore/chatSettingsSlice';
+import PdfViewer from './PdfView';
 
 interface FilePreviewModalProps {
   handleCloseModal: any;
@@ -81,19 +82,31 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
         return (
           <FullScreenVideo src={activeFile.fileURL} controls autoPlay={false} />
         );
+      case activeFile.mimetype.includes('/pdf'):
+        return <PdfViewer pdfUrl={activeFile.fileURL} />;
       default:
         return (
           <div
             style={{
-              backgroundColor: '#FFF8ED',
-              borderRadius: '16px',
               display: 'flex',
-              padding: '16px',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
             }}
           >
-            Unable to open the uploaded document. The file format is not
-            supported by the system. Please upload a file in a compatible
-            format. You still can dowload this file.
+            <FileIcon style={{ minWidth: '100px', minHeight: '100px' }} />
+            <div
+              style={{
+                backgroundColor: '#FFF8ED',
+                borderRadius: '16px',
+                display: 'flex',
+                padding: '16px',
+              }}
+            >
+              Unable to open the uploaded document. The file format is not
+              supported by the system. Please upload a file in a compatible
+              format. You still can download this file.
+            </div>
           </div>
         );
     }
@@ -123,6 +136,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
           justifyContent: 'center',
           overflow: 'hidden',
           padding: '16px',
+          width: '90%',
         }}
       >
         {getMediaComponent}

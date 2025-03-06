@@ -1,7 +1,7 @@
 import { FC, useCallback } from 'react';
 import { useXmppClient } from '../context/xmppProvider';
 import { useDispatch, useSelector } from 'react-redux';
-import { setEditAction } from '../roomStore/roomsSlice';
+import { addRoomMessage, setEditAction } from '../roomStore/roomsSlice';
 import { uploadFile } from '../networking/api-requests/auth.api';
 import { RootState } from '../roomStore';
 import { useChatSettingState } from './useChatSettingState';
@@ -19,6 +19,7 @@ export const useSendMessage = () => {
     activeRoomJID: state.rooms.activeRoomJID,
     user: state.chatSettingStore.user,
     editAction: state.rooms.editAction,
+    config: state.chatSettingStore.config,
   }));
 
   const sendMessage = useCallback(
@@ -39,7 +40,29 @@ export const useSendMessage = () => {
         dispatch(setEditAction({ isEdit: false }));
         return;
       } else {
-        if (langSource && config?.enableTranslates) {
+        if (config?.enableTranslates) {
+          if (!config?.disableSentLogic) {
+            const id = `send-translate-message-${Date.now().toString()}`;
+            dispatch(
+              addRoomMessage({
+                roomJID: activeRoomJID,
+                message: {
+                  user: {
+                    ...user,
+                    id: user.walletAddress,
+                    name: user.firstName + ' ' + user.lastName,
+                  },
+                  date: new Date().toISOString(),
+                  body: message,
+                  roomJid: activeRoomJID,
+                  pending: config?.disableSentLogic ? false : true,
+                  xmppFrom: `${activeRoomJID}/${user.xmppUsername}`,
+                  id: id,
+                },
+              })
+            );
+          }
+
           client?.sendTextMessageWithTranslateTagStanza(
             activeRoomJID,
             user.firstName,
@@ -50,9 +73,32 @@ export const useSendMessage = () => {
             '',
             isReply || false,
             isChecked || false,
-            mainMessage || ''
+            mainMessage || '',
+            langSource || 'en'
           );
         } else {
+          const id = `send-text-message-${Date.now().toString()}`;
+          if (!config?.disableSentLogic) {
+            dispatch(
+              addRoomMessage({
+                roomJID: activeRoomJID,
+                message: {
+                  id: id,
+                  user: {
+                    ...user,
+                    id: user.walletAddress,
+                    name: user.firstName + ' ' + user.lastName,
+                  },
+                  date: new Date().toISOString(),
+                  body: message,
+                  roomJid: activeRoomJID,
+                  pending: true,
+                  xmppFrom: `${activeRoomJID}/${user.xmppUsername}`,
+                },
+              })
+            );
+          }
+
           client?.sendMessage(
             activeRoomJID,
             user.firstName,
@@ -63,28 +109,11 @@ export const useSendMessage = () => {
             '',
             isReply || false,
             isChecked || false,
-            mainMessage || ''
+            mainMessage || '',
+            id
           );
         }
       }
-
-      // dispatch(
-      //   addRoomMessage({
-      //     roomJID: currentRoom.jid,
-      //     message: {
-      //       id: getHighResolutionTimestamp(),
-      //       user: {
-      //         ...user,
-      //         id: user.walletAddress,
-      //         name: user.firstName + " " + user.lastName,
-      //       },
-      //       date: new Date().toISOString(),
-      //       body: message,
-      //       roomJID: currentRoom.jid,
-      //       // pending: true,
-      //     },
-      //   })
-      // );
     },
     [editAction]
   );
@@ -145,7 +174,6 @@ export const useSendMessage = () => {
               isPrivate: item?.isPrivate,
               __v: item.__v,
             };
-            console.log(data, 'data to send media');
             client?.sendMediaMessageStanza(activeRoomJID, data);
           });
         })

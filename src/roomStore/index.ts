@@ -5,10 +5,10 @@ import { IRoom } from '../types/types';
 import { unreadMiddleware } from './Middleware/unreadMidlleware';
 import storage from 'redux-persist/lib/storage';
 import { persistReducer, persistStore } from 'redux-persist';
-import { encryptTransform } from 'redux-persist-transform-encrypt';
 import { createTransform } from 'redux-persist';
 import { AnyAction } from 'redux-saga';
 import { newMessageMidlleware } from './Middleware/newMessageMidlleware';
+import { encryptTransform } from 'redux-persist-transform-encrypt';
 
 const limitMessagesTransform = createTransform(
   (inboundState: { [jid: string]: IRoom }) => {
@@ -41,27 +41,22 @@ const encryptor = encryptTransform({
 const chatSettingPersistConfig = {
   key: 'chatSettingStore',
   storage,
-  blacklist: [
-    'client',
-    'activeModal',
-    'deleteModal',
-    'selectedUser',
-    'activeFile',
-  ],
+  blacklist: ['activeModal', 'deleteModal', 'selectedUser', 'activeFile'],
   transforms: [encryptor],
 };
 
 const roomsPersistConfig = {
   key: 'roomMessages',
   storage,
-  blacklist: ['editAction'],
-  transforms: [limitMessagesTransform, encryptor],
+  blacklist: ['editAction', 'activeRoomJID'],
+  transforms: [limitMessagesTransform],
 };
 
 const persistConfig = {
   key: 'root',
   storage,
   whitelist: ['chatSettingStore', 'roomMessages'],
+  blacklist: ['routing'],
   transforms: [encryptor],
 };
 
@@ -76,7 +71,7 @@ const rootReducer = combineReducers({
 const persistedReducer: Reducer<RootState, AnyAction> = persistReducer(
   persistConfig,
   rootReducer
-);
+) as Reducer<RootState, AnyAction>;
 
 export const getActiveRoom = (state: RootState): IRoom | null => {
   const roomMessagesState = state.rooms;
@@ -92,7 +87,6 @@ export const store = configureStore({
       serializableCheck: {
         ignoredActions: [
           'chat/addMessage',
-          'chatSettingStore/setStoreClient',
           'persist/PERSIST',
           'persist/REHYDRATE',
         ],
