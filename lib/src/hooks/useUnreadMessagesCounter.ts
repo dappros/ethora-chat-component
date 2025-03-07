@@ -51,3 +51,5 @@ export const useUnreadMessagesCounter = (): UnreadMessagesStats => {
     unreadByRoom,
   };
 };
+
+export { useUnreadMessagesCounter as useUnread };
