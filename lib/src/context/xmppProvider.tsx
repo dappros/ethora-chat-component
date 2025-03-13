@@ -6,11 +6,8 @@ import React, {
   useEffect,
 } from 'react';
 import XmppClient from '../networking/xmppClient';
-import { xmppSettingsInterface } from '../types/types';
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '../roomStore';
-import { setStoreClient } from '../roomStore/chatSettingsSlice';
-
+import { IConfig, xmppSettingsInterface } from '../types/types';
+import initXmppRooms from '../helpers/initXmppRooms';
 // Declare XmppContext
 interface XmppContextType {
   client: XmppClient;
@@ -26,9 +23,13 @@ const XmppContext = createContext<XmppContextType | null>(null);
 
 interface XmppProviderProps {
   children: ReactNode;
+  config?: IConfig;
 }
 
-export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
+export const XmppProvider: React.FC<XmppProviderProps> = ({
+  children,
+  config,
+}) => {
   const [client, setClient] = useState<XmppClient | null>(null);
   const [password, setPassword] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
@@ -99,6 +100,23 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
     }
     return () => {};
   }, [client, reconnectAttempts]);
+
+  useEffect(() => {
+    const initBeforeLoad = async () => {
+      initializeClient(
+        config?.userLogin?.user?.xmppUsername,
+        config?.userLogin?.user?.xmppPassword,
+        config?.xmppSettings
+      ).then(async (client) => {
+        await initXmppRooms(config?.userLogin?.user, config, client);
+      });
+    };
+
+    if (config?.initBeforeLoad) {
+      initBeforeLoad();
+    }
+    return () => {};
+  }, [config?.initBeforeLoad]);
 
   return (
     <XmppContext.Provider

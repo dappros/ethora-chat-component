@@ -128,7 +128,11 @@ export default function App() {
   }, [totalCount]);
 
   return (
-    <XmppProvider>
+    <XmppProvider
+      config={{
+        initBeforeLoad: true,
+      }}
+    >
       <Router>
         <div className="flex">
           {navigation}

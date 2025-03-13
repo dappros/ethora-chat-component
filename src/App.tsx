@@ -128,7 +128,71 @@ export default function App() {
   }, [totalCount]);
 
   return (
-    <XmppProvider>
+    <XmppProvider
+      config={{
+        baseUrl: 'https://dev.api.platform.atomwcapps.com/v1',
+        xmppSettings: {
+          devServer: 'wss://dev.xmpp.platform.atomwcapps.com:5443/ws',
+          host: 'dev.xmpp.platform.atomwcapps.com',
+          conference: 'conference.dev.xmpp.platform.atomwcapps.com',
+        },
+        colors: {
+          primary: '#4a75ba',
+          secondary: '#141414',
+        },
+        userLogin: {
+          enabled: true,
+          user: {
+            defaultWallet: {
+              walletAddress: '0x6f19c705361c8729C50df22E5DDa53d7E1d50CCF',
+            },
+            _id: '67bdba487bef19b3dcfd2190',
+            firstName: 'case',
+            lastName: 'worker1',
+            email: 'testcw1@mailinator.com',
+            tags: [],
+            appId: '67bdb2a6d4d518a62d2051d2',
+            xmppPassword: 'yehieompqv',
+            roles: [],
+            isProfileOpen: true,
+            isAssetsOpen: true,
+            isAgreeWithTerms: true,
+            homeScreen: '',
+            emails: [
+              {
+                loginType: '',
+                email: '',
+                verified: true,
+                _id: '',
+              },
+            ],
+            updatedAt: '2025-03-10T01:10:29.736Z',
+            __v: 0,
+            authMethod: 'email',
+            token:
+              'JWT eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7InVzZXJJZCI6IjY3YmRiYTQ4N2JlZjE5YjNkY2ZkMjE5MCIsImFwcElkIjoiNjdiZGIyYTZkNGQ1MThhNjJkMjA1MWQyIn0sImlhdCI6MTc0MTU2OTg5MywiZXhwIjoxNzQxNTc3MDkzfQ.V37NcfDiOX6pNBcRazaxZ4TEg4qzyOMebMe8U-g1y1U',
+            refreshToken:
+              'JWT eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7InVzZXJJZCI6IjY3YmRiYTQ4N2JlZjE5YjNkY2ZkMjE5MCIsImFwcElkIjoiNjdiZGIyYTZkNGQ1MThhNjJkMjA1MWQyIn0sImlhdCI6MTc0MTU2OTg5MywiZXhwIjoxNzQyMTc0NjkzfQ.5kLSpzwfZwkta1ev1DLHszYhztvpqbaZGebjJGIrB8s',
+            walletAddress: '0x6f19c705361c8729C50df22E5DDa53d7E1d50CCF',
+          },
+        },
+        refreshTokens: {
+          enabled: true,
+        },
+        enableTranslates: true,
+        chatRoomStyles: {
+          maxHeight: '800px',
+          height: '500px',
+          borderRadius: '0px 16px 16px 0px',
+          border: 'none',
+          color: '#141414',
+        },
+        chatHeaderBurgerMenu: false,
+        disableRooms: true,
+        disableHeader: true,
+        initBeforeLoad: true,
+      }}
+    >
       <Router>
         <div className="flex">
           {navigation}
