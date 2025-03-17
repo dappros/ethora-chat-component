@@ -7,12 +7,22 @@ import {
   ReactionAction,
 } from '../types/types';
 import { insertMessageWithDelimiter } from '../helpers/insertMessageWithDelimiter';
+import { useUnreadMessagesCounter } from '../hooks/useUnreadMessagesCounter.ts';
+
+interface UnreadMessagesMap {
+  [roomJid: string]: number;
+}
 
 interface RoomMessagesState {
   rooms: { [jid: string]: IRoom };
   activeRoomJID: string;
   editAction?: EditAction;
   isLoading: boolean;
+  unreadMessages: {
+    hasUnread: boolean,
+    totalCount: number,
+    unreadByRoom: UnreadMessagesMap,
+  }
 }
 
 const initialState: RoomMessagesState = {
@@ -25,6 +35,11 @@ const initialState: RoomMessagesState = {
     messageId: '',
     text: '',
   },
+  unreadMessages: {
+    hasUnread: false,
+    totalCount: 0,
+    unreadByRoom: {},
+  }
 };
 
 export const roomsStore = createSlice({
@@ -226,6 +241,11 @@ export const roomsStore = createSlice({
       action: PayloadAction<{ roomJID: string | null }>
     ) => {
       const { roomJID } = action.payload;
+
+      if (roomJID && state.rooms[roomJID]) {
+        state.rooms[roomJID].lastViewedTimestamp = new Date().getTime(); // ✅ Фиксируем просмотр чата
+      }
+
       state.activeRoomJID = roomJID;
     },
     setLogoutState: (state) => {
@@ -257,6 +277,17 @@ export const roomsStore = createSlice({
         message.activeMessage = false;
       });
     },
+    setUnreadMessages: (
+      state,
+      action: PayloadAction<{ roomJid: string, unreadCount: number }>
+    ) => {
+      const { roomJid, unreadCount } = action.payload;
+
+      if (unreadCount > 0) {
+        state.unreadMessages.unreadByRoom[roomJid] = unreadCount;
+        state.unreadMessages.totalCount += unreadCount;
+      }
+    }
   },
 });
 
@@ -268,7 +299,7 @@ const countNewerMessages = (
     return messages.filter((message) => {
       return Number(message.id) < timestamp;
     }).length;
-  } else return 0;
+  } else return timestamp;
 };
 
 export const getLastMessageTimestamp = (
@@ -301,6 +332,7 @@ export const {
   setLogoutState,
   setActiveMessage,
   setCloseActiveMessage,
+  setUnreadMessages,
   deleteRoom,
   updateRoom,
 } = roomsStore.actions;
