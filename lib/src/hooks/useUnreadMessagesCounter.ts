@@ -1,8 +1,10 @@
-import { useSyncExternalStore } from 'react';
-import { IRoom } from '../types/types';
+import { useEffect, useSyncExternalStore } from 'react';
+import { IConfig, IRoom } from '../types/types';
 import { RootState, store } from '../roomStore';
 import { useDispatch, useSelector } from 'react-redux';
 import { setUnreadMessages } from '../roomStore/roomsSlice.ts';
+import { useXmppClient } from '../context/xmppProvider.tsx';
+import { useInitXmmpClient } from './useInitXmmpClient.tsx';
 
 interface UnreadMessagesMap {
   [roomJid: string]: number;
@@ -14,8 +16,15 @@ interface UnreadMessagesStats {
   unreadByRoom: UnreadMessagesMap;
 }
 
-export const useUnreadMessagesCounter = (): UnreadMessagesStats => {
+interface UseUnreadMessagesCounterProps {
+  config?: IConfig;
+}
+
+export const useUnreadMessagesCounter = ({
+                                           config
+                                         }: UseUnreadMessagesCounterProps): UnreadMessagesStats => {
   const dispatch = useDispatch();
+  const { client, initializeClient, setClient } = useXmppClient();
 
   const unreadByRoom = useSelector(
     (state: RootState) => state.rooms.unreadMessages.unreadByRoom
@@ -43,6 +52,13 @@ export const useUnreadMessagesCounter = (): UnreadMessagesStats => {
     subscribe,
     () => store.getState().rooms.rooms
   );
+
+  useEffect(() => {
+    if (config) {
+      useInitXmmpClient({ config });
+    }
+  }, [config]);
+
 
   // const unreadByRoom: UnreadMessagesMap = {};
   // let totalCount = 0;
