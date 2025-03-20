@@ -11,10 +11,17 @@ import {
   ModalContainer,
   ModalTitle,
 } from '../styledModalComponents';
-import { setCurrentRoom, updateRoom } from '../../../roomStore/roomsSlice';
+import {
+  addRoom,
+  setCurrentRoom,
+  updateRoom,
+} from '../../../roomStore/roomsSlice';
 import InputWithLabel from '../../styled/StyledInput';
 import { uploadFile } from '../../../networking/api-requests/auth.api';
 import { ProfileImagePlaceholder } from '../../MainComponents/ProfileImagePlaceholder';
+import { createRoomFromApi } from '../../../helpers/createRoomFromApi';
+import { postRoom } from '../../../networking/api-requests/rooms.api';
+import { ApiRoom } from '../../../types/types';
 
 const NewChatModal: React.FC = () => {
   const config = useSelector(
@@ -31,7 +38,8 @@ const NewChatModal: React.FC = () => {
   const [errors, setErrors] = useState({ name: '', description: '' });
 
   const isValid = useMemo(
-    () => roomName.length >= 3 && roomDescription.length >= 5,
+    // () => roomName.length >= 3 && roomDescription.length >= 5,
+    () => roomName.length >= 3,
     [roomName, roomDescription]
   );
 
@@ -42,15 +50,14 @@ const NewChatModal: React.FC = () => {
     return '';
   };
 
-  const validateRoomDescription = (description: string) => {
-    if (description.trim().length < 5) {
-      return 'Room description must be at least 5 characters.';
-    }
-    return '';
-  };
+  // const validateRoomDescription = (description: string) => {
+  //   if (description.trim().length < 5) {
+  //     return 'Room description must be at least 5 characters.';
+  //   }
+  //   return '';
+  // };
 
   const handleRoomNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('adsasd');
     const name = e.target.value;
     setRoomName(name);
     setErrors((prevErrors) => ({
@@ -66,7 +73,7 @@ const NewChatModal: React.FC = () => {
     setRoomDescription(description);
     setErrors((prevErrors) => ({
       ...prevErrors,
-      description: validateRoomDescription(description),
+      // description: validateRoomDescription(description),
     }));
   };
 
@@ -88,29 +95,52 @@ const NewChatModal: React.FC = () => {
 
       const uploadResult = await uploadFile(mediaData);
 
-      console.log('mediaData', mediaData);
-
       const location = uploadResult?.data?.results?.[0]?.location;
       if (!location) {
         console.log('No location found in upload result.');
       }
 
-      const newChatJid = await client.createRoomStanza(
-        roomName,
-        roomDescription
-      );
+      if (config?.newArch) {
+        console.log(location);
+        const newChat: ApiRoom = await postRoom({
+          title: roomName,
+          description:
+            roomDescription && roomDescription !== ''
+              ? roomDescription
+              : 'No description',
+          picture: location || '',
+          type: 'public',
+        });
 
-      client.getRoomsStanza();
+        const normalizedChat = createRoomFromApi(newChat);
 
-      dispatch(setCurrentRoom({ roomJID: newChatJid }));
+        dispatch(addRoom({ roomData: normalizedChat }));
+        dispatch(setCurrentRoom({ roomJID: normalizedChat.jid }));
+        client.presenceInRoomStanza(normalizedChat.jid);
+        //additional getrooms maybe
+      } else {
+        const newChatJid = await client.createRoomStanza(
+          roomName,
+          roomDescription && roomDescription !== ''
+            ? roomDescription
+            : 'No description'
+        );
 
-      if (location) {
-        client.setRoomImageStanza(newChatJid, location, 'icon', 'none');
-        dispatch(updateRoom({ jid: newChatJid, updates: { icon: location } }));
+        client.getRoomsStanza();
+
+        dispatch(setCurrentRoom({ roomJID: newChatJid }));
+
+        if (location) {
+          client.setRoomImageStanza(newChatJid, location, 'icon', 'none');
+          dispatch(
+            updateRoom({ jid: newChatJid, updates: { icon: location } })
+          );
+        }
       }
 
       setIsModalOpen(false);
       setErrors({ name: '', description: '' });
+      setProfileImage(null);
       setRoomName('');
       setRoomDescription('');
     }

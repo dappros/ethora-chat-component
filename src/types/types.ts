@@ -79,6 +79,33 @@ export interface IRoom {
   historyComplete?: boolean;
 }
 
+export interface ApiRoom {
+  name: string;
+  type: 'public' | 'group';
+
+  title?: string;
+  description?: string;
+  picture?: string;
+  members?: string[];
+  createdBy?: string;
+  appId?: any;
+
+  _id?: string;
+  isAppChat?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  __v?: string;
+}
+
+export interface PostRoom {
+  title: string;
+  uuid?: string;
+  type: 'public' | 'group';
+
+  description?: string;
+  picture?: string;
+}
+
 export interface IRoomCompressed extends Pick<IRoom, 'jid'> {}
 
 export interface RoomMember {
@@ -120,7 +147,6 @@ export interface User {
   firstName: string;
   lastName: string;
   email?: string;
-  username?: string;
   profileImage?: string;
   emails?: [
     {
@@ -131,6 +157,8 @@ export interface User {
     },
   ];
   appId: string;
+
+  username: string;
   xmppPassword: string;
 
   langSource?: Iso639_1Codes;
@@ -224,6 +252,7 @@ export interface IConfig {
   clearStoreBeforeInit?: boolean;
   disableSentLogic?: boolean;
   initBeforeLoad?: boolean;
+  newArch?: boolean;
 }
 
 type PartialRoomWithMandatoryKeys = Partial<IRoom> &

@@ -90,6 +90,9 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   }, []);
 
   const handlePrivateMessage = useCallback(async () => {
+    if (config?.newArch) {
+      return;
+    }
     setLoading(true);
     const myUsername = walletToUsername(user.defaultWallet.walletAddress);
     const selectedUserUsername = walletToUsername(selectedUser.id);

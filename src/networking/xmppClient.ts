@@ -54,16 +54,11 @@ export class XmppClient implements XmppClientInterface {
     xmppSettings?: xmppSettingsInterface
   ) {
     this.devServer =
-      xmppSettings?.devServer || `wss://xmpp.ethoradev.com:5443/ws`;
-    this.host = xmppSettings?.host || 'xmpp.ethoradev.com';
-    this.service = xmppSettings?.conference || 'conference.xmpp.ethoradev.com';
+      xmppSettings?.devServer || `wss://dev.xmpp.ethoradev.com:5443/ws`;
+    this.host = xmppSettings?.host || 'dev.xmpp.ethoradev.com';
+    this.service =
+      xmppSettings?.conference || 'conference.dev.xmpp.ethoradev.com';
 
-    const url = this.devServer || `wss://xmpp.ethoradev.com:5443/ws`;
-    // if (url.startsWith("wss")) {
-    //   this.host = url.match(/wss:\/\/([^:/]+)/)[1];
-    // } else {
-    //   this.host = url.match(/ws:\/\/([^:/]+)/)[1];
-    // }
     this.conference = `conference.${this.host}`;
     this.username = username;
     this.password = password;
@@ -81,7 +76,7 @@ export class XmppClient implements XmppClientInterface {
 
       this.client = xmpp.client({
         service: url,
-        username: walletToUsername(this.username),
+        username: this.username,
         password: this.password,
       });
 

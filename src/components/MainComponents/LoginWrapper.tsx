@@ -12,6 +12,7 @@ import {
 } from '../../networking/api-requests/auth.api';
 import { OrDelimiter } from '../styled/StyledComponents';
 import Button from '../styled/Button';
+import { setBaseURL } from '../../networking/apiClient';
 
 interface LoginWrapperProps {
   user?: { email: string; password: string };
@@ -47,6 +48,9 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
   const dispatch = useDispatch();
 
   useEffect(() => {
+    if (props.config?.baseUrl) {
+      setBaseURL(props.config?.baseUrl);
+    }
     if (props?.config?.userLogin?.enabled && props?.config?.userLogin?.user) {
       dispatch(setUser(props.config.userLogin.user));
       return;

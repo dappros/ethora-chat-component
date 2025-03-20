@@ -7,6 +7,7 @@ import {
   ReactionAction,
 } from '../types/types';
 import { insertMessageWithDelimiter } from '../helpers/insertMessageWithDelimiter';
+import XmppClient from '../networking/xmppClient';
 
 interface RoomMessagesState {
   rooms: { [jid: string]: IRoom };
@@ -257,6 +258,26 @@ export const roomsStore = createSlice({
         message.activeMessage = false;
       });
     },
+    addRoomViaApi: (
+      state,
+      action: PayloadAction<{ room: IRoom; xmpp: XmppClient }>
+    ) => {
+      const { room, xmpp } = action.payload;
+
+      const isRoomAlreadyAdded = Object.values(state.rooms).some(
+        (element) => element.jid === room?.jid
+      );
+
+      if (!isRoomAlreadyAdded) {
+        state.rooms[room.jid] = room;
+        if (!state.rooms.activeRoomJID) {
+          state.activeRoomJID = room.jid;
+        }
+        if (room.jid) {
+          xmpp.presenceInRoomStanza(room.jid);
+        }
+      }
+    },
   },
 });
 
@@ -303,6 +324,7 @@ export const {
   setCloseActiveMessage,
   deleteRoom,
   updateRoom,
+  addRoomViaApi,
 } = roomsStore.actions;
 
 export default roomsStore.reducer;

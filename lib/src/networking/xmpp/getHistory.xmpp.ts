@@ -13,6 +13,9 @@ export const getHistory = async (
   otherId?: string
 ): Promise<IMessage[] | undefined> => {
   if (typeof chatJID !== 'string') return;
+  const fixedChatJid = chatJID.includes('@')
+    ? chatJID
+    : `${chatJID}@conference.dev.xmpp.ethoradev.com`;
 
   const id = otherId ?? `get-history:${Date.now().toString()}`;
 
@@ -34,7 +37,7 @@ export const getHistory = async (
       if (
         stanza.is('message') &&
         stanza.attrs['from'] &&
-        stanza.attrs['from'].startsWith(chatJID) &&
+        stanza.attrs['from'].startsWith(fixedChatJid) &&
         result
       ) {
         const messageEl = result.getChild('forwarded')?.getChild('message');
@@ -91,7 +94,7 @@ export const getHistory = async (
       'iq',
       {
         type: 'set',
-        to: chatJID,
+        to: fixedChatJid,
         id: id,
       },
       xml(
@@ -119,7 +122,7 @@ export const getHistory = async (
     ]);
     return res;
   } catch (e) {
-    console.log('=-> error in', chatJID, e);
+    console.log('=-> error in', fixedChatJid, e);
     return null;
   }
 };

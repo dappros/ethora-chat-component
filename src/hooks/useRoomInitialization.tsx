@@ -1,8 +1,10 @@
 import { useEffect } from 'react';
-import { setIsLoading } from '../roomStore/roomsSlice';
+import { addRoomViaApi, setIsLoading } from '../roomStore/roomsSlice';
 import { useXmppClient } from '../context/xmppProvider';
 import { IConfig, IMessage, IRoom } from '../types/types';
 import { useDispatch } from 'react-redux';
+import { getRooms } from '../networking/api-requests/rooms.api';
+import { createRoomFromApi } from '../helpers/createRoomFromApi';
 
 const countUndefinedText = (arr: IMessage[]) =>
   arr.filter((item) => item?.body === undefined)?.length;
@@ -36,7 +38,19 @@ export const useRoomInitialization = (
       if (!roomsList[activeRoomJID]) {
         // console.log('bug1'); here is bug when deleting last room
         client.presenceInRoomStanza(activeRoomJID);
-        await client.getRoomsStanza();
+        if (config?.newArch) {
+          const rooms = await getRooms();
+          rooms.items.map((room) => {
+            dispatch(
+              addRoomViaApi({
+                room: createRoomFromApi(room, config?.xmppSettings?.conference),
+                xmpp: client,
+              })
+            );
+          });
+        } else {
+          await client.getRoomsStanza();
+        }
         await getDefaultHistory();
       } else {
         getDefaultHistory();
@@ -70,11 +84,26 @@ export const useRoomInitialization = (
         (room) => roomsList[room.jid] !== undefined
       );
       if (roomsList && !allExist) {
-        config?.defaultRooms.map((room) => {
+        config?.defaultRooms.map(async (room) => {
           console.log('3');
 
           client.presenceInRoomStanza(room.jid);
-          client.getRoomsStanza();
+          if (config?.newArch) {
+            const rooms = await getRooms();
+            rooms.items.map((room) => {
+              dispatch(
+                addRoomViaApi({
+                  room: createRoomFromApi(
+                    room,
+                    config?.xmppSettings?.conference
+                  ),
+                  xmpp: client,
+                })
+              );
+            });
+          } else {
+            await client.getRoomsStanza();
+          }
           getDefaultHistory();
         });
       }

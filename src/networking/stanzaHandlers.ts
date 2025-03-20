@@ -209,9 +209,12 @@ const handleComposing = async (stanza: Element, currentUser: string) => {
   if (stanza.getChild('paused') || stanza.getChild('composing')) {
     const composingUser = stanza.attrs?.from?.split('/')?.[1];
 
+    console.log({ composingUser, currentUser }, composingUser === currentUser);
+
     if (
       composingUser &&
-      currentUser?.toLowerCase() !== composingUser?.replace(/_/g, '')
+      currentUser?.toLowerCase()?.replace(/_/g, '') !==
+        composingUser?.replace(/_/g, '')
     ) {
       const chatJID = stanza.attrs?.from.split('/')[0];
 

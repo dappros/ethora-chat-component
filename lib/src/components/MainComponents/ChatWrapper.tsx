@@ -14,6 +14,7 @@ import { useXmppClient } from '../../context/xmppProvider';
 import LoginForm from '../AuthForms/Login';
 import { RootState } from '../../roomStore';
 import {
+  addRoomViaApi,
   setCurrentRoom,
   setEditAction,
   setIsLoading,
@@ -34,6 +35,8 @@ import { updateMessagesTillLast } from '../../helpers/updateMessagesTillLast';
 import { StyledLoaderWrapper } from '../styled/StyledComponents';
 import Loader from '../styled/Loader';
 import { useMessageQueue } from '../../hooks/useMessageQueue';
+import { getRooms } from '../../networking/api-requests/rooms.api';
+import { createRoomFromApi } from '../../helpers/createRoomFromApi';
 
 interface ChatWrapperProps {
   token?: string;
@@ -136,9 +139,8 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
     const initXmmpClient = async () => {
       dispatch(setConfig(config));
-      setBaseURL(config?.baseUrl);
       try {
-        if (!user.defaultWallet || user?.defaultWallet.walletAddress === '') {
+        if (!user.xmppUsername) {
           setShowModal(true);
           console.log('Error, no user');
         } else {
@@ -147,7 +149,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
             console.log('No client, so initing one');
             const newClient = await initializeClient(
-              user?.defaultWallet?.walletAddress,
+              user.xmppUsername || user?.defaultWallet?.walletAddress,
               user?.xmppPassword,
               config?.xmppSettings
             ).then((client) => {
@@ -158,7 +160,22 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             if (roomsList && Object.keys(roomsList).length > 0) {
               await initRoomsPresence(newClient, roomsList);
             } else {
-              await newClient.getRoomsStanza();
+              if (config?.newArch) {
+                const rooms = await getRooms();
+                rooms.items.map((room) => {
+                  dispatch(
+                    addRoomViaApi({
+                      room: createRoomFromApi(
+                        room,
+                        config?.xmppSettings?.conference
+                      ),
+                      xmpp: newClient,
+                    })
+                  );
+                });
+              } else {
+                await newClient.getRoomsStanza();
+              }
             }
             await newClient
               .getChatsPrivateStoreRequestStanza()

@@ -9,7 +9,6 @@ import XmppClient from '../networking/xmppClient';
 import { IConfig, xmppSettingsInterface } from '../types/types';
 import initXmppRooms from '../helpers/initXmppRooms';
 import { walletToUsername } from '../helpers/walletUsername';
-import { store } from '../roomStore';
 // Declare XmppContext
 interface XmppContextType {
   client: XmppClient;

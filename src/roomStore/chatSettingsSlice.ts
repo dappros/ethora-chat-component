@@ -32,6 +32,10 @@ const unpackAndTransform = (input?: User): User => {
     _id: input?._id || '',
     walletAddress: input?.defaultWallet?.walletAddress || '',
     xmppPassword: input?.xmppPassword || '',
+    xmppUsername:
+      input?.xmppUsername ||
+      walletToUsername(input?.defaultWallet?.walletAddress) ||
+      '',
     refreshToken: input?.refreshToken || '',
     firstName: input?.firstName || '',
     lastName: input?.lastName || '',
@@ -47,10 +51,6 @@ const unpackAndTransform = (input?: User): User => {
     authMethod: input?.authMethod || '',
     resetPasswordExpires: input?.resetPasswordExpires || '',
     resetPasswordToken: input?.resetPasswordToken || '',
-    xmppUsername:
-      input?.xmppUsername ||
-      walletToUsername(input?.defaultWallet?.walletAddress) ||
-      '',
     roles: input?.roles || [],
     tags: input?.tags || [],
     __v: input?.__v || 0,

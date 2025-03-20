@@ -8,6 +8,7 @@ import React, {
 import XmppClient from '../networking/xmppClient';
 import { IConfig, xmppSettingsInterface } from '../types/types';
 import initXmppRooms from '../helpers/initXmppRooms';
+import { walletToUsername } from '../helpers/walletUsername';
 // Declare XmppContext
 interface XmppContextType {
   client: XmppClient;
@@ -104,11 +105,16 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
   useEffect(() => {
     const initBeforeLoad = async () => {
       initializeClient(
-        config?.userLogin?.user?.xmppUsername,
+        walletToUsername(config?.userLogin?.user?.defaultWallet?.walletAddress),
         config?.userLogin?.user?.xmppPassword,
         config?.xmppSettings
       ).then(async (client) => {
-        await initXmppRooms(config?.userLogin?.user, config, client);
+        await initXmppRooms(
+          config?.userLogin?.user,
+          config,
+          client
+          // store?.getState()?.rooms?.rooms
+        );
       });
     };
 

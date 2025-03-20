@@ -29,6 +29,21 @@ const initXmppRooms = async (
       if (rooms && Object.keys(rooms).length > 0) {
         await initRoomsPresence(xmmpClient, rooms);
       } else {
+        if (config?.newArch) {
+          // const rooms = await getRooms();
+          //     rooms.items.map((room) => {
+          //       dispatch(
+          //         addRoomViaApi({
+          //           room: createRoomFromApi(
+          //             room,
+          //             config?.xmppSettings?.conference
+          //           ),
+          //           xmpp: newClient,
+          //         })
+          //       );
+          //     });
+          return;
+        }
         const res = await xmmpClient.getRoomsStanza();
         console.log(res);
       }
