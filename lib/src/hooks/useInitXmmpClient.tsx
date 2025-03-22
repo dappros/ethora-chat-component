@@ -19,10 +19,10 @@ interface UseInitXmmpClientProps {
 }
 
 export const useInitXmmpClient = ({
-  config,
-  setShowModal,
-  setInited
-}: UseInitXmmpClientProps) => {
+                                    config,
+                                    setShowModal,
+                                    setInited
+                                  }: UseInitXmmpClientProps) => {
   const dispatch = useDispatch();
   const { user } = useChatSettingState();
   const { client, initializeClient, setClient } = useXmppClient();
@@ -37,11 +37,11 @@ export const useInitXmmpClient = ({
     setBaseURL(config?.baseUrl);
     try {
       if (!user.defaultWallet || user?.defaultWallet.walletAddress === '') {
-        setShowModal(true);
+        setShowModal && setShowModal(true);
         console.log('Error, no user');
       } else {
         if (!client) {
-          setShowModal(false);
+          setShowModal && setShowModal(false);
 
           console.log('No client, so initing one');
           const newClient = await initializeClient(
@@ -49,7 +49,7 @@ export const useInitXmmpClient = ({
             user?.xmppPassword,
             config?.xmppSettings
           ).then((client) => {
-            setInited(true);
+            setInited && setInited(true);
             return client;
           });
 
@@ -77,7 +77,7 @@ export const useInitXmmpClient = ({
             config?.refreshTokens?.enabled && refresh();
           }
         } else {
-          setInited(true);
+          setInited && setInited(true);
           await client
             .getChatsPrivateStoreRequestStanza()
             .then(
@@ -96,8 +96,8 @@ export const useInitXmmpClient = ({
       }
       dispatch(setIsLoading({ loading: false }));
     } catch (error) {
-      setShowModal(true);
-      setInited(false);
+      setShowModal && setShowModal(true);
+      setInited && setInited(false);
       dispatch(setIsLoading({ loading: false }));
       console.log(error);
     }

@@ -92,7 +92,7 @@ ChatComponent.displayName = 'ChatComponent';
 
 // Main App component
 export default function App() {
-  const { totalCount, hasUnread, unreadByRoom } = useUnreadMessagesCounter();
+  const { totalCount, hasUnread, unreadByRoom } = useUnreadMessagesCounter({});
 
   const navigation = useMemo(() => {
     return (

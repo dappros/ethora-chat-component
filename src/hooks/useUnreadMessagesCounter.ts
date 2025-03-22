@@ -17,14 +17,13 @@ interface UnreadMessagesStats {
 }
 
 interface UseUnreadMessagesCounterProps {
-  config: IConfig;
+  config?: IConfig;
 }
 
 export const useUnreadMessagesCounter = ({
   config
 }: UseUnreadMessagesCounterProps): UnreadMessagesStats => {
   const dispatch = useDispatch();
-  const { client, initializeClient, setClient } = useXmppClient();
 
   const unreadByRoom = useSelector(
     (state: RootState) => state.rooms.unreadMessages.unreadByRoom

@@ -20,11 +20,8 @@ interface UseUnreadMessagesCounterProps {
   config?: IConfig;
 }
 
-export const useUnreadMessagesCounter = ({
-                                           config
-                                         }: UseUnreadMessagesCounterProps): UnreadMessagesStats => {
+export const useUnreadMessagesCounter = ({config}): UnreadMessagesStats => {
   const dispatch = useDispatch();
-  const { client, initializeClient, setClient } = useXmppClient();
 
   const unreadByRoom = useSelector(
     (state: RootState) => state.rooms.unreadMessages.unreadByRoom
@@ -54,9 +51,13 @@ export const useUnreadMessagesCounter = ({
   );
 
   useEffect(() => {
-    if (config) {
-      useInitXmmpClient({ config });
+    console.log('useInitXmmpClient 1');
+    if (!Object.keys(config).length) {
+      return
     }
+
+    console.log('useInitXmmpClient 2');
+    useInitXmmpClient({ config });
   }, [config]);
 
 
