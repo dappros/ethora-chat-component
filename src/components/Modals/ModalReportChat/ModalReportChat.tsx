@@ -3,11 +3,12 @@ import { ModalBox } from '../ModalBox/ModalBox';
 import Button from '../../../../lib/src/components/styled/Button';
 import { Divider } from '../../styled/RoomListComponents';
 import styled from 'styled-components';
-import { BackIcon } from '../../../assets/icons.tsx';
 import { MessageInput } from '../../styled/StyledInputComponents/StyledInputComponents.tsx';
 import { useChatSettingState } from '../../../hooks/useChatSettingState.tsx';
 import { setOpenReportModal } from '../../../roomStore/roomsSlice.ts';
 import { useDispatch } from 'react-redux';
+import { postReportRoom } from '../../../networking/api-requests/rooms.api.ts';
+import { useRoomState } from '../../../../lib/src/hooks/useRoomState.tsx';
 
 export const Report = styled.button`
   padding: 12px 16px;
@@ -29,6 +30,7 @@ const reportList: string[] = [
 
 export const ModalReportChat: FC = () => {
   const { config } = useChatSettingState();
+  const { activeRoomJID } = useRoomState();
   const dispatch = useDispatch();
 
   const [message, setMessage] = useState('');
@@ -48,13 +50,13 @@ export const ModalReportChat: FC = () => {
     dispatch(setOpenReportModal({isOpen: false}));
   };
 
-  const handleBack = () => {
-    setReportChoose({name: "", isChoose: false});
-  };
-
-  const handleReport = () => {
-
-  };
+  const handleReport = useCallback(async () => {
+    await postReportRoom({
+      chatName: activeRoomJID,
+      category: reportChoose.name,
+      text: message || "",
+    });
+  }, [activeRoomJID]);
 
   return (
     <ModalBox title={reportChoose.name === "Other" ? 'Report Message' : 'Report Chat'} handleCloseModal={handleCloseModal}>

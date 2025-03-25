@@ -106,6 +106,12 @@ export interface PostRoom {
   picture?: string;
 }
 
+export interface PostReportRoom {
+  chatName: string;
+  category: string;
+  text?: string;
+}
+
 export interface IRoomCompressed extends Pick<IRoom, 'jid'> {}
 
 export interface RoomMember {
