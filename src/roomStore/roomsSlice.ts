@@ -14,6 +14,9 @@ interface RoomMessagesState {
   activeRoomJID: string;
   editAction?: EditAction;
   isLoading: boolean;
+  reportRoom: {
+    isOpen: boolean;
+  };
 }
 
 const initialState: RoomMessagesState = {
@@ -25,6 +28,9 @@ const initialState: RoomMessagesState = {
     roomJid: '',
     messageId: '',
     text: '',
+  },
+  reportRoom: {
+    isOpen: false,
   },
 };
 
@@ -278,6 +284,12 @@ export const roomsStore = createSlice({
         }
       }
     },
+    setOpenReportModal: (
+      state,
+      action: PayloadAction<{ isOpen: boolean }>
+    ) => {
+      state.reportRoom.isOpen = action.payload.isOpen;
+    },
   },
 });
 
@@ -325,6 +337,7 @@ export const {
   deleteRoom,
   updateRoom,
   addRoomViaApi,
+  setOpenReportModal,
 } = roomsStore.actions;
 
 export default roomsStore.reducer;
