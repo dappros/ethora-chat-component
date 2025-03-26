@@ -30,6 +30,7 @@ import { useXmppClient } from '../../../context/xmppProvider';
 import Loader from '../../styled/Loader';
 import { Iso639_1Codes } from '../../../types/types';
 import Select from '../../MainComponents/Select';
+import { handleCopyClick } from '../../../helpers/handleCopyClick';
 
 interface UserProfileModalProps {
   handleCloseModal: any;
@@ -90,9 +91,6 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   }, []);
 
   const handlePrivateMessage = useCallback(async () => {
-    if (config?.newArch) {
-      return;
-    }
     setLoading(true);
     const myUsername = walletToUsername(user.defaultWallet.walletAddress);
     const selectedUserUsername = walletToUsername(selectedUser.id);
@@ -191,13 +189,21 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
             <Loader />
           ) : (
             selectedUser && (
-              <ActionButton
-                StartIcon={<ChatIcon />}
-                onClick={handlePrivateMessage}
-                variant="filled"
-              >
-                Message
-              </ActionButton>
+              <>
+                <ActionButton
+                  StartIcon={<ChatIcon />}
+                  onClick={handlePrivateMessage}
+                  variant="filled"
+                >
+                  Message
+                </ActionButton>
+                <ActionButton
+                  onClick={() => handleCopyClick(selectedUser.userJID)}
+                  variant="filled"
+                >
+                  Copy User Id
+                </ActionButton>
+              </>
             )
           )}
           {/* <EmptySection /> */}

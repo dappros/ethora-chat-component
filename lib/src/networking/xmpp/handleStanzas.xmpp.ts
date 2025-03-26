@@ -9,7 +9,7 @@ import {
   onChatInvite,
   onPresenceInRoom,
   onGetChatRooms,
-  onGetMembers,
+  // onGetMembers,
   onGetRoomInfo,
   onNewRoomCreated,
   onReactionMessage,
@@ -39,7 +39,7 @@ export function handleStanza(stanza: Element, xmppWs: XmppClient) {
       onGetChatRooms(stanza, xmppWs);
       onRealtimeMessage(stanza);
       onPresenceInRoom(stanza);
-      onGetMembers(stanza);
+      // onGetMembers(stanza);
       onGetRoomInfo(stanza);
       onGetLastMessageArchive(stanza);
       break;

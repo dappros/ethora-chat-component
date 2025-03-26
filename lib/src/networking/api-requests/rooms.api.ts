@@ -1,5 +1,5 @@
 import { store } from '../../roomStore';
-import { ApiRoom, PostRoom } from '../../types/types';
+import { ApiRoom, PostReportRoom, PostRoom } from '../../types/types';
 import http from '../apiClient';
 
 export async function getRooms(): Promise<{ items: ApiRoom[] }> {
@@ -22,6 +22,22 @@ export async function postRoom(data: PostRoom) {
 
   try {
     const response = await http.post('/chats', data, {
+      headers: {
+        Authorization: token,
+      },
+    });
+    return response.data.result;
+  } catch (error) {
+    throw new Error('Error updating profile');
+  }
+}
+
+export async function postReportRoom(data: PostReportRoom) {
+  const {chatName, category, text} = data;
+  const token = store.getState().chatSettingStore.user.token || '';
+
+  try {
+    const response = await http.post(`/chats/reports/${chatName}`, {category, text}, {
       headers: {
         Authorization: token,
       },

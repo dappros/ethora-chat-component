@@ -36,10 +36,9 @@ const Message: React.FC<MessageProps> = forwardRef<
   MessageProps
 >(({ message, isUser, isReply }, ref) => {
   const { client } = useXmppClient();
-  const { user, client: storedClient } = useChatSettingState();
+  const { user, config, langSource } = useChatSettingState();
 
   const dispatch = useDispatch();
-  const { config, langSource } = useChatSettingState();
 
   const [contextMenu, setContextMenu] = !config?.disableInteractions
     ? useState<{ visible: boolean; x: number; y: number }>({

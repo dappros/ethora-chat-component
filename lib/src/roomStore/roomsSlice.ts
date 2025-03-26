@@ -1,19 +1,27 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import {
   AddRoomMessageAction,
+  ApiRoom,
   EditAction,
   IMessage,
   IRoom,
   ReactionAction,
+  RoomMember,
 } from '../types/types';
 import { insertMessageWithDelimiter } from '../helpers/insertMessageWithDelimiter';
 import XmppClient from '../networking/xmppClient';
+import { createUserNameFromSetUser } from '../helpers/createUserNameFromSetUser';
+import { extractUniqueMembersFromRooms } from '../helpers/extractUniqueMembersFromRooms';
 
 interface RoomMessagesState {
   rooms: { [jid: string]: IRoom };
   activeRoomJID: string;
   editAction?: EditAction;
   isLoading: boolean;
+  usersSet: Record<string, RoomMember>;
+  reportRoom: {
+    isOpen: boolean;
+  };
 }
 
 const initialState: RoomMessagesState = {
@@ -25,6 +33,10 @@ const initialState: RoomMessagesState = {
     roomJid: '',
     messageId: '',
     text: '',
+  },
+  usersSet: {},
+  reportRoom: {
+    isOpen: false,
   },
 };
 
@@ -145,21 +157,37 @@ export const roomsStore = createSlice({
         return;
       }
 
+      const updMessage = {
+        ...message,
+        user: {
+          name: createUserNameFromSetUser(state.usersSet, message.user.id),
+          ...message.user,
+        },
+      };
+
       if (roomMessages.length === 0 || start) {
         const index = roomMessages.findIndex(
           (msg) => msg.id === message.xmppId
         );
         if (index !== -1) {
-          roomMessages[index] = { ...message, id: message.id, pending: false };
+          roomMessages[index] = {
+            ...updMessage,
+            id: updMessage.id,
+            pending: false,
+          };
         } else {
-          roomMessages.unshift(message);
+          roomMessages.unshift(updMessage);
         }
       } else {
         const lastViewedTimestamp = state.rooms[roomJID].lastViewedTimestamp
           ? new Date(state.rooms[roomJID].lastViewedTimestamp)
           : null;
 
-        insertMessageWithDelimiter(roomMessages, message, lastViewedTimestamp);
+        insertMessageWithDelimiter(
+          roomMessages,
+          updMessage,
+          lastViewedTimestamp
+        );
       }
     },
     deleteAllRooms(state) {
@@ -278,6 +306,13 @@ export const roomsStore = createSlice({
         }
       }
     },
+    updateUsersSet: (state, action: PayloadAction<{ rooms: ApiRoom[] }>) => {
+      const { rooms } = action.payload;
+      state.usersSet = extractUniqueMembersFromRooms(rooms).object;
+    },
+    setOpenReportModal: (state, action: PayloadAction<{ isOpen: boolean }>) => {
+      state.reportRoom.isOpen = action.payload.isOpen;
+    },
   },
 });
 
@@ -325,6 +360,8 @@ export const {
   deleteRoom,
   updateRoom,
   addRoomViaApi,
+  updateUsersSet,
+  setOpenReportModal,
 } = roomsStore.actions;
 
 export default roomsStore.reducer;

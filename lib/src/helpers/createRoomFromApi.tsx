@@ -6,17 +6,17 @@ export const createRoomFromApi = (
 ): IRoom => {
   try {
     const roomData: IRoom = {
+      ...room,
       jid: `${room?.name}@${service}` || '',
       name: room?.title || '',
       title: room?.title || '',
-      usersCnt: Number(room?.members?.length || 0),
+      usersCnt: Number(room?.members?.length || 1),
       messages: [],
       isLoading: false,
       roomBg: null,
       icon: room?.picture !== 'none' ? room?.picture : null,
       unreadMessages: 0,
       lastViewedTimestamp: 0,
-      // ...room,
     };
     return roomData;
   } catch (error) {

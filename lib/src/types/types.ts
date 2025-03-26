@@ -4,7 +4,7 @@ import { TranslationObject } from '../helpers/transformTranslatations';
 
 export interface IUser extends Partial<User> {
   id: string;
-  name: string | null;
+  name?: string;
   userJID?: string | null;
   token?: string;
   refreshToken?: string;
@@ -58,6 +58,20 @@ export interface IRoom {
   isLoading: boolean;
   roomBg: string;
 
+  members?: RoomMember[];
+  type?: 'public' | 'group';
+  creteadAt?: string;
+
+  appId?: string;
+  createdAt?: string;
+  createdBy?: string;
+  description?: string;
+  isAppChat?: boolean;
+  picture?: string;
+  updatedAt?: string;
+  __v?: number | string;
+  _id?: string;
+
   id?: string;
   lastMessage?: LastMessage;
   lastMessageTimestamp?: number;
@@ -69,8 +83,6 @@ export interface IRoom {
   unreadMessages?: number;
   noMessages?: boolean;
   role?: string;
-
-  roomMembers?: RoomMember[];
 
   messageStats?: {
     lastMessageTimestamp?: number;
@@ -86,7 +98,7 @@ export interface ApiRoom {
   title?: string;
   description?: string;
   picture?: string;
-  members?: string[];
+  members?: RoomMember[];
   createdBy?: string;
   appId?: any;
 
@@ -106,14 +118,25 @@ export interface PostRoom {
   picture?: string;
 }
 
+export interface PostReportRoom {
+  chatName: string;
+  category: string;
+  text?: string;
+}
+
 export interface IRoomCompressed extends Pick<IRoom, 'jid'> {}
 
 export interface RoomMember {
-  ban_status: string;
-  jid: string;
-  last_active: number;
-  name: string;
-  role: string;
+  firstName: string;
+  lastName: string;
+  xmppUsername: string;
+  _id: string;
+
+  ban_status?: string;
+  jid?: string;
+  name?: string;
+  role?: string;
+  last_active?: number;
 }
 
 export interface RoomLastMessage {

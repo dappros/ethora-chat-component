@@ -22,6 +22,7 @@ import { ProfileImagePlaceholder } from '../../MainComponents/ProfileImagePlaceh
 import { createRoomFromApi } from '../../../helpers/createRoomFromApi';
 import { postRoom } from '../../../networking/api-requests/rooms.api';
 import { ApiRoom } from '../../../types/types';
+import Select from '../../MainComponents/Select';
 
 const NewChatModal: React.FC = () => {
   const config = useSelector(
@@ -34,6 +35,9 @@ const NewChatModal: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [roomName, setRoomName] = useState<string>('');
   const [roomDescription, setRoomDescription] = useState<string>('');
+  const [chatType, setChatType] = useState<
+    { name: 'Public'; id: 'public' } | { name: 'Group'; id: 'group' }
+  >({ name: 'Public', id: 'public' });
   const [profileImage, setProfileImage] = useState<string | File | null>(null);
   const [errors, setErrors] = useState({ name: '', description: '' });
 
@@ -109,7 +113,7 @@ const NewChatModal: React.FC = () => {
               ? roomDescription
               : 'No description',
           picture: location || '',
-          type: 'public',
+          type: chatType.id || 'public',
         });
 
         const normalizedChat = createRoomFromApi(newChat);
@@ -201,6 +205,22 @@ const NewChatModal: React.FC = () => {
                 placeholder="Enter Description"
                 helperText={errors.description}
                 error={!!errors.description}
+              />
+              <Select
+                options={[
+                  { name: 'Public', id: 'public' },
+                  { name: 'Group', id: 'group' },
+                ]}
+                placeholder={'Select your language'}
+                onSelect={(type) =>
+                  setChatType(
+                    type as
+                      | { name: 'Public'; id: 'public' }
+                      | { name: 'Group'; id: 'group' }
+                  )
+                }
+                accentColor={config?.colors?.primary}
+                selectedValue={chatType}
               />
             </GroupContainer>
 

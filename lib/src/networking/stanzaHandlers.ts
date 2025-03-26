@@ -209,8 +209,6 @@ const handleComposing = async (stanza: Element, currentUser: string) => {
   if (stanza.getChild('paused') || stanza.getChild('composing')) {
     const composingUser = stanza.attrs?.from?.split('/')?.[1];
 
-    console.log({ composingUser, currentUser }, composingUser === currentUser);
-
     if (
       composingUser &&
       currentUser?.toLowerCase()?.replace(/_/g, '') !==
@@ -284,7 +282,7 @@ const onGetMembers = (stanza: Element) => {
       })
     );
 
-    store.dispatch(updateRoom({ jid, updates: { roomMembers } }));
+    // store.dispatch(updateRoom({ jid, updates: { roomMembers } }));
   }
 };
 
