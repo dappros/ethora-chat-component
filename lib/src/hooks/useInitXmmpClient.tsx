@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { setConfig } from '../roomStore/chatSettingsSlice.ts';
 import { refresh, setBaseURL } from '../networking/apiClient.ts';
 import { initRoomsPresence } from '../helpers/initRoomsPresence.ts';
@@ -32,7 +32,7 @@ export const useInitXmmpClient = ({
     (state: RootState) => state.rooms
   );
 
-  const initXmmpClient = async () => {
+  const initXmmpClient = useCallback(async () => {
     dispatch(setConfig(config));
     setBaseURL(config?.baseUrl);
     try {
@@ -101,7 +101,7 @@ export const useInitXmmpClient = ({
       dispatch(setIsLoading({ loading: false }));
       console.log(error);
     }
-  };
+  }, [user.xmppPassword, user.defaultWallet?.walletAddress]);
 
   return {
     initXmmpClient,

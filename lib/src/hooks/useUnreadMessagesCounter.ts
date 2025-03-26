@@ -16,19 +16,7 @@ interface UnreadMessagesStats {
   unreadByRoom: UnreadMessagesMap;
 }
 
-interface UseUnreadMessagesCounterProps {
-  config?: IConfig;
-}
-
-export const useUnreadMessagesCounter = ({config}): UnreadMessagesStats => {
-  const dispatch = useDispatch();
-
-  const unreadByRoom = useSelector(
-    (state: RootState) => state.rooms.unreadMessages.unreadByRoom
-  );
-  const totalCount = useSelector(
-    (state: RootState) => state.rooms.unreadMessages.totalCount
-  );
+export const useUnreadMessagesCounter = (): UnreadMessagesStats => {
   const subscribe = (callback: () => void) => {
     const unsubscribe = store.subscribe(() => {
       const state: RootState = store.getState();
@@ -50,24 +38,14 @@ export const useUnreadMessagesCounter = ({config}): UnreadMessagesStats => {
     () => store.getState().rooms.rooms
   );
 
-  useEffect(() => {
-    console.log('useInitXmmpClient 1');
-    if (!Object.keys(config).length) {
-      return
-    }
-
-    console.log('useInitXmmpClient 2');
-    useInitXmmpClient({ config });
-  }, [config]);
-
-
-  // const unreadByRoom: UnreadMessagesMap = {};
-  // let totalCount = 0;
+  const unreadByRoom: UnreadMessagesMap = {};
+  let totalCount = 0;
 
   Object.entries(rooms).forEach(([roomJid, room]: [string, IRoom]) => {
     const unreadCount = room.unreadMessages || 0;
     if (unreadCount > 0) {
-      dispatch(setUnreadMessages({ roomJid: roomJid, unreadCount: unreadCount}));
+      unreadByRoom[roomJid] = unreadCount;
+      totalCount += unreadCount;
     }
   });
 
