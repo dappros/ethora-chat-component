@@ -19,6 +19,9 @@ interface RoomMessagesState {
   editAction?: EditAction;
   isLoading: boolean;
   usersSet: Record<string, RoomMember>;
+  reportRoom: {
+    isOpen: boolean;
+  };
 }
 
 const initialState: RoomMessagesState = {
@@ -32,6 +35,9 @@ const initialState: RoomMessagesState = {
     text: '',
   },
   usersSet: {},
+  reportRoom: {
+    isOpen: false,
+  },
 };
 
 export const roomsStore = createSlice({
@@ -304,6 +310,9 @@ export const roomsStore = createSlice({
       const { rooms } = action.payload;
       state.usersSet = extractUniqueMembersFromRooms(rooms).object;
     },
+    setOpenReportModal: (state, action: PayloadAction<{ isOpen: boolean }>) => {
+      state.reportRoom.isOpen = action.payload.isOpen;
+    },
   },
 });
 
@@ -352,6 +361,7 @@ export const {
   updateRoom,
   addRoomViaApi,
   updateUsersSet,
+  setOpenReportModal,
 } = roomsStore.actions;
 
 export default roomsStore.reducer;

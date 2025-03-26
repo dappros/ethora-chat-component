@@ -38,6 +38,7 @@ import Loader from '../styled/Loader';
 import { useMessageQueue } from '../../hooks/useMessageQueue';
 import { getRooms } from '../../networking/api-requests/rooms.api';
 import { createRoomFromApi } from '../../helpers/createRoomFromApi';
+import { ModalReportChat } from '../Modals/ModalReportChat/ModalReportChat.tsx';
 
 interface ChatWrapperProps {
   token?: string;
@@ -81,7 +82,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   const dispatch = useDispatch();
   const { client, initializeClient, setClient } = useXmppClient();
 
-  const { rooms, activeRoomJID } = useSelector(
+  const { rooms, activeRoomJID, reportRoom } = useSelector(
     (state: RootState) => state.rooms
   );
 
@@ -366,6 +367,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           handleCloseModal={handleCloseDeleteModal}
         />
       )}
+      {reportRoom.isOpen && <ModalReportChat />}
     </>
   );
 };
