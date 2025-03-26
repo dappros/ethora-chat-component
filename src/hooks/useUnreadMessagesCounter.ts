@@ -16,7 +16,7 @@ interface UnreadMessagesStats {
   unreadByRoom: UnreadMessagesMap;
 }
 
-export const useUnreadMessagesCounter = (): UnreadMessagesStats => {
+export const useUnreadMessagesCounter = ({config}: {config?: IConfig}): UnreadMessagesStats => {
   const subscribe = (callback: () => void) => {
     const unsubscribe = store.subscribe(() => {
       const state: RootState = store.getState();
@@ -49,14 +49,13 @@ export const useUnreadMessagesCounter = (): UnreadMessagesStats => {
     }
   });
 
-  const reduxConfig = useSelector((state: RootState) => state.chatSettingStore.config);
-  const { initXmmpClient } = useInitXmmpClient({ config: reduxConfig });
+  const { initXmmpClient } = useInitXmmpClient({ config });
 
   useEffect(() => {
-    if (reduxConfig) {
+    if (config) {
       initXmmpClient();
     }
-  }, [reduxConfig]);
+  }, [config]);
 
   return {
     hasUnread: totalCount > 0,

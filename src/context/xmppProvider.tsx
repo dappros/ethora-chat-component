@@ -39,15 +39,6 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
   const [email, setEmail] = useState<string | null>(null);
   const [reconnectAttempts, setReconnectAttempts] = useState<number>(0);
 
-  const reduxConfig = useSelector((state: RootState) => state.chatSettingStore.config);
-  const { initXmmpClient } = useInitXmmpClient({ config: config || reduxConfig });
-
-  useEffect(() => {
-    if ((config || reduxConfig) && client) {
-      initXmmpClient();
-    }
-  }, [client]);
-
   const initializeClient = async (
     password: string,
     email: string,
