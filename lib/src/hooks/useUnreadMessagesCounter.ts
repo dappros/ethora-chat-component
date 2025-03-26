@@ -1,9 +1,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
-import { IConfig, IRoom } from '../types/types';
+import { IRoom } from '../types/types';
 import { RootState, store } from '../roomStore';
-import { useDispatch, useSelector } from 'react-redux';
-import { setUnreadMessages } from '../roomStore/roomsSlice.ts';
-import { useXmppClient } from '../context/xmppProvider.tsx';
+import { useSelector } from 'react-redux';
 import { useInitXmmpClient } from './useInitXmmpClient.tsx';
 
 interface UnreadMessagesMap {
@@ -48,6 +46,17 @@ export const useUnreadMessagesCounter = (): UnreadMessagesStats => {
       totalCount += unreadCount;
     }
   });
+
+  const reduxConfig = useSelector((state: RootState) => state.chatSettingStore.config);
+
+  console.log("reduxConfig", reduxConfig);
+  const { initXmmpClient } = useInitXmmpClient({ config: reduxConfig });
+
+  useEffect(() => {
+    if (reduxConfig) {
+      initXmmpClient();
+    }
+  }, [reduxConfig]);
 
   return {
     hasUnread: totalCount > 0,

@@ -49,6 +49,15 @@ export const useUnreadMessagesCounter = (): UnreadMessagesStats => {
     }
   });
 
+  const reduxConfig = useSelector((state: RootState) => state.chatSettingStore.config);
+  const { initXmmpClient } = useInitXmmpClient({ config: reduxConfig });
+
+  useEffect(() => {
+    if (reduxConfig) {
+      initXmmpClient();
+    }
+  }, [reduxConfig]);
+
   return {
     hasUnread: totalCount > 0,
     totalCount,

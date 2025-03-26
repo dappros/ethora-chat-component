@@ -3,6 +3,8 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { ReduxWrapper } from './components/MainComponents/ReduxWrapper';
 import { XmppProvider } from './context/xmppProvider';
 import { useUnreadMessagesCounter } from './hooks/useUnreadMessagesCounter';
+import { store } from '../lib/src/roomStore';
+import { Provider } from 'react-redux';
 
 const Apps = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);

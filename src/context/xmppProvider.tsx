@@ -9,8 +9,9 @@ import XmppClient from '../networking/xmppClient';
 import { IConfig, xmppSettingsInterface } from '../types/types';
 import initXmppRooms from '../helpers/initXmppRooms';
 import { walletToUsername } from '../helpers/walletUsername';
-import { store } from '../roomStore';
+import { RootState, store } from '../roomStore';
 import { useInitXmmpClient } from '../hooks/useInitXmmpClient.tsx';
+import { useSelector } from 'react-redux';
 // Declare XmppContext
 interface XmppContextType {
   client: XmppClient;
@@ -37,7 +38,15 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
   const [password, setPassword] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [reconnectAttempts, setReconnectAttempts] = useState<number>(0);
-  const { initXmmpClient } = useInitXmmpClient({ config });
+
+  const reduxConfig = useSelector((state: RootState) => state.chatSettingStore.config);
+  const { initXmmpClient } = useInitXmmpClient({ config: config || reduxConfig });
+
+  useEffect(() => {
+    if ((config || reduxConfig) && client) {
+      initXmmpClient();
+    }
+  }, [client]);
 
   const initializeClient = async (
     password: string,
@@ -126,10 +135,6 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
     }
     return () => {};
   }, [config?.initBeforeLoad]);
-
-  useEffect(() => {
-    initXmmpClient();
-  }, [config]);
 
   return (
     <XmppContext.Provider
