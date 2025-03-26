@@ -19,7 +19,7 @@ interface MessageContainerProps {
   message: IMessage;
   activeMessage: IMessage;
   config: IConfig;
-  walletAddress: string;
+  xmppUsername: string;
   isReply: boolean;
   showDateLabel: boolean;
 }
@@ -29,11 +29,11 @@ export const MessageContainer: FC<MessageContainerProps> = ({
   message,
   activeMessage,
   config,
-  walletAddress,
+  xmppUsername,
   showDateLabel,
   isReply,
 }) => {
-  const isUser = message.user.id === walletAddress;
+  const isUser = message.user.id === xmppUsername;
 
   const messageDate = new Date(message.date);
 

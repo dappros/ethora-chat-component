@@ -90,14 +90,37 @@ const RoomList: React.FC<RoomListProps> = ({
           chat.name?.toLowerCase().includes(lowerCaseSearchTerm)
         )
         .sort((a, b) => {
-          if (getLastMessage(a)?.id && getLastMessage(b)?.id) {
-            return Number(getLastMessage(b).id) - Number(getLastMessage(a).id);
-          } else if (getLastMessage(a)?.id) {
-            return -1;
-          } else if (getLastMessage(b)?.id) {
-            return 1;
-          }
-          return -1;
+          const aLastId = getLastMessage(a)?.id
+            ? Number(getLastMessage(a).id)
+            : null;
+          const bLastId = getLastMessage(b)?.id
+            ? Number(getLastMessage(b).id)
+            : null;
+          const aCreated = a.createdAt
+            ? new Date(a.createdAt).getTime() * 1000
+            : null;
+          const bCreated = b.createdAt
+            ? new Date(b.createdAt).getTime() * 1000
+            : null;
+
+          const aCompare = aLastId !== null ? aLastId : aCreated;
+          const bCompare = bLastId !== null ? bLastId : bCreated;
+
+          // console.log(aLastId, bLastId, aCreated, bCreated);
+
+          if (aCompare === null && bCompare === null) return 0;
+          if (aCompare === null) return 1;
+          if (bCompare === null) return -1;
+
+          return bCompare - aCompare;
+          // if (aLastId && bLastId) {
+          //   return bLastId - aLastId;
+          // } else if (aLastId) {
+          //   return -1;
+          // } else if (bLastId) {
+          //   return 1;
+          // }
+          // return -1;
         });
 
       chatsMap.set(lowerCaseSearchTerm, result);

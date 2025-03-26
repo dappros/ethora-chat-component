@@ -19,6 +19,7 @@ import {
   setEditAction,
   setIsLoading,
   setLastViewedTimestamp,
+  updateUsersSet,
 } from '../../roomStore/roomsSlice';
 import { refresh, setBaseURL } from '../../networking/apiClient';
 import RoomList from './RoomList';
@@ -173,6 +174,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
                     })
                   );
                 });
+                dispatch(updateUsersSet({ rooms: rooms.items }));
               } else {
                 await newClient.getRoomsStanza();
               }

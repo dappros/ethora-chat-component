@@ -5,6 +5,7 @@ import { Overlay, StyledModal } from '../styled/MediaModal';
 import { StyledInput } from '../styled/StyledInputComponents/StyledInputComponents';
 import Button from '../styled/Button';
 import { QRCODE_URL } from '../../helpers/constants/PLATFORM_CONSTANTS';
+import { handleCopyClick } from '../../helpers/handleCopyClick';
 
 interface OperationalModalProps {
   isVisible: boolean;
@@ -17,10 +18,6 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
   chatJid,
   setVisible,
 }) => {
-  const handleCopyClick = () => {
-    navigator.clipboard.writeText(`${QRCODE_URL}${chatJid}`);
-  };
-
   return (
     isVisible && (
       <Overlay
@@ -77,7 +74,10 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
                 disabled={true}
                 style={{ width: '80%' }}
               />
-              <Button text="Copy" onClick={handleCopyClick} />
+              <Button
+                text="Copy"
+                onClick={() => handleCopyClick(`${QRCODE_URL}${chatJid}`)}
+              />
             </div>
           </div>
         </StyledModal>

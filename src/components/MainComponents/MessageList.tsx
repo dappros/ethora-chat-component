@@ -230,7 +230,7 @@ const MessageList = <TMessage extends IMessage>({
               message={message}
               activeMessage={activeMessage}
               config={config}
-              walletAddress={user.walletAddress}
+              xmppUsername={user.xmppUsername}
               isReply={isReply}
               showDateLabel={showDateLabel}
             />

@@ -9,6 +9,7 @@ import {
   BorderedContainer,
   LabelData,
   Divider,
+  ActionButton,
 } from '../styledModalComponents';
 import ModalHeaderComponent from '../ModalHeaderComponent';
 import { ProfileImagePlaceholder } from '../../MainComponents/ProfileImagePlaceholder';
@@ -22,6 +23,13 @@ import Button from '../../styled/Button';
 import { MoreIcon, QrIcon } from '../../../assets/icons';
 import OperationalModal from '../../OperationalModal/OperationalModal';
 import Switch from '../../MainComponents/Switch';
+import { IUser, RoomMember } from '../../../types/types';
+import {
+  setActiveModal,
+  setSelectedUser,
+} from '../../../roomStore/chatSettingsSlice';
+import { MODAL_TYPES } from '../../../helpers/constants/MODAL_TYPES';
+import AddMembersModal from '../AddMembersModal/AddMembersModal';
 
 interface ChatProfileModalProps {
   handleCloseModal: any;
@@ -34,21 +42,9 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   const [visible, setVisible] = useState<boolean>(false);
 
   const dispatch = useDispatch();
-  const { config } = useSelector((state: RootState) => state.chatSettingStore);
 
   const { client } = useXmppClient();
   const activeRoom = useSelector((state: RootState) => getActiveRoom(state));
-
-  useEffect(() => {
-    setLoading(true);
-    client.getRoomMembersStanza(activeRoom.jid);
-
-    if (activeRoom.roomMembers?.length > 0) {
-      setLoading(false);
-    }
-
-    return () => {};
-  }, [activeRoom.roomMembers?.length]);
 
   const onUpload = async (file: File) => {
     try {
@@ -78,6 +74,24 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
     dispatch(updateRoom({ jid: activeRoom.jid, updates: { icon: null } }));
   };
 
+  const handleUserAvatarClick = (user: RoomMember): void => {
+    dispatch(setActiveModal(MODAL_TYPES.PROFILE));
+    dispatch(
+      setSelectedUser({
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        name: `${user.firstName} ${user.lastName}`,
+        userJID: user?.xmppUsername,
+      })
+    );
+  };
+
+  if (!activeRoom) {
+    dispatch(setActiveModal());
+    return null;
+  }
+
   return (
     <ModalContainerFullScreen style={{ position: 'relative' }}>
       <ModalHeaderComponent
@@ -85,7 +99,9 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         headerTitle={'Chat Profile'}
         rightMenu={
           <>
-            <Button EndIcon={<QrIcon />} onClick={() => setVisible(true)} />
+            {activeRoom?.type === 'public' && (
+              <Button EndIcon={<QrIcon />} onClick={() => setVisible(true)} />
+            )}
             {/* <Button EndIcon={<MoreIcon />} /> */}
           </>
         }
@@ -109,6 +125,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
             {activeRoom.usersCnt > 1 ? 'members' : 'member'}
           </UserStatus>
         </UserInfo>
+        {activeRoom.role === 'moderator' && <AddMembersModal />}
         <BorderedContainer>
           <LabelData>Description</LabelData>
           <Label>Chat's Description</Label>
@@ -134,7 +151,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
           {loading ? (
             <Loader />
           ) : (
-            activeRoom?.roomMembers?.map((user, index) => (
+            activeRoom?.members?.map((user, index) => (
               <div
                 style={{
                   display: 'flex',
@@ -142,6 +159,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                   alignItems: 'start',
                   boxSizing: 'border-box',
                 }}
+                onClick={() => handleUserAvatarClick(user)}
               >
                 <div
                   style={{
@@ -153,7 +171,10 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                   }}
                 >
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <ProfileImagePlaceholder name={user.name} size={40} />
+                    <ProfileImagePlaceholder
+                      name={`${user.firstName} ${user.lastName}`}
+                      size={40}
+                    />
                     <div
                       style={{
                         display: 'flex',
@@ -163,14 +184,16 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                       }}
                     >
                       <Label style={{ fontSize: '16px', fontWeight: 600 }}>
-                        {user.name}
+                        {user.firstName} {user.lastName}
                       </Label>
-                      <LabelData>
-                        {new Date(user.last_active * 1000).toLocaleString()}
-                      </LabelData>
+                      {user.last_active && (
+                        <LabelData>
+                          {new Date(user.last_active * 1000).toLocaleString()}
+                        </LabelData>
+                      )}
                     </div>
                   </div>
-                  {user.role !== 'none' && (
+                  {user.role && user.role !== 'none' && (
                     <div
                       style={{
                         backgroundColor:
@@ -186,7 +209,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                     </div>
                   )}
                 </div>
-                {index < activeRoom?.roomMembers.length - 1 && <Divider />}
+                {index < activeRoom?.members.length - 1 && <Divider />}
               </div>
             ))
           )}

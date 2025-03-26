@@ -48,14 +48,25 @@ export const ProfileImagePlaceholder: React.FC<
   const getTwoUppercaseLetters = (fullName: string) => {
     if (!fullName) return '';
 
-    const words = fullName.trim().split(' ');
+    const normalizedName = fullName
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim();
 
-    const firstLetter = /^[a-zA-Zа-яА-ЯёЁ]$/.test(words[0]?.[0] || '')
-      ? words[0][0].toUpperCase()
-      : '';
-    const secondLetter = /^[a-zA-Zа-яА-ЯёЁ]$/.test(words[1]?.[0] || '')
-      ? words[1][0].toUpperCase()
-      : '';
+    const words = normalizedName.split(/\s+/);
+
+    const extractFirstValidChar = (word: string): string => {
+      const validCharRegex = /^[\p{L}\p{N}\p{P}]/u;
+
+      if (word && validCharRegex.test(word[0])) {
+        return word[0].toUpperCase();
+      }
+
+      return '';
+    };
+
+    const firstLetter = extractFirstValidChar(words[0] || '');
+    const secondLetter = extractFirstValidChar(words[1] || '');
 
     return firstLetter + secondLetter;
   };

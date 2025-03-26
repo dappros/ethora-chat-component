@@ -35,8 +35,7 @@ export const useRoomInitialization = (
     };
 
     const initialPresenceAndHistory = async () => {
-      if (!roomsList[activeRoomJID]) {
-        // console.log('bug1'); here is bug when deleting last room
+      if (!roomsList[activeRoomJID] && activeRoomJID) {
         client.presenceInRoomStanza(activeRoomJID);
         if (config?.newArch) {
           const rooms = await getRooms();
