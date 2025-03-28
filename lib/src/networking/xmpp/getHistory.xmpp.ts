@@ -123,6 +123,6 @@ export const getHistory = async (
     return res;
   } catch (e) {
     console.log('=-> error in', fixedChatJid, e);
-    return null;
+    return [];
   }
 };

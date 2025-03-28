@@ -7,6 +7,7 @@ import TreadLabel from '../styled/TreadLabel';
 import { MessageContainer } from './MessageContainer';
 import { useRoomState } from '../../hooks/useRoomState';
 import { VirtualizedList } from './VirtualList';
+import { useChatSettingState } from '../../hooks/useChatSettingState';
 
 interface MessageListProps<TMessage extends IMessage> {
   CustomMessage?: React.ComponentType<{
@@ -29,7 +30,6 @@ interface MessageListProps<TMessage extends IMessage> {
 
 const MessageList = <TMessage extends IMessage>({
   CustomMessage,
-  user,
   loadMoreMessages,
   roomJID,
   config,
@@ -38,6 +38,9 @@ const MessageList = <TMessage extends IMessage>({
   activeMessage,
 }: MessageListProps<TMessage>) => {
   const { composing, messages } = useRoomState(roomJID).room;
+  const { user } = useChatSettingState();
+
+  console.log(user);
 
   const addReplyMessages = useMemo(() => {
     return messages.map((message) => {

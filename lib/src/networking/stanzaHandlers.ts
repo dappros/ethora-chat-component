@@ -3,14 +3,15 @@ import { store } from '../roomStore';
 import {
   addRoom,
   addRoomMessage,
+  addRoomViaApi,
   deleteRoomMessage,
   editRoomMessage,
   setComposing,
   setCurrentRoom,
-  setLastViewedTimestamp,
   setReactions,
   setRoomRole,
   updateRoom,
+  updateUsersSet,
 } from '../roomStore/roomsSlice';
 import { IRoom } from '../types/types';
 import { createMessageFromXml } from '../helpers/createMessageFromXml';
@@ -18,6 +19,9 @@ import { setDeleteModal } from '../roomStore/chatSettingsSlice';
 import { getDataFromXml } from '../helpers/getDataFromXml';
 import { getBooleanFromString } from '../helpers/getBooleanFromString';
 import { getNumberFromString } from '../helpers/getNumberFromString';
+import { getRooms } from '../networking/api-requests/rooms.api';
+import { createRoomFromApi } from '../helpers/createRoomFromApi';
+import XmppClient from './xmppClient';
 // TO DO: we are thinking to refactor this code in the following way:
 // each stanza will be parsed for 'type'
 // then it will be handled based on the type
@@ -243,9 +247,8 @@ const onPresenceInRoom = (stanza: Element | any) => {
   }
 };
 
-const onChatInvite = async (stanza: Element, client: any) => {
-  if (stanza.is('message') && stanza.attrs['type'] !== 'groupchat') {
-    // check if it is invite
+const onChatInvite = async (stanza: Element, client: XmppClient) => {
+  if (stanza.is('message')) {
     const chatId = stanza.attrs.from;
     const xEls = stanza.getChildren('x');
 
@@ -258,8 +261,18 @@ const onChatInvite = async (stanza: Element, client: any) => {
           return;
         }
 
-        await client.presenceInRoomStanza(chatId);
-        await client.getRoomsStanza();
+        client.presenceInRoomStanza(chatId);
+
+        const rooms = await getRooms();
+        rooms.items.map((room) => {
+          store.dispatch(
+            addRoomViaApi({
+              room: createRoomFromApi(room, client.conference),
+              xmpp: client,
+            })
+          );
+        });
+        store.dispatch(updateUsersSet({ rooms: rooms.items }));
       }
     }
   }

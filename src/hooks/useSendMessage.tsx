@@ -86,7 +86,7 @@ export const useSendMessage = () => {
                   id: id,
                   user: {
                     ...user,
-                    id: user.walletAddress,
+                    id: user.xmppUsername,
                     name: user.firstName + ' ' + user.lastName,
                   },
                   date: new Date().toISOString(),

@@ -124,6 +124,16 @@ export interface PostReportRoom {
   text?: string;
 }
 
+export interface PostAddRoomMember {
+  chatName: string;
+  username: string;
+}
+
+export interface DeleteRoomMember {
+  roomId: string;
+  userId: string;
+}
+
 export interface IRoomCompressed extends Pick<IRoom, 'jid'> {}
 
 export interface RoomMember {

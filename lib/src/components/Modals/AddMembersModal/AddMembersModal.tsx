@@ -12,9 +12,16 @@ import {
   ModalTitle,
 } from '../styledModalComponents';
 import InputWithLabel from '../../styled/StyledInput';
-import { getRooms } from '../../../networking/api-requests/rooms.api';
+import {
+  getRoomByName,
+  postAddRoomMember,
+} from '../../../networking/api-requests/rooms.api';
+import { addRoomViaApi } from '../../../roomStore/roomsSlice';
+import { createRoomFromApi } from '../../../helpers/createRoomFromApi';
+import { useChatSettingState } from '../../../hooks/useChatSettingState';
 
 const AddMembersModal: React.FC = () => {
+  const { config } = useChatSettingState();
   const activeRoom = useSelector((state: RootState) => getActiveRoom(state));
 
   const dispatch = useDispatch();
@@ -34,17 +41,28 @@ const AddMembersModal: React.FC = () => {
   };
 
   const handleAddUser = async () => {
-    await client.inviteRoomRequestStanza(userName, activeRoom.jid);
-    const rooms = await getRooms();
-    // rooms.items.map((room) => {
-    //   dispatch(
-    //     addRoomViaApi({
-    //       room: createRoomFromApi(room, config?.xmppSettings?.conference),
-    //       xmpp: newClient,
-    //     })
-    //   );
-    // });
-    // dispatch(updateUsersSet({ rooms: rooms.items }));
+    try {
+      await postAddRoomMember({
+        chatName: activeRoom.jid.split('@')[0],
+        username: userName,
+      });
+      handleCloseModal();
+      await client.inviteRoomRequestStanza(userName, activeRoom.jid);
+
+      const room = await getRoomByName(activeRoom.jid);
+      dispatch(
+        addRoomViaApi({
+          room: createRoomFromApi(room, config?.xmppSettings?.conference),
+          xmpp: client,
+        })
+      );
+    } catch (error) {
+      console.error('Failed to add user:', error);
+    }
+  };
+
+  const handleUserNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setUserName(event.target.value);
   };
 
   return (
@@ -72,7 +90,7 @@ const AddMembersModal: React.FC = () => {
                 style={{ flex: 1 }}
                 id="userName"
                 value={userName}
-                onChange={setUserName}
+                onChange={handleUserNameChange}
                 placeholder="Enter User Id"
               />
             </GroupContainer>

@@ -6,7 +6,7 @@ import Button from '../styled/Button';
 interface MenuOption {
   label: string;
   icon: React.ReactNode;
-  onClick: () => void;
+  onClick: (e?: any) => void;
   styles?: React.CSSProperties;
 }
 
@@ -33,7 +33,10 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
       ? { top: '60px', right: '-140px' }
       : { top: '60px', right: '0px' };
 
-  const toggleMenu = () => setIsOpen((prev) => !prev);
+  const toggleMenu = (e: { preventDefault: () => void }) => {
+    e.preventDefault();
+    setIsOpen((prev) => !prev);
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

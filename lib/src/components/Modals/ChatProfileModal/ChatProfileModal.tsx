@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   CenterContainer,
   UserInfo,
@@ -9,7 +9,6 @@ import {
   BorderedContainer,
   LabelData,
   Divider,
-  ActionButton,
 } from '../styledModalComponents';
 import ModalHeaderComponent from '../ModalHeaderComponent';
 import { ProfileImagePlaceholder } from '../../MainComponents/ProfileImagePlaceholder';
@@ -20,16 +19,19 @@ import { useXmppClient } from '../../../context/xmppProvider';
 import { updateRoom } from '../../../roomStore/roomsSlice';
 import Loader from '../../styled/Loader';
 import Button from '../../styled/Button';
-import { MoreIcon, QrIcon } from '../../../assets/icons';
+import { QrIcon } from '../../../assets/icons';
 import OperationalModal from '../../OperationalModal/OperationalModal';
-import Switch from '../../MainComponents/Switch';
-import { IUser, RoomMember } from '../../../types/types';
+import { RoomMember } from '../../../types/types';
 import {
   setActiveModal,
   setSelectedUser,
 } from '../../../roomStore/chatSettingsSlice';
 import { MODAL_TYPES } from '../../../helpers/constants/MODAL_TYPES';
 import AddMembersModal from '../AddMembersModal/AddMembersModal';
+import { deleteRoomMember } from '../../../networking/api-requests/rooms.api';
+import DropdownMenu from '../../DropdownMenu/DropdownMenu';
+import DeleteChatModal from './DeleteChatModal';
+import { useChatSettingState } from '../../../hooks/useChatSettingState';
 
 interface ChatProfileModalProps {
   handleCloseModal: any;
@@ -44,6 +46,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   const dispatch = useDispatch();
 
   const { client } = useXmppClient();
+  const { user: stateUser } = useChatSettingState();
   const activeRoom = useSelector((state: RootState) => getActiveRoom(state));
 
   const onUpload = async (file: File) => {
@@ -69,6 +72,16 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
     }
   };
 
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      await deleteRoomMember({ roomId: activeRoom.jid.split('@')[0], userId });
+
+      console.log(`User ${userId} deleted from chat.`);
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+    }
+  };
+
   const onRemoveClick = async () => {
     client.setRoomImageStanza(activeRoom.jid, null, 'icon', 'none');
     dispatch(updateRoom({ jid: activeRoom.jid, updates: { icon: null } }));
@@ -87,6 +100,36 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
     );
   };
 
+  const menuOptions = useMemo(
+    () => (userId: string) => [
+      {
+        label: 'Appoint as an admin',
+        icon: null,
+        onClick: () => {
+          dispatch(setActiveModal(MODAL_TYPES.PROFILE));
+          console.log('Profile clicked');
+        },
+      },
+      {
+        label: 'Unban',
+        icon: null,
+        onClick: () => {
+          dispatch(setActiveModal(MODAL_TYPES.SETTINGS));
+          console.log('Settings clicked');
+        },
+      },
+      {
+        label: 'Delete',
+        icon: null,
+        onClick: (e: any) => {
+          e?.preventDefault();
+          handleDeleteUser(userId);
+        },
+      },
+    ],
+    []
+  );
+
   if (!activeRoom) {
     dispatch(setActiveModal());
     return null;
@@ -102,7 +145,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
             {activeRoom?.type === 'public' && (
               <Button EndIcon={<QrIcon />} onClick={() => setVisible(true)} />
             )}
-            {/* <Button EndIcon={<MoreIcon />} /> */}
+            {activeRoom.role === 'moderator' && <DeleteChatModal />}
           </>
         }
       />
@@ -128,7 +171,11 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         {activeRoom.role === 'moderator' && <AddMembersModal />}
         <BorderedContainer>
           <LabelData>Description</LabelData>
-          <Label>Chat's Description</Label>
+          <Label>{activeRoom?.description}</Label>
+        </BorderedContainer>
+        <BorderedContainer>
+          <LabelData>Chat type</LabelData>
+          <Label>{activeRoom.type}</Label>
         </BorderedContainer>
         {/* <BorderedContainer
           style={{
@@ -153,13 +200,13 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
           ) : (
             activeRoom?.members?.map((user, index) => (
               <div
+                key={user.xmppUsername}
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'start',
                   boxSizing: 'border-box',
                 }}
-                onClick={() => handleUserAvatarClick(user)}
               >
                 <div
                   style={{
@@ -170,7 +217,10 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                     width: '100%',
                   }}
                 >
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                  <div
+                    style={{ display: 'flex', gap: '8px', cursor: 'pointer' }}
+                    onClick={() => handleUserAvatarClick(user)}
+                  >
                     <ProfileImagePlaceholder
                       name={`${user.firstName} ${user.lastName}`}
                       size={40}
@@ -208,6 +258,22 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                       {user.role}
                     </div>
                   )}
+                  {stateUser.xmppUsername !== user.xmppUsername &&
+                    activeRoom.role === 'moderator' && (
+                      <DropdownMenu
+                        options={menuOptions(user.xmppUsername)}
+                        openButton={
+                          <Button
+                            onClick={(e) => {
+                              e.preventDefault();
+                            }}
+                          >
+                            More Options
+                          </Button>
+                        }
+                        onClose={() => console.log('Dropdown closed')}
+                      />
+                    )}
                 </div>
                 {index < activeRoom?.members.length - 1 && <Divider />}
               </div>

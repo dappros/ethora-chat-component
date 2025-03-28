@@ -226,7 +226,9 @@ const RoomList: React.FC<RoomListProps> = ({
                     performClick={performClick}
                     config={config}
                   />
-                  {index < filteredChats.length - 1 && <Divider />}
+                  {index < filteredChats.length - 1 && (
+                    <Divider key={`divider-${chat.id}`} />
+                  )}
                 </>
               ))}
             </div>

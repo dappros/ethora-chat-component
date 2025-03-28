@@ -13,14 +13,20 @@ import {
 } from '../styledModalComponents';
 import {
   addRoom,
+  addRoomViaApi,
   setCurrentRoom,
   updateRoom,
+  updateUsersSet,
 } from '../../../roomStore/roomsSlice';
 import InputWithLabel from '../../styled/StyledInput';
 import { uploadFile } from '../../../networking/api-requests/auth.api';
 import { ProfileImagePlaceholder } from '../../MainComponents/ProfileImagePlaceholder';
 import { createRoomFromApi } from '../../../helpers/createRoomFromApi';
-import { postRoom } from '../../../networking/api-requests/rooms.api';
+import {
+  getRoomByName,
+  getRooms,
+  postRoom,
+} from '../../../networking/api-requests/rooms.api';
 import { ApiRoom } from '../../../types/types';
 import Select from '../../MainComponents/Select';
 
@@ -92,6 +98,28 @@ const NewChatModal: React.FC = () => {
     setProfileImage(null);
   };
 
+  const handleRoomCreation = async (newChat: ApiRoom) => {
+    try {
+      const normalizedChat = createRoomFromApi(newChat);
+
+      dispatch(addRoom({ roomData: normalizedChat }));
+
+      dispatch(setCurrentRoom({ roomJID: normalizedChat.jid }));
+
+      client.presenceInRoomStanza(normalizedChat.jid);
+
+      const room = await getRoomByName(normalizedChat.jid);
+      dispatch(
+        addRoomViaApi({
+          room: createRoomFromApi(room, config?.xmppSettings?.conference),
+          xmpp: client,
+        })
+      );
+    } catch (error) {
+      console.error('Error handling room creation:', error);
+    }
+  };
+
   const handleCreateRoom = async () => {
     if (isValid) {
       let mediaData: FormData | null = new FormData();
@@ -116,12 +144,7 @@ const NewChatModal: React.FC = () => {
           type: chatType.id || 'public',
         });
 
-        const normalizedChat = createRoomFromApi(newChat);
-
-        dispatch(addRoom({ roomData: normalizedChat }));
-        dispatch(setCurrentRoom({ roomJID: normalizedChat.jid }));
-        client.presenceInRoomStanza(normalizedChat.jid);
-        //additional getrooms maybe
+        handleRoomCreation(newChat);
       } else {
         const newChatJid = await client.createRoomStanza(
           roomName,

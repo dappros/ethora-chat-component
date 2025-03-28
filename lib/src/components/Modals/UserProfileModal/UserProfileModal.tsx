@@ -198,7 +198,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   Message
                 </ActionButton>
                 <ActionButton
-                  onClick={() => handleCopyClick(selectedUser.userJID)}
+                  onClick={() => handleCopyClick(selectedUser.id)}
                   variant="filled"
                 >
                   Copy User Id
