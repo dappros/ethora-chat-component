@@ -1,6 +1,6 @@
-import { Chat, XmppProvider, useUnread } from '../src/main';
+import { Chat, IntoXmppProvider, useUnread } from '../src/main';
 
 export { Chat as ChatComponent  };
-export {XmppProvider};
+export {IntoXmppProvider};
 export {useUnread};
 

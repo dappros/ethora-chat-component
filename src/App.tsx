@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { ReduxWrapper } from './components/MainComponents/ReduxWrapper';
-import { XmppProvider } from './context/xmppProvider';
+import { IntoXmppProvider } from './context/IntoXmppProvider.tsx';
 import { useUnreadMessagesCounter } from './hooks/useUnreadMessagesCounter';
 
 const Apps = () => {
@@ -103,7 +103,15 @@ export default function App() {
   }, [totalCount]);
 
   return (
-    <XmppProvider>
+    <IntoXmppProvider config={{
+      xmppSettings: {
+        devServer: 'wss://dev.xmpp.ethoradev.com:5443/ws',
+        host: 'dev.xmpp.ethoradev.com',
+        conference: 'conference.dev.xmpp.ethoradev.com',
+      },
+      baseUrl: 'https://dev.api.ethoradev.com/v1',
+      newArch: true,
+    }}>
       <Router>
         <div className="flex">
           {navigation}
@@ -115,6 +123,6 @@ export default function App() {
           </div>
         </div>
       </Router>
-    </XmppProvider>
+    </IntoXmppProvider>
   );
 }

@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { ReduxWrapper } from './components/MainComponents/ReduxWrapper';
-import { XmppProvider } from './context/xmppProvider';
 import { useUnreadMessagesCounter } from './hooks/useUnreadMessagesCounter';
+import { IntoXmppProvider } from '../../src/context/IntoXmppProvider.tsx';
 
 const Apps = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -103,7 +103,7 @@ export default function App() {
   }, [totalCount]);
 
   return (
-    <XmppProvider>
+    <IntoXmppProvider>
       <Router>
         <div className="flex">
           {navigation}
@@ -115,6 +115,6 @@ export default function App() {
           </div>
         </div>
       </Router>
-    </XmppProvider>
+    </IntoXmppProvider>
   );
 }

@@ -99,6 +99,20 @@ export const store = configureStore({
 
 export const persistor = persistStore(store);
 
+export const createEthoraStore = () =>
+  configureStore({
+    reducer: persistedReducer,
+    middleware: (getDefaultMiddleware) =>
+      getDefaultMiddleware({
+        serializableCheck: {
+          ignoredActions: ['chat/addMessage', 'persist/PERSIST', 'persist/REHYDRATE'],
+          ignoredPaths: ['chat.messages.timestamp', 'chatSettingStore.client'],
+        },
+      })
+        .concat(unreadMiddleware)
+        .concat(newMessageMidlleware),
+  });
+
 export type RootState = {
   chatSettingStore: ReturnType<typeof chatSettingsReducer>;
   rooms: ReturnType<typeof roomsSlice>;

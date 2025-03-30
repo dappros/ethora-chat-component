@@ -18,7 +18,7 @@ export const useUnreadMessagesCounter = (): UnreadMessagesStats => {
       const state: RootState = store.getState();
       const rooms = state.rooms?.rooms;
 
-      if (rooms) {
+      if (rooms && typeof rooms === 'object') {
         Object.entries(rooms).forEach(([roomJid, room]: [string, IRoom]) => {
           if (room.unreadMessages !== undefined) {
             callback();
