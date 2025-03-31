@@ -40,8 +40,6 @@ const MessageList = <TMessage extends IMessage>({
   const { composing, messages } = useRoomState(roomJID).room;
   const { user } = useChatSettingState();
 
-  console.log(user);
-
   const addReplyMessages = useMemo(() => {
     return messages.map((message) => {
       const newMessage = {
