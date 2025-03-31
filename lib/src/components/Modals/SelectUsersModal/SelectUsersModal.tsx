@@ -28,19 +28,22 @@ const SelectUsersModal: React.FC = () => {
 
   const handleAdd = async () => {
     setIsLoading(true);
-    console.log('Selected users:', selectedUsers);
+    const existingXmppUsernames = activeRoom.members.map(
+      (member) => member.xmppUsername
+    );
+
+    const usersArray = selectedUsers
+      .filter((user) => !existingXmppUsernames.includes(user.xmppUsername))
+      .map((user) => user.xmppUsername);
 
     try {
-      await Promise.all(
-        selectedUsers.map((user) =>
-          postAddRoomMember({
-            chatName: activeRoom.jid.split('@')[0],
-            username: user.xmppUsername,
-          })
-        )
-      );
+      await postAddRoomMember({
+        chatName: activeRoom.jid.split('@')[0],
+        members: usersArray,
+      });
     } catch (error) {
       console.error('Error adding users:', error);
+      setIsLoading(false);
     }
 
     handleCloseModal();
@@ -62,7 +65,7 @@ const SelectUsersModal: React.FC = () => {
             <UsersList
               selectedUsers={selectedUsers}
               setSelectedUsers={setSelectedUsers}
-              style={{ minHeight: '200px' }}
+              style={{ maxHeight: '200px' }}
             />
             <GroupContainer>
               <Button

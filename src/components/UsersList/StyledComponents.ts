@@ -3,8 +3,9 @@ import styled from 'styled-components';
 export const ScrollableContainer = styled.div`
   max-height: 100px;
   overflow-y: auto;
-  width: 100%;
-  margin: 8px 0;
+  width: 80%;
+  padding: 8px;
+  max-width: 80%;
 `;
 
 export const UserItem = styled.div`

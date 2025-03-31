@@ -271,7 +271,7 @@ const NewChatModal: React.FC = () => {
             <UsersList
               selectedUsers={selectedUsers}
               setSelectedUsers={setSelectedUsers}
-              style={{ minHeight: '200px' }}
+              style={{ minHeight: '100px' }}
               headerElement={false}
             />
 

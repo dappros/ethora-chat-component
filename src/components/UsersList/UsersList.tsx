@@ -37,12 +37,17 @@ const UsersList: React.FC<UsersListProps> = ({
   };
 
   return (
-    <div>
+    <div
+      style={{
+        maxHeight: '100px',
+        ...style,
+      }}
+    >
       {headerElement ? (
-        <ModalTitle>Select Users (max 10)</ModalTitle>
+        <ModalTitle>Select Users (max 20)</ModalTitle>
       ) : (
         <div style={{ fontSize: '10px', fontWeight: 600 }}>
-          Select Users (max 10)
+          Select Users (max 20)
         </div>
       )}
 
@@ -55,10 +60,11 @@ const UsersList: React.FC<UsersListProps> = ({
                 (u: { _id: string }) => u._id === user._id
               )}
               onChange={() => handleUserSelect(user)}
+              disabled={selectedUsers.length === 20}
             />
             <div>
               <Label>{`${user.firstName} ${user.lastName}`}</Label>
-              <LabelData>{user.xmppUsername}</LabelData>
+              {/* <LabelData>{user.xmppUsername}</LabelData> */}
             </div>
           </UserItem>
         ))}

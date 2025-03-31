@@ -127,7 +127,7 @@ export interface PostReportRoom {
 
 export interface PostAddRoomMember {
   chatName: string;
-  username: string;
+  members: string[];
 }
 
 export interface DeleteRoomMember {

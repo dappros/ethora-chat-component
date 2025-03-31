@@ -93,13 +93,13 @@ export async function postReportRoom(data: PostReportRoom) {
 }
 
 export async function postAddRoomMember(data: PostAddRoomMember) {
-  const { chatName, username } = data;
+  const { chatName, members } = data;
   const token = store.getState().chatSettingStore.user.token || '';
 
   try {
     const response = await http.post(
       `/chats/users-access`,
-      { chatName, username },
+      { chatName, members },
       {
         headers: {
           Authorization: token,

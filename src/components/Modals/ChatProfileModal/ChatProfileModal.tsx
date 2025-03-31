@@ -170,7 +170,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
             {activeRoom.usersCnt > 1 ? 'members' : 'member'}
           </UserStatus>
         </UserInfo>
-        {activeRoom.role === 'moderator' && (
+        {activeRoom.role === 'moderator' && activeRoom.type === 'group' && (
           <>
             <AddMembersModal />
             <SelectUsersModal />
