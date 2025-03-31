@@ -199,6 +199,21 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
               config?.refreshTokens?.enabled && refresh();
             }
           } else {
+            if (config?.newArch) {
+              const rooms = await getRooms();
+              rooms.items.map((room) => {
+                dispatch(
+                  addRoomViaApi({
+                    room: createRoomFromApi(
+                      room,
+                      config?.xmppSettings?.conference
+                    ),
+                    xmpp: client,
+                  })
+                );
+              });
+              dispatch(updateUsersSet({ rooms: rooms.items }));
+            }
             setInited(true);
             await client
               .getChatsPrivateStoreRequestStanza()

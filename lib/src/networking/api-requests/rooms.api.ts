@@ -53,6 +53,25 @@ export async function postRoom(data: PostRoom) {
   }
 }
 
+export async function postPrivateRoom(username: string) {
+  const token = store.getState().chatSettingStore.user.token || '';
+
+  try {
+    const response = await http.post(
+      '/chats/private',
+      { username },
+      {
+        headers: {
+          Authorization: token,
+        },
+      }
+    );
+    return response.data.result;
+  } catch (error) {
+    throw new Error('Error updating profile');
+  }
+}
+
 export async function postReportRoom(data: PostReportRoom) {
   const { chatName, category, text } = data;
   const token = store.getState().chatSettingStore.user.token || '';

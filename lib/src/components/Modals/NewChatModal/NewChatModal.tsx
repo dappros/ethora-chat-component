@@ -7,6 +7,7 @@ import { useXmppClient } from '../../../context/xmppProvider';
 import {
   CloseButton,
   GroupContainer,
+  Label,
   ModalBackground,
   ModalContainer,
   ModalTitle,
@@ -29,6 +30,8 @@ import {
 } from '../../../networking/api-requests/rooms.api';
 import { ApiRoom } from '../../../types/types';
 import Select from '../../MainComponents/Select';
+import { RoomMember } from '../../../types/types';
+import UsersList from '../../UsersList/UsersList';
 
 const NewChatModal: React.FC = () => {
   const config = useSelector(
@@ -37,6 +40,7 @@ const NewChatModal: React.FC = () => {
 
   const dispatch = useDispatch();
   const { client } = useXmppClient();
+  const usersSet = useSelector((state: RootState) => state.rooms.usersSet);
 
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [roomName, setRoomName] = useState<string>('');
@@ -46,6 +50,7 @@ const NewChatModal: React.FC = () => {
   >({ name: 'Public', id: 'public' });
   const [profileImage, setProfileImage] = useState<string | File | null>(null);
   const [errors, setErrors] = useState({ name: '', description: '' });
+  const [selectedUsers, setSelectedUsers] = useState<RoomMember[]>([]);
 
   const isValid = useMemo(
     // () => roomName.length >= 3 && roomDescription.length >= 5,
@@ -88,7 +93,11 @@ const NewChatModal: React.FC = () => {
   };
 
   const handleOpenModal = () => setIsModalOpen(true);
-  const handleCloseModal = () => setIsModalOpen(false);
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setRoomName('');
+    setSelectedUsers([]);
+  };
 
   const onUpload = async (file: File) => {
     setProfileImage(file);
@@ -98,9 +107,16 @@ const NewChatModal: React.FC = () => {
     setProfileImage(null);
   };
 
-  const handleRoomCreation = async (newChat: ApiRoom) => {
+  const handleRoomCreation = async (
+    newChat: ApiRoom,
+    usersArrayLength: number
+  ) => {
     try {
-      const normalizedChat = createRoomFromApi(newChat);
+      const normalizedChat = createRoomFromApi(
+        newChat,
+        config?.xmppSettings?.conference,
+        usersArrayLength
+      );
 
       dispatch(addRoom({ roomData: normalizedChat }));
 
@@ -111,7 +127,11 @@ const NewChatModal: React.FC = () => {
       const room = await getRoomByName(normalizedChat.jid);
       dispatch(
         addRoomViaApi({
-          room: createRoomFromApi(room, config?.xmppSettings?.conference),
+          room: createRoomFromApi(
+            room,
+            config?.xmppSettings?.conference,
+            usersArrayLength
+          ),
           xmpp: client,
         })
       );
@@ -133,7 +153,7 @@ const NewChatModal: React.FC = () => {
       }
 
       if (config?.newArch) {
-        console.log(location);
+        const namesArray = selectedUsers.map((user) => user.xmppUsername);
         const newChat: ApiRoom = await postRoom({
           title: roomName,
           description:
@@ -142,9 +162,10 @@ const NewChatModal: React.FC = () => {
               : 'No description',
           picture: location || '',
           type: chatType.id || 'public',
+          members: namesArray,
         });
 
-        handleRoomCreation(newChat);
+        handleRoomCreation(newChat, namesArray.length);
       } else {
         const newChatJid = await client.createRoomStanza(
           roomName,
@@ -246,6 +267,13 @@ const NewChatModal: React.FC = () => {
                 selectedValue={chatType}
               />
             </GroupContainer>
+
+            <UsersList
+              selectedUsers={selectedUsers}
+              setSelectedUsers={setSelectedUsers}
+              style={{ minHeight: '200px' }}
+              headerElement={false}
+            />
 
             <GroupContainer>
               <Button

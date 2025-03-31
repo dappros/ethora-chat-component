@@ -59,7 +59,7 @@ export interface IRoom {
   roomBg: string;
 
   members?: RoomMember[];
-  type?: 'public' | 'group';
+  type?: 'public' | 'group' | 'private';
   creteadAt?: string;
 
   appId?: string;
@@ -93,7 +93,7 @@ export interface IRoom {
 
 export interface ApiRoom {
   name: string;
-  type: 'public' | 'group';
+  type: 'public' | 'group' | 'private';
 
   title?: string;
   description?: string;
@@ -116,6 +116,7 @@ export interface PostRoom {
 
   description?: string;
   picture?: string;
+  members?: string[];
 }
 
 export interface PostReportRoom {
