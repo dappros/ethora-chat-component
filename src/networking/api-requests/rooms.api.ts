@@ -113,7 +113,7 @@ export async function postAddRoomMember(data: PostAddRoomMember) {
 }
 
 export async function deleteRoomMember(data: DeleteRoomMember) {
-  const { roomId, userId } = data;
+  const { roomId, members } = data;
   const token = store.getState().chatSettingStore.user.token || '';
 
   try {
@@ -122,8 +122,8 @@ export async function deleteRoomMember(data: DeleteRoomMember) {
         Authorization: token,
       },
       data: {
-        roomId,
-        userId,
+        chatName: roomId,
+        members,
       },
     });
     return response.data.result;

@@ -14,6 +14,7 @@ import {
   onNewRoomCreated,
   onReactionMessage,
   onReactionHistory,
+  onRoomKicked,
 } from '../stanzaHandlers';
 import XmppClient from '../xmppClient';
 
@@ -33,6 +34,7 @@ export function handleStanza(stanza: Element, xmppWs: XmppClient) {
       onReactionHistory(stanza);
       break;
     case 'presence':
+      onRoomKicked(stanza);
       onPresenceInRoom(stanza);
       break;
     case 'iq':

@@ -75,9 +75,21 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
 
   const handleDeleteUser = async (userId: string) => {
     try {
-      await deleteRoomMember({ roomId: activeRoom.jid.split('@')[0], userId });
+      await deleteRoomMember({
+        roomId: activeRoom.jid.split('@')[0],
+        members: [userId],
+      });
 
-      console.log(`User ${userId} deleted from chat.`);
+      dispatch(
+        updateRoom({
+          jid: activeRoom.jid,
+          updates: {
+            members: activeRoom.members.filter(
+              (user) => user.xmppUsername !== userId
+            ),
+          },
+        })
+      );
     } catch (error) {
       console.error('Failed to delete user:', error);
     }

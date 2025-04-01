@@ -12,6 +12,7 @@ import {
   setRoomRole,
   updateRoom,
   updateUsersSet,
+  deleteRoom,
 } from '../roomStore/roomsSlice';
 import { IRoom } from '../types/types';
 import { createMessageFromXml } from '../helpers/createMessageFromXml';
@@ -284,7 +285,6 @@ const onGetMembers = (stanza: Element) => {
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(stanza.toString(), 'text/xml');
 
-    // Extract activities
     const roomMembers = Array.from(xmlDoc.getElementsByTagName('activity')).map(
       (activity) => ({
         name: activity.getAttribute('name'),
@@ -294,8 +294,6 @@ const onGetMembers = (stanza: Element) => {
         jid: activity.getAttribute('jid'),
       })
     );
-
-    // store.dispatch(updateRoom({ jid, updates: { roomMembers } }));
   }
 };
 
@@ -393,6 +391,25 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
   }
 };
 
+const onRoomKicked = async (stanza: Element) => {
+  if (stanza.is('presence') && stanza.attrs.type === 'unavailable') {
+    const xElement = stanza.getChild('x');
+    if (!xElement) return;
+
+    const statusElements = xElement.getChildren('status');
+
+    if (!statusElements || statusElements.length === 0) return;
+
+    const statusCodes = statusElements.map((s) => s.attrs.code);
+
+    if (statusCodes.includes('110') && statusCodes.includes('321')) {
+      const roomJid = stanza.attrs.from.split('/')[0];
+
+      store.dispatch(deleteRoom({ jid: roomJid }));
+      await getRooms();
+    }
+  }
+};
 export {
   onRealtimeMessage,
   onMessageHistory,
@@ -408,4 +425,5 @@ export {
   onEditMessage,
   onReactionMessage,
   onChatInvite,
+  onRoomKicked,
 };

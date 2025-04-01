@@ -132,7 +132,7 @@ export interface PostAddRoomMember {
 
 export interface DeleteRoomMember {
   roomId: string;
-  userId: string;
+  members: string[];
 }
 
 export interface IRoomCompressed extends Pick<IRoom, 'jid'> {}

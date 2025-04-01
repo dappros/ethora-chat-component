@@ -269,3 +269,11 @@ get-history
 		</set>
 	</fin>
 </iq>
+//when user deleted from chat:
+<presence xmlns="jabber:client" to="67d3cc45b5018b9872c16a0b_67d3cde6b5018b9872c16ac4@dev.xmpp.ethoradev.com/218076858337444426029954" from="67d3cc45b5018b9872c16a0b_67eabb5a156fbdfe28039a50@conference.dev.xmpp.ethoradev.com/67d3cc45b5018b9872c16a0b_67d3cde6b5018b9872c16ac4" type="unavailable">
+	<x xmlns="http://jabber.org/protocol/muc#user">
+		<item jid="67d3cc45b5018b9872c16a0b_67d3cde6b5018b9872c16ac4@dev.xmpp.ethoradev.com/218076858337444426029954" role="none" affiliation="none" />
+		<status code="110" />
+		<status code="321" />
+	</x>
+</presence>
