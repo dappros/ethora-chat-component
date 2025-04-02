@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useInitXmmpClient } from '../hooks/useInitXmmpClient';
 import XmppClient from '../networking/xmppClient';
-import { IConfig, xmppSettingsInterface } from '../types/types';
+import { IConfig, xmppSettingsInterface, User } from '../types/types';
 import InitClientEffect from './InitClientEffect.tsx';
 
 interface XmppContextType {
@@ -25,9 +25,10 @@ export const useXmppClient = () => {
 interface InternalXmppProviderProps {
   children: ReactNode;
   config: IConfig;
+  user?: User;
 }
 
-export const XmppProvider: React.FC<InternalXmppProviderProps> = ({ children, config }) => {
+export const XmppProvider: React.FC<InternalXmppProviderProps> = ({ children, config, user }) => {
   const [client, setClient] = useState<XmppClient | null>(null);
 
   const initializeClient = async (
@@ -52,7 +53,7 @@ export const XmppProvider: React.FC<InternalXmppProviderProps> = ({ children, co
 
   return (
     <XmppContext.Provider value={{ client: client ?? ({} as XmppClient), initializeClient, setClient }}>
-      <InitClientEffect config={config} />
+      <InitClientEffect config={config} user={user} />
       {children}
     </XmppContext.Provider>
   );

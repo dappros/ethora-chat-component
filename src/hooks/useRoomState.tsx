@@ -4,7 +4,7 @@ import { RootState } from '../roomStore';
 
 export const useRoomState = (roomJID?: string) => {
   const room = useSelector(
-    (state: RootState) => state.rooms.rooms[roomJID && roomJID]
+    (state: RootState) => roomJID ? state.rooms.rooms[roomJID] : undefined
   );
   const roomsList = useSelector((state: RootState) => state.rooms.rooms);
   const activeRoomJID = useSelector(
