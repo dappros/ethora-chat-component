@@ -31,6 +31,7 @@ import Loader from '../../styled/Loader';
 import { Iso639_1Codes } from '../../../types/types';
 import Select from '../../MainComponents/Select';
 import { handleCopyClick } from '../../../helpers/handleCopyClick';
+import { postPrivateRoom } from '../../../networking/api-requests/rooms.api';
 
 interface UserProfileModalProps {
   handleCloseModal: any;
@@ -92,32 +93,40 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   const handlePrivateMessage = useCallback(async () => {
     setLoading(true);
-    const myUsername = walletToUsername(user.defaultWallet.walletAddress);
-    const selectedUserUsername = walletToUsername(selectedUser.id);
+    let newRoomJid = '';
+    if (config?.newArch) {
+      newRoomJid = await postPrivateRoom(
+        selectedUser?.userJID ?? selectedUser?.id
+      );
+    } else {
+      const myUsername = walletToUsername(user.defaultWallet.walletAddress);
+      const selectedUserUsername = walletToUsername(selectedUser.id);
 
-    const combinedWalletAddress = [myUsername, selectedUserUsername]
-      .sort()
-      .join('.');
+      const combinedWalletAddress = [myUsername, selectedUserUsername]
+        .sort()
+        .join('.');
 
-    const roomJid = combinedWalletAddress.toLowerCase();
+      const roomJid = combinedWalletAddress.toLowerCase();
 
-    const combinedUsersName = [
-      user.firstName,
-      selectedUser.name?.split(' ')?.[0],
-    ]
-      .sort()
-      .join(' and ');
+      const combinedUsersName = [
+        user.firstName,
+        selectedUser.name?.split(' ')?.[0],
+      ]
+        .sort()
+        .join(' and ');
 
-    const newRoomJid = await client.createPrivateRoomStanza(
-      combinedUsersName,
-      `Private chat ${combinedUsersName}`,
-      roomJid
-    );
+      newRoomJid = await client.createPrivateRoomStanza(
+        combinedUsersName,
+        `Private chat ${combinedUsersName}`,
+        roomJid
+      );
 
-    if (newRoomJid) {
-      await client.inviteRoomRequestStanza(selectedUserUsername, newRoomJid);
-      await client.getRoomsStanza();
+      if (newRoomJid) {
+        await client.inviteRoomRequestStanza(selectedUserUsername, newRoomJid);
+        await client.getRoomsStanza();
+      }
     }
+
     setLoading(false);
     dispatch(setCurrentRoom({ roomJID: newRoomJid }));
     dispatch(setActiveModal());

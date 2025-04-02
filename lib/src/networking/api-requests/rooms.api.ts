@@ -53,6 +53,25 @@ export async function postRoom(data: PostRoom) {
   }
 }
 
+export async function postPrivateRoom(username: string) {
+  const token = store.getState().chatSettingStore.user.token || '';
+
+  try {
+    const response = await http.post(
+      '/chats/private',
+      { username },
+      {
+        headers: {
+          Authorization: token,
+        },
+      }
+    );
+    return response.data.result;
+  } catch (error) {
+    throw new Error('Error updating profile');
+  }
+}
+
 export async function postReportRoom(data: PostReportRoom) {
   const { chatName, category, text } = data;
   const token = store.getState().chatSettingStore.user.token || '';
@@ -74,13 +93,13 @@ export async function postReportRoom(data: PostReportRoom) {
 }
 
 export async function postAddRoomMember(data: PostAddRoomMember) {
-  const { chatName, username } = data;
+  const { chatName, members } = data;
   const token = store.getState().chatSettingStore.user.token || '';
 
   try {
     const response = await http.post(
       `/chats/users-access`,
-      { chatName, username },
+      { chatName, members },
       {
         headers: {
           Authorization: token,
@@ -94,7 +113,7 @@ export async function postAddRoomMember(data: PostAddRoomMember) {
 }
 
 export async function deleteRoomMember(data: DeleteRoomMember) {
-  const { roomId, userId } = data;
+  const { roomId, members } = data;
   const token = store.getState().chatSettingStore.user.token || '';
 
   try {
@@ -103,8 +122,8 @@ export async function deleteRoomMember(data: DeleteRoomMember) {
         Authorization: token,
       },
       data: {
-        roomId,
-        userId,
+        chatName: roomId,
+        members,
       },
     });
     return response.data.result;

@@ -32,6 +32,7 @@ import { deleteRoomMember } from '../../../networking/api-requests/rooms.api';
 import DropdownMenu from '../../DropdownMenu/DropdownMenu';
 import DeleteChatModal from './DeleteChatModal';
 import { useChatSettingState } from '../../../hooks/useChatSettingState';
+import SelectUsersModal from '../SelectUsersModal/SelectUsersModal';
 
 interface ChatProfileModalProps {
   handleCloseModal: any;
@@ -74,9 +75,21 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
 
   const handleDeleteUser = async (userId: string) => {
     try {
-      await deleteRoomMember({ roomId: activeRoom.jid.split('@')[0], userId });
+      await deleteRoomMember({
+        roomId: activeRoom.jid.split('@')[0],
+        members: [userId],
+      });
 
-      console.log(`User ${userId} deleted from chat.`);
+      dispatch(
+        updateRoom({
+          jid: activeRoom.jid,
+          updates: {
+            members: activeRoom.members.filter(
+              (user) => user.xmppUsername !== userId
+            ),
+          },
+        })
+      );
     } catch (error) {
       console.error('Failed to delete user:', error);
     }
@@ -145,7 +158,8 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
             {activeRoom?.type === 'public' && (
               <Button EndIcon={<QrIcon />} onClick={() => setVisible(true)} />
             )}
-            {activeRoom.role === 'moderator' && <DeleteChatModal />}
+            {activeRoom.role === 'moderator' &&
+              activeRoom.type !== 'private' && <DeleteChatModal />}
           </>
         }
       />
@@ -168,7 +182,12 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
             {activeRoom.usersCnt > 1 ? 'members' : 'member'}
           </UserStatus>
         </UserInfo>
-        {activeRoom.role === 'moderator' && <AddMembersModal />}
+        {activeRoom.role === 'moderator' && activeRoom.type === 'group' && (
+          <>
+            <AddMembersModal />
+            <SelectUsersModal />
+          </>
+        )}
         <BorderedContainer>
           <LabelData>Description</LabelData>
           <Label>{activeRoom?.description}</Label>
@@ -259,7 +278,8 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                     </div>
                   )}
                   {stateUser.xmppUsername !== user.xmppUsername &&
-                    activeRoom.role === 'moderator' && (
+                    activeRoom.role === 'moderator' &&
+                    activeRoom.type !== 'private' && (
                       <DropdownMenu
                         options={menuOptions(user.xmppUsername)}
                         openButton={

@@ -44,7 +44,7 @@ const AddMembersModal: React.FC = () => {
     try {
       await postAddRoomMember({
         chatName: activeRoom.jid.split('@')[0],
-        username: userName,
+        members: [userName],
       });
       handleCloseModal();
       await client.inviteRoomRequestStanza(userName, activeRoom.jid);

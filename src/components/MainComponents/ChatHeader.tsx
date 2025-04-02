@@ -42,7 +42,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const { config } = useChatSettingState();
 
   const handleReportClick = () => {
-    dispatch(setOpenReportModal({isOpen: true}));
+    dispatch(setOpenReportModal({ isOpen: true }));
   };
 
   const handleChangeChat = (chat: IRoom) => {
@@ -115,10 +115,15 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         </ChatContainerHeaderBoxInfo>
       </div>
 
-      <div style={{ display: 'flex', gap: 16 }}>
-        {/* <SearchInput animated icon={<SearchIcon />} /> */}
-        <RoomMenu handleLeaveClick={handleLeaveClick} handleReportClick={handleReportClick} />
-      </div>
+      {currentRoom.type !== 'private' && (
+        <div style={{ display: 'flex', gap: 16 }}>
+          {/* <SearchInput animated icon={<SearchIcon />} /> */}
+          <RoomMenu
+            handleLeaveClick={handleLeaveClick}
+            handleReportClick={handleReportClick}
+          />
+        </div>
+      )}
     </ChatContainerHeader>
   );
 };
