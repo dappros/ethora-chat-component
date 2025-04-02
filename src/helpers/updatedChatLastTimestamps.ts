@@ -2,7 +2,7 @@ import { setLastViewedTimestamp } from '../roomStore/roomsSlice';
 
 export const updatedChatLastTimestamps = (
   roomTimestampObject: [jid: string, timestamp: string],
-  dispatch: any
+  dispatch?: any
 ) => {
   if (!roomTimestampObject) return;
 

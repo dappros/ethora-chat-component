@@ -1,19 +1,23 @@
 import { useEffect } from 'react';
 import { useInitXmmpClient } from '../hooks/useInitXmmpClient';
-import { IConfig } from '../types/types';
+import { IConfig, User } from '../types/types';
 
 interface Props {
   config: IConfig;
+  user?: User;
 }
 
-const InitClientEffect = ({ config }: Props) => {
-  const { initXmmpClient } = useInitXmmpClient({ config });
+const InitClientEffect = ({ config, user }: Props) => {
+  const { initXmmpClient } = useInitXmmpClient({ 
+    config,
+    setInited: () => {},
+  });
 
   useEffect(() => {
-    if (config?.initBeforeLoad) {
+    if (config?.initBeforeLoad && user?.defaultWallet?.walletAddress) {
       initXmmpClient();
     }
-  }, [config]);
+  }, [config, user]);
 
   return null;
 };
