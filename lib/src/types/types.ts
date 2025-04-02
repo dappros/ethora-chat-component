@@ -287,6 +287,8 @@ export interface IConfig {
   disableSentLogic?: boolean;
   initBeforeLoad?: boolean;
   newArch?: boolean;
+  logoutCallback?: () => Promise<void>;
+  qrUrl?: string;
 }
 
 type PartialRoomWithMandatoryKeys = Partial<IRoom> &

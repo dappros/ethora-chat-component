@@ -261,6 +261,7 @@ export const roomsStore = createSlice({
       state.rooms = {};
       state.activeRoomJID = null;
       state.isLoading = false;
+      state.usersSet = {};
     },
     setActiveMessage: (
       state,
