@@ -21,7 +21,7 @@ import {
   setLastViewedTimestamp,
   updateUsersSet,
 } from '../../roomStore/roomsSlice';
-import { refresh, setBaseURL } from '../../networking/apiClient';
+import { refresh } from '../../networking/apiClient';
 import RoomList from './RoomList';
 import Modal from '../Modals/Modal/Modal';
 import ThreadWrapper from '../Thread/ThreadWrapper';
@@ -122,15 +122,17 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   }, [user.xmppPassword]);
 
   useEffect(() => {
-    const url = window.location.href;
-    const urlObj = new URL(url);
-    const searchParams = urlObj.searchParams;
-    const chatId = searchParams.get('chatId');
+    const paramsObj = Object.fromEntries(
+      new URLSearchParams(window.location.search)
+    );
+    const chatId = paramsObj?.chatId;
 
     if (chatId) {
-      const cleanChatId = chatId.split('@')[0];
-
-      dispatch(setCurrentRoom({ roomJID: cleanChatId + CONFERENCE_DOMAIN }));
+      dispatch(
+        setCurrentRoom({
+          roomJID: `${chatId}@${config?.xmppSettings?.conference}`,
+        })
+      );
     }
   }, []);
 
@@ -155,11 +157,11 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
               user?.xmppPassword,
               config?.xmppSettings
             ).then((client) => {
-              setInited(true);
               return client;
             });
 
             if (roomsList && Object.keys(roomsList).length > 0) {
+              setInited(true);
               await initRoomsPresence(newClient, roomsList);
             } else {
               if (config?.newArch) {
@@ -176,6 +178,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
                   );
                 });
                 dispatch(updateUsersSet({ rooms: rooms.items }));
+                setInited(true);
               } else {
                 await newClient.getRoomsStanza();
               }

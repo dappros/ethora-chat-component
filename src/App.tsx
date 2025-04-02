@@ -1,14 +1,16 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { ReduxWrapper } from './components/MainComponents/ReduxWrapper';
 import { XmppProvider } from './context/xmppProvider';
 import { useUnreadMessagesCounter } from './hooks/useUnreadMessagesCounter';
+import { IConfig } from './types/types';
+import { logoutService } from './main';
 
 const Apps = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   return (
     <div>
-      <button onClick={() => setIsChatOpen(!isChatOpen)}>setIsChatOpen</button>
+      <button onClick={() => setIsChatOpen(!isChatOpen)}>Toggle Chat</button>
       {isChatOpen && (
         <ReduxWrapper
           config={{
@@ -20,9 +22,8 @@ const Apps = () => {
   );
 };
 
-// Memoized chat component with configuration
 const ChatComponent = React.memo(() => {
-  const config = useMemo(
+  const config: IConfig = useMemo(
     () => ({
       colors: { primary: '#5E3FDE', secondary: '#E1E4FE' },
       userLogin: { enabled: true, user: null },
@@ -56,6 +57,9 @@ const ChatComponent = React.memo(() => {
           },
           baseUrl: 'https://dev.api.ethoradev.com/v1',
           newArch: true,
+          setRoomJidInPath: true,
+          qrUrl: 'https://ethora.dev.frontend.ethoradev.com/app/chat/?chatId=',
+          ...config,
         }}
         MainComponentStyles={mainStyles}
       />
@@ -65,32 +69,23 @@ const ChatComponent = React.memo(() => {
 
 ChatComponent.displayName = 'ChatComponent';
 
-// Main App component
 export default function App() {
-  const { totalCount, hasUnread, unreadByRoom } = useUnreadMessagesCounter();
+  const { totalCount } = useUnreadMessagesCounter();
+  const handleLogoutClick = () => {
+    logoutService.performLogout();
+  };
 
-  const navigation = useMemo(() => {
-    return (
-      <nav
-        className="flex flex-col space-y-2 p-4 bg-gray-100 h-screen"
-        style={{ display: 'flex', gap: '12px' }}
-      >
+  const navigation = useMemo(
+    () => (
+      <nav className="flex flex-col space-y-2 p-4 bg-gray-100 h-screen">
         <Link to="/apps">
-          <button
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            style={{ position: 'relative' }}
-          >
+          <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 relative">
             Apps
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                right: 0,
-                backgroundColor: 'red',
-              }}
-            >
-              {totalCount}
-            </div>
+            {totalCount > 0 && (
+              <div className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full px-2">
+                {totalCount}
+              </div>
+            )}
           </button>
         </Link>
         <Link to="/chat">
@@ -98,9 +93,16 @@ export default function App() {
             Chat
           </button>
         </Link>
+        <button
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          onClick={() => handleLogoutClick()}
+        >
+          Logout
+        </button>
       </nav>
-    );
-  }, [totalCount]);
+    ),
+    [totalCount]
+  );
 
   return (
     <XmppProvider>
@@ -109,7 +111,7 @@ export default function App() {
           {navigation}
           <div className="flex-1 p-4">
             <Routes>
-              <Route path="/apps" element={<Apps />}></Route>
+              <Route path="/apps" element={<Apps />} />
               <Route path="/chat" element={<ChatComponent />} />
             </Routes>
           </div>
