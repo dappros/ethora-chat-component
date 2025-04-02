@@ -413,3 +413,41 @@ export const Overlay = styled.div`
     background-color: rgba(0, 0, 0, 0.7);
   }
 `;
+
+export const ScrollToBottomButton = styled.button<{ color?: string }>`
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  transition: all 0.2s ease;
+  z-index: 1000;
+  background-color: ${({ color }) => color || '#fff'};
+
+  &:hover {
+    transform: scale(1.1);
+  }
+
+  .count {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background-color: #ff4444;
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+`;

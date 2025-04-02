@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { MessagesScroll, MessagesList } from '../styled/StyledComponents';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { MessagesScroll, MessagesList, ScrollToBottomButton } from '../styled/StyledComponents';
 import { IConfig, IMessage, User } from '../../types/types';
 import Loader from '../styled/Loader';
 import Composing from '../styled/StyledInputComponents/Composing';
@@ -8,6 +8,7 @@ import { MessageContainer } from './MessageContainer';
 import { useRoomState } from '../../hooks/useRoomState';
 import { VirtualizedList } from './VirtualList';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { DownArrowIcon } from '../../assets/icons';
 
 interface MessageListProps<TMessage extends IMessage> {
   CustomMessage?: React.ComponentType<{
@@ -39,6 +40,14 @@ const MessageList = <TMessage extends IMessage>({
 }: MessageListProps<TMessage>) => {
   const { composing, messages } = useRoomState(roomJID).room;
   const { user } = useChatSettingState();
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [newMessagesCount, setNewMessagesCount] = useState(0);
+  const lastMessageCount = useRef(messages.length);
+  const lastUserMessageId = useRef<string | null>(null);
+  const lastComposingRef = useRef<boolean>(false);
+
+  console.log(user);
+  console.log(messages);
 
   const addReplyMessages = useMemo(() => {
     return messages.map((message) => {
@@ -77,6 +86,11 @@ const MessageList = <TMessage extends IMessage>({
       );
     }
   }, [messages, messages.length]);
+
+  const isUserMessage = useMemo(
+    () => messages.length && messages[messages.length - 1].user.id === user.xmppUsername,
+    [messages.length, user.xmppUsername]
+  );
 
   const containerRef = useRef<HTMLDivElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);
@@ -141,8 +155,23 @@ const MessageList = <TMessage extends IMessage>({
   const checkAtBottom = () => {
     const content = containerRef.current;
     if (content) {
-      atBottom.current =
-        content.scrollHeight - content.clientHeight <= content.scrollTop + 10;
+      const isAtBottom = content.scrollHeight - content.clientHeight <= content.scrollTop + 100;
+      atBottom.current = isAtBottom;
+
+      const scrolledUp = content.scrollHeight - content.clientHeight - content.scrollTop > 150;
+
+      if (scrolledUp) {
+        setShowScrollButton(true);
+      } else if (isAtBottom) {
+        setShowScrollButton(false);
+        setNewMessagesCount(0);
+      }
+
+      if (!isAtBottom && messages.length > lastMessageCount.current) {
+        setNewMessagesCount(prev => prev + (messages.length - lastMessageCount.current));
+      }
+
+      lastMessageCount.current = messages.length;
       checkIfLoadMoreMessages();
     }
   };
@@ -150,7 +179,12 @@ const MessageList = <TMessage extends IMessage>({
   const scrollToBottom = useCallback((): void => {
     const content = containerRef.current;
     if (content) {
-      content.scrollTop = content.scrollHeight;
+      content.scrollTo({
+        top: content.scrollHeight,
+        behavior: 'smooth'
+      });
+      setShowScrollButton(false);
+      setNewMessagesCount(0);
     }
   }, []);
 
@@ -174,12 +208,6 @@ const MessageList = <TMessage extends IMessage>({
   }, []);
 
   useEffect(() => {
-    if (atBottom.current) {
-      scrollToBottom();
-    }
-  }, [memoizedMessages.length]);
-
-  useEffect(() => {
     if (memoizedMessages.length > 30) {
       const content = containerRef.current;
       if (content && scrollParams.current) {
@@ -191,6 +219,20 @@ const MessageList = <TMessage extends IMessage>({
       scrollParams.current = null;
     }
   }, [memoizedMessages.length, composing]);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      const isLastMessageFromUser = lastMessage && isUserMessage;
+
+      if (lastMessage && lastMessage.id !== lastUserMessageId.current && isLastMessageFromUser) {
+        console.log('isUserMessage 2', isUserMessage);
+
+        lastUserMessageId.current = lastMessage.id;
+        scrollToBottom();
+      }
+    }
+  }, [messages, isUserMessage, scrollToBottom]);
 
   // if (!validateMessages(memoizedMessages)) {
   //   console.log("Invalid 'messages' props provided to MessageList.");
@@ -211,7 +253,7 @@ const MessageList = <TMessage extends IMessage>({
           <React.Fragment>
             <CustomMessage
               message={activeMessage}
-              isUser={isUserActiveMessage}
+              isUser={isUserMessage}
               isReply={isReply}
             />
             <TreadLabel
@@ -263,6 +305,17 @@ const MessageList = <TMessage extends IMessage>({
           <Composing usersTyping={['User']} />
         )}
       </MessagesScroll>
+      {showScrollButton && (
+        <ScrollToBottomButton
+          onClick={scrollToBottom}
+          color={config?.colors?.primary}
+        >
+          <DownArrowIcon />
+          {newMessagesCount > 0 && (
+            <span className="count">{newMessagesCount}</span>
+          )}
+        </ScrollToBottomButton>
+      )}
     </MessagesList>
   );
 };
