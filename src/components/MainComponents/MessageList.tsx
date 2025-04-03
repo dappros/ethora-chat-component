@@ -48,11 +48,7 @@ const MessageList = <TMessage extends IMessage>({
   const lastComposingRef = useRef<boolean>(false);
   const scrollPositions = useRef<{ [key: string]: number }>({});
   const isFirstLoad = useRef<boolean>(true);
-
-  console.log(user);
-  console.log(messages);
-
-  //delimiter-new
+  const delimiterRef = useRef<HTMLDivElement>(null);
 
   const addReplyMessages = useMemo(() => {
     return messages.map((message) => {
@@ -126,7 +122,6 @@ const MessageList = <TMessage extends IMessage>({
     }
   }, [roomJID]);
 
-  // Функция для проверки загрузки всех изображений
   const waitForImagesLoaded = useCallback(() => {
     const content = containerRef.current;
     if (!content) return Promise.resolve();
@@ -145,37 +140,18 @@ const MessageList = <TMessage extends IMessage>({
     return Promise.all(promises);
   }, []);
 
-  // Модифицированная функция восстановления позиции
   const restoreScrollPosition = useCallback(async () => {
     const content = containerRef.current;
     if (!content) return;
 
-    // Ждем загрузки всех изображений
     await waitForImagesLoaded();
 
     if (isFirstLoad.current) {
-      // Ищем сообщение с id === "delimiter-new"
       const delimiterIndex = memoizedMessages.findIndex(msg => msg.id === 'delimiter-new');
       
-      if (delimiterIndex !== -1) {
-        console.log('Found delimiter-new at index:', delimiterIndex);
-        // Добавляем небольшую задержку, чтобы DOM успел обновиться
-        setTimeout(() => {
-          const allMessages = content.querySelectorAll('[data-message-id]');
-          const delimiterElement = Array.from(allMessages).find(
-            el => el.getAttribute('data-message-id') === 'delimiter-new'
-          );
-
-          if (delimiterElement) {
-            console.log('Scrolling to delimiter-new');
-            delimiterElement.scrollIntoView({ behavior: 'auto', block: 'center' });
-          } else {
-            console.log('Delimiter element not found in DOM');
-            content.scrollTop = content.scrollHeight;
-          }
-        }, 100);
+      if (delimiterIndex !== -1 && delimiterRef.current) {
+        delimiterRef.current.scrollIntoView();
       } else {
-        console.log('No delimiter-new in messages, scrolling to bottom');
         content.scrollTop = content.scrollHeight;
       }
       isFirstLoad.current = false;
@@ -183,13 +159,10 @@ const MessageList = <TMessage extends IMessage>({
       const savedPosition = scrollPositions.current[roomJID];
       if (savedPosition !== undefined) {
         content.scrollTop = savedPosition;
-      } else {
-        content.scrollTop = content.scrollHeight;
       }
     }
   }, [roomJID, memoizedMessages, waitForImagesLoaded]);
 
-  // Эффект для восстановления позиции
   useEffect(() => {
     restoreScrollPosition();
   }, [roomJID]);
@@ -338,11 +311,7 @@ const MessageList = <TMessage extends IMessage>({
           
           if (message.id === 'delimiter-new') {
             return (
-              <div 
-                key={message.id}
-                data-message-id="delimiter-new"
-                className="message-container"
-              >
+              <div key={message.id} ref={delimiterRef} className="message-container">
                 <NewMessageLabel color={config?.colors?.primary} />
               </div>
             );
@@ -359,7 +328,6 @@ const MessageList = <TMessage extends IMessage>({
               isReply={isReply}
               showDateLabel={showDateLabel}
               className="message-container"
-              data-message-id={message.id}
             />
           );
         })}
