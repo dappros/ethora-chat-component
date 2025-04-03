@@ -42,10 +42,14 @@ const MessageList = <TMessage extends IMessage>({
   const { user } = useChatSettingState();
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [newMessagesCount, setNewMessagesCount] = useState(0);
+  const [lastMessageDate, setLastMessageDate] = useState<number | null>(null);
   const lastMessageCount = useRef(messages.length);
   const lastUserMessageId = useRef<string | null>(null);
   const scrollPositions = useRef<{ [key: string]: number }>({});
   const isFirstLoad = useRef<boolean>(true);
+
+  console.log('user', user);
+  console.log('messages', messages);
 
   const addReplyMessages = useMemo(() => {
     return messages.map((message) => {
@@ -84,6 +88,7 @@ const MessageList = <TMessage extends IMessage>({
       );
     }
   }, [messages, messages.length]);
+
 
   const isUserMessage = useMemo(
     () => messages.length && messages[messages.length - 1].user.id === user.xmppUsername,
@@ -174,6 +179,21 @@ const MessageList = <TMessage extends IMessage>({
   }, [roomJID, memoizedMessages, waitForImagesLoaded]);
 
   useEffect(() => {
+    if (memoizedMessages.length > 0) {
+      setLastMessageDate(new Date(memoizedMessages[memoizedMessages.length - 1].date).getTime());
+    }
+  }, []);
+
+  useEffect(() => {
+    if(isUserMessage) return;
+
+    const newMessageDate = new Date(memoizedMessages[memoizedMessages.length - 1].date).getTime();
+    if (newMessageDate > lastMessageDate) {
+      setNewMessagesCount(prev => prev += 1);
+    }
+  }, [memoizedMessages.length]);
+
+  useEffect(() => {
     restoreScrollPosition();
   }, [roomJID]);
 
@@ -217,10 +237,6 @@ const MessageList = <TMessage extends IMessage>({
       } else if (isAtBottom) {
         setShowScrollButton(false);
         setNewMessagesCount(0);
-      }
-
-      if (!isAtBottom && messages.length > lastMessageCount.current) {
-        setNewMessagesCount(prev => prev + (messages.length - lastMessageCount.current));
       }
 
       lastMessageCount.current = messages.length;
