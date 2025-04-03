@@ -48,9 +48,6 @@ const MessageList = <TMessage extends IMessage>({
   const scrollPositions = useRef<{ [key: string]: number }>({});
   const isFirstLoad = useRef<boolean>(true);
 
-  console.log('user', user);
-  console.log('messages', messages);
-
   const addReplyMessages = useMemo(() => {
     return messages.map((message) => {
       const newMessage = {
