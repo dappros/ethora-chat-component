@@ -119,7 +119,6 @@ const MessageList = <TMessage extends IMessage>({
     }
   }, [roomJID]);
 
-  // Функция для проверки загрузки всех изображений
   const waitForImagesLoaded = useCallback(() => {
     const content = containerRef.current;
     if (!content) return Promise.resolve();
@@ -138,21 +137,16 @@ const MessageList = <TMessage extends IMessage>({
     return Promise.all(promises);
   }, []);
 
-  // Модифицированная функция восстановления позиции
   const restoreScrollPosition = useCallback(async () => {
     const content = containerRef.current;
     if (!content) return;
 
-    // Ждем загрузки всех изображений
     await waitForImagesLoaded();
 
     if (isFirstLoad.current) {
-      // Ищем сообщение с id === "delimiter-new"
       const delimiterIndex = memoizedMessages.findIndex(msg => msg.id === 'delimiter-new');
       
       if (delimiterIndex !== -1) {
-        console.log('Found delimiter-new at index:', delimiterIndex);
-        // Добавляем небольшую задержку, чтобы DOM успел обновиться
         setTimeout(() => {
           const allMessages = content.querySelectorAll('[data-message-id]');
           const delimiterElement = Array.from(allMessages).find(
@@ -160,15 +154,12 @@ const MessageList = <TMessage extends IMessage>({
           );
 
           if (delimiterElement) {
-            console.log('Scrolling to delimiter-new');
             delimiterElement.scrollIntoView({ behavior: 'auto', block: 'center' });
           } else {
-            console.log('Delimiter element not found in DOM');
             content.scrollTop = content.scrollHeight;
           }
         }, 100);
       } else {
-        console.log('No delimiter-new in messages, scrolling to bottom');
         content.scrollTop = content.scrollHeight;
       }
       isFirstLoad.current = false;
@@ -182,7 +173,6 @@ const MessageList = <TMessage extends IMessage>({
     }
   }, [roomJID, memoizedMessages, waitForImagesLoaded]);
 
-  // Эффект для восстановления позиции
   useEffect(() => {
     restoreScrollPosition();
   }, [roomJID]);
@@ -288,7 +278,6 @@ const MessageList = <TMessage extends IMessage>({
       const isLastMessageFromUser = lastMessage && isUserMessage;
 
       if (lastMessage && lastMessage.id !== lastUserMessageId.current && isLastMessageFromUser) {
-        console.log('isUserMessage 2', isUserMessage);
 
         lastUserMessageId.current = lastMessage.id;
         scrollToBottom();
