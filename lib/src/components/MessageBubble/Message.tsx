@@ -179,7 +179,11 @@ const Message: React.FC<MessageProps> = forwardRef<
       >
         {!isUser && (
           <CustomMessagePhotoContainer
-            onClick={() => handleUserAvatarClick(message.user)}
+            onClick={() =>
+              message.user.name !== 'Deleted User'
+                ? handleUserAvatarClick(message.user)
+                : null
+            }
           >
             {message.user?.profileImage && message.user.profileImage !== '' ? (
               <CustomMessagePhoto
@@ -190,7 +194,15 @@ const Message: React.FC<MessageProps> = forwardRef<
                 alt="userIcon"
               />
             ) : (
-              <Avatar username={message.user.name} />
+              <Avatar
+                username={message.user.name}
+                style={{
+                  cursor:
+                    message.user.name !== 'Deleted User'
+                      ? 'pointer'
+                      : 'default',
+                }}
+              />
             )}
           </CustomMessagePhotoContainer>
         )}

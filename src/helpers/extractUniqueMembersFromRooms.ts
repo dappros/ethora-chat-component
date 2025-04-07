@@ -15,7 +15,7 @@ export function extractUniqueMembersFromRooms(
   rooms.forEach((room) => {
     if (room.members) {
       room.members.forEach((member) => {
-        if (member.xmppUsername) {
+        if (member && member?.xmppUsername) {
           uniqueMembersMap.set(member.xmppUsername, member);
         }
       });

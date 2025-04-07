@@ -1,10 +1,9 @@
 import { useEffect } from 'react';
-import { addRoomViaApi, setIsLoading } from '../roomStore/roomsSlice';
+import { setIsLoading } from '../roomStore/roomsSlice';
 import { useXmppClient } from '../context/xmppProvider';
 import { IConfig, IMessage, IRoom } from '../types/types';
 import { useDispatch } from 'react-redux';
-import { getRooms } from '../networking/api-requests/rooms.api';
-import { createRoomFromApi } from '../helpers/createRoomFromApi';
+import useGetNewArchRoom from './useGetNewArchRoom';
 
 const countUndefinedText = (arr: IMessage[]) =>
   arr.filter((item) => item?.body === undefined)?.length;
@@ -17,6 +16,8 @@ export const useRoomInitialization = (
 ) => {
   const { client } = useXmppClient();
   const dispatch = useDispatch();
+
+  const syncRooms = useGetNewArchRoom();
 
   useEffect(() => {
     const getDefaultHistory = async () => {
@@ -38,15 +39,7 @@ export const useRoomInitialization = (
       if (!roomsList[activeRoomJID] && activeRoomJID) {
         client.presenceInRoomStanza(activeRoomJID);
         if (config?.newArch) {
-          const rooms = await getRooms();
-          rooms.items.map((room) => {
-            dispatch(
-              addRoomViaApi({
-                room: createRoomFromApi(room, config?.xmppSettings?.conference),
-                xmpp: client,
-              })
-            );
-          });
+          syncRooms(client, config);
         } else {
           await client.getRoomsStanza();
         }
@@ -88,18 +81,7 @@ export const useRoomInitialization = (
 
           client.presenceInRoomStanza(room.jid);
           if (config?.newArch) {
-            const rooms = await getRooms();
-            rooms.items.map((room) => {
-              dispatch(
-                addRoomViaApi({
-                  room: createRoomFromApi(
-                    room,
-                    config?.xmppSettings?.conference
-                  ),
-                  xmpp: client,
-                })
-              );
-            });
+            syncRooms(client, config);
           } else {
             await client.getRoomsStanza();
           }

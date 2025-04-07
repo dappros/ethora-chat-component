@@ -6,7 +6,7 @@ export const createUserNameFromSetUser = (
 ): string => {
   const user = usersSet[userId];
 
-  if (!user) return 'Unknown User';
+  if (!user) return 'Deleted User';
 
   const firstName = user.firstName?.trim() || '';
   const lastName = user.lastName?.trim() || '';

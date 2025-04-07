@@ -14,12 +14,10 @@ import { useXmppClient } from '../../context/xmppProvider';
 import LoginForm from '../AuthForms/Login';
 import { RootState } from '../../roomStore';
 import {
-  addRoomViaApi,
   setCurrentRoom,
   setEditAction,
   setIsLoading,
   setLastViewedTimestamp,
-  updateUsersSet,
 } from '../../roomStore/roomsSlice';
 import { refresh } from '../../networking/apiClient';
 import RoomList from './RoomList';
@@ -27,7 +25,6 @@ import Modal from '../Modals/Modal/Modal';
 import ThreadWrapper from '../Thread/ThreadWrapper';
 import { ModalWrapper } from '../Modals/ModalWrapper/ModalWrapper';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
-import { CONFERENCE_DOMAIN } from '../../helpers/constants/PLATFORM_CONSTANTS';
 import useMessageLoaderQueue from '../../hooks/useMessageLoaderQueue';
 import { useRoomState } from '../../hooks/useRoomState';
 import { initRoomsPresence } from '../../helpers/initRoomsPresence';
@@ -35,10 +32,8 @@ import { updatedChatLastTimestamps } from '../../helpers/updatedChatLastTimestam
 import { updateMessagesTillLast } from '../../helpers/updateMessagesTillLast';
 import { StyledLoaderWrapper } from '../styled/StyledComponents';
 import Loader from '../styled/Loader';
-import { useMessageQueue } from '../../hooks/useMessageQueue';
-import { getRooms } from '../../networking/api-requests/rooms.api';
-import { createRoomFromApi } from '../../helpers/createRoomFromApi';
 import { ModalReportChat } from '../Modals/ModalReportChat/ModalReportChat.tsx';
+import useGetNewArchRoom from '../../hooks/useGetNewArchRoom.tsx';
 
 interface ChatWrapperProps {
   token?: string;
@@ -58,6 +53,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   roomJID,
 }) => {
   const { user, activeModal, deleteModal } = useChatSettingState();
+  const syncRooms = useGetNewArchRoom();
 
   const [isInited, setInited] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -165,19 +161,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
               await initRoomsPresence(newClient, roomsList);
             } else {
               if (config?.newArch) {
-                const rooms = await getRooms();
-                rooms.items.map((room) => {
-                  dispatch(
-                    addRoomViaApi({
-                      room: createRoomFromApi(
-                        room,
-                        config?.xmppSettings?.conference
-                      ),
-                      xmpp: newClient,
-                    })
-                  );
-                });
-                dispatch(updateUsersSet({ rooms: rooms.items }));
+                syncRooms(newClient, config);
                 setInited(true);
               } else {
                 await newClient.getRoomsStanza();
@@ -203,19 +187,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             }
           } else {
             if (config?.newArch) {
-              const rooms = await getRooms();
-              rooms.items.map((room) => {
-                dispatch(
-                  addRoomViaApi({
-                    room: createRoomFromApi(
-                      room,
-                      config?.xmppSettings?.conference
-                    ),
-                    xmpp: client,
-                  })
-                );
-              });
-              dispatch(updateUsersSet({ rooms: rooms.items }));
+              syncRooms(client, config);
             }
             setInited(true);
             await client
