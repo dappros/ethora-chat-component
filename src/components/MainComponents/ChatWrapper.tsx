@@ -91,11 +91,12 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   }, [rooms, activeRoomJID]);
 
   const handleChangeChat = (chat: IRoom) => {
-    dispatch(setCurrentRoom({ roomJID: chat.jid }));
-    activeRoomJID !== chat.jid &&
+    if (activeRoomJID !== chat.jid) {
       dispatch(setIsLoading({ chatJID: chat.jid, loading: true }));
-    dispatch(setEditAction({ isEdit: false }));
-    handleItemClick(true);
+      dispatch(setCurrentRoom({ roomJID: chat.jid }));
+      dispatch(setEditAction({ isEdit: false }));
+      handleItemClick(true);
+    }
   };
 
   const handleDeleteClick = () => {
