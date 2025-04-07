@@ -46,7 +46,7 @@ const UsersList: React.FC<UsersListProps> = ({
       {headerElement ? (
         <ModalTitle>Select Users (max 20)</ModalTitle>
       ) : (
-        <div style={{ fontSize: '10px', fontWeight: 600 }}>
+        <div style={{ fontSize: '14px', fontWeight: 600 }}>
           Select Users (max 20)
         </div>
       )}

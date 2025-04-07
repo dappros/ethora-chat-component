@@ -504,3 +504,7 @@ export interface LastMessage extends Omit<Partial<IMessage>, 'date'> {
   mimetype?: string;
   originalName?: string;
 }
+
+export type ChatAccessOption =
+  | { name: 'Public'; id: 'public' }
+  | { name: 'Group'; id: 'group' };

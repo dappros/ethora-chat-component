@@ -65,7 +65,11 @@ const SelectUsersModal: React.FC = () => {
             <UsersList
               selectedUsers={selectedUsers}
               setSelectedUsers={setSelectedUsers}
-              style={{ maxHeight: '200px' }}
+              style={{
+                minHeight: '400px',
+                minWidth: '100%',
+                width: '100%',
+              }}
             />
             <GroupContainer>
               <Button

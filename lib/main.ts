@@ -1,6 +1,6 @@
-import { Chat, XmppProvider, useUnread } from '../src/main';
+import { Chat, XmppProvider, useUnread,logoutService } from '../src/main';
 
 export { Chat as ChatComponent  };
 export {XmppProvider};
 export {useUnread};
-
+export {logoutService};
