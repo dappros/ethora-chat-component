@@ -33,6 +33,7 @@ import DropdownMenu from '../../DropdownMenu/DropdownMenu';
 import DeleteChatModal from './DeleteChatModal';
 import { useChatSettingState } from '../../../hooks/useChatSettingState';
 import SelectUsersModal from '../SelectUsersModal/SelectUsersModal';
+import { useToast } from '../../../context/ToastContext';
 
 interface ChatProfileModalProps {
   handleCloseModal: any;
@@ -44,6 +45,8 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [visible, setVisible] = useState<boolean>(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const { showToast } = useToast();
 
   const chatMenuOptions = useMemo(
     () => [
@@ -105,8 +108,21 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
           },
         })
       );
+
+      showToast({
+        id: Date.now().toString(),
+        title: 'Success',
+        message: `${userId} has been removed from the room.`,
+        type: 'success',
+      });
     } catch (error) {
       console.error('Failed to delete user:', error);
+      showToast({
+        id: Date.now().toString(),
+        title: 'Error',
+        message: 'Failed to delete user.',
+        type: 'error',
+      });
     }
   };
 

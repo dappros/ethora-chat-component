@@ -29,6 +29,7 @@ import { ApiRoom, ChatAccessOption } from '../../../types/types';
 import Select from '../../MainComponents/Select';
 import { RoomMember } from '../../../types/types';
 import UsersList from '../../UsersList/UsersList';
+import { useToast } from '../../../context/ToastContext';
 
 const NewChatModal: React.FC = () => {
   const config = useSelector(
@@ -37,7 +38,7 @@ const NewChatModal: React.FC = () => {
 
   const dispatch = useDispatch();
   const { client } = useXmppClient();
-  const usersSet = useSelector((state: RootState) => state.rooms.usersSet);
+  const { showToast } = useToast();
 
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'0' | '1' | null>('0');
@@ -54,7 +55,7 @@ const NewChatModal: React.FC = () => {
 
   const options: ChatAccessOption[] = [
     { name: 'Public', id: 'public' },
-    { name: 'Group', id: 'group' },
+    { name: 'Members-only', id: 'group' },
   ];
 
   const isValid = useMemo(
@@ -197,6 +198,13 @@ const NewChatModal: React.FC = () => {
       setProfileImage(null);
       setRoomName('');
       setRoomDescription('');
+      showToast({
+        id: Date.now().toString(),
+        title: 'Success!',
+        message: 'Room created succusfully!',
+        type: 'success',
+        duration: 3000,
+      });
     }
   };
 

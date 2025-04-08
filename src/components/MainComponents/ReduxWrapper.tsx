@@ -7,6 +7,7 @@ import '../../helpers/storeConsole';
 import LoginWrapper from './LoginWrapper.tsx';
 import { PersistGate } from 'redux-persist/integration/react';
 import Loader from '../styled/Loader.tsx';
+import { ToastProvider } from '../../context/ToastContext.tsx';
 
 interface ChatWrapperProps {
   token?: string;
@@ -27,7 +28,9 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
     return (
       <Provider store={store}>
         <PersistGate loading={<Loader />} persistor={persistor}>
-          <LoginWrapper config={memoizedConfig} {...props} />
+          <ToastProvider>
+            <LoginWrapper config={memoizedConfig} {...props} />
+          </ToastProvider>
         </PersistGate>
       </Provider>
     );
