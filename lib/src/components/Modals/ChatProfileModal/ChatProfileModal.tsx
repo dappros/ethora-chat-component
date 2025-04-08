@@ -19,7 +19,7 @@ import { useXmppClient } from '../../../context/xmppProvider';
 import { updateRoom } from '../../../roomStore/roomsSlice';
 import Loader from '../../styled/Loader';
 import Button from '../../styled/Button';
-import { QrIcon } from '../../../assets/icons';
+import { DeleteIcon, MoreIcon, QrIcon } from '../../../assets/icons';
 import OperationalModal from '../../OperationalModal/OperationalModal';
 import { RoomMember } from '../../../types/types';
 import {
@@ -33,6 +33,7 @@ import DropdownMenu from '../../DropdownMenu/DropdownMenu';
 import DeleteChatModal from './DeleteChatModal';
 import { useChatSettingState } from '../../../hooks/useChatSettingState';
 import SelectUsersModal from '../SelectUsersModal/SelectUsersModal';
+import { useToast } from '../../../context/ToastContext';
 
 interface ChatProfileModalProps {
   handleCloseModal: any;
@@ -43,6 +44,23 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
 }) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [visible, setVisible] = useState<boolean>(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const { showToast } = useToast();
+
+  const chatMenuOptions = useMemo(
+    () => [
+      {
+        label: 'Delete chat',
+        icon: <DeleteIcon />,
+        onClick: () => {
+          setIsModalOpen(true);
+        },
+        styles: { color: 'red' },
+      },
+    ],
+    []
+  );
 
   const dispatch = useDispatch();
 
@@ -90,8 +108,21 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
           },
         })
       );
+
+      showToast({
+        id: Date.now().toString(),
+        title: 'Success',
+        message: `${userId} has been removed from the room.`,
+        type: 'success',
+      });
     } catch (error) {
       console.error('Failed to delete user:', error);
+      showToast({
+        id: Date.now().toString(),
+        title: 'Error',
+        message: 'Failed to delete user.',
+        type: 'error',
+      });
     }
   };
 
@@ -159,7 +190,19 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
               <Button EndIcon={<QrIcon />} onClick={() => setVisible(true)} />
             )}
             {activeRoom.role === 'moderator' &&
-              activeRoom.type !== 'private' && <DeleteChatModal />}
+              activeRoom.type !== 'private' && (
+                <DropdownMenu
+                  position="left"
+                  options={chatMenuOptions}
+                  openButton={
+                    <Button
+                      style={{ padding: 8, maxHeight: '40px' }}
+                      EndIcon={<MoreIcon />}
+                      unstyled
+                    />
+                  }
+                />
+              )}
           </>
         }
       />
@@ -184,7 +227,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         </UserInfo>
         {activeRoom.role === 'moderator' && activeRoom.type === 'group' && (
           <>
-            <AddMembersModal />
+            {/* <AddMembersModal /> */}
             <SelectUsersModal />
           </>
         )}
@@ -250,6 +293,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                         flexDirection: 'column',
                         gap: '2px',
                         alignItems: 'start',
+                        justifyContent: 'center',
                       }}
                     >
                       <Label style={{ fontSize: '16px', fontWeight: 600 }}>
@@ -305,6 +349,10 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         isVisible={visible}
         setVisible={setVisible}
         chatJid={activeRoom.jid}
+      />
+      <DeleteChatModal
+        isModalOpen={isModalOpen}
+        setIsModalOpen={setIsModalOpen}
       />
     </ModalContainerFullScreen>
   );

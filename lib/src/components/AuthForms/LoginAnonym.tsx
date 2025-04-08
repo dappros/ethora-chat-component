@@ -1,17 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import styled from 'styled-components';
 import { MessageInput } from '../styled/StyledComponents';
 import Button from '../styled/Button';
-import { GoogleIcon } from '../../assets/icons';
 import { IConfig } from '../../types/types';
+import { useToast } from '../../context/ToastContext';
 
 interface LoginFormProps {
   config?: IConfig;
 }
 
 const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
+  const { showToast } = useToast();
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    showToast({
+      id: 'success',
+      title: 'Login Successful',
+      message: 'You are logged in anonymously!',
+      type: 'success',
+    });
     console.log('Form submitted');
   };
 
@@ -23,13 +31,11 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
         text={'Login anonymously'}
         style={{ width: '100%', height: '40px' }}
       />
-
       <Delimiter>Only could send text messages</Delimiter>
     </FormContainer>
   );
 };
 
-// Styled Components
 const FormContainer = styled.div`
   display: flex;
   flex-direction: column;

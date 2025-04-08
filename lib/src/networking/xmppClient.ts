@@ -89,6 +89,20 @@ export class XmppClient implements XmppClientInterface {
     }
   }
 
+  async disconnect() {
+    if (!this.client) return;
+
+    console.log('hehrhrehrhe');
+
+    try {
+      await this.client.stop();
+      this.client = null;
+      console.log('Client disconnected');
+    } catch (error) {
+      console.error('Error disconnecting client:', error);
+    }
+  }
+
   attachEventListeners() {
     this.client.on('disconnect', () => {
       console.log('Disconnected from server.');

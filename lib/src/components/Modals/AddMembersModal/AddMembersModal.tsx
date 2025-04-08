@@ -19,9 +19,11 @@ import {
 import { addRoomViaApi } from '../../../roomStore/roomsSlice';
 import { createRoomFromApi } from '../../../helpers/createRoomFromApi';
 import { useChatSettingState } from '../../../hooks/useChatSettingState';
+import { useToast } from '../../../context/ToastContext';
 
 const AddMembersModal: React.FC = () => {
   const { config } = useChatSettingState();
+  const { showToast } = useToast();
   const activeRoom = useSelector((state: RootState) => getActiveRoom(state));
 
   const dispatch = useDispatch();
@@ -56,8 +58,21 @@ const AddMembersModal: React.FC = () => {
           xmpp: client,
         })
       );
+
+      showToast({
+        id: Date.now().toString(),
+        title: 'Success',
+        message: `${userName} has been added to the room.`,
+        type: 'success',
+      });
     } catch (error) {
       console.error('Failed to add user:', error);
+      showToast({
+        id: Date.now().toString(),
+        title: 'Error',
+        message: 'Failed to add user.',
+        type: 'error',
+      });
     }
   };
 

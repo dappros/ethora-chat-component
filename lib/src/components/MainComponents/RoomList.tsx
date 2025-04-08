@@ -62,8 +62,10 @@ const RoomList: React.FC<RoomListProps> = ({
 
   const performClick = useCallback(
     (chat: IRoom) => {
-      onRoomClick?.(chat);
-      setOpen(false);
+      if (chat.jid !== activeRoomJID) {
+        onRoomClick?.(chat);
+        setOpen(false);
+      }
     },
     [onRoomClick]
   );

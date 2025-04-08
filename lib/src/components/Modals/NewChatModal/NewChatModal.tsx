@@ -7,7 +7,6 @@ import { useXmppClient } from '../../../context/xmppProvider';
 import {
   CloseButton,
   GroupContainer,
-  Label,
   ModalBackground,
   ModalContainer,
   ModalTitle,
@@ -17,7 +16,6 @@ import {
   addRoomViaApi,
   setCurrentRoom,
   updateRoom,
-  updateUsersSet,
 } from '../../../roomStore/roomsSlice';
 import InputWithLabel from '../../styled/StyledInput';
 import { uploadFile } from '../../../networking/api-requests/auth.api';
@@ -25,13 +23,13 @@ import { ProfileImagePlaceholder } from '../../MainComponents/ProfileImagePlaceh
 import { createRoomFromApi } from '../../../helpers/createRoomFromApi';
 import {
   getRoomByName,
-  getRooms,
   postRoom,
 } from '../../../networking/api-requests/rooms.api';
-import { ApiRoom } from '../../../types/types';
+import { ApiRoom, ChatAccessOption } from '../../../types/types';
 import Select from '../../MainComponents/Select';
 import { RoomMember } from '../../../types/types';
 import UsersList from '../../UsersList/UsersList';
+import { useToast } from '../../../context/ToastContext';
 
 const NewChatModal: React.FC = () => {
   const config = useSelector(
@@ -40,17 +38,25 @@ const NewChatModal: React.FC = () => {
 
   const dispatch = useDispatch();
   const { client } = useXmppClient();
-  const usersSet = useSelector((state: RootState) => state.rooms.usersSet);
+  const { showToast } = useToast();
 
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<'0' | '1' | null>('0');
+
   const [roomName, setRoomName] = useState<string>('');
   const [roomDescription, setRoomDescription] = useState<string>('');
-  const [chatType, setChatType] = useState<
-    { name: 'Public'; id: 'public' } | { name: 'Group'; id: 'group' }
-  >({ name: 'Public', id: 'public' });
+  const [chatType, setChatType] = useState<ChatAccessOption>({
+    name: 'Public',
+    id: 'public',
+  });
   const [profileImage, setProfileImage] = useState<string | File | null>(null);
   const [errors, setErrors] = useState({ name: '', description: '' });
   const [selectedUsers, setSelectedUsers] = useState<RoomMember[]>([]);
+
+  const options: ChatAccessOption[] = [
+    { name: 'Public', id: 'public' },
+    { name: 'Members-only', id: 'group' },
+  ];
 
   const isValid = useMemo(
     // () => roomName.length >= 3 && roomDescription.length >= 5,
@@ -94,6 +100,7 @@ const NewChatModal: React.FC = () => {
 
   const handleOpenModal = () => setIsModalOpen(true);
   const handleCloseModal = () => {
+    setActiveTab('0');
     setIsModalOpen(false);
     setRoomName('');
     setSelectedUsers([]);
@@ -191,6 +198,13 @@ const NewChatModal: React.FC = () => {
       setProfileImage(null);
       setRoomName('');
       setRoomDescription('');
+      showToast({
+        id: Date.now().toString(),
+        title: 'Success!',
+        message: 'Room created succusfully!',
+        type: 'success',
+        duration: 3000,
+      });
     }
   };
 
@@ -210,89 +224,121 @@ const NewChatModal: React.FC = () => {
 
       {isModalOpen && (
         <ModalBackground>
-          <ModalContainer>
-            <CloseButton onClick={handleCloseModal} style={{ fontSize: 24 }}>
-              &times;
-            </CloseButton>
-            <ModalTitle>Create New Chat</ModalTitle>
-            <ProfileImagePlaceholder
-              size={120}
-              upload={{ active: true, onUpload }}
-              remove={{ enabled: true, onRemoveClick }}
-              placeholderIcon={<AddPhotoIcon />}
-              icon={profileImage}
-              disableOverlay={!profileImage}
-              role="user"
-            />
-            <GroupContainer
-              style={{
-                flexDirection: 'column',
-                position: 'relative',
-                boxSizing: 'border-box',
-                width: '100%',
-              }}
-            >
-              <InputWithLabel
-                style={{ flex: 1 }}
-                id="roomName"
-                value={roomName}
-                onChange={handleRoomNameChange}
-                placeholder="Enter Room Name"
-                helperText={errors.name}
-                error={!!errors.name}
+          {activeTab === '0' && (
+            <ModalContainer>
+              <CloseButton onClick={handleCloseModal} style={{ fontSize: 24 }}>
+                &times;
+              </CloseButton>
+              <ModalTitle>Create New Chat</ModalTitle>
+              <ProfileImagePlaceholder
+                size={120}
+                upload={{ active: true, onUpload }}
+                remove={{ enabled: true, onRemoveClick }}
+                placeholderIcon={<AddPhotoIcon />}
+                icon={profileImage}
+                disableOverlay={!profileImage}
+                role="user"
               />
-              <InputWithLabel
-                style={{ flex: 1 }}
-                id="roomDescription"
-                value={roomDescription}
-                onChange={handleRoomDescriptionChange}
-                placeholder="Enter Description"
-                helperText={errors.description}
-                error={!!errors.description}
-              />
-              <Select
-                options={[
-                  { name: 'Public', id: 'public' },
-                  { name: 'Group', id: 'group' },
-                ]}
-                placeholder={'Select your language'}
-                onSelect={(type) =>
-                  setChatType(
-                    type as
-                      | { name: 'Public'; id: 'public' }
-                      | { name: 'Group'; id: 'group' }
-                  )
-                }
-                accentColor={config?.colors?.primary}
-                selectedValue={chatType}
-              />
-            </GroupContainer>
+              <GroupContainer
+                style={{
+                  flexDirection: 'column',
+                  position: 'relative',
+                  boxSizing: 'border-box',
+                  width: '100%',
+                }}
+              >
+                <InputWithLabel
+                  style={{ flex: 1 }}
+                  id="roomName"
+                  value={roomName}
+                  onChange={handleRoomNameChange}
+                  placeholder="Enter Room Name"
+                  helperText={errors.name}
+                  error={!!errors.name}
+                />
+                {/* {chatType.id === 'group' && (
+                <InputWithLabel
+                  style={{ flex: 1 }}
+                  id="roomDescription"
+                  value={roomDescription}
+                  onChange={handleRoomDescriptionChange}
+                  placeholder="Enter Description"
+                  helperText={errors.description}
+                  error={!!errors.description}
+                />
+              )} */}
+                <Select
+                  options={options}
+                  placeholder={'Select your language'}
+                  onSelect={(type: ChatAccessOption) => setChatType(type)}
+                  accentColor={config?.colors?.primary}
+                  selectedValue={chatType}
+                />
+              </GroupContainer>
 
-            <UsersList
-              selectedUsers={selectedUsers}
-              setSelectedUsers={setSelectedUsers}
-              style={{ minHeight: '100px' }}
-              headerElement={false}
-            />
-
-            <GroupContainer>
+              {chatType.id === 'group' && (
+                <Button
+                  onClick={() => setActiveTab('1')}
+                  style={{ width: '100%' }}
+                  variant="outlined"
+                  unstyled
+                >
+                  Add users
+                </Button>
+              )}
+              <GroupContainer>
+                <Button
+                  onClick={handleCloseModal}
+                  text={'Cancel'}
+                  style={{ width: '100%' }}
+                  unstyled
+                  variant="outlined"
+                />
+                <Button
+                  onClick={handleCreateRoom}
+                  text={'Create'}
+                  style={{ width: '100%' }}
+                  variant="filled"
+                  disabled={!isValid}
+                />
+              </GroupContainer>
+            </ModalContainer>
+          )}
+          {activeTab === '1' && (
+            <ModalContainer>
+              <CloseButton onClick={handleCloseModal} style={{ fontSize: 24 }}>
+                &times;
+              </CloseButton>
+              <ModalTitle>Select users to add to Chat</ModalTitle>
+              <GroupContainer
+                style={{
+                  flexDirection: 'column',
+                  position: 'relative',
+                  boxSizing: 'border-box',
+                  width: '100%',
+                }}
+              >
+                <UsersList
+                  selectedUsers={selectedUsers}
+                  setSelectedUsers={setSelectedUsers}
+                  style={{
+                    minHeight: '400px',
+                    minWidth: '100%',
+                    width: '100%',
+                  }}
+                  headerElement={false}
+                />
+              </GroupContainer>
               <Button
-                onClick={handleCloseModal}
-                text={'Cancel'}
+                onClick={() => setActiveTab('0')}
                 style={{ width: '100%' }}
-                unstyled
                 variant="outlined"
-              />
-              <Button
-                onClick={handleCreateRoom}
-                text={'Create'}
-                style={{ width: '100%' }}
                 unstyled
-                variant="filled"
-                disabled={!isValid}
-              />
-            </GroupContainer>
-          </ModalContainer>
+              >
+                Back to creation
+              </Button>
+            </ModalContainer>
+          )}
         </ModalBackground>
       )}
     </>
