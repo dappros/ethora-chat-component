@@ -475,7 +475,7 @@ export interface XmppClientInterface {
     reactionSymbol?: any
   ): void;
   getRoomsPagedStanza(maxResults: number, after: string | null): void;
-  disconnect(): void;
+  disconnect?(): void;
 }
 
 export type Iso639_1Codes = 'en' | 'es' | 'pt' | 'ht' | 'zh';

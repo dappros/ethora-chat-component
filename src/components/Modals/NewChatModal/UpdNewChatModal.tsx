@@ -35,7 +35,7 @@ const NewChatModal: React.FC = () => {
 
   const options: ChatAccessOption[] = [
     { name: 'Public', id: 'public' },
-    { name: 'Group', id: 'group' },
+    { name: 'Members-only', id: 'group' },
   ];
 
   const isValid = useMemo(() => roomName.length >= 3, [roomName]);
