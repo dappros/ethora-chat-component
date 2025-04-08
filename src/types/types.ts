@@ -475,6 +475,7 @@ export interface XmppClientInterface {
     reactionSymbol?: any
   ): void;
   getRoomsPagedStanza(maxResults: number, after: string | null): void;
+  disconnect(): void;
 }
 
 export type Iso639_1Codes = 'en' | 'es' | 'pt' | 'ht' | 'zh';
@@ -507,4 +508,4 @@ export interface LastMessage extends Omit<Partial<IMessage>, 'date'> {
 
 export type ChatAccessOption =
   | { name: 'Public'; id: 'public' }
-  | { name: 'Group'; id: 'group' };
+  | { name: 'Members-only'; id: 'group' };

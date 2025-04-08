@@ -54,6 +54,9 @@ export const ChatItem = styled.div<{ active: boolean; bg?: string }>`
   cursor: pointer;
   background-color: ${({ active, bg }) =>
     active ? (bg ? bg : '#0052CD') : '#fff'};
+  transition:
+    background-color 0.3s ease,
+    transform 0.3s ease;
 
   &:hover {
     background-color: ${({ active, bg }) =>
