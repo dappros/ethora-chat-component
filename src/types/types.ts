@@ -279,7 +279,7 @@ export interface IConfig {
     disableGetRooms?: boolean;
     singleRoom: boolean;
   };
-  enableTranslates?: boolean;
+  translates?: { enabled: boolean; translations?: Iso639_1Codes };
   disableRoomConfig?: boolean;
   disableProfilesInteractions?: boolean;
   disableUserCount?: boolean;

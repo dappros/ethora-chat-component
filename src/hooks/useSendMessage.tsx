@@ -40,7 +40,7 @@ export const useSendMessage = () => {
         dispatch(setEditAction({ isEdit: false }));
         return;
       } else {
-        if (config?.enableTranslates) {
+        if (config?.translates?.enabled) {
           if (!config?.disableSentLogic) {
             const id = `send-translate-message-${Date.now().toString()}`;
             dispatch(

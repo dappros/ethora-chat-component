@@ -5,6 +5,7 @@ import {
   setActiveModal,
   setConfig,
   setDeleteModal,
+  setLangSource,
 } from '../../roomStore/chatSettingsSlice';
 import { ChatWrapperBox } from '../styled/ChatWrapperBox';
 import { Overlay, StyledModal } from '../styled/MediaModal';
@@ -139,6 +140,9 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     }
 
     const initXmmpClient = async () => {
+      if (config?.translates?.enabled && !config?.translates?.translations) {
+        dispatch(setLangSource(config?.translates?.translations));
+      }
       dispatch(setConfig(config));
       try {
         if (!user.xmppUsername) {

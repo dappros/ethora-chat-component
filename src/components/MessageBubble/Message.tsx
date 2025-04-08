@@ -243,7 +243,7 @@ const Message: React.FC<MessageProps> = forwardRef<
             </CustomMessageText>
           )}
 
-          {!isUser && config?.enableTranslates && (
+          {!isUser && config?.translates?.enabled && (
             <MessageTranslations
               message={message}
               config={config}
