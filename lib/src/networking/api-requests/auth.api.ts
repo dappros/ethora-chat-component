@@ -7,9 +7,8 @@ import {
   User as FirebaseUser,
 } from 'firebase/auth';
 import { app } from '../../firebase-config';
-import { appToken } from '../../api.config';
 
-import http from '../apiClient';
+import http, { appToken } from '../apiClient';
 import { store } from '../../roomStore';
 
 // login functions
