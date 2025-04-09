@@ -108,21 +108,11 @@ const RoomList: React.FC<RoomListProps> = ({
           const aCompare = aLastId !== null ? aLastId : aCreated;
           const bCompare = bLastId !== null ? bLastId : bCreated;
 
-          // console.log(aLastId, bLastId, aCreated, bCreated);
-
           if (aCompare === null && bCompare === null) return 0;
           if (aCompare === null) return 1;
           if (bCompare === null) return -1;
 
           return bCompare - aCompare;
-          // if (aLastId && bLastId) {
-          //   return bLastId - aLastId;
-          // } else if (aLastId) {
-          //   return -1;
-          // } else if (bLastId) {
-          //   return 1;
-          // }
-          // return -1;
         });
 
       chatsMap.set(lowerCaseSearchTerm, result);

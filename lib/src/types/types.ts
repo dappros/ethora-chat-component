@@ -279,7 +279,7 @@ export interface IConfig {
     disableGetRooms?: boolean;
     singleRoom: boolean;
   };
-  enableTranslates?: boolean;
+  translates?: { enabled: boolean; translations?: Iso639_1Codes };
   disableRoomConfig?: boolean;
   disableProfilesInteractions?: boolean;
   disableUserCount?: boolean;
@@ -401,10 +401,11 @@ export interface XmppClientInterface {
   checkOnline(): boolean;
   initializeClient(): void;
   attachEventListeners(): void;
-  reconnect(): void;
+  reconnect(): Promise<void>;
   close(): Promise<void>;
+  ensureConnected(timeout?: number): Promise<void>;
 
-  getRoomsStanza(): Promise<void>;
+  getRoomsStanza(disableGetRooms?: boolean): Promise<void>;
   createRoomStanza(
     title: string,
     description: string,
@@ -440,14 +441,8 @@ export interface XmppClientInterface {
     notDisplayedValue?: string,
     isReply?: boolean,
     showInChannel?: boolean,
-    mainMessage?: string
-  ): void;
-  sendMessageReactionStanza(
-    messageId: string,
-    roomJid: string,
-    reactionsList: string[],
-    data: any,
-    reactionSymbol?: any
+    mainMessage?: string,
+    customId?: string
   ): void;
   deleteMessageStanza(room: string, msgId: string): void;
   editMessageStanza(room: string, msgId: string, text: string): void;
@@ -474,8 +469,20 @@ export interface XmppClientInterface {
     reactionsList: string[],
     reactionSymbol?: any
   ): void;
-  getRoomsPagedStanza(maxResults: number, after: string | null): void;
-  disconnect?(): void;
+  sendTextMessageWithTranslateTagStanza(
+    roomJID: string,
+    firstName: string,
+    lastName: string,
+    photo: string,
+    walletAddress: string,
+    userMessage: string,
+    notDisplayedValue?: string,
+    isReply?: boolean,
+    showInChannel?: boolean,
+    mainMessage?: string,
+    langSource?: Iso639_1Codes
+  ): void;
+  disconnect?(): Promise<void>;
 }
 
 export type Iso639_1Codes = 'en' | 'es' | 'pt' | 'ht' | 'zh';

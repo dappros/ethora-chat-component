@@ -6,9 +6,10 @@ import React, {
   useEffect,
 } from 'react';
 import XmppClient from '../networking/xmppClient';
-import { IConfig, xmppSettingsInterface } from '../types/types';
+import { IConfig, IRoom, xmppSettingsInterface } from '../types/types';
 import initXmppRooms from '../helpers/initXmppRooms';
 import { walletToUsername } from '../helpers/walletUsername';
+import { initRoomsPresence } from '../helpers/initRoomsPresence';
 // Declare XmppContext
 interface XmppContextType {
   client: XmppClient;
@@ -16,7 +17,8 @@ interface XmppContextType {
   initializeClient: (
     password: string,
     email: string,
-    xmppSettings?: xmppSettingsInterface
+    xmppSettings?: xmppSettingsInterface,
+    roomsList?: { [jid: string]: IRoom }
   ) => Promise<XmppClient>;
 }
 
@@ -39,7 +41,8 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
   const initializeClient = async (
     password: string,
     email: string,
-    xmppSettings?: xmppSettingsInterface
+    xmppSettings?: xmppSettingsInterface,
+    roomsList?: { [jid: string]: IRoom }
   ): Promise<XmppClient> => {
     if (client) {
       console.log('Returning existing client.');
@@ -68,6 +71,9 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
       setEmail(email);
       setClient(newClient);
       setReconnectAttempts(0);
+      {
+        roomsList && initRoomsPresence(client, roomsList);
+      }
       return newClient;
     } catch (error) {
       console.error('Error initializing client:', error);
@@ -124,9 +130,26 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
     return () => {};
   }, [config?.initBeforeLoad]);
 
+  useEffect(() => {
+    const handleLogout = () => {
+      if (client) {
+        console.log('XmppProvider: Disconnecting client due to logout event');
+        client.disconnect();
+        setClient(null);
+      }
+    };
+
+    window.addEventListener('ethora-xmpp-logout', handleLogout);
+
+    return () => {
+      window.removeEventListener('ethora-xmpp-logout', handleLogout);
+    };
+  }, [client]);
+
   return (
     <XmppContext.Provider
       value={{ client: client as XmppClient, initializeClient, setClient }}
+      data-xmpp-provider="true"
     >
       {children}
     </XmppContext.Provider>

@@ -1,5 +1,5 @@
 import React, { forwardRef, useCallback, useRef, useState } from 'react';
-import { IUser, MessageProps } from '../../types/types';
+import { IUser, MessageProps, ReactionMessage } from '../../types/types';
 import {
   CustomMessageTimestamp,
   CustomMessageContainer,
@@ -243,7 +243,7 @@ const Message: React.FC<MessageProps> = forwardRef<
             </CustomMessageText>
           )}
 
-          {!isUser && config?.enableTranslates && (
+          {!isUser && config?.translates?.enabled && (
             <MessageTranslations
               message={message}
               config={config}

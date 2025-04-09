@@ -80,7 +80,9 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
               <Button
                 text="Copy"
                 onClick={() =>
-                  handleCopyClick(`${config?.qrUrl || QRCODE_URL}${chatJid}`)
+                  handleCopyClick(
+                    `${config?.qrUrl || QRCODE_URL}${chatJid.split('@')[0]}`
+                  )
                 }
               />
             </div>

@@ -4,7 +4,7 @@ import { ReduxWrapper } from './components/MainComponents/ReduxWrapper';
 import { XmppProvider } from './context/xmppProvider';
 import { useUnreadMessagesCounter } from './hooks/useUnreadMessagesCounter';
 import { IConfig } from './types/types';
-import { logoutService } from './main';
+import { logoutService, handleQRChatId } from './main';
 
 const Apps = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -46,6 +46,11 @@ const ChatComponent = React.memo(() => {
     []
   );
 
+  useEffect(() => {
+    handleQRChatId();
+    return () => {};
+  }, [window.location.pathname]);
+
   return (
     <div style={{ height: 'calc(100vh - 20px)', overflow: 'hidden' }}>
       <ReduxWrapper
@@ -58,7 +63,7 @@ const ChatComponent = React.memo(() => {
           baseUrl: 'https://dev.api.ethoradev.com/v1',
           newArch: true,
           setRoomJidInPath: true,
-          qrUrl: 'https://ethora.dev.frontend.ethoradev.com/app/chat/?chatId=',
+          qrUrl: 'https://ethora.dev.frontend.ethoradev.com/app/chat?qrChatId=',
           ...config,
         }}
         MainComponentStyles={mainStyles}

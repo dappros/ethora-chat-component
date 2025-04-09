@@ -9,9 +9,6 @@ export const useChatSettingState = () => {
   const activeModal = useSelector(
     (state: RootState) => state.chatSettingStore.activeModal
   );
-  const client = useSelector(
-    (state: RootState) => state.chatSettingStore.client
-  );
   const config = useSelector(
     (state: RootState) => state.chatSettingStore.config
   );
@@ -29,7 +26,6 @@ export const useChatSettingState = () => {
     user,
     activeFile,
     activeModal,
-    client,
     config,
     deleteModal,
     selectedUser,
