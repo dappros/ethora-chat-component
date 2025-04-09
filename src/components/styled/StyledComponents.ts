@@ -160,7 +160,8 @@ export const CustomMessageContainer = styled.div<{
   margin: 10px 0;
   gap: 5px;
   position: relative;
-  margin-bottom: ${(props) => (!!props.reply || !!props.reaction) && '40px'};
+  margin-bottom: ${(props) =>
+    !!props.reply || !!props.reaction ? '40px' : '10px'};
 `;
 
 export const CustomMessageBubble = styled.div<{

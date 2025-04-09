@@ -35,6 +35,7 @@ import { StyledLoaderWrapper } from '../styled/StyledComponents';
 import Loader from '../styled/Loader';
 import { ModalReportChat } from '../Modals/ModalReportChat/ModalReportChat.tsx';
 import useGetNewArchRoom from '../../hooks/useGetNewArchRoom.tsx';
+import { useQRCodeChat } from '../../hooks/useQRCodeChatHandler';
 
 interface ChatWrapperProps {
   token?: string;
@@ -61,6 +62,15 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
   const [isChatVisible, setIsChatVisible] = useState(false);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
+
+  const conferenceServer = config?.xmppSettings?.conference;
+
+  const dispatch = useDispatch();
+  const { wasAutoSelected } = useQRCodeChat(
+    (params) => dispatch(setCurrentRoom(params)),
+    conferenceServer
+  );
+
   useEffect(() => {
     const handleResize = () => {
       setIsSmallScreen(window.innerWidth < 768);
@@ -76,12 +86,12 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     setIsChatVisible(value);
   };
 
-  const dispatch = useDispatch();
   const { client, initializeClient, setClient } = useXmppClient();
 
   const { rooms, activeRoomJID, reportRoom } = useSelector(
     (state: RootState) => state.rooms
   );
+  const { roomsList, loading, globalLoading } = useRoomState();
 
   const activeMessage = useMemo(() => {
     if (activeRoomJID) {
@@ -120,23 +130,23 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   }, [user.xmppPassword]);
 
   useEffect(() => {
-    const paramsObj = Object.fromEntries(
-      new URLSearchParams(window.location.search)
-    );
-    const chatId = paramsObj?.chatId;
-
-    if (chatId) {
-      dispatch(
-        setCurrentRoom({
-          roomJID: `${chatId}@${config?.xmppSettings?.conference}`,
-        })
-      );
-    }
-  }, []);
-
-  useEffect(() => {
     if (roomJID) {
-      dispatch(setCurrentRoom({ roomJID: roomJID }));
+      dispatch(setCurrentRoom({ roomJID }));
+    }
+
+    if (!wasAutoSelected) {
+      const paramsObj = Object.fromEntries(
+        new URLSearchParams(window.location.search)
+      );
+      const chatId = paramsObj?.chatId;
+
+      if (chatId) {
+        dispatch(
+          setCurrentRoom({
+            roomJID: `${chatId}@${config?.xmppSettings?.conference}`,
+          })
+        );
+      }
     }
 
     const initXmmpClient = async () => {
@@ -156,7 +166,8 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             const newClient = await initializeClient(
               user.xmppUsername || user?.defaultWallet?.walletAddress,
               user?.xmppPassword,
-              config?.xmppSettings
+              config?.xmppSettings,
+              roomsList
             ).then((client) => {
               return client;
             });
@@ -253,14 +264,12 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     };
   }, [client, room?.jid]);
 
-  const { roomsList, loading, globalLoading } = useRoomState();
-
   const queueMessageLoader = useCallback(
     async (chatJID: string, max: number) => {
       try {
         return client?.getHistoryStanza(chatJID, max);
       } catch (error) {
-        console.log('Error in loading queue messages');
+        console.log('Error in loading queue messages', error);
       }
     },
     [globalLoading, loading]

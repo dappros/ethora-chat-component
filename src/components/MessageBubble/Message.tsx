@@ -1,5 +1,5 @@
 import React, { forwardRef, useCallback, useRef, useState } from 'react';
-import { IUser, MessageProps } from '../../types/types';
+import { IUser, MessageProps, ReactionMessage } from '../../types/types';
 import {
   CustomMessageTimestamp,
   CustomMessageContainer,

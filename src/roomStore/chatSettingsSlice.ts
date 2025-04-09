@@ -20,7 +20,6 @@ interface ChatState {
   deleteModal?: DeleteModal;
   selectedUser?: IUser;
   activeFile?: ModalFile;
-  client?: XmppClient;
   langSource?: Iso639_1Codes;
 }
 
@@ -120,7 +119,6 @@ export const chatSlice = createSlice({
       }
     },
     setConfig: (state, action: PayloadAction<IConfig | undefined>) => {
-      console.log('setting ', action.payload);
       state.config = action.payload;
     },
     setActiveModal: (state, action: PayloadAction<ModalType | undefined>) => {
@@ -131,9 +129,6 @@ export const chatSlice = createSlice({
     },
     setDeleteModal: (state, action: PayloadAction<DeleteModal | undefined>) => {
       state.deleteModal = action.payload;
-    },
-    setStoreClient: (state, action: PayloadAction<XmppClient>) => {
-      state.client = action.payload;
     },
     setSelectedUser: (state, action: PayloadAction<IUser | undefined>) => {
       state.selectedUser = action.payload;
@@ -148,7 +143,6 @@ export const chatSlice = createSlice({
       state,
       action: PayloadAction<{ token: string; refreshToken: string }>
     ) => {
-      console.log('changing tokens');
       state.user.refreshToken = action.payload.refreshToken;
       state.user.token = action.payload.token;
 
@@ -160,7 +154,6 @@ export const chatSlice = createSlice({
     logout: (state) => {
       state.user = unpackAndTransform();
       state.config = undefined;
-      state.client = undefined;
 
       localStorage.removeItem(localStorageConstants.ETHORA_USER);
     },
@@ -177,7 +170,6 @@ export const {
   setSelectedUser,
   updateUser,
   setActiveFile,
-  setStoreClient,
   setLangSource,
 } = chatSlice.actions;
 

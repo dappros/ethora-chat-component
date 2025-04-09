@@ -103,10 +103,14 @@ export const roomsStore = createSlice({
               }
 
               const fromId = from.split('@')[0];
-              message.reaction[fromId] = {
-                emoji: reactions,
-                data: data,
-              };
+              if (reactions.length === 0) {
+                delete message.reaction[fromId];
+              } else {
+                message.reaction[fromId] = {
+                  emoji: reactions,
+                  data: data,
+                };
+              }
             }
           }
         });
@@ -148,6 +152,13 @@ export const roomsStore = createSlice({
       if (!message?.body) return;
 
       const roomMessages = state.rooms[roomJID]?.messages;
+
+      const roomsExist =
+        Object.keys(JSON.parse(JSON.stringify(state.rooms))).length > 0;
+
+      if (!roomsExist) {
+        return;
+      }
 
       if (!roomMessages) {
         state.rooms[roomJID].messages = [];
@@ -299,9 +310,7 @@ export const roomsStore = createSlice({
 
       if (!isRoomAlreadyAdded) {
         state.rooms[room.jid] = room;
-        if (!state.rooms.activeRoomJID) {
-          state.activeRoomJID = room.jid;
-        }
+
         if (room.jid) {
           xmpp.presenceInRoomStanza(room.jid);
         }
