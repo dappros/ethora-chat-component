@@ -3,7 +3,7 @@ import {
   onDeleteMessage,
   onEditMessage,
   onRealtimeMessage,
-  onMessageHistory,
+  // onMessageHistory,
   onGetLastMessageArchive,
   handleComposing,
   onChatInvite,
@@ -27,7 +27,7 @@ export function handleStanza(stanza: Element, xmppWs: XmppClient) {
       onDeleteMessage(stanza);
       onEditMessage(stanza);
       onRealtimeMessage(stanza);
-      onMessageHistory(stanza);
+      // onMessageHistory(stanza);
       handleComposing(stanza, xmppWs.username);
       onChatInvite(stanza, xmppWs);
       onReactionMessage(stanza);

@@ -182,33 +182,33 @@ const onReactionHistory = async (stanza: any) => {
   }
 };
 
-const onMessageHistory = async (stanza: any) => {
-  if (
-    stanza.is('message') &&
-    stanza.children[0].attrs.xmlns === 'urn:xmpp:mam:2'
-  ) {
-    const { data, id, body, ...rest } = await getDataFromXml(stanza);
+// const onMessageHistory = async (stanza: any) => {
+//   if (
+//     stanza.is('message') &&
+//     stanza.children[0].attrs.xmlns === 'urn:xmpp:mam:2'
+//   ) {
+//     const { data, id, body, ...rest } = await getDataFromXml(stanza);
 
-    if (!data) {
-      console.log('No data in stanza');
-      return;
-    }
+//     if (!data) {
+//       console.log('No data in stanza');
+//       return;
+//     }
 
-    const message = await createMessageFromXml({
-      data,
-      id,
-      body,
-      ...rest,
-    });
+//     const message = await createMessageFromXml({
+//       data,
+//       id,
+//       body,
+//       ...rest,
+//     });
 
-    store.dispatch(
-      addRoomMessage({
-        roomJID: stanza.attrs.from,
-        message,
-      })
-    );
-  }
-};
+//     store.dispatch(
+//       addRoomMessage({
+//         roomJID: stanza.attrs.from,
+//         message,
+//       })
+//     );
+//   }
+// };
 
 const handleComposing = async (stanza: Element, currentUser: string) => {
   if (stanza.getChild('paused') || stanza.getChild('composing')) {
@@ -412,7 +412,7 @@ const onRoomKicked = async (stanza: Element) => {
 };
 export {
   onRealtimeMessage,
-  onMessageHistory,
+  // onMessageHistory,
   onPresenceInRoom,
   onReactionHistory,
   onGetLastMessageArchive,

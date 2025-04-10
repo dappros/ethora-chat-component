@@ -27,6 +27,8 @@ import { createPrivateRoom } from './xmpp/createPrivateRoom.xmpp';
 import { sendMessageReaction } from './xmpp/sendMessageReaction.xmpp';
 import { sendTextMessageWithTranslateTag } from './xmpp/sendTextMessageWithTranslateTag.xmpp';
 import { getRoomsPaged } from './xmpp/getRoomsPaged.xmpp';
+import { store } from '../roomStore';
+import { setRoomMessages } from '../roomStore/roomsSlice';
 
 export class XmppClient implements XmppClientInterface {
   client!: Client;
@@ -278,7 +280,18 @@ export class XmppClient implements XmppClientInterface {
     otherStanzaId?: string
   ) => {
     return this.wrapWithConnectionCheck(async () => {
-      return await getHistory(this.client, chatJID, max, before, otherStanzaId);
+      const response = await getHistory(this.client, chatJID, max, before, otherStanzaId);
+
+      console.log('response getHistoryStanza', response);
+
+      store.dispatch(
+        setRoomMessages({
+          roomJID: chatJID,
+          messages: response,
+        })
+      );
+
+      return response;
     });
   };
 

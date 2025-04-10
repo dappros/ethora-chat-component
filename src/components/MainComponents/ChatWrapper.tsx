@@ -267,7 +267,10 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   const queueMessageLoader = useCallback(
     async (chatJID: string, max: number) => {
       try {
-        return client?.getHistoryStanza(chatJID, max);
+        const response = await client?.getHistoryStanza(chatJID, max);
+        console.log('response queueMessageLoader', response);
+        
+        return response;
       } catch (error) {
         console.log('Error in loading queue messages', error);
       }
