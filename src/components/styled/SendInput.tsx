@@ -19,6 +19,7 @@ import AudioRecorder from '../InputComponents/AudioRecorder';
 import { IConfig } from '../../types/types';
 import Button from './Button';
 import { AttachIcon, FileIcon, RemoveIcon, SendIcon } from '../../assets/icons';
+import { useToast } from '../../context/ToastContext';
 
 interface SendInputProps {
   sendMessage: (message: string) => void;
@@ -39,10 +40,14 @@ const SendInput: React.FC<SendInputProps> = ({
   editMessage,
   isLoading,
 }) => {
+  const { showToast } = useToast();
+  
   const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
 
   const [filePreviews, setFilePreviews] = useState<File[]>([]);
+  const [isLimitSize, setIsLimitSize] = useState<boolean>(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -54,24 +59,33 @@ const SendInput: React.FC<SendInputProps> = ({
 
   const handleFileChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      const files = event.target.files;
-      if (files) {
-        const newFiles = Array.from(files);
-        setFilePreviews((prevFiles) => {
-          const fileSet = new Set(prevFiles.map((file) => file.name));
+        if (event.target.files && event.target.files.length > 0) {
+          const file = event.target.files[0]; 
+          setSelectedFile(file);
+        } else {
+          setSelectedFile(null);
+        }
 
-          const uniqueNewFiles = newFiles.filter(
-            (newFile) => !fileSet.has(newFile.name)
-          );
-          let combinedFiles = [...prevFiles, ...uniqueNewFiles];
+        event.target.value = ''; 
 
-          if (combinedFiles.length > 5) {
-            combinedFiles = combinedFiles?.slice(0, 5);
-          }
+      // const files = event.target.files;
+      // if (files) {
+      //   const newFiles = Array.from(files);
+      //   setFilePreviews((prevFiles) => {
+      //     const fileSet = new Set(prevFiles.map((file) => file.name));
 
-          return combinedFiles;
-        });
-      }
+      //     const uniqueNewFiles = newFiles.filter(
+      //       (newFile) => !fileSet.has(newFile.name)
+      //     );
+      //     let combinedFiles = [...prevFiles, ...uniqueNewFiles];
+
+      //     if (combinedFiles.length > 5) {
+      //       combinedFiles = combinedFiles?.slice(0, 5);
+      //     }
+
+      //     return combinedFiles;
+      //   });
+      // }
 
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -89,7 +103,8 @@ const SendInput: React.FC<SendInputProps> = ({
   };
 
   const handleRemoveFile = useCallback((file: File) => {
-    setFilePreviews((prevFiles) => prevFiles.filter((f) => f !== file));
+    setSelectedFile(null);
+    // setFilePreviews((prevFiles) => prevFiles.filter((f) => f !== file));
   }, []);
 
   const handleInputChange = useCallback(
@@ -103,12 +118,40 @@ const SendInput: React.FC<SendInputProps> = ({
     setMessage(editMessage);
   }, [editMessage]);
 
+  useEffect(() => {
+    if (!selectedFile) {
+      return; 
+    }
+
+    const MAX_TOTAL_SIZE_BYTES = 100 * 1024 * 1024;
+
+    // const totalSize = filePreviews.reduce((sum, file) => {
+    //   return sum + (file?.size || 0); 
+    // }, 0);
+
+    const totalSize = selectedFile?.size;
+
+    if (totalSize > MAX_TOTAL_SIZE_BYTES) {
+      setIsLimitSize(true);
+      const totalSizeMB = (totalSize / (1024 * 1024)).toFixed(2);
+      showToast({
+        message: `Note: The total file size (${totalSizeMB} MB) exceeds the 100 MB limit.`,
+        title: 'Error',
+        type: 'error',
+        id: 'file-size-error',
+        duration: 3000,
+      });
+    } else {
+      setIsLimitSize(false);
+    }
+  }, [selectedFile]);
+
   const handleSendClick = useCallback(
     (audioUrl?: string) => {
-      if (filePreviews.length > 0) {
-        console.log(filePreviews);
-        console.log('Files sent:', filePreviews[0]);
-        sendMedia(filePreviews[0], 'media');
+      if (selectedFile) {
+        console.log(selectedFile);
+        console.log('Files sent:', selectedFile);
+        sendMedia(selectedFile, 'media');
         setIsRecording(false);
       } else if (audioUrl) {
         sendMedia(audioUrl, 'audio');
@@ -120,15 +163,15 @@ const SendInput: React.FC<SendInputProps> = ({
         sendMessage(message);
       }
       setMessage('');
-      setFilePreviews([]);
+      setSelectedFile(null);
     },
-    [filePreviews, message, sendMessage, sendMedia]
+    [selectedFile, message, sendMessage, sendMedia]
   );
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
       if (event.key === 'Enter') {
-        if (filePreviews.length > 0 || message) {
+        if (selectedFile || message) {
           handleSendClick();
         }
       }
@@ -150,27 +193,55 @@ const SendInput: React.FC<SendInputProps> = ({
   }, []);
 
   const memoizedFilePreviews = useMemo(() => {
-    return filePreviews.map(
-      (file: any, idx: number) =>
-        idx < 1 && (
-          <FilePreview key={file.name}>
-            {renderFilePreview(file)}
-            <Button
-              style={{
-                position: 'absolute',
-                backgroundColor: 'transparent',
-                top: 4,
-                right: 4,
-                height: 16,
-                width: 16,
-              }}
-              onClick={() => handleRemoveFile(file)}
-              EndIcon={<RemoveIcon style={{ height: 16, width: 16 }} />}
-            />
-          </FilePreview>
-        )
+    if(selectedFile === null) return null;
+
+    return (
+      <FilePreview>
+        {renderFilePreview(selectedFile)}
+        <Button
+          style={{
+            position: 'absolute',
+            backgroundColor: 'transparent',
+            top: 4,
+            right: 4,
+            height: 16,
+            width: 16,
+          }}
+          onClick={() => {
+            handleRemoveFile(selectedFile)
+            setIsLimitSize(false);
+          }}
+          EndIcon={<RemoveIcon style={{ height: 16, width: 16 }} />}
+        />
+      </FilePreview>
     );
-  }, [filePreviews, renderFilePreview, handleRemoveFile]);
+  }, [selectedFile, renderFilePreview, handleRemoveFile]);
+
+  // const memoizedFilePreviews = useMemo(() => {
+  //   return filePreviews.map(
+  //     (file: any, idx: number) =>
+  //       idx < 1 && (
+  //         <FilePreview key={file.name}>
+  //           {renderFilePreview(file)}
+  //           <Button
+  //             style={{
+  //               position: 'absolute',
+  //               backgroundColor: 'transparent',
+  //               top: 4,
+  //               right: 4,
+  //               height: 16,
+  //               width: 16,
+  //             }}
+  //             onClick={() => {
+  //               handleRemoveFile(file)
+  //               setIsLimitSize(false);
+  //             }}
+  //             EndIcon={<RemoveIcon style={{ height: 16, width: 16 }} />}
+  //           />
+  //         </FilePreview>
+  //       )
+  //   );
+  // }, [filePreviews, renderFilePreview, handleRemoveFile]);
 
   return (
     <InputContainer>
@@ -196,14 +267,14 @@ const SendInput: React.FC<SendInputProps> = ({
             />
           </>
         )}
-        {message || filePreviews.length > 0 || config?.disableMedia ? (
+        {message || selectedFile || config?.disableMedia ? (
           <Button
             onClick={() => handleSendClick()}
-            // disabled={!message || message === ""}
+            disabled={isLimitSize}
             EndIcon={
               <SendIcon
                 color={
-                  filePreviews.length > 0
+                  selectedFile
                     ? '#fff'
                     : !message || message === ''
                       ? '#D4D4D8'
@@ -214,7 +285,7 @@ const SendInput: React.FC<SendInputProps> = ({
             style={{
               borderRadius: '100px',
               backgroundColor:
-                filePreviews.length > 0
+                selectedFile
                   ? config?.colors?.primary
                   : !message || message === ''
                     ? 'transparent'
@@ -235,7 +306,7 @@ const SendInput: React.FC<SendInputProps> = ({
         type="file"
         onChange={handleFileChange}
       />
-      {filePreviews.length > 0 && (
+      {selectedFile && (
         <FilePreviewContainer>{memoizedFilePreviews}</FilePreviewContainer>
       )}
     </InputContainer>

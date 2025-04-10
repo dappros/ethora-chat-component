@@ -65,9 +65,11 @@ export const RecordContainer = styled.div`
 export const FilePreviewContainer = styled.div`
   display: flex;
   flex-direction: row;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
   gap: 10px;
   margin-top: 10px;
+  padding-bottom: 5px; 
 `;
 
 export const FilePreview = styled.div`
