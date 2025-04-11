@@ -248,6 +248,7 @@ export interface IConfig {
     loginFunction: any; //() => Promise<User>
   };
   baseUrl?: string;
+  customAppToken?: string;
   xmppSettings?: xmppSettingsInterface;
   disableRooms?: boolean;
   defaultLogin?: boolean;

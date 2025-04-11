@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { store } from '../roomStore';
+import { appToken as betaAppToken } from '../api.config';
 
 import { logout, refreshTokens } from '../roomStore/chatSettingsSlice';
 
@@ -11,10 +12,15 @@ const http = axios.create({
   baseURL,
 });
 
-export function setBaseURL(newBaseURL: string | undefined) {
+let appToken = betaAppToken;
+
+export function setBaseURL(newBaseURL?: string, customAppToken?: string) {
   if (newBaseURL) {
     baseURL = newBaseURL;
     http.defaults.baseURL = newBaseURL;
+  }
+  if (customAppToken) {
+    appToken = customAppToken;
   }
 }
 
@@ -140,3 +146,4 @@ http.interceptors.response.use(
 );
 
 export default http;
+export { appToken };
