@@ -77,16 +77,13 @@ export const useRoomInitialization = (
       );
       if (roomsList && !allExist) {
         config?.defaultRooms.map(async (room) => {
-          console.log('3');
-
           client.presenceInRoomStanza(room.jid);
-          if (config?.newArch) {
-            syncRooms(client, config);
-          } else {
-            await client.getRoomsStanza();
-          }
-          getDefaultHistory();
         });
+        if (config?.newArch) {
+          // syncRooms(client, config);
+        } else {
+          client.getRoomsStanza();
+        }
       }
     }
   }, [activeRoomJID, Object.keys(roomsList).length]);

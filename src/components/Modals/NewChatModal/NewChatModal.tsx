@@ -30,6 +30,7 @@ import Select from '../../MainComponents/Select';
 import { RoomMember } from '../../../types/types';
 import UsersList from '../../UsersList/UsersList';
 import { useToast } from '../../../context/ToastContext';
+import Loader from '../../styled/Loader';
 
 const NewChatModal: React.FC = () => {
   const config = useSelector(
@@ -41,6 +42,7 @@ const NewChatModal: React.FC = () => {
   const { showToast } = useToast();
 
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'0' | '1' | null>('0');
 
   const [roomName, setRoomName] = useState<string>('');
@@ -148,6 +150,7 @@ const NewChatModal: React.FC = () => {
   };
 
   const handleCreateRoom = async () => {
+    setLoading(true);
     if (isValid) {
       let mediaData: FormData | null = new FormData();
       mediaData.append('files', profileImage);
@@ -198,6 +201,7 @@ const NewChatModal: React.FC = () => {
       setProfileImage(null);
       setRoomName('');
       setRoomDescription('');
+      setLoading(false);
       showToast({
         id: Date.now().toString(),
         title: 'Success!',
@@ -296,16 +300,17 @@ const NewChatModal: React.FC = () => {
                 />
                 <Button
                   onClick={handleCreateRoom}
-                  text={'Create'}
+                  text={!loading ? 'Create' : undefined}
                   style={{ width: '100%' }}
                   variant="filled"
-                  disabled={!isValid}
+                  disabled={!isValid || loading}
+                  EndIcon={loading ? <Loader size={16} /> : undefined}
                 />
               </GroupContainer>
             </ModalContainer>
           )}
           {activeTab === '1' && (
-            <ModalContainer>
+            <ModalContainer style={{ minHeight: '500px' }}>
               <CloseButton onClick={handleCloseModal} style={{ fontSize: 24 }}>
                 &times;
               </CloseButton>
@@ -316,15 +321,16 @@ const NewChatModal: React.FC = () => {
                   position: 'relative',
                   boxSizing: 'border-box',
                   width: '100%',
+                  minHeight: '400px',
                 }}
               >
                 <UsersList
                   selectedUsers={selectedUsers}
                   setSelectedUsers={setSelectedUsers}
                   style={{
-                    minHeight: '400px',
                     minWidth: '100%',
                     width: '100%',
+                    maxHeight: '340px',
                   }}
                   headerElement={false}
                 />
