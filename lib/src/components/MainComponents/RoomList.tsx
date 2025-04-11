@@ -77,10 +77,12 @@ const RoomList: React.FC<RoomListProps> = ({
     []
   );
 
-  const getLastMessage = useCallback(
-    (chat: IRoom) => chat?.messages?.[chat?.messages.length - 1],
-    []
-  );
+  const getLastMessageId = useCallback((chat: IRoom) => {
+    const rawId = chat?.messages?.[chat?.messages.length - 1]?.id ?? '';
+    const numericId = rawId.replace(/\D+/g, '');
+    const paddedId = numericId.padEnd(16, '0');
+    return paddedId;
+  }, []);
 
   const filteredChats = useMemo(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
@@ -92,11 +94,11 @@ const RoomList: React.FC<RoomListProps> = ({
           chat.name?.toLowerCase().includes(lowerCaseSearchTerm)
         )
         .sort((a, b) => {
-          const aLastId = getLastMessage(a)?.id
-            ? Number(getLastMessage(a).id)
+          const aLastId = getLastMessageId(a)
+            ? Number(getLastMessageId(a))
             : null;
-          const bLastId = getLastMessage(b)?.id
-            ? Number(getLastMessage(b).id)
+          const bLastId = getLastMessageId(b)
+            ? Number(getLastMessageId(b))
             : null;
           const aCreated = a.createdAt
             ? new Date(a.createdAt).getTime() * 1000
