@@ -43,7 +43,6 @@ export function refresh(): Promise<{
               refreshToken: response.data.refreshToken,
             })
           );
-          resolve(response);
         })
         .catch((error) => {
           reject(error);
@@ -51,7 +50,6 @@ export function refresh(): Promise<{
     } catch (error) {
       console.log('errr');
       store.dispatch(logout());
-      reject(error);
     }
   });
 }
@@ -80,65 +78,52 @@ const processQueue = (newAccessToken: string) => {
 http.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config;
-
-    if (!error.response || error.response.status !== 401) {
-      return Promise.reject(error);
-    }
-
-    if (
-      originalRequest.url === '/users/login/refresh' ||
-      originalRequest.url === '/users/login'
-    ) {
-      store.dispatch(logout());
-      return Promise.reject(error);
-    }
-
-    if (originalRequest._retry) {
-      return Promise.reject(error);
-    }
-
-    originalRequest._retry = true;
-
-    if (
-      store.getState().chatSettingStore?.config?.refreshTokens?.enabled &&
-      store.getState().chatSettingStore?.config?.refreshTokens?.refreshFunction
-    ) {
-      try {
+    if (!store.getState().chatSettingStore?.config?.refreshTokens?.enabled) {
+      if (
+        store.getState().chatSettingStore?.config?.refreshTokens
+          ?.refreshFunction
+      ) {
         const { refreshToken, accessToken } = store
           .getState()
           .chatSettingStore?.config?.refreshTokens?.refreshFunction();
-
         store.dispatch(
           refreshTokens({
             token: accessToken,
             refreshToken: refreshToken,
           })
         );
-
-        originalRequest.headers['Authorization'] = accessToken;
-        return http(originalRequest);
-      } catch (refreshError) {
-        store.dispatch(logout());
-        return Promise.reject(refreshError);
-      }
-    } else {
-      if (isRefreshing) {
-        return addRequestToQueue(originalRequest);
+        return;
       } else {
-        isRefreshing = true;
+        const originalRequest = error.config;
 
-        try {
-          const tokens = await refresh();
-          isRefreshing = false;
-          originalRequest.headers['Authorization'] = tokens.data.token;
-          processQueue(tokens.data.token);
-          return http(originalRequest);
-        } catch (refreshError) {
-          isRefreshing = false;
-          failedQueue = [];
-          store.dispatch(logout());
-          return Promise.reject(refreshError);
+        if (!error.response || error.response.status !== 401) {
+          throw error;
+        }
+        if (
+          originalRequest.url === '/users/login/refresh' ||
+          originalRequest.url === '/users/login'
+        ) {
+          return Promise.reject(error);
+        }
+
+        originalRequest._retry = true;
+
+        if (isRefreshing) {
+          const retryOriginalRequest = addRequestToQueue(originalRequest);
+
+          return retryOriginalRequest;
+        } else {
+          isRefreshing = true;
+          try {
+            const tokens = await refresh();
+            isRefreshing = false;
+            originalRequest.headers['Authorization'] = tokens.data.token;
+            processQueue(tokens.data.token);
+            return http(originalRequest);
+          } catch (error) {
+            isRefreshing = false;
+            return error;
+          }
         }
       }
     }
