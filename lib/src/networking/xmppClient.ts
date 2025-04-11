@@ -27,6 +27,7 @@ import { createPrivateRoom } from './xmpp/createPrivateRoom.xmpp';
 import { sendMessageReaction } from './xmpp/sendMessageReaction.xmpp';
 import { sendTextMessageWithTranslateTag } from './xmpp/sendTextMessageWithTranslateTag.xmpp';
 import { getRoomsPaged } from './xmpp/getRoomsPaged.xmpp';
+import { allRoomPresences } from './xmpp/allRoomPresences.xmpp';
 
 export class XmppClient implements XmppClientInterface {
   client!: Client;
@@ -142,6 +143,7 @@ export class XmppClient implements XmppClientInterface {
         await this.client.stop();
       }
       this.initializeClient();
+      this.allRoomPresencesStanza();
 
       await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => {
@@ -172,6 +174,10 @@ export class XmppClient implements XmppClientInterface {
 
       throw error;
     }
+  }
+
+  allRoomPresencesStanza() {
+    allRoomPresences(this.client);
   }
 
   async ensureConnected(timeout: number = 10000): Promise<void> {
