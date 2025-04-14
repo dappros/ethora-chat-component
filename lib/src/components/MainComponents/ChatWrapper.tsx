@@ -131,8 +131,11 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     };
   }, [user.xmppPassword]);
 
-  const loadRooms = async (client: XmppClient) => {
-    setRoomsLoading(true);
+  const loadRooms = async (
+    client: XmppClient,
+    disableLoad: boolean = false
+  ) => {
+    disableLoad && setRoomsLoading(true);
     await syncRooms(client, config);
     setRoomsLoading(false);
   };
@@ -185,7 +188,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
               await initRoomsPresence(newClient, roomsList);
             } else {
               if (config?.newArch) {
-                loadRooms(newClient);
+                await loadRooms(newClient);
                 setInited(true);
               } else {
                 await newClient.getRoomsStanza();
@@ -211,7 +214,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             }
           } else {
             if (config?.newArch) {
-              loadRooms(client);
+              await loadRooms(client, true);
             }
             setInited(true);
             await client

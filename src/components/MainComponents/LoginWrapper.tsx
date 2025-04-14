@@ -48,7 +48,6 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    console.log('here');
     if (props.config?.baseUrl) {
       setBaseURL(props.config?.baseUrl, props.config?.customAppToken);
     }
