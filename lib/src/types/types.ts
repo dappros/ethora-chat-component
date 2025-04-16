@@ -219,20 +219,30 @@ export interface XmppState {
   loading: boolean;
 }
 
+export interface FBConfig {
+  apiKey: string;
+  authDomain: string;
+  projectId: string;
+  storageBucket: string;
+  messagingSenderId: string;
+  appId: string;
+}
+
+export interface MessageBubble {
+  backgroundMessageUser?: string;
+  backgroundMessage?: string;
+  colorUser?: string;
+  color?: string;
+  borderRadius?: number;
+}
+
 export interface IConfig {
   disableHeader?: boolean;
   disableMedia?: boolean;
   colors?: { primary: string; secondary: string };
   googleLogin?: {
     enabled: boolean;
-    firebaseConfig: {
-      apiKey: string;
-      authDomain: string;
-      projectId: string;
-      storageBucket: string;
-      messagingSenderId: string;
-      appId: string;
-    };
+    firebaseConfig: FBConfig;
   };
   jwtLogin?: {
     token: string;
@@ -265,13 +275,7 @@ export interface IConfig {
     color?: string;
     image?: any;
   };
-  bubleMessage?: {
-    backgroundMessageUser?: string;
-    backgroundMessage?: string;
-    colorUser?: string;
-    color?: string;
-    borderRadius?: number;
-  };
+  bubleMessage?: MessageBubble;
   headerLogo?: any;
   headerMenu?: () => void;
   headerChatMenu?: () => void;
@@ -288,8 +292,10 @@ export interface IConfig {
   disableSentLogic?: boolean;
   initBeforeLoad?: boolean;
   newArch?: boolean;
-  logoutCallback?: () => Promise<void>;
   qrUrl?: string;
+  logoutCallback?: () => Promise<void>;
+  sendCBFunction?: (e?: any) => void;
+  messageEdit?: string;
 }
 
 type PartialRoomWithMandatoryKeys = Partial<IRoom> &

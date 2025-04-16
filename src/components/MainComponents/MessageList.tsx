@@ -1,5 +1,15 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { MessagesScroll, MessagesList, ScrollToBottomButton } from '../styled/StyledComponents';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import {
+  MessagesScroll,
+  MessagesList,
+  ScrollToBottomButton,
+} from '../styled/StyledComponents';
 import { IConfig, IMessage, User } from '../../types/types';
 import Loader from '../styled/Loader';
 import Composing from '../styled/StyledInputComponents/Composing';
@@ -86,9 +96,10 @@ const MessageList = <TMessage extends IMessage>({
     }
   }, [messages, messages.length]);
 
-
   const isUserMessage = useMemo(
-    () => messages.length && messages[messages.length - 1].user.id === user.xmppUsername,
+    () =>
+      messages.length &&
+      messages[messages.length - 1].user.id === user.xmppUsername,
     [messages.length, user.xmppUsername]
   );
 
@@ -128,9 +139,9 @@ const MessageList = <TMessage extends IMessage>({
     const images = content.getElementsByTagName('img');
     if (images.length === 0) return Promise.resolve();
 
-    const promises = Array.from(images).map(img => {
+    const promises = Array.from(images).map((img) => {
       if (img.complete) return Promise.resolve();
-      return new Promise(resolve => {
+      return new Promise((resolve) => {
         img.onload = resolve;
         img.onerror = resolve;
       });
@@ -146,17 +157,22 @@ const MessageList = <TMessage extends IMessage>({
     await waitForImagesLoaded();
 
     if (isFirstLoad.current) {
-      const delimiterIndex = memoizedMessages.findIndex(msg => msg.id === 'delimiter-new');
-      
+      const delimiterIndex = memoizedMessages.findIndex(
+        (msg) => msg.id === 'delimiter-new'
+      );
+
       if (delimiterIndex !== -1) {
         setTimeout(() => {
           const allMessages = content.querySelectorAll('[data-message-id]');
           const delimiterElement = Array.from(allMessages).find(
-            el => el.getAttribute('data-message-id') === 'delimiter-new'
+            (el) => el.getAttribute('data-message-id') === 'delimiter-new'
           );
 
           if (delimiterElement) {
-            delimiterElement.scrollIntoView({ behavior: 'auto', block: 'center' });
+            delimiterElement.scrollIntoView({
+              behavior: 'auto',
+              block: 'center',
+            });
           } else {
             content.scrollTop = content.scrollHeight;
           }
@@ -177,16 +193,20 @@ const MessageList = <TMessage extends IMessage>({
 
   useEffect(() => {
     if (memoizedMessages.length > 0) {
-      setLastMessageDate(new Date(memoizedMessages[memoizedMessages.length - 1].date).getTime());
+      setLastMessageDate(
+        new Date(memoizedMessages[memoizedMessages.length - 1].date).getTime()
+      );
     }
   }, []);
 
   useEffect(() => {
-    if(isUserMessage) return;
+    if (isUserMessage) return;
 
-    const newMessageDate = new Date(memoizedMessages[memoizedMessages.length - 1].date).getTime();
+    const newMessageDate = new Date(
+      memoizedMessages[memoizedMessages.length - 1].date
+    ).getTime();
     if (newMessageDate > lastMessageDate) {
-      setNewMessagesCount(prev => prev += 1);
+      setNewMessagesCount((prev) => (prev += 1));
     }
   }, [memoizedMessages.length]);
 
@@ -224,10 +244,12 @@ const MessageList = <TMessage extends IMessage>({
   const checkAtBottom = () => {
     const content = containerRef.current;
     if (content) {
-      const isAtBottom = content.scrollHeight - content.clientHeight <= content.scrollTop + 100;
+      const isAtBottom =
+        content.scrollHeight - content.clientHeight <= content.scrollTop + 100;
       atBottom.current = isAtBottom;
 
-      const scrolledUp = content.scrollHeight - content.clientHeight - content.scrollTop > 150;
+      const scrolledUp =
+        content.scrollHeight - content.clientHeight - content.scrollTop > 150;
 
       if (scrolledUp) {
         setShowScrollButton(true);
@@ -246,7 +268,7 @@ const MessageList = <TMessage extends IMessage>({
     if (content) {
       content.scrollTo({
         top: content.scrollHeight,
-        behavior: 'smooth'
+        behavior: 'smooth',
       });
       setShowScrollButton(false);
       setNewMessagesCount(0);
@@ -290,8 +312,11 @@ const MessageList = <TMessage extends IMessage>({
       const lastMessage = messages[messages.length - 1];
       const isLastMessageFromUser = lastMessage && isUserMessage;
 
-      if (lastMessage && lastMessage.id !== lastUserMessageId.current && isLastMessageFromUser) {
-
+      if (
+        lastMessage &&
+        lastMessage.id !== lastUserMessageId.current &&
+        isLastMessageFromUser
+      ) {
         lastUserMessageId.current = lastMessage.id;
         scrollToBottom();
       }
@@ -330,10 +355,10 @@ const MessageList = <TMessage extends IMessage>({
           const messageDate = new Date(message.date).toDateString();
           const showDateLabel = messageDate !== lastDateLabel;
           lastDateLabel = messageDate;
-          
+
           if (message.id === 'delimiter-new') {
             return (
-              <div 
+              <div
                 key={message.id}
                 data-message-id="delimiter-new"
                 className="message-container"

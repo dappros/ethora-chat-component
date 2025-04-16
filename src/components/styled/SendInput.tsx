@@ -117,10 +117,13 @@ const SendInput: React.FC<SendInputProps> = ({
         setIsRecording(false);
       } else {
         console.log('sending default', message);
-        sendMessage(message);
+        sendMessage(
+          !!config?.messageEdit ? message + config.messageEdit : message
+        );
       }
       setMessage('');
       setFilePreviews([]);
+      config?.sendCBFunction?.();
     },
     [filePreviews, message, sendMessage, sendMedia]
   );

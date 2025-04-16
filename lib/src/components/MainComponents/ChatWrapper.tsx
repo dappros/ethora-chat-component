@@ -58,7 +58,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   const { user, activeModal, deleteModal } = useChatSettingState();
   const syncRooms = useGetNewArchRoom();
 
-  const [isInited, setInited] = useState(false);
+  const [isInited, setInited] = useState(true);
   const [roomsLoading, setRoomsLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
@@ -135,7 +135,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     client: XmppClient,
     disableLoad: boolean = false
   ) => {
-    disableLoad && setRoomsLoading(true);
+    !disableLoad && setRoomsLoading(true);
     await syncRooms(client, config);
     setRoomsLoading(false);
   };
@@ -171,6 +171,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           console.log('Error, no user');
         } else {
           if (!client) {
+            setInited(false);
             setShowModal(false);
 
             console.log('No client, so initing one');
@@ -283,7 +284,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
         console.log('Error in loading queue messages', error);
       }
     },
-    [globalLoading, loading]
+    [globalLoading, loading, roomsLoading]
   );
 
   useMessageLoaderQueue(

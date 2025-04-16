@@ -5,6 +5,7 @@ import { XmppProvider } from './context/xmppProvider';
 import { useUnreadMessagesCounter } from './hooks/useUnreadMessagesCounter';
 import { IConfig } from './types/types';
 import { logoutService, handleQRChatId } from './main';
+import { handleCopyClick } from './helpers/handleCopyClick';
 
 const Apps = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -64,6 +65,10 @@ const ChatComponent = React.memo(() => {
           newArch: true,
           setRoomJidInPath: true,
           qrUrl: 'https://ethora.dev.frontend.ethoradev.com/app/chat?qrChatId=',
+          sendCBFunction: () => {
+            console.log('Send callback function');
+            handleCopyClick(window.location.href);
+          },
           ...config,
         }}
         MainComponentStyles={mainStyles}
