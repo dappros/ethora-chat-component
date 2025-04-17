@@ -19,10 +19,10 @@ interface UseInitXmmpClientProps {
 }
 
 export const useInitXmmpClient = ({
-                                    config,
-                                    setShowModal,
-                                    setInited
-                                  }: UseInitXmmpClientProps) => {
+  config,
+  setShowModal,
+  setInited
+}: UseInitXmmpClientProps) => {
   const dispatch = useDispatch();
   const { user } = useChatSettingState();
   const { client, initializeClient, setClient } = useXmppClient();

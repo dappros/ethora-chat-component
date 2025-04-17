@@ -26,7 +26,7 @@ const XmppContext = createContext<XmppContextType | null>(null);
 
 interface XmppProviderProps {
   children: ReactNode;
-  config: IConfig;
+  config?: IConfig;
 }
 
 export const XmppProvider: React.FC<XmppProviderProps> = ({

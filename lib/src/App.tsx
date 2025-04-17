@@ -38,8 +38,8 @@ const ChatComponent = React.memo(() => {
 
   const mainStyles = useMemo(
     () => ({
-      width: '90%',
-      height: '90%',
+      width: '100%',
+      height: '100%',
       borderRadius: '16px',
       border: '1px solid #E4E4E7',
       overflow: 'hidden',
