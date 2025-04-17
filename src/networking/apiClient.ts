@@ -12,6 +12,9 @@ const http = axios.create({
   baseURL,
 });
 
+const PUSH_URL = 'https://push.ethoradev.com/api/v2';
+const pushHTTP = axios.create({ baseURL: PUSH_URL });
+
 let appToken = betaAppToken;
 
 export function setBaseURL(newBaseURL?: string, customAppToken?: string) {
@@ -131,4 +134,4 @@ http.interceptors.response.use(
 );
 
 export default http;
-export { appToken };
+export { appToken, pushHTTP };

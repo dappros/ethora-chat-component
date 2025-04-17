@@ -13,6 +13,7 @@ import {
 import { OrDelimiter } from '../styled/StyledComponents';
 import Button from '../styled/Button';
 import { setBaseURL } from '../../networking/apiClient';
+import { requestForToken } from '../../firebase-config';
 
 interface LoginWrapperProps {
   user?: { email: string; password: string };
@@ -26,6 +27,11 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
   const [showModal, setShowModal] = useState(false);
 
   const { user } = useSelector((state: RootState) => state.chatSettingStore);
+
+  const getToken = async () => {
+    const token = await requestForToken();
+    console.log(token);
+  };
 
   const loginUserFunction = useCallback(async () => {
     try {
@@ -48,6 +54,7 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
   const dispatch = useDispatch();
 
   useEffect(() => {
+    getToken();
     if (props.config?.baseUrl) {
       setBaseURL(props.config?.baseUrl, props.config?.customAppToken);
     }

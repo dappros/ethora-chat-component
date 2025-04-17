@@ -65,10 +65,6 @@ const ChatComponent = React.memo(() => {
           newArch: true,
           setRoomJidInPath: true,
           qrUrl: 'https://ethora.dev.frontend.ethoradev.com/app/chat?qrChatId=',
-          sendCBFunction: () => {
-            console.log('Send callback function');
-            handleCopyClick(window.location.href);
-          },
           ...config,
         }}
         MainComponentStyles={mainStyles}

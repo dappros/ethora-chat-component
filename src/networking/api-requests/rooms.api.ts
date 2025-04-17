@@ -6,7 +6,7 @@ import {
   PostReportRoom,
   PostRoom,
 } from '../../types/types';
-import http from '../apiClient';
+import http, { pushHTTP } from '../apiClient';
 
 export async function getRooms(): Promise<{ items: ApiRoom[] }> {
   const token = store.getState().chatSettingStore.user.token || '';
@@ -141,6 +141,32 @@ export async function deleteRoom(name: string) {
         Authorization: token,
       },
       data: { name },
+    });
+    return response.data.result;
+  } catch (error) {
+    throw new Error('Error deleting room');
+  }
+}
+
+export async function pushSubscribe(
+  registrationToken: string,
+  userJID: string,
+  projectName: string = 'Ethora',
+  deviceType: 'web' | 'android' | 'ios' = 'web'
+) {
+  const token = store.getState().chatSettingStore.user.token || '';
+
+  try {
+    const response = await pushHTTP.post('/subscriptions', {
+      headers: {
+        Authorization: token,
+      },
+      data: {
+        projectName,
+        registrationToken,
+        deviceType,
+        jid: userJID,
+      },
     });
     return response.data.result;
   } catch (error) {

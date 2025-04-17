@@ -7,20 +7,59 @@ export const config = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Import the functions you need from the SDKs you need
 import { initializeApp } from 'firebase/app';
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 
-// Your web app's Firebase configuration
-// export const firebaseConfig = {
-//   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-//   authDomain: "deepx-7e231.firebaseapp.com",
-//   projectId: "deepx-7e231",
-//   storageBucket: "deepx-7e231.appspot.com",
-//   messagingSenderId: "587754003300",
-//   appId: "1:587754003300:web:3d872072f88cbe41253871",
-// };
-
-// Initialize Firebase
 export const app = initializeApp(config);
+const messaging = getMessaging(app);
+
+export const requestForToken = async () => {
+  try {
+    const permission = await Notification.requestPermission();
+    console.log('permission', permission);
+    if (permission.includes('granted')) {
+      console.log('granted');
+      try {
+        const currentToken = await getToken(messaging, {
+          vapidKey: import.meta.env.VITE_PUSH_VAP,
+        });
+
+        console.log('currentToken,currentToken', currentToken);
+
+        if (currentToken) {
+          console.log('FCM registration token:', currentToken);
+          return currentToken;
+        } else {
+          console.log('No registration token available');
+          return null;
+        }
+      } catch (error) {
+        console.error('Error getting token:', error);
+      }
+    } else {
+      console.log('Permission not granted');
+      return null;
+    }
+  } catch (error) {
+    console.error('An error occurred while retrieving token:', error);
+    return null;
+  }
+};
+
+onMessage(messaging, (payload) => {
+  console.log('Message received in foreground:', payload);
+
+  const notificationTitle = payload.notification?.title || 'New Notification';
+  const notificationOptions = {
+    body: payload.notification?.body || 'Check out the latest update!',
+    icon: '/favicon.ico',
+  };
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.ready.then((registration) => {
+      registration.showNotification(notificationTitle, notificationOptions);
+    });
+  } else {
+    alert(`${notificationTitle}\n${notificationOptions.body}`);
+  }
+});
