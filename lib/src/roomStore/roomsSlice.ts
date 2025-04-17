@@ -266,11 +266,6 @@ export const roomsStore = createSlice({
       action: PayloadAction<{ roomJID: string | null }>
     ) => {
       const { roomJID } = action.payload;
-
-      if (roomJID && state.rooms[roomJID]) {
-        state.rooms[roomJID].lastViewedTimestamp = new Date().getTime(); // ✅ Фиксируем просмотр чата
-      }
-
       state.activeRoomJID = roomJID;
     },
     setLogoutState: (state) => {
@@ -339,7 +334,7 @@ const countNewerMessages = (
     return messages.filter((message) => {
       return Number(message.id) < timestamp;
     }).length;
-  } else return timestamp;
+  } else return 0;
 };
 
 export const getLastMessageTimestamp = (
@@ -372,7 +367,6 @@ export const {
   setLogoutState,
   setActiveMessage,
   setCloseActiveMessage,
-  setUnreadMessages,
   deleteRoom,
   updateRoom,
   addRoomViaApi,
