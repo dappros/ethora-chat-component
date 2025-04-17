@@ -16,6 +16,7 @@ import {
   deleteRoom,
   setCurrentRoom,
   setIsLoading,
+  setOpenReportModal,
 } from '../../roomStore/roomsSlice';
 import { useXmppClient } from '../../context/xmppProvider';
 import { setActiveModal } from '../../roomStore/chatSettingsSlice';
@@ -39,6 +40,10 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const { roomsList, activeRoomJID } = useRoomState(currentRoom.jid);
   const { composing } = useRoomState(currentRoom.jid).room;
   const { config } = useChatSettingState();
+
+  const handleReportClick = () => {
+    dispatch(setOpenReportModal({ isOpen: true }));
+  };
 
   const handleChangeChat = (chat: IRoom) => {
     dispatch(setCurrentRoom({ roomJID: chat.jid }));
@@ -110,10 +115,15 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         </ChatContainerHeaderBoxInfo>
       </div>
 
-      <div style={{ display: 'flex', gap: 16 }}>
-        {/* <SearchInput animated icon={<SearchIcon />} /> */}
-        <RoomMenu handleLeaveClick={handleLeaveClick} />
-      </div>
+      {currentRoom.type !== 'private' && (
+        <div style={{ display: 'flex', gap: 16 }}>
+          {/* <SearchInput animated icon={<SearchIcon />} /> */}
+          <RoomMenu
+            handleLeaveClick={handleLeaveClick}
+            handleReportClick={handleReportClick}
+          />
+        </div>
+      )}
     </ChatContainerHeader>
   );
 };

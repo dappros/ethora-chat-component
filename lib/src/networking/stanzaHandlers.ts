@@ -3,14 +3,16 @@ import { store } from '../roomStore';
 import {
   addRoom,
   addRoomMessage,
+  addRoomViaApi,
   deleteRoomMessage,
   editRoomMessage,
   setComposing,
   setCurrentRoom,
-  setLastViewedTimestamp,
   setReactions,
   setRoomRole,
   updateRoom,
+  updateUsersSet,
+  deleteRoom,
 } from '../roomStore/roomsSlice';
 import { IRoom } from '../types/types';
 import { createMessageFromXml } from '../helpers/createMessageFromXml';
@@ -18,6 +20,9 @@ import { setDeleteModal } from '../roomStore/chatSettingsSlice';
 import { getDataFromXml } from '../helpers/getDataFromXml';
 import { getBooleanFromString } from '../helpers/getBooleanFromString';
 import { getNumberFromString } from '../helpers/getNumberFromString';
+import { getRooms } from '../networking/api-requests/rooms.api';
+import { createRoomFromApi } from '../helpers/createRoomFromApi';
+import XmppClient from './xmppClient';
 // TO DO: we are thinking to refactor this code in the following way:
 // each stanza will be parsed for 'type'
 // then it will be handled based on the type
@@ -211,7 +216,8 @@ const handleComposing = async (stanza: Element, currentUser: string) => {
 
     if (
       composingUser &&
-      currentUser?.toLowerCase() !== composingUser?.replace(/_/g, '')
+      currentUser?.toLowerCase()?.replace(/_/g, '') !==
+        composingUser?.replace(/_/g, '')
     ) {
       const chatJID = stanza.attrs?.from.split('/')[0];
 
@@ -242,9 +248,8 @@ const onPresenceInRoom = (stanza: Element | any) => {
   }
 };
 
-const onChatInvite = async (stanza: Element, client: any) => {
-  if (stanza.is('message') && stanza.attrs['type'] !== 'groupchat') {
-    // check if it is invite
+const onChatInvite = async (stanza: Element, client: XmppClient) => {
+  if (stanza.is('message')) {
     const chatId = stanza.attrs.from;
     const xEls = stanza.getChildren('x');
 
@@ -257,8 +262,18 @@ const onChatInvite = async (stanza: Element, client: any) => {
           return;
         }
 
-        await client.presenceInRoomStanza(chatId);
-        await client.getRoomsStanza();
+        client.presenceInRoomStanza(chatId);
+
+        const rooms = await getRooms();
+        rooms.items.map((room) => {
+          store.dispatch(
+            addRoomViaApi({
+              room: createRoomFromApi(room, client.conference),
+              xmpp: client,
+            })
+          );
+        });
+        store.dispatch(updateUsersSet({ rooms: rooms.items }));
       }
     }
   }
@@ -270,7 +285,6 @@ const onGetMembers = (stanza: Element) => {
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(stanza.toString(), 'text/xml');
 
-    // Extract activities
     const roomMembers = Array.from(xmlDoc.getElementsByTagName('activity')).map(
       (activity) => ({
         name: activity.getAttribute('name'),
@@ -280,8 +294,6 @@ const onGetMembers = (stanza: Element) => {
         jid: activity.getAttribute('jid'),
       })
     );
-
-    store.dispatch(updateRoom({ jid, updates: { roomMembers } }));
   }
 };
 
@@ -379,6 +391,25 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
   }
 };
 
+const onRoomKicked = async (stanza: Element) => {
+  if (stanza.is('presence') && stanza.attrs.type === 'unavailable') {
+    const xElement = stanza.getChild('x');
+    if (!xElement) return;
+
+    const statusElements = xElement.getChildren('status');
+
+    if (!statusElements || statusElements.length === 0) return;
+
+    const statusCodes = statusElements.map((s) => s.attrs.code);
+
+    if (statusCodes.includes('110') && statusCodes.includes('321')) {
+      const roomJid = stanza.attrs.from.split('/')[0];
+
+      store.dispatch(deleteRoom({ jid: roomJid }));
+      await getRooms();
+    }
+  }
+};
 export {
   onRealtimeMessage,
   onMessageHistory,
@@ -394,4 +425,5 @@ export {
   onEditMessage,
   onReactionMessage,
   onChatInvite,
+  onRoomKicked,
 };

@@ -4,7 +4,6 @@ import ModalHeaderComponent from '../../ModalHeaderComponent';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../../../roomStore';
 import { setUser } from '../../../../roomStore/chatSettingsSlice';
-import { Notification } from '../../../Toast';
 import { updateMe } from '../../../../networking/api-requests/user.api';
 import { User } from '../../../../types/types';
 import { ModalContainerFullScreen } from '../../styledModalComponents';
@@ -14,6 +13,7 @@ import {
   SharedSettingsLabelData,
   SharedSettingsStyledLabel,
 } from '../SharedStyledComponents';
+import { Notification } from '../../../Notification';
 
 interface VisibilityModalProps {
   handleCloseModal: any;

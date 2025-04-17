@@ -5,15 +5,17 @@ import { LeaveIcon, MoreIcon, ReportIcon } from '../../assets/icons';
 
 interface RoomMenuProps {
   handleLeaveClick: () => void;
+  handleReportClick: () => void;
 }
 
-export const RoomMenu: FC<RoomMenuProps> = ({ handleLeaveClick }) => {
+export const RoomMenu: FC<RoomMenuProps> = ({ handleLeaveClick, handleReportClick }) => {
   const menuOptions = useMemo(
     () => [
       {
         label: 'Report',
         icon: <ReportIcon />,
         onClick: () => {
+          handleReportClick();
           console.log('Report clicked');
         },
         styles: { color: 'red' },

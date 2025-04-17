@@ -18,6 +18,7 @@ export const useRoomState = (roomJID?: string) => {
     (state: RootState) =>
       state.rooms.rooms[state.rooms.activeRoomJID]?.isLoading || false
   );
+  const usersSet = useSelector((state: RootState) => state.rooms.usersSet);
 
   const roomMessages = useMemo(
     () => roomsList[activeRoomJID]?.messages || [],
@@ -32,5 +33,6 @@ export const useRoomState = (roomJID?: string) => {
     globalLoading,
     loading,
     roomMessages,
+    usersSet,
   };
 };

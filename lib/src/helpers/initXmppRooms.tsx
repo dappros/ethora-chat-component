@@ -3,17 +3,16 @@ import { updatedChatLastTimestamps } from './updatedChatLastTimestamps';
 import { initRoomsPresence } from './initRoomsPresence';
 import { updateMessagesTillLast } from './updateMessagesTillLast';
 import XmppClient from '../networking/xmppClient';
-import { IConfig, User } from '../types/types';
+import { IConfig, IRoom, User } from '../types/types';
 import { store } from '../roomStore';
 
 const initXmppRooms = async (
   user: User,
   config: IConfig,
   xmmpClient: XmppClient,
+  rooms?: { [key: string]: IRoom },
   roomJID?: string
 ) => {
-  const roomsList = store.getState().rooms.rooms;
-
   if (roomJID) {
     store.dispatch(setCurrentRoom({ roomJID: roomJID }));
   }
@@ -27,23 +26,39 @@ const initXmppRooms = async (
     if (!xmmpClient) {
       console.log('No xmmpClient, initializing one');
 
-      if (roomsList && Object.keys(roomsList).length > 0) {
-        await initRoomsPresence(xmmpClient, roomsList);
+      if (rooms && Object.keys(rooms).length > 0) {
+        await initRoomsPresence(xmmpClient, rooms);
       } else {
-        await xmmpClient.getRoomsStanza();
+        if (config?.newArch) {
+          // const rooms = await getRooms();
+          //     rooms.items.map((room) => {
+          //       dispatch(
+          //         addRoomViaApi({
+          //           room: createRoomFromApi(
+          //             room,
+          //             config?.xmppSettings?.conference
+          //           ),
+          //           xmpp: newClient,
+          //         })
+          //       );
+          //     });
+          return;
+        }
+        const res = await xmmpClient.getRoomsStanza();
+        console.log(res);
       }
 
       //@ts-ignore
       const roomTimestampObject: [jid: string, timestamp: string] =
         await xmmpClient.getChatsPrivateStoreRequestStanza();
       updatedChatLastTimestamps(roomTimestampObject, store.dispatch);
-      await updateMessagesTillLast(roomsList, xmmpClient);
+      await updateMessagesTillLast(rooms, xmmpClient);
     } else {
       //@ts-ignore
       const roomTimestampObject: [jid: string, timestamp: string] =
         await xmmpClient.getChatsPrivateStoreRequestStanza();
       updatedChatLastTimestamps(roomTimestampObject, store.dispatch);
-      await updateMessagesTillLast(roomsList, xmmpClient);
+      await updateMessagesTillLast(rooms, xmmpClient);
     }
 
     if (config?.refreshTokens?.enabled) {

@@ -4,7 +4,7 @@ import { TranslationObject } from '../helpers/transformTranslatations';
 
 export interface IUser extends Partial<User> {
   id: string;
-  name: string | null;
+  name?: string;
   userJID?: string | null;
   token?: string;
   refreshToken?: string;
@@ -58,6 +58,20 @@ export interface IRoom {
   isLoading: boolean;
   roomBg: string;
 
+  members?: RoomMember[];
+  type?: 'public' | 'group' | 'private';
+  creteadAt?: string;
+
+  appId?: string;
+  createdAt?: string;
+  createdBy?: string;
+  description?: string;
+  isAppChat?: boolean;
+  picture?: string;
+  updatedAt?: string;
+  __v?: number | string;
+  _id?: string;
+
   id?: string;
   lastMessage?: LastMessage;
   lastMessageTimestamp?: number;
@@ -70,8 +84,6 @@ export interface IRoom {
   noMessages?: boolean;
   role?: string;
 
-  roomMembers?: RoomMember[];
-
   messageStats?: {
     lastMessageTimestamp?: number;
     firstMessageTimestamp?: number;
@@ -79,14 +91,63 @@ export interface IRoom {
   historyComplete?: boolean;
 }
 
+export interface ApiRoom {
+  name: string;
+  type: 'public' | 'group' | 'private';
+
+  title?: string;
+  description?: string;
+  picture?: string;
+  members?: RoomMember[];
+  createdBy?: string;
+  appId?: any;
+
+  _id?: string;
+  isAppChat?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  __v?: string;
+}
+
+export interface PostRoom {
+  title: string;
+  uuid?: string;
+  type: 'public' | 'group';
+
+  description?: string;
+  picture?: string;
+  members?: string[];
+}
+
+export interface PostReportRoom {
+  chatName: string;
+  category: string;
+  text?: string;
+}
+
+export interface PostAddRoomMember {
+  chatName: string;
+  members: string[];
+}
+
+export interface DeleteRoomMember {
+  roomId: string;
+  members: string[];
+}
+
 export interface IRoomCompressed extends Pick<IRoom, 'jid'> {}
 
 export interface RoomMember {
-  ban_status: string;
-  jid: string;
-  last_active: number;
-  name: string;
-  role: string;
+  firstName: string;
+  lastName: string;
+  xmppUsername: string;
+  _id: string;
+
+  ban_status?: string;
+  jid?: string;
+  name?: string;
+  role?: string;
+  last_active?: number;
 }
 
 export interface RoomLastMessage {
@@ -120,7 +181,6 @@ export interface User {
   firstName: string;
   lastName: string;
   email?: string;
-  username?: string;
   profileImage?: string;
   emails?: [
     {
@@ -131,6 +191,8 @@ export interface User {
     },
   ];
   appId: string;
+
+  username: string;
   xmppPassword: string;
 
   langSource?: Iso639_1Codes;
@@ -157,20 +219,30 @@ export interface XmppState {
   loading: boolean;
 }
 
+export interface FBConfig {
+  apiKey: string;
+  authDomain: string;
+  projectId: string;
+  storageBucket: string;
+  messagingSenderId: string;
+  appId: string;
+}
+
+export interface MessageBubble {
+  backgroundMessageUser?: string;
+  backgroundMessage?: string;
+  colorUser?: string;
+  color?: string;
+  borderRadius?: number;
+}
+
 export interface IConfig {
   disableHeader?: boolean;
   disableMedia?: boolean;
   colors?: { primary: string; secondary: string };
   googleLogin?: {
     enabled: boolean;
-    firebaseConfig: {
-      apiKey: string;
-      authDomain: string;
-      projectId: string;
-      storageBucket: string;
-      messagingSenderId: string;
-      appId: string;
-    };
+    firebaseConfig: FBConfig;
   };
   jwtLogin?: {
     token: string;
@@ -186,6 +258,7 @@ export interface IConfig {
     loginFunction: any; //() => Promise<User>
   };
   baseUrl?: string;
+  customAppToken?: string;
   xmppSettings?: xmppSettingsInterface;
   disableRooms?: boolean;
   defaultLogin?: boolean;
@@ -202,13 +275,7 @@ export interface IConfig {
     color?: string;
     image?: any;
   };
-  bubleMessage?: {
-    backgroundMessageUser?: string;
-    backgroundMessage?: string;
-    colorUser?: string;
-    color?: string;
-    borderRadius?: number;
-  };
+  bubleMessage?: MessageBubble;
   headerLogo?: any;
   headerMenu?: () => void;
   headerChatMenu?: () => void;
@@ -217,13 +284,18 @@ export interface IConfig {
     disableGetRooms?: boolean;
     singleRoom: boolean;
   };
-  enableTranslates?: boolean;
+  translates?: { enabled: boolean; translations?: Iso639_1Codes };
   disableRoomConfig?: boolean;
   disableProfilesInteractions?: boolean;
   disableUserCount?: boolean;
   clearStoreBeforeInit?: boolean;
   disableSentLogic?: boolean;
   initBeforeLoad?: boolean;
+  newArch?: boolean;
+  qrUrl?: string;
+  logoutCallback?: () => Promise<void>;
+  sendCBFunction?: (e?: any) => void;
+  messageEdit?: string;
 }
 
 type PartialRoomWithMandatoryKeys = Partial<IRoom> &
@@ -336,10 +408,11 @@ export interface XmppClientInterface {
   checkOnline(): boolean;
   initializeClient(): void;
   attachEventListeners(): void;
-  reconnect(): void;
+  reconnect(): Promise<void>;
   close(): Promise<void>;
+  ensureConnected(timeout?: number): Promise<void>;
 
-  getRoomsStanza(): Promise<void>;
+  getRoomsStanza(disableGetRooms?: boolean): Promise<void>;
   createRoomStanza(
     title: string,
     description: string,
@@ -375,14 +448,8 @@ export interface XmppClientInterface {
     notDisplayedValue?: string,
     isReply?: boolean,
     showInChannel?: boolean,
-    mainMessage?: string
-  ): void;
-  sendMessageReactionStanza(
-    messageId: string,
-    roomJid: string,
-    reactionsList: string[],
-    data: any,
-    reactionSymbol?: any
+    mainMessage?: string,
+    customId?: string
   ): void;
   deleteMessageStanza(room: string, msgId: string): void;
   editMessageStanza(room: string, msgId: string, text: string): void;
@@ -409,7 +476,20 @@ export interface XmppClientInterface {
     reactionsList: string[],
     reactionSymbol?: any
   ): void;
-  getRoomsPagedStanza(maxResults: number, after: string | null): void;
+  sendTextMessageWithTranslateTagStanza(
+    roomJID: string,
+    firstName: string,
+    lastName: string,
+    photo: string,
+    walletAddress: string,
+    userMessage: string,
+    notDisplayedValue?: string,
+    isReply?: boolean,
+    showInChannel?: boolean,
+    mainMessage?: string,
+    langSource?: Iso639_1Codes
+  ): void;
+  disconnect?(): Promise<void>;
 }
 
 export type Iso639_1Codes = 'en' | 'es' | 'pt' | 'ht' | 'zh';
@@ -439,3 +519,7 @@ export interface LastMessage extends Omit<Partial<IMessage>, 'date'> {
   mimetype?: string;
   originalName?: string;
 }
+
+export type ChatAccessOption =
+  | { name: 'Public'; id: 'public' }
+  | { name: 'Members-only'; id: 'group' };

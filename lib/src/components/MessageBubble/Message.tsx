@@ -1,5 +1,5 @@
 import React, { forwardRef, useCallback, useRef, useState } from 'react';
-import { IUser, MessageProps } from '../../types/types';
+import { IUser, MessageProps, ReactionMessage } from '../../types/types';
 import {
   CustomMessageTimestamp,
   CustomMessageContainer,
@@ -36,10 +36,9 @@ const Message: React.FC<MessageProps> = forwardRef<
   MessageProps
 >(({ message, isUser, isReply }, ref) => {
   const { client } = useXmppClient();
-  const { user, client: storedClient } = useChatSettingState();
+  const { user, config, langSource } = useChatSettingState();
 
   const dispatch = useDispatch();
-  const { config, langSource } = useChatSettingState();
 
   const [contextMenu, setContextMenu] = !config?.disableInteractions
     ? useState<{ visible: boolean; x: number; y: number }>({
@@ -180,7 +179,11 @@ const Message: React.FC<MessageProps> = forwardRef<
       >
         {!isUser && (
           <CustomMessagePhotoContainer
-            onClick={() => handleUserAvatarClick(message.user)}
+            onClick={() =>
+              message.user.name !== 'Deleted User'
+                ? handleUserAvatarClick(message.user)
+                : null
+            }
           >
             {message.user?.profileImage && message.user.profileImage !== '' ? (
               <CustomMessagePhoto
@@ -191,7 +194,15 @@ const Message: React.FC<MessageProps> = forwardRef<
                 alt="userIcon"
               />
             ) : (
-              <Avatar username={message.user.name} />
+              <Avatar
+                username={message.user.name}
+                style={{
+                  cursor:
+                    message.user.name !== 'Deleted User'
+                      ? 'pointer'
+                      : 'default',
+                }}
+              />
             )}
           </CustomMessagePhotoContainer>
         )}
@@ -232,7 +243,7 @@ const Message: React.FC<MessageProps> = forwardRef<
             </CustomMessageText>
           )}
 
-          {!isUser && config?.enableTranslates && (
+          {!isUser && config?.translates?.enabled && (
             <MessageTranslations
               message={message}
               config={config}

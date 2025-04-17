@@ -22,7 +22,6 @@ import { useRoomInitialization } from '../../hooks/useRoomInitialization.tsx';
 import { useRoomState } from '../../hooks/useRoomState.tsx';
 import { useChatSettingState } from '../../hooks/useChatSettingState.tsx';
 import useComposing from '../../hooks/useComposing.tsx';
-import useMessageLoaderQueue from '../../hooks/useMessageLoaderQueue.tsx';
 
 interface ChatRoomProps {
   CustomMessageComponent?: any;

@@ -34,25 +34,55 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
     [chat?.messages?.length]
   );
 
-  const formatTimeToHHMM = (isoTime: string | Date): string => {
-    const date = new Date(isoTime);
-    const now = new Date();
+  const formatTimeToHHMM = (
+    isoTime?: string | Date | number
+  ): string | undefined => {
+    if (isoTime == null) return undefined;
 
-    if (date.getFullYear() !== now.getFullYear()) {
-      const year = date.getFullYear();
-      const month = (date.getMonth() + 1).toString().padStart(2, '0');
-      const day = date.getDate().toString().padStart(2, '0');
-      return `${year}/${month}/${day}`;
-    }
+    let date: Date;
 
-    if (date.toDateString() === now.toDateString()) {
-      const hours = date.getHours().toString().padStart(2, '0');
-      const minutes = date.getMinutes().toString().padStart(2, '0');
-      return `${hours}:${minutes}`;
-    } else {
+    try {
+      if (isoTime instanceof Date) {
+        date = isoTime;
+      } else if (typeof isoTime === 'number') {
+        date = new Date(isoTime);
+      } else if (typeof isoTime === 'string') {
+        const trimmedTime = isoTime.trim();
+
+        if (/^\d+$/.test(trimmedTime)) {
+          date = new Date(parseInt(trimmedTime));
+        } else {
+          date = new Date(trimmedTime);
+        }
+      } else {
+        return undefined;
+      }
+
+      if (isNaN(date.getTime())) {
+        return undefined;
+      }
+
+      const now = new Date();
+
+      if (date.getFullYear() !== now.getFullYear()) {
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        return `${year}/${month}/${day}`;
+      }
+
+      if (date.toDateString() === now.toDateString()) {
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        return `${hours}:${minutes}`;
+      }
+
       const month = (date.getMonth() + 1).toString().padStart(2, '0');
       const day = date.getDate().toString().padStart(2, '0');
       return `${month}/${day}`;
+    } catch (error) {
+      console.warn('Error parsing date:', error);
+      return undefined;
     }
   };
 
@@ -84,17 +114,16 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
           <ChatInfo>
             <ChatName>{chat.name}</ChatName>
           </ChatInfo>
-          {lastMessage && lastMessage.date && (
-            <UserCount
-              style={{
-                color: !isChatActive ? '#8C8C8C' : '#fff',
-                fontSize: '12px',
-              }}
-              active={isChatActive}
-            >
-              {formatTimeToHHMM(lastMessage.date)}
-            </UserCount>
-          )}
+
+          <UserCount
+            style={{
+              color: !isChatActive ? '#8C8C8C' : '#fff',
+              fontSize: '12px',
+            }}
+            active={isChatActive}
+          >
+            {formatTimeToHHMM(lastMessage?.date ?? chat?.createdAt)}
+          </UserCount>
         </div>
         <div
           style={{

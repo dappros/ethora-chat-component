@@ -1,28 +1,43 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import {
   AddRoomMessageAction,
+  ApiRoom,
   EditAction,
   IMessage,
   IRoom,
   ReactionAction,
+  RoomMember,
 } from '../types/types';
 import { insertMessageWithDelimiter } from '../helpers/insertMessageWithDelimiter';
+<<<<<<< HEAD
 import { useUnreadMessagesCounter } from '../hooks/useUnreadMessagesCounter.ts';
 
 interface UnreadMessagesMap {
   [roomJid: string]: number;
 }
+=======
+import XmppClient from '../networking/xmppClient';
+import { createUserNameFromSetUser } from '../helpers/createUserNameFromSetUser';
+import { extractUniqueMembersFromRooms } from '../helpers/extractUniqueMembersFromRooms';
+>>>>>>> new-arch
 
 interface RoomMessagesState {
   rooms: { [jid: string]: IRoom };
   activeRoomJID: string;
   editAction?: EditAction;
   isLoading: boolean;
+<<<<<<< HEAD
   unreadMessages: {
     hasUnread: boolean,
     totalCount: number,
     unreadByRoom: UnreadMessagesMap,
   }
+=======
+  usersSet: Record<string, RoomMember>;
+  reportRoom: {
+    isOpen: boolean;
+  };
+>>>>>>> new-arch
 }
 
 const initialState: RoomMessagesState = {
@@ -35,11 +50,18 @@ const initialState: RoomMessagesState = {
     messageId: '',
     text: '',
   },
+<<<<<<< HEAD
   unreadMessages: {
     hasUnread: false,
     totalCount: 0,
     unreadByRoom: {},
   }
+=======
+  usersSet: {},
+  reportRoom: {
+    isOpen: false,
+  },
+>>>>>>> new-arch
 };
 
 export const roomsStore = createSlice({
@@ -105,10 +127,14 @@ export const roomsStore = createSlice({
               }
 
               const fromId = from.split('@')[0];
-              message.reaction[fromId] = {
-                emoji: reactions,
-                data: data,
-              };
+              if (reactions.length === 0) {
+                delete message.reaction[fromId];
+              } else {
+                message.reaction[fromId] = {
+                  emoji: reactions,
+                  data: data,
+                };
+              }
             }
           }
         });
@@ -151,6 +177,13 @@ export const roomsStore = createSlice({
 
       const roomMessages = state.rooms[roomJID]?.messages;
 
+      const roomsExist =
+        Object.keys(JSON.parse(JSON.stringify(state.rooms))).length > 0;
+
+      if (!roomsExist) {
+        return;
+      }
+
       if (!roomMessages) {
         state.rooms[roomJID].messages = [];
       }
@@ -159,21 +192,37 @@ export const roomsStore = createSlice({
         return;
       }
 
+      const updMessage = {
+        ...message,
+        user: {
+          name: createUserNameFromSetUser(state.usersSet, message.user.id),
+          ...message.user,
+        },
+      };
+
       if (roomMessages.length === 0 || start) {
         const index = roomMessages.findIndex(
           (msg) => msg.id === message.xmppId
         );
         if (index !== -1) {
-          roomMessages[index] = { ...message, id: message.id, pending: false };
+          roomMessages[index] = {
+            ...updMessage,
+            id: updMessage.id,
+            pending: false,
+          };
         } else {
-          roomMessages.unshift(message);
+          roomMessages.unshift(updMessage);
         }
       } else {
         const lastViewedTimestamp = state.rooms[roomJID].lastViewedTimestamp
           ? new Date(state.rooms[roomJID].lastViewedTimestamp)
           : null;
 
-        insertMessageWithDelimiter(roomMessages, message, lastViewedTimestamp);
+        insertMessageWithDelimiter(
+          roomMessages,
+          updMessage,
+          lastViewedTimestamp
+        );
       }
     },
     deleteAllRooms(state) {
@@ -252,6 +301,7 @@ export const roomsStore = createSlice({
       state.rooms = {};
       state.activeRoomJID = null;
       state.isLoading = false;
+      state.usersSet = {};
     },
     setActiveMessage: (
       state,
@@ -277,6 +327,7 @@ export const roomsStore = createSlice({
         message.activeMessage = false;
       });
     },
+<<<<<<< HEAD
     setUnreadMessages: (
       state,
       action: PayloadAction<{ roomJid: string, unreadCount: number }>
@@ -288,6 +339,33 @@ export const roomsStore = createSlice({
         state.unreadMessages.totalCount += unreadCount;
       }
     }
+=======
+    addRoomViaApi: (
+      state,
+      action: PayloadAction<{ room: IRoom; xmpp: XmppClient }>
+    ) => {
+      const { room, xmpp } = action.payload;
+
+      const isRoomAlreadyAdded = Object.values(state.rooms).some(
+        (element) => element.jid === room?.jid
+      );
+
+      if (!isRoomAlreadyAdded) {
+        state.rooms[room.jid] = room;
+
+        if (room.jid) {
+          xmpp.presenceInRoomStanza(room.jid);
+        }
+      }
+    },
+    updateUsersSet: (state, action: PayloadAction<{ rooms: ApiRoom[] }>) => {
+      const { rooms } = action.payload;
+      state.usersSet = extractUniqueMembersFromRooms(rooms).object;
+    },
+    setOpenReportModal: (state, action: PayloadAction<{ isOpen: boolean }>) => {
+      state.reportRoom.isOpen = action.payload.isOpen;
+    },
+>>>>>>> new-arch
   },
 });
 
@@ -335,6 +413,9 @@ export const {
   setUnreadMessages,
   deleteRoom,
   updateRoom,
+  addRoomViaApi,
+  updateUsersSet,
+  setOpenReportModal,
 } = roomsStore.actions;
 
 export default roomsStore.reducer;

@@ -8,6 +8,7 @@ import { persistReducer, persistStore } from 'redux-persist';
 import { createTransform } from 'redux-persist';
 import { AnyAction } from 'redux-saga';
 import { newMessageMidlleware } from './Middleware/newMessageMidlleware';
+import { logoutMiddleware } from './Middleware/logoutMiddleware';
 import { encryptTransform } from 'redux-persist-transform-encrypt';
 
 const limitMessagesTransform = createTransform(
@@ -94,7 +95,8 @@ export const store = configureStore({
       },
     })
       .concat(unreadMiddleware)
-      .concat(newMessageMidlleware),
+      .concat(newMessageMidlleware)
+      .concat(logoutMiddleware),
 });
 
 export const persistor = persistStore(store);

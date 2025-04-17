@@ -40,7 +40,7 @@ export const useSendMessage = () => {
         dispatch(setEditAction({ isEdit: false }));
         return;
       } else {
-        if (config?.enableTranslates) {
+        if (config?.translates?.enabled) {
           if (!config?.disableSentLogic) {
             const id = `send-translate-message-${Date.now().toString()}`;
             dispatch(
@@ -49,7 +49,7 @@ export const useSendMessage = () => {
                 message: {
                   user: {
                     ...user,
-                    id: user.walletAddress,
+                    id: user.xmppUsername,
                     name: user.firstName + ' ' + user.lastName,
                   },
                   date: new Date().toISOString(),
@@ -86,7 +86,7 @@ export const useSendMessage = () => {
                   id: id,
                   user: {
                     ...user,
-                    id: user.walletAddress,
+                    id: user.xmppUsername,
                     name: user.firstName + ' ' + user.lastName,
                   },
                   date: new Date().toISOString(),

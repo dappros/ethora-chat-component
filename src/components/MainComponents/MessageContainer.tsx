@@ -19,9 +19,10 @@ interface MessageContainerProps {
   message: IMessage;
   activeMessage: IMessage;
   config: IConfig;
-  walletAddress: string;
+  xmppUsername: string;
   isReply: boolean;
   showDateLabel: boolean;
+  className?: string;
 }
 
 export const MessageContainer: FC<MessageContainerProps> = ({
@@ -29,11 +30,12 @@ export const MessageContainer: FC<MessageContainerProps> = ({
   message,
   activeMessage,
   config,
-  walletAddress,
+  xmppUsername,
   showDateLabel,
   isReply,
+  className,
 }) => {
-  const isUser = message.user.id === walletAddress;
+  const isUser = message.user.id === xmppUsername;
 
   const messageDate = new Date(message.date);
 
@@ -59,7 +61,7 @@ export const MessageContainer: FC<MessageContainerProps> = ({
       {showDateLabel && !activeMessage && message.id !== 'delimiter-new' && (
         <DateLabel date={messageDate} colors={config?.colors} />
       )}
-      <MessageComponent message={message} isUser={isUser} isReply={isReply}>
+      <MessageComponent message={message} isUser={isUser} isReply={isReply} className={className}>
         {!CustomMessage ? (
           <>
             <MessageTimestamp>

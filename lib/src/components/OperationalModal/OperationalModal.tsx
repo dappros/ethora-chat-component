@@ -5,6 +5,8 @@ import { Overlay, StyledModal } from '../styled/MediaModal';
 import { StyledInput } from '../styled/StyledInputComponents/StyledInputComponents';
 import Button from '../styled/Button';
 import { QRCODE_URL } from '../../helpers/constants/PLATFORM_CONSTANTS';
+import { handleCopyClick } from '../../helpers/handleCopyClick';
+import { useChatSettingState } from '../../hooks/useChatSettingState';
 
 interface OperationalModalProps {
   isVisible: boolean;
@@ -17,9 +19,7 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
   chatJid,
   setVisible,
 }) => {
-  const handleCopyClick = () => {
-    navigator.clipboard.writeText(`${QRCODE_URL}${chatJid}`);
-  };
+  const { config } = useChatSettingState();
 
   return (
     isVisible && (
@@ -59,7 +59,7 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
                   height: '70%',
                   maxWidth: '100%',
                 }}
-                value={`${QRCODE_URL}${chatJid}`}
+                value={`${config?.qrUrl || QRCODE_URL}${chatJid}`}
                 viewBox={`0 0 256 256`}
               />
             </div>
@@ -77,7 +77,14 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
                 disabled={true}
                 style={{ width: '80%' }}
               />
-              <Button text="Copy" onClick={handleCopyClick} />
+              <Button
+                text="Copy"
+                onClick={() =>
+                  handleCopyClick(
+                    `${config?.qrUrl || QRCODE_URL}${chatJid.split('@')[0]}`
+                  )
+                }
+              />
             </div>
           </div>
         </StyledModal>
