@@ -254,12 +254,15 @@ const MessageList = <TMessage extends IMessage>({
       if (scrolledUp) {
         setShowScrollButton(true);
       } else if (isAtBottom) {
+        scrollToBottom();
         setShowScrollButton(false);
         setNewMessagesCount(0);
       }
 
       lastMessageCount.current = messages.length;
       checkIfLoadMoreMessages();
+    } else {
+      timeoutRef.current = null;
     }
   };
 
