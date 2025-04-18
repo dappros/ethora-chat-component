@@ -69,6 +69,15 @@ const ChatComponent = React.memo(() => {
             console.log('Send callback function');
             handleCopyClick(window.location.href);
           },
+          secondarySendButton: {
+            enabled: true,
+            messageEdit: `videoId:${window.location.href}`,
+            buttonText: 'With Id',
+            buttonStyles: {
+              whiteSpace: 'nowrap',
+              width: '60px',
+            },
+          },
           ...config,
         }}
         MainComponentStyles={mainStyles}

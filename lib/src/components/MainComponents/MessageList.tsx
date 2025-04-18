@@ -254,12 +254,15 @@ const MessageList = <TMessage extends IMessage>({
       if (scrolledUp) {
         setShowScrollButton(true);
       } else if (isAtBottom) {
+        scrollToBottom();
         setShowScrollButton(false);
         setNewMessagesCount(0);
       }
 
       lastMessageCount.current = messages.length;
       checkIfLoadMoreMessages();
+    } else {
+      timeoutRef.current = null;
     }
   };
 
@@ -413,7 +416,7 @@ const MessageList = <TMessage extends IMessage>({
           onClick={scrollToBottom}
           color={config?.colors?.primary}
         >
-          <DownArrowIcon />
+          <DownArrowIcon color={config?.colors?.secondary || 'white'} />
           {newMessagesCount > 0 && (
             <span className="count">{newMessagesCount}</span>
           )}

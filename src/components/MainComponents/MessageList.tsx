@@ -416,7 +416,7 @@ const MessageList = <TMessage extends IMessage>({
           onClick={scrollToBottom}
           color={config?.colors?.primary}
         >
-          <DownArrowIcon />
+          <DownArrowIcon color={config?.colors?.secondary || 'white'} />
           {newMessagesCount > 0 && (
             <span className="count">{newMessagesCount}</span>
           )}

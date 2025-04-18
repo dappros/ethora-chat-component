@@ -255,7 +255,7 @@ export interface IConfig {
   };
   customLogin?: {
     enabled: boolean;
-    loginFunction: any; //() => Promise<User>
+    loginFunction: any; //() => Promise<User> //remove as non-erializable
   };
   baseUrl?: string;
   customAppToken?: string;
@@ -270,15 +270,18 @@ export interface IConfig {
   setRoomJidInPath?: boolean;
   disableRoomMenu?: boolean;
   defaultRooms?: ConfigRoom[];
-  refreshTokens?: { enabled: boolean; refreshFunction?: any };
+  refreshTokens?: {
+    enabled: boolean;
+    refreshFunction?: any; //remove as non-erializable
+  };
   backgroundChat?: {
     color?: string;
     image?: any;
   };
   bubleMessage?: MessageBubble;
   headerLogo?: any;
-  headerMenu?: () => void;
-  headerChatMenu?: () => void;
+  headerMenu?: () => void; //remove as non-erializable
+  headerChatMenu?: () => void; //remove as non-erializable
   customRooms?: {
     rooms: PartialRoomWithMandatoryKeys[];
     disableGetRooms?: boolean;
@@ -293,9 +296,14 @@ export interface IConfig {
   initBeforeLoad?: boolean;
   newArch?: boolean;
   qrUrl?: string;
-  logoutCallback?: () => Promise<void>;
-  sendCBFunction?: (e?: any) => void;
-  messageEdit?: string;
+  logoutCallback?: () => Promise<void>; //remove as non-erializable
+  sendCBFunction?: (e?: any) => void; //remove as non-erializable
+  secondarySendButton?: {
+    enabled: boolean;
+    messageEdit: string;
+    buttonText: string;
+    buttonStyles?: React.CSSProperties;
+  };
 }
 
 type PartialRoomWithMandatoryKeys = Partial<IRoom> &

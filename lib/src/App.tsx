@@ -38,8 +38,8 @@ const ChatComponent = React.memo(() => {
 
   const mainStyles = useMemo(
     () => ({
-      width: '90%',
-      height: '90%',
+      width: '100%',
+      height: '100%',
       borderRadius: '16px',
       border: '1px solid #E4E4E7',
       overflow: 'hidden',
@@ -68,6 +68,15 @@ const ChatComponent = React.memo(() => {
           sendCBFunction: () => {
             console.log('Send callback function');
             handleCopyClick(window.location.href);
+          },
+          secondarySendButton: {
+            enabled: true,
+            messageEdit: `videoId:${window.location.href}`,
+            buttonText: 'With Id',
+            buttonStyles: {
+              whiteSpace: 'nowrap',
+              width: '60px',
+            },
           },
           ...config,
         }}
