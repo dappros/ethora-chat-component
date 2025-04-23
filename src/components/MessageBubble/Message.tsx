@@ -168,8 +168,6 @@ const Message: React.FC<MessageProps> = forwardRef<
     );
   };
 
-  console.log('message-message', message);
-
   return (
     <>
       <CustomMessageContainer

@@ -8,7 +8,7 @@ import { createMessageFromXml } from '../../helpers/createMessageFromXml';
 export const getHistory = async (
   client: Client,
   chatJID: string,
-  max: number,
+  max: number = 30,
   before?: number,
   otherId?: string
 ): Promise<IMessage[] | undefined> => {

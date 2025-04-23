@@ -288,8 +288,6 @@ export class XmppClient implements XmppClientInterface {
     return this.wrapWithConnectionCheck(async () => {
       const response = await getHistory(this.client, chatJID, max, before, otherStanzaId);
 
-      console.log('response getHistoryStanza', response);
-
       store.dispatch(
         setRoomMessages({
           roomJID: chatJID,
