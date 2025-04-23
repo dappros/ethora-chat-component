@@ -168,6 +168,8 @@ const Message: React.FC<MessageProps> = forwardRef<
     );
   };
 
+  console.log('message-message', message);
+
   return (
     <>
       <CustomMessageContainer
@@ -196,6 +198,8 @@ const Message: React.FC<MessageProps> = forwardRef<
             ) : (
               <Avatar
                 username={message.user.name}
+                firstName={message.senderFirstName}
+                lastName={message.senderLastName}
                 style={{
                   cursor:
                     message.user.name !== 'Deleted User'
