@@ -219,20 +219,30 @@ export interface XmppState {
   loading: boolean;
 }
 
+export interface FBConfig {
+  apiKey: string;
+  authDomain: string;
+  projectId: string;
+  storageBucket: string;
+  messagingSenderId: string;
+  appId: string;
+}
+
+export interface MessageBubble {
+  backgroundMessageUser?: string;
+  backgroundMessage?: string;
+  colorUser?: string;
+  color?: string;
+  borderRadius?: number;
+}
+
 export interface IConfig {
   disableHeader?: boolean;
   disableMedia?: boolean;
   colors?: { primary: string; secondary: string };
   googleLogin?: {
     enabled: boolean;
-    firebaseConfig: {
-      apiKey: string;
-      authDomain: string;
-      projectId: string;
-      storageBucket: string;
-      messagingSenderId: string;
-      appId: string;
-    };
+    firebaseConfig: FBConfig;
   };
   jwtLogin?: {
     token: string;
@@ -245,9 +255,10 @@ export interface IConfig {
   };
   customLogin?: {
     enabled: boolean;
-    loginFunction: any; //() => Promise<User>
+    loginFunction: any; //() => Promise<User> //remove as non-erializable
   };
   baseUrl?: string;
+  customAppToken?: string;
   xmppSettings?: xmppSettingsInterface;
   disableRooms?: boolean;
   defaultLogin?: boolean;
@@ -259,21 +270,18 @@ export interface IConfig {
   setRoomJidInPath?: boolean;
   disableRoomMenu?: boolean;
   defaultRooms?: ConfigRoom[];
-  refreshTokens?: { enabled: boolean; refreshFunction?: any };
+  refreshTokens?: {
+    enabled: boolean;
+    refreshFunction?: any; //remove as non-erializable
+  };
   backgroundChat?: {
     color?: string;
     image?: any;
   };
-  bubleMessage?: {
-    backgroundMessageUser?: string;
-    backgroundMessage?: string;
-    colorUser?: string;
-    color?: string;
-    borderRadius?: number;
-  };
+  bubleMessage?: MessageBubble;
   headerLogo?: any;
-  headerMenu?: () => void;
-  headerChatMenu?: () => void;
+  headerMenu?: () => void; //remove as non-erializable
+  headerChatMenu?: () => void; //remove as non-erializable
   customRooms?: {
     rooms: PartialRoomWithMandatoryKeys[];
     disableGetRooms?: boolean;
@@ -287,8 +295,15 @@ export interface IConfig {
   disableSentLogic?: boolean;
   initBeforeLoad?: boolean;
   newArch?: boolean;
-  logoutCallback?: () => Promise<void>;
   qrUrl?: string;
+  logoutCallback?: () => Promise<void>; //remove as non-erializable
+  sendCBFunction?: (e?: any) => void; //remove as non-erializable
+  secondarySendButton?: {
+    enabled: boolean;
+    messageEdit: string;
+    buttonText: string;
+    buttonStyles?: React.CSSProperties;
+  };
 }
 
 type PartialRoomWithMandatoryKeys = Partial<IRoom> &

@@ -36,6 +36,7 @@ import Loader from '../styled/Loader';
 import { ModalReportChat } from '../Modals/ModalReportChat/ModalReportChat.tsx';
 import useGetNewArchRoom from '../../hooks/useGetNewArchRoom.tsx';
 import { useQRCodeChat } from '../../hooks/useQRCodeChatHandler';
+import XmppClient from '../../networking/xmppClient.ts';
 
 interface ChatWrapperProps {
   token?: string;
@@ -57,7 +58,8 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   const { user, activeModal, deleteModal } = useChatSettingState();
   const syncRooms = useGetNewArchRoom();
 
-  const [isInited, setInited] = useState(false);
+  const [isInited, setInited] = useState(true);
+  const [roomsLoading, setRoomsLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
   const [isChatVisible, setIsChatVisible] = useState(false);
@@ -129,6 +131,15 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     };
   }, [user.xmppPassword]);
 
+  const loadRooms = async (
+    client: XmppClient,
+    disableLoad: boolean = false
+  ) => {
+    !disableLoad && setRoomsLoading(true);
+    await syncRooms(client, config);
+    setRoomsLoading(false);
+  };
+
   useEffect(() => {
     if (roomJID) {
       dispatch(setCurrentRoom({ roomJID }));
@@ -160,6 +171,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           console.log('Error, no user');
         } else {
           if (!client) {
+            setInited(false);
             setShowModal(false);
 
             console.log('No client, so initing one');
@@ -177,7 +189,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
               await initRoomsPresence(newClient, roomsList);
             } else {
               if (config?.newArch) {
-                syncRooms(newClient, config);
+                await loadRooms(newClient);
                 setInited(true);
               } else {
                 await newClient.getRoomsStanza();
@@ -203,7 +215,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             }
           } else {
             if (config?.newArch) {
-              syncRooms(client, config);
+              await loadRooms(client, true);
             }
             setInited(true);
             await client
@@ -272,7 +284,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
         console.log('Error in loading queue messages', error);
       }
     },
-    [globalLoading, loading]
+    [globalLoading, loading, roomsLoading]
   );
 
   useMessageLoaderQueue(
@@ -285,6 +297,17 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
   if (user.xmppPassword === '' && user.xmppUsername === '')
     return <LoginForm config={config} />;
+
+  if (roomsLoading) {
+    return (
+      <StyledLoaderWrapper
+        style={{ alignItems: 'center', flexDirection: 'column', gap: '10px' }}
+      >
+        <Loader color={config?.colors?.primary} style={{ margin: '0px' }} />
+        <div>Rooms are loading...</div>
+      </StyledLoaderWrapper>
+    );
+  }
 
   return (
     <>

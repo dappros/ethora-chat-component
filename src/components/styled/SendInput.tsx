@@ -41,7 +41,7 @@ const SendInput: React.FC<SendInputProps> = ({
   isLoading,
 }) => {
   const { showToast } = useToast();
-  
+
   const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
 
@@ -59,14 +59,14 @@ const SendInput: React.FC<SendInputProps> = ({
 
   const handleFileChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.files && event.target.files.length > 0) {
-          const file = event.target.files[0]; 
-          setSelectedFile(file);
-        } else {
-          setSelectedFile(null);
-        }
+      if (event.target.files && event.target.files.length > 0) {
+        const file = event.target.files[0];
+        setSelectedFile(file);
+      } else {
+        setSelectedFile(null);
+      }
 
-        event.target.value = ''; 
+      event.target.value = '';
 
       // const files = event.target.files;
       // if (files) {
@@ -120,13 +120,13 @@ const SendInput: React.FC<SendInputProps> = ({
 
   useEffect(() => {
     if (!selectedFile) {
-      return; 
+      return;
     }
 
     const MAX_TOTAL_SIZE_BYTES = 100 * 1024 * 1024;
 
     // const totalSize = filePreviews.reduce((sum, file) => {
-    //   return sum + (file?.size || 0); 
+    //   return sum + (file?.size || 0);
     // }, 0);
 
     const totalSize = selectedFile?.size;
@@ -168,6 +168,12 @@ const SendInput: React.FC<SendInputProps> = ({
     [selectedFile, message, sendMessage, sendMedia]
   );
 
+  const handleSecondaryClick = useCallback(() => {
+    sendMessage(message + config.secondarySendButton.messageEdit);
+    setMessage('');
+    setFilePreviews([]);
+  }, [filePreviews, message, sendMessage, sendMedia]);
+
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
       if (event.key === 'Enter') {
@@ -193,7 +199,7 @@ const SendInput: React.FC<SendInputProps> = ({
   }, []);
 
   const memoizedFilePreviews = useMemo(() => {
-    if(selectedFile === null) return null;
+    if (selectedFile === null) return null;
 
     return (
       <FilePreview>
@@ -208,7 +214,7 @@ const SendInput: React.FC<SendInputProps> = ({
             width: 16,
           }}
           onClick={() => {
-            handleRemoveFile(selectedFile)
+            handleRemoveFile(selectedFile);
             setIsLimitSize(false);
           }}
           EndIcon={<RemoveIcon style={{ height: 16, width: 16 }} />}
@@ -267,31 +273,51 @@ const SendInput: React.FC<SendInputProps> = ({
             />
           </>
         )}
-        {message || selectedFile || config?.disableMedia ? (
-          <Button
-            onClick={() => handleSendClick()}
-            disabled={isLimitSize}
-            EndIcon={
-              <SendIcon
-                color={
-                  selectedFile
-                    ? '#fff'
+        {message || filePreviews.length > 0 || config?.disableMedia ? (
+          <>
+            {config?.secondarySendButton?.enabled && (
+              <Button
+                onClick={() => handleSecondaryClick()}
+                style={{
+                  color: 'white',
+                  borderRadius: '100px',
+                  backgroundColor:
+                    filePreviews.length > 0
+                      ? config?.colors?.primary
+                      : !message || message === ''
+                        ? 'transparent'
+                        : config?.colors?.primary,
+                  ...config?.secondarySendButton.buttonStyles,
+                }}
+              >
+                {config?.secondarySendButton.buttonText}
+              </Button>
+            )}
+            <Button
+              onClick={() => handleSendClick()}
+              // disabled={!message || message === ""}
+              EndIcon={
+                <SendIcon
+                  color={
+                    filePreviews.length > 0
+                      ? '#fff'
+                      : !message || message === ''
+                        ? '#D4D4D8'
+                        : '#fff'
+                  }
+                />
+              }
+              style={{
+                borderRadius: '100px',
+                backgroundColor:
+                  filePreviews.length > 0
+                    ? config?.colors?.primary
                     : !message || message === ''
-                      ? '#D4D4D8'
-                      : '#fff'
-                }
-              />
-            }
-            style={{
-              borderRadius: '100px',
-              backgroundColor:
-                selectedFile
-                  ? config?.colors?.primary
-                  : !message || message === ''
-                    ? 'transparent'
-                    : config?.colors?.primary,
-            }}
-          />
+                      ? 'transparent'
+                      : config?.colors?.primary,
+              }}
+            />
+          </>
         ) : (
           <AudioRecorder
             setIsRecording={setIsRecording}

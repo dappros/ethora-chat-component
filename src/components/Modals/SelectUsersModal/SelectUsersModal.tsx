@@ -62,15 +62,26 @@ const SelectUsersModal: React.FC = () => {
             <CloseButton onClick={handleCloseModal} style={{ fontSize: 24 }}>
               &times;
             </CloseButton>
-            <UsersList
-              selectedUsers={selectedUsers}
-              setSelectedUsers={setSelectedUsers}
+            <GroupContainer
               style={{
-                minHeight: '400px',
-                minWidth: '100%',
+                flexDirection: 'column',
+                position: 'relative',
+                boxSizing: 'border-box',
                 width: '100%',
+                minHeight: '400px',
               }}
-            />
+            >
+              <UsersList
+                selectedUsers={selectedUsers}
+                setSelectedUsers={setSelectedUsers}
+                style={{
+                  minWidth: '100%',
+                  width: '100%',
+                  maxHeight: '340px',
+                }}
+                headerElement={false}
+              />
+            </GroupContainer>
             <GroupContainer>
               <Button
                 onClick={handleCloseModal}

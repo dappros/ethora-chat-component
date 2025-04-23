@@ -49,7 +49,7 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
 
   useEffect(() => {
     if (props.config?.baseUrl) {
-      setBaseURL(props.config?.baseUrl);
+      setBaseURL(props.config?.baseUrl, props.config?.customAppToken);
     }
     if (props?.config?.userLogin?.enabled && props?.config?.userLogin?.user) {
       dispatch(setUser(props.config.userLogin.user));

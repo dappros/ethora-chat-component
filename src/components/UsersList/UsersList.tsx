@@ -1,4 +1,10 @@
-import React, { Dispatch, SetStateAction, useState } from 'react';
+import React, {
+  Dispatch,
+  SetStateAction,
+  useState,
+  useMemo,
+  useEffect,
+} from 'react';
 import { ModalTitle, LabelData } from '../Modals/styledModalComponents';
 import {
   ScrollableContainer,
@@ -9,6 +15,8 @@ import {
 import { useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
 import { RoomMember } from '../../types/types';
+import { debounce } from '../../helpers/debounce';
+import { StyledInput } from '../styled/StyledInputComponents/StyledInputComponents';
 
 interface UsersListProps {
   selectedUsers: RoomMember[];
@@ -24,25 +32,40 @@ const UsersList: React.FC<UsersListProps> = ({
   headerElement,
 }) => {
   const usersSet = useSelector((state: RootState) => state.rooms.usersSet);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredUsers, setFilteredUsers] = useState<RoomMember[]>([]);
 
   const handleUserSelect = (user: RoomMember) => {
-    setSelectedUsers((prev: any[]) => {
-      const isSelected = prev.some((u: { _id: string }) => u._id === user._id);
-      if (isSelected) {
-        return prev.filter((u: { _id: string }) => u._id !== user._id);
-      } else {
-        return [...prev, user];
-      }
+    setSelectedUsers((prev) => {
+      const isSelected = prev.some((u) => u._id === user._id);
+      return isSelected
+        ? prev.filter((u) => u._id !== user._id)
+        : [...prev, user];
     });
   };
 
+  const debouncedFilter = useMemo(
+    () =>
+      debounce((term: string) => {
+        const lower = term.toLowerCase();
+        const users = Object.values(usersSet).filter((user) =>
+          `${user.firstName} ${user.lastName}`.toLowerCase().includes(lower)
+        );
+        setFilteredUsers(users);
+      }, 100),
+    [usersSet]
+  );
+
+  useEffect(() => {
+    debouncedFilter(searchTerm);
+  }, [searchTerm, debouncedFilter]);
+
+  useEffect(() => {
+    setFilteredUsers(Object.values(usersSet));
+  }, [usersSet]);
+
   return (
-    <div
-      style={{
-        maxHeight: '100px',
-        ...style,
-      }}
-    >
+    <div style={{ maxHeight: '100px', ...style }}>
       {headerElement ? (
         <ModalTitle>Select Users (max 20)</ModalTitle>
       ) : (
@@ -51,14 +74,24 @@ const UsersList: React.FC<UsersListProps> = ({
         </div>
       )}
 
+      <StyledInput
+        type="text"
+        placeholder="Search users..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        style={{ width: '100%' }}
+      />
+
       <ScrollableContainer style={{ ...style }}>
-        {Object.values(usersSet).map((user) => (
-          <UserItem key={user._id}>
+        {filteredUsers.map((user) => (
+          <UserItem
+            key={user._id}
+            onClick={() => handleUserSelect(user)}
+            style={{ cursor: 'pointer' }}
+          >
             <Checkbox
               type="checkbox"
-              checked={selectedUsers.some(
-                (u: { _id: string }) => u._id === user._id
-              )}
+              checked={selectedUsers.some((u) => u._id === user._id)}
               onChange={() => handleUserSelect(user)}
               disabled={selectedUsers.length === 20}
             />
