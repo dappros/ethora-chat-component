@@ -9,7 +9,7 @@ export const getHistory = async (
   client: Client,
   chatJID: string,
   max: number = 30,
-  before?: number,
+  before: number = 0,
   otherId?: string
 ): Promise<IMessage[] | undefined> => {
   if (typeof chatJID !== 'string') return;

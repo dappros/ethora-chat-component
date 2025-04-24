@@ -58,7 +58,7 @@ export const updateMessagesTillLast = async (
                 Number(lastMessageId)
               );
 
-              console.log('fetchedMessages', fetchedMessages);
+              console.log('fetchedMessages', currentJidNewMessages);
 
               if (!fetchedMessages.length) break;
 

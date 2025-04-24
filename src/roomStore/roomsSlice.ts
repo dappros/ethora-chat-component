@@ -74,7 +74,10 @@ export const roomsStore = createSlice({
     ) {
       const { roomJID, messages } = action.payload;
       if (state.rooms[roomJID]) {
+        console.log("messages-store-1", messages);
+        console.log("messages-store-2", state.rooms[roomJID].messages);
         state.rooms[roomJID].messages = [...messages, ...state.rooms[roomJID].messages];
+        console.log('state.rooms.messages', state.rooms[roomJID].messages)
       }
     },
     deleteRoomMessage(

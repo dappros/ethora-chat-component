@@ -22,16 +22,17 @@ export const useRoomInitialization = (
   useEffect(() => {
     const getDefaultHistory = async () => {
       dispatch(setIsLoading({ loading: true, chatJID: activeRoomJID }));
-      const res = await client.getHistoryStanza(activeRoomJID, 30);
-      if (res && countUndefinedText(res) > 0) {
-        dispatch(setIsLoading({ loading: false, chatJID: activeRoomJID }));
-        // make it more optimized
-        await client.getHistoryStanza(
-          activeRoomJID,
-          20 + countUndefinedText(res),
-          Number(res[0].id)
-        );
-      }
+      // const res = await client.getHistoryStanza(activeRoomJID, 30);
+      // if (res && countUndefinedText(res) > 0) {
+      //   dispatch(setIsLoading({ loading: false, chatJID: activeRoomJID }));
+
+      //   // make it more optimized
+      //   await client.getHistoryStanza(
+      //     activeRoomJID,
+      //     20 + countUndefinedText(res),
+      //     Number(res[0].id)
+      //   );
+      // }
       dispatch(setIsLoading({ loading: false, chatJID: activeRoomJID }));
     };
 

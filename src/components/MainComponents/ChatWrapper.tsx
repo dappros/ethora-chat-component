@@ -277,11 +277,11 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   }, [client, room?.jid]);
 
   const queueMessageLoader = useCallback(
-    async (chatJID: string, max: number) => {
+    async (chatJID: string, max: number = 30) => {
       try {
-        const response = await client?.getHistoryStanza(chatJID, max);
+        const response = await client?.getHistoryStanza(chatJID, 30);
         console.log('response queueMessageLoader', response);
-        
+
         return response;
       } catch (error) {
         console.log('Error in loading queue messages', error);
@@ -290,13 +290,13 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     [globalLoading, loading, roomsLoading]
   );
 
-  useMessageLoaderQueue(
-    Object.keys(roomsList),
-    roomsList,
-    globalLoading,
-    loading,
-    queueMessageLoader
-  );
+  // useMessageLoaderQueue(
+  //   Object.keys(roomsList),
+  //   roomsList,
+  //   globalLoading,
+  //   loading,
+  //   queueMessageLoader
+  // );
 
   if (user.xmppPassword === '' && user.xmppUsername === '')
     return <LoginForm config={config} />;
