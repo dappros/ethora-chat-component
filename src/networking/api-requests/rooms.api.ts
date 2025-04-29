@@ -2,6 +2,7 @@ import { store } from '../../roomStore';
 import {
   ApiRoom,
   DeleteRoomMember,
+  GetPublicRooms,
   PostAddRoomMember,
   PostReportRoom,
   PostRoom,
@@ -50,6 +51,28 @@ export async function postRoom(data: PostRoom) {
     return response.data.result;
   } catch (error) {
     throw new Error('Error updating profile');
+  }
+}
+
+export async function getPublicAppRooms(
+  offset?: number,
+  limit?: number
+): Promise<GetPublicRooms> {
+  const token = store.getState().chatSettingStore.user.token || '';
+
+  try {
+    const response = await http.get('/chats/public', {
+      headers: {
+        Authorization: token,
+      },
+      params: {
+        offset,
+        limit,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error('Error fetching public rooms');
   }
 }
 

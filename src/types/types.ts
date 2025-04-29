@@ -531,3 +531,9 @@ export interface LastMessage extends Omit<Partial<IMessage>, 'date'> {
 export type ChatAccessOption =
   | { name: 'Public'; id: 'public' }
   | { name: 'Members-only'; id: 'group' };
+
+export interface GetPublicRooms {
+  items: ApiRoom[];
+  offset: number;
+  limit: number;
+}
