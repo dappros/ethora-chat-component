@@ -25,6 +25,7 @@ import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 import { useXmppClient } from '../../context/xmppProvider';
 import ChatRoomItem from '../RoomComponents/ChatRoomItem';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
+import PublicRoomsBrowser from '../PublicRoomsBrowser/PublicRoomsBrowser';
 
 interface RoomListProps {
   chats: IRoom[];
@@ -190,6 +191,7 @@ const RoomList: React.FC<RoomListProps> = ({
       >
         {(open || !burgerMenu) && (
           <ScollableContainer>
+            <PublicRoomsBrowser />
             <SearchContainer>
               {!config?.disableRoomMenu && (
                 <DropdownMenu
@@ -213,7 +215,7 @@ const RoomList: React.FC<RoomListProps> = ({
               {filteredChats.map((chat: IRoom, index: number) => (
                 <>
                   <ChatRoomItem
-                    key={chat.id}
+                    key={chat.id || chat.jid}
                     chat={chat}
                     index={index}
                     isChatActive={isChatActive(chat)}
@@ -221,7 +223,7 @@ const RoomList: React.FC<RoomListProps> = ({
                     config={config}
                   />
                   {index < filteredChats.length - 1 && (
-                    <Divider key={`divider-${chat.id}`} />
+                    <Divider key={`divider-${chat.id || chat.jid}`} />
                   )}
                 </>
               ))}
