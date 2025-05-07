@@ -19,7 +19,8 @@ export async function getRooms(): Promise<{ items: ApiRoom[] }> {
     });
     return response.data;
   } catch (error) {
-    throw new Error('Error updating profile');
+    console.log('Error loading rooms');
+    return error;
   }
 }
 

@@ -45,6 +45,7 @@ export function refresh(): Promise<{
           );
         })
         .catch((error) => {
+          store.dispatch(logout());
           reject(error);
         });
     } catch (error) {

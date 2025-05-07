@@ -21,6 +21,7 @@ export const useRoomInitialization = (
 
   useEffect(() => {
     const getDefaultHistory = async () => {
+      if (!client) return;
       dispatch(setIsLoading({ loading: true, chatJID: activeRoomJID }));
       const res = await client.getHistoryStanza(activeRoomJID, 30);
       if (res && countUndefinedText(res) > 0) {
@@ -32,20 +33,26 @@ export const useRoomInitialization = (
           Number(res[0].id)
         );
       }
-      dispatch(setIsLoading({ loading: false, chatJID: activeRoomJID }));
+      dispatch(
+        setIsLoading({
+          loading: false,
+          chatJID: activeRoomJID,
+          loadingText: undefined,
+        })
+      );
     };
 
     const initialPresenceAndHistory = async () => {
-      if (!roomsList[activeRoomJID] && activeRoomJID) {
+      if (!roomsList[activeRoomJID] && activeRoomJID && client) {
         client.presenceInRoomStanza(activeRoomJID);
         if (config?.newArch) {
-          syncRooms(client, config);
+          await syncRooms(client, config);
         } else {
           await client.getRoomsStanza();
         }
         await getDefaultHistory();
       } else {
-        getDefaultHistory();
+        await getDefaultHistory();
       }
     };
 

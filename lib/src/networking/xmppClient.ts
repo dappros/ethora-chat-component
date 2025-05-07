@@ -271,9 +271,9 @@ export class XmppClient implements XmppClientInterface {
     });
   };
 
-  presenceInRoomStanza = (roomJID: string) => {
-    this.wrapWithConnectionCheck(async () => {
-      presenceInRoom(this.client, roomJID);
+  presenceInRoomStanza = async (roomJID: string, settleDelay = 0) => {
+    return this.wrapWithConnectionCheck(async () => {
+      await presenceInRoom(this.client, roomJID, settleDelay);
     });
   };
 

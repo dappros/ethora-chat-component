@@ -296,8 +296,6 @@ export interface IConfig {
   initBeforeLoad?: boolean;
   newArch?: boolean;
   qrUrl?: string;
-  logoutCallback?: () => Promise<void>; //remove as non-erializable
-  sendCBFunction?: (e?: any) => void; //remove as non-erializable
   secondarySendButton?: {
     enabled: boolean;
     messageEdit: string;

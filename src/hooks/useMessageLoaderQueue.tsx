@@ -1,89 +1,90 @@
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { IRoom } from '../types/types';
+
+const DEFAULT_BATCH_SIZE = 3;
+const DEFAULT_PAGE_SIZE = 10;
+const DEFAULT_POLL_INTERVAL = 1_000;
+
+const roomHasMoreMessages = (room: IRoom, max: number = 20) =>
+  (room.messages?.length ?? 0) < max;
 
 const useMessageLoaderQueue = (
   roomsList: string[],
-  rooms: {
-    [jid: string]: IRoom;
-  },
+  rooms: Record<string, IRoom>,
   globalLoading: boolean,
   loading: boolean,
-  loadMoreMessages: (roomJid: string, max: number) => Promise<any>
+  loadMoreMessages: (roomJid: string, max: number) => Promise<unknown>,
+  batchSize: number = DEFAULT_BATCH_SIZE,
+  pageSize: number = DEFAULT_PAGE_SIZE,
+  pollInterval: number = DEFAULT_POLL_INTERVAL
 ) => {
-  const [queueActive, setQueueActive] = useState(false);
-  const [processedChats, setProcessedChats] = useState<Set<string>>(new Set());
+  const processedChats = useRef<Set<string>>(new Set());
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    const processQueue = async () => {
-      if (
-        !globalLoading &&
-        !loading &&
-        processedChats.size !== roomsList.length
-      ) {
-        const batchSize = 3;
-        const batchedRooms = roomsList.filter(
-          (room) => !processedChats.has(room)
-        );
+  const processQueue = useCallback(async () => {
+    if (globalLoading || loading) return;
 
-        for (let i = 0; i < batchedRooms.length; i += batchSize) {
-          const currentBatch = batchedRooms.slice(i, i + batchSize);
+    const unprocessed = roomsList.filter(
+      (jid) => !processedChats.current.has(jid)
+    );
 
-          for (const room of currentBatch) {
-            if (
-              roomHasMoreRooms(rooms[room]) &&
-              !rooms[room]?.noMessages &&
-              !rooms[room]?.historyComplete
-            ) {
-              try {
-                await loadMoreMessages(room, 10);
-              } catch (error) {
-                console.error(`Error processing room ${room}:`, error);
-              }
-              await new Promise((res) => setTimeout(res, 200));
-            }
-            setProcessedChats((prev) => new Set(prev).add(room));
-          }
-        }
-        console.log('Processed queue');
-      }
-    };
-
-    const startQueue = () => {
-      if (!queueActive) {
-        setQueueActive(true);
-        intervalRef.current = setInterval(processQueue, 1000);
-      }
-    };
-
-    const stopQueue = () => {
-      setQueueActive(false);
+    if (!unprocessed.length) {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
-    };
+      return;
+    }
 
-    if (!globalLoading && !loading) {
-      startQueue();
-    } else {
-      stopQueue();
+    for (let i = 0; i < unprocessed.length; i += batchSize) {
+      const batch = unprocessed.slice(i, i + batchSize);
+
+      await Promise.all(
+        batch.map(async (jid) => {
+          const room = rooms[jid];
+          if (
+            !!room &&
+            roomHasMoreMessages(room) &&
+            !room.noMessages &&
+            !room.historyComplete
+          ) {
+            try {
+              await loadMoreMessages(jid, pageSize);
+            } catch (err) {
+              console.error(`Error loading messages for ${jid}`, err);
+            }
+
+            await new Promise((res) => setTimeout(res, 200));
+          }
+          processedChats.current.add(jid);
+        })
+      );
+    }
+  }, [
+    roomsList?.length,
+    globalLoading,
+    loading,
+    loadMoreMessages,
+    batchSize,
+    pageSize,
+  ]);
+
+  useEffect(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+
+    processedChats.current = new Set();
+
+    if (!globalLoading && !loading && !!roomsList.length) {
+      intervalRef.current = setInterval(processQueue, pollInterval);
     }
 
     return () => {
-      stopQueue();
+      if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [
-    roomsList.length,
-    globalLoading,
-    loadMoreMessages,
-    processedChats,
-    loading,
-  ]);
-};
-
-const roomHasMoreRooms = (room: IRoom, max: number = 20) => {
-  return room.messages?.length < max;
+  }, [roomsList?.length, globalLoading, loading]);
 };
 
 export default useMessageLoaderQueue;

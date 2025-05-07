@@ -22,6 +22,7 @@ interface RoomMessagesState {
   reportRoom: {
     isOpen: boolean;
   };
+  loadingText?: string;
 }
 
 const initialState: RoomMessagesState = {
@@ -38,6 +39,7 @@ const initialState: RoomMessagesState = {
   reportRoom: {
     isOpen: false,
   },
+  loadingText: undefined,
 };
 
 export const roomsStore = createSlice({
@@ -156,7 +158,8 @@ export const roomsStore = createSlice({
       const roomsExist =
         Object.keys(JSON.parse(JSON.stringify(state.rooms))).length > 0;
 
-      if (!roomsExist) {
+      const roomExist = !!state?.rooms[roomJID];
+      if (!roomsExist || !roomExist) {
         return;
       }
 
@@ -218,14 +221,21 @@ export const roomsStore = createSlice({
     },
     setIsLoading: (
       state,
-      action: PayloadAction<{ chatJID?: string; loading: boolean }>
+      action: PayloadAction<{
+        chatJID?: string;
+        loading: boolean;
+        loadingText?: string;
+      }>
     ) => {
-      const { chatJID, loading } = action.payload;
+      const { chatJID, loading, loadingText } = action.payload;
       if (chatJID && state.rooms?.[chatJID]) {
         state.rooms[chatJID].isLoading = loading;
       }
       if (!chatJID) {
         state.isLoading = loading;
+      }
+      if (loadingText) {
+        state.loadingText = loadingText;
       }
     },
     setLastViewedTimestamp: (

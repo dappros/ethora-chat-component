@@ -15,7 +15,7 @@ const Apps = () => {
       {isChatOpen && (
         <ReduxWrapper
           config={{
-            baseUrl: 'https://dev.api.platform.atomwcapps.com/v1',
+            baseUrl: 'https://api.ethoradev.com/v1',
           }}
         />
       )}
@@ -31,7 +31,6 @@ const ChatComponent = React.memo(() => {
       chatRoomStyles: { borderRadius: '16px' },
       roomListStyles: { borderRadius: '16px' },
       setRoomJidInPath: true,
-      baseUrl: 'https://dev.api.ethoradev.com/v1',
     }),
     []
   );
@@ -57,18 +56,14 @@ const ChatComponent = React.memo(() => {
       <ReduxWrapper
         config={{
           xmppSettings: {
-            devServer: 'wss://dev.xmpp.ethoradev.com:5443/ws',
-            host: 'dev.xmpp.ethoradev.com',
-            conference: 'conference.dev.xmpp.ethoradev.com',
+            devServer: 'wss://xmpp.ethoradev.com:5443/ws',
+            host: 'xmpp.ethoradev.com',
+            conference: 'conference.xmpp.ethoradev.com',
           },
-          baseUrl: 'https://dev.api.ethoradev.com/v1',
+          baseUrl: 'https://api.ethoradev.com/v1',
           newArch: true,
           setRoomJidInPath: true,
-          qrUrl: 'https://ethora.dev.frontend.ethoradev.com/app/chat?qrChatId=',
-          sendCBFunction: () => {
-            console.log('Send callback function');
-            handleCopyClick(window.location.href);
-          },
+          qrUrl: 'https://beta.ethora.com/app/chat/?qrChatId=',
           secondarySendButton: {
             enabled: true,
             messageEdit: `videoId:${window.location.href}`,
