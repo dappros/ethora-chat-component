@@ -42,7 +42,14 @@ const encryptor = encryptTransform({
 const chatSettingPersistConfig = {
   key: 'chatSettingStore',
   storage,
-  blacklist: ['activeModal', 'deleteModal', 'selectedUser', 'activeFile'],
+  blacklist: [
+    'activeModal',
+    'deleteModal',
+    'selectedUser',
+    'activeFile',
+    'config.refreshTokens',
+    'refreshTokens',
+  ],
   transforms: [encryptor],
 };
 
