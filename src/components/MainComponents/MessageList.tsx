@@ -203,8 +203,8 @@ const MessageList = <TMessage extends IMessage>({
     if (isUserMessage) return;
 
     const newMessageDate = new Date(
-      memoizedMessages[memoizedMessages.length - 1].date
-    ).getTime();
+      memoizedMessages[memoizedMessages.length - 1]?.date
+    )?.getTime();
     if (newMessageDate > lastMessageDate) {
       setNewMessagesCount((prev) => (prev += 1));
     }

@@ -64,15 +64,15 @@ const ChatComponent = React.memo(() => {
           newArch: true,
           setRoomJidInPath: true,
           qrUrl: 'https://beta.ethora.com/app/chat/?qrChatId=',
-          secondarySendButton: {
-            enabled: true,
-            messageEdit: `videoId:${window.location.href}`,
-            buttonText: 'With Id',
-            buttonStyles: {
-              whiteSpace: 'nowrap',
-              width: '60px',
-            },
-          },
+          // secondarySendButton: {
+          //   enabled: true,
+          //   messageEdit: `videoId:${window.location.href}`,
+          //   buttonText: 'With Id',
+          //   buttonStyles: {
+          //     whiteSpace: 'nowrap',
+          //     width: '60px',
+          //   },
+          // },
           ...config,
         }}
         MainComponentStyles={mainStyles}
