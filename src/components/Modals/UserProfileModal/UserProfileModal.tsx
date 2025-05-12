@@ -23,15 +23,28 @@ import {
   setLangSource,
   setSelectedUser,
 } from '../../../roomStore/chatSettingsSlice';
-import { setCurrentRoom, setLogoutState } from '../../../roomStore/roomsSlice';
+import {
+  addRoom,
+  addRoomViaApi,
+  setCurrentRoom,
+  setLogoutState,
+} from '../../../roomStore/roomsSlice';
 import EditUserModal from './EditUserModal';
 import { walletToUsername } from '../../../helpers/walletUsername';
 import { useXmppClient } from '../../../context/xmppProvider';
 import Loader from '../../styled/Loader';
-import { Iso639_1Codes } from '../../../types/types';
+import { ApiRoom, Iso639_1Codes } from '../../../types/types';
 import Select from '../../MainComponents/Select';
 import { handleCopyClick } from '../../../helpers/handleCopyClick';
-import { postPrivateRoom } from '../../../networking/api-requests/rooms.api';
+import {
+  getRoomByName,
+  postPrivateRoom,
+} from '../../../networking/api-requests/rooms.api';
+import { LANGUAGE_OPTIONS } from '../../../helpers/constants/LANGUAGE_OPTIONS';
+import { useToast } from '../../../context/ToastContext';
+import { createRoomFromApi } from '../../../helpers/createRoomFromApi';
+import { useRoomState } from '../../../hooks/useRoomState';
+import { createUserNameFromSetUser } from '../../../helpers/createUserNameFromSetUser';
 
 interface UserProfileModalProps {
   handleCloseModal: any;
@@ -43,13 +56,14 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const dispatch = useDispatch();
 
   const { client } = useXmppClient();
+  const { usersSet } = useRoomState();
+  const { showToast } = useToast();
 
   const { config, user, selectedUser, langSource } = useSelector(
     (state: RootState) => state.chatSettingStore
   );
 
   const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(false);
 
   const handleBackClick = useCallback(() => {
     dispatch(setSelectedUser());
@@ -75,14 +89,6 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     []
   );
 
-  const languageOptions = [
-    { name: 'English', id: 'en' },
-    { name: 'Spanish', id: 'es' },
-    { name: 'Portuguese', id: 'pt' },
-    { name: 'Haitian Creole', id: 'ht' },
-    { name: 'Chinese', id: 'zh' },
-  ];
-
   const handleSelect = (selected: { name: string; id: Iso639_1Codes }) => {
     dispatch(setLangSource(selected.id));
   };
@@ -91,16 +97,56 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     setIsEditing(true);
   }, []);
 
+  const handleRoomCreation = async (
+    newChat: ApiRoom,
+    usersArrayLength: number
+  ) => {
+    try {
+      const normalizedChat = createRoomFromApi(
+        newChat,
+        config?.xmppSettings?.conference,
+        usersArrayLength
+      );
+
+      dispatch(
+        addRoomViaApi({
+          room: normalizedChat,
+          xmpp: client,
+        })
+      );
+
+      dispatch(setCurrentRoom({ roomJID: normalizedChat.jid }));
+
+      showToast({
+        id: Date.now().toString(),
+        title: 'Success!',
+        message: 'Room created succusfully!',
+        type: 'success',
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error('Error handling room creation:', error);
+    }
+  };
+
   const handlePrivateMessage = useCallback(async () => {
-    setLoading(true);
+    showToast({
+      id: Date.now().toString(),
+      title: 'Room creation',
+      message: 'Room is being created...',
+      type: 'info',
+      duration: 3000,
+    });
     let newRoomJid = '';
     if (config?.newArch) {
-      newRoomJid = await postPrivateRoom(
+      const newRoom = await postPrivateRoom(
         selectedUser?.userJID ?? selectedUser?.id
       );
+      handleRoomCreation(newRoom, 2);
+      newRoomJid = newRoom.name;
     } else {
-      const myUsername = walletToUsername(user.defaultWallet.walletAddress);
       const selectedUserUsername = walletToUsername(selectedUser.id);
+      const myUsername = walletToUsername(user.defaultWallet.walletAddress);
 
       const combinedWalletAddress = [myUsername, selectedUserUsername]
         .sort()
@@ -127,8 +173,6 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
       }
     }
 
-    setLoading(false);
-    dispatch(setCurrentRoom({ roomJID: newRoomJid }));
     dispatch(setActiveModal());
   }, [selectedUser]);
 
@@ -136,7 +180,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   const findLanguage = () => {
     if (langSource)
-      return languageOptions.find((lang) => lang.id === langSource);
+      return LANGUAGE_OPTIONS.find((lang) => lang.id === langSource);
     else return undefined;
   };
 
@@ -178,7 +222,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
           {!selectedUser && config?.translates?.enabled && (
             <BorderedContainer>
               <Select
-                options={languageOptions}
+                options={LANGUAGE_OPTIONS}
                 placeholder={'Select your language'}
                 onSelect={handleSelect}
                 accentColor={config?.colors?.primary}
@@ -194,26 +238,22 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 : 'No description'}
             </LabelData>
           </BorderedContainer>
-          {loading ? (
-            <Loader />
-          ) : (
-            selectedUser && (
-              <>
-                <ActionButton
-                  StartIcon={<ChatIcon />}
-                  onClick={handlePrivateMessage}
-                  variant="filled"
-                >
-                  Message
-                </ActionButton>
-                <ActionButton
-                  onClick={() => handleCopyClick(selectedUser.id)}
-                  variant="filled"
-                >
-                  Copy User Id
-                </ActionButton>
-              </>
-            )
+          {selectedUser && (
+            <>
+              <ActionButton
+                StartIcon={<ChatIcon />}
+                onClick={handlePrivateMessage}
+                variant="filled"
+              >
+                Message
+              </ActionButton>
+              <ActionButton
+                onClick={() => handleCopyClick(selectedUser.id)}
+                variant="filled"
+              >
+                Copy User Id
+              </ActionButton>
+            </>
           )}
           {/* <EmptySection /> */}
         </CenterContainer>

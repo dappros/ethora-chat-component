@@ -5,6 +5,7 @@ import {
   PostAddRoomMember,
   PostReportRoom,
   PostRoom,
+  RoomMember,
 } from '../../types/types';
 import http from '../apiClient';
 
@@ -54,7 +55,10 @@ export async function postRoom(data: PostRoom) {
   }
 }
 
-export async function postPrivateRoom(username: string) {
+export async function postPrivateRoom(
+  username: string,
+  title: string = 'Private chat'
+): Promise<ApiRoom> {
   const token = store.getState().chatSettingStore.user.token || '';
 
   try {
@@ -93,7 +97,9 @@ export async function postReportRoom(data: PostReportRoom) {
   }
 }
 
-export async function postAddRoomMember(data: PostAddRoomMember) {
+export async function postAddRoomMember(
+  data: PostAddRoomMember
+): Promise<RoomMember[]> {
   const { chatName, members } = data;
   const token = store.getState().chatSettingStore.user.token || '';
 
@@ -107,7 +113,7 @@ export async function postAddRoomMember(data: PostAddRoomMember) {
         },
       }
     );
-    return response.data.result;
+    return response.data.results;
   } catch (error) {
     throw new Error('Error updating profile');
   }
