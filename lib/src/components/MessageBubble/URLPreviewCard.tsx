@@ -10,15 +10,13 @@ interface URLPreviewCardProps {
 const PreviewContainer = styled.div`
   border: 1px solid #e1e1e1;
   border-radius: 8px;
-  padding: 10px;
-  max-width: 350px;
+  padding: 8px;
   background-color: #ffffff;
   display: flex;
   flex-direction: column;
-  gap: 5px;
   text-align: left;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  margin-bottom: 8px;
+  margin: 4px 0px;
 `;
 
 const PreviewImage = styled.img`
@@ -59,10 +57,7 @@ interface PreviewData {
   image?: string;
 }
 
-const URLPreviewCard: React.FC<URLPreviewCardProps> = ({
-  url,
-  isUserMessage,
-}) => {
+const URLPreviewCard: React.FC<URLPreviewCardProps> = ({ url }) => {
   const [previewData, setPreviewData] = useState<PreviewData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -133,7 +128,7 @@ const URLPreviewCard: React.FC<URLPreviewCardProps> = ({
   } catch (_) {}
 
   return (
-    <PreviewContainer style={{}}>
+    <PreviewContainer>
       {previewData.image && (
         <PreviewImage src={previewData.image} alt="Preview" />
       )}

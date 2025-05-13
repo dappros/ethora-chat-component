@@ -281,6 +281,9 @@ const Message: React.FC<MessageProps> = forwardRef<
               <DoubleTick />
             )}
           </CustomMessageTimestamp>
+          {previewUrl && !message.isDeleted && (
+            <URLPreviewCard url={previewUrl} isUserMessage={isUser} />
+          )}
         </CustomMessageBubble>
         <MessageFooter isUser={isUser}>
           {message?.reply?.length && message?.reply?.length > 0 ? (
@@ -301,10 +304,6 @@ const Message: React.FC<MessageProps> = forwardRef<
           )}
         </MessageFooter>
       </CustomMessageContainer>
-
-      {previewUrl && !message.isDeleted && (
-        <URLPreviewCard url={previewUrl} isUserMessage={isUser} />
-      )}
 
       {!config?.disableInteractions && (
         <MessageInteractions
