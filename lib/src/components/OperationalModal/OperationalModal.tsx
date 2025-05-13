@@ -49,7 +49,14 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
         >
           <CloseButton
             onClick={() => setVisible(false)}
-            style={{ fontSize: 24 }}
+            style={{
+              fontSize: 24,
+              width: '36px',
+              height: '36px',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
           >
             &times;
           </CloseButton>
