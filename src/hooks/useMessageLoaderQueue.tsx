@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { IRoom } from '../types/types';
 
-const DEFAULT_BATCH_SIZE = 3;
+const DEFAULT_BATCH_SIZE = 5;
 const DEFAULT_PAGE_SIZE = 10;
 const DEFAULT_POLL_INTERVAL = 1_000;
 

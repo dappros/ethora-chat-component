@@ -14,7 +14,7 @@ const useGetNewArchRoom = () => {
   const syncRooms = useCallback(
     async (client: any, config: any) => {
       const rooms = await getRooms();
-      rooms.items.forEach((room) => {
+      rooms?.items?.forEach((room) => {
         dispatch(
           addRoomViaApi({
             room: createRoomFromApi(room, config?.xmppSettings?.conference),

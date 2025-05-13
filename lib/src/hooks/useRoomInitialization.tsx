@@ -44,7 +44,7 @@ export const useRoomInitialization = (
 
     const initialPresenceAndHistory = async () => {
       if (!roomsList[activeRoomJID] && activeRoomJID && client) {
-        client.presenceInRoomStanza(activeRoomJID);
+        await client.presenceInRoomStanza(activeRoomJID);
         if (config?.newArch) {
           await syncRooms(client, config);
         } else {

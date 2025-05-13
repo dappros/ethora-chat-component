@@ -76,9 +76,6 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
       const uploadResult = await uploadFile(mediaData);
 
       const location = uploadResult?.data?.results?.[0]?.location;
-      if (!location) {
-        console.log('No location found in upload result.');
-      }
 
       if (location) {
         client.setRoomImageStanza(activeRoom.jid, location, 'icon', 'none');

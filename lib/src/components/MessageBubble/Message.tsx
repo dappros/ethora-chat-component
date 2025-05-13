@@ -1,5 +1,5 @@
-import React, { forwardRef, useCallback, useRef, useState } from 'react';
-import { IUser, MessageProps, ReactionMessage } from '../../types/types';
+import React, { forwardRef, useEffect, useRef, useState } from 'react';
+import { IUser, MessageProps } from '../../types/types';
 import {
   CustomMessageTimestamp,
   CustomMessageContainer,
@@ -30,6 +30,11 @@ import { MessageReaction } from './MessageReaction';
 import MessageTranslations from './MessageTranslations';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { DoubleTick } from '../../assets/icons';
+import { parseMessageBody } from '../../helpers/parseUrls';
+import URLPreviewCard from './URLPreviewCard';
+
+const firstUrlRegex =
+  /(https?:\/\/[\w.-]+(?:\.[\w.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+)/;
 
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
@@ -47,6 +52,17 @@ const Message: React.FC<MessageProps> = forwardRef<
         y: 0,
       })
     : [null, null];
+
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (message && message.body && typeof message.body === 'string') {
+      const match = message.body.match(firstUrlRegex);
+      setPreviewUrl(match ? match[0] : null);
+    } else {
+      setPreviewUrl(null);
+    }
+  }, [message?.body]);
 
   const handleContextMenu = (event: React.MouseEvent | React.TouchEvent) => {
     if (config?.disableInteractions) return;
@@ -87,6 +103,7 @@ const Message: React.FC<MessageProps> = forwardRef<
   };
 
   const handleUserAvatarClick = (user: IUser): void => {
+    if (user?.name === 'Deleted User') return;
     dispatch(setActiveModal(MODAL_TYPES.PROFILE));
     dispatch(setSelectedUser(user));
   };
@@ -114,7 +131,7 @@ const Message: React.FC<MessageProps> = forwardRef<
         messageId: message.id,
       })
     );
-    // dispatch(deleteRoomMessage({ roomJID: message.roomJid, messageId: message.id }));
+
     // client.deleteMessageStanza(message.roomJid, message.id);
   };
 
@@ -238,7 +255,7 @@ const Message: React.FC<MessageProps> = forwardRef<
               {message.isDeleted && message.id !== 'delimiter-new' ? (
                 <DeletedMessage />
               ) : (
-                <span>{message.body}</span>
+                <span>{parseMessageBody(message.body)}</span>
               )}
             </CustomMessageText>
           )}
@@ -284,6 +301,11 @@ const Message: React.FC<MessageProps> = forwardRef<
           )}
         </MessageFooter>
       </CustomMessageContainer>
+
+      {previewUrl && !message.isDeleted && (
+        <URLPreviewCard url={previewUrl} isUserMessage={isUser} />
+      )}
+
       {!config?.disableInteractions && (
         <MessageInteractions
           isReply={isReply}

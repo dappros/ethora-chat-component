@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { getActiveRoom, RootState } from '../../../roomStore';
 import {
   ActionButton,
@@ -13,8 +13,13 @@ import { RoomMember } from '../../../types/types';
 import UsersList from '../../UsersList/UsersList';
 import Loader from '../../styled/Loader';
 import { postAddRoomMember } from '../../../networking/api-requests/rooms.api';
+import { useToast } from '../../../context/ToastContext';
+import { updateRoom } from '../../../roomStore/roomsSlice';
 
 const SelectUsersModal: React.FC = () => {
+  const { showToast } = useToast();
+  const dispatch = useDispatch();
+
   const [loading, setIsLoading] = useState<boolean>(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<RoomMember[]>([]);
@@ -37,9 +42,25 @@ const SelectUsersModal: React.FC = () => {
       .map((user) => user.xmppUsername);
 
     try {
-      await postAddRoomMember({
+      const newMembers = await postAddRoomMember({
         chatName: activeRoom.jid.split('@')[0],
         members: usersArray,
+      });
+      dispatch(
+        updateRoom({
+          jid: activeRoom.jid,
+          updates: {
+            members: [...newMembers, ...activeRoom.members],
+            usersCnt: activeRoom.members.length + newMembers.length,
+          },
+        })
+      );
+      showToast({
+        id: Date.now().toString(),
+        title: 'Success!',
+        message: 'Room created succusfully!',
+        type: 'success',
+        duration: 3000,
       });
     } catch (error) {
       console.error('Error adding users:', error);

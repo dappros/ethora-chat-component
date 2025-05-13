@@ -17,12 +17,14 @@ import { RootState } from '../../roomStore';
 import { RoomMember } from '../../types/types';
 import { debounce } from '../../helpers/debounce';
 import { StyledInput } from '../styled/StyledInputComponents/StyledInputComponents';
+import { useRoomState } from '../../hooks/useRoomState';
 
 interface UsersListProps {
   selectedUsers: RoomMember[];
   setSelectedUsers: Dispatch<SetStateAction<RoomMember[]>>;
   headerElement?: boolean;
   style?: any;
+  filter?: RoomMember[];
 }
 
 const UsersList: React.FC<UsersListProps> = ({
@@ -30,8 +32,9 @@ const UsersList: React.FC<UsersListProps> = ({
   selectedUsers,
   setSelectedUsers,
   headerElement,
+  filter,
 }) => {
-  const usersSet = useSelector((state: RootState) => state.rooms.usersSet);
+  const { usersSet } = useRoomState();
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredUsers, setFilteredUsers] = useState<RoomMember[]>([]);
 

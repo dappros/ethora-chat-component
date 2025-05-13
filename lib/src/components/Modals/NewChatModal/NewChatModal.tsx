@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import Button from '../../styled/Button';
 import { AddNewIcon, AddPhotoIcon } from '../../../assets/icons';
 import { useDispatch, useSelector } from 'react-redux';
@@ -12,7 +12,6 @@ import {
   ModalTitle,
 } from '../styledModalComponents';
 import {
-  addRoom,
   addRoomViaApi,
   setCurrentRoom,
   updateRoom,
@@ -21,16 +20,14 @@ import InputWithLabel from '../../styled/StyledInput';
 import { uploadFile } from '../../../networking/api-requests/auth.api';
 import { ProfileImagePlaceholder } from '../../MainComponents/ProfileImagePlaceholder';
 import { createRoomFromApi } from '../../../helpers/createRoomFromApi';
-import {
-  getRoomByName,
-  postRoom,
-} from '../../../networking/api-requests/rooms.api';
+import { postRoom } from '../../../networking/api-requests/rooms.api';
 import { ApiRoom, ChatAccessOption } from '../../../types/types';
 import Select from '../../MainComponents/Select';
 import { RoomMember } from '../../../types/types';
 import UsersList from '../../UsersList/UsersList';
 import { useToast } from '../../../context/ToastContext';
 import Loader from '../../styled/Loader';
+import { CHAT_TYPES } from '../../../helpers/constants/CHAT_TYPES';
 
 const NewChatModal: React.FC = () => {
   const config = useSelector(
@@ -54,11 +51,6 @@ const NewChatModal: React.FC = () => {
   const [profileImage, setProfileImage] = useState<string | File | null>(null);
   const [errors, setErrors] = useState({ name: '', description: '' });
   const [selectedUsers, setSelectedUsers] = useState<RoomMember[]>([]);
-
-  const options: ChatAccessOption[] = [
-    { name: 'Public', id: 'public' },
-    { name: 'Members-only', id: 'group' },
-  ];
 
   const isValid = useMemo(
     // () => roomName.length >= 3 && roomDescription.length >= 5,
@@ -127,29 +119,27 @@ const NewChatModal: React.FC = () => {
         usersArrayLength
       );
 
-      dispatch(addRoom({ roomData: normalizedChat }));
-
-      dispatch(setCurrentRoom({ roomJID: normalizedChat.jid }));
-
-      client.presenceInRoomStanza(normalizedChat.jid);
-
-      const room = await getRoomByName(normalizedChat.jid);
       dispatch(
         addRoomViaApi({
-          room: createRoomFromApi(
-            room,
-            config?.xmppSettings?.conference,
-            usersArrayLength
-          ),
+          room: normalizedChat,
           xmpp: client,
         })
       );
+
+      dispatch(setCurrentRoom({ roomJID: normalizedChat.jid }));
     } catch (error) {
       console.error('Error handling room creation:', error);
     }
   };
 
   const handleCreateRoom = async () => {
+    showToast({
+      id: Date.now().toString(),
+      title: 'Room creation',
+      message: 'Room is being created...',
+      type: 'info',
+      duration: 3000,
+    });
     setLoading(true);
     if (isValid) {
       let mediaData: FormData | null = new FormData();
@@ -158,9 +148,6 @@ const NewChatModal: React.FC = () => {
       const uploadResult = await uploadFile(mediaData);
 
       const location = uploadResult?.data?.results?.[0]?.location;
-      if (!location) {
-        console.log('No location found in upload result.');
-      }
 
       if (config?.newArch) {
         const namesArray = selectedUsers.map((user) => user.xmppUsername);
@@ -272,7 +259,7 @@ const NewChatModal: React.FC = () => {
                 />
               )} */}
                 <Select
-                  options={options}
+                  options={CHAT_TYPES}
                   placeholder={'Select your language'}
                   onSelect={(type: ChatAccessOption) => setChatType(type)}
                   accentColor={config?.colors?.primary}
