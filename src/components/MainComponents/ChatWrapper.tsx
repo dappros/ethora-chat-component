@@ -3,15 +3,12 @@ import { useDispatch, useSelector } from 'react-redux';
 import ChatRoom from './ChatRoom';
 import {
   setActiveModal,
-  setConfig,
   setDeleteModal,
-  setLangSource,
 } from '../../roomStore/chatSettingsSlice';
 import { ChatWrapperBox } from '../styled/ChatWrapperBox';
 import { Overlay, StyledModal } from '../styled/MediaModal';
 import { Message } from '../MessageBubble/Message';
 import { IConfig, IRoom, MessageProps, ModalType } from '../../types/types';
-import { useXmppClient } from '../../context/xmppProvider';
 import LoginForm from '../AuthForms/Login';
 import { RootState } from '../../roomStore';
 import {
@@ -19,7 +16,6 @@ import {
   setEditAction,
   setIsLoading,
 } from '../../roomStore/roomsSlice';
-import { refresh } from '../../networking/apiClient';
 import RoomList from './RoomList';
 import Modal from '../Modals/Modal/Modal';
 import ThreadWrapper from '../Thread/ThreadWrapper';
@@ -27,17 +23,14 @@ import { ModalWrapper } from '../Modals/ModalWrapper/ModalWrapper';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import useMessageLoaderQueue from '../../hooks/useMessageLoaderQueue';
 import { useRoomState } from '../../hooks/useRoomState';
-import { initRoomsPresence } from '../../helpers/initRoomsPresence';
-import { updatedChatLastTimestamps } from '../../helpers/updatedChatLastTimestamps';
-import { updateMessagesTillLast } from '../../helpers/updateMessagesTillLast';
 import { StyledLoaderWrapper } from '../styled/StyledComponents';
 import Loader from '../styled/Loader';
 import { ModalReportChat } from '../Modals/ModalReportChat/ModalReportChat.tsx';
 import useGetNewArchRoom from '../../hooks/useGetNewArchRoom.tsx';
 import { useQRCodeChat } from '../../hooks/useQRCodeChatHandler';
 import XmppClient from '../../networking/xmppClient.ts';
-import { chatAutoEnterer } from '../../helpers/chatAutoEnterer.ts';
 import { getRoomsWithRetry } from '../../helpers/getRoomsWithRetry.ts';
+import useChatWrapperInit from '../../hooks/useChatWrapperInit.ts';
 
 interface ChatWrapperProps {
   token?: string;
@@ -56,14 +49,9 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   roomJID,
 }) => {
   const { user, activeModal, deleteModal } = useChatSettingState();
-  const syncRooms = useGetNewArchRoom();
-
-  const [isInited, setInited] = useState(true);
-  const [showModal, setShowModal] = useState(false);
 
   const [isChatVisible, setIsChatVisible] = useState(false);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
-  const [isRetrying, setIsRetrying] = useState<boolean | 'norooms'>(false);
 
   const conferenceServer = config?.xmppSettings?.conference;
 
@@ -87,8 +75,6 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   const handleItemClick = (value: boolean) => {
     setIsChatVisible(value);
   };
-
-  const { client, initializeClient, setClient } = useXmppClient();
 
   const { rooms, activeRoomJID, reportRoom } = useSelector(
     (state: RootState) => state.rooms
@@ -121,135 +107,11 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     dispatch(setDeleteModal({ isDeleteModal: false }));
   };
 
-  const getRoomsWithRertyRequest = async () => {
-    if (Object.keys(roomsList || {}).length < 1) {
-      setIsRetrying(true);
-      const retryRooms = await getRoomsWithRetry(client, config, syncRooms);
-      if (!retryRooms) {
-        setIsRetrying('norooms');
-        return;
-      }
-    }
-    setIsRetrying(false);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (client && user.xmppPassword === '') {
-        console.log('closing client');
-        client.close();
-        setClient(null);
-      }
-    };
-  }, [user.xmppPassword]);
-
-  const loadRooms = async (
-    client: XmppClient,
-    disableLoad: boolean = false
-  ) => {
-    !disableLoad &&
-      dispatch(
-        setIsLoading({ loading: true, loadingText: 'Loading rooms...' })
-      );
-    const rooms = await syncRooms(client, config);
-    dispatch(setIsLoading({ loading: false, loadingText: undefined }));
-    return rooms;
-  };
-
-  useEffect(() => {
-    const initXmmpClient = async () => {
-      if (config?.translates?.enabled && !config?.translates?.translations) {
-        dispatch(setLangSource(config?.translates?.translations));
-      }
-      dispatch(setConfig(config));
-      try {
-        if (!user.xmppUsername) {
-          setShowModal(true);
-          console.log('Error, no user');
-        } else {
-          chatAutoEnterer({ roomJID, wasAutoSelected, config, dispatch });
-
-          if (!client) {
-            setInited(false);
-            setShowModal(false);
-
-            console.log('No client, so initing one');
-            const newClient = await initializeClient(
-              user.xmppUsername || user?.defaultWallet?.walletAddress,
-              user?.xmppPassword,
-              config?.xmppSettings,
-              roomsList
-            ).then((client) => {
-              return client;
-            });
-
-            if (roomsList && Object.keys(roomsList).length > 0) {
-              setInited(true);
-              await initRoomsPresence(newClient, roomsList);
-            } else {
-              if (config?.newArch) {
-                const rooms = await loadRooms(newClient);
-                if (config?.enableRoomsRetry.enabled && rooms.length < 1) {
-                  await getRoomsWithRertyRequest();
-                }
-                setInited(true);
-              } else {
-                await newClient.getRoomsStanza();
-              }
-            }
-            await newClient
-              .getChatsPrivateStoreRequestStanza()
-              .then(
-                async (
-                  roomTimestampObject: [jid: string, timestamp: string]
-                ) => {
-                  updatedChatLastTimestamps(roomTimestampObject, dispatch);
-                  // newClient.setVCardStanza(
-                  //   `${user.firstName} ${user.lastName}`
-                  // );
-                  await updateMessagesTillLast(rooms, newClient);
-                  setClient(newClient);
-                }
-              );
-
-            {
-              config?.refreshTokens?.enabled && refresh();
-            }
-          } else {
-            if (config?.newArch) {
-              const rooms = await loadRooms(client, true);
-              if (config?.enableRoomsRetry.enabled && rooms.length < 1) {
-                await getRoomsWithRertyRequest();
-              }
-            }
-            setInited(true);
-            await client
-              .getChatsPrivateStoreRequestStanza()
-              .then(
-                async (
-                  roomTimestampObject: [jid: string, timestamp: string]
-                ) => {
-                  updatedChatLastTimestamps(roomTimestampObject, dispatch);
-                  await updateMessagesTillLast(rooms, client);
-                  setClient(client);
-                }
-              );
-            {
-              config?.refreshTokens?.enabled && refresh();
-            }
-          }
-        }
-        dispatch(setIsLoading({ loading: false }));
-      } catch (error) {
-        setShowModal(true);
-        setInited(false);
-        dispatch(setIsLoading({ loading: false }));
-        console.log(error);
-      }
-    };
-
-    initXmmpClient();
-  }, [user.xmppPassword, user.defaultWallet?.walletAddress]);
+  const { client, inited, isRetrying, showModal } = useChatWrapperInit({
+    roomJID,
+    wasAutoSelected,
+    config,
+  });
 
   const queueMessageLoader = useCallback(
     async (chatJID: string, max: number) => {
@@ -304,7 +166,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           </StyledModal>
         </Overlay>
       )}
-      {isInited ? (
+      {inited ? (
         <ChatWrapperBox
           style={{
             ...MainComponentStyles,

@@ -54,6 +54,7 @@ const ChatComponent = React.memo(() => {
   return (
     <div style={{ height: 'calc(100vh - 20px)', overflow: 'hidden' }}>
       <ReduxWrapper
+        roomJID="646cc8dc96d4a4dc8f7b2f2d_6824685682d635dba752242s3@conference.xmpp.ethoradev.com"
         config={{
           xmppSettings: {
             devServer: 'wss://xmpp.ethoradev.com:5443/ws',
@@ -65,7 +66,7 @@ const ChatComponent = React.memo(() => {
           setRoomJidInPath: true,
           qrUrl: 'https://beta.ethora.com/app/chat/?qrChatId=',
           enableRoomsRetry: {
-            enabled: false,
+            enabled: true,
             helperText:
               'We couldn’t connect to chat server, please, try to create new source.',
           },
