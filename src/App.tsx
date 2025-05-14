@@ -64,6 +64,11 @@ const ChatComponent = React.memo(() => {
           newArch: true,
           setRoomJidInPath: true,
           qrUrl: 'https://beta.ethora.com/app/chat/?qrChatId=',
+          enableRoomsRetry: {
+            enabled: false,
+            helperText:
+              'We couldn’t connect to chat server, please, try to create new source.',
+          },
           // secondarySendButton: {
           //   enabled: true,
           //   messageEdit: `videoId:${window.location.href}`,

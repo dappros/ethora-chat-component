@@ -302,6 +302,7 @@ export interface IConfig {
     buttonText: string;
     buttonStyles?: React.CSSProperties;
   };
+  enableRoomsRetry?: { enabled: boolean; helperText: string };
 }
 
 type PartialRoomWithMandatoryKeys = Partial<IRoom> &

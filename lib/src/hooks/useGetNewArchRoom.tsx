@@ -7,12 +7,13 @@ import {
   setIsLoading,
   updateUsersSet,
 } from '../roomStore/roomsSlice';
+import { ApiRoom } from '../types/types';
 
 const useGetNewArchRoom = () => {
   const dispatch = useDispatch();
 
   const syncRooms = useCallback(
-    async (client: any, config: any) => {
+    async (client: any, config: any): Promise<ApiRoom[]> => {
       const rooms = await getRooms();
       rooms?.items?.forEach((room) => {
         dispatch(
@@ -24,6 +25,7 @@ const useGetNewArchRoom = () => {
       });
       dispatch(setIsLoading({ loading: false, loadingText: undefined }));
       dispatch(updateUsersSet({ rooms: rooms.items }));
+      return rooms?.items || [];
     },
     [dispatch]
   );

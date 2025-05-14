@@ -18,7 +18,6 @@ import {
   setCurrentRoom,
   setEditAction,
   setIsLoading,
-  setLastViewedTimestamp,
 } from '../../roomStore/roomsSlice';
 import { refresh } from '../../networking/apiClient';
 import RoomList from './RoomList';
@@ -38,6 +37,7 @@ import useGetNewArchRoom from '../../hooks/useGetNewArchRoom.tsx';
 import { useQRCodeChat } from '../../hooks/useQRCodeChatHandler';
 import XmppClient from '../../networking/xmppClient.ts';
 import { chatAutoEnterer } from '../../helpers/chatAutoEnterer.ts';
+import { getRoomsWithRetry } from '../../helpers/getRoomsWithRetry.ts';
 
 interface ChatWrapperProps {
   token?: string;
@@ -52,7 +52,6 @@ interface ChatWrapperProps {
 const ChatWrapper: FC<ChatWrapperProps> = ({
   MainComponentStyles,
   CustomMessageComponent,
-  room,
   config,
   roomJID,
 }) => {
@@ -64,6 +63,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
   const [isChatVisible, setIsChatVisible] = useState(false);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
+  const [isRetrying, setIsRetrying] = useState<boolean | 'norooms'>(false);
 
   const conferenceServer = config?.xmppSettings?.conference;
 
@@ -121,6 +121,18 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     dispatch(setDeleteModal({ isDeleteModal: false }));
   };
 
+  const getRoomsWithRertyRequest = async () => {
+    if (Object.keys(roomsList || {}).length < 1) {
+      setIsRetrying(true);
+      const retryRooms = await getRoomsWithRetry(client, config, syncRooms);
+      if (!retryRooms) {
+        setIsRetrying('norooms');
+        return;
+      }
+    }
+    setIsRetrying(false);
+  };
+
   useEffect(() => {
     return () => {
       if (client && user.xmppPassword === '') {
@@ -139,8 +151,9 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
       dispatch(
         setIsLoading({ loading: true, loadingText: 'Loading rooms...' })
       );
-    await syncRooms(client, config);
+    const rooms = await syncRooms(client, config);
     dispatch(setIsLoading({ loading: false, loadingText: undefined }));
+    return rooms;
   };
 
   useEffect(() => {
@@ -175,7 +188,10 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
               await initRoomsPresence(newClient, roomsList);
             } else {
               if (config?.newArch) {
-                await loadRooms(newClient);
+                const rooms = await loadRooms(newClient);
+                if (config?.enableRoomsRetry.enabled && rooms.length < 1) {
+                  await getRoomsWithRertyRequest();
+                }
                 setInited(true);
               } else {
                 await newClient.getRoomsStanza();
@@ -201,7 +217,10 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             }
           } else {
             if (config?.newArch) {
-              await loadRooms(client, true);
+              const rooms = await loadRooms(client, true);
+              if (config?.enableRoomsRetry.enabled && rooms.length < 1) {
+                await getRoomsWithRertyRequest();
+              }
             }
             setInited(true);
             await client
@@ -250,6 +269,28 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     loading,
     queueMessageLoader
   );
+
+  if (config?.enableRoomsRetry.enabled && isRetrying === 'norooms') {
+    return (
+      <StyledLoaderWrapper
+        style={{ alignItems: 'center', flexDirection: 'column', gap: '10px' }}
+      >
+        {config.enableRoomsRetry.helperText ||
+          'We couldn’t create any chat room.'}
+      </StyledLoaderWrapper>
+    );
+  }
+
+  if (config?.enableRoomsRetry.enabled && isRetrying) {
+    return (
+      <StyledLoaderWrapper
+        style={{ alignItems: 'center', flexDirection: 'column', gap: '10px' }}
+      >
+        <Loader color={config?.colors?.primary} style={{ margin: '0px' }} />
+        {loadingText && <div>{loadingText}</div>}
+      </StyledLoaderWrapper>
+    );
+  }
 
   if (user.xmppPassword === '' && user.xmppUsername === '')
     return <LoginForm config={config} />;
