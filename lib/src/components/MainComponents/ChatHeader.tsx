@@ -79,7 +79,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     <ChatContainerHeader>
       {/* todo add here list of rooms */}
       <div style={{ display: 'flex', gap: '8px' }}>
-        {handleBackClick && (
+        {!config?.disableRooms && handleBackClick && (
           <Button
             EndIcon={<BackIcon />}
             onClick={() => handleBackClick(false)}

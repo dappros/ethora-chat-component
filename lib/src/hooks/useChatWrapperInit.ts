@@ -121,7 +121,7 @@ const useChatWrapperInit = ({
             } else {
               if (config?.newArch) {
                 const loadedRooms = await loadRooms(newClient);
-                if (config?.enableRoomsRetry.enabled) {
+                if (config?.enableRoomsRetry?.enabled) {
                   const isSelectedRoomPresent = isChatIdPresentInArray(
                     roomJID,
                     loadedRooms
@@ -156,7 +156,7 @@ const useChatWrapperInit = ({
           } else {
             if (config?.newArch) {
               const loadedRooms = await loadRooms(client, true);
-              if (config?.enableRoomsRetry.enabled && loadedRooms?.length) {
+              if (config?.enableRoomsRetry?.enabled && loadedRooms?.length) {
                 const isSelectedRoomPresent = isChatIdPresentInArray(
                   roomJID,
                   loadedRooms

@@ -132,7 +132,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     queueMessageLoader
   );
 
-  if (config?.enableRoomsRetry.enabled && isRetrying === 'norooms') {
+  if (config?.enableRoomsRetry?.enabled && isRetrying === 'norooms') {
     return (
       <StyledLoaderWrapper
         style={{ alignItems: 'center', flexDirection: 'column', gap: '10px' }}
@@ -143,7 +143,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     );
   }
 
-  if (config?.enableRoomsRetry.enabled && isRetrying) {
+  if (config?.enableRoomsRetry?.enabled && isRetrying) {
     return (
       <StyledLoaderWrapper
         style={{ alignItems: 'center', flexDirection: 'column', gap: '10px' }}
@@ -207,6 +207,11 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
                     handleBackClick={handleItemClick}
                   />
                 )
+              ) : config?.disableRooms ? (
+                <ChatRoom
+                  CustomMessageComponent={CustomMessageComponent || Message}
+                  handleBackClick={handleItemClick}
+                />
               ) : null
             ) : activeMessage?.activeMessage ? (
               <ThreadWrapper
