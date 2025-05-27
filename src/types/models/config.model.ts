@@ -51,7 +51,7 @@ export interface IConfig {
   refreshTokens?: {
     enabled: boolean;
     refreshFunction?: () => Promise<{
-      token: string;
+      accessToken: string;
       refreshToken?: string;
     } | null>;
   };

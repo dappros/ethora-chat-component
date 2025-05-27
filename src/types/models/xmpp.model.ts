@@ -87,7 +87,7 @@ export interface XmppClientInterface {
     fullName: string,
     start: boolean
   ): void;
-  getChatsPrivateStoreRequestStanza(): Promise<Record<string, unknown>>;
+  getChatsPrivateStoreRequestStanza(): Promise<any>;
   actionSetTimestampToPrivateStoreStanza(
     chatId: string,
     timestamp: number,
