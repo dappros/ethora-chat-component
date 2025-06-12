@@ -26,10 +26,7 @@ import { useRoomState } from '../../hooks/useRoomState';
 import { StyledLoaderWrapper } from '../styled/StyledComponents';
 import Loader from '../styled/Loader';
 import { ModalReportChat } from '../Modals/ModalReportChat/ModalReportChat.tsx';
-import useGetNewArchRoom from '../../hooks/useGetNewArchRoom.tsx';
 import { useQRCodeChat } from '../../hooks/useQRCodeChatHandler';
-import XmppClient from '../../networking/xmppClient.ts';
-import { getRoomsWithRetry } from '../../helpers/getRoomsWithRetry.ts';
 import useChatWrapperInit from '../../hooks/useChatWrapperInit.ts';
 
 interface ChatWrapperProps {
