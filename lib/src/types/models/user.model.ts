@@ -53,7 +53,7 @@ export interface User {
   isProfileOpen?: boolean;
   isAssetsOpen?: boolean;
   isAgreeWithTerms?: boolean;
-  isSuperAdmin?: any;
+  isSuperAdmin?: boolean;
 }
 
 export interface ConfigUser {

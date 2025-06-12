@@ -84,7 +84,7 @@ http.interceptors.response.use(
         store.getState().chatSettingStore?.config?.refreshTokens
           ?.refreshFunction
       ) {
-        const { refreshToken, accessToken } = store
+        const { refreshToken, accessToken } = await store
           .getState()
           .chatSettingStore?.config?.refreshTokens?.refreshFunction();
         store.dispatch(

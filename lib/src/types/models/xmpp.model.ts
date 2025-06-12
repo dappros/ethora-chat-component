@@ -1,6 +1,7 @@
 import { Client } from '@xmpp/client';
 import { Iso639_1Codes } from './language.model';
 import XmppClient from '../../networking/xmppClient';
+import { IMessage } from './message.model';
 
 export interface XmppState {
   client: XmppClient | null;
@@ -11,6 +12,12 @@ export interface xmppSettingsInterface {
   devServer: string;
   host: string;
   conference?: string;
+}
+
+export interface MediaUploadData {
+  file: File;
+  type: string;
+  name?: string;
 }
 
 export interface XmppClientInterface {
@@ -39,7 +46,7 @@ export interface XmppClientInterface {
     title: string,
     description: string,
     to?: string
-  ): Promise<any>; // Consider replacing 'any' with a more specific type
+  ): Promise<string | object>;
   inviteRoomRequestStanza(to: string, roomJid: string): Promise<void>;
   leaveTheRoomStanza(roomJID: string): void;
   presenceInRoomStanza(roomJID: string): void;
@@ -48,7 +55,7 @@ export interface XmppClientInterface {
     max: number,
     before?: number,
     otherStanzaId?: string
-  ): Promise<any>; // Consider replacing 'any' with a more specific type
+  ): Promise<IMessage[]>;
   getLastMessageArchiveStanza(roomJID: string): void;
   setRoomImageStanza(
     roomJid: string,
@@ -80,13 +87,13 @@ export interface XmppClientInterface {
     fullName: string,
     start: boolean
   ): void;
-  getChatsPrivateStoreRequestStanza(): Promise<any>; // Consider replacing 'any' with a more specific type
+  getChatsPrivateStoreRequestStanza(): Promise<any>;
   actionSetTimestampToPrivateStoreStanza(
     chatId: string,
     timestamp: number,
     chats?: string[]
   ): Promise<void>;
-  sendMediaMessageStanza(roomJID: string, data: any): void; // Consider replacing 'any' with a more specific type
+  sendMediaMessageStanza(roomJID: string, data: MediaUploadData): void;
   createPrivateRoomStanza(
     title: string,
     description: string,
@@ -96,7 +103,7 @@ export interface XmppClientInterface {
     messageId: string,
     roomJid: string,
     reactionsList: string[],
-    reactionSymbol?: any // Consider replacing 'any' with a more specific type
+    reactionSymbol?: string
   ): void;
   sendTextMessageWithTranslateTagStanza(
     roomJID: string,

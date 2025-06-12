@@ -33,7 +33,7 @@ export interface IConfig {
   };
   customLogin?: {
     enabled: boolean;
-    loginFunction: any; // Consider defining a specific function signature type
+    loginFunction: () => Promise<User | null>;
   };
   baseUrl?: string;
   customAppToken?: string;
@@ -50,14 +50,17 @@ export interface IConfig {
   defaultRooms?: ConfigRoom[];
   refreshTokens?: {
     enabled: boolean;
-    refreshFunction?: any; // Consider defining a specific function signature type
+    refreshFunction?: () => Promise<{
+      accessToken: string;
+      refreshToken?: string;
+    } | null>;
   };
   backgroundChat?: {
     color?: string;
-    image?: any; // Consider a more specific type for image (e.g., string for URL, or a File/Blob type)
+    image?: string | File;
   };
   bubleMessage?: MessageBubble;
-  headerLogo?: any; // Consider a more specific type (e.g., React.ReactNode or string for URL)
+  headerLogo?: string | React.ReactElement;
   headerMenu?: () => void;
   headerChatMenu?: () => void;
   customRooms?: {
@@ -81,4 +84,5 @@ export interface IConfig {
     buttonStyles?: React.CSSProperties;
   };
   enableRoomsRetry?: { enabled: boolean; helperText: string };
+  disableNewChatButton?: boolean;
 }
