@@ -3,37 +3,31 @@ import { useDispatch, useSelector } from 'react-redux';
 import ChatRoom from './ChatRoom';
 import {
   setActiveModal,
-  setConfig,
   setDeleteModal,
 } from '../../roomStore/chatSettingsSlice';
 import { ChatWrapperBox } from '../styled/ChatWrapperBox';
 import { Overlay, StyledModal } from '../styled/MediaModal';
 import { Message } from '../MessageBubble/Message';
 import { IConfig, IRoom, MessageProps, ModalType } from '../../types/types';
-import { useXmppClient } from '../../context/xmppProvider';
 import LoginForm from '../AuthForms/Login';
 import { RootState } from '../../roomStore';
 import {
   setCurrentRoom,
   setEditAction,
   setIsLoading,
-  setLastViewedTimestamp,
 } from '../../roomStore/roomsSlice';
-import { refresh, setBaseURL } from '../../networking/apiClient';
 import RoomList from './RoomList';
 import Modal from '../Modals/Modal/Modal';
 import ThreadWrapper from '../Thread/ThreadWrapper';
 import { ModalWrapper } from '../Modals/ModalWrapper/ModalWrapper';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
-import { CONFERENCE_DOMAIN } from '../../helpers/constants/PLATFORM_CONSTANTS';
 import useMessageLoaderQueue from '../../hooks/useMessageLoaderQueue';
 import { useRoomState } from '../../hooks/useRoomState';
-import { initRoomsPresence } from '../../helpers/initRoomsPresence';
-import { updatedChatLastTimestamps } from '../../helpers/updatedChatLastTimestamps';
-import { updateMessagesTillLast } from '../../helpers/updateMessagesTillLast';
 import { StyledLoaderWrapper } from '../styled/StyledComponents';
 import Loader from '../styled/Loader';
-import { useMessageQueue } from '../../hooks/useMessageQueue';
+import { ModalReportChat } from '../Modals/ModalReportChat/ModalReportChat.tsx';
+import { useQRCodeChat } from '../../hooks/useQRCodeChatHandler';
+import useChatWrapperInit from '../../hooks/useChatWrapperInit.ts';
 
 interface ChatWrapperProps {
   token?: string;
@@ -48,17 +42,22 @@ interface ChatWrapperProps {
 const ChatWrapper: FC<ChatWrapperProps> = ({
   MainComponentStyles,
   CustomMessageComponent,
-  room,
   config,
   roomJID,
 }) => {
   const { user, activeModal, deleteModal } = useChatSettingState();
 
-  const [isInited, setInited] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-
   const [isChatVisible, setIsChatVisible] = useState(false);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
+
+  const conferenceServer = config?.xmppSettings?.conference;
+
+  const dispatch = useDispatch();
+  const { wasAutoSelected } = useQRCodeChat(
+    (params) => dispatch(setCurrentRoom(params)),
+    conferenceServer
+  );
+
   useEffect(() => {
     const handleResize = () => {
       setIsSmallScreen(window.innerWidth < 768);
@@ -74,12 +73,10 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     setIsChatVisible(value);
   };
 
-  const dispatch = useDispatch();
-  const { client, initializeClient, setClient } = useXmppClient();
-
-  const { rooms, activeRoomJID } = useSelector(
+  const { rooms, activeRoomJID, reportRoom } = useSelector(
     (state: RootState) => state.rooms
   );
+  const { roomsList, loading, globalLoading, loadingText } = useRoomState();
 
   const activeMessage = useMemo(() => {
     if (activeRoomJID) {
@@ -90,11 +87,12 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   }, [rooms, activeRoomJID]);
 
   const handleChangeChat = (chat: IRoom) => {
-    dispatch(setCurrentRoom({ roomJID: chat.jid }));
-    activeRoomJID !== chat.jid &&
+    if (activeRoomJID !== chat.jid) {
       dispatch(setIsLoading({ chatJID: chat.jid, loading: true }));
-    dispatch(setEditAction({ isEdit: false }));
-    handleItemClick(true);
+      dispatch(setCurrentRoom({ roomJID: chat.jid }));
+      dispatch(setEditAction({ isEdit: false }));
+      handleItemClick(true);
+    }
   };
 
   const handleDeleteClick = () => {
@@ -106,149 +104,21 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     dispatch(setDeleteModal({ isDeleteModal: false }));
   };
 
-  useEffect(() => {
-    return () => {
-      if (client && user.xmppPassword === '') {
-        console.log('closing client');
-        client.close();
-        setClient(null);
-      }
-    };
-  }, [user.xmppPassword]);
-
-  useEffect(() => {
-    const url = window.location.href;
-    const urlObj = new URL(url);
-    const searchParams = urlObj.searchParams;
-    const chatId = searchParams.get('chatId');
-
-    if (chatId) {
-      const cleanChatId = chatId.split('@')[0];
-
-      dispatch(setCurrentRoom({ roomJID: cleanChatId + CONFERENCE_DOMAIN }));
-    }
-  }, []);
-
-  useEffect(() => {
-    if (roomJID) {
-      dispatch(setCurrentRoom({ roomJID: roomJID }));
-    }
-
-    const initXmmpClient = async () => {
-      dispatch(setConfig(config));
-      setBaseURL(config?.baseUrl);
-      try {
-        if (!user.defaultWallet || user?.defaultWallet.walletAddress === '') {
-          setShowModal(true);
-          console.log('Error, no user');
-        } else {
-          if (!client) {
-            setShowModal(false);
-
-            console.log('No client, so initing one');
-            const newClient = await initializeClient(
-              user?.defaultWallet?.walletAddress,
-              user?.xmppPassword,
-              config?.xmppSettings
-            ).then((client) => {
-              setInited(true);
-              return client;
-            });
-
-            if (roomsList && Object.keys(roomsList).length > 0) {
-              await initRoomsPresence(newClient, roomsList);
-            } else {
-              await newClient.getRoomsStanza();
-            }
-            await newClient
-              .getChatsPrivateStoreRequestStanza()
-              .then(
-                async (
-                  roomTimestampObject: [jid: string, timestamp: string]
-                ) => {
-                  updatedChatLastTimestamps(roomTimestampObject, dispatch);
-                  // newClient.setVCardStanza(
-                  //   `${user.firstName} ${user.lastName}`
-                  // );
-                  await updateMessagesTillLast(rooms, newClient);
-                  setClient(newClient);
-                }
-              );
-
-            {
-              config?.refreshTokens?.enabled && refresh();
-            }
-          } else {
-            setInited(true);
-            await client
-              .getChatsPrivateStoreRequestStanza()
-              .then(
-                async (
-                  roomTimestampObject: [jid: string, timestamp: string]
-                ) => {
-                  updatedChatLastTimestamps(roomTimestampObject, dispatch);
-                  await updateMessagesTillLast(rooms, client);
-                  setClient(client);
-                }
-              );
-            {
-              config?.refreshTokens?.enabled && refresh();
-            }
-          }
-        }
-        dispatch(setIsLoading({ loading: false }));
-      } catch (error) {
-        setShowModal(true);
-        setInited(false);
-        dispatch(setIsLoading({ loading: false }));
-        console.log(error);
-      }
-    };
-
-    initXmmpClient();
-  }, [user.xmppPassword, user.defaultWallet?.walletAddress]);
-
-  // functionality to handle unreadmessages if user leaves tab
-  useEffect(() => {
-    const updateLastReadTimeStamp = () => {
-      if (client) {
-        client.actionSetTimestampToPrivateStoreStanza(
-          room?.jid || roomJID,
-          new Date().getTime()
-        );
-      }
-      dispatch(
-        setLastViewedTimestamp({
-          chatJID: room?.jid || roomJID,
-          timestamp: new Date().getTime(),
-        })
-      );
-    };
-
-    const handleBeforeUnload = () => {
-      // updateLastReadTimeStamp();
-    };
-
-    window.addEventListener('blur', handleBeforeUnload);
-    window.addEventListener('offline', handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener('blur', handleBeforeUnload);
-      window.removeEventListener('offline', handleBeforeUnload);
-    };
-  }, [client, room?.jid]);
-
-  const { roomsList, loading, globalLoading } = useRoomState();
+  const { client, inited, isRetrying, showModal } = useChatWrapperInit({
+    roomJID,
+    wasAutoSelected,
+    config,
+  });
 
   const queueMessageLoader = useCallback(
     async (chatJID: string, max: number) => {
       try {
-        return client?.getHistoryStanza(chatJID, max);
+        return await client?.getHistoryStanza(chatJID, max);
       } catch (error) {
-        console.log('Error in loading queue messages');
+        console.log('Error in loading queue messages', error);
       }
     },
-    [globalLoading, loading]
+    [globalLoading, loading, !!client]
   );
 
   useMessageLoaderQueue(
@@ -258,6 +128,28 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     loading,
     queueMessageLoader
   );
+
+  if (config?.enableRoomsRetry?.enabled && isRetrying === 'norooms') {
+    return (
+      <StyledLoaderWrapper
+        style={{ alignItems: 'center', flexDirection: 'column', gap: '10px' }}
+      >
+        {config.enableRoomsRetry.helperText ||
+          'We couldn’t create any chat room.'}
+      </StyledLoaderWrapper>
+    );
+  }
+
+  if (config?.enableRoomsRetry?.enabled && isRetrying) {
+    return (
+      <StyledLoaderWrapper
+        style={{ alignItems: 'center', flexDirection: 'column', gap: '10px' }}
+      >
+        <Loader color={config?.colors?.primary} style={{ margin: '0px' }} />
+        {loadingText && <div>{loadingText}</div>}
+      </StyledLoaderWrapper>
+    );
+  }
 
   if (user.xmppPassword === '' && user.xmppUsername === '')
     return <LoginForm config={config} />;
@@ -271,7 +163,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           </StyledModal>
         </Overlay>
       )}
-      {isInited ? (
+      {inited ? (
         <ChatWrapperBox
           style={{
             ...MainComponentStyles,
@@ -312,6 +204,11 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
                     handleBackClick={handleItemClick}
                   />
                 )
+              ) : config?.disableRooms ? (
+                <ChatRoom
+                  CustomMessageComponent={CustomMessageComponent || Message}
+                  handleBackClick={handleItemClick}
+                />
               ) : null
             ) : activeMessage?.activeMessage ? (
               <ThreadWrapper
@@ -333,8 +230,11 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           </ChatWrapperBox>
         </ChatWrapperBox>
       ) : (
-        <StyledLoaderWrapper>
-          <Loader color={config?.colors?.primary} />
+        <StyledLoaderWrapper
+          style={{ alignItems: 'center', flexDirection: 'column', gap: '10px' }}
+        >
+          <Loader color={config?.colors?.primary} style={{ margin: '0px' }} />
+          {loadingText && <div>{loadingText}</div>}
         </StyledLoaderWrapper>
       )}
       {deleteModal?.isDeleteModal && (
@@ -347,6 +247,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           handleCloseModal={handleCloseDeleteModal}
         />
       )}
+      {reportRoom.isOpen && <ModalReportChat />}
     </>
   );
 };

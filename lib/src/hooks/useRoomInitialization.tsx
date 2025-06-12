@@ -3,6 +3,7 @@ import { setIsLoading } from '../roomStore/roomsSlice';
 import { useXmppClient } from '../context/xmppProvider';
 import { IConfig, IMessage, IRoom } from '../types/types';
 import { useDispatch } from 'react-redux';
+import useGetNewArchRoom from './useGetNewArchRoom';
 
 const countUndefinedText = (arr: IMessage[]) =>
   arr.filter((item) => item?.body === undefined)?.length;
@@ -16,8 +17,11 @@ export const useRoomInitialization = (
   const { client } = useXmppClient();
   const dispatch = useDispatch();
 
+  const syncRooms = useGetNewArchRoom();
+
   useEffect(() => {
     const getDefaultHistory = async () => {
+      if (!client) return;
       dispatch(setIsLoading({ loading: true, chatJID: activeRoomJID }));
       const res = await client.getHistoryStanza(activeRoomJID, 30);
       if (res && countUndefinedText(res) > 0) {
@@ -29,17 +33,26 @@ export const useRoomInitialization = (
           Number(res[0].id)
         );
       }
-      dispatch(setIsLoading({ loading: false, chatJID: activeRoomJID }));
+      dispatch(
+        setIsLoading({
+          loading: false,
+          chatJID: activeRoomJID,
+          loadingText: undefined,
+        })
+      );
     };
 
     const initialPresenceAndHistory = async () => {
-      if (!roomsList[activeRoomJID]) {
-        // console.log('bug1'); here is bug when deleting last room
-        client.presenceInRoomStanza(activeRoomJID);
-        await client.getRoomsStanza();
+      if (!roomsList[activeRoomJID] && activeRoomJID && client) {
+        await client.presenceInRoomStanza(activeRoomJID);
+        if (config?.newArch) {
+          await syncRooms(client, config);
+        } else {
+          await client.getRoomsStanza();
+        }
         await getDefaultHistory();
       } else {
-        getDefaultHistory();
+        await getDefaultHistory();
       }
     };
 
@@ -70,13 +83,14 @@ export const useRoomInitialization = (
         (room) => roomsList[room.jid] !== undefined
       );
       if (roomsList && !allExist) {
-        config?.defaultRooms.map((room) => {
-          console.log('3');
-
+        config?.defaultRooms.map(async (room) => {
           client.presenceInRoomStanza(room.jid);
-          client.getRoomsStanza();
-          getDefaultHistory();
         });
+        if (config?.newArch) {
+          // syncRooms(client, config);
+        } else {
+          client.getRoomsStanza();
+        }
       }
     }
   }, [activeRoomJID, Object.keys(roomsList).length]);

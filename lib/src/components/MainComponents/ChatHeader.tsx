@@ -16,6 +16,8 @@ import {
   deleteRoom,
   setCurrentRoom,
   setIsLoading,
+  setOpenReportModal,
+  updateRoom,
 } from '../../roomStore/roomsSlice';
 import { useXmppClient } from '../../context/xmppProvider';
 import { setActiveModal } from '../../roomStore/chatSettingsSlice';
@@ -23,6 +25,7 @@ import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 import { RoomMenu } from '../MenuRoom/MenuRoom';
 import { useRoomState } from '../../hooks/useRoomState';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { formatNumberWithCommas } from '../../helpers/formatNumberWithCommas';
 
 interface ChatHeaderProps {
   currentRoom: IRoom;
@@ -40,7 +43,14 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const { composing } = useRoomState(currentRoom.jid).room;
   const { config } = useChatSettingState();
 
+  const handleReportClick = () => {
+    dispatch(setOpenReportModal({ isOpen: true }));
+  };
+
   const handleChangeChat = (chat: IRoom) => {
+    dispatch(
+      updateRoom({ jid: chat.jid, updates: { ...chat, unreadMessages: 0 } })
+    );
     dispatch(setCurrentRoom({ roomJID: chat.jid }));
     dispatch(setIsLoading({ chatJID: chat.jid, loading: true }));
   };
@@ -69,7 +79,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     <ChatContainerHeader>
       {/* todo add here list of rooms */}
       <div style={{ display: 'flex', gap: '8px' }}>
-        {handleBackClick && (
+        {!config?.disableRooms && handleBackClick && (
           <Button
             EndIcon={<BackIcon />}
             onClick={() => handleBackClick(false)}
@@ -103,7 +113,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
               {composing ? (
                 <Composing usersTyping={currentRoom?.composingList} />
               ) : (
-                `${currentRoom?.usersCnt} ${currentRoom?.usersCnt === 1 ? 'user' : 'users'}`
+                `${formatNumberWithCommas(currentRoom?.usersCnt)} ${currentRoom?.usersCnt === 1 ? 'user' : 'users'}`
               )}
             </ChatContainerHeaderLabel>
           </ChatContainerHeaderInfo>
@@ -112,7 +122,10 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
 
       <div style={{ display: 'flex', gap: 16 }}>
         {/* <SearchInput animated icon={<SearchIcon />} /> */}
-        <RoomMenu handleLeaveClick={handleLeaveClick} />
+        <RoomMenu
+          handleLeaveClick={handleLeaveClick}
+          handleReportClick={handleReportClick}
+        />
       </div>
     </ChatContainerHeader>
   );

@@ -125,6 +125,12 @@ const SendInput: React.FC<SendInputProps> = ({
     [filePreviews, message, sendMessage, sendMedia]
   );
 
+  const handleSecondaryClick = useCallback(() => {
+    sendMessage(message + config.secondarySendButton.messageEdit);
+    setMessage('');
+    setFilePreviews([]);
+  }, [filePreviews, message, sendMessage, sendMedia]);
+
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
       if (event.key === 'Enter') {
@@ -197,30 +203,50 @@ const SendInput: React.FC<SendInputProps> = ({
           </>
         )}
         {message || filePreviews.length > 0 || config?.disableMedia ? (
-          <Button
-            onClick={() => handleSendClick()}
-            // disabled={!message || message === ""}
-            EndIcon={
-              <SendIcon
-                color={
+          <>
+            {config?.secondarySendButton?.enabled && (
+              <Button
+                onClick={() => handleSecondaryClick()}
+                style={{
+                  color: 'white',
+                  borderRadius: '100px',
+                  backgroundColor:
+                    filePreviews.length > 0
+                      ? config?.colors?.primary
+                      : !message || message === ''
+                        ? 'transparent'
+                        : config?.colors?.primary,
+                  ...config?.secondarySendButton.buttonStyles,
+                }}
+              >
+                {config?.secondarySendButton.buttonText}
+              </Button>
+            )}
+            <Button
+              onClick={() => handleSendClick()}
+              // disabled={!message || message === ""}
+              EndIcon={
+                <SendIcon
+                  color={
+                    filePreviews.length > 0
+                      ? '#fff'
+                      : !message || message === ''
+                        ? '#D4D4D8'
+                        : '#fff'
+                  }
+                />
+              }
+              style={{
+                borderRadius: '100px',
+                backgroundColor:
                   filePreviews.length > 0
-                    ? '#fff'
+                    ? config?.colors?.primary
                     : !message || message === ''
-                      ? '#D4D4D8'
-                      : '#fff'
-                }
-              />
-            }
-            style={{
-              borderRadius: '100px',
-              backgroundColor:
-                filePreviews.length > 0
-                  ? config?.colors?.primary
-                  : !message || message === ''
-                    ? 'transparent'
-                    : config?.colors?.primary,
-            }}
-          />
+                      ? 'transparent'
+                      : config?.colors?.primary,
+              }}
+            />
+          </>
         ) : (
           <AudioRecorder
             setIsRecording={setIsRecording}

@@ -6,11 +6,10 @@ import React, {
   useEffect,
 } from 'react';
 import XmppClient from '../networking/xmppClient';
-import { xmppSettingsInterface } from '../types/types';
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '../roomStore';
-import { setStoreClient } from '../roomStore/chatSettingsSlice';
-
+import { IConfig, IRoom, xmppSettingsInterface } from '../types/types';
+import initXmppRooms from '../helpers/initXmppRooms';
+import { walletToUsername } from '../helpers/walletUsername';
+import { initRoomsPresence } from '../helpers/initRoomsPresence';
 // Declare XmppContext
 interface XmppContextType {
   client: XmppClient;
@@ -18,7 +17,8 @@ interface XmppContextType {
   initializeClient: (
     password: string,
     email: string,
-    xmppSettings?: xmppSettingsInterface
+    xmppSettings?: xmppSettingsInterface,
+    roomsList?: { [jid: string]: IRoom }
   ) => Promise<XmppClient>;
 }
 
@@ -26,9 +26,13 @@ const XmppContext = createContext<XmppContextType | null>(null);
 
 interface XmppProviderProps {
   children: ReactNode;
+  config?: IConfig;
 }
 
-export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
+export const XmppProvider: React.FC<XmppProviderProps> = ({
+  children,
+  config,
+}) => {
   const [client, setClient] = useState<XmppClient | null>(null);
   const [password, setPassword] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
@@ -37,7 +41,8 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
   const initializeClient = async (
     password: string,
     email: string,
-    xmppSettings?: xmppSettingsInterface
+    xmppSettings?: xmppSettingsInterface,
+    roomsList?: { [jid: string]: IRoom }
   ): Promise<XmppClient> => {
     if (client) {
       console.log('Returning existing client.');
@@ -66,6 +71,9 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
       setEmail(email);
       setClient(newClient);
       setReconnectAttempts(0);
+      {
+        roomsList && initRoomsPresence(client, roomsList);
+      }
       return newClient;
     } catch (error) {
       console.error('Error initializing client:', error);
@@ -100,9 +108,48 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({ children }) => {
     return () => {};
   }, [client, reconnectAttempts]);
 
+  useEffect(() => {
+    const initBeforeLoad = async () => {
+      initializeClient(
+        walletToUsername(config?.userLogin?.user?.defaultWallet?.walletAddress),
+        config?.userLogin?.user?.xmppPassword,
+        config?.xmppSettings
+      ).then(async (client) => {
+        await initXmppRooms(
+          config?.userLogin?.user,
+          config,
+          client
+          // store?.getState()?.rooms?.rooms
+        );
+      });
+    };
+
+    if (config?.initBeforeLoad) {
+      initBeforeLoad();
+    }
+    return () => {};
+  }, [config?.initBeforeLoad]);
+
+  useEffect(() => {
+    const handleLogout = () => {
+      if (client) {
+        console.log('XmppProvider: Disconnecting client due to logout event');
+        client.disconnect();
+        setClient(null);
+      }
+    };
+
+    window.addEventListener('ethora-xmpp-logout', handleLogout);
+
+    return () => {
+      window.removeEventListener('ethora-xmpp-logout', handleLogout);
+    };
+  }, [client]);
+
   return (
     <XmppContext.Provider
       value={{ client: client as XmppClient, initializeClient, setClient }}
+      data-xmpp-provider="true"
     >
       {children}
     </XmppContext.Provider>

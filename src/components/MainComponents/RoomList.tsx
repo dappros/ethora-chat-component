@@ -62,8 +62,10 @@ const RoomList: React.FC<RoomListProps> = ({
 
   const performClick = useCallback(
     (chat: IRoom) => {
-      onRoomClick?.(chat);
-      setOpen(false);
+      if (chat.jid !== activeRoomJID) {
+        onRoomClick?.(chat);
+        setOpen(false);
+      }
     },
     [onRoomClick]
   );
@@ -75,10 +77,12 @@ const RoomList: React.FC<RoomListProps> = ({
     []
   );
 
-  const getLastMessage = useCallback(
-    (chat: IRoom) => chat?.messages?.[chat?.messages.length - 1],
-    []
-  );
+  const getLastMessageId = useCallback((chat: IRoom) => {
+    const rawId = chat?.messages?.[chat?.messages.length - 1]?.id ?? '';
+    const numericId = rawId.replace(/\D+/g, '');
+    const paddedId = numericId.padEnd(16, '0');
+    return paddedId;
+  }, []);
 
   const filteredChats = useMemo(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
@@ -90,14 +94,27 @@ const RoomList: React.FC<RoomListProps> = ({
           chat.name?.toLowerCase().includes(lowerCaseSearchTerm)
         )
         .sort((a, b) => {
-          if (getLastMessage(a)?.id && getLastMessage(b)?.id) {
-            return Number(getLastMessage(b).id) - Number(getLastMessage(a).id);
-          } else if (getLastMessage(a)?.id) {
-            return -1;
-          } else if (getLastMessage(b)?.id) {
-            return 1;
-          }
-          return -1;
+          const aLastId = getLastMessageId(a)
+            ? Number(getLastMessageId(a))
+            : null;
+          const bLastId = getLastMessageId(b)
+            ? Number(getLastMessageId(b))
+            : null;
+          const aCreated = a.createdAt
+            ? new Date(a.createdAt).getTime() * 1000
+            : null;
+          const bCreated = b.createdAt
+            ? new Date(b.createdAt).getTime() * 1000
+            : null;
+
+          const aCompare = aLastId !== null ? aLastId : aCreated;
+          const bCompare = bLastId !== null ? bLastId : bCreated;
+
+          if (aCompare === null && bCompare === null) return 0;
+          if (aCompare === null) return 1;
+          if (bCompare === null) return -1;
+
+          return bCompare - aCompare;
         });
 
       chatsMap.set(lowerCaseSearchTerm, result);
@@ -203,7 +220,9 @@ const RoomList: React.FC<RoomListProps> = ({
                     performClick={performClick}
                     config={config}
                   />
-                  {index < filteredChats.length - 1 && <Divider />}
+                  {index < filteredChats.length - 1 && (
+                    <Divider key={`divider-${chat.id}`} />
+                  )}
                 </>
               ))}
             </div>

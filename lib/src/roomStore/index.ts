@@ -8,6 +8,7 @@ import { persistReducer, persistStore } from 'redux-persist';
 import { createTransform } from 'redux-persist';
 import { AnyAction } from 'redux-saga';
 import { newMessageMidlleware } from './Middleware/newMessageMidlleware';
+import { logoutMiddleware } from './Middleware/logoutMiddleware';
 import { encryptTransform } from 'redux-persist-transform-encrypt';
 
 const limitMessagesTransform = createTransform(
@@ -41,14 +42,21 @@ const encryptor = encryptTransform({
 const chatSettingPersistConfig = {
   key: 'chatSettingStore',
   storage,
-  blacklist: ['activeModal', 'deleteModal', 'selectedUser', 'activeFile'],
+  blacklist: [
+    'activeModal',
+    'deleteModal',
+    'selectedUser',
+    'activeFile',
+    'config.refreshTokens',
+    'refreshTokens',
+  ],
   transforms: [encryptor],
 };
 
 const roomsPersistConfig = {
   key: 'roomMessages',
   storage,
-  blacklist: ['editAction', 'activeRoomJID'],
+  blacklist: ['editAction', 'activeRoomJID', 'loadingText'],
   transforms: [limitMessagesTransform],
 };
 
@@ -94,7 +102,8 @@ export const store = configureStore({
       },
     })
       .concat(unreadMiddleware)
-      .concat(newMessageMidlleware),
+      .concat(newMessageMidlleware)
+      .concat(logoutMiddleware),
 });
 
 export const persistor = persistStore(store);

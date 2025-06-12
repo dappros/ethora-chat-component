@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import QRCode from 'react-qr-code';
 import { CloseButton } from '../Modals/styledModalComponents';
 import { Overlay, StyledModal } from '../styled/MediaModal';
 import { StyledInput } from '../styled/StyledInputComponents/StyledInputComponents';
 import Button from '../styled/Button';
 import { QRCODE_URL } from '../../helpers/constants/PLATFORM_CONSTANTS';
+import { handleCopyClick } from '../../helpers/handleCopyClick';
+import { useChatSettingState } from '../../hooks/useChatSettingState';
 
 interface OperationalModalProps {
   isVisible: boolean;
@@ -17,15 +19,23 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
   chatJid,
   setVisible,
 }) => {
-  const handleCopyClick = () => {
-    navigator.clipboard.writeText(`${QRCODE_URL}${chatJid}`);
-  };
+  const { config } = useChatSettingState();
+
+  useEffect(() => {
+    const { overflow } = document.body.style;
+    if (isVisible) document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = overflow;
+    };
+  }, [isVisible]);
 
   return (
     isVisible && (
       <Overlay
         style={{
-          position: 'absolute',
+          position: 'fixed',
+          inset: 0,
+          zIndex: 1000,
         }}
       >
         <StyledModal
@@ -39,10 +49,18 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
         >
           <CloseButton
             onClick={() => setVisible(false)}
-            style={{ fontSize: 24 }}
+            style={{
+              fontSize: 24,
+              width: '36px',
+              height: '36px',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
           >
             &times;
           </CloseButton>
+
           <div
             style={{
               display: 'flex',
@@ -54,13 +72,9 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
             <div style={{ width: '70%', position: 'relative' }}>
               <QRCode
                 size={256}
-                style={{
-                  width: '100%',
-                  height: '70%',
-                  maxWidth: '100%',
-                }}
-                value={`${QRCODE_URL}${chatJid}`}
-                viewBox={`0 0 256 256`}
+                style={{ width: '100%', height: '70%', maxWidth: '100%' }}
+                value={`${config?.qrUrl || QRCODE_URL}${chatJid}`}
+                viewBox="0 0 256 256"
               />
             </div>
 
@@ -73,11 +87,18 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
               }}
             >
               <StyledInput
-                value={chatJid}
-                disabled={true}
+                value={`${config?.qrUrl || QRCODE_URL}${chatJid.split('@')[0]}`}
+                disabled
                 style={{ width: '80%' }}
               />
-              <Button text="Copy" onClick={handleCopyClick} />
+              <Button
+                text="Copy"
+                onClick={() =>
+                  handleCopyClick(
+                    `${config?.qrUrl || QRCODE_URL}${chatJid.split('@')[0]}`
+                  )
+                }
+              />
             </div>
           </div>
         </StyledModal>

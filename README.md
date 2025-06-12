@@ -3,13 +3,9 @@
 ![GitHub watchers](https://img.shields.io/github/watchers/dappros/ethora-chat-component) ![GitHub forks](https://img.shields.io/github/forks/dappros/ethora-chat-component) ![GitHub Repo stars](https://img.shields.io/github/stars/dappros/ethora-chat-component) ![GitHub repo size](https://img.shields.io/github/repo-size/dappros/ethora-chat-component) ![GitHub language count](https://img.shields.io/github/languages/count/dappros/ethora-chat-component) ![GitHub top language](https://img.shields.io/github/languages/top/dappros/ethora-chat-component) <a href="https://codeclimate.com/github/dappros/ethora-chat-component/maintainability"><img src="https://api.codeclimate.com/v1/badges/715c6f3ffb08de5ca621/maintainability" /></a> ![GitHub commit activity (branch)](https://img.shields.io/github/commit-activity/m/dappros/ethora-chat-component/main) ![GitHub issues](https://img.shields.io/github/issues/dappros/ethora-chat-component) ![GitHub closed issues](https://img.shields.io/github/issues-closed-raw/dappros/ethora-chat-component) ![GitHub](https://img.shields.io/github/license/dappros/ethora-chat-component) ![GitHub contributors](https://img.shields.io/github/contributors/dappros/ethora-chat-component)
 
 ![JavaScript](https://img.shields.io/badge/javascript-%23323330.svg?style=flat&logo=javascript&logoColor=%23F7DF1E)
-![React](https://img.shields.io/badge/react-%2320232a.svg?style=flat&logo=react&logoColor=%2361DAFB) ![TypeScript](https://img.shields.io/badge/typescript-%23007ACC.svg?style=flat&logo=typescript&logoColor=white) ![JWT](https://img.shields.io/badge/JWT-black?style=flat&logo=JSON%20web%20tokens) 
+![React](https://img.shields.io/badge/react-%2320232a.svg?style=flat&logo=react&logoColor=%2361DAFB) ![TypeScript](https://img.shields.io/badge/typescript-%23007ACC.svg?style=flat&logo=typescript&logoColor=white) ![JWT](https://img.shields.io/badge/JWT-black?style=flat&logo=JSON%20web%20tokens)
 
 [![Discord](https://img.shields.io/badge/%3Cethora%3E-%237289DA.svg?style=flat&logo=discord&logoColor=white)](https://discord.gg/Sm6bAHA3ZC) [![Twitter URL](https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2Fdappros%2Fethora)](https://twitter.com/intent/tweet?url=https%3A%2F%2Fgithub.com%2Fdappros%2Fethora%2F&via=tarasfilatov&text=check%20out%20Ethora%20%23web3%20%23social%20app%20engine&hashtags=lowcode%2Creactnative%2Copensource%2Cnocode) [![Website](https://img.shields.io/website?url=https%3A%2F%2Fethora.com%2F)](https://ethora.com/) [![YouTube Channel Subscribers](https://img.shields.io/youtube/channel/subscribers/UCRvrXwMOU0WBkRZyFlU7V_g)](https://www.youtube.com/channel/UCRvrXwMOU0WBkRZyFlU7V_g)
-
-
-
-
 
 ## About Chat Component
 
@@ -149,9 +145,8 @@ body {
 After these changes you can modify **MainComponentStyles** for your chat.
 
 ## Architecture Diagram
+
 ![CleanShot 2025-01-09 at 13 14 37@2x](https://github.com/user-attachments/assets/4d187bbb-6697-4e96-97d3-3a4a4b7e8adf)
-
-
 
 ## Use cases and functionalities details
 
@@ -168,7 +163,7 @@ Supported out of the box:
 
 Supported by Ethora platform but not implemented into Chat Component yet:
 
-- **Custom set of credentials** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub>
+- **Custom set of credentials** ✅
 - **Apple SSO** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub>
 - **Facebook SSO** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub>
 - **Metamask SSO** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub>
@@ -182,7 +177,7 @@ Supported by Ethora platform but not implemented into Chat Component yet:
 
 #### "Multiple rooms - messenger / social app”
 
-- Use Case 3: **Users can switch between Chats** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub>
+- Use Case 3: **Users can switch between Chats** ✅
   Similar to Use Case 2, but also allows your User to switch to the **List of Chats** where they can see chat rooms, the count of new messages and a last message for -each room etc. Users can create new Chats and invite others into Chats (depending on your App settings). This functionality is available in full Ethora app but is currently "work in progress" for Chat Component.
 
 #### Misc core chat functionalities
@@ -195,15 +190,15 @@ Supported by Ethora platform but not implemented into Chat Component yet:
 
 #### Message interactions
 
-- **Message menu** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub> - Long tap or right click opens message menu with "Reply", "Copy", "Edit", "Delete", "Report" options available as well as send Coin / Item options
-- **Emoji Reactions** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub> - Users are able to long tap / click on the message and send Emoji reactions to the message. Reactions are displayed in the corner of the message bubble.
+- **Message menu** ✅ - Long tap or right click opens message menu with "Reply", "Copy", "Edit", "Delete", "Report" options available as well as send Coin / Item options
+- **Emoji Reactions** ✅ - Users are able to long tap / click on the message and send Emoji reactions to the message. Reactions are displayed in the corner of the message bubble.
 
 #### Avatars (profile photos)
 
 - **Basic avatars** ✅ - in chat screen, users can see basic avatars next to chat bubbles. Simply default avatar icon for everyone.
-- **"Initials" avatars** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub> - in Chat scree, users who don't have photos uploaded will show as "initials" avatars generated by taking the first letter of User's first name and last name
+- **"Initials" avatars** ✅ - in Chat scree, users who don't have photos uploaded will show as "initials" avatars generated by taking the first letter of User's first name and last name
 - **Google SSO avatars** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub> - when using Google SSO, their Google profile photo will be automatically displayed as chat avatar
-- **Custom profile photos** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub> - users are able to upload their custom photos when managing their Profile and the mini-photo will be displayed as a chat avatar
+- **Custom profile photos** ✅ - users are able to upload their custom photos when managing their Profile and the mini-photo will be displayed as a chat avatar
 
 #### Notifications
 
@@ -211,11 +206,11 @@ Supported by Ethora platform but not implemented into Chat Component yet:
 
 ### FILE ATTACHMENTS
 
-- **File attachments** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub> - file attachments, previews, media attachments, audio/video player etc currently are work in progress for chat component
+- **File attachments** ✅ - file attachments, previews, media attachments, audio/video player etc currently are work in progress for chat component
 
 ### USER PROFILES AND DIGITAL WALLET FUNCTIONALITY
 
-- **Profile screen** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub> - users can see their own and other Users Profile screens by tapping their avatar in Chat. Profile includes Photo, name, description, direct message button and profile share link
+- **Profile screen** ✅ - users can see their own and other Users Profile screens by tapping their avatar in Chat. Profile includes Photo, name, description, direct message button and profile share link
 - **Profile Assets (Digital Wallet)** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub> - Users can view assets (Documents, art/collectables, Coins) within their own profile or profiles of other Users, depending on App-wide and User-specific visibility settings
 - **Profile Asset: Coins** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub> - Coins, Points, Stars (you can call this anything in your project) are a rewards system where Users and Bots can reward individual messages of other Users
 - **Profile Asset: Documents** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub> - Documents in Profiles support use cases where certain User (or bot / business page) need to display certain documents and their provenance history. E.g. business / educational / medical certificates, case-related documents, contracts etc.

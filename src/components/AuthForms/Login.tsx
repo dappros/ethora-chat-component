@@ -15,6 +15,7 @@ import { useDispatch } from 'react-redux';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { setUser } from '../../roomStore/chatSettingsSlice';
 import { localStorageConstants } from '../../helpers/constants/LOCAL_STORAGE';
+import { useToast } from '../../context/ToastContext';
 
 interface LoginFormProps {
   config?: IConfig;
@@ -22,6 +23,7 @@ interface LoginFormProps {
 
 const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
   const dispatch = useDispatch();
+  const { showToast } = useToast();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -54,6 +56,12 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
           password: 'You entered wrong data. Try again',
         }));
         setIsLoading(false);
+        showToast({
+          id: 'error',
+          title: 'Login Failed',
+          message: 'Invalid credentials',
+          type: 'error',
+        });
         return null;
       }
 
@@ -64,14 +72,23 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
       };
       dispatch(setUser(user));
       useLocalStorage(localStorageConstants.ETHORA_USER).set(user);
+      showToast({
+        id: 'success',
+        title: 'Login Successful',
+        message: 'Welcome back!',
+        type: 'success',
+      });
     } catch (error) {
       console.error('Login failed:', error);
-      setIsLoading(false);
-
-      return null;
+      showToast({
+        id: 'error',
+        title: 'Login Error',
+        message: 'An error occurred during login',
+        type: 'error',
+      });
     }
     setIsLoading(false);
-  }, [email, password, dispatch]);
+  }, [email, password, dispatch, showToast]);
 
   const handleGoogleLogin = async (e: { preventDefault: () => void }) => {
     setIsLoading(true);

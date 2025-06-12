@@ -1,12 +1,24 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { MessagesScroll, MessagesList } from '../styled/StyledComponents';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import {
+  MessagesScroll,
+  MessagesList,
+  ScrollToBottomButton,
+} from '../styled/StyledComponents';
 import { IConfig, IMessage, User } from '../../types/types';
 import Loader from '../styled/Loader';
 import Composing from '../styled/StyledInputComponents/Composing';
 import TreadLabel from '../styled/TreadLabel';
 import { MessageContainer } from './MessageContainer';
 import { useRoomState } from '../../hooks/useRoomState';
-import { VirtualizedList } from './VirtualList';
+import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { DownArrowIcon } from '../../assets/icons';
+import NewMessageLabel from '../styled/NewMessageLabel';
 
 interface MessageListProps<TMessage extends IMessage> {
   CustomMessage?: React.ComponentType<{
@@ -29,7 +41,6 @@ interface MessageListProps<TMessage extends IMessage> {
 
 const MessageList = <TMessage extends IMessage>({
   CustomMessage,
-  user,
   loadMoreMessages,
   roomJID,
   config,
@@ -38,6 +49,14 @@ const MessageList = <TMessage extends IMessage>({
   activeMessage,
 }: MessageListProps<TMessage>) => {
   const { composing, messages } = useRoomState(roomJID).room;
+  const { user } = useChatSettingState();
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [newMessagesCount, setNewMessagesCount] = useState(0);
+  const [lastMessageDate, setLastMessageDate] = useState<number | null>(null);
+  const lastMessageCount = useRef(messages.length);
+  const lastUserMessageId = useRef<string | null>(null);
+  const scrollPositions = useRef<{ [key: string]: number }>({});
+  const isFirstLoad = useRef<boolean>(true);
 
   const addReplyMessages = useMemo(() => {
     return messages.map((message) => {
@@ -77,6 +96,13 @@ const MessageList = <TMessage extends IMessage>({
     }
   }, [messages, messages.length]);
 
+  const isUserMessage = useMemo(
+    () =>
+      messages.length &&
+      messages[messages.length - 1].user.id === user.xmppUsername,
+    [messages.length, user.xmppUsername]
+  );
+
   const containerRef = useRef<HTMLDivElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);
   const lastMessageRef = useRef<IMessage>(
@@ -99,15 +125,94 @@ const MessageList = <TMessage extends IMessage>({
     };
   };
 
-  const restoreScrollPosition = () => {
+  const saveScrollPosition = useCallback(() => {
     const content = containerRef.current;
-    if (content && scrollParams.current) {
-      const { top, height } = scrollParams.current;
-      const newHeight = content.scrollHeight;
-      const scrollTop = top + (newHeight - height);
-      content.scrollTop = scrollTop;
+    if (content) {
+      scrollPositions.current[roomJID] = content.scrollTop;
     }
-  };
+  }, [roomJID]);
+
+  const waitForImagesLoaded = useCallback(() => {
+    const content = containerRef.current;
+    if (!content) return Promise.resolve();
+
+    const images = content.getElementsByTagName('img');
+    if (images.length === 0) return Promise.resolve();
+
+    const promises = Array.from(images).map((img) => {
+      if (img.complete) return Promise.resolve();
+      return new Promise((resolve) => {
+        img.onload = resolve;
+        img.onerror = resolve;
+      });
+    });
+
+    return Promise.all(promises);
+  }, []);
+
+  const restoreScrollPosition = useCallback(async () => {
+    const content = containerRef.current;
+    if (!content) return;
+
+    await waitForImagesLoaded();
+
+    if (isFirstLoad.current) {
+      const delimiterIndex = memoizedMessages.findIndex(
+        (msg) => msg.id === 'delimiter-new'
+      );
+
+      if (delimiterIndex !== -1) {
+        setTimeout(() => {
+          const allMessages = content.querySelectorAll('[data-message-id]');
+          const delimiterElement = Array.from(allMessages).find(
+            (el) => el.getAttribute('data-message-id') === 'delimiter-new'
+          );
+
+          if (delimiterElement) {
+            delimiterElement.scrollIntoView({
+              behavior: 'auto',
+              block: 'center',
+            });
+          } else {
+            content.scrollTop = content.scrollHeight;
+          }
+        }, 100);
+      } else {
+        content.scrollTop = content.scrollHeight;
+      }
+      isFirstLoad.current = false;
+    } else {
+      const savedPosition = scrollPositions.current[roomJID];
+      if (savedPosition !== undefined) {
+        content.scrollTop = savedPosition;
+      } else {
+        content.scrollTop = content.scrollHeight;
+      }
+    }
+  }, [roomJID, memoizedMessages, waitForImagesLoaded]);
+
+  useEffect(() => {
+    if (memoizedMessages.length > 0) {
+      setLastMessageDate(
+        new Date(memoizedMessages[memoizedMessages.length - 1].date).getTime()
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isUserMessage) return;
+
+    const newMessageDate = new Date(
+      memoizedMessages[memoizedMessages.length - 1]?.date
+    )?.getTime();
+    if (newMessageDate > lastMessageDate) {
+      setNewMessagesCount((prev) => (prev += 1));
+    }
+  }, [memoizedMessages.length]);
+
+  useEffect(() => {
+    restoreScrollPosition();
+  }, [roomJID]);
 
   const checkIfLoadMoreMessages = useCallback(() => {
     const params = getScrollParams();
@@ -132,7 +237,6 @@ const MessageList = <TMessage extends IMessage>({
       () => {
         isLoadingMore.current = false;
         lastMessageRef.current = memoizedMessages[memoizedMessages.length - 1];
-        restoreScrollPosition();
       }
     );
   }, [loadMoreMessages, memoizedMessages.length]);
@@ -140,16 +244,37 @@ const MessageList = <TMessage extends IMessage>({
   const checkAtBottom = () => {
     const content = containerRef.current;
     if (content) {
-      atBottom.current =
-        content.scrollHeight - content.clientHeight <= content.scrollTop + 10;
+      const isAtBottom =
+        content.scrollHeight - content.clientHeight <= content.scrollTop + 100;
+      atBottom.current = isAtBottom;
+
+      const scrolledUp =
+        content.scrollHeight - content.clientHeight - content.scrollTop > 150;
+
+      if (scrolledUp) {
+        setShowScrollButton(true);
+      } else if (isAtBottom) {
+        scrollToBottom();
+        setShowScrollButton(false);
+        setNewMessagesCount(0);
+      }
+
+      lastMessageCount.current = messages.length;
       checkIfLoadMoreMessages();
+    } else {
+      timeoutRef.current = null;
     }
   };
 
   const scrollToBottom = useCallback((): void => {
     const content = containerRef.current;
     if (content) {
-      content.scrollTop = content.scrollHeight;
+      content.scrollTo({
+        top: content.scrollHeight,
+        behavior: 'smooth',
+      });
+      setShowScrollButton(false);
+      setNewMessagesCount(0);
     }
   }, []);
 
@@ -173,12 +298,6 @@ const MessageList = <TMessage extends IMessage>({
   }, []);
 
   useEffect(() => {
-    if (atBottom.current) {
-      scrollToBottom();
-    }
-  }, [memoizedMessages.length]);
-
-  useEffect(() => {
     if (memoizedMessages.length > 30) {
       const content = containerRef.current;
       if (content && scrollParams.current) {
@@ -190,6 +309,22 @@ const MessageList = <TMessage extends IMessage>({
       scrollParams.current = null;
     }
   }, [memoizedMessages.length, composing]);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      const isLastMessageFromUser = lastMessage && isUserMessage;
+
+      if (
+        lastMessage &&
+        lastMessage.id !== lastUserMessageId.current &&
+        isLastMessageFromUser
+      ) {
+        lastUserMessageId.current = lastMessage.id;
+        scrollToBottom();
+      }
+    }
+  }, [messages, isUserMessage, scrollToBottom]);
 
   // if (!validateMessages(memoizedMessages)) {
   //   console.log("Invalid 'messages' props provided to MessageList.");
@@ -210,7 +345,7 @@ const MessageList = <TMessage extends IMessage>({
           <React.Fragment>
             <CustomMessage
               message={activeMessage}
-              isUser={isUserActiveMessage}
+              isUser={isUserMessage}
               isReply={isReply}
             />
             <TreadLabel
@@ -223,6 +358,19 @@ const MessageList = <TMessage extends IMessage>({
           const messageDate = new Date(message.date).toDateString();
           const showDateLabel = messageDate !== lastDateLabel;
           lastDateLabel = messageDate;
+
+          if (message.id === 'delimiter-new') {
+            return (
+              <div
+                key={message.id}
+                data-message-id="delimiter-new"
+                className="message-container"
+              >
+                <NewMessageLabel color={config?.colors?.primary} />
+              </div>
+            );
+          }
+
           return (
             <MessageContainer
               key={message.id}
@@ -230,9 +378,10 @@ const MessageList = <TMessage extends IMessage>({
               message={message}
               activeMessage={activeMessage}
               config={config}
-              walletAddress={user.walletAddress}
+              xmppUsername={user.xmppUsername}
               isReply={isReply}
               showDateLabel={showDateLabel}
+              data-message-id={message.id}
             />
           );
         })}
@@ -262,6 +411,17 @@ const MessageList = <TMessage extends IMessage>({
           <Composing usersTyping={['User']} />
         )}
       </MessagesScroll>
+      {showScrollButton && (
+        <ScrollToBottomButton
+          onClick={scrollToBottom}
+          color={config?.colors?.primary}
+        >
+          <DownArrowIcon color={config?.colors?.secondary || 'white'} />
+          {newMessagesCount > 0 && (
+            <span className="count">{newMessagesCount}</span>
+          )}
+        </ScrollToBottomButton>
+      )}
     </MessagesList>
   );
 };

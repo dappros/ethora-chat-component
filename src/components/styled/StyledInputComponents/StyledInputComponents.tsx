@@ -9,6 +9,7 @@ export const InputContainer = styled.div`
   z-index: 1;
   box-shadow: 0px 0px 8px -4px #12121908;
   box-shadow: 0px 0px 24px -4px #12121914;
+  max-width: 100%;
 `;
 
 export const MessageInputContainer = styled.div`

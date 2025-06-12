@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { store } from '../roomStore';
+import { appToken as betaAppToken } from '../api.config';
 
 import { logout, refreshTokens } from '../roomStore/chatSettingsSlice';
 
@@ -7,17 +8,19 @@ let baseURL =
   store.getState().chatSettingStore?.config?.baseUrl ||
   'https://api.ethoradev.com/v1';
 
-console.log('baseUrl', store.getState().chatSettingStore?.config?.baseUrl);
-
 const http = axios.create({
   baseURL,
 });
 
-export function setBaseURL(newBaseURL: string | undefined) {
+let appToken = betaAppToken;
+
+export function setBaseURL(newBaseURL?: string, customAppToken?: string) {
   if (newBaseURL) {
-    console.log('upd to ,', newBaseURL);
     baseURL = newBaseURL;
     http.defaults.baseURL = newBaseURL;
+  }
+  if (customAppToken) {
+    appToken = customAppToken;
   }
 }
 
@@ -42,6 +45,7 @@ export function refresh(): Promise<{
           );
         })
         .catch((error) => {
+          // store.dispatch(logout());
           reject(error);
         });
     } catch (error) {
@@ -80,7 +84,7 @@ http.interceptors.response.use(
         store.getState().chatSettingStore?.config?.refreshTokens
           ?.refreshFunction
       ) {
-        const { refreshToken, accessToken } = store
+        const { refreshToken, accessToken } = await store
           .getState()
           .chatSettingStore?.config?.refreshTokens?.refreshFunction();
         store.dispatch(
@@ -113,7 +117,6 @@ http.interceptors.response.use(
           isRefreshing = true;
           try {
             const tokens = await refresh();
-            console.log('tokens', tokens);
             isRefreshing = false;
             originalRequest.headers['Authorization'] = tokens.data.token;
             processQueue(tokens.data.token);
@@ -129,3 +132,4 @@ http.interceptors.response.use(
 );
 
 export default http;
+export { appToken };

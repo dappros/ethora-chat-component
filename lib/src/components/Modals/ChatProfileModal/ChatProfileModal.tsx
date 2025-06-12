@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   CenterContainer,
   UserInfo,
@@ -19,9 +19,21 @@ import { useXmppClient } from '../../../context/xmppProvider';
 import { updateRoom } from '../../../roomStore/roomsSlice';
 import Loader from '../../styled/Loader';
 import Button from '../../styled/Button';
-import { MoreIcon, QrIcon } from '../../../assets/icons';
+import { DeleteIcon, MoreIcon, QrIcon } from '../../../assets/icons';
 import OperationalModal from '../../OperationalModal/OperationalModal';
-import Switch from '../../MainComponents/Switch';
+import { RoomMember } from '../../../types/types';
+import {
+  setActiveModal,
+  setSelectedUser,
+} from '../../../roomStore/chatSettingsSlice';
+import { MODAL_TYPES } from '../../../helpers/constants/MODAL_TYPES';
+import AddMembersModal from '../AddMembersModal/AddMembersModal';
+import { deleteRoomMember } from '../../../networking/api-requests/rooms.api';
+import DropdownMenu from '../../DropdownMenu/DropdownMenu';
+import DeleteChatModal from './DeleteChatModal';
+import { useChatSettingState } from '../../../hooks/useChatSettingState';
+import SelectUsersModal from '../SelectUsersModal/SelectUsersModal';
+import { useToast } from '../../../context/ToastContext';
 
 interface ChatProfileModalProps {
   handleCloseModal: any;
@@ -32,23 +44,29 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
 }) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [visible, setVisible] = useState<boolean>(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const { showToast } = useToast();
+
+  const chatMenuOptions = useMemo(
+    () => [
+      {
+        label: 'Delete chat',
+        icon: <DeleteIcon />,
+        onClick: () => {
+          setIsModalOpen(true);
+        },
+        styles: { color: 'red' },
+      },
+    ],
+    []
+  );
 
   const dispatch = useDispatch();
-  const { config } = useSelector((state: RootState) => state.chatSettingStore);
 
   const { client } = useXmppClient();
+  const { user: stateUser } = useChatSettingState();
   const activeRoom = useSelector((state: RootState) => getActiveRoom(state));
-
-  useEffect(() => {
-    setLoading(true);
-    client.getRoomMembersStanza(activeRoom.jid);
-
-    if (activeRoom.roomMembers?.length > 0) {
-      setLoading(false);
-    }
-
-    return () => {};
-  }, [activeRoom.roomMembers?.length]);
 
   const onUpload = async (file: File) => {
     try {
@@ -58,9 +76,6 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
       const uploadResult = await uploadFile(mediaData);
 
       const location = uploadResult?.data?.results?.[0]?.location;
-      if (!location) {
-        console.log('No location found in upload result.');
-      }
 
       if (location) {
         client.setRoomImageStanza(activeRoom.jid, location, 'icon', 'none');
@@ -73,10 +88,93 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
     }
   };
 
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      await deleteRoomMember({
+        roomId: activeRoom.jid.split('@')[0],
+        members: [userId],
+      });
+
+      dispatch(
+        updateRoom({
+          jid: activeRoom.jid,
+          updates: {
+            members: activeRoom.members.filter(
+              (user) => user.xmppUsername !== userId
+            ),
+          },
+        })
+      );
+
+      showToast({
+        id: Date.now().toString(),
+        title: 'Success',
+        message: `${userId} has been removed from the room.`,
+        type: 'success',
+      });
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+      showToast({
+        id: Date.now().toString(),
+        title: 'Error',
+        message: 'Failed to delete user.',
+        type: 'error',
+      });
+    }
+  };
+
   const onRemoveClick = async () => {
     client.setRoomImageStanza(activeRoom.jid, null, 'icon', 'none');
     dispatch(updateRoom({ jid: activeRoom.jid, updates: { icon: null } }));
   };
+
+  const handleUserAvatarClick = (user: RoomMember): void => {
+    dispatch(setActiveModal(MODAL_TYPES.PROFILE));
+    dispatch(
+      setSelectedUser({
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        name: `${user.firstName} ${user.lastName}`,
+        userJID: user?.xmppUsername,
+      })
+    );
+  };
+
+  const menuOptions = useMemo(
+    () => (userId: string) => [
+      {
+        label: 'Appoint as an admin',
+        icon: null,
+        onClick: () => {
+          dispatch(setActiveModal(MODAL_TYPES.PROFILE));
+          console.log('Profile clicked');
+        },
+      },
+      {
+        label: 'Unban',
+        icon: null,
+        onClick: () => {
+          dispatch(setActiveModal(MODAL_TYPES.SETTINGS));
+          console.log('Settings clicked');
+        },
+      },
+      {
+        label: 'Delete',
+        icon: null,
+        onClick: (e: any) => {
+          e?.preventDefault();
+          handleDeleteUser(userId);
+        },
+      },
+    ],
+    []
+  );
+
+  if (!activeRoom) {
+    dispatch(setActiveModal());
+    return null;
+  }
 
   return (
     <ModalContainerFullScreen style={{ position: 'relative' }}>
@@ -85,8 +183,23 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         headerTitle={'Chat Profile'}
         rightMenu={
           <>
-            <Button EndIcon={<QrIcon />} onClick={() => setVisible(true)} />
-            {/* <Button EndIcon={<MoreIcon />} /> */}
+            {activeRoom?.type === 'public' && (
+              <Button EndIcon={<QrIcon />} onClick={() => setVisible(true)} />
+            )}
+            {activeRoom.role === 'moderator' &&
+              activeRoom.type !== 'private' && (
+                <DropdownMenu
+                  position="left"
+                  options={chatMenuOptions}
+                  openButton={
+                    <Button
+                      style={{ padding: 8, maxHeight: '40px' }}
+                      EndIcon={<MoreIcon />}
+                      unstyled
+                    />
+                  }
+                />
+              )}
           </>
         }
       />
@@ -109,9 +222,19 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
             {activeRoom.usersCnt > 1 ? 'members' : 'member'}
           </UserStatus>
         </UserInfo>
+        {activeRoom.role === 'moderator' && activeRoom.type === 'group' && (
+          <>
+            {/* <AddMembersModal /> */}
+            <SelectUsersModal />
+          </>
+        )}
         <BorderedContainer>
           <LabelData>Description</LabelData>
-          <Label>Chat's Description</Label>
+          <Label>{activeRoom?.description}</Label>
+        </BorderedContainer>
+        <BorderedContainer>
+          <LabelData>Chat type</LabelData>
+          <Label>{activeRoom.type}</Label>
         </BorderedContainer>
         {/* <BorderedContainer
           style={{
@@ -134,8 +257,9 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
           {loading ? (
             <Loader />
           ) : (
-            activeRoom?.roomMembers?.map((user, index) => (
+            activeRoom?.members?.map((user, index) => (
               <div
+                key={user.xmppUsername}
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
@@ -152,25 +276,34 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                     width: '100%',
                   }}
                 >
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <ProfileImagePlaceholder name={user.name} size={40} />
+                  <div
+                    style={{ display: 'flex', gap: '8px', cursor: 'pointer' }}
+                    onClick={() => handleUserAvatarClick(user)}
+                  >
+                    <ProfileImagePlaceholder
+                      name={`${user.firstName} ${user.lastName}`}
+                      size={40}
+                    />
                     <div
                       style={{
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '2px',
                         alignItems: 'start',
+                        justifyContent: 'center',
                       }}
                     >
                       <Label style={{ fontSize: '16px', fontWeight: 600 }}>
-                        {user.name}
+                        {user.firstName} {user.lastName}
                       </Label>
-                      <LabelData>
-                        {new Date(user.last_active * 1000).toLocaleString()}
-                      </LabelData>
+                      {user.last_active && (
+                        <LabelData>
+                          {new Date(user.last_active * 1000).toLocaleString()}
+                        </LabelData>
+                      )}
                     </div>
                   </div>
-                  {user.role !== 'none' && (
+                  {user.role && user.role !== 'none' && (
                     <div
                       style={{
                         backgroundColor:
@@ -185,8 +318,25 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                       {user.role}
                     </div>
                   )}
+                  {stateUser.xmppUsername !== user.xmppUsername &&
+                    activeRoom.role === 'moderator' &&
+                    activeRoom.type !== 'private' && (
+                      <DropdownMenu
+                        options={menuOptions(user.xmppUsername)}
+                        openButton={
+                          <Button
+                            onClick={(e) => {
+                              e.preventDefault();
+                            }}
+                          >
+                            More Options
+                          </Button>
+                        }
+                        onClose={() => console.log('Dropdown closed')}
+                      />
+                    )}
                 </div>
-                {index < activeRoom?.roomMembers.length - 1 && <Divider />}
+                {index < activeRoom?.members.length - 1 && <Divider />}
               </div>
             ))
           )}
@@ -196,6 +346,10 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         isVisible={visible}
         setVisible={setVisible}
         chatJid={activeRoom.jid}
+      />
+      <DeleteChatModal
+        isModalOpen={isModalOpen}
+        setIsModalOpen={setIsModalOpen}
       />
     </ModalContainerFullScreen>
   );

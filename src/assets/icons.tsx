@@ -742,10 +742,7 @@ export const DownArrowIcon = ({
     xmlns="http://www.w3.org/2000/svg"
     {...props}
   >
-    <path
-      d="M0 12C0 5.37258 5.37258 0 12 0C18.6274 0 24 5.37258 24 12C24 18.6274 18.6274 24 12 24C5.37258 24 0 18.6274 0 12Z"
-      fill={fill}
-    />
+    <path d="M0 12C0 5.37258 5.37258 0 12 0C18.6274 0 24 5.37258 24 12C24 18.6274 18.6274 24 12 24C5.37258 24 0 18.6274 0 12Z" />
     <path
       d="M7.66602 9.79997L11.9993 14.1333L16.3327 9.79997"
       stroke={color}
@@ -812,6 +809,44 @@ export const DoubleTick = ({ fill = '#fff', color = '#0052CD', ...props }) => (
       stroke-width="1.5"
       stroke-linecap="round"
       stroke-linejoin="round"
+    />
+  </svg>
+);
+
+export const RedCross = ({ color = '#DC2626', ...props }) => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 16 16"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <path
+      d="M4 4L12 12M12 4L4 12"
+      stroke={color}
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+export const SingleTick = ({ color = '#16A34A', ...props }) => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 16 16"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <path
+      d="M4 8.5L7 11.5L12 5.5"
+      stroke={color}
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     />
   </svg>
 );
