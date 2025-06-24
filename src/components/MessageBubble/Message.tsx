@@ -30,7 +30,7 @@ import { MessageReaction } from './MessageReaction';
 import MessageTranslations from './MessageTranslations';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { DoubleTick } from '../../assets/icons';
-import { parseMessageBody } from '../../helpers/parseUrls';
+import { parseMessageBody } from '../../helpers/parseMessageBody';
 import URLPreviewCard from './URLPreviewCard';
 
 const firstUrlRegex =

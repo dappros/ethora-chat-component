@@ -54,7 +54,7 @@ const ChatComponent = React.memo(() => {
   return (
     <div style={{ height: 'calc(100vh - 20px)', overflow: 'hidden' }}>
       <ReduxWrapper
-        roomJID="646cc8dc96d4a4dc8f7b2f2d_6824685682d635dba7522423@conference.xmpp.ethoradev.com"
+        // roomJID="646cc8dc96d4a4dc8f7b2f2d_6824685682d635dba7522423@conference.xmpp.ethoradev.com"
         config={{
           xmppSettings: {
             devServer: 'wss://xmpp.ethoradev.com:5443/ws',
@@ -120,18 +120,20 @@ export default function App() {
   );
 
   return (
-    <XmppProvider>
-      <Router>
-        <div className="flex">
-          {navigation}
-          <div className="flex-1 p-4">
-            <Routes>
-              <Route path="/apps" element={<Apps />} />
-              <Route path="/chat" element={<ChatComponent />} />
-            </Routes>
+    <React.StrictMode>
+      <XmppProvider>
+        <Router>
+          <div className="flex">
+            {navigation}
+            <div className="flex-1 p-4">
+              <Routes>
+                <Route path="/apps" element={<Apps />} />
+                <Route path="/chat" element={<ChatComponent />} />
+              </Routes>
+            </div>
           </div>
-        </div>
-      </Router>
-    </XmppProvider>
+        </Router>
+      </XmppProvider>
+    </React.StrictMode>
   );
 }
