@@ -229,6 +229,18 @@ const MessageList = <TMessage extends IMessage>({
     );
   }, [loadMoreMessages, memoizedMessages.length]);
 
+  const scrollToBottom = useCallback((): void => {
+    const content = containerRef.current;
+    if (content) {
+      content.scrollTo({
+        top: content.scrollHeight,
+        behavior: 'smooth',
+      });
+      setShowScrollButton(false);
+      setNewMessagesCount(0);
+    }
+  }, []);
+
   const checkAtBottom = () => {
     const content = containerRef.current;
     if (content) {
@@ -253,18 +265,6 @@ const MessageList = <TMessage extends IMessage>({
       timeoutRef.current = null;
     }
   };
-
-  const scrollToBottom = useCallback((): void => {
-    const content = containerRef.current;
-    if (content) {
-      content.scrollTo({
-        top: content.scrollHeight,
-        behavior: 'smooth',
-      });
-      setShowScrollButton(false);
-      setNewMessagesCount(0);
-    }
-  }, []);
 
   const onScroll = () => {
     window.clearTimeout(timeoutRef.current);
@@ -314,10 +314,18 @@ const MessageList = <TMessage extends IMessage>({
     }
   }, [messages, isUserMessage, scrollToBottom]);
 
-  // if (!validateMessages(memoizedMessages)) {
-  //   console.log("Invalid 'messages' props provided to MessageList.");
-  //   return null;
-  // }
+  useEffect(() => {
+    const content = containerRef.current;
+    if (content) {
+      if (messages.length > 0) {
+        const isAtBottom =
+          content.scrollHeight - content.clientHeight - content.scrollTop < 90;
+        if (isAtBottom) {
+          scrollToBottom();
+        }
+      }
+    }
+  }, [memoizedMessages.length, composing]);
 
   let lastDateLabel: string | null = null;
 
