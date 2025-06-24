@@ -76,58 +76,62 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   }, [activeRoomJID, roomsList, dispatch, client]);
 
   return (
-    <ChatContainerHeader>
-      {/* todo add here list of rooms */}
-      <div style={{ display: 'flex', gap: '8px' }}>
-        {!config?.disableRooms && handleBackClick && (
-          <Button
-            EndIcon={<BackIcon />}
-            onClick={() => handleBackClick(false)}
-          />
-        )}
-        {config?.chatHeaderBurgerMenu && roomsList && (
-          <RoomList
-            chats={Object.values(roomsList)}
-            burgerMenu
-            onRoomClick={handleChangeChat}
-          />
-        )}
-        <ChatContainerHeaderBoxInfo
-          onClick={() => dispatch(setActiveModal(MODAL_TYPES.CHAT_PROFILE))}
-        >
-          <div>
-            <ProfileImagePlaceholder
-              name={currentRoom.name}
-              size={40}
-              icon={currentRoom?.icon}
-              active={true}
+    <>
+      <ChatContainerHeader>
+        {/* todo add here list of rooms */}
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {!config?.disableRooms && handleBackClick && (
+            <Button
+              EndIcon={<BackIcon />}
+              onClick={() => handleBackClick(false)}
             />
-          </div>
-          <ChatContainerHeaderInfo>
-            <ChatContainerHeaderLabel>
-              {currentRoom?.title}
-            </ChatContainerHeaderLabel>
-            <ChatContainerHeaderLabel
-              style={{ color: '#8C8C8C', fontSize: '14px' }}
-            >
-              {composing ? (
-                <Composing usersTyping={currentRoom?.composingList} />
-              ) : (
-                `${formatNumberWithCommas(currentRoom?.usersCnt)} ${currentRoom?.usersCnt === 1 ? 'user' : 'users'}`
-              )}
-            </ChatContainerHeaderLabel>
-          </ChatContainerHeaderInfo>
-        </ChatContainerHeaderBoxInfo>
-      </div>
+          )}
+          {config?.chatHeaderBurgerMenu && roomsList && (
+            <RoomList
+              chats={Object.values(roomsList)}
+              burgerMenu
+              onRoomClick={handleChangeChat}
+            />
+          )}
+          <ChatContainerHeaderBoxInfo
+            onClick={() => dispatch(setActiveModal(MODAL_TYPES.CHAT_PROFILE))}
+          >
+            <div>
+              <ProfileImagePlaceholder
+                name={currentRoom.name}
+                size={40}
+                icon={currentRoom?.icon}
+                active={true}
+              />
+            </div>
+            <ChatContainerHeaderInfo>
+              <ChatContainerHeaderLabel>
+                {currentRoom?.title}
+              </ChatContainerHeaderLabel>
+              <ChatContainerHeaderLabel
+                style={{ color: '#8C8C8C', fontSize: '14px' }}
+              >
+                {composing ? (
+                  <Composing usersTyping={currentRoom?.composingList} />
+                ) : (
+                  `${formatNumberWithCommas(currentRoom?.usersCnt)} ${currentRoom?.usersCnt === 1 ? 'user' : 'users'}`
+                )}
+              </ChatContainerHeaderLabel>
+            </ChatContainerHeaderInfo>
+          </ChatContainerHeaderBoxInfo>
+        </div>
 
-      <div style={{ display: 'flex', gap: 16 }}>
-        {/* <SearchInput animated icon={<SearchIcon />} /> */}
-        <RoomMenu
-          handleLeaveClick={handleLeaveClick}
-          handleReportClick={handleReportClick}
-        />
-      </div>
-    </ChatContainerHeader>
+        <div style={{ display: 'flex', gap: 16 }}>
+          {/* <SearchInput animated icon={<SearchIcon />} /> */}
+          <RoomMenu
+            handleLeaveClick={handleLeaveClick}
+            handleReportClick={handleReportClick}
+          />
+        </div>
+      </ChatContainerHeader>
+      {config?.chatHeaderAdditional?.enabled &&
+        config.chatHeaderAdditional.element()}
+    </>
   );
 };
 

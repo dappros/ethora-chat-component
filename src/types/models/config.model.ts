@@ -85,4 +85,5 @@ export interface IConfig {
   };
   enableRoomsRetry?: { enabled: boolean; helperText: string };
   disableNewChatButton?: boolean;
+  chatHeaderAdditional?: { enabled: boolean; element: any };
 }
