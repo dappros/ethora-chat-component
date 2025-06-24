@@ -163,6 +163,8 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             handleBackClick={handleBackClick}
           />
         )}
+        {config?.chatHeaderAdditional?.enabled &&
+          config.chatHeaderAdditional.element}
         {globalLoading ||
         (!roomsList[activeRoomJID].historyComplete &&
           roomsList[activeRoomJID].messages.length < 1) ? (
