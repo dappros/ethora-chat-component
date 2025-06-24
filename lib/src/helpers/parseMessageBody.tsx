@@ -8,143 +8,141 @@ export const parseMessageBody = (text: string): (string | JSX.Element)[] => {
   const lines = text.split('\n');
 
   let inCodeBlock = false;
+  let codeLanguage = '';
   const codeBuffer: string[] = [];
 
   const parseInline = (input: string): (string | JSX.Element)[] => {
-    const stack: { type: string; content: (string | JSX.Element)[] }[] = [];
     const output: (string | JSX.Element)[] = [];
 
-    let i = 0;
+    const regex =
+      /(\*\*\*[^*]+?\*\*\*|\*\*[^*]+?\*\*|\*[^*]+?\*|~~[^~]+?~~|`[^`]+?`|https:\/\/[\w.-]+(?:\.[\w.-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=]+)/g;
 
-    const flushText = (text: string) => {
-      const urlRegex =
-        /(https:\/\/[\w.-]+(?:\.[\w.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+)/g;
-      let lastIndex = 0;
-      let match;
-      while ((match = urlRegex.exec(text)) !== null) {
-        if (match.index > lastIndex) {
-          output.push(text.slice(lastIndex, match.index));
-        }
+    let lastIndex = 0;
+    let match;
+
+    while ((match = regex.exec(input)) !== null) {
+      if (match.index > lastIndex) {
+        output.push(input.slice(lastIndex, match.index));
+      }
+
+      const token = match[0];
+      if (/^\*\*\*.*\*\*\*$/.test(token)) {
+        output.push(
+          <strong key={`b-${key++}`}>
+            <em>{token.slice(3, -3)}</em>
+          </strong>
+        );
+      } else if (/^\*\*.*\*\*$/.test(token)) {
+        output.push(<strong key={`b-${key++}`}>{token.slice(2, -2)}</strong>);
+      } else if (/^\*.*\*$/.test(token)) {
+        output.push(<em key={`i-${key++}`}>{token.slice(1, -1)}</em>);
+      } else if (/^~~.*~~$/.test(token)) {
+        output.push(<del key={`s-${key++}`}>{token.slice(2, -2)}</del>);
+      } else if (/^`.*`$/.test(token)) {
+        output.push(
+          <code
+            key={`code-${key++}`}
+            style={{
+              background: '#eee',
+              padding: '1px 4px',
+              borderRadius: '4px',
+            }}
+          >
+            {token.slice(1, -1).trim()}
+          </code>
+        );
+      } else if (/^https:\/\//.test(token)) {
         output.push(
           <a
             key={`link-${key++}`}
-            href={match[0]}
+            href={token}
             target="_blank"
             rel="noopener noreferrer"
             style={{ color: 'blue', textDecoration: 'underline' }}
           >
-            {match[0]}
+            {token}
           </a>
         );
-        lastIndex = match.index + match[0].length;
       }
-      if (lastIndex < text.length) {
-        output.push(text.slice(lastIndex));
-      }
-    };
 
-    while (i < input.length) {
-      if (input.slice(i, i + 2) === '**') {
-        if (stack.length && stack[stack.length - 1].type === 'bold') {
-          const bold = stack.pop()!;
-          output.push(<strong key={`b-${key++}`}>{bold.content}</strong>);
-        } else {
-          stack.push({ type: 'bold', content: [] });
-        }
-        i += 2;
-      } else if (input[i] === '*' && (i === 0 || input[i - 1] !== '*')) {
-        if (stack.length && stack[stack.length - 1].type === 'italic') {
-          const italic = stack.pop()!;
-          output.push(<em key={`i-${key++}`}>{italic.content}</em>);
-        } else {
-          stack.push({ type: 'italic', content: [] });
-        }
-        i++;
-      } else if (input.slice(i, i + 2) === '~~') {
-        if (stack.length && stack[stack.length - 1].type === 'strike') {
-          const strike = stack.pop()!;
-          output.push(<del key={`s-${key++}`}>{strike.content}</del>);
-        } else {
-          stack.push({ type: 'strike', content: [] });
-        }
-        i += 2;
-      } else if (input[i] === '`') {
-        const end = input.indexOf('`', i + 1);
-        if (end !== -1) {
-          const codeText = input.slice(i + 1, end);
-          output.push(
-            <code
-              key={`code-${key++}`}
-              style={{
-                background: '#eee',
-                padding: '1px 4px',
-                borderRadius: '4px',
-              }}
-            >
-              {codeText}
-            </code>
-          );
-          i = end + 1;
-        } else {
-          output.push(input[i++]);
-        }
-      } else {
-        if (stack.length) {
-          stack[stack.length - 1].content.push(input[i]);
-        } else {
-          let j = i;
-          while (
-            j < input.length &&
-            input[j] !== '*' &&
-            input.slice(j, j + 2) !== '**' &&
-            input.slice(j, j + 2) !== '~~' &&
-            input[j] !== '`'
-          ) {
-            j++;
-          }
-          flushText(input.slice(i, j));
-          i = j - 1;
-        }
-        i++;
-      }
+      lastIndex = match.index + token.length;
     }
 
-    while (stack.length) {
-      const unclosed = stack.shift()!;
-      output.push(...unclosed.content);
+    if (lastIndex < input.length) {
+      output.push(input.slice(lastIndex));
     }
 
     return output;
   };
 
+  const parseList = (
+    startIndex: number
+  ): { list: JSX.Element; newIndex: number } => {
+    const items: JSX.Element[] = [];
+    const isOrdered = /^\d+\./.test(lines[startIndex].trim());
+
+    let i = startIndex;
+    while (i < lines.length) {
+      const line = lines[i];
+      if (/^(\d+\.\s+|\-\s+)/.test(line)) {
+        const itemText = line.replace(/^(\d+\.\s+|\-\s+)/, '');
+        items.push(<li key={`li-${key++}`}>{parseInline(itemText)}</li>);
+      } else if (line.trim() === '') {
+        break;
+      } else {
+        break;
+      }
+      i++;
+    }
+
+    const ListTag = isOrdered ? 'ol' : 'ul';
+    return {
+      list: React.createElement(
+        ListTag,
+        {
+          key: `list-${key++}`,
+          style: { margin: '4px 0', paddingLeft: '20px' },
+        },
+        items
+      ),
+      newIndex: i - 1,
+    };
+  };
+
   for (let idx = 0; idx < lines.length; idx++) {
     const line = lines[idx];
 
-    if (line.trim() === '```') {
-      inCodeBlock = !inCodeBlock;
+    if (!inCodeBlock && line.trim().startsWith('```')) {
+      const match = line.trim().match(/^```(?:\s*(\w+))?/);
+      inCodeBlock = true;
+      codeLanguage = match?.[1] || '';
+      continue;
+    }
 
-      if (!inCodeBlock) {
-        elements.push(
-          <pre
-            key={`pre-${key++}`}
-            style={{
-              background: '#f0f0f0',
-              padding: '10px',
-              borderRadius: '8px',
-              whiteSpace: 'pre-wrap',
-            }}
-          >
-            <code>{codeBuffer.join('\n')}</code>
-          </pre>
-        );
-        codeBuffer.length = 0;
-      }
-
+    if (inCodeBlock && line.trim() === '```') {
+      inCodeBlock = false;
+      elements.push(
+        <pre
+          key={`pre-${key++}`}
+          style={{
+            background: '#f0f0f0',
+            padding: '10px',
+            borderRadius: '8px',
+            whiteSpace: 'pre-wrap',
+          }}
+        >
+          <code className={`language-${codeLanguage}`}>
+            {codeBuffer.join('\n')}
+          </code>
+        </pre>
+      );
+      codeBuffer.length = 0;
+      codeLanguage = '';
       continue;
     }
 
     if (inCodeBlock) {
-      codeBuffer.push(line.replace(/\t/g, '    '));
+      codeBuffer.push(line);
       continue;
     }
 
@@ -158,7 +156,33 @@ export const parseMessageBody = (text: string): (string | JSX.Element)[] => {
           ...parseInline(content)
         )
       );
-    } else if (line.trim() === '') {
+      continue;
+    }
+
+    if (line.startsWith('>')) {
+      elements.push(
+        <blockquote
+          key={`quote-${key++}`}
+          style={{
+            borderLeft: '3px solid #ccc',
+            paddingLeft: '10px',
+            color: '#666',
+          }}
+        >
+          {parseInline(line.replace(/^>\s*/, ''))}
+        </blockquote>
+      );
+      continue;
+    }
+
+    if (/^(\-|\d+\.)\s+/.test(line)) {
+      const { list, newIndex } = parseList(idx);
+      elements.push(list);
+      idx = newIndex;
+      continue;
+    }
+
+    if (line.trim() === '') {
       elements.push(<br key={`br-${key++}`} />);
     } else {
       elements.push(
