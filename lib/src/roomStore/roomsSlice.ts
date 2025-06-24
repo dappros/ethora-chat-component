@@ -207,6 +207,14 @@ export const roomsStore = createSlice({
     deleteAllRooms(state) {
       state.rooms = {};
     },
+    insertUsers(state, action: PayloadAction<{ newUsers: RoomMember[] }>) {
+      const { newUsers } = action.payload;
+      if (!newUsers || newUsers.length === 0) return;
+
+      newUsers.forEach((user) => {
+        state.usersSet[user.xmppUsername] = user;
+      });
+    },
     setComposing(
       state,
       action: PayloadAction<{
@@ -382,6 +390,7 @@ export const {
   addRoomViaApi,
   updateUsersSet,
   setOpenReportModal,
+  insertUsers,
 } = roomsStore.actions;
 
 export default roomsStore.reducer;

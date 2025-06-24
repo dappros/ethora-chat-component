@@ -44,7 +44,6 @@ import { LANGUAGE_OPTIONS } from '../../../helpers/constants/LANGUAGE_OPTIONS';
 import { useToast } from '../../../context/ToastContext';
 import { createRoomFromApi } from '../../../helpers/createRoomFromApi';
 import { useRoomState } from '../../../hooks/useRoomState';
-import { createUserNameFromSetUser } from '../../../helpers/createUserNameFromSetUser';
 
 interface UserProfileModalProps {
   handleCloseModal: any;

@@ -72,11 +72,6 @@ const MessageList = <TMessage extends IMessage>({
     });
   }, [messages, messages.length]);
 
-  const isUserActiveMessage = useMemo(
-    () => activeMessage && activeMessage.user.id === user.walletAddress,
-    [activeMessage, user.walletAddress]
-  );
-
   const memoizedMessages = useMemo(() => {
     if (isReply) {
       return addReplyMessages.filter(
@@ -124,13 +119,6 @@ const MessageList = <TMessage extends IMessage>({
       height: content.scrollHeight,
     };
   };
-
-  const saveScrollPosition = useCallback(() => {
-    const content = containerRef.current;
-    if (content) {
-      scrollPositions.current[roomJID] = content.scrollTop;
-    }
-  }, [roomJID]);
 
   const waitForImagesLoaded = useCallback(() => {
     const content = containerRef.current;
