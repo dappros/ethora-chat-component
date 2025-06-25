@@ -245,7 +245,7 @@ const MessageList = <TMessage extends IMessage>({
     const content = containerRef.current;
     if (content) {
       const isAtBottom =
-        content.scrollHeight - content.clientHeight <= content.scrollTop + 100;
+        content.scrollHeight - content.clientHeight <= content.scrollTop + 120;
       atBottom.current = isAtBottom;
 
       const scrolledUp =
@@ -312,20 +312,19 @@ const MessageList = <TMessage extends IMessage>({
         scrollToBottom();
       }
     }
-  }, [messages, isUserMessage, scrollToBottom]);
+  }, [messages, isUserMessage]);
 
   useEffect(() => {
-    const content = containerRef.current;
-    if (content) {
-      if (messages.length > 0) {
-        const isAtBottom =
-          content.scrollHeight - content.clientHeight - content.scrollTop < 90;
-        if (isAtBottom) {
-          scrollToBottom();
-        }
-      }
+    const lastMsg = memoizedMessages[memoizedMessages.length - 1]?.[1];
+
+    const shouldAutoScroll =
+      config?.botMessageAutoScroll &&
+      lastMsg?.user?.xmppUsername.includes('bot');
+
+    if (shouldAutoScroll && containerRef.current) {
+      scrollToBottom();
     }
-  }, [memoizedMessages.length, composing]);
+  }, [memoizedMessages.length, config?.botMessageAutoScroll]);
 
   let lastDateLabel: string | null = null;
 
