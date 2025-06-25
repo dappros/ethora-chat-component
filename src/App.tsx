@@ -67,13 +67,16 @@ const ChatComponent = React.memo(() => {
           qrUrl: 'https://beta.ethora.com/app/chat/?qrChatId=',
           // secondarySendButton: {
           //   enabled: true,
-          //   messageEdit: `videoId:${window.location.href}`,
-          //   buttonText: 'With Id',
+          //   messageEdit: 'asdasd',
+          //   label: <div>'Send'</div>,
           //   buttonStyles: {
           //     whiteSpace: 'nowrap',
           //     width: '60px',
           //   },
+          //   hideInputSendButton: true,
+          //   overwriteEnterClick: true,
           // },
+          disableMedia: true,
           ...config,
         }}
         MainComponentStyles={mainStyles}

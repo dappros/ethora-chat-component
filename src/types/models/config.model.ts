@@ -80,9 +80,10 @@ export interface IConfig {
   secondarySendButton?: {
     enabled: boolean;
     messageEdit: string;
-    buttonText: string;
+    label: React.ReactNode;
     buttonStyles?: React.CSSProperties;
     hideInputSendButton?: boolean;
+    overwriteEnterClick?: true;
   };
   enableRoomsRetry?: { enabled: boolean; helperText: string };
   disableNewChatButton?: boolean;
