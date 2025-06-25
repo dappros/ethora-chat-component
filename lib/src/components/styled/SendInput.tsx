@@ -222,30 +222,32 @@ const SendInput: React.FC<SendInputProps> = ({
                 {config?.secondarySendButton.buttonText}
               </Button>
             )}
-            <Button
-              onClick={() => handleSendClick()}
-              // disabled={!message || message === ""}
-              EndIcon={
-                <SendIcon
-                  color={
+            {config?.secondarySendButton?.hideInputSendButton ? null : (
+              <Button
+                onClick={() => handleSendClick()}
+                // disabled={!message || message === ""}
+                EndIcon={
+                  <SendIcon
+                    color={
+                      filePreviews.length > 0
+                        ? '#fff'
+                        : !message || message === ''
+                          ? '#D4D4D8'
+                          : '#fff'
+                    }
+                  />
+                }
+                style={{
+                  borderRadius: '100px',
+                  backgroundColor:
                     filePreviews.length > 0
-                      ? '#fff'
+                      ? config?.colors?.primary
                       : !message || message === ''
-                        ? '#D4D4D8'
-                        : '#fff'
-                  }
-                />
-              }
-              style={{
-                borderRadius: '100px',
-                backgroundColor:
-                  filePreviews.length > 0
-                    ? config?.colors?.primary
-                    : !message || message === ''
-                      ? 'transparent'
-                      : config?.colors?.primary,
-              }}
-            />
+                        ? 'transparent'
+                        : config?.colors?.primary,
+                }}
+              />
+            )}
           </>
         ) : (
           <AudioRecorder

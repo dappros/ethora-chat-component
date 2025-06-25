@@ -185,6 +185,10 @@ const Message: React.FC<MessageProps> = forwardRef<
     );
   };
 
+  const messageText = config?.messageTextFilter?.enabled
+    ? parseMessageBody(config?.messageTextFilter.filterFunction(message.body))
+    : parseMessageBody(message.body);
+
   return (
     <>
       <CustomMessageContainer
@@ -255,7 +259,7 @@ const Message: React.FC<MessageProps> = forwardRef<
               {message.isDeleted && message.id !== 'delimiter-new' ? (
                 <DeletedMessage />
               ) : (
-                <span>{parseMessageBody(message.body)}</span>
+                <span>{messageText}</span>
               )}
             </CustomMessageText>
           )}

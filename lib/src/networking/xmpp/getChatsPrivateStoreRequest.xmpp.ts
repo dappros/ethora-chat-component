@@ -57,7 +57,7 @@ export async function getChatsPrivateStoreRequest(client: Client) {
     const res = await Promise.race([responsePromise, timeoutPromise]);
     return res;
   } catch (e) {
-    console.log('=-> error in getting last read timestamps', e);
+    // console.log('=-> error in getting last read timestamps', e);
     return null;
   }
 }
