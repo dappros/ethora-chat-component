@@ -74,7 +74,6 @@ export const getHistory = async (
             mainMessages.push(message);
           }
         }
-        unsubscribe();
         resolve(mainMessages);
       }
 
@@ -83,7 +82,6 @@ export const getHistory = async (
         stanza.attrs.id === id &&
         stanza.attrs.type === 'error'
       ) {
-        unsubscribe();
         reject();
       }
     };
@@ -112,7 +110,7 @@ export const getHistory = async (
     client?.send(message).catch((err) => console.log('err on load', err));
   });
 
-  const timeoutPromise = createTimeoutPromise(10000, unsubscribe);
+  const timeoutPromise = createTimeoutPromise(10000);
 
   try {
     // @ts-ignore
@@ -124,5 +122,7 @@ export const getHistory = async (
   } catch (e) {
     // console.log('=-> error in', fixedChatJid, e);
     return [];
+  } finally {
+    unsubscribe();
   }
 };

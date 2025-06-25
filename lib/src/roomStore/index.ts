@@ -49,6 +49,7 @@ const chatSettingPersistConfig = {
     'activeFile',
     'config.refreshTokens',
     'refreshTokens',
+    'client',
   ],
   transforms: [encryptor],
 };
@@ -76,6 +77,8 @@ const rootReducer = combineReducers({
   rooms: persistReducer(roomsPersistConfig, roomsSlice),
 });
 
+export type RootState = ReturnType<typeof rootReducer>;
+
 const persistedReducer: Reducer<RootState, AnyAction> = persistReducer(
   persistConfig,
   rootReducer
@@ -98,7 +101,11 @@ export const store = configureStore({
           'persist/PERSIST',
           'persist/REHYDRATE',
         ],
-        ignoredPaths: ['chat.messages.timestamp', 'chatSettingStore.client'],
+        ignoredPaths: [
+          'chat.messages.timestamp',
+          'chatSettingStore.client',
+          'chatSettingStore.config',
+        ],
       },
     })
       .concat(unreadMiddleware)
@@ -106,11 +113,6 @@ export const store = configureStore({
       .concat(logoutMiddleware),
 });
 
-export const persistor = persistStore(store);
-
-export type RootState = {
-  chatSettingStore: ReturnType<typeof chatSettingsReducer>;
-  rooms: ReturnType<typeof roomsSlice>;
-};
-
 export type AppDispatch = typeof store.dispatch;
+
+export const persistor = persistStore(store);

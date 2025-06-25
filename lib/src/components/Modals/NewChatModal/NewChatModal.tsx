@@ -28,15 +28,18 @@ import UsersList from '../../UsersList/UsersList';
 import { useToast } from '../../../context/ToastContext';
 import Loader from '../../styled/Loader';
 import { CHAT_TYPES } from '../../../helpers/constants/CHAT_TYPES';
+import { useAppDispatch } from '../../../hooks/hooks';
+import { useChatSettingState } from '../../../hooks/useChatSettingState';
 
 const NewChatModal: React.FC = () => {
   const config = useSelector(
     (state: RootState) => state.chatSettingStore.config
   );
 
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const { client } = useXmppClient();
   const { showToast } = useToast();
+  const { user } = useChatSettingState();
 
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);

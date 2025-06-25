@@ -44,6 +44,7 @@ import { LANGUAGE_OPTIONS } from '../../../helpers/constants/LANGUAGE_OPTIONS';
 import { useToast } from '../../../context/ToastContext';
 import { createRoomFromApi } from '../../../helpers/createRoomFromApi';
 import { useRoomState } from '../../../hooks/useRoomState';
+import { useAppDispatch } from '../../../hooks/hooks';
 
 interface UserProfileModalProps {
   handleCloseModal: any;
@@ -52,7 +53,7 @@ interface UserProfileModalProps {
 const UserProfileModal: React.FC<UserProfileModalProps> = ({
   handleCloseModal,
 }) => {
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
 
   const { client } = useXmppClient();
   const { usersSet } = useRoomState();

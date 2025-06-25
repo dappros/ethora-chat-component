@@ -133,13 +133,18 @@ const SendInput: React.FC<SendInputProps> = ({
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
-      if (event.key === 'Enter') {
-        if (filePreviews.length > 0 || message) {
-          handleSendClick();
-        }
+      if (event.key !== 'Enter') return;
+
+      const hasContent = filePreviews.length > 0 || !!message;
+      if (!hasContent) return;
+
+      if (config?.secondarySendButton?.overwriteEnterClick) {
+        handleSecondaryClick();
+      } else {
+        handleSendClick();
       }
     },
-    [handleSendClick]
+    [config?.secondarySendButton?.overwriteEnterClick, handleSendClick]
   );
 
   const renderFilePreview = useCallback((file: File) => {
@@ -208,7 +213,12 @@ const SendInput: React.FC<SendInputProps> = ({
               <Button
                 onClick={() => handleSecondaryClick()}
                 style={{
-                  color: 'white',
+                  color:
+                    filePreviews.length > 0
+                      ? '#fff'
+                      : !message || message === ''
+                        ? '#D4D4D8'
+                        : '#fff',
                   borderRadius: '100px',
                   backgroundColor:
                     filePreviews.length > 0
@@ -219,7 +229,7 @@ const SendInput: React.FC<SendInputProps> = ({
                   ...config?.secondarySendButton.buttonStyles,
                 }}
               >
-                {config?.secondarySendButton.buttonText}
+                {config?.secondarySendButton.label}
               </Button>
             )}
             {config?.secondarySendButton?.hideInputSendButton ? null : (

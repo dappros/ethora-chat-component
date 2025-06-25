@@ -11,11 +11,7 @@ export const useSendMessage = () => {
   const { client } = useXmppClient();
   const dispatch = useDispatch();
 
-  const {
-    user,
-    // activeRoomJID,
-    editAction,
-  } = useSelector((state: RootState) => ({
+  const { user, editAction } = useSelector((state: RootState) => ({
     activeRoomJID: state.rooms.activeRoomJID,
     user: state.chatSettingStore.user,
     editAction: state.rooms.editAction,

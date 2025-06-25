@@ -64,9 +64,8 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
       {isOpen && (
         <Menu ref={menuRef} style={menuPosition}>
           {options.map((option, index) => (
-            <>
+            <React.Fragment key={`${option.label}-${index}`}>
               <MenuItem
-                key={index}
                 onClick={() => {
                   option.onClick();
                   setIsOpen(false);
@@ -76,7 +75,7 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
                 <Label style={{ ...option?.styles }}>{option.label}</Label>
               </MenuItem>
               {index < options?.length - 1 && <Divider />}
-            </>
+            </React.Fragment>
           ))}
         </Menu>
       )}

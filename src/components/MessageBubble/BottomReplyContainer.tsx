@@ -74,9 +74,8 @@ export const BottomReplyContainer: FC<BottomReplyContainerProps> = ({
     <ReplyContainer onClick={onClick} isUser={isUser} color={color}>
       <div style={{ display: 'flex' }}>
         {uniqueUsers.slice(0, 3).map((item) => (
-          <AvatarCircle>
+          <AvatarCircle key={item.id}>
             <Avatar
-              key={item.id}
               username={item.name}
               style={{
                 height: '100%',

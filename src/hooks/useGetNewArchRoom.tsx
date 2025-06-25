@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
-import { useDispatch } from 'react-redux';
+import { useAppDispatch } from './hooks';
+import { useXmppClient } from '../context/xmppProvider';
 import { createRoomFromApi } from '../helpers/createRoomFromApi';
 import { getRooms } from '../networking/api-requests/rooms.api';
 import {
@@ -10,7 +11,8 @@ import {
 import { ApiRoom } from '../types/types';
 
 const useGetNewArchRoom = () => {
-  const dispatch = useDispatch();
+  const { client } = useXmppClient();
+  const dispatch = useAppDispatch();
 
   const syncRooms = useCallback(
     async (client: any, config: any): Promise<ApiRoom[]> => {

@@ -1,11 +1,13 @@
 export function createTimeoutPromise(
   ms: number | undefined,
-  unsubscribe: { (): void; (): void }
+  unsubscribe?: () => void
 ) {
   return new Promise((_, reject) => {
     setTimeout(() => {
       try {
-        unsubscribe();
+        if (unsubscribe) {
+          unsubscribe();
+        }
       } catch (e) {}
       reject();
     }, ms);

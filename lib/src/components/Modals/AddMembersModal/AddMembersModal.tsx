@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Button from '../../styled/Button';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { getActiveRoom, RootState } from '../../../roomStore';
 import { useXmppClient } from '../../../context/xmppProvider';
 import {
@@ -20,13 +20,14 @@ import { addRoomViaApi } from '../../../roomStore/roomsSlice';
 import { createRoomFromApi } from '../../../helpers/createRoomFromApi';
 import { useChatSettingState } from '../../../hooks/useChatSettingState';
 import { useToast } from '../../../context/ToastContext';
+import { useAppDispatch } from '../../../hooks/hooks';
 
 const AddMembersModal: React.FC = () => {
   const { config } = useChatSettingState();
   const { showToast } = useToast();
   const activeRoom = useSelector((state: RootState) => getActiveRoom(state));
 
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const { client } = useXmppClient();
 
   const [isModalOpen, setIsModalOpen] = useState(false);

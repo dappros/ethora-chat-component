@@ -1,4 +1,4 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import {
   AddRoomMessageAction,
   ApiRoom,
@@ -41,6 +41,26 @@ const initialState: RoomMessagesState = {
   },
   loadingText: undefined,
 };
+
+export const addRoomViaApi = createAsyncThunk(
+  'roomMessages/addRoomViaApi',
+  async (
+    { room, xmpp }: { room: IRoom; xmpp: XmppClient },
+    { dispatch, getState }
+  ) => {
+    const state = getState() as { rooms: RoomMessagesState };
+    const isRoomAlreadyAdded = Object.values(state.rooms.rooms).some(
+      (element) => element.jid === room?.jid
+    );
+
+    if (!isRoomAlreadyAdded) {
+      if (room.jid) {
+        xmpp.presenceInRoomStanza(room.jid);
+      }
+      dispatch(roomsStore.actions.addRoomFromApi({ room }));
+    }
+  }
+);
 
 export const roomsStore = createSlice({
   name: 'roomMessages',
@@ -224,6 +244,9 @@ export const roomsStore = createSlice({
       }>
     ) {
       const { chatJID, composing, composingList } = action.payload;
+      if (!state.rooms[chatJID]) {
+        return;
+      }
       state.rooms[chatJID].composing = composing;
       state.rooms[chatJID].composingList = composingList;
     },
@@ -316,23 +339,9 @@ export const roomsStore = createSlice({
         message.activeMessage = false;
       });
     },
-    addRoomViaApi: (
-      state,
-      action: PayloadAction<{ room: IRoom; xmpp: XmppClient }>
-    ) => {
-      const { room, xmpp } = action.payload;
-
-      const isRoomAlreadyAdded = Object.values(state.rooms).some(
-        (element) => element.jid === room?.jid
-      );
-
-      if (!isRoomAlreadyAdded) {
-        state.rooms[room.jid] = room;
-
-        if (room.jid) {
-          xmpp.presenceInRoomStanza(room.jid);
-        }
-      }
+    addRoomFromApi: (state, action: PayloadAction<{ room: IRoom }>) => {
+      const { room } = action.payload;
+      state.rooms[room.jid] = room;
     },
     updateUsersSet: (state, action: PayloadAction<{ rooms: ApiRoom[] }>) => {
       const { rooms } = action.payload;
@@ -387,7 +396,6 @@ export const {
   setCloseActiveMessage,
   deleteRoom,
   updateRoom,
-  addRoomViaApi,
   updateUsersSet,
   setOpenReportModal,
   insertUsers,
