@@ -82,9 +82,14 @@ export interface IConfig {
     messageEdit: string;
     buttonText: string;
     buttonStyles?: React.CSSProperties;
+    hideInputSendButton?: boolean;
   };
   enableRoomsRetry?: { enabled: boolean; helperText: string };
   disableNewChatButton?: boolean;
   chatHeaderAdditional?: { enabled: boolean; element: any };
   botMessageAutoScroll?: boolean;
+  messageTextFilter?: {
+    enabled: boolean;
+    filterFunction: (text: string) => string;
+  };
 }
