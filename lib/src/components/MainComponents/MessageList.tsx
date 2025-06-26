@@ -315,11 +315,10 @@ const MessageList = <TMessage extends IMessage>({
   }, [messages, isUserMessage]);
 
   useEffect(() => {
-    const lastMsg = memoizedMessages[memoizedMessages.length - 1]?.[1];
+    const lastMsg = memoizedMessages[memoizedMessages.length - 1];
 
     const shouldAutoScroll =
-      config?.botMessageAutoScroll &&
-      lastMsg?.user?.xmppUsername.includes('bot');
+      config?.botMessageAutoScroll && lastMsg?.user?.id.includes('bot');
 
     if (shouldAutoScroll && containerRef.current) {
       scrollToBottom();

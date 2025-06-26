@@ -80,7 +80,7 @@ export interface IConfig {
   secondarySendButton?: {
     enabled: boolean;
     messageEdit: string;
-    label: React.ReactNode;
+    label?: React.ReactNode;
     buttonStyles?: React.CSSProperties;
     hideInputSendButton?: boolean;
     overwriteEnterClick?: true;
