@@ -228,8 +228,19 @@ const SendInput: React.FC<SendInputProps> = ({
                         : config?.colors?.primary,
                   ...config?.secondarySendButton.buttonStyles,
                 }}
+                EndIcon={
+                  <SendIcon
+                    color={
+                      filePreviews.length > 0
+                        ? '#fff'
+                        : !message || message === ''
+                          ? '#D4D4D8'
+                          : '#fff'
+                    }
+                  />
+                }
               >
-                {config?.secondarySendButton.label}
+                {config?.secondarySendButton?.label}
               </Button>
             )}
             {config?.secondarySendButton?.hideInputSendButton ? null : (
