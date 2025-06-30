@@ -315,12 +315,9 @@ const MessageList = <TMessage extends IMessage>({
   }, [messages, isUserMessage]);
 
   useEffect(() => {
-    const lastMsg = memoizedMessages[memoizedMessages.length - 1];
+    const shouldAutoScroll = config?.botMessageAutoScroll;
 
-    const shouldAutoScroll =
-      config?.botMessageAutoScroll && lastMsg?.user?.id.includes('bot');
-
-    if (shouldAutoScroll && containerRef.current) {
+    if (shouldAutoScroll) {
       scrollToBottom();
     }
   }, [memoizedMessages.length, config?.botMessageAutoScroll]);

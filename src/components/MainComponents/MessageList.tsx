@@ -1,6 +1,7 @@
 import React, {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -314,13 +315,21 @@ const MessageList = <TMessage extends IMessage>({
     }
   }, [messages, isUserMessage]);
 
+  const prevScrollBottom = useRef<number>(0);
+
+  useLayoutEffect(() => {
+    const content = containerRef.current;
+    if (!content) return;
+    prevScrollBottom.current =
+      content.scrollHeight - content.scrollTop - content.clientHeight;
+  }, [memoizedMessages.length]);
+
   useEffect(() => {
-    const lastMsg = memoizedMessages[memoizedMessages.length - 1];
+    const shouldAutoScroll = config?.botMessageAutoScroll;
+    const content = containerRef.current;
+    if (!shouldAutoScroll || !content) return;
 
-    const shouldAutoScroll =
-      config?.botMessageAutoScroll && lastMsg?.user?.id.includes('bot');
-
-    if (shouldAutoScroll && containerRef.current) {
+    if (prevScrollBottom.current <= 100) {
       scrollToBottom();
     }
   }, [memoizedMessages.length, config?.botMessageAutoScroll]);
