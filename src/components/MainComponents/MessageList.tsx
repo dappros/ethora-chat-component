@@ -315,21 +315,11 @@ const MessageList = <TMessage extends IMessage>({
     }
   }, [messages, isUserMessage]);
 
-  const prevScrollBottom = useRef<number>(0);
-
-  useLayoutEffect(() => {
-    const content = containerRef.current;
-    if (!content) return;
-    prevScrollBottom.current =
-      content.scrollHeight - content.scrollTop - content.clientHeight;
-  }, [memoizedMessages.length]);
-
   useEffect(() => {
     const shouldAutoScroll = config?.botMessageAutoScroll;
-    const content = containerRef.current;
-    if (!shouldAutoScroll || !content) return;
+    if (!shouldAutoScroll || !containerRef.current) return;
 
-    if (prevScrollBottom.current <= 100) {
+    if (atBottom.current) {
       scrollToBottom();
     }
   }, [memoizedMessages.length, config?.botMessageAutoScroll]);

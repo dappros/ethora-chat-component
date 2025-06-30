@@ -1,6 +1,7 @@
 import React, {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -316,8 +317,9 @@ const MessageList = <TMessage extends IMessage>({
 
   useEffect(() => {
     const shouldAutoScroll = config?.botMessageAutoScroll;
+    if (!shouldAutoScroll || !containerRef.current) return;
 
-    if (shouldAutoScroll) {
+    if (atBottom.current) {
       scrollToBottom();
     }
   }, [memoizedMessages.length, config?.botMessageAutoScroll]);
