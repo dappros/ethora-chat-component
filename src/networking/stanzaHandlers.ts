@@ -35,6 +35,16 @@ import { checkSingleUser } from '../helpers/checkUniqueUsers';
 
 //core default
 const onRealtimeMessage = async (stanza: Element) => {
+  const mucX = stanza
+    .getChildren('x')
+    .find(
+      (x) =>
+        x.attrs['xmlns'] === 'http://jabber.org/protocol/muc#user' &&
+        x.getChild('invite')
+    );
+  if (mucX) {
+    return;
+  }
   if (
     !stanza?.getChild('result') &&
     !stanza.getChild('composing') &&

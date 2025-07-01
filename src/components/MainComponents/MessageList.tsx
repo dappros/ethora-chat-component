@@ -317,11 +317,15 @@ const MessageList = <TMessage extends IMessage>({
 
   useEffect(() => {
     const shouldAutoScroll = config?.botMessageAutoScroll;
-    if (!shouldAutoScroll || !containerRef.current) return;
+    const content = containerRef.current;
+    if (!shouldAutoScroll || !content) return;
 
-    if (atBottom.current) {
-      scrollToBottom();
-    }
+    waitForImagesLoaded().then(() => {
+      setTimeout(() => {
+        scrollToBottom();
+        setShowScrollButton(false);
+      }, 50);
+    });
   }, [memoizedMessages.length, config?.botMessageAutoScroll]);
 
   let lastDateLabel: string | null = null;

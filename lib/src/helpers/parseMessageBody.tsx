@@ -79,15 +79,18 @@ export const parseMessageBody = (text: string): (string | JSX.Element)[] => {
     startIndex: number
   ): { list: JSX.Element; newIndex: number } => {
     const items: JSX.Element[] = [];
-    const isOrdered = /^\d+\./.test(lines[startIndex].trim());
+    const line = lines[startIndex].trim();
+    const match = line.match(/^(\d+)\./);
+    const isOrdered = !!match;
+    const start = match ? parseInt(match[1], 10) : 1;
 
     let i = startIndex;
     while (i < lines.length) {
-      const line = lines[i];
-      if (/^(\d+\.\s+|\-\s+)/.test(line)) {
-        const itemText = line.replace(/^(\d+\.\s+|\-\s+)/, '');
+      const currentLine = lines[i];
+      if (/^(\d+\.\s+|\-\s+)/.test(currentLine)) {
+        const itemText = currentLine.replace(/^(\d+\.\s+|\-\s+)/, '');
         items.push(<li key={`li-${key++}`}>{parseInline(itemText)}</li>);
-      } else if (line.trim() === '') {
+      } else if (currentLine.trim() === '') {
         break;
       } else {
         break;
@@ -102,6 +105,7 @@ export const parseMessageBody = (text: string): (string | JSX.Element)[] => {
         {
           key: `list-${key++}`,
           style: { margin: '4px 0', paddingLeft: '20px' },
+          ...(isOrdered ? { start } : {}),
         },
         items
       ),
