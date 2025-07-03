@@ -22,8 +22,6 @@ export function isChatIdPresentInArray(
 
   if (Array.isArray(chatList)) {
     for (const chatObject of chatList) {
-      console.log('check', trimmedId === chatObject.name);
-
       if (
         chatObject &&
         typeof chatObject.name === 'string' &&

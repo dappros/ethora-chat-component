@@ -16,6 +16,7 @@ import { useChatSettingState } from './useChatSettingState';
 import { isChatIdPresentInArray } from '../helpers/isChatIdPresentInArray';
 import useGetNewArchRoom from './useGetNewArchRoom';
 import { getRoomsWithRetry } from '../helpers/getRoomsWithRetry';
+import { getRooms } from '../networking/api-requests/rooms.api';
 
 interface useChatWrapperInitProps {
   roomJID: string | null | undefined;
@@ -62,6 +63,12 @@ const useChatWrapperInit = ({
 
   const getRoomsWithRertyRequest = async () => {
     setIsRetrying(true);
+    dispatch(
+      setIsLoading({
+        loading: true,
+        loadingText: config?.enableRoomsRetry?.helperText || 'Polling rooms',
+      })
+    );
     const retryRooms = await getRoomsWithRetry(
       client,
       config,
@@ -115,7 +122,11 @@ const useChatWrapperInit = ({
               return client;
             });
 
-            if (roomsList && Object.keys(roomsList).length > 0) {
+            if (
+              roomsList &&
+              Object.keys(roomsList).length > 0 &&
+              !config?.disableRooms
+            ) {
               setInited(true);
               await initRoomsPresence(newClient, roomsList);
             } else {
