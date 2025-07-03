@@ -7,6 +7,8 @@
 
 [![Discord](https://img.shields.io/badge/%3Cethora%3E-%237289DA.svg?style=flat&logo=discord&logoColor=white)](https://discord.gg/Sm6bAHA3ZC) [![Twitter URL](https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2Fdappros%2Fethora)](https://twitter.com/intent/tweet?url=https%3A%2F%2Fgithub.com%2Fdappros%2Fethora%2F&via=tarasfilatov&text=check%20out%20Ethora%20%23web3%20%23social%20app%20engine&hashtags=lowcode%2Creactnative%2Copensource%2Cnocode) [![Website](https://img.shields.io/website?url=https%3A%2F%2Fethora.com%2F)](https://ethora.com/) [![YouTube Channel Subscribers](https://img.shields.io/youtube/channel/subscribers/UCRvrXwMOU0WBkRZyFlU7V_g)](https://www.youtube.com/channel/UCRvrXwMOU0WBkRZyFlU7V_g)
 
+[![Live Demo](https://img.shields.io/badge/demo-live-green?style=flat)](https://codesandbox.io/s/ethora-chat-component-demo)
+
 ## About Chat Component
 
 Ethora Chat Component allows you to build a functioning chat room super quickly.
@@ -397,3 +399,122 @@ Below is a table describing each property of the `IConfig` model (from `src/type
 - Documentation main: https://docs.ethora.com/
 - Documentation for Ethora API (Swagger): https://api.ethoradev.com/api-docs
 - Documentation on github including chat protocol and bots: https://github.com/dappros/ethora/tree/main/api
+
+## Supported Environments
+
+- Vite (React + TypeScript/JavaScript)
+- Create React App
+- Next.js (with client-side rendering)
+- Electron (desktop apps)
+- PWA (Progressive Web Apps)
+- Any modern React setup (17+)
+
+## Example Integrations
+
+### 1. With Firebase Google SSO
+
+```tsx
+import { XmppProvider, Chat } from '@ethora/chat-component';
+import firebaseConfig from './firebase-config';
+
+const config = {
+  googleLogin: { enabled: true, firebaseConfig },
+  colors: { primary: '#4287f5', secondary: '#42f5e9' },
+};
+
+<XmppProvider config={config}>
+  <Chat />
+</XmppProvider>;
+```
+
+### 2. With JWT Authentication
+
+```tsx
+const config = {
+  jwtLogin: { enabled: true, token: 'YOUR_JWT_TOKEN' },
+};
+<XmppProvider config={config}>
+  <Chat />
+</XmppProvider>;
+```
+
+### 3. With Custom Login
+
+```tsx
+const config = {
+  customLogin: {
+    enabled: true,
+    loginFunction: async () => {
+      // Your custom login logic
+      return { xmppUsername: '...', xmppPassword: '...' };
+    },
+  },
+};
+<XmppProvider config={config}>
+  <Chat />
+</XmppProvider>;
+```
+
+### 4. In a Next.js App (Client Component)
+
+```tsx
+'use client';
+import { XmppProvider, Chat } from '@ethora/chat-component';
+const config = { defaultLogin: true };
+export default function Page() {
+  return (
+    <XmppProvider config={config}>
+      <Chat />
+    </XmppProvider>
+  );
+}
+```
+
+## More Screenshots & GIFs
+
+![Chat Room Example](https://github.com/dappros/ethora-chat-component/blob/main/img/readme03.png)
+![Threaded Replies](https://github.com/dappros/ethora-chat-component/blob/main/img/readme_threaded.gif)
+![Custom Message Bubble](https://github.com/dappros/ethora-chat-component/blob/main/img/readme_custom_message.gif)
+
+## Versioning & Upgrade Notes
+
+- Follows [Semantic Versioning](https://semver.org/).
+- See [Releases](https://github.com/dappros/ethora-chat-component/releases) for upgrade notes and breaking changes.
+- For major upgrades, review the changelog and migration guide.
+
+## Changelog & Release Notes
+
+See [CHANGELOG.md](https://github.com/dappros/ethora-chat-component/blob/main/CHANGELOG.md) or the [GitHub Releases page](https://github.com/dappros/ethora-chat-component/releases) for details on new features, fixes, and improvements.
+
+## Security
+
+We take security seriously:
+
+- All user input is validated and sanitized.
+- XSS/CSRF protection is built-in.
+- Auth tokens are never stored in plain text.
+- Please [report vulnerabilities](https://www.ethora.com/#contact) responsibly.
+
+## Contribution Guidelines
+
+We welcome contributions! Please see our [CONTRIBUTING.md](https://github.com/dappros/ethora-chat-component/blob/main/CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](https://github.com/dappros/ethora-chat-component/blob/main/CODE_OF_CONDUCT.md) for details.
+
+- Open issues or pull requests for bugs, features, or documentation.
+- Join our [community forum](https://forum.ethora.com/) to discuss ideas.
+
+## FAQ
+
+**Q: How do I use my own Redux store?**
+A: The component expects certain slices (`rooms`, `chatSettingStore`). You can adapt your store or use the provided one for quick start.
+
+**Q: How do I customize the message bubble?**
+A: Use the `CustomMessageComponent` prop. See [`src/components/ExampleComponents/CustomMessage.tsx`](https://github.com/dappros/ethora-chat-component/blob/main/src/components/ExampleComponents/CustomMessage.tsx).
+
+**Q: How do I enable push notifications?**
+A: This is planned for a future release. For now, you can integrate with your own notification system.
+
+**Q: Can I use this in Electron or a PWA?**
+A: Yes! The component works in Electron and PWA environments.
+
+**Q: How do I report a bug or request a feature?**
+A: Open an issue on GitHub or contact us via the [community forum](https://forum.ethora.com/).
