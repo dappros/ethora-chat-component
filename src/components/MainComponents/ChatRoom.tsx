@@ -49,7 +49,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       sendMedia: sendMessageMedia,
       sendEditMessage,
     } = useSendMessage();
-    const { sendStartComposing, sendEndComposing } = useComposing();
+    const { sendStartComposing, sendEndComposing } = useComposing(config);
 
     const sendMessage = useCallback(
       (message: string) => {

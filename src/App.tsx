@@ -27,7 +27,10 @@ const ChatComponent = React.memo(() => {
   const config: IConfig = useMemo(
     () => ({
       colors: { primary: '#5E3FDE', secondary: '#E1E4FE' },
-      userLogin: { enabled: true, user: null },
+      userLogin: {
+        enabled: true,
+        user: null,
+      },
       chatRoomStyles: { borderRadius: '16px' },
       roomListStyles: { borderRadius: '16px' },
       setRoomJidInPath: true,
@@ -60,6 +63,7 @@ const ChatComponent = React.memo(() => {
             devServer: 'wss://xmpp.ethoradev.com:5443/ws',
             host: 'xmpp.ethoradev.com',
             conference: 'conference.xmpp.ethoradev.com',
+            xmppPingOnSendEnabled: true,
           },
           baseUrl: 'https://api.ethoradev.com/v1',
           newArch: true,
@@ -77,6 +81,7 @@ const ChatComponent = React.memo(() => {
           //   overwriteEnterClick: true,
           // },
           disableMedia: true,
+          disableTypingIndicator: true,
           ...config,
         }}
         MainComponentStyles={mainStyles}

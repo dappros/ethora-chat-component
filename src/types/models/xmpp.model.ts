@@ -12,6 +12,7 @@ export interface xmppSettingsInterface {
   devServer: string;
   host: string;
   conference?: string;
+  xmppPingOnSendEnabled?: boolean;
 }
 
 export interface MediaUploadData {
@@ -28,6 +29,7 @@ export interface XmppClientInterface {
   conference: string;
   username: string;
   status: string;
+  resource: string;
 
   password: string;
   reconnectAttempts: number;

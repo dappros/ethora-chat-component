@@ -1,6 +1,7 @@
 import { configureStore, combineReducers, Reducer } from '@reduxjs/toolkit';
 import chatSettingsReducer from './chatSettingsSlice';
 import roomsSlice from './roomsSlice';
+import roomHeapSlice from './roomHeapSlice';
 import { IRoom } from '../types/types';
 import { unreadMiddleware } from './Middleware/unreadMidlleware';
 import storage from 'redux-persist/lib/storage';
@@ -61,6 +62,11 @@ const roomsPersistConfig = {
   transforms: [limitMessagesTransform],
 };
 
+const roomHeapSliceConfig = {
+  key: 'roomHeapSlice',
+  storage,
+};
+
 const persistConfig = {
   key: 'root',
   storage,
@@ -75,6 +81,7 @@ const rootReducer = combineReducers({
     chatSettingsReducer
   ),
   rooms: persistReducer(roomsPersistConfig, roomsSlice),
+  roomHeapSlice: persistReducer(roomHeapSliceConfig, roomHeapSlice),
 });
 
 export type RootState = ReturnType<typeof rootReducer>;

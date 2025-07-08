@@ -15,7 +15,7 @@ import {
   deleteRoom,
   insertUsers,
 } from '../roomStore/roomsSlice';
-import { IRoom } from '../types/types';
+import { IMessage, IRoom } from '../types/types';
 import { createMessageFromXml } from '../helpers/createMessageFromXml';
 import { setDeleteModal } from '../roomStore/chatSettingsSlice';
 import { getDataFromXml } from '../helpers/getDataFromXml';
@@ -25,6 +25,9 @@ import { getRooms } from '../networking/api-requests/rooms.api';
 import { createRoomFromApi } from '../helpers/createRoomFromApi';
 import XmppClient from './xmppClient';
 import { checkSingleUser } from '../helpers/checkUniqueUsers';
+import { presenceInRoom } from './xmpp/presenceInRoom.xmpp';
+import { popMessageFromHeap } from '../roomStore/roomHeapSlice';
+import { xml } from '@xmpp/client';
 // TO DO: we are thinking to refactor this code in the following way:
 // each stanza will be parsed for 'type'
 // then it will be handled based on the type
@@ -36,8 +39,8 @@ import { checkSingleUser } from '../helpers/checkUniqueUsers';
 //core default
 const onRealtimeMessage = async (stanza: Element) => {
   const mucX = stanza
-    .getChildren('x')
-    .find(
+    ?.getChildren('x')
+    ?.find(
       (x) =>
         x.attrs['xmlns'] === 'http://jabber.org/protocol/muc#user' &&
         x.getChild('invite')
@@ -82,6 +85,7 @@ const onRealtimeMessage = async (stanza: Element) => {
         message,
       })
     );
+    store.dispatch(popMessageFromHeap());
     return message;
   }
 };
@@ -282,28 +286,33 @@ const onChatInvite = async (stanza: Element, client: XmppClient) => {
     const chatId = stanza.attrs.from;
     const xEls = stanza.getChildren('x');
 
-    for (const el of xEls) {
-      const child = el.getChild('invite');
+    try {
+      for (const el of xEls) {
+        const child = el.getChild('invite');
+        console.log(child);
 
-      if (child) {
-        const chat = store.getState().rooms.rooms[chatId];
-        if (chat) {
-          return;
+        if (child) {
+          const chat = store.getState().rooms.rooms[chatId];
+          if (chat) {
+            return;
+          }
+
+          client.presenceInRoomStanza(chatId);
+
+          const rooms = await getRooms();
+          rooms.items.map((room) => {
+            store.dispatch(
+              addRoomViaApi({
+                room: createRoomFromApi(room, client.conference),
+                xmpp: client,
+              })
+            );
+          });
+          store.dispatch(updateUsersSet({ rooms: rooms.items }));
         }
-
-        client.presenceInRoomStanza(chatId);
-
-        const rooms = await getRooms();
-        rooms.items.map((room) => {
-          store.dispatch(
-            addRoomViaApi({
-              room: createRoomFromApi(room, client.conference),
-              xmpp: client,
-            })
-          );
-        });
-        store.dispatch(updateUsersSet({ rooms: rooms.items }));
       }
+    } catch (error) {
+      console.log('err', error);
     }
   }
 };
@@ -439,6 +448,45 @@ const onRoomKicked = async (stanza: Element) => {
     }
   }
 };
+
+// Handler for message error stanzas (e.g., Only occupants are allowed to send messages to the conference)
+const onMessageError = async (stanza: Element, client: XmppClient) => {
+  if (stanza.name === 'message' && stanza.attrs.type === 'error') {
+    const roomJID = stanza.attrs.from?.split('/')[0];
+    if (roomJID && client) {
+      try {
+        client?.client?.send(xml('presence'));
+        await presenceInRoom(client.client, roomJID);
+        console.log(
+          `Sent presence to room ${roomJID} due to error: Only occupants are allowed to send messages to the conference.`
+        );
+        const heapArray: [string, IMessage][] = store.getState().rooms.roomHeap;
+        const heapMap: Map<string, IMessage> = new Map(heapArray);
+
+        await Promise.all(
+          Array.from(heapMap).map(([jid, msg]: [string, IMessage]) =>
+            client.sendMessage(
+              jid,
+              msg.user.firstName,
+              msg.user.lastName,
+              '',
+              msg.user.walletAddress,
+              msg.body,
+              '',
+              !!msg.isReply,
+              !!msg.showInChannel,
+              msg.mainMessage,
+              jid
+            )
+          )
+        );
+      } catch (e) {
+        console.warn('Failed to send presence in response to error:', e);
+      }
+    }
+  }
+};
+
 export {
   onRealtimeMessage,
   onMessageHistory,
@@ -455,4 +503,5 @@ export {
   onReactionMessage,
   onChatInvite,
   onRoomKicked,
+  onMessageError,
 };
