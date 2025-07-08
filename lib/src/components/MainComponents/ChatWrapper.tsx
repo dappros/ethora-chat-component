@@ -28,6 +28,7 @@ import Loader from '../styled/Loader';
 import { ModalReportChat } from '../Modals/ModalReportChat/ModalReportChat.tsx';
 import { useQRCodeChat } from '../../hooks/useQRCodeChatHandler';
 import useChatWrapperInit from '../../hooks/useChatWrapperInit.ts';
+import { useHeapSender } from '../../hooks/useHeapSender';
 
 interface ChatWrapperProps {
   token?: string;
@@ -109,6 +110,13 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     wasAutoSelected,
     config,
   });
+  const { sendHeapMessages } = useHeapSender(client);
+
+  useEffect(() => {
+    if (inited && client) {
+      sendHeapMessages();
+    }
+  }, [inited, client]);
 
   const queueMessageLoader = useCallback(
     async (chatJID: string, max: number) => {
@@ -135,7 +143,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
         style={{ alignItems: 'center', flexDirection: 'column', gap: '10px' }}
       >
         {config.enableRoomsRetry.helperText ||
-          'We couldn’t create any chat room.'}
+          "We couldn't create any chat room."}
       </StyledLoaderWrapper>
     );
   }

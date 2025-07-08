@@ -1,8 +1,8 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { IMessage } from '../types/types';
 
 interface roomHeapSliceState {
-  messageHeap: IMessage[];
+  messageHeap: [string, IMessage][];
 }
 
 const initialState: roomHeapSliceState = {
@@ -10,17 +10,29 @@ const initialState: roomHeapSliceState = {
 };
 
 export const roomHeapSlice = createSlice({
-  name: 'roomHeapSlice',
+  name: 'roomHeapStore',
   initialState,
   reducers: {
-    addMessageToHeap: (state, action) => {
-      state.messageHeap = [...state.messageHeap, action.payload];
+    addMessageToHeap: (
+      state,
+      action: PayloadAction<{ jid: string; message: IMessage }>
+    ) => {
+      const heapMap = new Map(state.messageHeap ?? []);
+      heapMap.set(action.payload.jid, action.payload.message);
+      state.messageHeap = Array.from(heapMap.entries());
+      console.log(state.messageHeap);
     },
     popMessageFromHeap: (state) => {
-      state.messageHeap = state.messageHeap.slice(1);
+      const heapMap = new Map(state.messageHeap ?? []);
+      const firstKey = heapMap.keys().next().value;
+      console.log(firstKey);
+      if (firstKey) {
+        heapMap.delete(firstKey);
+        state.messageHeap = Array.from(heapMap.entries());
+      }
     },
     clearHeap: (state) => {
-      state.messageHeap.length = 0;
+      state.messageHeap = [];
     },
   },
 });

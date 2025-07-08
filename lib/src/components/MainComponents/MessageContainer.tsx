@@ -61,7 +61,12 @@ export const MessageContainer: FC<MessageContainerProps> = ({
       {showDateLabel && !activeMessage && message.id !== 'delimiter-new' && (
         <DateLabel date={messageDate} colors={config?.colors} />
       )}
-      <MessageComponent message={message} isUser={isUser} isReply={isReply} className={className}>
+      <MessageComponent
+        message={message}
+        isUser={isUser}
+        isReply={isReply}
+        className={className}
+      >
         {!CustomMessage ? (
           <>
             <MessageTimestamp>

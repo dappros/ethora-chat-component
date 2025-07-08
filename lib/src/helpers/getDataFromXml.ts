@@ -57,8 +57,10 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
     photoURL,
   };
 
+  const dataAttrs = data?.attrs || {};
+
   return {
-    data: { ...data?.attrs },
+    data: dataAttrs,
     id,
     body,
     roomJid,

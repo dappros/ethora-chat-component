@@ -5,6 +5,7 @@ import { addRoomMessage, setEditAction } from '../roomStore/roomsSlice';
 import { uploadFile } from '../networking/api-requests/auth.api';
 import { RootState } from '../roomStore';
 import { useChatSettingState } from './useChatSettingState';
+import { addMessageToHeap } from '../roomStore/roomHeapSlice';
 
 export const useSendMessage = () => {
   const { config, langSource } = useChatSettingState();
@@ -88,7 +89,23 @@ export const useSendMessage = () => {
                   date: new Date().toISOString(),
                   body: message,
                   roomJid: activeRoomJID,
-                  pending: true,
+                  xmppFrom: `${activeRoomJID}/${user.xmppUsername}`,
+                },
+              })
+            );
+            dispatch(
+              addMessageToHeap({
+                jid: id,
+                message: {
+                  id: id,
+                  user: {
+                    ...user,
+                    id: user.xmppUsername,
+                    name: user.firstName + ' ' + user.lastName,
+                  },
+                  date: new Date().toISOString(),
+                  body: message,
+                  roomJid: activeRoomJID,
                   xmppFrom: `${activeRoomJID}/${user.xmppUsername}`,
                 },
               })
