@@ -13,14 +13,14 @@ export const AddNewIcon = ({ color = '#0052CD', ...props }) => (
       fill={color}
     />
     <path
-      fill-rule="evenodd"
-      clip-rule="evenodd"
+      fillRule="evenodd"
+      clipRule="evenodd"
       d="M10 4C10.4142 4 10.75 4.33579 10.75 4.75V11.75C10.75 12.1642 10.4142 12.5 10 12.5C9.58579 12.5 9.25 12.1642 9.25 11.75V4.75C9.25 4.33579 9.58579 4 10 4Z"
       fill={color}
     />
     <path
-      fill-rule="evenodd"
-      clip-rule="evenodd"
+      fillRule="evenodd"
+      clipRule="evenodd"
       d="M14.25 8.25C14.25 8.66421 13.9142 9 13.5 9L6.5 9C6.08579 9 5.75 8.66421 5.75 8.25C5.75 7.83579 6.08579 7.5 6.5 7.5L13.5 7.5C13.9142 7.5 14.25 7.83579 14.25 8.25Z"
       fill={color}
     />
@@ -59,15 +59,15 @@ export const CloseIcon = (props: any) => (
       d="M3 21.32L21 3.32001"
       stroke="#000000"
       strokeWidth="1.5"
-      stroke-linecap="round"
-      stroke-linejoin="round"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     />
     <path
       d="M3 3.32001L21 21.32"
       stroke="#000000"
       strokeWidth="1.5"
-      stroke-linecap="round"
-      stroke-linejoin="round"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     />
   </svg>
 );
@@ -137,19 +137,19 @@ export const RemoveIcon = (props: any) => (
       d="M2.00391 12.6699V26.3797C2.00391 30.5862 5.41398 33.9963 9.62051 33.9963H18.3795C22.586 33.9963 25.9961 30.5862 25.9961 26.3797V12.6699"
       stroke="#9F0000"
       strokeWidth="2.5"
-      stroke-linecap="round"
+      strokeLinecap="round"
     />
     <path
       d="M2.00391 7.3355H8.00195M25.9961 7.3355H19.998M8.00195 7.3355V5.81221C8.00195 3.70894 9.70699 2.00391 11.8103 2.00391H16.1897C18.293 2.00391 19.998 3.70894 19.998 5.81221V7.3355M8.00195 7.3355H19.998"
       stroke="#9F0000"
       strokeWidth="2.5"
-      stroke-linecap="round"
+      strokeLinecap="round"
     />
     <path
       d="M9.99902 15.334V25.9972M17.9964 15.334V25.9972"
       stroke="#9F0000"
       strokeWidth="2.5"
-      stroke-linecap="round"
+      strokeLinecap="round"
     />
   </svg>
 );
@@ -358,16 +358,16 @@ export const ReportIcon = ({ color = '#8C8C8C', ...props }) => (
     <path
       d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"
       stroke="#E53935"
-      stroke-width="1.5"
-      stroke-linecap="round"
-      stroke-linejoin="round"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     />
     <path
       d="M12 7V13M12 16H12.01"
       stroke="#E53935"
-      stroke-width="1.5"
-      stroke-linecap="round"
-      stroke-linejoin="round"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     />
   </svg>
 );
@@ -406,16 +406,16 @@ export const CopyIcon = ({ color = '#8C8C8C', ...props }) => (
     <path
       d="M8 4V16C8 16.5304 8.21071 17.0391 8.58579 17.4142C8.96086 17.7893 9.46957 18 10 18H18C18.5304 18 19.0391 17.7893 19.4142 17.4142C19.7893 17.0391 20 16.5304 20 16V7.242C20 6.97556 19.9467 6.71181 19.8433 6.46624C19.7399 6.22068 19.5885 5.99824 19.398 5.812L16.083 2.57C15.7094 2.20466 15.2076 2.00007 14.685 2H10C9.46957 2 8.96086 2.21071 8.58579 2.58579C8.21071 2.96086 8 3.46957 8 4Z"
       stroke="#1F1F1F"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     />
     <path
       d="M16 18V20C16 20.5304 15.7893 21.0391 15.4142 21.4142C15.0391 21.7893 14.5304 22 14 22H6C5.46957 22 4.96086 21.7893 4.58579 21.4142C4.21071 21.0391 4 20.5304 4 20V9C4 8.46957 4.21071 7.96086 4.58579 7.58579C4.96086 7.21071 5.46957 7 6 7H8"
       stroke="#1F1F1F"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     />
   </svg>
 );
@@ -451,13 +451,13 @@ export const SendCoinIcon = ({ color = '#8C8C8C', ...props }) => (
       r="8.7"
       fill="url(#paint0_linear_846_13863)"
       stroke="#DB8828"
-      stroke-width="0.6"
+      strokeWidth="0.6"
     />
     <path
       d="M14.9181 8.98771H15.0681V8.83771V7.37825V7.22825H14.9181H13.2438V6.40527V6.25527H13.0938H11.391H11.241V6.40527V7.22825H8.59375H8.23162L8.48768 7.48431L12.8816 11.8782L8.48768 16.2722L8.23162 16.5282H8.59375H11.241V17.5945V17.7445H11.391H13.0938H13.2438V17.5945V16.5282H14.9181H15.0681V16.3782V14.9188V14.7688H14.9181H12.5943L15.2695 11.9821L15.3693 11.8782L15.2695 11.7744L12.5943 8.98771H14.9181Z"
       fill="white"
       stroke="#DB8828"
-      stroke-width="0.3"
+      strokeWidth="0.3"
     />
     <defs>
       <linearGradient
@@ -553,9 +553,9 @@ export const BurgerMenuIcon = ({ color = '#fff', ...props }) => (
     <path
       d="M3 6H21M3 12H15M3 18H21"
       stroke="#8C8C8C"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     />
   </svg>
 );
@@ -572,16 +572,16 @@ export const LeaveIcon = ({ color = '#fff', ...props }) => (
     <path
       d="M14 8V6C14 5.46957 13.7893 4.96086 13.4142 4.58579C13.0391 4.21071 12.5304 4 12 4H5C4.46957 4 3.96086 4.21071 3.58579 4.58579C3.21071 4.96086 3 5.46957 3 6V18C3 18.5304 3.21071 19.0391 3.58579 19.4142C3.96086 19.7893 4.46957 20 5 20H12C12.5304 20 13.0391 19.7893 13.4142 19.4142C13.7893 19.0391 14 18.5304 14 18V16"
       stroke="#E53935"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     />
     <path
       d="M9 12H21M21 12L18 9M21 12L18 15"
       stroke="#E53935"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     />
   </svg>
 );
@@ -599,9 +599,9 @@ export const BackIcon = ({ color = '#fff', ...props }) => (
     <path
       d="M5 12H19M5 12L9 8M5 12L9 16"
       stroke="#8C8C8C"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     />
   </svg>
 );
@@ -654,9 +654,9 @@ export const EditIcon = ({ color = '#000', ...props }) => (
     <path
       d="M15 5.9997L18 8.9997M13 19.9997H21M5 15.9997L4 19.9997L8 18.9997L19.586 7.4137C19.9609 7.03864 20.1716 6.53003 20.1716 5.9997C20.1716 5.46937 19.9609 4.96075 19.586 4.5857L19.414 4.4137C19.0389 4.03876 18.5303 3.82812 18 3.82812C17.4697 3.82813 16.9611 4.03876 16.586 4.4137L5 15.9997Z"
       stroke={color}
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     />
   </svg>
 );
@@ -674,16 +674,16 @@ export const InfoIcon = ({ color = '#004AC2', ...props }) => (
       <path
         d="M7.9987 14.6654C11.6806 14.6654 14.6654 11.6806 14.6654 7.9987C14.6654 4.3168 11.6806 1.33203 7.9987 1.33203C4.3168 1.33203 1.33203 4.3168 1.33203 7.9987C1.33203 11.6806 4.3168 14.6654 7.9987 14.6654Z"
         stroke={color}
-        stroke-width="1.33333"
-        stroke-linecap="round"
-        stroke-linejoin="round"
+        strokeWidth="1.33333"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
       <path
         d="M8 10.6654V7.9987M8 5.33203H8.00667"
         stroke={color}
-        stroke-width="1.33333"
-        stroke-linecap="round"
-        stroke-linejoin="round"
+        strokeWidth="1.33333"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </g>
     <defs>
@@ -722,9 +722,9 @@ export const SaveIcon = ({ color = '#8C8C8C', ...props }) => (
     <path
       d="M1.00207 13V14C1.00207 14.7956 0.939344 15.9374 1.50195 16.5C2.06456 17.0626 3.20643 17 4.00207 17H14.0021C14.7977 17 15.9395 17.0626 16.5021 16.5C17.0647 15.9374 17.0021 14.7956 17.0021 14V13M13.0021 9L9.00208 13M9.00208 13L5.00208 9M9.00208 13V1"
       stroke={color}
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     />
   </svg>
 );
@@ -746,7 +746,7 @@ export const DownArrowIcon = ({
     <path
       d="M7.66602 9.79997L11.9993 14.1333L16.3327 9.79997"
       stroke={color}
-      stroke-linecap="round"
+      strokeLinecap="round"
     />
   </svg>
 );
@@ -764,9 +764,9 @@ export const FileIcon = ({ fill = '#fff', color = '#0052CD', ...props }) => (
     <path
       d="M27 17V27C27 28.1046 26.1046 29 25 29H15C13.8954 29 13 28.1046 13 27V26V13C13 11.8954 13.8954 11 15 11H21M27 17L21 11M27 17H23C21.8954 17 21 16.1046 21 15V11"
       stroke={color || '#60269E'}
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     />
   </svg>
 );
@@ -787,9 +787,9 @@ export const InSendingIcon = ({
     <path
       d="M12 7V12L14.5 10.5M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
       stroke={color || '#fff'}
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     />
   </svg>
 );
@@ -806,9 +806,9 @@ export const DoubleTick = ({ fill = '#fff', color = '#0052CD', ...props }) => (
     <path
       d="M1.75 9.75L4.25 12.25M7.75 8.25L10.25 5.75M5.75 9.75L8.25 12.25L14.25 5.75"
       stroke="#16A34A"
-      stroke-width="1.5"
-      stroke-linecap="round"
-      stroke-linejoin="round"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     />
   </svg>
 );

@@ -155,13 +155,13 @@ export const CustomMessageContainer = styled.div<{
   reaction: boolean;
 }>`
   display: flex;
-  flex-direction: ${(props) => (!props.isUser ? 'row' : 'row-reverse')};
-  align-items: end;
+  flex-direction: ${(props) => (props.isUser ? 'row-reverse' : 'row')};
+  align-items: flex-end;
   margin: 10px 0;
   gap: 5px;
   position: relative;
   margin-bottom: ${(props) =>
-    !!props.reply || !!props.reaction ? '40px' : '10px'};
+    props.reply || props.reaction ? '40px' : '10px'};
 `;
 
 export const CustomMessageBubble = styled.div<{
@@ -331,7 +331,9 @@ export const AlsoCheckbox = styled.input<{ accentColor: string }>`
   accent-color: ${(props) => props.accentColor};
 `;
 
-export const Wrapper = styled.div<{
+export const Wrapper = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== 'isClickable' && prop !== 'bgColor',
+})<{
   bgColor: string;
   size?: number;
   isClickable: boolean;
@@ -349,7 +351,9 @@ export const Wrapper = styled.div<{
   position: relative;
 `;
 
-export const AvatarCircle = styled.div<{
+export const AvatarCircle = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== 'isClickable' && prop !== 'bgColor',
+})<{
   bgColor: string;
   size?: number;
   isClickable: boolean;

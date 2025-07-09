@@ -1,8 +1,11 @@
 import { Client, xml } from '@xmpp/client';
 
-export function sendMediaMessage(client: Client, roomJID: string, data: any) {
-  const id = `send-media-message:${Date.now().toString()}`;
-
+export function sendMediaMessage(
+  client: Client,
+  roomJID: string,
+  data: any,
+  id: string
+) {
   const dataToSend = {
     senderJID: client.jid?.toString(),
     senderFirstName: data.firstName,

@@ -95,7 +95,11 @@ export interface XmppClientInterface {
     timestamp: number,
     chats?: string[]
   ): Promise<void>;
-  sendMediaMessageStanza(roomJID: string, data: MediaUploadData): void;
+  sendMediaMessageStanza(
+    roomJID: string,
+    data: MediaUploadData,
+    id: string
+  ): void;
   createPrivateRoomStanza(
     title: string,
     description: string,

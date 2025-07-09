@@ -1,13 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styled, { css } from 'styled-components';
 
-interface SearchInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  icon?: React.ReactNode;
-  animated?: boolean;
-  direction?: 'left' | 'right';
-}
+const shouldForwardProp = (prop: string) =>
+  prop !== 'animated' && prop !== 'expanded' && prop !== 'direction';
 
-const SearchInputWrapper = styled.div<{
+const SearchInputWrapper = styled.div.withConfig({ shouldForwardProp })<{
   animated?: boolean;
   direction?: string;
   expanded?: boolean;
@@ -22,24 +19,29 @@ const SearchInputWrapper = styled.div<{
   padding: 0 16px;
   transition: width 0.7s ease-in-out;
   width: 100%;
-  ${({ animated, direction, expanded }) =>
+  ${({ animated, expanded }) =>
     animated &&
     css`
       width: ${expanded ? '300px' : '48px'};
-      justify-content: 'center';
+      justify-content: center;
       cursor: pointer;
-
       padding: 0 ${expanded ? '16px' : '0'};
     `};
 `;
 
-const SearchIcon = styled.div<{ animated?: boolean; expanded?: boolean }>`
+const SearchIcon = styled.div.withConfig({ shouldForwardProp })<{
+  animated?: boolean;
+  expanded?: boolean;
+}>`
   padding: 3.5px;
   color: #999;
   cursor: pointer;
 `;
 
-const StyledInput = styled.input<{ animated?: boolean; expanded?: boolean }>`
+const StyledInput = styled.input.withConfig({ shouldForwardProp })<{
+  animated?: boolean;
+  expanded?: boolean;
+}>`
   background-color: transparent;
   border: none;
   outline: none;
@@ -53,7 +55,7 @@ const StyledInput = styled.input<{ animated?: boolean; expanded?: boolean }>`
     padding 0.7s ease-in-out;
   opacity: ${({ animated, expanded }) => (animated ? (expanded ? 1 : 0) : 1)};
   z-index: 1;
-  display: ${({ expanded, animated }) =>
+  display: ${({ animated, expanded }) =>
     animated ? (expanded ? 'inherit' : 'none') : 'inherit'};
 
   &::placeholder {
@@ -61,6 +63,12 @@ const StyledInput = styled.input<{ animated?: boolean; expanded?: boolean }>`
     transition: opacity 0.7s ease-in-out;
   }
 `;
+
+interface SearchInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  icon?: React.ReactNode;
+  animated?: boolean;
+  direction?: 'left' | 'right';
+}
 
 const SearchInput: React.FC<SearchInputProps> = ({
   icon,
@@ -71,6 +79,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
   const handleFocus = () => {
     setIsExpanded(true);
   };
@@ -90,7 +99,6 @@ const SearchInput: React.FC<SearchInputProps> = ({
       const timeout = setTimeout(() => {
         inputRef.current?.focus();
       }, 250);
-
       return () => clearTimeout(timeout);
     }
   }, [isExpanded, animated]);

@@ -201,7 +201,7 @@ export const roomsStore = createSlice({
 
       if (roomMessages.length === 0 || start) {
         const index = roomMessages.findIndex(
-          (msg) => msg.id === message.xmppId
+          (msg) => msg.id === message.xmppId || msg.id === message.id
         );
         if (index !== -1) {
           roomMessages[index] = {
