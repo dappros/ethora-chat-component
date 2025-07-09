@@ -111,7 +111,7 @@ const SendInput: React.FC<SendInputProps> = ({
         sendMedia(filePreviews[0], 'media');
         setIsRecording(false);
       } else if (audioUrl) {
-        sendMedia(audioUrl, 'audio');
+        sendMedia(audioUrl, 'audio/');
         console.log(audioUrl);
         console.log('Audio sent:', audioUrl);
         setIsRecording(false);
