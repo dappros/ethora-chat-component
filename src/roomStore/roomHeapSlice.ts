@@ -20,7 +20,6 @@ export const roomHeapSlice = createSlice({
       const heapMap = new Map(state.messageHeap ?? []);
       heapMap.set(action.payload.jid, action.payload.message);
       state.messageHeap = Array.from(heapMap.entries());
-      console.log(state.messageHeap);
     },
     popMessageFromHeap: (state) => {
       const heapMap = new Map(state.messageHeap ?? []);

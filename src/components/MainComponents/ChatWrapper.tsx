@@ -88,11 +88,13 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   }, [rooms, activeRoomJID]);
 
   const handleChangeChat = (chat: IRoom) => {
-    if (activeRoomJID !== chat.jid) {
-      dispatch(setIsLoading({ chatJID: chat.jid, loading: true }));
-      dispatch(setCurrentRoom({ roomJID: chat.jid }));
-      dispatch(setEditAction({ isEdit: false }));
-      handleItemClick(true);
+    dispatch(setCurrentRoom({ roomJID: null }));
+    dispatch(setIsLoading({ chatJID: chat.jid, loading: true }));
+    dispatch(setCurrentRoom({ roomJID: chat.jid }));
+    dispatch(setEditAction({ isEdit: false }));
+    handleItemClick(true);
+    if (!chat?.historyComplete && chat.messages?.length < 30) {
+      client?.getHistoryStanza(chat.jid, 30);
     }
   };
 
@@ -118,24 +120,26 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     }
   }, [inited, client]);
 
-  const queueMessageLoader = useCallback(
-    async (chatJID: string, max: number) => {
-      try {
-        return await client?.getHistoryStanza(chatJID, max);
-      } catch (error) {
-        console.log('Error in loading queue messages', error);
-      }
-    },
-    [globalLoading, loading, !!client]
-  );
+  //upd logic to use
+  // const queueMessageLoader = useCallback(
+  //   async (chatJID: string, max: number) => {
+  //     try {
+  //       console.log('2'); //bad
+  //       return await client?.getHistoryStanza(chatJID, max);
+  //     } catch (error) {
+  //       console.log('Error in loading queue messages', error);
+  //     }
+  //   },
+  //   [globalLoading, loading, !!client]
+  // );
 
-  useMessageLoaderQueue(
-    Object.keys(roomsList),
-    roomsList,
-    globalLoading,
-    loading,
-    queueMessageLoader
-  );
+  // useMessageLoaderQueue(
+  //   Object.keys(roomsList),
+  //   roomsList,
+  //   globalLoading,
+  //   loading,
+  //   queueMessageLoader
+  // );
 
   if (config?.enableRoomsRetry?.enabled && isRetrying === 'norooms') {
     return (

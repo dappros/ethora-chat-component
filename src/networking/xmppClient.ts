@@ -97,6 +97,10 @@ export class XmppClient implements XmppClientInterface {
         password: this.password,
       });
 
+      if (this.client.setMaxListeners) {
+        this.client.setMaxListeners(50);
+      }
+
       this.attachEventListeners();
       this.client.start().catch((error) => {
         console.error('Error starting client:', error);
@@ -173,13 +177,6 @@ export class XmppClient implements XmppClientInterface {
     });
 
     this.client.on('stanza', (stanza) => {
-      if (
-        this.pingOnSendEnabled &&
-        this.lastPingId &&
-        isPong(stanza, this.lastPingId)
-      ) {
-        this.handlePong();
-      }
       handleStanza.bind(this, stanza, this)();
     });
   }
@@ -243,6 +240,9 @@ export class XmppClient implements XmppClientInterface {
     if (this.client) {
       this.status = 'offline';
       try {
+        const { XmppListenerManager } = await import('./xmpp/listenerManager');
+        XmppListenerManager.removeAllListenersForClient(this.client);
+
         await this.client.stop();
         console.log('Client connection closed.');
       } catch (error) {
@@ -562,9 +562,9 @@ export class XmppClient implements XmppClientInterface {
     });
   }
 
-  sendMediaMessageStanza(roomJID: string, data: any) {
+  sendMediaMessageStanza(roomJID: string, data: any, id: string) {
     this.wrapWithConnectionCheck(async () => {
-      sendMediaMessage(this.client, roomJID, data);
+      sendMediaMessage(this.client, roomJID, data, id);
     });
   }
 
@@ -573,9 +573,7 @@ export class XmppClient implements XmppClientInterface {
     const pingId = sendPing(this.client, this.host);
     this.lastPingId = pingId;
     if (this.pingTimeout) clearTimeout(this.pingTimeout);
-    this.pingTimeout = setTimeout(() => {
-      this.handlePingTimeout();
-    }, this.pongTimeoutMs);
+    this.pingTimeout = setTimeout(() => {}, this.pongTimeoutMs);
   }
 
   handlePong() {

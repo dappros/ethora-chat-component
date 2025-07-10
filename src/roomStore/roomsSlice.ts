@@ -56,6 +56,7 @@ export const addRoomViaApi = createAsyncThunk(
     if (!isRoomAlreadyAdded) {
       if (room.jid) {
         xmpp.presenceInRoomStanza(room.jid);
+        xmpp?.getHistoryStanza(room.jid, 10);
       }
       dispatch(roomsStore.actions.addRoomFromApi({ room }));
     }
