@@ -240,9 +240,6 @@ export class XmppClient implements XmppClientInterface {
     if (this.client) {
       this.status = 'offline';
       try {
-        const { XmppListenerManager } = await import('./xmpp/listenerManager');
-        XmppListenerManager.removeAllListenersForClient(this.client);
-
         await this.client.stop();
         console.log('Client connection closed.');
       } catch (error) {

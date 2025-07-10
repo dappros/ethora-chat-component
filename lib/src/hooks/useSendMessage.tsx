@@ -128,7 +128,7 @@ export const useSendMessage = () => {
         }
       }
     },
-    [editAction]
+    [editAction, config, user, client, dispatch, langSource]
   );
 
   const sendEditMessage = useCallback(
@@ -142,59 +142,95 @@ export const useSendMessage = () => {
       dispatch(setEditAction({ isEdit: false }));
       return;
     },
-    [editAction]
+    [editAction, client, dispatch]
   );
 
   const sendMedia = useCallback(
     async (
-      data: any,
+      data: File,
       type: string,
       activeRoomJID: string,
-      isReply?: boolean,
-      isChecked?: boolean,
-      mainMessage?: string
+      isReply = false,
+      isChecked = false,
+      mainMessage = ''
     ) => {
-      let mediaData: FormData | null = new FormData();
+      const id = `send-media-message:${Date.now()}`;
+
+      if (!config?.disableSentLogic) {
+        dispatch(
+          addRoomMessage({
+            roomJID: activeRoomJID,
+            message: {
+              id: id,
+              body: 'media',
+              roomJid: activeRoomJID,
+              date: new Date().toISOString(),
+              user: {
+                ...user,
+                id: user.xmppUsername,
+                name: user.firstName + ' ' + user.lastName,
+              },
+              pending: true,
+              isDeleted: false,
+              xmppId: id,
+              xmppFrom: `${activeRoomJID}/${user.id}`,
+              isSystemMessage: 'false',
+              isMediafile: 'true',
+              fileName: data.name,
+              location: '',
+              locationPreview: '',
+              mimetype: type,
+              originalName: data.name,
+              size: data.size.toString(),
+              isReply,
+              showInChannel: `${isChecked}`,
+              mainMessage,
+            },
+          })
+        );
+      }
+
+      const mediaData = new FormData();
       mediaData.append('files', data);
 
-      uploadFile(mediaData)
-        .then((response) => {
-          console.log('Upload successful', response);
-          response.data.results.map(async (item: any) => {
-            const data = {
-              firstName: user.firstName,
-              lastName: user.lastName,
-              walletAddress: user.walletAddress,
-              createdAt: item.createdAt,
-              expiresAt: item.expiresAt,
-              fileName: item.filename,
-              isVisible: item?.isVisible,
-              location: item.location,
-              locationPreview: item.locationPreview,
-              mimetype: item.mimetype,
-              originalName: item?.originalname,
-              ownerKey: item?.ownerKey,
-              size: item.size,
-              duration: item?.duration,
-              updatedAt: item?.updatedAt,
-              userId: item?.userId,
-              attachmentId: item?._id,
-              wrappable: true,
-              roomJid: activeRoomJID,
-              showInChannel: isChecked || false,
-              isReply: isReply || false,
-              mainMessage: mainMessage || '',
-              isPrivate: item?.isPrivate,
-              __v: item.__v,
-            };
-            client?.sendMediaMessageStanza(activeRoomJID, data);
-          });
-        })
-        .catch((error) => {
-          console.error('Upload failed', error);
-        });
+      try {
+        const response = await uploadFile(mediaData);
+
+        for (const item of response.data.results) {
+          const messagePayload = {
+            firstName: user.firstName,
+            lastName: user.lastName,
+            walletAddress: user.walletAddress,
+            createdAt: item.createdAt,
+            expiresAt: item.expiresAt,
+            fileName: item.filename,
+            isVisible: item?.isVisible,
+            location: item.location,
+            locationPreview: item.locationPreview,
+            mimetype: item.mimetype,
+            originalName: item?.originalname,
+            ownerKey: item?.ownerKey,
+            size: item.size,
+            duration: item?.duration,
+            updatedAt: item?.updatedAt,
+            userId: item?.userId,
+            attachmentId: item?._id,
+            wrappable: true,
+            roomJid: activeRoomJID,
+            showInChannel: isChecked,
+            isReply,
+            mainMessage,
+            isPrivate: item?.isPrivate,
+            __v: item.__v,
+          };
+
+          client?.sendMediaMessageStanza(activeRoomJID, messagePayload, id);
+        }
+      } catch (error) {
+        console.error('Upload failed:', error);
+      }
     },
-    [client]
+    [client, config, user]
   );
 
   return {

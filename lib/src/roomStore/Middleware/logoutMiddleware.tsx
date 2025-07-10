@@ -2,6 +2,11 @@ import { Middleware } from '@reduxjs/toolkit';
 
 export const logoutMiddleware: Middleware =
   (storeAPI) => (next) => (action: any) => {
+    if (!action || !action.type) {
+      console.error('Invalid action in logoutMiddleware:', action);
+      return next(action);
+    }
+
     const result = next(action);
 
     if (action.type === 'chatSettingStore/logout') {

@@ -56,6 +56,7 @@ export const addRoomViaApi = createAsyncThunk(
     if (!isRoomAlreadyAdded) {
       if (room.jid) {
         xmpp.presenceInRoomStanza(room.jid);
+        xmpp?.getHistoryStanza(room.jid, 10);
       }
       dispatch(roomsStore.actions.addRoomFromApi({ room }));
     }
@@ -201,7 +202,7 @@ export const roomsStore = createSlice({
 
       if (roomMessages.length === 0 || start) {
         const index = roomMessages.findIndex(
-          (msg) => msg.id === message.xmppId
+          (msg) => msg.id === message.xmppId || msg.id === message.id
         );
         if (index !== -1) {
           roomMessages[index] = {
