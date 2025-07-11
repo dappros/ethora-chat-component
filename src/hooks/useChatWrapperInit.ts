@@ -184,10 +184,9 @@ const useChatWrapperInit = ({
           }
         }
         dispatch(setIsLoading({ loading: false }));
-        setShowModal(false);
       } catch (error) {
-        setShowModal(false);
-        setInited(true);
+        setShowModal(true);
+        setInited(false);
         dispatch(setIsLoading({ loading: false }));
         console.log(error);
       }

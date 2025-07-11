@@ -52,18 +52,8 @@ export const presenceInRoom = async (
       return reject(err);
     }
 
-    const timeoutPromise = createTimeoutPromise(2000, () => {
-      if (!settled) {
-        finish(reject, new Error('Presence in room timeout'));
-      }
-    });
-
-    try {
-      await timeoutPromise;
-    } catch (error) {
-      if (!settled) {
-        finish(reject, new Error('Presence in room timeout'));
-      }
-    }
+    await createTimeoutPromise(2000, () =>
+      finish(reject, new Error('Presence in room timeout'))
+    ).catch(() => {});
   });
 };
