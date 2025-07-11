@@ -1,15 +1,21 @@
 export function createTimeoutPromise(
   ms: number | undefined,
-  unsubscribe?: () => void
+  onTimeout?: () => void
 ) {
   return new Promise((_, reject) => {
-    setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       try {
-        if (unsubscribe) {
-          unsubscribe();
+        if (onTimeout) {
+          onTimeout();
         }
-      } catch (e) {}
-      reject();
+      } catch (e) {
+        console.error('Error in timeout callback:', e);
+      }
+      reject(new Error('Operation timed out'));
     }, ms);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
   });
 }

@@ -69,6 +69,7 @@ const ChatComponent = React.memo(() => {
           newArch: true,
           setRoomJidInPath: true,
           qrUrl: 'https://beta.ethora.com/app/chat/?qrChatId=',
+          refreshTokens: { enabled: true },
           // secondarySendButton: {
           //   enabled: true,
           //   messageEdit: 'asdasd',

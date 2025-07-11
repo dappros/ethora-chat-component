@@ -1,14 +1,22 @@
 import { Client, xml } from '@xmpp/client';
 import { createTimeoutPromise } from './createTimeoutPromise.xmpp';
 import { Element } from '@xmpp/xml';
+import { XmppListenerManager } from './listenerManager';
+
 export const presenceInRoom = async (
   client: Client,
   roomJID: string,
   delay = 2000
 ): Promise<Element> => {
+  const listenerKey = XmppListenerManager.getListenerKey(
+    'presenceInRoom',
+    roomJID
+  );
   let stanzaHandler: (stanza: Element) => void;
 
-  const unsubscribe = () => client.off('stanza', stanzaHandler);
+  const unsubscribe = () => {
+    XmppListenerManager.removeListener(listenerKey);
+  };
 
   return new Promise(async (resolve, reject) => {
     let settled = false;
@@ -33,7 +41,12 @@ export const presenceInRoom = async (
       }
     };
 
-    client.on('stanza', stanzaHandler);
+    XmppListenerManager.addListener(
+      client,
+      'stanza',
+      listenerKey,
+      stanzaHandler
+    );
 
     const presence = xml(
       'presence',
@@ -52,8 +65,18 @@ export const presenceInRoom = async (
       return reject(err);
     }
 
-    await createTimeoutPromise(2000, () =>
-      finish(reject, new Error('Presence in room timeout'))
-    ).catch(() => {});
+    const timeoutPromise = createTimeoutPromise(2000, () => {
+      if (!settled) {
+        finish(reject, new Error('Presence in room timeout'));
+      }
+    });
+
+    try {
+      await timeoutPromise;
+    } catch (error) {
+      if (!settled) {
+        finish(reject, new Error('Presence in room timeout'));
+      }
+    }
   });
 };

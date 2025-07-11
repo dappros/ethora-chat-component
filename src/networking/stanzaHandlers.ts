@@ -78,7 +78,6 @@ const onRealtimeMessage = async (stanza: Element) => {
     if (fixedUser) {
       store.dispatch(insertUsers({ newUsers: [fixedUser] }));
     }
-
     store.dispatch(
       addRoomMessage({
         roomJID: stanza.attrs.from.split('/')[0],
@@ -233,6 +232,8 @@ const onMessageHistory = async (stanza: any) => {
     if (fixedUser) {
       store.dispatch(insertUsers({ newUsers: [fixedUser] }));
     }
+
+    console.log('2');
 
     store.dispatch(
       addRoomMessage({

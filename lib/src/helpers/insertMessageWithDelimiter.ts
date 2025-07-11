@@ -15,7 +15,9 @@ export function insertMessageWithDelimiter(
   const firstMessage = roomMessages[0];
 
   if (isDateAfter(newMessageDate.toString(), lastMessage.date.toString())) {
-    const index = roomMessages.findIndex((msg) => msg.id === message.xmppId);
+    const index = roomMessages.findIndex(
+      (msg) => msg.id === message.xmppId || msg.id === message.id
+    );
     if (index !== -1) {
       roomMessages[index] = { ...message, id: message.id, pending: false };
     } else {
