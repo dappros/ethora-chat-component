@@ -195,11 +195,10 @@ export const roomsStore = createSlice({
           (msg.xmppId && msg.xmppId === message.id)
       );
       if (existingIndex !== -1) {
-        roomMessages[existingIndex] = {
-          ...roomMessages[existingIndex],
-          ...message,
-          pending: false,
-        };
+        roomMessages[existingIndex] = deepMerge(
+          { ...roomMessages[existingIndex] },
+          { ...message, pending: false }
+        );
         return;
       }
 
@@ -364,6 +363,21 @@ export const roomsStore = createSlice({
     },
   },
 });
+
+function deepMerge(target: any, source: any): any {
+  for (const key in source) {
+    if (
+      source[key] &&
+      typeof source[key] === 'object' &&
+      !Array.isArray(source[key])
+    ) {
+      target[key] = deepMerge(target[key] || {}, source[key]);
+    } else {
+      target[key] = source[key];
+    }
+  }
+  return target;
+}
 
 const countNewerMessages = (
   messages: IMessage[],
