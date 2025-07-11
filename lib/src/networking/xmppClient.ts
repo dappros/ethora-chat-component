@@ -240,9 +240,6 @@ export class XmppClient implements XmppClientInterface {
     if (this.client) {
       this.status = 'offline';
       try {
-        const { XmppListenerManager } = await import('./xmpp/listenerManager');
-        XmppListenerManager.removeAllListenersForClient(this.client);
-
         await this.client.stop();
         console.log('Client connection closed.');
       } catch (error) {
@@ -576,14 +573,17 @@ export class XmppClient implements XmppClientInterface {
     this.pingTimeout = setTimeout(() => {}, this.pongTimeoutMs);
   }
 
-  async getListenerCount(): Promise<number> {
-    const { XmppListenerManager } = await import('./xmpp/listenerManager');
-    return XmppListenerManager.getActiveListenerCount();
+  handlePong() {
+    if (this.pingTimeout) {
+      clearTimeout(this.pingTimeout);
+      this.pingTimeout = null;
+    }
+    this.lastPingId = null;
   }
 
-  async logListenerInfo(): Promise<void> {
-    const { XmppListenerManager } = await import('./xmpp/listenerManager');
-    XmppListenerManager.logActiveListeners();
+  handlePingTimeout() {
+    console.warn('No pong received, forcing reconnect...');
+    this.reconnect();
   }
 }
 

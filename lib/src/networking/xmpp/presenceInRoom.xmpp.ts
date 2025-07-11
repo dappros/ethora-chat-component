@@ -1,22 +1,14 @@
 import { Client, xml } from '@xmpp/client';
 import { createTimeoutPromise } from './createTimeoutPromise.xmpp';
 import { Element } from '@xmpp/xml';
-import { XmppListenerManager } from './listenerManager';
-
 export const presenceInRoom = async (
   client: Client,
   roomJID: string,
   delay = 2000
 ): Promise<Element> => {
-  const listenerKey = XmppListenerManager.getListenerKey(
-    'presenceInRoom',
-    roomJID
-  );
   let stanzaHandler: (stanza: Element) => void;
 
-  const unsubscribe = () => {
-    XmppListenerManager.removeListener(listenerKey);
-  };
+  const unsubscribe = () => client.off('stanza', stanzaHandler);
 
   return new Promise(async (resolve, reject) => {
     let settled = false;
@@ -41,12 +33,7 @@ export const presenceInRoom = async (
       }
     };
 
-    XmppListenerManager.addListener(
-      client,
-      'stanza',
-      listenerKey,
-      stanzaHandler
-    );
+    client.on('stanza', stanzaHandler);
 
     const presence = xml(
       'presence',

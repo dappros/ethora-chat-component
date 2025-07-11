@@ -16,8 +16,6 @@ import { newMessageMidlleware } from './Middleware/newMessageMidlleware';
 import { logoutMiddleware } from './Middleware/logoutMiddleware';
 import { encryptTransform } from 'redux-persist-transform-encrypt';
 import { reactionsMiddleware } from './Middleware/reactionsMiddleware';
-import { actionLoggerMiddleware } from '../utils/actionLogger';
-import { testMiddleware } from './Middleware/testMiddleware';
 
 const debugMiddleware = (storeAPI) => (next) => (action) => {
   if (typeof action !== 'object' || action === null) {

@@ -233,8 +233,6 @@ const onMessageHistory = async (stanza: any) => {
       store.dispatch(insertUsers({ newUsers: [fixedUser] }));
     }
 
-    console.log('2');
-
     store.dispatch(
       addRoomMessage({
         roomJID: stanza.attrs.from,
@@ -290,7 +288,6 @@ const onChatInvite = async (stanza: Element, client: XmppClient) => {
     try {
       for (const el of xEls) {
         const child = el.getChild('invite');
-        console.log(child);
 
         if (child) {
           const chat = store.getState().rooms.rooms[chatId];

@@ -1,4 +1,9 @@
-import { configureStore, combineReducers, Reducer } from '@reduxjs/toolkit';
+import {
+  configureStore,
+  combineReducers,
+  Reducer,
+  AnyAction,
+} from '@reduxjs/toolkit';
 import chatSettingsReducer from './chatSettingsSlice';
 import roomsSlice from './roomsSlice';
 import roomHeapSlice from './roomHeapSlice';
@@ -7,10 +12,40 @@ import { unreadMiddleware } from './Middleware/unreadMidlleware';
 import storage from 'redux-persist/lib/storage';
 import { persistReducer, persistStore } from 'redux-persist';
 import { createTransform } from 'redux-persist';
-import { AnyAction } from 'redux-saga';
 import { newMessageMidlleware } from './Middleware/newMessageMidlleware';
 import { logoutMiddleware } from './Middleware/logoutMiddleware';
 import { encryptTransform } from 'redux-persist-transform-encrypt';
+import { reactionsMiddleware } from './Middleware/reactionsMiddleware';
+
+const debugMiddleware = (storeAPI) => (next) => (action) => {
+  if (typeof action !== 'object' || action === null) {
+    console.error('Non-plain object action detected:', action);
+    console.error('Action type:', typeof action);
+    console.error('Action constructor:', action?.constructor?.name);
+    console.error('Stack trace:', new Error().stack);
+    throw new Error(
+      'Actions must be plain objects. Received: ' + typeof action
+    );
+  }
+
+  if (!action.type) {
+    console.error('Action missing type property:', action);
+    console.error('Stack trace:', new Error().stack);
+    throw new Error('Actions must have a type property');
+  }
+
+  if (
+    (action.type && action.type.endsWith('/pending')) ||
+    (action.type && action.type.endsWith('/fulfilled')) ||
+    (action.type && action.type.endsWith('/rejected'))
+  ) {
+    if (!action.payload && !action.meta && !action.error) {
+      console.warn('Thunk action missing expected properties:', action);
+    }
+  }
+
+  return next(action);
+};
 
 const limitMessagesTransform = createTransform(
   (inboundState: { [jid: string]: IRoom }) => {
@@ -102,11 +137,15 @@ export const store = configureStore({
   reducer: persistedReducer,
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
+      thunk: true,
       serializableCheck: {
         ignoredActions: [
           'chat/addMessage',
           'persist/PERSIST',
           'persist/REHYDRATE',
+          'roomMessages/addRoomViaApi/pending',
+          'roomMessages/addRoomViaApi/fulfilled',
+          'roomMessages/addRoomViaApi/rejected',
         ],
         ignoredPaths: [
           'chat.messages.timestamp',
@@ -117,7 +156,11 @@ export const store = configureStore({
     })
       .concat(unreadMiddleware)
       .concat(newMessageMidlleware)
-      .concat(logoutMiddleware),
+      .concat(logoutMiddleware)
+      .concat(reactionsMiddleware),
+  // .concat(testMiddleware)
+  // .concat(debugMiddleware)
+  // .concat(actionLoggerMiddleware),
 });
 
 export type AppDispatch = typeof store.dispatch;
