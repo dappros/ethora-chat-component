@@ -11,6 +11,10 @@ export const useHeapSender = (client: XmppClient | null) => {
 
   const sendHeapMessages = useCallback(async () => {
     if (!client || heap.size === 0) return;
+    if (!client.presencesReady) {
+      console.warn('Presences not ready, delaying heap send');
+      return;
+    }
     for (const [_, msg] of heap.entries()) {
       try {
         await client.sendMessage(

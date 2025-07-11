@@ -48,6 +48,7 @@ export class XmppClient implements XmppClientInterface {
 
   private reconnecting: boolean = false;
   private reconnectPromise: Promise<void> | null = null;
+  presencesReady: boolean = false;
 
   checkOnline() {
     return this.client && this.client.status === 'online';
@@ -105,9 +106,6 @@ export class XmppClient implements XmppClientInterface {
       this.client.start().catch((error) => {
         console.error('Error starting client:', error);
       });
-
-      this.client.send(xml('presence'));
-      this.allRoomPresencesStanza();
     } catch (error) {
       console.error('Error initializing client:', error);
     }
@@ -155,15 +153,16 @@ export class XmppClient implements XmppClientInterface {
     this.client.on('disconnect', () => {
       console.log('Disconnected from server.');
       this.status = 'offline';
+      this.presencesReady = false;
     });
 
-    this.client.on('online', (jid) => {
+    this.client.on('online', async (jid) => {
       this.resource = jid.resource || 'default';
       console.log('Client is online.', new Date());
       this.status = 'online';
       this.reconnectAttempts = 0;
       this.client.send(xml('presence'));
-      this.allRoomPresencesStanza();
+      await this.sendAllPresencesAndMarkReady();
     });
 
     this.client.on('connecting', () => {
@@ -181,7 +180,14 @@ export class XmppClient implements XmppClientInterface {
     });
   }
 
+  async sendAllPresencesAndMarkReady() {
+    this.presencesReady = false;
+    await this.allRoomPresencesStanza();
+    this.presencesReady = true;
+  }
+
   async reconnect() {
+    this.presencesReady = false;
     if (this.reconnecting) {
       return this.reconnectPromise;
     }
@@ -198,8 +204,8 @@ export class XmppClient implements XmppClientInterface {
     return this.reconnectPromise;
   }
 
-  allRoomPresencesStanza() {
-    allRoomPresences(this.client);
+  async allRoomPresencesStanza() {
+    await allRoomPresences(this.client);
   }
 
   async ensureConnected(timeout: number = 10000): Promise<void> {

@@ -57,6 +57,13 @@ const onRealtimeMessage = async (stanza: Element) => {
     stanza?.attrs?.id !== 'deleteMessageStanza' &&
     !stanza?.attrs?.id?.includes('message-reaction')
   ) {
+    try {
+      const { data } = await getDataFromXml(stanza);
+    } catch (error) {
+      handleErrorMessageStanza(stanza);
+      console.log('err', error);
+      return;
+    }
     const { data, id, body, ...rest } = await getDataFromXml(stanza);
 
     if (!data) {
@@ -483,6 +490,57 @@ const onMessageError = async (stanza: Element, client: XmppClient) => {
       }
     }
   }
+};
+
+export type XMPPErrorInfo = {
+  type: string;
+  id: string;
+  from: string;
+  to: string;
+  body: string | null;
+  condition: string;
+  message: string;
+};
+
+export const handleErrorMessageStanza = (
+  stanza: Element
+): XMPPErrorInfo | null => {
+  if (stanza.is('message') && stanza.attrs.type === 'error') {
+    const errorEl = stanza.getChild('error');
+    if (!errorEl) return null;
+
+    const children = errorEl.children as Element[];
+
+    const conditionEl = children.find(
+      (el) =>
+        el instanceof Element &&
+        el.name !== 'text' &&
+        el.attrs.xmlns === 'urn:ietf:params:xml:ns:xmpp-stanzas'
+    );
+
+    const textEl = errorEl.getChild(
+      'text',
+      'urn:ietf:params:xml:ns:xmpp-stanzas'
+    );
+
+    const errorInfo: XMPPErrorInfo = {
+      type: stanza.attrs.type,
+      id: stanza.attrs.id,
+      from: stanza.attrs.from,
+      to: stanza.attrs.to,
+      body: stanza.getChildText('body') ?? null,
+      condition: conditionEl?.name ?? 'unknown',
+      message: textEl?.text() ?? '',
+    };
+
+    console.log('Received XMPP error message:', {
+      message: errorInfo?.message,
+      errorInfo,
+    });
+    return errorInfo;
+  }
+
+  return null;
 };
 
 export {

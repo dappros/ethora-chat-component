@@ -102,56 +102,60 @@ const useChatWrapperInit = ({
           chatAutoEnterer({ roomJID, wasAutoSelected, config, dispatch });
 
           if (!client) {
-            setInited(false);
-            setShowModal(false);
+            try {
+              setInited(false);
+              setShowModal(false);
 
-            console.log('No client, so initing one');
-            const newClient = await initializeClient(
-              user.xmppUsername || user?.defaultWallet?.walletAddress,
-              user?.xmppPassword,
-              config?.xmppSettings,
-              roomsList
-            ).then((client) => {
-              return client;
-            });
+              console.log('No client, so initing one');
+              const newClient = await initializeClient(
+                user.xmppUsername || user?.defaultWallet?.walletAddress,
+                user?.xmppPassword,
+                config?.xmppSettings,
+                roomsList
+              ).then((client) => {
+                return client;
+              });
 
-            if (roomsList && Object.keys(roomsList).length > 0) {
-              setInited(true);
-              await initRoomsPresence(newClient, roomsList);
-            } else {
-              if (config?.newArch) {
-                const loadedRooms = await loadRooms(newClient);
-                if (config?.enableRoomsRetry?.enabled) {
-                  const isSelectedRoomPresent = isChatIdPresentInArray(
-                    roomJID,
-                    loadedRooms
-                  );
-                  if (!isSelectedRoomPresent) {
-                    await getRoomsWithRertyRequest();
-                  }
-                }
+              if (roomsList && Object.keys(roomsList).length > 0) {
                 setInited(true);
+                await initRoomsPresence(newClient, roomsList);
               } else {
-                await newClient.getRoomsStanza();
-              }
-            }
-            await newClient
-              .getChatsPrivateStoreRequestStanza()
-              .then(
-                async (
-                  roomTimestampObject: [jid: string, timestamp: string]
-                ) => {
-                  updatedChatLastTimestamps(roomTimestampObject, dispatch);
-                  // newClient.setVCardStanza(
-                  //   `${user.firstName} ${user.lastName}`
-                  // );
-                  await updateMessagesTillLast(rooms, newClient);
-                  setClient(newClient);
+                if (config?.newArch) {
+                  const loadedRooms = await loadRooms(newClient);
+                  if (config?.enableRoomsRetry?.enabled) {
+                    const isSelectedRoomPresent = isChatIdPresentInArray(
+                      roomJID,
+                      loadedRooms
+                    );
+                    if (!isSelectedRoomPresent) {
+                      await getRoomsWithRertyRequest();
+                    }
+                  }
+                  setInited(true);
+                } else {
+                  await newClient.getRoomsStanza();
                 }
-              );
+              }
+              await newClient
+                .getChatsPrivateStoreRequestStanza()
+                .then(
+                  async (
+                    roomTimestampObject: [jid: string, timestamp: string]
+                  ) => {
+                    updatedChatLastTimestamps(roomTimestampObject, dispatch);
+                    // newClient.setVCardStanza(
+                    //   `${user.firstName} ${user.lastName}`
+                    // );
+                    await updateMessagesTillLast(rooms, newClient);
+                    setClient(newClient);
+                  }
+                );
 
-            {
-              config?.refreshTokens?.enabled && refresh();
+              {
+                config?.refreshTokens?.enabled && refresh();
+              }
+            } catch (error) {
+              console.log('err', error);
             }
           } else {
             if (config?.newArch) {
