@@ -6,7 +6,12 @@ export function insertMessageWithDelimiter(
   message: IMessage,
   lastViewedTimestamp: { toString: () => string }
 ) {
-  const existingMessage = roomMessages.find((msg) => msg.id === message.id);
+  const existingMessage = roomMessages.find(
+    (msg) =>
+      msg.id === message.id ||
+      (message.xmppId && msg.id === message.xmppId) ||
+      (msg.xmppId && msg.xmppId === message.id)
+  );
 
   if (existingMessage) return;
 

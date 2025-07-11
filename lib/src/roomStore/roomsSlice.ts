@@ -188,7 +188,18 @@ export const roomsStore = createSlice({
         state.rooms[roomJID].messages = [];
       }
 
-      if (roomMessages.some((msg) => msg.id === message.id)) {
+      const existingIndex = roomMessages.findIndex(
+        (msg) =>
+          msg.id === message.id ||
+          (message.xmppId && msg.id === message.xmppId) ||
+          (msg.xmppId && msg.xmppId === message.id)
+      );
+      if (existingIndex !== -1) {
+        roomMessages[existingIndex] = {
+          ...roomMessages[existingIndex],
+          ...message,
+          pending: false,
+        };
         return;
       }
 
