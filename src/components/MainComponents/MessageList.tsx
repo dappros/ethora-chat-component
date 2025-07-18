@@ -49,7 +49,7 @@ const MessageList = <TMessage extends IMessage>({
   isReply,
   activeMessage,
 }: MessageListProps<TMessage>) => {
-  const { composing, messages } = useRoomState(roomJID).room;
+  const { composing, messages, composingList } = useRoomState(roomJID).room;
   const { user } = useChatSettingState();
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [newMessagesCount, setNewMessagesCount] = useState(0);
@@ -321,12 +321,16 @@ const MessageList = <TMessage extends IMessage>({
     if (!shouldAutoScroll || !content) return;
 
     waitForImagesLoaded().then(() => {
+      if (composingList?.length > 0) {
+        scrollToBottom();
+        setShowScrollButton(false);
+      }
       setTimeout(() => {
         scrollToBottom();
         setShowScrollButton(false);
       }, 50);
     });
-  }, [memoizedMessages.length, config?.botMessageAutoScroll]);
+  }, [memoizedMessages.length, config?.botMessageAutoScroll, composingList]);
 
   let lastDateLabel: string | null = null;
 
@@ -405,7 +409,7 @@ const MessageList = <TMessage extends IMessage>({
           containerHeight={containerRef.current.clientHeight}
         /> */}
         {config?.disableHeader && composing && (
-          <Composing usersTyping={['User']} />
+          <Composing usersTyping={composingList || ['User']} />
         )}
       </MessagesScroll>
       {showScrollButton && (

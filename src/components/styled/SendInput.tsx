@@ -126,7 +126,7 @@ const SendInput: React.FC<SendInputProps> = ({
   );
 
   const handleSecondaryClick = useCallback(() => {
-    sendMessage(message + config.secondarySendButton.messageEdit);
+    sendMessage(config.secondarySendButton.messageEdit + message);
     setMessage('');
     setFilePreviews([]);
   }, [filePreviews, message, sendMessage, sendMedia]);
