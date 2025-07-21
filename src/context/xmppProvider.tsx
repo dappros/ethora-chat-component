@@ -50,6 +50,8 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
       return client;
     }
 
+    console.log(password, email);
+
     try {
       const newClient = new XmppClient(password, email, xmppSettings);
       setClient(newClient);

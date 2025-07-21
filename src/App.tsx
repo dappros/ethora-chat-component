@@ -77,6 +77,10 @@ const ChatComponent = React.memo(() => {
           //   overwriteEnterClick: true,
           // },
           disableMedia: true,
+          assistantMode: {
+            enabled: true,
+            assistantOpenStateKey: 'assistantChatOpen',
+          },
           ...config,
         }}
         MainComponentStyles={mainStyles}

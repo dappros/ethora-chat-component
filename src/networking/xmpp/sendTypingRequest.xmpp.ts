@@ -22,5 +22,5 @@ export function sendTypingRequest(
     })
   );
 
-  client.send(stanza);
+  // client.send(stanza);
 }

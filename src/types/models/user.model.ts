@@ -88,3 +88,8 @@ export interface UserType extends IMessage {
   timestamp: any;
   text: any;
 }
+
+export interface AsisstantUserType {
+  xmppUsername: string;
+  xmppPassword: string;
+}

@@ -28,6 +28,7 @@ import { sendMessageReaction } from './xmpp/sendMessageReaction.xmpp';
 import { sendTextMessageWithTranslateTag } from './xmpp/sendTextMessageWithTranslateTag.xmpp';
 import { getRoomsPaged } from './xmpp/getRoomsPaged.xmpp';
 import { allRoomPresences } from './xmpp/allRoomPresences.xmpp';
+import { sendTextMessageAssistant } from './xmpp/assistant/sendMessage.xmpp';
 
 export class XmppClient implements XmppClientInterface {
   client!: Client;
@@ -338,7 +339,8 @@ export class XmppClient implements XmppClientInterface {
     customId?: string
   ) => {
     this.wrapWithConnectionCheck(async () => {
-      sendTextMessage(
+      console.log('hehehe');
+      sendTextMessageAssistant(
         this.client,
         roomJID,
         firstName,
@@ -353,6 +355,21 @@ export class XmppClient implements XmppClientInterface {
         this.devServer || `wss://'xmpp.ethoradev.com:5443'/ws`,
         customId
       );
+      // sendTextMessage(
+      //   this.client,
+      //   roomJID,
+      //   firstName,
+      //   lastName,
+      //   photo,
+      //   walletAddress,
+      //   userMessage,
+      //   notDisplayedValue,
+      //   isReply,
+      //   showInChannel,
+      //   mainMessage,
+      //   this.devServer || `wss://'xmpp.ethoradev.com:5443'/ws`,
+      //   customId
+      // ));
     });
   };
 

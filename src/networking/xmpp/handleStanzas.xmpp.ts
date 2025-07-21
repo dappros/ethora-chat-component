@@ -15,6 +15,7 @@ import {
   onReactionMessage,
   onReactionHistory,
   onRoomKicked,
+  handleAnonymResponse,
 } from '../stanzaHandlers';
 import XmppClient from '../xmppClient';
 
@@ -23,6 +24,7 @@ export function handleStanza(stanza: Element, xmppWs: XmppClient) {
   switch (stanza.name) {
     case 'message':
       onReactionMessage(stanza);
+      handleAnonymResponse(stanza);
       onReactionHistory(stanza);
       onDeleteMessage(stanza);
       onEditMessage(stanza);

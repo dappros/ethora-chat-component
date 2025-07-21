@@ -452,3 +452,49 @@ export const ScrollToBottomButton = styled.button<{ color?: string }>`
     justify-content: center;
   }
 `;
+
+// Assistant Chat Floating Button
+export const AssistantChatButton = styled.button<{
+  position?: { left?: number; right?: number; top?: number; bottom?: number };
+  customStyle?: React.CSSProperties;
+}>`
+  position: fixed;
+  z-index: 9999;
+  border-radius: 50%;
+  width: 56px;
+  height: 56px;
+  background: #1976d2;
+  color: #fff;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+  ${(props) =>
+    props.position &&
+    Object.entries(props.position)
+      .map(([key, value]) => `${key}: ${value}px;`)
+      .join(' ')}
+  ${(props) => props.customStyle && { ...props.customStyle }}
+`;
+
+// Assistant Chat Popup/Modal
+export const AssistantChatPopup = styled.div<{
+  width?: number;
+  height?: number;
+  customStyle?: React.CSSProperties;
+}>`
+  position: fixed;
+  z-index: 10000;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  ${(props) => props.width && `width: ${props.width}px;`}
+  ${(props) => props.height && `height: ${props.height}px;`}
+  ${(props) => props.customStyle && { ...props.customStyle }}
+`;

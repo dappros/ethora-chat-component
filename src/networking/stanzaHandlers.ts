@@ -86,6 +86,20 @@ const onRealtimeMessage = async (stanza: Element) => {
   }
 };
 
+const handleAnonymResponse = async (stanza: Element) => {
+  if (stanza.is('message') && stanza.attrs.type === 'error') {
+    const error = stanza.getChild('error');
+    if (error) {
+      const errorCode = error.attrs.code;
+      const errorText = error.getChildText('text');
+      console.error(`Anonym response error: ${errorCode} - ${errorText}`);
+    }
+  } else if (stanza.is('message') && stanza.attrs.type === 'normal') {
+    const body = stanza.getChildText('body');
+    console.log(`Anonym response: ${body}`);
+  }
+};
+
 const onReactionMessage = async (stanza: Element) => {
   if (stanza?.attrs?.id?.includes('message-reaction')) {
     const reactions = stanza.getChild('reactions');
@@ -455,4 +469,5 @@ export {
   onReactionMessage,
   onChatInvite,
   onRoomKicked,
+  handleAnonymResponse,
 };

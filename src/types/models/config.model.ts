@@ -1,4 +1,4 @@
-import { User } from './user.model';
+import { AsisstantUserType, User } from './user.model';
 import { xmppSettingsInterface } from './xmpp.model';
 import { PartialRoomWithMandatoryKeys, ConfigRoom } from './room.model';
 import { MessageBubble } from './message.model';
@@ -93,4 +93,26 @@ export interface IConfig {
     enabled: boolean;
     filterFunction: (text: string) => string;
   };
+  assistantMode?: {
+    enabled: boolean;
+    user: AsisstantUserType;
+  };
+  assistantButton?: {
+    position?: {
+      left?: number;
+      right?: number;
+      top?: number;
+      bottom?: number;
+    };
+    style?: React.CSSProperties;
+    icon?: React.ReactNode;
+    ariaLabel?: string;
+  };
+  assistantPopup?: {
+    width?: number;
+    height?: number;
+    style?: React.CSSProperties;
+    closeButtonAriaLabel?: string;
+  };
+  assistantOpenStateKey?: string;
 }
