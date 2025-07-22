@@ -1,15 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ChatContainer, NonRoomChat } from '../../styled/StyledComponents';
+import { ChatContainer } from '../../styled/StyledComponents';
 import { useDispatch } from 'react-redux';
 import SendInput from '../../styled/SendInput';
 import {
   deleteRoomMessage,
-  setEditAction,
   setLastViewedTimestamp,
 } from '../../../roomStore/roomsSlice';
-import Loader from '../../styled/Loader';
 import { useXmppClient } from '../../../context/xmppProvider.tsx';
-import NewChatModal from '../../Modals/NewChatModal/NewChatModal.tsx';
 import { useRoomUrl } from '../../../hooks/useRoomUrl.tsx';
 import { useSendMessage } from '../../../hooks/useSendMessage.tsx';
 import { useRoomState } from '../../../hooks/useRoomState.tsx';
@@ -34,10 +31,6 @@ const AssisstantChatRoom: React.FC<AssisstantChatRoomProps> = React.memo(
     const { roomsList, activeRoomJID, editAction } = useRoomState();
     const { sendMessage: sendMs } = useSendMessage();
     const { sendStartComposing, sendEndComposing } = useComposing();
-
-    const messages = [];
-    const sendUserMessage = () => {};
-    console.log(roomsList);
 
     const sendMessage = useCallback(
       (message: string) => {

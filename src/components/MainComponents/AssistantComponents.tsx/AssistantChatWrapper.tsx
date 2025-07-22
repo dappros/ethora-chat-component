@@ -1,15 +1,8 @@
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { setActiveModal } from '../../../roomStore/chatSettingsSlice';
 import { IRoom, MessageProps, IConfig, ModalType } from '../../../types/types';
-import Modal from '../../Modals/Modal/Modal';
 import { ChatWrapperBox } from '../../styled/ChatWrapperBox';
 import Loader from '../../styled/Loader';
-import { Message, StyledLoaderWrapper } from '../../styled/StyledComponents';
-import ThreadWrapper from '../../Thread/ThreadWrapper';
-import ChatRoom from '../ChatRoom';
-import RoomList from '../RoomList';
-import useChatWrapperInit from '../../../hooks/useChatWrapperInit';
+import { StyledLoaderWrapper } from '../../styled/StyledComponents';
 import useChatWrapperInitAssistant from '../../../hooks/useChatWrapperInitAssistant';
 import AssisstantChatRoom from './AssisstantChatRoom';
 
@@ -18,22 +11,16 @@ interface AssistantChatWrapperProps {
   room?: IRoom;
   loginData?: { email: string; password: string };
   MainComponentStyles?: React.CSSProperties;
-  CustomMessageComponent?: React.ComponentType<MessageProps>;
   config?: IConfig;
   roomJID?: string;
 }
 
 const AssistantChatWrapper: FC<AssistantChatWrapperProps> = ({
   MainComponentStyles,
-  CustomMessageComponent,
   config,
   roomJID,
 }) => {
   const [isSmallScreen, setIsSmallScreen] = useState(false);
-
-  const conferenceServer = config?.xmppSettings?.conference;
-
-  const dispatch = useDispatch();
 
   useEffect(() => {
     const handleResize = () => {

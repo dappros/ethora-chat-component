@@ -45,15 +45,6 @@ const AssistantMessageList = <TMessage extends IMessage>({
   );
   const messages = assistantState.messages[roomJID] || [];
   const isComposing = assistantState.composing?.[roomJID];
-  const dispatch = useDispatch();
-  console.log(
-    'assistantState:',
-    assistantState,
-    'roomJID:',
-    roomJID,
-    'messages:',
-    messages
-  );
 
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [newMessagesCount, setNewMessagesCount] = useState(0);
