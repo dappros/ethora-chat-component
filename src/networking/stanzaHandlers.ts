@@ -4,7 +4,6 @@ import { setComposing, setRoomRole } from '../roomStore/roomsSlice';
 import { addRoomMessage as addAssistantRoomMessage } from '../roomStore/assistantMessageSlice';
 import { createMessageFromXml } from '../helpers/createMessageFromXml';
 import { getDataFromXml } from '../helpers/getDataFromXml';
-import { AsisstantUserType, IMessage } from '../types/types';
 // TO DO: we are thinking to refactor this code in the following way:
 // each stanza will be parsed for 'type'
 // then it will be handled based on the type
@@ -55,7 +54,6 @@ const handleAnonymResponse = async (stanza: Element) => {
     }
   } else if (stanza.is('message')) {
     const body = stanza.getChildText('body');
-    console.log(`Anonym response: ${body}`);
   }
 };
 

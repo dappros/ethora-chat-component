@@ -14,6 +14,11 @@ import {
 } from '../styled/StyledComponents';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { AssistantChatWrapper } from './AssistantComponents.tsx/AssistantChatWrapper.tsx';
+import {
+  ETHO_ASSISTANT_MESSAGES,
+  ETHO_ASSISTANT_USER,
+} from '../../helpers/constants/ASSISTANT_LOCAL_STORAGE';
+import { createAnonymousXmppCredentials } from '../../utils/createAnonymousXmppCredentials';
 
 interface ChatWrapperProps {
   token?: string;
@@ -28,6 +33,19 @@ interface ChatWrapperProps {
 export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
   ({ ...props }) => {
     const memoizedConfig = useMemo(() => {
+      if (props.config?.assistantMode) {
+        const user = window.localStorage.getItem(ETHO_ASSISTANT_USER);
+        if (user) {
+          props.config.assistantMode.user = JSON.parse(user);
+        } else {
+          const credentials = createAnonymousXmppCredentials();
+          window.localStorage.setItem(
+            ETHO_ASSISTANT_USER,
+            JSON.stringify(credentials)
+          );
+          props.config.assistantMode.user = credentials;
+        }
+      }
       return props.config;
     }, [props.config]);
 

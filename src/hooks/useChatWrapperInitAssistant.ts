@@ -4,14 +4,10 @@ import { IConfig } from '../types/types';
 import XmppClient from '../networking/xmppClient';
 import { AppDispatch } from '../roomStore';
 import { useXmppClient } from '../context/xmppProvider';
-import { updatedChatLastTimestamps } from '../helpers/updatedChatLastTimestamps';
-import { refresh } from '../networking/apiClient';
 import { setLangSource, setConfig } from '../roomStore/chatSettingsSlice';
 import { setCurrentRoom, setIsLoading } from '../roomStore/roomsSlice';
-import { useChatSettingState } from './useChatSettingState';
-import { isChatIdPresentInArray } from '../helpers/isChatIdPresentInArray';
-import useGetNewArchRoom from './useGetNewArchRoom';
 import { chatAutoEnterer } from '../helpers/chatAutoEntererAssistant';
+import { initRoomMessages } from '../roomStore/assistantMessageSlice';
 
 interface useChatWrapperInitAssistantProps {
   roomJID: string | null | undefined;
@@ -40,6 +36,10 @@ const useChatWrapperInitAssistant = ({
   const { client, initializeClient, setClient } = useXmppClient();
 
   const { user } = config.assistantMode;
+
+  useEffect(() => {
+    dispatch(initRoomMessages());
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -75,7 +75,6 @@ const useChatWrapperInitAssistant = ({
           console.log('Error, no user');
         } else {
           chatAutoEnterer({ roomJID, config, dispatch });
-          console.log(!client, !!client);
 
           if (!client) {
             setInited(false);

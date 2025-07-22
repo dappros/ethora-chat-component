@@ -5,7 +5,7 @@ import { IConfig } from './types/types';
 import { createAnonymousXmppCredentials } from './utils/createAnonymousXmppCredentials';
 
 const assistantChatConfig: IConfig = {
-  colors: { primary: '#5E3FDE', secondary: '#E1E4FE' },
+  colors: { primary: '#1976d2', secondary: '#E1E4FE' },
   assistantButton: {
     position: { right: 24, bottom: 24 },
     style: { background: '#1976d2', color: '#fff' },

@@ -6,7 +6,6 @@ export const sendTextMessageAssistant = (
   userMessage: string
 ) => {
   const id = `send-text-message-to-assistant-${Date.now().toString()}`;
-  console.log(id);
 
   try {
     const message = xml(

@@ -19,7 +19,6 @@ export const useSendMessage = () => {
       mainMessage?: string
     ) => {
       const id = `send-text-message-${Date.now().toString()}`;
-      console.log(activeRoomJID);
       dispatch(
         addRoomMessage({
           roomJID: activeRoomJID,
