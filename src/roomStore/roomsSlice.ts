@@ -194,7 +194,10 @@ export const roomsStore = createSlice({
       const updMessage = {
         ...message,
         user: {
-          name: createUserNameFromSetUser(state.usersSet, message.user.id),
+          name: createUserNameFromSetUser(
+            state.usersSet,
+            message.user.xmppUsername
+          ),
           ...message.user,
         },
       };
@@ -216,12 +219,6 @@ export const roomsStore = createSlice({
         const lastViewedTimestamp = state.rooms[roomJID].lastViewedTimestamp
           ? new Date(state.rooms[roomJID].lastViewedTimestamp)
           : null;
-
-        insertMessageWithDelimiter(
-          roomMessages,
-          updMessage,
-          lastViewedTimestamp
-        );
       }
     },
     deleteAllRooms(state) {

@@ -5,8 +5,13 @@ type XmppCredentials = {
   xmppPassword: string;
 };
 
-export function createAnonymousXmppCredentials(): XmppCredentials {
+export function createAnonymousXmppCredentials(): any {
   const xmppUsername = `anon-${uuidv4()}`;
   const xmppPassword = uuidv4();
-  return { xmppUsername, xmppPassword };
+  return {
+    id: xmppUsername,
+    name: xmppUsername,
+    xmppUsername,
+    xmppPassword,
+  };
 }

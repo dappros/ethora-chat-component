@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { getActiveRoom, RootState } from '../../../roomStore';
+import { RootState } from '../../../roomStore';
 import {
   ActionButton,
   CloseButton,
@@ -23,7 +23,9 @@ const SelectUsersModal: React.FC = () => {
   const [loading, setIsLoading] = useState<boolean>(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<RoomMember[]>([]);
-  const activeRoom = useSelector((state: RootState) => getActiveRoom(state));
+  const activeRoom = useSelector(
+    (state: RootState) => state.rooms.activeRoomJID
+  );
 
   const handleOpenModal = () => setIsModalOpen(true);
   const handleCloseModal = () => {

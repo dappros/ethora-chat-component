@@ -28,14 +28,12 @@ const assistantChatConfig: IConfig = {
   },
 };
 
-export default function AssistantTest() {
+export default function AssistantTest({ botId }: { botId: string }) {
   const user = createAnonymousXmppCredentials();
   return (
     <XmppProvider>
       <ReduxWrapper
-        roomJID={
-          '685a6b13db443b01282ab755_685a6b13db443b01282ab763-bot@xmpp.ethoradev.com'
-        }
+        roomJID={botId}
         config={{
           ...assistantChatConfig,
           assistantMode: { enabled: true, user },

@@ -77,9 +77,15 @@ const ChatComponent = React.memo(() => {
           //   overwriteEnterClick: true,
           // },
           disableMedia: true,
+          assistantOpenStateKey: 'assistantChatOpen',
           assistantMode: {
             enabled: true,
-            assistantOpenStateKey: 'assistantChatOpen',
+            user: {
+              id: 'anon-test',
+              name: 'Anonymous',
+              xmppUsername: 'anon-test',
+              xmppPassword: 'anon-test',
+            },
           },
           ...config,
         }}

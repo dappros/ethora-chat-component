@@ -89,7 +89,7 @@ export interface UserType extends IMessage {
   text: any;
 }
 
-export interface AsisstantUserType {
+export interface AsisstantUserType extends IUser {
   xmppUsername: string;
   xmppPassword: string;
 }
