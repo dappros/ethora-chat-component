@@ -35,7 +35,7 @@ export const MessageContainer: FC<MessageContainerProps> = ({
   isReply,
   className,
 }) => {
-  const isUser = message.user.id === xmppUsername;
+  const isUser = message.user.xmppUsername === xmppUsername;
 
   const messageDate = new Date(message.date);
 
@@ -61,13 +61,17 @@ export const MessageContainer: FC<MessageContainerProps> = ({
       {showDateLabel && !activeMessage && message.id !== 'delimiter-new' && (
         <DateLabel date={messageDate} colors={config?.colors} />
       )}
-      <MessageComponent message={message} isUser={isUser} isReply={isReply} className={className}>
+      <MessageComponent
+        message={message}
+        isUser={isUser}
+        isReply={isReply}
+        className={className}
+      >
         {!CustomMessage ? (
           <>
             <MessageTimestamp>
               {messageDate.toLocaleTimeString()}
             </MessageTimestamp>
-            <UserName>{message.user.name}: </UserName>
             <MessageText>{message.body}</MessageText>
           </>
         ) : (

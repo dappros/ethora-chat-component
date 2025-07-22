@@ -24,7 +24,6 @@ interface SendInputProps {
   sendMessage: (message: string) => void;
   isLoading: boolean;
   editMessage?: string;
-  sendMedia: (data: any, type: string) => void;
   config?: IConfig;
   onFocus?: () => void;
   onBlur?: () => void;
@@ -32,7 +31,6 @@ interface SendInputProps {
 
 const SendInput: React.FC<SendInputProps> = ({
   sendMessage,
-  sendMedia,
   onFocus,
   onBlur,
   config,
@@ -106,15 +104,6 @@ const SendInput: React.FC<SendInputProps> = ({
   const handleSendClick = useCallback(
     (audioUrl?: string) => {
       if (filePreviews.length > 0) {
-        console.log(filePreviews);
-        console.log('Files sent:', filePreviews[0]);
-        sendMedia(filePreviews[0], 'media');
-        setIsRecording(false);
-      } else if (audioUrl) {
-        sendMedia(audioUrl, 'audio');
-        console.log(audioUrl);
-        console.log('Audio sent:', audioUrl);
-        setIsRecording(false);
       } else {
         console.log('sending default', message);
         sendMessage(message);
@@ -122,14 +111,14 @@ const SendInput: React.FC<SendInputProps> = ({
       setMessage('');
       setFilePreviews([]);
     },
-    [filePreviews, message, sendMessage, sendMedia]
+    [filePreviews, message, sendMessage]
   );
 
   const handleSecondaryClick = useCallback(() => {
     sendMessage(message + config.secondarySendButton.messageEdit);
     setMessage('');
     setFilePreviews([]);
-  }, [filePreviews, message, sendMessage, sendMedia]);
+  }, [filePreviews, message, sendMessage]);
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {

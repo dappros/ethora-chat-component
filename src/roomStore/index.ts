@@ -10,6 +10,7 @@ import { AnyAction } from 'redux-saga';
 import { newMessageMidlleware } from './Middleware/newMessageMidlleware';
 import { logoutMiddleware } from './Middleware/logoutMiddleware';
 import { encryptTransform } from 'redux-persist-transform-encrypt';
+import { assistanRoomSlice } from './assistantMessageSlice';
 
 const limitMessagesTransform = createTransform(
   (inboundState: { [jid: string]: IRoom }) => {
@@ -61,6 +62,12 @@ const roomsPersistConfig = {
   transforms: [limitMessagesTransform],
 };
 
+const assistantMessageSlicePersistConfig = {
+  key: 'assistanRoomSlice',
+  storage,
+  transforms: [limitMessagesTransform],
+};
+
 const persistConfig = {
   key: 'root',
   storage,
@@ -75,6 +82,10 @@ const rootReducer = combineReducers({
     chatSettingsReducer
   ),
   rooms: persistReducer(roomsPersistConfig, roomsSlice),
+  assistantMessageSlicePersistConfig: persistReducer(
+    assistantMessageSlicePersistConfig,
+    assistanRoomSlice.reducer
+  ),
 });
 
 export type RootState = ReturnType<typeof rootReducer>;
@@ -83,13 +94,6 @@ const persistedReducer: Reducer<RootState, AnyAction> = persistReducer(
   persistConfig,
   rootReducer
 ) as Reducer<RootState, AnyAction>;
-
-export const getActiveRoom = (state: RootState): IRoom | null => {
-  const roomMessagesState = state.rooms;
-  return roomMessagesState.activeRoomJID
-    ? roomMessagesState.rooms[roomMessagesState.activeRoomJID]
-    : null;
-};
 
 export const store = configureStore({
   reducer: persistedReducer,
@@ -107,10 +111,7 @@ export const store = configureStore({
           'chatSettingStore.config',
         ],
       },
-    })
-      .concat(unreadMiddleware)
-      .concat(newMessageMidlleware)
-      .concat(logoutMiddleware),
+    }).concat(logoutMiddleware),
 });
 
 export type AppDispatch = typeof store.dispatch;

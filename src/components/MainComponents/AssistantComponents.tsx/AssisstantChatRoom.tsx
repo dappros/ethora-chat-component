@@ -10,17 +10,12 @@ import {
 import Loader from '../../styled/Loader';
 import { useXmppClient } from '../../../context/xmppProvider.tsx';
 import NewChatModal from '../../Modals/NewChatModal/NewChatModal.tsx';
-import { NoSelectedChatIcon } from '../../../assets/icons.tsx';
 import { useRoomUrl } from '../../../hooks/useRoomUrl.tsx';
 import { useSendMessage } from '../../../hooks/useSendMessage.tsx';
 import { useRoomState } from '../../../hooks/useRoomState.tsx';
 import { useChatSettingState } from '../../../hooks/useChatSettingState.tsx';
 import useComposing from '../../../hooks/useComposing.tsx';
-import ChatHeader from '../ChatHeader.tsx';
-import NoMessagesPlaceholder from '../NoMessagesPlaceholder.tsx';
-import MessageList from '../MessageList.tsx';
 import AssistantMessageList from './AssistantMessageList.tsx';
-import { useRoomInitialization } from '../hooks/useRoomInitialization.tsx';
 
 interface AssisstantChatRoomProps {
   CustomMessageComponent?: any;
@@ -33,22 +28,16 @@ const AssisstantChatRoom: React.FC<AssisstantChatRoomProps> = React.memo(
     const dispatch = useDispatch();
 
     const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+    const { config } = useChatSettingState();
+    const user = config.assistantMode.user;
 
-    const { user, config } = useChatSettingState();
-    const {
-      roomsList,
-      activeRoomJID,
-      editAction,
-      loading,
-      globalLoading,
-      roomMessages,
-    } = useRoomState();
-    const {
-      sendMessage: sendMs,
-      sendMedia: sendMessageMedia,
-      sendEditMessage,
-    } = useSendMessage();
+    const { roomsList, activeRoomJID, editAction } = useRoomState();
+    const { sendMessage: sendMs } = useSendMessage();
     const { sendStartComposing, sendEndComposing } = useComposing();
+
+    const messages = [];
+    const sendUserMessage = () => {};
+    console.log(roomsList);
 
     const sendMessage = useCallback(
       (message: string) => {
@@ -58,36 +47,11 @@ const AssisstantChatRoom: React.FC<AssisstantChatRoomProps> = React.memo(
             timestamp: 0,
           })
         );
-        sendMs(message, activeRoomJID);
+        console.log(activeRoomJID);
+        sendMs(message, activeRoomJID, user);
+        // sendUserMessage(message, user);
       },
       [activeRoomJID]
-    );
-
-    const sendMedia = useCallback(
-      (data: any, type: string) => {
-        sendMessageMedia(data, type, activeRoomJID);
-      },
-      [activeRoomJID]
-    );
-
-    const loadMoreMessages = useCallback(
-      async (chatJID: string, max: number, idOfMessageBefore?: number) => {
-        if (!isLoadingMore && !roomsList?.[chatJID]?.historyComplete) {
-          const lastMsgId =
-            typeof idOfMessageBefore !== 'string'
-              ? idOfMessageBefore
-              : Number(
-                  roomsList[chatJID].messages[
-                    roomsList[chatJID].messages.length - 2
-                  ].id
-                );
-          setIsLoadingMore(true);
-          client?.getHistoryStanza(chatJID, max, lastMsgId).then(() => {
-            setIsLoadingMore(false);
-          });
-        }
-      },
-      [client?.client?.jid]
     );
 
     useEffect(() => {
@@ -125,13 +89,6 @@ const AssisstantChatRoom: React.FC<AssisstantChatRoomProps> = React.memo(
     // hooks useEffects
     useRoomUrl(activeRoomJID, roomsList, config);
 
-    useRoomInitialization(
-      activeRoomJID,
-      roomsList,
-      config,
-      roomMessages.length
-    );
-
     return (
       <ChatContainer
         style={{
@@ -140,18 +97,15 @@ const AssisstantChatRoom: React.FC<AssisstantChatRoomProps> = React.memo(
         }}
       >
         <AssistantMessageList
-          loadMoreMessages={loadMoreMessages}
           CustomMessage={CustomMessageComponent}
           user={user}
           roomJID={activeRoomJID}
           config={config}
-          loading={isLoadingMore}
           isReply={false}
         />
         <SendInput
           editMessage={editAction.text}
-          sendMessage={editAction.isEdit ? sendEditMessage : sendMessage}
-          sendMedia={sendMedia}
+          sendMessage={sendMessage}
           config={config}
           onFocus={sendStartComposing}
           onBlur={sendEndComposing}

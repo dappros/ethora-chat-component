@@ -21,7 +21,6 @@ import Modal from '../Modals/Modal/Modal';
 import ThreadWrapper from '../Thread/ThreadWrapper';
 import { ModalWrapper } from '../Modals/ModalWrapper/ModalWrapper';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
-import useMessageLoaderQueue from '../../hooks/useMessageLoaderQueue';
 import { useRoomState } from '../../hooks/useRoomState';
 import { StyledLoaderWrapper } from '../styled/StyledComponents';
 import Loader from '../styled/Loader';
@@ -109,25 +108,6 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     wasAutoSelected,
     config,
   });
-
-  const queueMessageLoader = useCallback(
-    async (chatJID: string, max: number) => {
-      try {
-        return await client?.getHistoryStanza(chatJID, max);
-      } catch (error) {
-        console.log('Error in loading queue messages', error);
-      }
-    },
-    [globalLoading, loading, !!client]
-  );
-
-  useMessageLoaderQueue(
-    Object.keys(roomsList),
-    roomsList,
-    globalLoading,
-    loading,
-    queueMessageLoader
-  );
 
   if (config?.enableRoomsRetry?.enabled && isRetrying === 'norooms') {
     return (

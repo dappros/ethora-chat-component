@@ -1,30 +1,10 @@
 import { Element } from 'ltx';
 import { store } from '../roomStore';
-import {
-  addRoom,
-  addRoomMessage,
-  addRoomViaApi,
-  deleteRoomMessage,
-  editRoomMessage,
-  setComposing,
-  setCurrentRoom,
-  setReactions,
-  setRoomRole,
-  updateRoom,
-  updateUsersSet,
-  deleteRoom,
-  insertUsers,
-} from '../roomStore/roomsSlice';
-import { IRoom } from '../types/types';
+import { setComposing, setRoomRole } from '../roomStore/roomsSlice';
+import { addRoomMessage as addAssistantRoomMessage } from '../roomStore/assistantMessageSlice';
 import { createMessageFromXml } from '../helpers/createMessageFromXml';
-import { setDeleteModal } from '../roomStore/chatSettingsSlice';
 import { getDataFromXml } from '../helpers/getDataFromXml';
-import { getBooleanFromString } from '../helpers/getBooleanFromString';
-import { getNumberFromString } from '../helpers/getNumberFromString';
-import { getRooms } from '../networking/api-requests/rooms.api';
-import { createRoomFromApi } from '../helpers/createRoomFromApi';
-import XmppClient from './xmppClient';
-import { checkSingleUser } from '../helpers/checkUniqueUsers';
+import { AsisstantUserType, IMessage } from '../types/types';
 // TO DO: we are thinking to refactor this code in the following way:
 // each stanza will be parsed for 'type'
 // then it will be handled based on the type
@@ -35,25 +15,9 @@ import { checkSingleUser } from '../helpers/checkUniqueUsers';
 
 //core default
 const onRealtimeMessage = async (stanza: Element) => {
-  const mucX = stanza
-    .getChildren('x')
-    .find(
-      (x) =>
-        x.attrs['xmlns'] === 'http://jabber.org/protocol/muc#user' &&
-        x.getChild('invite')
-    );
-  if (mucX) {
-    return;
-  }
-  if (
-    !stanza?.getChild('result') &&
-    !stanza.getChild('composing') &&
-    !stanza.getChild('paused') &&
-    !stanza.getChild('subject') &&
-    !stanza.is('iq') &&
-    stanza?.attrs?.id !== 'deleteMessageStanza' &&
-    !stanza?.attrs?.id?.includes('message-reaction')
-  ) {
+  const isAssistantMessage = stanza.attrs.type === 'chat';
+
+  if (isAssistantMessage) {
     const { data, id, body, ...rest } = await getDataFromXml(stanza);
 
     if (!data) {
@@ -66,22 +30,17 @@ const onRealtimeMessage = async (stanza: Element) => {
       id,
       body,
       ...rest,
+      ...(isAssistantMessage ? { isAssistantMessage: true } : {}),
     });
 
-    const fixedUser = await checkSingleUser(
-      store.getState().rooms.usersSet,
-      message.user.id
-    );
-    if (fixedUser) {
-      store.dispatch(insertUsers({ newUsers: [fixedUser] }));
-    }
-
+    // Dispatch to assistant message slice
     store.dispatch(
-      addRoomMessage({
+      addAssistantRoomMessage({
         roomJID: stanza.attrs.from.split('/')[0],
         message,
       })
     );
+
     return message;
   }
 };
@@ -94,162 +53,9 @@ const handleAnonymResponse = async (stanza: Element) => {
       const errorText = error.getChildText('text');
       console.error(`Anonym response error: ${errorCode} - ${errorText}`);
     }
-  } else if (stanza.is('message') && stanza.attrs.type === 'normal') {
+  } else if (stanza.is('message')) {
     const body = stanza.getChildText('body');
     console.log(`Anonym response: ${body}`);
-  }
-};
-
-const onReactionMessage = async (stanza: Element) => {
-  if (stanza?.attrs?.id?.includes('message-reaction')) {
-    const reactions = stanza.getChild('reactions');
-    const stanzaId = stanza.getChild('stanza-id');
-    const roomJid = stanzaId.attrs.by;
-    const timestamp = stanzaId.attrs.id;
-
-    const data = stanza.getChild('data');
-
-    const emojiList: string[] = reactions
-      .getChildren('reaction')
-      .map((reaction) => reaction.text());
-    const from: string = reactions.attrs.from;
-
-    store.dispatch(
-      setReactions({
-        roomJID: roomJid,
-        messageId: reactions.attrs.id,
-        latestReactionTimestamp: timestamp,
-        reactions: emojiList,
-        from,
-        data: data.attrs,
-      })
-    );
-  }
-};
-
-const onDeleteMessage = async (stanza: Element) => {
-  if (stanza.attrs.id === 'deleteMessageStanza') {
-    const deleted = stanza.getChild('delete');
-    const stanzaId = stanza.getChild('stanza-id');
-
-    if (!deleted) {
-      return;
-    }
-
-    store.dispatch(
-      deleteRoomMessage({
-        roomJID: stanzaId.attrs.by,
-        messageId: deleted.attrs.id,
-      })
-    );
-    store.dispatch(setDeleteModal({ isDeleteModal: false }));
-  }
-};
-
-const onEditMessage = async (stanza: Element) => {
-  if (stanza?.attrs?.id?.includes('edit-message')) {
-    const stanzaId = stanza.getChild('stanza-id');
-    const replace = stanza.getChild('replace');
-
-    if (!stanzaId && !replace) {
-      return;
-    }
-
-    store.dispatch(
-      editRoomMessage({
-        roomJID: stanzaId.attrs.by,
-        messageId: replace.attrs.id,
-        text: replace.attrs.text,
-      })
-    );
-  }
-};
-
-const onReactionHistory = async (stanza: any) => {
-  try {
-    const reactions = stanza
-      .getChild('result')
-      ?.getChild('forwarded')
-      ?.getChild('message')
-      ?.getChild('reactions');
-    const data = stanza
-      .getChild('result')
-      ?.getChild('forwarded')
-      ?.getChild('message')
-      ?.getChild('data');
-    const stanzaId = stanza
-      .getChild('result')
-      ?.getChild('forwarded')
-      ?.getChild('message')
-      ?.getChild('stanza-id');
-
-    if (!reactions && !data && !stanzaId && !reactions?.attrs) {
-      return;
-    }
-
-    const messageId = reactions.attrs.id;
-
-    const reactionList: string[] = reactions.children.map(
-      (emoji) => emoji.children[0]
-    );
-    const from: string = reactions.attrs.from;
-    const dataReaction = {
-      senderFirstName: data.attrs.senderFirstName,
-      senderLastName: data.attrs.senderLastName,
-    };
-
-    const roomJid = stanzaId.attrs.by;
-    const timestamp = stanzaId.attrs.id;
-
-    store.dispatch(
-      setReactions({
-        roomJID: roomJid,
-        messageId,
-        latestReactionTimestamp: timestamp,
-        reactions: reactionList,
-        from,
-        data: dataReaction,
-      })
-    );
-  } catch (error) {
-    return;
-  }
-};
-
-const onMessageHistory = async (stanza: any) => {
-  if (
-    stanza.is('message') &&
-    stanza.children[0].attrs.xmlns === 'urn:xmpp:mam:2'
-  ) {
-    const { data, id, body, ...rest } = await getDataFromXml(stanza);
-
-    if (!data) {
-      console.log('No data in stanza');
-      return;
-    }
-
-    const message = await createMessageFromXml({
-      data,
-      id,
-      body,
-      ...rest,
-    });
-
-    const fixedUser = await checkSingleUser(
-      store.getState().rooms.usersSet,
-      message.user.id
-    );
-
-    if (fixedUser) {
-      store.dispatch(insertUsers({ newUsers: [fixedUser] }));
-    }
-
-    store.dispatch(
-      addRoomMessage({
-        roomJID: stanza.attrs.from,
-        message,
-      })
-    );
   }
 };
 
@@ -291,183 +97,9 @@ const onPresenceInRoom = (stanza: Element | any) => {
   }
 };
 
-const onChatInvite = async (stanza: Element, client: XmppClient) => {
-  if (stanza.is('message')) {
-    const chatId = stanza.attrs.from;
-    const xEls = stanza.getChildren('x');
-
-    for (const el of xEls) {
-      const child = el.getChild('invite');
-
-      if (child) {
-        const chat = store.getState().rooms.rooms[chatId];
-        if (chat) {
-          return;
-        }
-
-        client.presenceInRoomStanza(chatId);
-
-        const rooms = await getRooms();
-        rooms.items.map((room) => {
-          store.dispatch(
-            addRoomViaApi({
-              room: createRoomFromApi(room, client.conference),
-              xmpp: client,
-            })
-          );
-        });
-        store.dispatch(updateUsersSet({ rooms: rooms.items }));
-      }
-    }
-  }
-};
-
-const onGetMembers = (stanza: Element) => {
-  const jid = store.getState().rooms.activeRoomJID;
-  if (stanza.attrs.id.toString() === 'roomMemberInfo') {
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(stanza.toString(), 'text/xml');
-
-    const roomMembers = Array.from(xmlDoc.getElementsByTagName('activity')).map(
-      (activity) => ({
-        name: activity.getAttribute('name'),
-        role: activity.getAttribute('role'),
-        ban_status: activity.getAttribute('ban_status'),
-        last_active: Number(activity.getAttribute('last_active')),
-        jid: activity.getAttribute('jid'),
-      })
-    );
-  }
-};
-
-const onGetRoomInfo = (stanza: Element) => {
-  if (stanza.attrs.id === 'roomInfo' && !stanza.getChild('error')) {
-  }
-};
-
-const onGetLastMessageArchive = (stanza: Element) => {
-  if (stanza.attrs?.id && stanza.attrs?.id.toString().includes('get-history')) {
-    const set = stanza?.getChild('fin')?.getChild('set');
-    if (set) {
-      const roomJid = stanza?.attrs?.from;
-
-      if (roomJid) {
-        const fin = stanza?.getChild('fin');
-
-        if (fin?.attrs?.complete) {
-          const first = set?.getChildText('first');
-          const last = set?.getChildText('last');
-          const historyComplete = getBooleanFromString(fin.attrs.complete);
-          const lastMessageTimestamp = getNumberFromString(last);
-          const firstMessageTimestamp = getNumberFromString(first);
-
-          store.dispatch(
-            store.dispatch(
-              updateRoom({
-                jid: roomJid,
-                updates: {
-                  messageStats: {
-                    lastMessageTimestamp: lastMessageTimestamp,
-                    firstMessageTimestamp: firstMessageTimestamp,
-                  },
-                  historyComplete: historyComplete,
-                },
-              })
-            )
-          );
-        }
-      }
-    }
-  }
-};
-
-const onNewRoomCreated = (stanza: Element, xmpp: any) => {
-  store.dispatch(setCurrentRoom({ roomJID: stanza.attrs.from }));
-  xmpp.getRoomsStanza();
-};
-
-const onGetChatRooms = (stanza: Element, xmpp: any) => {
-  if (
-    stanza.attrs.id === 'getUserRooms' &&
-    Array.isArray(stanza.getChild('query')?.children)
-  ) {
-    stanza.getChild('query')?.children.forEach(async (result: any) => {
-      const currentChatRooms = store.getState().rooms.rooms;
-
-      const isRoomAlreadyAdded = (
-        Object.values(currentChatRooms) as IRoom[]
-      ).some((element: IRoom) => element.jid === result?.attrs?.jid);
-
-      if (!isRoomAlreadyAdded) {
-        try {
-          const roomData: IRoom = {
-            jid: result?.attrs?.jid || '',
-            name: result?.attrs?.name || '',
-            title: result?.attrs?.name || '',
-            usersCnt: Number(result?.attrs?.users_cnt || 0),
-            messages: [],
-            isLoading: false,
-            roomBg:
-              result?.attrs?.room_background !== 'none'
-                ? result?.attrs?.room_background
-                : null,
-            icon:
-              result?.attrs?.room_thumbnail !== 'none'
-                ? result?.attrs?.room_thumbnail
-                : null,
-            unreadMessages: 0,
-            lastViewedTimestamp: 0,
-          };
-
-          store.dispatch(addRoom({ roomData: { ...roomData } }));
-
-          if (!store.getState().rooms.activeRoomJID) {
-            store.dispatch(setCurrentRoom({ roomJID: roomData.jid }));
-          }
-
-          if (roomData.jid) {
-            xmpp.presenceInRoomStanza(roomData.jid);
-          }
-        } catch (error) {}
-      }
-    });
-  }
-};
-
-const onRoomKicked = async (stanza: Element) => {
-  if (stanza.is('presence') && stanza.attrs.type === 'unavailable') {
-    const xElement = stanza.getChild('x');
-    if (!xElement) return;
-
-    const statusElements = xElement.getChildren('status');
-
-    if (!statusElements || statusElements.length === 0) return;
-
-    const statusCodes = statusElements.map((s) => s.attrs.code);
-
-    if (statusCodes.includes('110') && statusCodes.includes('321')) {
-      const roomJid = stanza.attrs.from.split('/')[0];
-
-      store.dispatch(deleteRoom({ jid: roomJid }));
-      await getRooms();
-    }
-  }
-};
 export {
   onRealtimeMessage,
-  onMessageHistory,
   onPresenceInRoom,
-  onReactionHistory,
-  onGetLastMessageArchive,
   handleComposing,
-  onGetChatRooms,
-  onNewRoomCreated,
-  onGetMembers,
-  onGetRoomInfo,
-  onDeleteMessage,
-  onEditMessage,
-  onReactionMessage,
-  onChatInvite,
-  onRoomKicked,
   handleAnonymResponse,
 };

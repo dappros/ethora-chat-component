@@ -1,6 +1,5 @@
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import useMessageLoaderQueue from '../../../hooks/useMessageLoaderQueue';
 import { setActiveModal } from '../../../roomStore/chatSettingsSlice';
 import { IRoom, MessageProps, IConfig, ModalType } from '../../../types/types';
 import Modal from '../../Modals/Modal/Modal';
@@ -51,25 +50,6 @@ const AssistantChatWrapper: FC<AssistantChatWrapperProps> = ({
     roomJID,
     config,
   });
-
-  const queueMessageLoader = useCallback(
-    async (chatJID: string, max: number) => {
-      try {
-        return await client?.getHistoryStanza(chatJID, max);
-      } catch (error) {
-        console.log('Error in loading queue messages', error);
-      }
-    },
-    [!!client]
-  );
-
-  // useMessageLoaderQueue(
-  //   Object.keys(roomsList),
-  //   roomsList,
-  //   globalLoading,
-  //   loading,
-  //   queueMessageLoader
-  // );
 
   return (
     <>

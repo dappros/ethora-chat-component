@@ -1,7 +1,6 @@
 import React, {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -11,15 +10,14 @@ import {
   MessagesList,
   ScrollToBottomButton,
 } from '../../styled/StyledComponents';
-import { IConfig, IMessage, User } from '../../../types/types';
-import Loader from '../../styled/Loader';
-import Composing from '../../styled/StyledInputComponents/Composing';
-import TreadLabel from '../../styled/TreadLabel';
-import { useRoomState } from '../../../hooks/useRoomState';
-import { useChatSettingState } from '../../../hooks/useChatSettingState';
+import { AsisstantUserType, IConfig, IMessage } from '../../../types/types';
 import { DownArrowIcon } from '../../../assets/icons';
 import NewMessageLabel from '../../styled/NewMessageLabel';
 import { MessageContainer } from '../MessageContainer';
+// Redux imports
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState } from '../../../roomStore';
+import { addRoomMessage } from '../../../roomStore/assistantMessageSlice';
 
 interface AssistantMessageListProps<TMessage extends IMessage> {
   CustomMessage?: React.ComponentType<{
@@ -27,14 +25,8 @@ interface AssistantMessageListProps<TMessage extends IMessage> {
     isUser: boolean;
     isReply: boolean;
   }>;
-  user: User;
+  user: AsisstantUserType;
   roomJID: string;
-  loadMoreMessages: (
-    chatJID: string,
-    max: number,
-    amount?: number
-  ) => Promise<void>;
-  loading: boolean;
   config?: IConfig;
   isReply: boolean;
   activeMessage?: IMessage;
@@ -42,15 +34,27 @@ interface AssistantMessageListProps<TMessage extends IMessage> {
 
 const AssistantMessageList = <TMessage extends IMessage>({
   CustomMessage,
-  loadMoreMessages,
   roomJID,
   config,
-  loading,
   isReply,
   activeMessage,
+  user,
 }: AssistantMessageListProps<TMessage>) => {
-  const messages = [];
-  const { user } = useChatSettingState();
+  const assistantState = useSelector(
+    (state: RootState) => state.assistantMessageSlicePersistConfig
+  );
+  const messages = assistantState.messages[roomJID] || [];
+  const isComposing = assistantState.composing?.[roomJID];
+  const dispatch = useDispatch();
+  console.log(
+    'assistantState:',
+    assistantState,
+    'roomJID:',
+    roomJID,
+    'messages:',
+    messages
+  );
+
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [newMessagesCount, setNewMessagesCount] = useState(0);
   const [lastMessageDate, setLastMessageDate] = useState<number | null>(null);
@@ -59,67 +63,17 @@ const AssistantMessageList = <TMessage extends IMessage>({
   const scrollPositions = useRef<{ [key: string]: number }>({});
   const isFirstLoad = useRef<boolean>(true);
 
-  const addReplyMessages = useMemo(() => {
-    return messages.map((message) => {
-      const newMessage = {
-        ...message,
-        reply: messages.filter(
-          (mess) =>
-            !!mess.mainMessage && JSON.parse(mess.mainMessage).id === message.id
-        ),
-      };
-
-      return newMessage;
-    });
-  }, [messages, messages.length]);
-
-  const memoizedMessages = useMemo(() => {
-    if (isReply) {
-      return addReplyMessages.filter(
-        (item: IMessage) =>
-          item.roomJid === roomJID &&
-          item.isReply &&
-          item.isReply === 'true' &&
-          item.mainMessage &&
-          JSON.parse(item.mainMessage).id === activeMessage.id
-      );
-    } else {
-      return addReplyMessages.filter(
-        (item: IMessage) =>
-          item.showInChannel === 'true' ||
-          ((!item.isReply || item.isReply === 'false') && !item.mainMessage)
-      );
-    }
-  }, [messages, messages.length]);
-
   const isUserMessage = useMemo(
     () =>
       messages.length &&
-      messages[messages.length - 1].user.id === user.xmppUsername,
-    [messages.length, user.xmppUsername]
+      messages[messages.length - 1].user.xmppUsername === user.xmppUsername,
+    [messages.length, user.xmppUsername, messages]
   );
 
   const containerRef = useRef<HTMLDivElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);
-  const lastMessageRef = useRef<IMessage>(
-    memoizedMessages[memoizedMessages.length - 1]
-  );
-  const isLoadingMore = useRef<boolean>(false);
-
   const timeoutRef = useRef<number>(0);
-  const scrollParams = useRef<{ top: number; height: number } | null>(null);
   const atBottom = useRef<boolean>(true);
-
-  const getScrollParams = (): { top: number; height: number } | null => {
-    const content = containerRef.current;
-    if (!content) {
-      return null;
-    }
-    return {
-      top: content.scrollTop,
-      height: content.scrollHeight,
-    };
-  };
 
   const waitForImagesLoaded = useCallback(() => {
     const content = containerRef.current;
@@ -146,7 +100,7 @@ const AssistantMessageList = <TMessage extends IMessage>({
     await waitForImagesLoaded();
 
     if (isFirstLoad.current) {
-      const delimiterIndex = memoizedMessages.findIndex(
+      const delimiterIndex = messages.findIndex(
         (msg) => msg.id === 'delimiter-new'
       );
 
@@ -178,57 +132,30 @@ const AssistantMessageList = <TMessage extends IMessage>({
         content.scrollTop = content.scrollHeight;
       }
     }
-  }, [roomJID, memoizedMessages, waitForImagesLoaded]);
+  }, [roomJID, messages, waitForImagesLoaded]);
 
   useEffect(() => {
-    if (memoizedMessages.length > 0) {
+    if (messages.length > 0) {
       setLastMessageDate(
-        new Date(memoizedMessages[memoizedMessages.length - 1].date).getTime()
+        new Date(messages[messages.length - 1].date).getTime()
       );
     }
-  }, []);
+  }, [messages]);
 
   useEffect(() => {
     if (isUserMessage) return;
 
     const newMessageDate = new Date(
-      memoizedMessages[memoizedMessages.length - 1]?.date
+      messages[messages.length - 1]?.date
     )?.getTime();
     if (newMessageDate > lastMessageDate) {
       setNewMessagesCount((prev) => (prev += 1));
     }
-  }, [memoizedMessages.length]);
+  }, [messages.length, messages, isUserMessage, lastMessageDate]);
 
   useEffect(() => {
     restoreScrollPosition();
-  }, [roomJID]);
-
-  const checkIfLoadMoreMessages = useCallback(() => {
-    const params = getScrollParams();
-
-    if (!params) return;
-
-    if (params.top >= 150 || isLoadingMore.current) return;
-
-    scrollParams.current = getScrollParams();
-
-    const [firstMessage, secondMessage] = memoizedMessages;
-    const firstMessageId =
-      firstMessage?.id === 'delimiter-new'
-        ? secondMessage?.id
-        : firstMessage?.id;
-
-    if (!firstMessageId) return;
-
-    isLoadingMore.current = true;
-
-    loadMoreMessages(firstMessage.roomJid, 30, Number(firstMessageId)).finally(
-      () => {
-        isLoadingMore.current = false;
-        lastMessageRef.current = memoizedMessages[memoizedMessages.length - 1];
-      }
-    );
-  }, [loadMoreMessages, memoizedMessages.length]);
+  }, [roomJID, restoreScrollPosition]);
 
   const scrollToBottom = useCallback((): void => {
     const content = containerRef.current;
@@ -261,7 +188,6 @@ const AssistantMessageList = <TMessage extends IMessage>({
       }
 
       lastMessageCount.current = messages.length;
-      checkIfLoadMoreMessages();
     } else {
       timeoutRef.current = null;
     }
@@ -287,19 +213,6 @@ const AssistantMessageList = <TMessage extends IMessage>({
   }, []);
 
   useEffect(() => {
-    if (memoizedMessages.length > 30) {
-      const content = containerRef.current;
-      if (content && scrollParams.current) {
-        const newScrollTop =
-          scrollParams.current.top +
-          (content.scrollHeight - scrollParams.current.height);
-        content.scrollTop = newScrollTop;
-      }
-      scrollParams.current = null;
-    }
-  }, [memoizedMessages.length]);
-
-  useEffect(() => {
     if (messages.length > 0) {
       const lastMessage = messages[messages.length - 1];
       const isLastMessageFromUser = lastMessage && isUserMessage;
@@ -313,7 +226,7 @@ const AssistantMessageList = <TMessage extends IMessage>({
         scrollToBottom();
       }
     }
-  }, [messages, isUserMessage]);
+  }, [messages, isUserMessage, scrollToBottom]);
 
   useEffect(() => {
     const shouldAutoScroll = config?.botMessageAutoScroll;
@@ -326,7 +239,12 @@ const AssistantMessageList = <TMessage extends IMessage>({
         setShowScrollButton(false);
       }, 50);
     });
-  }, [memoizedMessages.length, config?.botMessageAutoScroll]);
+  }, [
+    messages.length,
+    config?.botMessageAutoScroll,
+    waitForImagesLoaded,
+    scrollToBottom,
+  ]);
 
   let lastDateLabel: string | null = null;
 
@@ -337,21 +255,12 @@ const AssistantMessageList = <TMessage extends IMessage>({
         onScroll={onScroll}
         color={config?.colors?.primary}
       >
-        {loading && <Loader color={config?.colors?.primary} />}
-        {activeMessage && (
-          <React.Fragment>
-            <CustomMessage
-              message={activeMessage}
-              isUser={isUserMessage}
-              isReply={isReply}
-            />
-            <TreadLabel
-              reply={memoizedMessages.length}
-              colors={config?.colors}
-            />
-          </React.Fragment>
+        {messages.length === 0 && (
+          <div style={{ textAlign: 'center', color: 'red', padding: '16px' }}>
+            No messages for this room.
+          </div>
         )}
-        {memoizedMessages.map((message) => {
+        {messages.map((message) => {
           const messageDate = new Date(message.date).toDateString();
           const showDateLabel = messageDate !== lastDateLabel;
           lastDateLabel = messageDate;
@@ -382,29 +291,14 @@ const AssistantMessageList = <TMessage extends IMessage>({
             />
           );
         })}
-        {/* <VirtualizedList
-          data={memoizedMessages}
-          renderItem={(message) => {
-            const messageDate = new Date(message.date).toDateString();
-            const showDateLabel = messageDate !== lastDateLabel;
-            lastDateLabel = messageDate;
-            return (
-              <MessageContainer
-                key={message.id}
-                CustomMessage={CustomMessage}
-                message={message}
-                activeMessage={activeMessage}
-                config={config}
-                walletAddress={user.walletAddress}
-                isReply={isReply}
-                showDateLabel={showDateLabel}
-              />
-            );
-          }}
-          itemHeight={100}
-          containerHeight={containerRef.current.clientHeight}
-        /> */}
-        {config?.disableHeader && <Composing usersTyping={['User']} />}
+        {isComposing && (
+          <div
+            className="message-container"
+            style={{ textAlign: 'center', padding: '8px' }}
+          >
+            <span>Assistant is typing...</span>
+          </div>
+        )}
       </MessagesScroll>
       {showScrollButton && (
         <ScrollToBottomButton

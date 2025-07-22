@@ -1,4 +1,3 @@
-import ChatProfileModal from '../../components/Modals/ChatProfileModal/ChatProfileModal';
 import FilePreviewModal from '../../components/Modals/FilePreviewModal/FilePreviewModal';
 import BlockedUsersModal from '../../components/Modals/SettingsModals/BlockedUsers/BlockedUsersModal';
 import DocumentSharesModal from '../../components/Modals/SettingsModals/DocumentShares/DocumentSharesModal';
@@ -42,7 +41,6 @@ export const MODAL_COMPONENTS: Record<
 > = {
   [MODAL_TYPES.SETTINGS]: UserSettingsModal,
   [MODAL_TYPES.PROFILE]: UserProfileModal,
-  [MODAL_TYPES.CHAT_PROFILE]: ChatProfileModal,
   [MODAL_TYPES.MANAGE_DATA]: ManageDataModal,
   [MODAL_TYPES.VISIBILITY]: VisibilityModal,
   [MODAL_TYPES.REFERRALS]: ReferralsModal,

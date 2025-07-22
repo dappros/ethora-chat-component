@@ -115,4 +115,5 @@ export interface IConfig {
     closeButtonAriaLabel?: string;
   };
   assistantOpenStateKey?: string;
+  chatLabel?: string;
 }

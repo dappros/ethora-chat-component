@@ -1,9 +1,9 @@
-import { IUser } from './user.model';
+import { AsisstantUserType, IUser } from './user.model';
 import { TranslationObject } from '../types';
 
 export interface IMessage {
   id: string;
-  user: IUser;
+  user: IUser | AsisstantUserType;
   date: Date | string;
   body: string;
   roomJid: string;

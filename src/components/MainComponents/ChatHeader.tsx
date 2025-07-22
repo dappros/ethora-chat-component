@@ -105,7 +105,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
           </div>
           <ChatContainerHeaderInfo>
             <ChatContainerHeaderLabel>
-              {currentRoom?.title}
+              {config?.chatLabel || currentRoom?.title}
             </ChatContainerHeaderLabel>
             <ChatContainerHeaderLabel
               style={{ color: '#8C8C8C', fontSize: '14px' }}

@@ -327,49 +327,12 @@ export class XmppClient implements XmppClientInterface {
   //messages
   sendMessage = (
     roomJID: string,
-    firstName: string,
-    lastName: string,
-    photo: string,
-    walletAddress: string,
     userMessage: string,
-    notDisplayedValue?: string,
-    isReply?: boolean,
-    showInChannel?: boolean,
     mainMessage?: string,
     customId?: string
   ) => {
     this.wrapWithConnectionCheck(async () => {
-      console.log('hehehe');
-      sendTextMessageAssistant(
-        this.client,
-        roomJID,
-        firstName,
-        lastName,
-        photo,
-        walletAddress,
-        userMessage,
-        notDisplayedValue,
-        isReply,
-        showInChannel,
-        mainMessage,
-        this.devServer || `wss://'xmpp.ethoradev.com:5443'/ws`,
-        customId
-      );
-      // sendTextMessage(
-      //   this.client,
-      //   roomJID,
-      //   firstName,
-      //   lastName,
-      //   photo,
-      //   walletAddress,
-      //   userMessage,
-      //   notDisplayedValue,
-      //   isReply,
-      //   showInChannel,
-      //   mainMessage,
-      //   this.devServer || `wss://'xmpp.ethoradev.com:5443'/ws`,
-      //   customId
-      // ));
+      sendTextMessageAssistant(this.client, roomJID, userMessage);
     });
   };
 

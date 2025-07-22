@@ -6,28 +6,27 @@ import { useChatSettingState } from './useChatSettingState';
 
 const useComposing = () => {
   const { client } = useXmppClient();
-  const { activeRoomJID } = useSelector((state: RootState) => state.rooms);
   const { user } = useChatSettingState();
 
   const sendStartComposing = useCallback(() => {
     if (client) {
       client.sendTypingRequestStanza(
-        activeRoomJID,
+        'activeRoomJID',
         `${user.firstName} ${user.lastName}`,
         true
       );
     }
-  }, [activeRoomJID]);
+  }, ['activeRoomJID']);
 
   const sendEndComposing = useCallback(() => {
     if (client) {
       client.sendTypingRequestStanza(
-        activeRoomJID,
+        'activeRoomJID',
         `${user.firstName} ${user.lastName}`,
         false
       );
     }
-  }, [activeRoomJID]);
+  }, ['activeRoomJID']);
 
   useEffect(() => {
     const timerId = setTimeout(() => {

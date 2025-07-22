@@ -1,4 +1,3 @@
-import { getUserByXmppUsername } from '../networking/api-requests/roomMembers.api';
 import { store } from '../roomStore';
 import { IMessage, IUser, RoomMember } from '../types/types';
 
@@ -22,18 +21,4 @@ export const getUnnamedUsers = (messages: IMessage[]): IUser[] => {
   );
 };
 
-export const fixUnnamedArrayFromApi = async (
-  unnamedUsers: IUser[]
-): Promise<RoomMember[]> => {
-  const fetchedUsers = await Promise.all(
-    unnamedUsers.map(async (user) => {
-      const apiUser = await getUserByXmppUsername(
-        user.id,
-        store.getState().chatSettingStore.user.token
-      );
-      return apiUser;
-    })
-  );
-
-  return fetchedUsers;
-};
+export const fixUnnamedArrayFromApi = async (unnamedUsers: IUser[]) => {};
