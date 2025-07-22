@@ -199,32 +199,8 @@ const Message: React.FC<MessageProps> = forwardRef<
         ref={ref}
       >
         {!isUser && (
-          <CustomMessagePhotoContainer
-            onClick={() =>
-              message.user.name !== 'Deleted User'
-                ? handleUserAvatarClick(message.user)
-                : null
-            }
-          >
-            {message.user?.profileImage && message.user.profileImage !== '' ? (
-              <CustomMessagePhoto
-                src={
-                  message.user.profileImage ||
-                  'https://soccerpointeclaire.com/wp-content/uploads/2021/06/default-profile-pic-e1513291410505.jpg'
-                }
-                alt="userIcon"
-              />
-            ) : (
-              <Avatar
-                username={message.user.name}
-                style={{
-                  cursor:
-                    message.user.name !== 'Deleted User'
-                      ? 'pointer'
-                      : 'default',
-                }}
-              />
-            )}
+          <CustomMessagePhotoContainer>
+            <Avatar username={'Helper Ai'} />
           </CustomMessagePhotoContainer>
         )}
         <CustomMessageBubble
@@ -236,7 +212,7 @@ const Message: React.FC<MessageProps> = forwardRef<
         >
           {!isUser && (
             <CustomUserName isUser={isUser} color={config?.colors?.primary}>
-              {message.user.name}
+              {'Helper Ai'}
             </CustomUserName>
           )}
           {!isReply && message.mainMessage && (
@@ -273,55 +249,16 @@ const Message: React.FC<MessageProps> = forwardRef<
             />
           )}
           <CustomMessageTimestamp>
-            {!config?.disableSentLogic &&
-              isUser &&
-              message?.pending &&
-              'sending...'}
             {new Date(message.date).toLocaleTimeString([], {
               hour: '2-digit',
               minute: '2-digit',
             })}
-            {!config?.disableSentLogic && isUser && !message?.pending && (
-              <DoubleTick />
-            )}
           </CustomMessageTimestamp>
           {previewUrl && !message.isDeleted && (
             <URLPreviewCard url={previewUrl} isUserMessage={isUser} />
           )}
         </CustomMessageBubble>
-        <MessageFooter isUser={isUser}>
-          {message?.reply?.length && message?.reply?.length > 0 ? (
-            <BottomReplyContainer
-              isUser={isUser}
-              onClick={handleReplyMessage}
-              reply={message?.reply}
-              color={config.colors?.primary}
-            />
-          ) : null}
-          {message.reaction && (
-            <MessageReaction
-              reaction={message.reaction}
-              changeReaction={handleReactionMessage}
-              color={config.colors?.primary || '#0052CD'}
-              userName={`${user.firstName} ${user.lastName}`}
-            />
-          )}
-        </MessageFooter>
       </CustomMessageContainer>
-
-      {!config?.disableInteractions && (
-        <MessageInteractions
-          isReply={isReply}
-          isUser={isUser}
-          message={message}
-          setContextMenu={setContextMenu}
-          contextMenu={contextMenu}
-          handleReplyMessage={handleReplyMessage}
-          handleDeleteMessage={handleDeleteMessage}
-          handleEditMessage={handleEditMessage}
-          handleReactionMessage={handleReactionMessage}
-        />
-      )}
     </>
   );
 });

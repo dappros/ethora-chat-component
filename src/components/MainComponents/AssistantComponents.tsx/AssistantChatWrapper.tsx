@@ -5,6 +5,7 @@ import Loader from '../../styled/Loader';
 import { StyledLoaderWrapper } from '../../styled/StyledComponents';
 import useChatWrapperInitAssistant from '../../../hooks/useChatWrapperInitAssistant';
 import AssisstantChatRoom from './AssisstantChatRoom';
+import { Message } from '../../MessageBubble/Message';
 
 interface AssistantChatWrapperProps {
   token?: string;
@@ -51,7 +52,7 @@ const AssistantChatWrapper: FC<AssistantChatWrapperProps> = ({
               ...MainComponentStyles,
             }}
           >
-            <AssisstantChatRoom />
+            <AssisstantChatRoom CustomMessageComponent={Message} />
           </ChatWrapperBox>
         </ChatWrapperBox>
       ) : (
