@@ -3,31 +3,31 @@ import ReactDOM from 'react-dom/client';
 import AssistantTest from './AssistantTest.tsx';
 import './index.css';
 
-function mountChatAssistant(container: HTMLElement, botId: string) {
+function mountChatAssistant(container: HTMLElement, botId?: string) {
   ReactDOM.createRoot(container).render(<AssistantTest botId={botId} />);
 }
 
-const devRoot = document.getElementById('root');
-if (devRoot) {
-  ReactDOM.createRoot(devRoot).render(<AssistantTest />);
+function createChatWidgetDiv(): HTMLDivElement {
+  const chatWidgetContainer = document.createElement('div');
+  chatWidgetContainer.id = 'chat-widget';
+  return chatWidgetContainer;
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  const scriptTag = document.getElementById('chat-content-assistant');
-  if (scriptTag) {
-    const botId = scriptTag.getAttribute('data-bot-id');
-    if (botId) {
-      const chatWidgetContainer = document.createElement('div');
-      chatWidgetContainer.id = 'chat-widget';
-      scriptTag.parentNode?.insertBefore(
-        chatWidgetContainer,
-        scriptTag.nextSibling
-      );
-      mountChatAssistant(chatWidgetContainer, botId);
-    } else {
-      console.error(
-        'ChatContentAssistant: data-bot-id attribute not found on script tag.'
-      );
-    }
+function waitForBodyAndMount() {
+  if (!document.body) {
+    setTimeout(waitForBodyAndMount, 10);
+    return;
   }
-});
+
+  const existing = document.getElementById('chat-widget');
+  if (existing) return;
+
+  const scriptTag = document.getElementById('chat-content-assistant');
+  const botId = scriptTag?.getAttribute('data-bot-id') || undefined;
+
+  const chatWidgetContainer = createChatWidgetDiv();
+  document.body.appendChild(chatWidgetContainer);
+  mountChatAssistant(chatWidgetContainer, botId);
+}
+
+waitForBodyAndMount();
