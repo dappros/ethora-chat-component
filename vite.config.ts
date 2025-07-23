@@ -13,7 +13,7 @@ export default defineConfig({
       entry: resolve(__dirname, 'src/main.tsx'),
       name: 'ChatContentAssistant',
       formats: ['iife'],
-      fileName: () => 'our_script.js',
+      fileName: () => 'ethora_assistant.js',
     },
     rollupOptions: {
       external: [],

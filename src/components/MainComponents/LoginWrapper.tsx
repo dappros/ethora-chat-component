@@ -13,6 +13,7 @@ import {
 import { OrDelimiter } from '../styled/StyledComponents';
 import Button from '../styled/Button';
 import { setBaseURL } from '../../networking/apiClient';
+import { useXmppClient } from '../../context/xmppProvider';
 
 interface LoginWrapperProps {
   user?: { email: string; password: string };
@@ -26,6 +27,7 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
   const [showModal, setShowModal] = useState(false);
 
   const { user } = useSelector((state: RootState) => state.chatSettingStore);
+  const { client } = useXmppClient();
 
   const loginUserFunction = useCallback(async () => {
     try {
@@ -56,16 +58,20 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
       return;
     }
 
-    //use localStorage, to check for user was already logged
-
-    const storedUser: User = useLocalStorage(
-      '@ethora/chat-component-user'
-    ).get() as User;
-    if (storedUser) {
-      dispatch(setUser(storedUser));
-    }
-
-    //if jwt send api req with jwt and get user data
+    const doLogin = async () => {
+      if (client) {
+        try {
+          await client.sendDisconnectStanza();
+        } catch (e) {}
+      }
+      const storedUser: User = useLocalStorage(
+        '@ethora/chat-component-user'
+      ).get() as User;
+      if (storedUser) {
+        dispatch(setUser(storedUser));
+      }
+    };
+    doLogin();
 
     if (props.config?.jwtLogin?.enabled) {
       const jwtLogin = async () => {

@@ -1,4 +1,3 @@
-import React from 'react';
 import { ReduxWrapper } from './components/MainComponents/ReduxWrapper';
 import { XmppProvider } from './main';
 import { IConfig } from './types/types';
@@ -17,7 +16,7 @@ const assistantChatConfig: IConfig = {
     style: { boxShadow: '0 8px 32px rgba(0,0,0,0.18)' },
     closeButtonAriaLabel: 'Close assistant chat',
   },
-  assistantOpenStateKey: 'myAssistantChatOpen',
+  assistantOpenStateKey: 'EthoraAssistantOpen',
   disableMedia: true,
   disableInteractions: true,
   disableRooms: true,
@@ -28,7 +27,7 @@ const assistantChatConfig: IConfig = {
   },
 };
 
-export default function AssistantTest({ botId }: { botId: string }) {
+export default function AssistantTest({ botId }: { botId?: string }) {
   const user = createAnonymousXmppCredentials();
   return (
     <XmppProvider>
@@ -42,3 +41,20 @@ export default function AssistantTest({ botId }: { botId: string }) {
     </XmppProvider>
   );
 }
+
+// export default function AssistantTest() {
+//   const user = createAnonymousXmppCredentials();
+//   return (
+//     <XmppProvider>
+//       <ReduxWrapper
+//         roomJID={
+//           '685a6b13db443b01282ab755_685a6b13db443b01282ab763-bot@xmpp.ethoradev.com'
+//         }
+//         config={{
+//           ...assistantChatConfig,
+//           assistantMode: { enabled: true, user },
+//         }}
+//       />
+//     </XmppProvider>
+//   );
+// } uncomment to test with npm run dev

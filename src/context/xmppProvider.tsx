@@ -4,6 +4,7 @@ import React, {
   useContext,
   useState,
   useEffect,
+  useRef,
 } from 'react';
 import XmppClient from '../networking/xmppClient';
 import { IConfig, IRoom, xmppSettingsInterface } from '../types/types';
@@ -37,6 +38,7 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
   const [password, setPassword] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [reconnectAttempts, setReconnectAttempts] = useState<number>(0);
+  const initializingRef = useRef<Promise<XmppClient> | null>(null);
 
   const initializeClient = async (
     password: string,
@@ -49,39 +51,51 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
       setClient(client);
       return client;
     }
+    if (initializingRef.current) {
+      console.log(
+        'Client initialization already in progress. Returning pending promise.'
+      );
+      return initializingRef.current;
+    }
 
     console.log(password, email);
 
-    try {
-      const newClient = new XmppClient(password, email, xmppSettings);
-      setClient(newClient);
+    initializingRef.current = (async () => {
+      try {
+        const newClient = new XmppClient(password, email, xmppSettings);
+        setClient(newClient);
 
-      await new Promise<void>((resolve, reject) => {
-        const checkStatus = () => {
-          if (newClient.status === 'online') {
-            resolve();
-          } else if (newClient.status === 'error') {
-            reject(new Error('Failed to connect.'));
-          } else {
-            setTimeout(checkStatus, 500);
-          }
-        };
-        checkStatus();
-      });
+        await new Promise<void>((resolve, reject) => {
+          const checkStatus = () => {
+            if (newClient.status === 'online') {
+              resolve();
+            } else if (newClient.status === 'error') {
+              reject(new Error('Failed to connect.'));
+            } else {
+              setTimeout(checkStatus, 500);
+            }
+          };
+          checkStatus();
+        });
 
-      setPassword(password);
-      setEmail(email);
-      setClient(newClient);
-      setReconnectAttempts(0);
-      {
-        roomsList && initRoomsPresence(client, roomsList);
+        setPassword(password);
+        setEmail(email);
+        setClient(newClient);
+        setReconnectAttempts(0);
+        {
+          roomsList && initRoomsPresence(newClient, roomsList);
+        }
+        return newClient;
+      } catch (error) {
+        console.error('Error initializing client:', error);
+        setClient(null);
+        throw error;
+      } finally {
+        initializingRef.current = null;
       }
-      return newClient;
-    } catch (error) {
-      console.error('Error initializing client:', error);
-      setClient(null);
-      throw error;
-    }
+    })();
+
+    return initializingRef.current;
   };
 
   const reconnectClient = () => {
@@ -117,12 +131,7 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
         config?.userLogin?.user?.xmppPassword,
         config?.xmppSettings
       ).then(async (client) => {
-        await initXmppRooms(
-          config?.userLogin?.user,
-          config,
-          client
-          // store?.getState()?.rooms?.rooms
-        );
+        await initXmppRooms(config?.userLogin?.user, config, client);
       });
     };
 
@@ -145,6 +154,22 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
 
     return () => {
       window.removeEventListener('ethora-xmpp-logout', handleLogout);
+    };
+  }, [client]);
+
+  useEffect(() => {
+    const handleBeforeUnload = async (event: BeforeUnloadEvent) => {
+      if (client) {
+        try {
+          await client.close();
+          setClient(null);
+        } catch (e) {}
+      }
+      event.preventDefault();
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [client]);
 

@@ -20,6 +20,9 @@ import {
 } from '../../helpers/constants/ASSISTANT_LOCAL_STORAGE';
 import { createAnonymousXmppCredentials } from '../../utils/createAnonymousXmppCredentials';
 
+const ETHO_ASSISTANT_TIMESTAMP = 'ethora-assistant-timestamp';
+const ASSISTANT_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000;
+
 interface ChatWrapperProps {
   token?: string;
   roomJID?: string;
@@ -34,24 +37,39 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
   ({ ...props }) => {
     const memoizedConfig = useMemo(() => {
       if (props.config?.assistantMode) {
-        const user = window.localStorage.getItem(ETHO_ASSISTANT_USER);
-        if (user) {
-          props.config.assistantMode.user = JSON.parse(user);
+        const timestamp = window.localStorage.getItem(ETHO_ASSISTANT_TIMESTAMP);
+        const now = Date.now();
+        let expired = false;
+        if (timestamp) {
+          const created = parseInt(timestamp, 10);
+          if (isNaN(created) || now - created > ASSISTANT_EXPIRY_MS) {
+            expired = true;
+          }
         } else {
+          expired = true;
+        }
+        if (expired) {
+          window.localStorage.removeItem(ETHO_ASSISTANT_USER);
+          window.localStorage.removeItem(ETHO_ASSISTANT_MESSAGES);
+          window.localStorage.removeItem(ETHO_ASSISTANT_TIMESTAMP);
+        }
+        let user = window.localStorage.getItem(ETHO_ASSISTANT_USER);
+        if (!user) {
           const credentials = createAnonymousXmppCredentials();
           window.localStorage.setItem(
             ETHO_ASSISTANT_USER,
             JSON.stringify(credentials)
           );
+          window.localStorage.setItem(ETHO_ASSISTANT_TIMESTAMP, now.toString());
           props.config.assistantMode.user = credentials;
+        } else {
+          props.config.assistantMode.user = JSON.parse(user);
         }
       }
       return props.config;
     }, [props.config]);
 
-    // Assistant chat widget logic
     if (memoizedConfig?.assistantMode) {
-      // LocalStorage key for open state
       const openStateKey =
         memoizedConfig.assistantOpenStateKey || 'assistantChatOpen';
       const { get, set } = useLocalStorage<boolean>(openStateKey);
@@ -61,9 +79,8 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
         set(open);
       }, [open]);
 
-      // Button config
       const btnCfg = memoizedConfig.assistantButton || {};
-      // Popup config
+
       const popupCfg = memoizedConfig.assistantPopup || {};
 
       return (
@@ -132,7 +149,6 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
       );
     }
 
-    // Default: render as usual
     return (
       <Provider store={store}>
         <PersistGate loading={<Loader />} persistor={persistor}>

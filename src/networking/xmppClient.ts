@@ -71,7 +71,10 @@ export class XmppClient implements XmppClientInterface {
 
       this.host = url.match(/wss:\/\/([^:/]+)/)?.[1] || '';
       this.conference = `conference.${this.host}`;
-      console.log('+-+-+-+-+-+-+-+-+ ', { username: this.username });
+      console.log('+-+-+-+-+-+-+-+-+ ', {
+        username: this.username,
+        password: this.password,
+      });
       this.devServer = url;
 
       this.client = xmpp.client({
@@ -89,10 +92,27 @@ export class XmppClient implements XmppClientInterface {
     }
   }
 
+  async sendDisconnectStanza() {
+    if (this.client && this.client.jid) {
+      try {
+        const stanza = xml('presence', {
+          from: this.client.jid.toString(),
+          type: 'unavailable',
+        });
+        await this.client.send(stanza);
+        console.log('Sent disconnect (unavailable) stanza');
+        await this.client.stop();
+      } catch (error) {
+        console.error('Error sending disconnect stanza:', error);
+      }
+    }
+  }
+
   async disconnect() {
     if (!this.client) return;
 
     try {
+      await this.sendDisconnectStanza();
       await this.client.stop();
       this.client = null;
       console.log('Client disconnected');
@@ -219,6 +239,7 @@ export class XmppClient implements XmppClientInterface {
     if (this.client) {
       this.status = 'offline';
       try {
+        await this.sendDisconnectStanza();
         await this.client.stop();
         console.log('Client connection closed.');
       } catch (error) {
