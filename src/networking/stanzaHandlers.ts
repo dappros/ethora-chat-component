@@ -263,7 +263,7 @@ const handleComposing = async (stanza: Element, currentUser: string) => {
 
       !!stanza?.getChild('composing')
         ? composingList.push(
-            stanza.getChild('data').attrs?.fullName?.split(' ')?.[0] || 'User'
+            stanza.getChild('data').attrs?.fullName?.split(' ') || 'User'
           )
         : composingList.pop();
 

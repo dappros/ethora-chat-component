@@ -13,6 +13,7 @@ import {
 import { OrDelimiter } from '../styled/StyledComponents';
 import Button from '../styled/Button';
 import { setBaseURL } from '../../networking/apiClient';
+import Loader from '../styled/Loader';
 
 interface LoginWrapperProps {
   user?: { email: string; password: string };
@@ -24,6 +25,7 @@ interface LoginWrapperProps {
 
 const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
   const [showModal, setShowModal] = useState(false);
+  const { config, MainComponentStyles } = props;
 
   const { user } = useSelector((state: RootState) => state.chatSettingStore);
 
@@ -48,11 +50,11 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    if (props.config?.baseUrl) {
-      setBaseURL(props.config?.baseUrl, props.config?.customAppToken);
+    if (config?.baseUrl) {
+      setBaseURL(config?.baseUrl, config?.customAppToken);
     }
     if (props?.config?.userLogin?.enabled && props?.config?.userLogin?.user) {
-      dispatch(setUser(props.config.userLogin.user));
+      dispatch(setUser(config.userLogin.user));
       return;
     }
 
@@ -67,10 +69,10 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
 
     //if jwt send api req with jwt and get user data
 
-    if (props.config?.jwtLogin?.enabled) {
+    if (config?.jwtLogin?.enabled) {
       const jwtLogin = async () => {
         try {
-          const loginData = await loginViaJwt(props.config.jwtLogin.token);
+          const loginData = await loginViaJwt(config.jwtLogin.token);
           if (loginData) {
             dispatch(setUser(loginData));
           }
@@ -86,10 +88,10 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
     //if no login config - default user login
 
     if (
-      !props.config?.googleLogin &&
-      !props.config?.defaultLogin &&
-      !props.config?.jwtLogin &&
-      !props.config?.userLogin &&
+      !config?.googleLogin &&
+      !config?.defaultLogin &&
+      !config?.jwtLogin &&
+      !config?.userLogin &&
       user.xmppUsername === ''
     ) {
       const defaultLogin = async () => {
@@ -117,7 +119,7 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
       {showModal ? (
         <div
           style={{
-            ...props.MainComponentStyles,
+            ...MainComponentStyles,
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
@@ -134,6 +136,8 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
         </div>
       ) : user && user.xmppPassword !== '' ? (
         <ChatWrapper {...props} />
+      ) : config.jwtLogin.enabled ? (
+        <Loader />
       ) : (
         <LoginForm {...props} />
       )}
