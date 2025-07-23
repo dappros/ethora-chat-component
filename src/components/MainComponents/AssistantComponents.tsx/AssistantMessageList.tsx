@@ -18,6 +18,7 @@ import { MessageContainer } from '../MessageContainer';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../../roomStore';
 import { addRoomMessage } from '../../../roomStore/assistantMessageSlice';
+import NoMessagesPlaceholder from '../NoMessagesPlaceholder';
 
 interface AssistantMessageListProps<TMessage extends IMessage> {
   CustomMessage?: React.ComponentType<{
@@ -248,7 +249,7 @@ const AssistantMessageList = <TMessage extends IMessage>({
       >
         {messages.length === 0 && (
           <div style={{ textAlign: 'center', color: 'red', padding: '16px' }}>
-            No messages for this room.
+            <NoMessagesPlaceholder />
           </div>
         )}
         {messages.map((message) => {
