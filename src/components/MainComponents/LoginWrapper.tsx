@@ -10,7 +10,7 @@ import {
   loginEmail,
   loginViaJwt,
 } from '../../networking/api-requests/auth.api';
-import { OrDelimiter } from '../styled/StyledComponents';
+import { OrDelimiter, StyledLoaderWrapper } from '../styled/StyledComponents';
 import Button from '../styled/Button';
 import { setBaseURL } from '../../networking/apiClient';
 import Loader from '../styled/Loader';
@@ -137,7 +137,11 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
       ) : user && user.xmppPassword !== '' ? (
         <ChatWrapper {...props} />
       ) : config.jwtLogin.enabled ? (
-        <Loader />
+        <StyledLoaderWrapper
+          style={{ alignItems: 'center', flexDirection: 'column', gap: '10px' }}
+        >
+          <Loader color={config?.colors?.primary} style={{ margin: '0px' }} />
+        </StyledLoaderWrapper>
       ) : (
         <LoginForm {...props} />
       )}
