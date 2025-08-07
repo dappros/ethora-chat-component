@@ -114,7 +114,7 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
                     color: '#fff',
                   }}
                 >
-                  <span>{memoizedConfig.chatLabel || 'Assistant Chat'}</span>
+                  <span>{memoizedConfig.chatLabel || 'AI Assistant'}</span>
                   <button
                     onClick={() => setOpen(false)}
                     aria-label={popupCfg.closeButtonAriaLabel || 'Close chat'}

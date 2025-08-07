@@ -26,7 +26,7 @@ const NoMessagesPlaceholder = () => {
             Write a question
           </div>
           <div style={{ fontSize: '14px', fontWeight: 400 }}>
-            And Ai Helper will answer it for you
+            Our AI Assistant will be happy to help
           </div>
         </div>
       </div>
