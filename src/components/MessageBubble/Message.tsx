@@ -43,7 +43,7 @@ const Message: React.FC<MessageProps> = forwardRef<
 >(({ message, isUser, isReply }, ref) => {
   const { client } = useXmppClient();
   const { user, config, langSource } = useChatSettingState();
-  const { heap } = useMessageHeapState();
+  const { idSet } = useMessageHeapState();
 
   const dispatch = useDispatch();
 
@@ -191,7 +191,7 @@ const Message: React.FC<MessageProps> = forwardRef<
     ? parseMessageBody(config?.messageTextFilter.filterFunction(message.body))
     : parseMessageBody(message.body);
 
-  const isPending = heap.has(message.id) || message?.pending || false;
+  const isPending = idSet.has(message.id) || message?.pending || false;
 
   return (
     <>

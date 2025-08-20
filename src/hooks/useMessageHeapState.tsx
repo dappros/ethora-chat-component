@@ -2,11 +2,10 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../roomStore';
 
 export const useMessageHeapState = () => {
-  const heapArray = useSelector(
+  const queue = useSelector(
     (state: RootState) => state.roomHeapSlice.messageHeap
   );
+  const idSet = new Set(queue?.map((m) => m.id) ?? []);
 
-  const heap = new Map(heapArray ?? []);
-
-  return { heap };
+  return { queue, idSet };
 };

@@ -1,6 +1,7 @@
 import { Element } from 'ltx';
 import { IUser } from '../types/types';
 import { transformArrayToObject } from './transformTranslatations';
+import { Iso639_1Codes } from '../types/types';
 
 const extractTimestamp = (str: string, stanza?: any): string | null => {
   if (!str) return;
@@ -20,7 +21,7 @@ interface DataXml {
   user: IUser;
   deleted?: boolean;
   translations?: any;
-  langSource?: string;
+  langSource?: Iso639_1Codes;
   xmppId?: string;
   xmppFrom?: string;
   data: { [x: string]: any };
@@ -46,7 +47,9 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
         JSON.parse(fullData.getChild('translations')!.attrs.value).translates
       )
     : undefined;
-  const langSource = fullData?.getChild('translate')?.attrs?.source;
+  const langSource = fullData?.getChild('translate')?.attrs?.source as
+    | Iso639_1Codes
+    | undefined;
   const date = new Date(+id?.slice(0, 13)).toISOString();
 
   const data = fullData?.getChild('data') || stanza?.getChild('data');
