@@ -136,7 +136,7 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
         </div>
       ) : user && user.xmppPassword !== '' ? (
         <ChatWrapper {...props} />
-      ) : config.jwtLogin.enabled ? (
+      ) : config?.jwtLogin?.enabled ? (
         <StyledLoaderWrapper
           style={{ alignItems: 'center', flexDirection: 'column', gap: '10px' }}
         >
