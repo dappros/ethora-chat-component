@@ -2,7 +2,8 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { IMessage } from '../types/types';
 
 interface roomHeapSliceState {
-  messageHeap: [string, IMessage][];
+  // FIFO queue of pending messages
+  messageHeap: IMessage[];
 }
 
 const initialState: roomHeapSliceState = {
@@ -13,20 +14,21 @@ export const roomHeapSlice = createSlice({
   name: 'roomHeapStore',
   initialState,
   reducers: {
-    addMessageToHeap: (
-      state,
-      action: PayloadAction<{ jid: string; message: IMessage }>
-    ) => {
-      const heapMap = new Map(state.messageHeap ?? []);
-      heapMap.set(action.payload.jid, action.payload.message);
-      state.messageHeap = Array.from(heapMap.entries());
+    // Enqueue a message to the end of the queue
+    addMessageToHeap: (state, action: PayloadAction<IMessage>) => {
+      state.messageHeap.push(action.payload);
     },
+    // Remove the head message (oldest enqueued)
     popMessageFromHeap: (state) => {
-      const heapMap = new Map(state.messageHeap ?? []);
-      const firstKey = heapMap.keys().next().value;
-      if (firstKey) {
-        heapMap.delete(firstKey);
-        state.messageHeap = Array.from(heapMap.entries());
+      if (state.messageHeap.length > 0) {
+        state.messageHeap.shift();
+      }
+    },
+    // Remove a specific message by id (safer when sending from snapshots)
+    removeMessageFromHeapById: (state, action: PayloadAction<string>) => {
+      const index = state.messageHeap.findIndex((m) => m.id === action.payload);
+      if (index !== -1) {
+        state.messageHeap.splice(index, 1);
       }
     },
     clearHeap: (state) => {
@@ -35,7 +37,11 @@ export const roomHeapSlice = createSlice({
   },
 });
 
-export const { addMessageToHeap, popMessageFromHeap, clearHeap } =
-  roomHeapSlice.actions;
+export const {
+  addMessageToHeap,
+  popMessageFromHeap,
+  removeMessageFromHeapById,
+  clearHeap,
+} = roomHeapSlice.actions;
 
 export default roomHeapSlice.reducer;

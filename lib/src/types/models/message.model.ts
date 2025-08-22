@@ -1,5 +1,6 @@
 import { IUser } from './user.model';
 import { TranslationObject } from '../types';
+import { Iso639_1Codes } from './language.model';
 
 export interface IMessage {
   id: string;
@@ -26,7 +27,7 @@ export interface IMessage {
   reaction?: Record<string, ReactionMessage>;
   fileName?: string;
   translations?: TranslationObject;
-  langSource?: string;
+  langSource?: Iso639_1Codes;
   originalName?: string;
   size?: string;
   xmppId?: string;
