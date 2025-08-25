@@ -62,10 +62,13 @@ const RoomList: React.FC<RoomListProps> = ({
 
   const performClick = useCallback(
     (chat: IRoom) => {
-      if (chat.jid !== activeRoomJID) {
-        onRoomClick?.(chat);
-        setOpen(false);
+      if (chat.jid === activeRoomJID && !isSmallScreen) {
+        return;
       }
+
+      onRoomClick?.(chat);
+      setOpen(false);
+      
     },
     [onRoomClick]
   );
@@ -133,7 +136,7 @@ const RoomList: React.FC<RoomListProps> = ({
   }, [burgerMenu, handleClickOutside]);
 
   const isChatActive = useCallback(
-    (room: IRoom) => activeRoomJID === room.jid,
+    (room: IRoom) => !isSmallScreen && activeRoomJID === room.jid,
     [activeRoomJID]
   );
 

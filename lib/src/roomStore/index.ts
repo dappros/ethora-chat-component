@@ -16,6 +16,7 @@ import { newMessageMidlleware } from './Middleware/newMessageMidlleware';
 import { logoutMiddleware } from './Middleware/logoutMiddleware';
 import { encryptTransform } from 'redux-persist-transform-encrypt';
 import { reactionsMiddleware } from './Middleware/reactionsMiddleware';
+import { ETHORA_CHAT_COMPONENT_VERSION } from '../version';
 
 const debugMiddleware = (storeAPI) => (next) => (action) => {
   if (typeof action !== 'object' || action === null) {
@@ -166,3 +167,7 @@ export const store = configureStore({
 export type AppDispatch = typeof store.dispatch;
 
 export const persistor = persistStore(store);
+
+try {
+  console.log('[EthoraChatComponent] version:', ETHORA_CHAT_COMPONENT_VERSION);
+} catch (e) {}

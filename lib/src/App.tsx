@@ -129,20 +129,18 @@ export default function App() {
   );
 
   return (
-    <React.StrictMode>
-      <XmppProvider>
-        <Router>
-          <div className="flex">
-            {navigation}
-            <div className="flex-1 p-4">
-              <Routes>
-                <Route path="/apps" element={<Apps />} />
-                <Route path="/chat" element={<ChatComponent />} />
-              </Routes>
-            </div>
+    <XmppProvider>
+      <Router>
+        <div className="flex">
+          {navigation}
+          <div className="flex-1 p-4">
+            <Routes>
+              <Route path="/apps" element={<Apps />} />
+              <Route path="/chat" element={<ChatComponent />} />
+            </Routes>
           </div>
-        </Router>
-      </XmppProvider>
-    </React.StrictMode>
+        </div>
+      </Router>
+    </XmppProvider>
   );
 }

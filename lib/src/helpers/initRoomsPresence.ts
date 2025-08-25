@@ -8,7 +8,13 @@ export const initRoomsPresence = async (
 ) => {
   console.log('Persisted presence');
   if (!client) return null;
-  await Promise.all(
-    Object.keys(rooms).map((jid) => presenceInRoom(client.client, jid))
+  const jids = Object.keys(rooms || {});
+  if (!jids.length) return null;
+  await Promise.allSettled(
+    jids.map(async (jid) => {
+      try {
+        await presenceInRoom(client.client, jid);
+      } catch (e) {}
+    })
   );
 };

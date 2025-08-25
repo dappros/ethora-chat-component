@@ -58,7 +58,7 @@ export const useSendMessage = () => {
               },
             })
           );
-          // Enqueue for queued sending with lang source
+
           dispatch(
             addMessageToHeap({
               id: id,
@@ -77,6 +77,7 @@ export const useSendMessage = () => {
               langSource: (langSource as any) || 'en',
             })
           );
+
           client?.sendTextMessageWithTranslateTagStanza(
             activeRoomJID,
             user.firstName,
@@ -88,7 +89,8 @@ export const useSendMessage = () => {
             isReply || false,
             isChecked || false,
             mainMessage || '',
-            (langSource as any) || 'en'
+            (langSource as any) || 'en',
+            id
           );
         } else {
           const id = `send-text-message-${uuidv4()}`;

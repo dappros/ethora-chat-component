@@ -16,9 +16,10 @@ export const sendTextMessageWithTranslateTag = (
     mainMessage?: string;
     devServer?: string;
   },
-  source: Iso639_1Codes
+  source: Iso639_1Codes,
+  customId?: string
 ) => {
-  const id = `get-translate-messsage:${Date.now().toString()}`;
+  const id = customId || `get-translate-messsage:${Date.now().toString()}`;
 
   try {
     const message = xml(
