@@ -18,12 +18,6 @@ export const roomHeapSlice = createSlice({
     addMessageToHeap: (state, action: PayloadAction<IMessage>) => {
       state.messageHeap.push(action.payload);
     },
-    // Remove the head message (oldest enqueued)
-    popMessageFromHeap: (state) => {
-      if (state.messageHeap.length > 0) {
-        state.messageHeap.shift();
-      }
-    },
     // Remove a specific message by id (safer when sending from snapshots)
     removeMessageFromHeapById: (state, action: PayloadAction<string>) => {
       const index = state.messageHeap.findIndex((m) => m.id === action.payload);
@@ -37,11 +31,7 @@ export const roomHeapSlice = createSlice({
   },
 });
 
-export const {
-  addMessageToHeap,
-  popMessageFromHeap,
-  removeMessageFromHeapById,
-  clearHeap,
-} = roomHeapSlice.actions;
+export const { addMessageToHeap, removeMessageFromHeapById, clearHeap } =
+  roomHeapSlice.actions;
 
 export default roomHeapSlice.reducer;

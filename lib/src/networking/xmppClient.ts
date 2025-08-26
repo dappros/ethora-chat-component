@@ -65,9 +65,15 @@ export class XmppClient implements XmppClientInterface {
   pingInterval: any = null;
   pingTimeout: any = null;
   lastPingId: string | null = null;
-  pingIntervalMs = 15000;
+  pingIntervalMs = 60000;
   pongTimeoutMs = 1000;
   pingOnSendEnabled: boolean = false;
+
+  idleThresholdMs = 60000;
+  lastActivityTs: number = Date.now();
+  pingInFlight: boolean = false;
+
+  private idlePingTimeout: NodeJS.Timeout | null = null;
 
   constructor(
     username: string,
@@ -178,17 +184,20 @@ export class XmppClient implements XmppClientInterface {
     });
 
     this.client.on('online', async (jid) => {
-      this.resource = jid.resource || 'default';
-      console.log('Client is online.', new Date());
-      this.status = 'online';
-      this.reconnectAttempts = 0;
-      this.client.send(xml('presence'));
-      await this.sendAllPresencesAndMarkReady();
-      this.logStep('event:online');
-      this.startKeepAlive();
-      this.processQueue().catch(() => {});
+      try {
+        this.resource = jid.resource || 'default';
+        console.log('Client is online.', new Date());
+        this.status = 'online';
+        this.reconnectAttempts = 0;
+        this.client.send(xml('presence'));
+        await this.sendAllPresencesAndMarkReady();
+        this.logStep('event:online');
+        this.processQueue().catch(() => {});
 
-      await this.drainHeap();
+        await this.drainHeap();
+      } catch (error) {
+        console.log('Error', error);
+      }
     });
 
     this.client.on('connecting', () => {
@@ -204,6 +213,7 @@ export class XmppClient implements XmppClientInterface {
     });
 
     this.client.on('stanza', (stanza) => {
+      this.lastActivityTs = Date.now();
       try {
         if (this.lastPingId && isPong(stanza, this.lastPingId)) {
           this.handlePong();
@@ -212,12 +222,90 @@ export class XmppClient implements XmppClientInterface {
       handleStanza.bind(this, stanza, this)();
     });
 
+    this.startAdaptivePing();
+
     try {
       if (typeof window !== 'undefined') {
         window.addEventListener('online', this.onBrowserOnline);
         window.addEventListener('offline', this.onBrowserOffline);
       }
     } catch {}
+  }
+
+  private scheduleAdaptivePing() {
+    if (this.idlePingTimeout) clearTimeout(this.idlePingTimeout);
+
+    const idleTime = 2000;
+    const pongWait = 2000;
+
+    this.idlePingTimeout = setTimeout(() => {
+      if (this.status !== 'online' || this.pingInFlight) return;
+
+      this.pingInFlight = true;
+      const pingId = sendPing(this.client, this.host);
+      this.lastPingId = pingId;
+
+      let pongReceived = false;
+
+      const pongListener = (stanza: any) => {
+        if (isPong(stanza, pingId)) {
+          pongReceived = true;
+          if (this.pingTimeout) clearTimeout(this.pingTimeout);
+          this.client.removeListener('stanza', pongListener);
+          this.lastPingId = null;
+          this.pingInFlight = false;
+          this.markActivity();
+        }
+      };
+
+      this.client.on('stanza', pongListener);
+
+      this.pingTimeout = setTimeout(async () => {
+        if (!pongReceived) {
+          this.client.removeListener('stanza', pongListener);
+          this.lastPingId = null;
+          this.pingInFlight = false;
+          console.warn('Ping timeout, reconnecting...');
+          await this.reconnect();
+          await this.drainHeap();
+        }
+      }, pongWait);
+    }, idleTime);
+  }
+
+  private startAdaptivePing() {
+    if (this.idlePingTimeout) {
+      clearTimeout(this.idlePingTimeout);
+    }
+
+    this.idlePingTimeout = setTimeout(() => {
+      if (this.status === 'online') {
+        this.pingInFlight = true;
+        const pingId = sendPing(this.client, this.host);
+        this.lastPingId = pingId;
+
+        this.pingTimeout = setTimeout(() => {
+          this.handlePingTimeout();
+          this.pingInFlight = false;
+        }, this.pongTimeoutMs);
+
+        const pongListener = (stanza: any) => {
+          if (isPong(stanza, pingId)) {
+            if (this.pingTimeout) clearTimeout(this.pingTimeout);
+            this.lastPingId = null;
+            this.pingInFlight = false;
+            this.client.removeListener('stanza', pongListener);
+            this.markActivity();
+          }
+        };
+        this.client.on('stanza', pongListener);
+      }
+    }, this.idleThresholdMs);
+  }
+
+  private markActivity() {
+    this.lastActivityTs = Date.now();
+    this.scheduleAdaptivePing();
   }
 
   async sendAllPresencesAndMarkReady() {
@@ -228,6 +316,7 @@ export class XmppClient implements XmppClientInterface {
 
   async reconnect() {
     this.presencesReady = false;
+
     if (this.reconnecting) {
       return this.reconnectPromise;
     }
@@ -370,15 +459,6 @@ export class XmppClient implements XmppClientInterface {
     }
   }
 
-  private startKeepAlive() {
-    if (this.pingInterval) clearInterval(this.pingInterval);
-    this.pingInterval = setInterval(() => {
-      try {
-        this.sendPing();
-      } catch {}
-    }, this.pingIntervalMs);
-  }
-
   private onBrowserOnline = () => {
     this.logStep('browser:online');
     this.processQueue().catch(() => {});
@@ -491,75 +571,16 @@ export class XmppClient implements XmppClientInterface {
 
   //messages
   async sendMessageWithPingCheck(
-    sendFn: () => Promise<void>,
-    retry = false
+    sendFn: () => Promise<void>
   ): Promise<boolean> {
-    if (!this.pingOnSendEnabled) {
-      try {
-        await sendFn();
-        return true;
-      } catch (e) {
-        return false;
-      }
+    this.markActivity();
+
+    try {
+      await sendFn();
+      return true;
+    } catch {
+      return false;
     }
-    const pingId = sendPing(this.client, this.host);
-    this.lastPingId = pingId;
-    let pongReceived = false;
-    let sendSuccess = false;
-
-    const pongListener = async (stanza: any) => {
-      if (isPong(stanza, pingId)) {
-        pongReceived = true;
-        if (this.pingTimeout) clearTimeout(this.pingTimeout);
-        this.client.removeListener('stanza', pongListener);
-        this.lastPingId = null;
-        try {
-          await sendFn();
-          sendSuccess = true;
-        } catch (e) {
-          sendSuccess = false;
-        }
-        resolvePromise(sendSuccess);
-      }
-    };
-    this.client.on('stanza', pongListener);
-    let resolvePromise: (value: boolean) => void;
-
-    const resultPromise = new Promise<boolean>((resolve) => {
-      resolvePromise = resolve;
-      this.pingTimeout = setTimeout(async () => {
-        if (!pongReceived) {
-          this.client.removeListener('stanza', pongListener);
-          this.lastPingId = null;
-          if (!retry) {
-            await this.reconnect();
-            await new Promise<void>((resolveWait, reject) => {
-              const timeoutId = setTimeout(
-                () => reject(new Error('Reconnect timeout')),
-                10000
-              );
-              const check = () => {
-                if (this.status === 'online') {
-                  clearTimeout(timeoutId);
-                  resolveWait();
-                } else {
-                  setTimeout(check, 200);
-                }
-              };
-              check();
-            });
-            const retryResult = await this.sendMessageWithPingCheck(
-              sendFn,
-              true
-            );
-            resolve(retryResult);
-            return;
-          }
-          resolve(false);
-        }
-      }, this.pongTimeoutMs);
-    });
-    return resultPromise;
   }
 
   sendMessage = (
@@ -725,7 +746,7 @@ export class XmppClient implements XmppClientInterface {
     });
   }
 
-  sendPing() {
+  sendPingStanza() {
     if (!this.client || this.status !== 'online') return;
     const pingId = sendPing(this.client, this.host);
     this.lastPingId = pingId;
@@ -757,6 +778,7 @@ export class XmppClient implements XmppClientInterface {
         const firstName = (msg.user as any)?.firstName || '';
         const lastName = (msg.user as any)?.lastName || '';
         const wallet = (msg.user as any)?.walletAddress || '';
+
         if (isTranslate) {
           const ok = await this.sendTextMessageWithTranslateTagStanza(
             msg.roomJid,
@@ -790,7 +812,8 @@ export class XmppClient implements XmppClientInterface {
           if (ok === false) break;
         }
       }
-    } catch (e) {}
+      store.dispatch({ type: 'roomHeapStore/clearHeap' });
+    } catch {}
   }
 }
 

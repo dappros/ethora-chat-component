@@ -55,10 +55,8 @@ export const useHeapSender = (client: XmppClient | null) => {
               msg.id
             );
           }
-          // Do NOT remove from heap here; wait for server echo/ack in stanzaHandlers
         } catch (err) {
           console.warn('Failed to send heap message', msg, err);
-          // Allow retry on next drain
           inFlightRef.current.delete(msg.id);
         }
       }
