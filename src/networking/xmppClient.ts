@@ -529,9 +529,7 @@ export class XmppClient implements XmppClientInterface {
     before?: number,
     otherStanzaId?: string
   ) => {
-    return this.wrapWithConnectionCheck(async () => {
-      return await getHistory(this.client, chatJID, max, before, otherStanzaId);
-    });
+    return await getHistory(this.client, chatJID, max, before, otherStanzaId);
   };
 
   getLastMessageArchiveStanza(roomJID: string) {

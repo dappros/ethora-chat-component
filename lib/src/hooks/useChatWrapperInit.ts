@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { IConfig } from '../types/types';
 import XmppClient from '../networking/xmppClient';
@@ -42,6 +42,7 @@ const useChatWrapperInit = ({
   const [inited, setInited] = useState<boolean>(false);
   const [showModal, setShowModal] = useState<boolean>(false);
   const [isRetrying, setIsRetrying] = useState<boolean | 'norooms'>(false);
+  const hasSyncedHistoryRef = useRef<boolean>(false);
 
   const { client, initializeClient, setClient } = useXmppClient();
   const syncRooms = useGetNewArchRoom();
@@ -100,7 +101,6 @@ const useChatWrapperInit = ({
           console.log('Error, no user');
         } else {
           chatAutoEnterer({ roomJID, wasAutoSelected, config, dispatch });
-
           if (!client) {
             try {
               setInited(false);
@@ -146,7 +146,10 @@ const useChatWrapperInit = ({
                     // newClient.setVCardStanza(
                     //   `${user.firstName} ${user.lastName}`
                     // );
-                    await updateMessagesTillLast(rooms, newClient);
+                    if (!hasSyncedHistoryRef.current) {
+                      await updateMessagesTillLast(rooms, newClient);
+                      hasSyncedHistoryRef.current = true;
+                    }
                     setClient(newClient);
                   }
                 );
@@ -178,7 +181,10 @@ const useChatWrapperInit = ({
                   roomTimestampObject: [jid: string, timestamp: string]
                 ) => {
                   updatedChatLastTimestamps(roomTimestampObject, dispatch);
-                  await updateMessagesTillLast(rooms, client);
+                  if (!hasSyncedHistoryRef.current) {
+                    await updateMessagesTillLast(rooms, client);
+                    hasSyncedHistoryRef.current = true;
+                  }
                   setClient(client);
                 }
               );
@@ -197,7 +203,7 @@ const useChatWrapperInit = ({
     };
 
     initXmmpClient();
-  }, [user.xmppPassword, user.defaultWallet?.walletAddress]);
+  }, [user.xmppPassword, user.xmppUsername]);
 
   return {
     client,
