@@ -82,7 +82,7 @@ const ChatComponent = React.memo(() => {
           //   overwriteEnterClick: true,
           // },
           disableMedia: true,
-          disableTypingIndicator: true,
+          disableHeader: true,
           ...config,
         }}
         MainComponentStyles={mainStyles}

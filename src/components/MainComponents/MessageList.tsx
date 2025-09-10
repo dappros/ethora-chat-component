@@ -109,6 +109,8 @@ const MessageList = <TMessage extends IMessage>({
   const timeoutRef = useRef<number>(0);
   const scrollParams = useRef<{ top: number; height: number } | null>(null);
   const atBottom = useRef<boolean>(true);
+  const isUserScrolledUp = useRef<boolean>(false);
+  const lastComposingState = useRef<boolean>(false);
 
   const getScrollParams = (): { top: number; height: number } | null => {
     const content = containerRef.current;
@@ -245,12 +247,18 @@ const MessageList = <TMessage extends IMessage>({
   const checkAtBottom = () => {
     const content = containerRef.current;
     if (content) {
-      const isAtBottom =
-        content.scrollHeight - content.clientHeight <= content.scrollTop + 120;
-      atBottom.current = isAtBottom;
+      const scrollTop = content.scrollTop;
+      const scrollHeight = content.scrollHeight;
+      const clientHeight = content.clientHeight;
+      const distanceFromBottom = scrollHeight - clientHeight - scrollTop;
 
-      const scrolledUp =
-        content.scrollHeight - content.clientHeight - content.scrollTop > 150;
+      const isNearBottom = distanceFromBottom <= 150;
+      const isAtBottom = distanceFromBottom <= 5;
+
+      atBottom.current = isAtBottom;
+      isUserScrolledUp.current = !isNearBottom;
+
+      const scrolledUp = distanceFromBottom > 150;
 
       if (scrolledUp) {
         setShowScrollButton(true);
@@ -316,21 +324,35 @@ const MessageList = <TMessage extends IMessage>({
   }, [messages, isUserMessage]);
 
   useEffect(() => {
-    const shouldAutoScroll = config?.botMessageAutoScroll;
     const content = containerRef.current;
-    if (!shouldAutoScroll || !content) return;
+    if (!content) return;
 
-    waitForImagesLoaded().then(() => {
-      if (composingList?.length > 0) {
-        scrollToBottom();
-        setShowScrollButton(false);
+    const hasNewMessages = memoizedMessages.length > lastMessageCount.current;
+    const isTypingStarted =
+      composingList?.length > 0 && !lastComposingState.current;
+    const isTypingStopped =
+      composingList?.length === 0 && lastComposingState.current;
+
+    lastComposingState.current = composingList?.length > 0;
+
+    if (!isUserScrolledUp.current) {
+      if (hasNewMessages || isTypingStarted) {
+        waitForImagesLoaded().then(() => {
+          scrollToBottom();
+          setShowScrollButton(false);
+          setNewMessagesCount(0);
+        });
       }
-      setTimeout(() => {
-        scrollToBottom();
-        setShowScrollButton(false);
-      }, 50);
-    });
-  }, [memoizedMessages.length, config?.botMessageAutoScroll, composingList]);
+    }
+
+    if (isTypingStopped) {
+    }
+  }, [
+    memoizedMessages.length,
+    composingList,
+    scrollToBottom,
+    waitForImagesLoaded,
+  ]);
 
   let lastDateLabel: string | null = null;
 
