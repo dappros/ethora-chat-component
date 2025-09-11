@@ -14,6 +14,7 @@ import {
 import { IConfig, IMessage, User } from '../../types/types';
 import Loader from '../styled/Loader';
 import Composing from '../styled/StyledInputComponents/Composing';
+import CustomTypingIndicator from '../styled/StyledInputComponents/CustomTypingIndicator';
 import TreadLabel from '../styled/TreadLabel';
 import { MessageContainer } from './MessageContainer';
 import { useRoomState } from '../../hooks/useRoomState';
@@ -430,9 +431,22 @@ const MessageList = <TMessage extends IMessage>({
           itemHeight={100}
           containerHeight={containerRef.current.clientHeight}
         /> */}
-        {config?.disableHeader && composing && (
-          <Composing usersTyping={composingList || ['User']} />
+        {/* Custom Typing Indicator */}
+        {config?.customTypingIndicator?.enabled && composing && (
+          <CustomTypingIndicator
+            usersTyping={composingList || ['User']}
+            text={config.customTypingIndicator.text}
+            position={config.customTypingIndicator.position || 'bottom'}
+            styles={config.customTypingIndicator.styles}
+            customComponent={config.customTypingIndicator.customComponent}
+            isVisible={composing}
+          />
         )}
+
+        {/* Default Typing Indicator (fallback) */}
+        {!config?.customTypingIndicator?.enabled &&
+          config?.disableHeader &&
+          composing && <Composing usersTyping={composingList || ['User']} />}
       </MessagesScroll>
       {showScrollButton && (
         <ScrollToBottomButton

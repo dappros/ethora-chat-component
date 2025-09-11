@@ -13,12 +13,31 @@ export const useSendMessage = () => {
   const { client } = useXmppClient();
   const dispatch = useDispatch();
 
-  const { user, editAction } = useSelector((state: RootState) => ({
-    activeRoomJID: state.rooms.activeRoomJID,
-    user: state.chatSettingStore.user,
-    editAction: state.rooms.editAction,
-    config: state.chatSettingStore.config,
-  }));
+  const { user, editAction, activeRoomJID, rooms } = useSelector(
+    (state: RootState) => ({
+      activeRoomJID: state.rooms.activeRoomJID,
+      user: state.chatSettingStore.user,
+      editAction: state.rooms.editAction,
+      config: state.chatSettingStore.config,
+      rooms: state.rooms.rooms,
+    })
+  );
+
+  const isLastMessageFromUserAndProcessing = useCallback(
+    (roomJID: string): boolean => {
+      if (!config?.blockMessageSendingWhenProcessing) return false;
+
+      const room = rooms[roomJID];
+      if (!room || !room.messages || room.messages.length === 0) return false;
+
+      const lastMessage = room.messages[room.messages.length - 1];
+      return (
+        lastMessage.user.id === user.xmppUsername &&
+        lastMessage.pending === true
+      );
+    },
+    [config?.blockMessageSendingWhenProcessing, rooms, user.xmppUsername]
+  );
 
   const sendMessage = useCallback(
     (
@@ -28,6 +47,11 @@ export const useSendMessage = () => {
       isChecked?: boolean,
       mainMessage?: string
     ) => {
+      if (isLastMessageFromUserAndProcessing(activeRoomJID)) {
+        console.log('Cannot send message: Last message is still processing');
+        return;
+      }
+
       if (editAction.isEdit) {
         client?.editMessageStanza(
           editAction.roomJid,
@@ -146,7 +170,15 @@ export const useSendMessage = () => {
         }
       }
     },
-    [editAction, config, user, client, dispatch, langSource]
+    [
+      editAction,
+      config,
+      user,
+      client,
+      dispatch,
+      langSource,
+      isLastMessageFromUserAndProcessing,
+    ]
   );
 
   const sendEditMessage = useCallback(
@@ -172,6 +204,11 @@ export const useSendMessage = () => {
       isChecked = false,
       mainMessage = ''
     ) => {
+      if (isLastMessageFromUserAndProcessing(activeRoomJID)) {
+        console.log('Cannot send media: Last message is still processing');
+        return;
+      }
+
       const id = `send-media-message:${uuidv4()}`;
       if (!config?.disableSentLogic) {
         dispatch(
@@ -247,12 +284,13 @@ export const useSendMessage = () => {
         console.error('Upload failed:', error);
       }
     },
-    [client, config, user]
+    [client, config, user, isLastMessageFromUserAndProcessing]
   );
 
   return {
     sendMessage,
     sendMedia,
     sendEditMessage,
+    isLastMessageFromUserAndProcessing,
   };
 };
