@@ -93,5 +93,18 @@ export interface IConfig {
     enabled: boolean;
     filterFunction: (text: string) => string;
   };
+  additionalFuncSendMessage?: (args: any) => any;
   disableTypingIndicator?: boolean;
+  blockMessageSendingWhenProcessing?: boolean;
+  customTypingIndicator?: {
+    enabled: boolean;
+    text?: string | ((usersTyping: string[]) => string);
+    position?: 'bottom' | 'top' | 'overlay' | 'floating';
+    styles?: React.CSSProperties;
+    customComponent?: React.ComponentType<{
+      usersTyping: string[];
+      text: string;
+      isVisible: boolean;
+    }>;
+  };
 }

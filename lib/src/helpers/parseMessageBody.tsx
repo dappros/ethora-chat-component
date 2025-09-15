@@ -15,7 +15,7 @@ export const parseMessageBody = (text: string): (string | JSX.Element)[] => {
     const output: (string | JSX.Element)[] = [];
 
     const regex =
-      /(\*\*\*[^*]+?\*\*\*|\*\*[^*]+?\*\*|\*[^*]+?\*|~~[^~]+?~~|`[^`]+?`|https:\/\/[\w.-]+(?:\.[\w.-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=]+)/g;
+      /(\*\*\*[^*]+?\*\*\*|\*\*[^*]+?\*\*|\*[^*]+?\*|~~[^~]+?~~|`[^`]+?`|\[([^\]]+)\]\(([^)]+)\)|https:\/\/[\w.-]+(?:\.[\w.-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=]+)/g;
 
     let lastIndex = 0;
     let match;
@@ -51,6 +51,22 @@ export const parseMessageBody = (text: string): (string | JSX.Element)[] => {
             {token.slice(1, -1).trim()}
           </code>
         );
+      } else if (/^\[([^\]]+)\]\(([^)]+)\)$/.test(token)) {
+        const linkMatch = token.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+        if (linkMatch) {
+          const [, linkText, linkUrl] = linkMatch;
+          output.push(
+            <a
+              key={`link-${key++}`}
+              href={linkUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: 'blue', textDecoration: 'underline' }}
+            >
+              {linkText}
+            </a>
+          );
+        }
       } else if (/^https:\/\//.test(token)) {
         output.push(
           <a

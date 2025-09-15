@@ -28,6 +28,7 @@ interface SendInputProps {
   config?: IConfig;
   onFocus?: () => void;
   onBlur?: () => void;
+  isMessageProcessing?: boolean;
 }
 
 const SendInput: React.FC<SendInputProps> = ({
@@ -38,6 +39,7 @@ const SendInput: React.FC<SendInputProps> = ({
   config,
   editMessage,
   isLoading,
+  isMessageProcessing,
 }) => {
   const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -203,7 +205,7 @@ const SendInput: React.FC<SendInputProps> = ({
               onKeyDown={handleKeyDown}
               onFocus={handleFocus}
               onBlur={handleBlur}
-              disabled={isLoading}
+              disabled={isLoading || isMessageProcessing}
             />
           </>
         )}

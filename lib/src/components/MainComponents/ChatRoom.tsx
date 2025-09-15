@@ -3,6 +3,7 @@ import { ChatContainer, NonRoomChat } from '../styled/StyledComponents';
 import { useDispatch } from 'react-redux';
 import MessageList from './MessageList';
 import SendInput from '../styled/SendInput';
+import CustomTypingIndicator from '../styled/StyledInputComponents/CustomTypingIndicator';
 import {
   deleteRoomMessage,
   setEditAction,
@@ -48,6 +49,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       sendMessage: sendMs,
       sendMedia: sendMessageMedia,
       sendEditMessage,
+      isLastMessageFromUserAndProcessing,
     } = useSendMessage();
     const { sendStartComposing, sendEndComposing } = useComposing(config);
 
@@ -196,7 +198,25 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
           onFocus={sendStartComposing}
           onBlur={sendEndComposing}
           isLoading={false}
+          isMessageProcessing={isLastMessageFromUserAndProcessing(
+            activeRoomJID
+          )}
         />
+
+        {/* Custom Typing Indicator for overlay/floating positions */}
+        {config?.customTypingIndicator?.enabled &&
+          (config.customTypingIndicator.position === 'overlay' ||
+            config.customTypingIndicator.position === 'floating') &&
+          roomsList[activeRoomJID]?.composing && (
+            <CustomTypingIndicator
+              usersTyping={roomsList[activeRoomJID]?.composingList || ['User']}
+              text={config.customTypingIndicator.text}
+              position={config.customTypingIndicator.position}
+              styles={config.customTypingIndicator.styles}
+              customComponent={config.customTypingIndicator.customComponent}
+              isVisible={roomsList[activeRoomJID]?.composing || false}
+            />
+          )}
       </ChatContainer>
     );
   }

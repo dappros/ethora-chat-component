@@ -31,10 +31,7 @@ export const useSendMessage = () => {
       if (!room || !room.messages || room.messages.length === 0) return false;
 
       const lastMessage = room.messages[room.messages.length - 1];
-      return (
-        lastMessage.user.id === user.xmppUsername &&
-        lastMessage.pending === true
-      );
+      return lastMessage.user.id === user.xmppUsername;
     },
     [config?.blockMessageSendingWhenProcessing, rooms, user.xmppUsername]
   );
@@ -47,6 +44,11 @@ export const useSendMessage = () => {
       isChecked?: boolean,
       mainMessage?: string
     ) => {
+      try {
+        config?.additionalFuncSendMessage?.();
+      } catch (e) {
+        console.warn('additionalFuncSendMessage error', e);
+      }
       if (isLastMessageFromUserAndProcessing(activeRoomJID)) {
         console.log('Cannot send message: Last message is still processing');
         return;
@@ -204,6 +206,11 @@ export const useSendMessage = () => {
       isChecked = false,
       mainMessage = ''
     ) => {
+      try {
+        config?.additionalFuncSendMessage?.();
+      } catch (e) {
+        console.warn('additionalFuncSendMessage error', e);
+      }
       if (isLastMessageFromUserAndProcessing(activeRoomJID)) {
         console.log('Cannot send media: Last message is still processing');
         return;

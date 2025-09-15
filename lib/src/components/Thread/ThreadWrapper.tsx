@@ -6,6 +6,7 @@ import {
   ChatContainer,
 } from '../styled/StyledComponents';
 import SendInput from '../styled/SendInput';
+import CustomTypingIndicator from '../styled/StyledInputComponents/CustomTypingIndicator';
 import { useDispatch } from 'react-redux';
 import { useXmppClient } from '../../context/xmppProvider';
 import MessageList from '../MainComponents/MessageList';
@@ -46,6 +47,7 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
     sendMessage: sendMs,
     sendMedia: sendMessageMedia,
     sendEditMessage,
+    isLastMessageFromUserAndProcessing,
   } = useSendMessage();
 
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
@@ -184,7 +186,27 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
         onFocus={sendStartComposing}
         onBlur={sendEndComposing}
         isLoading={loading}
+        isMessageProcessing={isLastMessageFromUserAndProcessing(
+          activeMessage.roomJid
+        )}
       />
+
+      {/* Custom Typing Indicator for overlay/floating positions */}
+      {config?.customTypingIndicator?.enabled &&
+        (config.customTypingIndicator.position === 'overlay' ||
+          config.customTypingIndicator.position === 'floating') &&
+        roomsList[activeMessage.roomJid]?.composing && (
+          <CustomTypingIndicator
+            usersTyping={
+              roomsList[activeMessage.roomJid]?.composingList || ['User']
+            }
+            text={config.customTypingIndicator.text}
+            position={config.customTypingIndicator.position}
+            styles={config.customTypingIndicator.styles}
+            customComponent={config.customTypingIndicator.customComponent}
+            isVisible={roomsList[activeMessage.roomJid]?.composing || false}
+          />
+        )}
     </ChatContainer>
   );
 };
