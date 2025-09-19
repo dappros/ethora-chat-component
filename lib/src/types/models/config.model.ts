@@ -93,7 +93,28 @@ export interface IConfig {
     enabled: boolean;
     filterFunction: (text: string) => string;
   };
-  additionalFuncSendMessage?: (args: any) => any;
+  eventHandlers?: {
+    onMessageSent?: (event: {
+      message: string;
+      roomJID: string;
+      user: any;
+      messageType: 'text' | 'media';
+      metadata?: any;
+    }) => void | Promise<void>;
+    onMessageFailed?: (event: {
+      message: string;
+      roomJID: string;
+      error: Error;
+      messageType: 'text' | 'media';
+    }) => void;
+    onMessageEdited?: (event: {
+      messageId: string;
+      newMessage: string;
+      roomJID: string;
+      user: any;
+    }) => void;
+  };
+
   disableTypingIndicator?: boolean;
   blockMessageSendingWhenProcessing?: boolean;
   customTypingIndicator?: {

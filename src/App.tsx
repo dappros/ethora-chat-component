@@ -83,6 +83,11 @@ const ChatComponent = React.memo(() => {
           // },
           disableMedia: true,
           disableHeader: true,
+          eventHandlers: {
+            onMessageSent: async (event) => {
+              console.log('✅ Message sent successfully:', event.message);
+            },
+          },
           ...config,
         }}
         MainComponentStyles={mainStyles}
