@@ -13,7 +13,6 @@ export const parseMessageBody = (text: string): (string | JSX.Element)[] => {
 
   const parseInline = (input: string): (string | JSX.Element)[] => {
     const output: (string | JSX.Element)[] = [];
-
     const regex =
       /(\*\*\*[^*]+?\*\*\*|\*\*[^*]+?\*\*|\*[^*]+?\*|~~[^~]+?~~|`[^`]+?`|\[([^\]]+)\]\(([^)]+)\)|https:\/\/[\w.-]+(?:\.[\w.-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=]+)/g;
 
@@ -103,8 +102,8 @@ export const parseMessageBody = (text: string): (string | JSX.Element)[] => {
     let i = startIndex;
     while (i < lines.length) {
       const currentLine = lines[i];
-      if (/^(\d+\.\s+|\-\s+)/.test(currentLine)) {
-        const itemText = currentLine.replace(/^(\d+\.\s+|\-\s+)/, '');
+      if (/^(\d+\.\s+|\-\s+|\[\s?\])/.test(currentLine)) {
+        const itemText = currentLine.replace(/^(\d+\.\s+|\-\s+|\[\s?\])/, '');
         items.push(<li key={`li-${key++}`}>{parseInline(itemText)}</li>);
       } else if (currentLine.trim() === '') {
         break;
@@ -124,6 +123,73 @@ export const parseMessageBody = (text: string): (string | JSX.Element)[] => {
           ...(isOrdered ? { start } : {}),
         },
         items
+      ),
+      newIndex: i - 1,
+    };
+  };
+
+  const parseTable = (
+    startIndex: number
+  ): { table: JSX.Element; newIndex: number } | null => {
+    const rows: string[][] = [];
+    let i = startIndex;
+
+    while (i < lines.length && /^\|.*\|$/.test(lines[i].trim())) {
+      const cols = lines[i]
+        .trim()
+        .slice(1, -1)
+        .split('|')
+        .map((c) => c.trim());
+      rows.push(cols);
+      i++;
+    }
+
+    if (rows.length < 2) return null;
+
+    const headers = rows[0];
+    const dataRows = rows.slice(2);
+
+    return {
+      table: (
+        <table
+          key={`table-${key++}`}
+          style={{
+            borderCollapse: 'collapse',
+            margin: '8px 0',
+            width: '100%',
+          }}
+        >
+          <thead>
+            <tr>
+              {headers.map((h, idx) => (
+                <th
+                  key={`th-${key++}-${idx}`}
+                  style={{
+                    border: '1px solid #ccc',
+                    padding: '6px',
+                    background: '#f9f9f9',
+                  }}
+                >
+                  {parseInline(h)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {dataRows.map((row, rIdx) => (
+              <tr key={`tr-${key++}-${rIdx}`}>
+                {row.map((cell, cIdx) => (
+                  <td
+                    key={`td-${key++}-${cIdx}`}
+                    style={{ border: '1px solid #ccc', padding: '6px' }}
+                  >
+                    {parseInline(cell)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       ),
       newIndex: i - 1,
     };
@@ -195,7 +261,16 @@ export const parseMessageBody = (text: string): (string | JSX.Element)[] => {
       continue;
     }
 
-    if (/^(\-|\d+\.)\s+/.test(line)) {
+    if (/^\|.*\|$/.test(line.trim())) {
+      const tableResult = parseTable(idx);
+      if (tableResult) {
+        elements.push(tableResult.table);
+        idx = tableResult.newIndex;
+        continue;
+      }
+    }
+
+    if (/^(\-|\d+\.)\s+/.test(line) || /^\[\s?\]/.test(line)) {
       const { list, newIndex } = parseList(idx);
       elements.push(list);
       idx = newIndex;
