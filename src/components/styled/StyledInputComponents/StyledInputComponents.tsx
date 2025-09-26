@@ -116,23 +116,24 @@ export const StyledInput = styled.input<{}>`
 `;
 
 export const TextareaInput = styled.textarea<{}>`
-  padding: 16px 12px 0;
-  background-color: #f5f7f9;
+  flex-grow: 1;
+  padding: 8px 10px;
+  border-radius: 12px;
   border: none;
-  outline: none;
-  font-size: 16px;
-  color: #000;
-  transition:
-    width 0.7s ease-in-out,
-    padding 0.7s ease-in-out;
-  opacity: 1;
-  z-index: 1;
-  border-radius: 16px;
-  overflow: hidden;
+  color: #141414;
+  background-color: #f5f7f9;
+  line-height: 20px;
+  font-size: inherit;
+  font-family: inherit;
+  overflow: auto;
   resize: none;
+  height: 40px;
+  max-height: 40px;
+  min-height: 40px;
+  box-sizing: border-box;
 
-  &::placeholder {
-    opacity: 1;
-    transition: opacity 0.7s ease-in-out;
+  &:focus {
+    border: 1px solid #0052cd;
+    outline: none;
   }
 `;

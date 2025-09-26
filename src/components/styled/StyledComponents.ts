@@ -6,10 +6,11 @@ export const ChatContainer = styled.div`
   height: 100%;
   width: 100%;
   box-sizing: border-box;
-  background-color: #f3f6fc;
+  background: linear-gradient(135deg, #f8f9ff 0%, #f3f6fc 100%);
   flex: 1;
   min-width: 0;
-  /* border: 10px solid yellow; */
+  position: relative;
+  overflow: hidden;
 `;
 
 export const ChatContainerHeader = styled.div`
@@ -107,8 +108,10 @@ export const Message = styled.div<{ isUser: boolean }>`
   padding: 10px;
   margin: 10px 0;
   border-radius: 8px;
-  max-width: 60%;
+  max-width: 70%;
   flex-direction: ${(props) => (!props.isUser ? 'row' : 'row-reverse')};
+  overflow: hidden;
+  word-wrap: break-word;
 `;
 
 export const MessageText = styled.p`
@@ -168,7 +171,7 @@ export const CustomMessageBubble = styled.div<{
   isUser: boolean;
   deleted: boolean;
 }>`
-  max-width: 60%;
+  max-width: 70%;
   min-width: 15%;
   padding: 8px 16px;
   border-radius: ${(props) =>

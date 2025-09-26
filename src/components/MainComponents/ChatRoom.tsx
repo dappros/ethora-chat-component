@@ -201,6 +201,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
           isMessageProcessing={isLastMessageFromUserAndProcessing(
             activeRoomJID
           )}
+          multiline={true}
         />
 
         {/* Custom Typing Indicator for overlay/floating positions */}

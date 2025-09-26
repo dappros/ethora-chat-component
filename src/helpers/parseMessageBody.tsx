@@ -1,292 +1,515 @@
 import React from 'react';
 
-export const parseMessageBody = (text: string): (string | JSX.Element)[] => {
-  if (typeof text !== 'string') return [text];
+let elementKeyCounter = 0;
 
-  let key = 0;
-  const elements: (string | JSX.Element)[] = [];
-  const lines = text.split('\n');
-
-  let inCodeBlock = false;
-  let codeLanguage = '';
-  const codeBuffer: string[] = [];
-
-  const parseInline = (input: string): (string | JSX.Element)[] => {
-    const output: (string | JSX.Element)[] = [];
-    const regex =
-      /(\*\*\*[^*]+?\*\*\*|\*\*[^*]+?\*\*|\*[^*]+?\*|~~[^~]+?~~|`[^`]+?`|\[([^\]]+)\]\(([^)]+)\)|https:\/\/[\w.-]+(?:\.[\w.-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=]+)/g;
-
-    let lastIndex = 0;
-    let match;
-
-    while ((match = regex.exec(input)) !== null) {
-      if (match.index > lastIndex) {
-        output.push(input.slice(lastIndex, match.index));
-      }
-
-      const token = match[0];
-      if (/^\*\*\*.*\*\*\*$/.test(token)) {
-        output.push(
-          <strong key={`b-${key++}`}>
-            <em>{token.slice(3, -3)}</em>
-          </strong>
-        );
-      } else if (/^\*\*.*\*\*$/.test(token)) {
-        output.push(<strong key={`b-${key++}`}>{token.slice(2, -2)}</strong>);
-      } else if (/^\*.*\*$/.test(token)) {
-        output.push(<em key={`i-${key++}`}>{token.slice(1, -1)}</em>);
-      } else if (/^~~.*~~$/.test(token)) {
-        output.push(<del key={`s-${key++}`}>{token.slice(2, -2)}</del>);
-      } else if (/^`.*`$/.test(token)) {
-        output.push(
-          <code
-            key={`code-${key++}`}
-            style={{
-              background: '#eee',
-              padding: '1px 4px',
-              borderRadius: '4px',
-            }}
-          >
-            {token.slice(1, -1).trim()}
-          </code>
-        );
-      } else if (/^\[([^\]]+)\]\(([^)]+)\)$/.test(token)) {
-        const linkMatch = token.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-        if (linkMatch) {
-          const [, linkText, linkUrl] = linkMatch;
-          output.push(
-            <a
-              key={`link-${key++}`}
-              href={linkUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ color: 'blue', textDecoration: 'underline' }}
-            >
-              {linkText}
-            </a>
-          );
-        }
-      } else if (/^https:\/\//.test(token)) {
-        output.push(
-          <a
-            key={`link-${key++}`}
-            href={token}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: 'blue', textDecoration: 'underline' }}
-          >
-            {token}
-          </a>
-        );
-      }
-
-      lastIndex = match.index + token.length;
-    }
-
-    if (lastIndex < input.length) {
-      output.push(input.slice(lastIndex));
-    }
-
-    return output;
+export const decodeHTMLEntities = (text) => {
+  const entities = {
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#39;': "'",
+    '&nbsp;': ' ',
+    '&ndash;': '–',
+    '&mdash;': '—',
+    '&hellip;': '…',
+    '&#8209;': '-',
   };
 
-  const parseList = (
-    startIndex: number
-  ): { list: JSX.Element; newIndex: number } => {
-    const items: JSX.Element[] = [];
-    const line = lines[startIndex].trim();
-    const match = line.match(/^(\d+)\./);
-    const isOrdered = !!match;
-    const start = match ? parseInt(match[1], 10) : 1;
+  return text.replace(/&[a-zA-Z0-9#]+;/g, (match) => entities[match] || match);
+};
 
-    let i = startIndex;
-    while (i < lines.length) {
-      const currentLine = lines[i];
-      if (/^(\d+\.\s+|\-\s+|\[\s?\])/.test(currentLine)) {
-        const itemText = currentLine.replace(/^(\d+\.\s+|\-\s+|\[\s?\])/, '');
-        items.push(<li key={`li-${key++}`}>{parseInline(itemText)}</li>);
-      } else if (currentLine.trim() === '') {
-        break;
-      } else {
-        break;
-      }
-      i++;
+const parseInline = (txt) => {
+  const elements = [];
+  let remaining = decodeHTMLEntities(txt);
+
+  const pattern = /(\*\*\*|\*\*|\*|`)(.*?)\1/;
+
+  while (remaining.length > 0) {
+    const match = remaining.match(pattern);
+
+    if (!match) {
+      elements.push(remaining);
+      break;
     }
 
-    const ListTag = isOrdered ? 'ol' : 'ul';
-    return {
-      list: React.createElement(
-        ListTag,
-        {
-          key: `list-${key++}`,
-          style: { margin: '4px 0', paddingLeft: '20px' },
-          ...(isOrdered ? { start } : {}),
-        },
-        items
-      ),
-      newIndex: i - 1,
-    };
-  };
+    const fullMatch = match[0];
+    const matchIndex = match.index;
+    const delimiter = match[1];
 
-  const parseTable = (
-    startIndex: number
-  ): { table: JSX.Element; newIndex: number } | null => {
-    const rows: string[][] = [];
-    let i = startIndex;
-
-    while (i < lines.length && /^\|.*\|$/.test(lines[i].trim())) {
-      const cols = lines[i]
-        .trim()
-        .slice(1, -1)
-        .split('|')
-        .map((c) => c.trim());
-      rows.push(cols);
-      i++;
+    if (matchIndex > 0) {
+      elements.push(remaining.substring(0, matchIndex));
     }
 
-    if (rows.length < 2) return null;
+    let element = null;
+    let content = match[2];
 
-    const headers = rows[0];
-    const dataRows = rows.slice(2);
-
-    return {
-      table: (
-        <table
-          key={`table-${key++}`}
+    if (delimiter === '`') {
+      element = (
+        <code
+          key={`code-${elementKeyCounter++}`}
           style={{
-            borderCollapse: 'collapse',
-            margin: '8px 0',
-            width: '100%',
+            backgroundColor: '#f1f3f4',
+            padding: '2px 4px',
+            borderRadius: '3px',
+            fontFamily: 'monospace',
+            fontSize: '0.9em',
           }}
         >
-          <thead>
-            <tr>
-              {headers.map((h, idx) => (
-                <th
-                  key={`th-${key++}-${idx}`}
-                  style={{
-                    border: '1px solid #ccc',
-                    padding: '6px',
-                    background: '#f9f9f9',
-                  }}
-                >
-                  {parseInline(h)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {dataRows.map((row, rIdx) => (
-              <tr key={`tr-${key++}-${rIdx}`}>
-                {row.map((cell, cIdx) => (
-                  <td
-                    key={`td-${key++}-${cIdx}`}
-                    style={{ border: '1px solid #ccc', padding: '6px' }}
-                  >
-                    {parseInline(cell)}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      ),
-      newIndex: i - 1,
-    };
-  };
-
-  for (let idx = 0; idx < lines.length; idx++) {
-    const line = lines[idx];
-
-    if (!inCodeBlock && line.trim().startsWith('```')) {
-      const match = line.trim().match(/^```(?:\s*(\w+))?/);
-      inCodeBlock = true;
-      codeLanguage = match?.[1] || '';
-      continue;
-    }
-
-    if (inCodeBlock && line.trim() === '```') {
-      inCodeBlock = false;
-      elements.push(
-        <pre
-          key={`pre-${key++}`}
-          style={{
-            background: '#f0f0f0',
-            padding: '10px',
-            borderRadius: '8px',
-            whiteSpace: 'pre-wrap',
-          }}
+          {content}
+        </code>
+      );
+    } else if (delimiter === '***') {
+      element = (
+        <strong
+          key={`bi-${elementKeyCounter++}`}
+          style={{ fontWeight: 'bold' }}
         >
-          <code className={`language-${codeLanguage}`}>
-            {codeBuffer.join('\n')}
-          </code>
-        </pre>
+          <em key={`i-${elementKeyCounter++}`} style={{ fontStyle: 'italic' }}>
+            {parseInline(content)}
+          </em>
+        </strong>
       );
-      codeBuffer.length = 0;
-      codeLanguage = '';
-      continue;
-    }
-
-    if (inCodeBlock) {
-      codeBuffer.push(line);
-      continue;
-    }
-
-    if (/^#{1,6}\s/.test(line)) {
-      const level = line.match(/^#+/)![0].length;
-      const content = line.replace(/^#{1,6}\s/, '');
-      elements.push(
-        React.createElement(
-          `h${level}`,
-          { key: `h-${key++}` },
-          ...parseInline(content)
-        )
+    } else if (delimiter === '**') {
+      element = (
+        <strong key={`b-${elementKeyCounter++}`} style={{ fontWeight: 'bold' }}>
+          {parseInline(content)}
+        </strong>
       );
-      continue;
-    }
-
-    if (line.startsWith('>')) {
-      elements.push(
-        <blockquote
-          key={`quote-${key++}`}
-          style={{
-            borderLeft: '3px solid #ccc',
-            paddingLeft: '10px',
-            color: '#666',
-          }}
-        >
-          {parseInline(line.replace(/^>\s*/, ''))}
-        </blockquote>
+    } else if (delimiter === '*') {
+      element = (
+        <em key={`i-${elementKeyCounter++}`} style={{ fontStyle: 'italic' }}>
+          {parseInline(content)}
+        </em>
       );
-      continue;
     }
 
-    if (/^\|.*\|$/.test(line.trim())) {
-      const tableResult = parseTable(idx);
-      if (tableResult) {
-        elements.push(tableResult.table);
-        idx = tableResult.newIndex;
-        continue;
-      }
-    }
-
-    if (/^(\-|\d+\.)\s+/.test(line) || /^\[\s?\]/.test(line)) {
-      const { list, newIndex } = parseList(idx);
-      elements.push(list);
-      idx = newIndex;
-      continue;
-    }
-
-    if (line.trim() === '') {
-      elements.push(<br key={`br-${key++}`} />);
+    if (element) {
+      elements.push(element);
+      remaining = remaining.substring(matchIndex + fullMatch.length);
     } else {
-      elements.push(
-        <p key={`p-${key++}`} style={{ margin: 0 }}>
-          {parseInline(line)}
-        </p>
-      );
+      elements.push(fullMatch);
+      remaining = remaining.substring(matchIndex + fullMatch.length);
     }
   }
 
   return elements;
 };
+
+const isTableSeparatorLine = (line) => {
+  const trimmed = line.trim();
+  return (
+    /^\|?[\s]*[\-\:]+[\s\|\-\:]*\|?[\s]*$/.test(trimmed) &&
+    trimmed.includes('-')
+  );
+};
+
+const parseTableRow = (line) => {
+  const decodedLine = decodeHTMLEntities(line.trim()).replace(/\u00A0/g, ' ');
+
+  const cleanedLine = decodedLine.replace(/^\||\|$/g, '');
+
+  const cells = cleanedLine
+    .split(/(?<!\\)\|/)
+    .map((cell) => cell.replace(/\\\|/g, '|').trim());
+  return cells.length > 0 ? cells : [''];
+};
+
+export const parseMessageBody = (text) => {
+  const lines = text.split('\n');
+  const elements = [];
+  elementKeyCounter = 0;
+
+  let listBuffer = [];
+  let inCodeBlock = false;
+  let codeLang = '';
+  let codeLines = [];
+
+  const flushList = () => {
+    if (listBuffer.length === 0) return;
+
+    const renderListItems = (items, depth) => {
+      const result = [];
+      let i = 0;
+
+      while (i < items.length) {
+        const item = items[i];
+
+        if (item.depth === depth) {
+          const subItems = [];
+          let j = i + 1;
+          while (j < items.length && items[j].depth > depth) {
+            subItems.push(items[j]);
+            j++;
+          }
+
+          const nestedList =
+            subItems.length > 0 ? renderListItems(subItems, depth + 1) : null;
+
+          let listItemContent;
+          if (item.type === 'checkbox') {
+            listItemContent = (
+              <>
+                <input
+                  type="checkbox"
+                  checked={item.checked}
+                  readOnly
+                  style={{ marginRight: '8px', verticalAlign: 'middle' }}
+                />
+                {parseInline(item.content)}
+              </>
+            );
+          } else {
+            listItemContent = parseInline(item.content);
+          }
+
+          result.push(
+            <li
+              key={`li-${elementKeyCounter++}`}
+              style={{ marginBottom: '6px', lineHeight: '1.5' }}
+            >
+              {listItemContent}
+              {nestedList}
+            </li>
+          );
+
+          i = j;
+        } else {
+          i++;
+        }
+      }
+      return result;
+    };
+
+    let i = 0;
+    while (i < listBuffer.length) {
+      const item = listBuffer[i];
+      if (item.depth === 0) {
+        const currentListType = item.type;
+        const currentListItems = [];
+        let j = i;
+
+        while (j < listBuffer.length) {
+          if (
+            listBuffer[j].depth === 0 &&
+            j > i &&
+            listBuffer[j].type !== currentListType
+          ) {
+            break;
+          }
+          currentListItems.push(listBuffer[j]);
+          j++;
+        }
+
+        const listContent = renderListItems(currentListItems, 0);
+        const ListTag = currentListType === 'ol' ? 'ol' : 'ul';
+
+        elements.push(
+          <ListTag
+            key={`${currentListType}-${elementKeyCounter++}`}
+            style={{ margin: '12px 0', paddingLeft: '24px' }}
+          >
+            {listContent}
+          </ListTag>
+        );
+
+        i = j;
+      } else {
+        i++;
+      }
+    }
+
+    listBuffer = [];
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmedLine = line.trim();
+
+    if (trimmedLine.startsWith('```')) {
+      flushList();
+      inCodeBlock = !inCodeBlock;
+      if (!inCodeBlock) {
+        elements.push(
+          <pre
+            key={`pre-${elementKeyCounter++}`}
+            style={{
+              backgroundColor: '#f6f8fa',
+              padding: '12px',
+              overflowX: 'auto',
+              borderRadius: '6px',
+              border: '1px solid #e1e4e8',
+              fontSize: '14px',
+              lineHeight: '1.45',
+            }}
+          >
+            <code className={`language-${codeLang}`}>
+              {codeLines.join('\n')}
+            </code>
+          </pre>
+        );
+        codeLang = '';
+      } else {
+        codeLang = trimmedLine.slice(3).trim();
+        codeLines = [];
+      }
+      continue;
+    }
+    if (inCodeBlock) {
+      codeLines.push(line);
+      continue;
+    }
+
+    const headingMatch = trimmedLine.match(/^(#{1,6})\s+(.*)/);
+    if (headingMatch) {
+      flushList();
+      const level = headingMatch[1].length;
+      const content = headingMatch[2];
+      const headingStyles = {
+        1: {
+          fontSize: '2em',
+          fontWeight: 'bold',
+          marginBottom: '16px',
+          marginTop: '24px',
+        },
+        2: {
+          fontSize: '1.5em',
+          fontWeight: 'bold',
+          marginBottom: '14px',
+          marginTop: '20px',
+        },
+        3: {
+          fontSize: '1.25em',
+          fontWeight: 'bold',
+          marginBottom: '12px',
+          marginTop: '16px',
+        },
+        4: {
+          fontSize: '1.1em',
+          fontWeight: 'bold',
+          marginBottom: '10px',
+          marginTop: '14px',
+        },
+        5: {
+          fontSize: '1em',
+          fontWeight: 'bold',
+          marginBottom: '8px',
+          marginTop: '12px',
+        },
+        6: {
+          fontSize: '0.9em',
+          fontWeight: 'bold',
+          marginBottom: '8px',
+          marginTop: '12px',
+        },
+      };
+
+      elements.push(
+        React.createElement(
+          `h${level}`,
+          { key: `h-${elementKeyCounter++}`, style: headingStyles[level] },
+          parseInline(content)
+        )
+      );
+      continue;
+    }
+
+    if (/^(\*|\-|\_){3,}$/.test(trimmedLine)) {
+      flushList();
+      elements.push(
+        <hr
+          key={`hr-${elementKeyCounter++}`}
+          style={{
+            margin: '20px 0',
+            border: 'none',
+            borderTop: '1px solid #e1e4e8',
+          }}
+        />
+      );
+      continue;
+    }
+
+    if (
+      trimmedLine.includes('|') &&
+      trimmedLine !== '' &&
+      !isTableSeparatorLine(trimmedLine) &&
+      !trimmedLine.match(/^\s*-?\s*\[[\sxX]\]/)
+    ) {
+      let separatorIndex = i + 1;
+      while (
+        separatorIndex < lines.length &&
+        lines[separatorIndex].trim() === ''
+      ) {
+        separatorIndex++;
+      }
+      if (
+        separatorIndex < lines.length &&
+        isTableSeparatorLine(lines[separatorIndex].trim())
+      ) {
+        flushList();
+
+        const rows = [];
+        let headerCount = 0;
+
+        const headers = parseTableRow(trimmedLine);
+        headerCount = headers.length;
+        rows.push(headers);
+
+        let currentRowIndex = separatorIndex + 1;
+
+        while (currentRowIndex < lines.length) {
+          const nextLine = lines[currentRowIndex];
+          const nextLineTrimmed = nextLine.trim();
+
+          if (nextLineTrimmed === '') {
+            currentRowIndex++;
+            continue;
+          }
+
+          if (
+            nextLineTrimmed.includes('|') &&
+            !isTableSeparatorLine(nextLineTrimmed) &&
+            !nextLineTrimmed.match(/^\s*-?\s*\[[\sxX]\]/)
+          ) {
+            let rowCells = parseTableRow(nextLineTrimmed);
+
+            while (rowCells.length < headerCount) {
+              rowCells.push('');
+            }
+            rowCells = rowCells.slice(0, headerCount);
+
+            rows.push(rowCells);
+            currentRowIndex++;
+          } else {
+            break;
+          }
+        }
+
+        const dataRows = rows.slice(1);
+
+        elements.push(
+          <div
+            key={`table-wrapper-${elementKeyCounter++}`}
+            style={{ overflowX: 'auto', margin: '16px 0' }}
+          >
+            <table
+              style={{
+                borderCollapse: 'collapse',
+                width: '100%',
+                minWidth: '600px',
+                fontSize: '14px',
+                border: '1px solid #d0d7de',
+              }}
+            >
+              <thead>
+                <tr>
+                  {headers.map((h, idx) => (
+                    <th
+                      key={`th-${elementKeyCounter++}-${idx}`}
+                      style={{
+                        border: '1px solid #d0d7de',
+                        padding: '12px 16px',
+                        background: '#f6f8fa',
+                        textAlign: 'left',
+                        fontWeight: '600',
+                        lineHeight: '1.5',
+                      }}
+                    >
+                      {parseInline(h)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {dataRows.map((row, rIdx) => (
+                  <tr
+                    key={`tr-${elementKeyCounter++}-${rIdx}`}
+                    style={{
+                      backgroundColor: rIdx % 2 === 0 ? '#ffffff' : '#f6f8fa',
+                    }}
+                  >
+                    {row.map((cell, cIdx) => (
+                      <td
+                        key={`td-${elementKeyCounter++}-${cIdx}`}
+                        style={{
+                          border: '1px solid #d0d7de',
+                          padding: '12px 16px',
+                          verticalAlign: 'top',
+                          lineHeight: '1.5',
+                        }}
+                      >
+                        {parseInline(cell)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+
+        i = currentRowIndex - 1;
+        continue;
+      }
+    }
+
+    const listMatch = line.match(/^(\s*)(?:-|\*|\+)?\s*(\[[\sxX]\])\s*(.*)/);
+
+    if (listMatch) {
+      const leadingSpace = listMatch[1];
+      const checkboxPart = listMatch[2];
+      const content = listMatch[3];
+      const depth = Math.floor(leadingSpace.length / 2);
+
+      if (checkboxPart) {
+        const checked = checkboxPart.toLowerCase() === '[x]';
+        listBuffer.push({
+          type: 'checkbox',
+          content: decodeHTMLEntities(content),
+          depth,
+          checked,
+        });
+      } else {
+        listBuffer.push({
+          type: 'ul',
+          content: content,
+          depth,
+        });
+      }
+      continue;
+    }
+
+    if (trimmedLine !== '') {
+      flushList();
+      elements.push(
+        <p
+          key={`p-${elementKeyCounter++}`}
+          style={{
+            margin: '12px 0',
+            lineHeight: '1.6',
+            color: '#24292f',
+          }}
+        >
+          {parseInline(trimmedLine)}
+        </p>
+      );
+    } else {
+      flushList();
+    }
+  }
+
+  flushList();
+
+  return (
+    <div
+      style={{
+        fontFamily:
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      }}
+    >
+      {elements}
+    </div>
+  );
+};
+
+export default parseMessageBody;

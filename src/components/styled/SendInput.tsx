@@ -15,10 +15,12 @@ import {
   MessageInput,
   ImagePreview,
 } from './StyledInputComponents/StyledInputComponents';
+import { TextareaInput } from './StyledInputComponents/StyledInputComponents';
 import AudioRecorder from '../InputComponents/AudioRecorder';
 import { IConfig } from '../../types/types';
 import Button from './Button';
 import { AttachIcon, FileIcon, RemoveIcon, SendIcon } from '../../assets/icons';
+import { parseMessageBody } from '../../helpers/parseMessageBody';
 
 interface SendInputProps {
   sendMessage: (message: string) => void;
@@ -29,6 +31,11 @@ interface SendInputProps {
   onFocus?: () => void;
   onBlur?: () => void;
   isMessageProcessing?: boolean;
+  formatMessage?: (text: string) => string;
+  multiline?: boolean;
+  inputHeight?: number;
+  showPreview?: boolean;
+  previewParser?: (text: string) => (string | JSX.Element)[];
 }
 
 const SendInput: React.FC<SendInputProps> = ({
@@ -40,6 +47,11 @@ const SendInput: React.FC<SendInputProps> = ({
   editMessage,
   isLoading,
   isMessageProcessing,
+  formatMessage,
+  multiline,
+  inputHeight,
+  showPreview,
+  previewParser,
 }) => {
   const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -47,6 +59,7 @@ const SendInput: React.FC<SendInputProps> = ({
   const [filePreviews, setFilePreviews] = useState<File[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleAttachClick = useCallback(() => {
     if (fileInputRef.current) {
@@ -95,7 +108,7 @@ const SendInput: React.FC<SendInputProps> = ({
   }, []);
 
   const handleInputChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
+    (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       setMessage(event.target.value);
     },
     []
@@ -114,26 +127,41 @@ const SendInput: React.FC<SendInputProps> = ({
         sendMedia(audioUrl, 'audio/');
         setIsRecording(false);
       } else {
-        sendMessage(message);
+        const outgoing = formatMessage ? formatMessage(message) : message;
+        sendMessage(outgoing);
       }
       setMessage('');
       setFilePreviews([]);
     },
-    [filePreviews, message, sendMessage, sendMedia]
+    [filePreviews, message, sendMessage, sendMedia, formatMessage]
   );
 
   const handleSecondaryClick = useCallback(() => {
-    sendMessage(config.secondarySendButton.messageEdit + message);
+    const outgoingBase = config.secondarySendButton.messageEdit + message;
+    const outgoing = formatMessage ? formatMessage(outgoingBase) : outgoingBase;
+    sendMessage(outgoing);
     setMessage('');
     setFilePreviews([]);
-  }, [filePreviews, message, sendMessage, sendMedia]);
+  }, [
+    filePreviews,
+    message,
+    sendMessage,
+    sendMedia,
+    config?.secondarySendButton?.messageEdit,
+    formatMessage,
+  ]);
 
   const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLInputElement>) => {
+    (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       if (event.key !== 'Enter') return;
 
       const hasContent = filePreviews.length > 0 || !!message;
       if (!hasContent) return;
+
+      if (multiline) {
+        if (event.shiftKey) return;
+        event.preventDefault();
+      }
 
       if (config?.secondarySendButton?.overwriteEnterClick) {
         handleSecondaryClick();
@@ -141,7 +169,14 @@ const SendInput: React.FC<SendInputProps> = ({
         handleSendClick();
       }
     },
-    [config?.secondarySendButton?.overwriteEnterClick, handleSendClick]
+    [
+      config?.secondarySendButton?.overwriteEnterClick,
+      handleSendClick,
+      handleSecondaryClick,
+      filePreviews.length,
+      message,
+      multiline,
+    ]
   );
 
   const renderFilePreview = useCallback((file: File) => {
@@ -192,16 +227,38 @@ const SendInput: React.FC<SendInputProps> = ({
                 EndIcon={<AttachIcon />}
               />
             )}
-            <MessageInput
-              color={config?.colors?.primary}
-              placeholder="Type message"
-              value={message}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              onFocus={handleFocus}
-              onBlur={handleBlur}
-              disabled={isLoading || isMessageProcessing}
-            />
+            {multiline ? (
+              <TextareaInput
+                ref={textareaRef}
+                placeholder="Type message"
+                value={message}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+                disabled={isLoading || isMessageProcessing}
+                style={{
+                  height: inputHeight,
+                  maxHeight: inputHeight,
+                  minHeight: inputHeight,
+                }}
+              />
+            ) : (
+              <MessageInput
+                color={config?.colors?.primary}
+                placeholder="Type message"
+                value={message}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+                disabled={isLoading || isMessageProcessing}
+                style={{
+                  height: inputHeight,
+                  maxHeight: inputHeight || '40px',
+                }}
+              />
+            )}
           </>
         )}
         {message || filePreviews.length > 0 || config?.disableMedia ? (
@@ -275,6 +332,21 @@ const SendInput: React.FC<SendInputProps> = ({
           />
         )}
       </MessageInputContainer>
+
+      {multiline && showPreview && message && (
+        <div
+          style={{
+            marginTop: 8,
+            padding: 12,
+            backgroundColor: '#fafafa',
+            border: '1px solid #E4E4E7',
+            borderRadius: 12,
+            color: '#141414',
+          }}
+        >
+          {(previewParser || parseMessageBody)(message) as any}
+        </div>
+      )}
 
       <HiddenFileInput
         ref={fileInputRef}
