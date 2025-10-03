@@ -74,6 +74,11 @@ export class XmppClient implements XmppClientInterface {
   pingInFlight: boolean = false;
 
   private idlePingTimeout: NodeJS.Timeout | null = null;
+  private reconnectTimer: NodeJS.Timeout | null = null;
+  private offlineReconnectAttempts: number = 0;
+  private maxOfflineReconnectAttempts: number = 10;
+  private reconnectBaseDelayMs: number = 1000;
+  private pausedDueToOfflineCap: boolean = false;
 
   constructor(
     username: string,
@@ -133,6 +138,11 @@ export class XmppClient implements XmppClientInterface {
     try {
       if (this.pingInterval) clearInterval(this.pingInterval);
       if (this.pingTimeout) clearTimeout(this.pingTimeout);
+      if (this.idlePingTimeout) clearTimeout(this.idlePingTimeout as any);
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
       try {
         if (typeof window !== 'undefined') {
           window.removeEventListener('online', this.onBrowserOnline);
@@ -181,6 +191,7 @@ export class XmppClient implements XmppClientInterface {
       this.presencesReady = false;
       this.logStep('event:disconnect');
       if (this.pingInterval) clearInterval(this.pingInterval);
+      this.scheduleReconnect('event:disconnect');
     });
 
     this.client.on('online', async (jid) => {
@@ -189,6 +200,12 @@ export class XmppClient implements XmppClientInterface {
         console.log('Client is online.', new Date());
         this.status = 'online';
         this.reconnectAttempts = 0;
+        this.offlineReconnectAttempts = 0;
+        this.pausedDueToOfflineCap = false;
+        if (this.reconnectTimer) {
+          clearTimeout(this.reconnectTimer);
+          this.reconnectTimer = null;
+        }
         this.client.send(xml('presence'));
         await this.sendAllPresencesAndMarkReady();
         this.logStep('event:online');
@@ -210,6 +227,7 @@ export class XmppClient implements XmppClientInterface {
       console.error('XMPP client error:', error);
       this.status = 'error';
       this.logStep('event:error');
+      this.scheduleReconnect('event:error');
     });
 
     this.client.on('stanza', (stanza) => {
@@ -265,9 +283,8 @@ export class XmppClient implements XmppClientInterface {
           this.client.removeListener('stanza', pongListener);
           this.lastPingId = null;
           this.pingInFlight = false;
-          console.warn('Ping timeout, reconnecting...');
-          await this.reconnect();
-          await this.drainHeap();
+          console.warn('Ping timeout, scheduling reconnect...');
+          this.scheduleReconnect('ping-timeout');
         }
       }, pongWait);
     }, idleTime);
@@ -320,6 +337,14 @@ export class XmppClient implements XmppClientInterface {
     if (this.reconnecting) {
       return this.reconnectPromise;
     }
+    if (!this.isBrowserOnline()) {
+      this.logStep('reconnect:skipped-offline');
+      return Promise.resolve();
+    }
+    if (this.pausedDueToOfflineCap) {
+      this.logStep('reconnect:paused-due-to-cap');
+      return Promise.resolve();
+    }
     this.reconnecting = true;
     this.reconnectPromise = (async () => {
       try {
@@ -346,7 +371,8 @@ export class XmppClient implements XmppClientInterface {
 
     if (this.status === 'offline' || this.status === 'error') {
       this.logStep(`ensureConnected:trigger-reconnect:${this.status}`);
-      await this.reconnect();
+      this.scheduleReconnect('ensure-connected');
+      throw new Error('Not connected');
     }
 
     if (this.status === 'connecting') {
@@ -437,7 +463,7 @@ export class XmppClient implements XmppClientInterface {
       this.processingQueue = false;
     }
 
-    if (this.messageQueue.length > 0) {
+    if (this.messageQueue.length > 0 && this.status === 'online') {
       setTimeout(() => this.processQueue().catch(() => {}), 1000);
     }
   }
@@ -461,14 +487,20 @@ export class XmppClient implements XmppClientInterface {
 
   private onBrowserOnline = () => {
     this.logStep('browser:online');
+    this.offlineReconnectAttempts = 0;
+    this.pausedDueToOfflineCap = false;
     this.processQueue().catch(() => {});
     if (this.status !== 'online') {
-      this.reconnect();
+      this.scheduleReconnect('browser:online');
     }
   };
 
   private onBrowserOffline = () => {
     this.logStep('browser:offline');
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
   };
 
   getConnectionSteps(): Array<{ ts: number; step: string }> {
@@ -762,7 +794,7 @@ export class XmppClient implements XmppClientInterface {
 
   handlePingTimeout() {
     console.warn('No pong received, forcing reconnect...');
-    this.reconnect();
+    this.scheduleReconnect('ping-timeout');
   }
 
   private async drainHeap(): Promise<void> {
@@ -812,6 +844,46 @@ export class XmppClient implements XmppClientInterface {
       }
       store.dispatch({ type: 'roomHeapStore/clearHeap' });
     } catch {}
+  }
+
+  private isBrowserOnline(): boolean {
+    try {
+      if (typeof navigator !== 'undefined' && 'onLine' in navigator) {
+        return (navigator as any).onLine !== false;
+      }
+    } catch {}
+    return true;
+  }
+
+  private scheduleReconnect(reason: string) {
+    if (this.status === 'online') return;
+    if (this.reconnectTimer) return;
+    if (!this.isBrowserOnline()) {
+      this.logStep(`scheduleReconnect:skip-offline:${reason}`);
+      return;
+    }
+    if (this.pausedDueToOfflineCap) {
+      this.logStep(`scheduleReconnect:paused-cap:${reason}`);
+      return;
+    }
+
+    if (this.offlineReconnectAttempts >= this.maxOfflineReconnectAttempts) {
+      this.pausedDueToOfflineCap = true;
+      this.logStep(`scheduleReconnect:cap-reached:${reason}`);
+      return;
+    }
+
+    const attempt = this.offlineReconnectAttempts + 1;
+    const delay = Math.min(this.reconnectBaseDelayMs * attempt, 10000);
+    this.logStep(`scheduleReconnect:${reason}:in:${delay}`);
+    this.reconnectTimer = setTimeout(async () => {
+      this.reconnectTimer = null;
+      if (!this.isBrowserOnline() || this.pausedDueToOfflineCap) {
+        return;
+      }
+      this.offlineReconnectAttempts += 1;
+      await this.reconnect();
+    }, delay);
   }
 }
 
