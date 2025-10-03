@@ -19,6 +19,45 @@ export const decodeHTMLEntities = (text) => {
   return text.replace(/&[a-zA-Z0-9#]+;/g, (match) => entities[match] || match);
 };
 
+const renderTextWithLinks = (text: string) => {
+  const urlRegex =
+    /(https?:\/\/[\w.-]+(?:\.[\w.-]+)+[\w\-\._~:\/?#[\]@!\$&'()\*\+,;=.]+)/g;
+  const nodes: Array<string | JSX.Element> = [];
+  let lastIndex = 0;
+
+  if (!text) return nodes;
+
+  let match: RegExpExecArray | null;
+  while ((match = urlRegex.exec(text)) !== null) {
+    const url = match[0];
+    const start = match.index;
+
+    if (start > lastIndex) {
+      nodes.push(text.slice(lastIndex, start));
+    }
+
+    nodes.push(
+      <a
+        key={`link-${elementKeyCounter++}`}
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ color: '#0a66c2' }}
+      >
+        {url}
+      </a>
+    );
+
+    lastIndex = start + url.length;
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex));
+  }
+
+  return nodes;
+};
+
 const parseInline = (txt) => {
   const elements = [];
   let remaining = decodeHTMLEntities(txt);
@@ -29,7 +68,7 @@ const parseInline = (txt) => {
     const match = remaining.match(pattern);
 
     if (!match) {
-      elements.push(remaining);
+      elements.push(...renderTextWithLinks(remaining));
       break;
     }
 
@@ -38,7 +77,7 @@ const parseInline = (txt) => {
     const delimiter = match[1];
 
     if (matchIndex > 0) {
-      elements.push(remaining.substring(0, matchIndex));
+      elements.push(...renderTextWithLinks(remaining.substring(0, matchIndex)));
     }
 
     let element = null;
@@ -88,7 +127,7 @@ const parseInline = (txt) => {
       elements.push(element);
       remaining = remaining.substring(matchIndex + fullMatch.length);
     } else {
-      elements.push(fullMatch);
+      elements.push(...renderTextWithLinks(fullMatch));
       remaining = remaining.substring(matchIndex + fullMatch.length);
     }
   }
