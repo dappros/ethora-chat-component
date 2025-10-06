@@ -1,4 +1,4 @@
-import { setLastViewedTimestamp } from '../roomStore/roomsSlice';
+import { setServerLastViewedTimestamp } from '../roomStore/roomsSlice';
 
 export const updatedChatLastTimestamps = (
   roomTimestampObject: [jid: string, timestamp: string],
@@ -18,7 +18,7 @@ export const updatedChatLastTimestamps = (
     roomTimestampArray.forEach(({ jid, timestamp }) => {
       if (jid) {
         dispatch(
-          setLastViewedTimestamp({
+          setServerLastViewedTimestamp({
             chatJID: jid,
             timestamp: Number(timestamp || 0),
           })

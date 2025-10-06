@@ -292,7 +292,18 @@ export const roomsStore = createSlice({
             state.rooms[chatJID].messages,
             timestamp
           );
+        } else {
+          state.rooms[chatJID].unreadMessages = 0;
         }
+      }
+    },
+    setServerLastViewedTimestamp: (
+      state,
+      action: PayloadAction<{ chatJID: string; timestamp: number }>
+    ) => {
+      const { chatJID, timestamp } = action.payload;
+      if (state.rooms[chatJID]) {
+        state.rooms[chatJID].serverLastViewedTimestamp = timestamp;
       }
     },
     setRoomRole: (
@@ -383,11 +394,13 @@ const countNewerMessages = (
   messages: IMessage[],
   timestamp: number
 ): number => {
-  if (timestamp !== 0) {
-    return messages.filter((message) => {
-      return Number(message.id) < timestamp;
-    }).length;
-  } else return 0;
+  if (timestamp === 0) return 0;
+  return messages.filter((message) => {
+    if (message.id === 'delimiter-new') return false;
+    const messageTime =
+      message?.date ? new Date(message.date).getTime() : Number(message?.timestamp || 0);
+    return messageTime > timestamp;
+  }).length;
 };
 
 export const getLastMessageTimestamp = (
@@ -413,6 +426,7 @@ export const {
   setComposing,
   setIsLoading,
   setLastViewedTimestamp,
+  setServerLastViewedTimestamp,
   setRoomNoMessages,
   setCurrentRoom,
   setRoomRole,

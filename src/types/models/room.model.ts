@@ -49,6 +49,7 @@ export interface IRoom {
   composing?: boolean;
   composingList?: string[];
   lastViewedTimestamp?: number;
+  serverLastViewedTimestamp?: number;
   unreadMessages?: number;
   noMessages?: boolean;
   role?: string;
