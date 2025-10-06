@@ -300,7 +300,7 @@ const SendInput: React.FC<SendInputProps> = ({
             {config?.secondarySendButton?.hideInputSendButton ? null : (
               <Button
                 onClick={() => handleSendClick()}
-                // disabled={!message || message === ""}
+                disabled={message === '' || isMessageProcessing}
                 EndIcon={
                   <SendIcon
                     color={
