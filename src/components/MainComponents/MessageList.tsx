@@ -54,11 +54,10 @@ const MessageList = <TMessage extends IMessage>({
   const { user } = useChatSettingState();
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [newMessagesCount, setNewMessagesCount] = useState(0);
-  const [lastMessageDate, setLastMessageDate] = useState<number | null>(null);
   const lastMessageCount = useRef(messages.length);
   const lastUserMessageId = useRef<string | null>(null);
   const scrollPositions = useRef<{ [key: string]: number }>({});
-  const isFirstLoad = useRef<boolean>(true);
+  const isInitialized = useRef<boolean>(false);
 
   const addReplyMessages = useMemo(() => {
     return messages.map((message) => {
@@ -106,114 +105,93 @@ const MessageList = <TMessage extends IMessage>({
     memoizedMessages[memoizedMessages.length - 1]
   );
   const isLoadingMore = useRef<boolean>(false);
-
   const timeoutRef = useRef<number>(0);
   const scrollParams = useRef<{ top: number; height: number } | null>(null);
   const atBottom = useRef<boolean>(true);
   const isUserScrolledUp = useRef<boolean>(false);
   const lastComposingState = useRef<boolean>(false);
 
-  const getScrollParams = (): { top: number; height: number } | null => {
+  const scrollToBottom = useCallback(() => {
     const content = containerRef.current;
-    if (!content) {
-      return null;
+    if (content) {
+      content.scrollTop = content.scrollHeight;
     }
-    return {
-      top: content.scrollTop,
-      height: content.scrollHeight,
-    };
-  };
-
-  const waitForImagesLoaded = useCallback(() => {
-    const content = containerRef.current;
-    if (!content) return Promise.resolve();
-
-    const images = content.getElementsByTagName('img');
-    if (images.length === 0) return Promise.resolve();
-
-    const promises = Array.from(images).map((img) => {
-      if (img.complete) return Promise.resolve();
-      return new Promise((resolve) => {
-        img.onload = resolve;
-        img.onerror = resolve;
-      });
-    });
-
-    return Promise.all(promises);
   }, []);
 
-  const restoreScrollPosition = useCallback(async () => {
+  const isAtBottom = useCallback(() => {
+    const content = containerRef.current;
+    if (!content) return false;
+    
+    const scrollTop = content.scrollTop;
+    const scrollHeight = content.scrollHeight;
+    const clientHeight = content.clientHeight;
+    const distanceFromBottom = scrollHeight - clientHeight - scrollTop;
+    
+    return distanceFromBottom <= 10;
+  }, []);
+
+  const initializeScrollPosition = useCallback(() => {
+    if (isInitialized.current) return;
+
     const content = containerRef.current;
     if (!content) return;
 
-    await waitForImagesLoaded();
+    const scrollToBottom = () => {
+      content.scrollTop = content.scrollHeight;
+    };
 
-    if (isFirstLoad.current) {
-      const delimiterIndex = memoizedMessages.findIndex(
-        (msg) => msg.id === 'delimiter-new'
-      );
-
-      if (delimiterIndex !== -1) {
-        setTimeout(() => {
-          const allMessages = content.querySelectorAll('[data-message-id]');
-          const delimiterElement = Array.from(allMessages).find(
-            (el) => el.getAttribute('data-message-id') === 'delimiter-new'
-          );
-
-          if (delimiterElement) {
-            delimiterElement.scrollIntoView({
-              behavior: 'auto',
-              block: 'center',
-            });
-          } else {
-            content.scrollTop = content.scrollHeight;
-          }
-        }, 100);
-      } else {
-        content.scrollTop = content.scrollHeight;
+    scrollToBottom();
+    
+    setTimeout(scrollToBottom, 50);
+    setTimeout(scrollToBottom, 100);
+    setTimeout(scrollToBottom, 200);
+    
+    setTimeout(() => {
+      if (content) {
+        const scrollTop = content.scrollTop;
+        const scrollHeight = content.scrollHeight;
+        const clientHeight = content.clientHeight;
+        const distanceFromBottom = scrollHeight - clientHeight - scrollTop;
+        
+        if (distanceFromBottom > 5) {
+          content.scrollTop = content.scrollHeight;
+        }
       }
-      isFirstLoad.current = false;
-    } else {
-      const savedPosition = scrollPositions.current[roomJID];
-      if (savedPosition !== undefined) {
-        content.scrollTop = savedPosition;
-      } else {
-        content.scrollTop = content.scrollHeight;
-      }
-    }
-  }, [roomJID, memoizedMessages, waitForImagesLoaded]);
-
-  useEffect(() => {
-    if (memoizedMessages.length > 0) {
-      setLastMessageDate(
-        new Date(memoizedMessages[memoizedMessages.length - 1].date).getTime()
-      );
-    }
+      isInitialized.current = true;
+    }, 300);
   }, []);
 
   useEffect(() => {
-    if (isUserMessage) return;
-
-    const newMessageDate = new Date(
-      memoizedMessages[memoizedMessages.length - 1]?.date
-    )?.getTime();
-    if (newMessageDate > lastMessageDate) {
-      setNewMessagesCount((prev) => (prev += 1));
+    isInitialized.current = false;
+    
+    const content = containerRef.current;
+    if (content && roomJID) {
+      scrollPositions.current[roomJID] = content.scrollTop;
     }
-  }, [memoizedMessages.length]);
-
-  useEffect(() => {
-    restoreScrollPosition();
   }, [roomJID]);
 
+  useEffect(() => {
+    if (memoizedMessages.length > 0 && !isInitialized.current) {
+      initializeScrollPosition();
+    }
+  }, [memoizedMessages.length, initializeScrollPosition]);
+
+  useEffect(() => {
+    if (memoizedMessages.length > 0 && !isInitialized.current) {
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          initializeScrollPosition();
+        }, 100);
+      });
+    }
+  }, [memoizedMessages, initializeScrollPosition]);
+
   const checkIfLoadMoreMessages = useCallback(() => {
-    const params = getScrollParams();
+    const content = containerRef.current;
+    if (!content || isLoadingMore.current) return;
 
-    if (!params) return;
-
-    if (params.top >= 150 || isLoadingMore.current) return;
-
-    scrollParams.current = getScrollParams();
+    const scrollTop = content.scrollTop;
+    if (scrollTop >= 150) return;
 
     const [firstMessage, secondMessage] = memoizedMessages;
     const firstMessageId =
@@ -224,64 +202,39 @@ const MessageList = <TMessage extends IMessage>({
     if (!firstMessageId) return;
 
     isLoadingMore.current = true;
-
     loadMoreMessages(firstMessage.roomJid, 30, Number(firstMessageId)).finally(
       () => {
         isLoadingMore.current = false;
         lastMessageRef.current = memoizedMessages[memoizedMessages.length - 1];
       }
     );
-  }, [loadMoreMessages, memoizedMessages.length]);
+  }, [loadMoreMessages, memoizedMessages]);
 
-  const scrollToBottom = useCallback((): void => {
+  const handleScrollToBottom = useCallback(() => {
+    scrollToBottom();
+    setShowScrollButton(false);
+    setNewMessagesCount(0);
+  }, [scrollToBottom]);
+
+  const checkScrollPosition = useCallback(() => {
     const content = containerRef.current;
-    if (content) {
-      content.scrollTo({
-        top: content.scrollHeight,
-        behavior: 'smooth',
-      });
-      setShowScrollButton(false);
-      setNewMessagesCount(0);
-    }
-  }, []);
+    if (!content) return;
 
-  const checkAtBottom = () => {
-    const content = containerRef.current;
-    if (content) {
-      const scrollTop = content.scrollTop;
-      const scrollHeight = content.scrollHeight;
-      const clientHeight = content.clientHeight;
-      const distanceFromBottom = scrollHeight - clientHeight - scrollTop;
+    const scrollTop = content.scrollTop;
+    const scrollHeight = content.scrollHeight;
+    const clientHeight = content.clientHeight;
+    const distanceFromBottom = scrollHeight - clientHeight - scrollTop;
 
-      const isNearBottom = distanceFromBottom <= 150;
-      const isAtBottom = distanceFromBottom <= 5;
+    const shouldShowButton = distanceFromBottom > 100;
+    setShowScrollButton(shouldShowButton);
 
-      atBottom.current = isAtBottom;
-      isUserScrolledUp.current = !isNearBottom;
+    checkIfLoadMoreMessages();
+  }, [checkIfLoadMoreMessages]);
 
-      const scrolledUp = distanceFromBottom > 150;
-
-      if (scrolledUp) {
-        setShowScrollButton(true);
-      } else if (isAtBottom) {
-        scrollToBottom();
-        setShowScrollButton(false);
-        setNewMessagesCount(0);
-      }
-
-      lastMessageCount.current = messages.length;
-      checkIfLoadMoreMessages();
-    } else {
-      timeoutRef.current = null;
-    }
-  };
-
-  const onScroll = () => {
+  const onScroll = useCallback(() => {
     window.clearTimeout(timeoutRef.current);
-    timeoutRef.current = window.setTimeout(() => {
-      checkAtBottom();
-    }, 50);
-  };
+    timeoutRef.current = window.setTimeout(checkScrollPosition, 50);
+  }, [checkScrollPosition]);
 
   useEffect(() => {
     const messagesOuter = outerRef.current;
@@ -295,23 +248,36 @@ const MessageList = <TMessage extends IMessage>({
     };
   }, []);
 
-  useEffect(() => {
-    if (memoizedMessages.length > 30) {
-      const content = containerRef.current;
-      if (content && scrollParams.current) {
-        const newScrollTop =
-          scrollParams.current.top +
-          (content.scrollHeight - scrollParams.current.height);
-        content.scrollTop = newScrollTop;
-      }
-      scrollParams.current = null;
-    }
-  }, [memoizedMessages.length, composing]);
 
   useEffect(() => {
-    if (messages.length > 0) {
+    const hasNewMessages = memoizedMessages.length > lastMessageCount.current;
+    
+    if (hasNewMessages && isInitialized.current) {
+      const content = containerRef.current;
+      if (content) {
+        const scrollTop = content.scrollTop;
+        const scrollHeight = content.scrollHeight;
+        const clientHeight = content.clientHeight;
+        const distanceFromBottom = scrollHeight - clientHeight - scrollTop;
+        
+        if (distanceFromBottom <= 100) {
+          scrollToBottom();
+          setShowScrollButton(false);
+          setNewMessagesCount(0);
+        } else {
+          setShowScrollButton(true);
+          setNewMessagesCount(prev => prev + 1);
+        }
+      }
+      
+      lastMessageCount.current = memoizedMessages.length;
+    }
+  }, [memoizedMessages.length, scrollToBottom]);
+
+  useEffect(() => {
+    if (messages.length > 0 && isInitialized.current) {
       const lastMessage = messages[messages.length - 1];
-      const isLastMessageFromUser = lastMessage && isUserMessage;
+      const isLastMessageFromUser = lastMessage && lastMessage.user.id === user.xmppUsername;
 
       if (
         lastMessage &&
@@ -319,41 +285,12 @@ const MessageList = <TMessage extends IMessage>({
         isLastMessageFromUser
       ) {
         lastUserMessageId.current = lastMessage.id;
-        scrollToBottom();
-      }
-    }
-  }, [messages, isUserMessage]);
-
-  useEffect(() => {
-    const content = containerRef.current;
-    if (!content) return;
-
-    const hasNewMessages = memoizedMessages.length > lastMessageCount.current;
-    const isTypingStarted =
-      composingList?.length > 0 && !lastComposingState.current;
-    const isTypingStopped =
-      composingList?.length === 0 && lastComposingState.current;
-
-    lastComposingState.current = composingList?.length > 0;
-
-    if (!isUserScrolledUp.current) {
-      if (hasNewMessages || isTypingStarted) {
-        waitForImagesLoaded().then(() => {
           scrollToBottom();
-          setShowScrollButton(false);
-          setNewMessagesCount(0);
-        });
+        setShowScrollButton(false);
+        setNewMessagesCount(0);
       }
     }
-
-    if (isTypingStopped) {
-    }
-  }, [
-    memoizedMessages.length,
-    composingList,
-    scrollToBottom,
-    waitForImagesLoaded,
-  ]);
+  }, [messages, user.xmppUsername, scrollToBottom]);
 
   let lastDateLabel: string | null = null;
 
@@ -450,7 +387,7 @@ const MessageList = <TMessage extends IMessage>({
       </MessagesScroll>
       {showScrollButton && (
         <ScrollToBottomButton
-          onClick={scrollToBottom}
+          onClick={handleScrollToBottom}
           color={config?.colors?.primary}
         >
           <DownArrowIcon color={config?.colors?.secondary || 'white'} />

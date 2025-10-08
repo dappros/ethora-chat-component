@@ -125,8 +125,6 @@ const RoomList: React.FC<RoomListProps> = ({
     return chatsMap.get(lowerCaseSearchTerm) || [];
   }, [chats, searchTerm]);
 
-  console.log('Filtered Chats:', filteredChats);
-
   useEffect(() => {
     if (burgerMenu) {
       document.addEventListener('mousedown', handleClickOutside);
