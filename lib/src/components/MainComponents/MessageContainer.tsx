@@ -40,6 +40,17 @@ export const MessageContainer: FC<MessageContainerProps> = ({
   const messageDate = new Date(message.date);
 
   if (message?.isSystemMessage === 'true') {
+    const isWhitelisted = config?.whitelistSystemMessage?.includes(
+      message.user.id
+    );
+    const CustomSystem = config?.customSystemMessage;
+    if (CustomSystem && (isWhitelisted || !config?.whitelistSystemMessage)) {
+      return (
+        <Fragment key={message.id}>
+          <CustomSystem message={message} isUser={false} isReply={false} />
+        </Fragment>
+      );
+    }
     return (
       <Fragment key={message.id}>
         {showDateLabel && (

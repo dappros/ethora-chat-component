@@ -1,7 +1,7 @@
 import { User } from './user.model';
 import { xmppSettingsInterface } from './xmpp.model';
 import { PartialRoomWithMandatoryKeys, ConfigRoom } from './room.model';
-import { MessageBubble } from './message.model';
+import { MessageBubble, MessageProps } from './message.model';
 import { Iso639_1Codes } from './language.model';
 import React from 'react'; // Assuming React types are globally available or managed by the project's tsconfig
 
@@ -128,4 +128,6 @@ export interface IConfig {
       isVisible: boolean;
     }>;
   };
+  whitelistSystemMessage?: string[];
+  customSystemMessage?: React.ComponentType<MessageProps>;
 }

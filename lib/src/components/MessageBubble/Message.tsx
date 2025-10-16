@@ -33,6 +33,7 @@ import { DoubleTick } from '../../assets/icons';
 import { parseMessageBody } from '../../helpers/parseMessageBody';
 import URLPreviewCard from './URLPreviewCard';
 import { useMessageHeapState } from '../../hooks/useMessageHeapState';
+import { resendMessage } from '../../main';
 
 const firstUrlRegex =
   /(https?:\/\/[\w.-]+(?:\.[\w.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+)/;
@@ -308,6 +309,23 @@ const Message: React.FC<MessageProps> = forwardRef<
             />
           )}
         </MessageFooter>
+        {/* <button
+          onClick={() =>
+            resendMessage({
+              originalMessageId: message.id,
+              body: message.body,
+              roomJid: message.roomJid,
+              isReply:
+                typeof message.isReply === 'boolean'
+                  ? message.isReply
+                  : !!message.isReply,
+              showInChannel: message.showInChannel,
+              mainMessage: message.mainMessage,
+            })
+          }
+        >
+          asdasdsd
+        </button> */}
       </CustomMessageContainer>
 
       {!config?.disableInteractions && (
