@@ -57,7 +57,10 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
   return (
     <Container>
       {openButton ? (
-        React.cloneElement(openButton, { ref: buttonRef, onClick: toggleMenu })
+        React.cloneElement(openButton, {
+          ref: buttonRef,
+          onClick: toggleMenu,
+        } as any)
       ) : (
         <Button onClick={toggleMenu}>{menuIcon ?? <BurgerMenuIcon />}</Button>
       )}

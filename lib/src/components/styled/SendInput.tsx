@@ -55,6 +55,7 @@ const SendInput: React.FC<SendInputProps> = ({
 }) => {
   const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
+  const [textareaHeight, setTextareaHeight] = useState(40);
 
   const [filePreviews, setFilePreviews] = useState<File[]>([]);
 
@@ -107,16 +108,44 @@ const SendInput: React.FC<SendInputProps> = ({
     setFilePreviews((prevFiles) => prevFiles.filter((f) => f !== file));
   }, []);
 
+  const calculateTextareaHeight = useCallback(
+    (text: string) => {
+      if (!multiline) return 40;
+
+      const lineBreaks = (text.match(/\n/g) || []).length;
+      const baseHeight = 40;
+      const heightPerLine = 8;
+      const maxHeight = 80;
+
+      const calculatedHeight = baseHeight + lineBreaks * heightPerLine;
+      return Math.min(Math.max(calculatedHeight, baseHeight), maxHeight);
+    },
+    [multiline]
+  );
+
+  const updateTextareaHeight = useCallback(
+    (text: string) => {
+      const newHeight = calculateTextareaHeight(text);
+      setTextareaHeight(newHeight);
+    },
+    [calculateTextareaHeight]
+  );
+
   const handleInputChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      setMessage(event.target.value);
+      const newValue = event.target.value;
+      setMessage(newValue);
+      updateTextareaHeight(newValue);
     },
-    []
+    [updateTextareaHeight]
   );
 
   useEffect(() => {
     setMessage(editMessage);
-  }, [editMessage]);
+    if (editMessage) {
+      updateTextareaHeight(editMessage);
+    }
+  }, [editMessage, updateTextareaHeight]);
 
   const handleSendClick = useCallback(
     (audioUrl?: string) => {
@@ -132,6 +161,7 @@ const SendInput: React.FC<SendInputProps> = ({
       }
       setMessage('');
       setFilePreviews([]);
+      setTextareaHeight(40); // Reset height to default
     },
     [filePreviews, message, sendMessage, sendMedia, formatMessage]
   );
@@ -142,6 +172,7 @@ const SendInput: React.FC<SendInputProps> = ({
     sendMessage(outgoing);
     setMessage('');
     setFilePreviews([]);
+    setTextareaHeight(40);
   }, [
     filePreviews,
     message,
@@ -237,11 +268,7 @@ const SendInput: React.FC<SendInputProps> = ({
                 onFocus={handleFocus}
                 onBlur={handleBlur}
                 disabled={isLoading || isMessageProcessing}
-                style={{
-                  height: inputHeight,
-                  maxHeight: inputHeight,
-                  minHeight: inputHeight,
-                }}
+                dynamicHeight={textareaHeight}
               />
             ) : (
               <MessageInput
@@ -344,7 +371,11 @@ const SendInput: React.FC<SendInputProps> = ({
             color: '#141414',
           }}
         >
-          {(previewParser || parseMessageBody)(message) as any}
+          {
+            (previewParser || ((text: string) => parseMessageBody({ text })))(
+              message
+            ) as React.ReactNode
+          }
         </div>
       )}
 

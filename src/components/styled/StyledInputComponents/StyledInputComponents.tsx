@@ -115,7 +115,7 @@ export const StyledInput = styled.input<{}>`
   }
 `;
 
-export const TextareaInput = styled.textarea<{}>`
+export const TextareaInput = styled.textarea<{ dynamicHeight?: number }>`
   flex-grow: 1;
   padding: 8px 10px;
   border-radius: 12px;
@@ -127,10 +127,11 @@ export const TextareaInput = styled.textarea<{}>`
   font-family: inherit;
   overflow: auto;
   resize: none;
-  height: 40px;
-  max-height: 40px;
+  height: ${(props) => props.dynamicHeight || 40}px;
+  max-height: ${(props) => props.dynamicHeight || 40}px;
   min-height: 40px;
   box-sizing: border-box;
+  transition: height 0.2s ease-in-out;
 
   &:focus {
     border: 1px solid #0052cd;

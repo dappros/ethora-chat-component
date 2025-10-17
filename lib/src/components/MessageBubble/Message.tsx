@@ -188,10 +188,6 @@ const Message: React.FC<MessageProps> = forwardRef<
     );
   };
 
-  const messageText = config?.messageTextFilter?.enabled
-    ? parseMessageBody(config?.messageTextFilter.filterFunction(message.body))
-    : parseMessageBody(message.body);
-
   const isPending = idSet.has(message.id) || message?.pending || false;
 
   return (
@@ -264,7 +260,13 @@ const Message: React.FC<MessageProps> = forwardRef<
               {message.isDeleted && message.id !== 'delimiter-new' ? (
                 <DeletedMessage />
               ) : (
-                <span>{messageText}</span>
+                <div className="message-body">
+                  {parseMessageBody({
+                    text: config?.messageTextFilter?.enabled
+                      ? config.messageTextFilter.filterFunction(message.body)
+                      : message.body,
+                  })}
+                </div>
               )}
             </CustomMessageText>
           )}
