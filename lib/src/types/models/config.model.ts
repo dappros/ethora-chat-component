@@ -121,7 +121,7 @@ export interface IConfig {
     | {
         enabled: boolean;
         timeout?: number;
-        onTimeout?: () => void;
+        onTimeout?: (roomJID: string) => void;
       };
   customTypingIndicator?: {
     enabled: boolean;

@@ -1,4 +1,4 @@
-import { FC, useCallback, useRef, useEffect } from 'react';
+import { useCallback, useRef, useEffect, useState } from 'react';
 import { useXmppClient } from '../context/xmppProvider';
 import { useDispatch, useSelector } from 'react-redux';
 import { addRoomMessage, setEditAction } from '../roomStore/roomsSlice';
@@ -9,14 +9,19 @@ import { addMessageToHeap } from '../roomStore/roomHeapSlice';
 import { v4 as uuidv4 } from 'uuid';
 import { useEventHandlers } from './useEventHandlers';
 
+const DEFAULT_TIMEOUT_MS = 300000;
+
+interface BlockingConfig {
+  enabled: boolean;
+  timeout: number;
+  onTimeout: (roomJID: string) => void;
+}
+
 export const useSendMessage = () => {
   const { config, langSource } = useChatSettingState();
   const { client } = useXmppClient();
   const dispatch = useDispatch();
   const { handleMessageSent, handleMessageFailed } = useEventHandlers(config);
-
-  const messageSendTimes = useRef<Map<string, number>>(new Map());
-  const timeoutCallbacks = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   const { user, editAction, activeRoomJID, rooms } = useSelector(
     (state: RootState) => ({
@@ -28,72 +33,120 @@ export const useSendMessage = () => {
     })
   );
 
-  const getTimeoutConfig = useCallback(() => {
-    if (!config?.blockMessageSendingWhenProcessing) {
-      return { enabled: false, timeout: 0 };
-    }
+  const timeoutTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const sendingMessagesRef = useRef<Set<string>>(new Set());
 
-    if (typeof config.blockMessageSendingWhenProcessing === 'boolean') {
-      return { enabled: true, timeout: 300000 };
+  const [blockedRooms, setBlockedRooms] = useState<Set<string>>(new Set());
+
+  const getBlockingConfig = useCallback((): BlockingConfig | null => {
+    const blockingConfig = config?.blockMessageSendingWhenProcessing;
+    if (!blockingConfig) return null;
+
+    if (typeof blockingConfig === 'boolean') {
+      return {
+        enabled: blockingConfig,
+        timeout: DEFAULT_TIMEOUT_MS,
+        onTimeout: () => {},
+      };
     }
 
     return {
-      enabled: config.blockMessageSendingWhenProcessing.enabled,
-      timeout: config.blockMessageSendingWhenProcessing.timeout || 300000,
-      onTimeout: config.blockMessageSendingWhenProcessing.onTimeout,
+      enabled: blockingConfig.enabled,
+      timeout: blockingConfig.timeout ?? DEFAULT_TIMEOUT_MS,
+      onTimeout: blockingConfig.onTimeout ?? (() => {}),
     };
   }, [config?.blockMessageSendingWhenProcessing]);
 
+  const updateBlockedRooms = useCallback(
+    (roomJID: string, isBlocked: boolean) => {
+      setBlockedRooms((prev) => {
+        const next = new Set(prev);
+        if (isBlocked) {
+          next.add(roomJID);
+        } else {
+          next.delete(roomJID);
+        }
+        return next;
+      });
+    },
+    []
+  );
+
+  const clearRoomTimeout = useCallback(
+    (roomJID: string) => {
+      const timer = timeoutTimersRef.current.get(roomJID);
+      if (timer) {
+        clearTimeout(timer);
+        timeoutTimersRef.current.delete(roomJID);
+        updateBlockedRooms(roomJID, false);
+      }
+    },
+    [updateBlockedRooms]
+  );
+
+  const setupRoomTimeout = useCallback(
+    (roomJID: string) => {
+      const blockingConfig = getBlockingConfig();
+      if (!blockingConfig?.enabled) return;
+
+      clearRoomTimeout(roomJID);
+
+      const timer = setTimeout(() => {
+        blockingConfig.onTimeout(roomJID);
+        timeoutTimersRef.current.delete(roomJID);
+        updateBlockedRooms(roomJID, false);
+      }, blockingConfig.timeout);
+
+      updateBlockedRooms(roomJID, true);
+      timeoutTimersRef.current.set(roomJID, timer);
+    },
+    [getBlockingConfig, clearRoomTimeout, updateBlockedRooms]
+  );
+
+  useEffect(() => {
+    return () => {
+      timeoutTimersRef.current.forEach((timer) => clearTimeout(timer));
+      timeoutTimersRef.current.clear();
+      sendingMessagesRef.current.clear();
+    };
+  }, []);
+
+  useEffect(() => {
+    const blockingConfig = getBlockingConfig();
+    if (!blockingConfig?.enabled) {
+      timeoutTimersRef.current.forEach((timer) => clearTimeout(timer));
+      timeoutTimersRef.current.clear();
+      sendingMessagesRef.current.clear();
+      setBlockedRooms(new Set());
+    }
+  }, [getBlockingConfig]);
+
+  /**
+   * Checks if message sending is currently blocked for a room
+   * @param roomJID - The room JID to check
+   * @returns true if sending is blocked, false otherwise
+   */
   const isLastMessageFromUserAndProcessing = useCallback(
     (roomJID: string): boolean => {
-      const timeoutConfig = getTimeoutConfig();
-      if (!timeoutConfig.enabled) return false;
+      const blockingConfig = getBlockingConfig();
+      if (!blockingConfig?.enabled) return false;
 
-      const room = rooms[roomJID];
-      if (!room || !room.messages || room.messages.length === 0) return false;
+      if (sendingMessagesRef.current.has(roomJID)) return true;
 
-      const lastMessage = room.messages[room.messages.length - 1];
-
-      if (lastMessage.user.id !== user.xmppUsername) {
-        return false;
-      }
-
-      if (lastMessage.pending) {
-        return true;
-      }
-
-      const sendTime = messageSendTimes.current.get(lastMessage.id);
-      if (!sendTime) {
-        return false;
-      }
-
-      const elapsed = Date.now() - sendTime;
-      const hasExpired = elapsed >= timeoutConfig.timeout;
-
-      if (hasExpired) {
-        const callback =
-          typeof config?.blockMessageSendingWhenProcessing === 'object'
-            ? config.blockMessageSendingWhenProcessing.onTimeout
-            : undefined;
-        if (callback) {
-          callback();
-        }
-        messageSendTimes.current.delete(lastMessage.id);
-        const existingTimeout = timeoutCallbacks.current.get(lastMessage.id);
-        if (existingTimeout) {
-          clearTimeout(existingTimeout);
-          timeoutCallbacks.current.delete(lastMessage.id);
-        }
-      }
-
-      return !hasExpired;
+      return blockedRooms.has(roomJID);
     },
-    [
-      config?.blockMessageSendingWhenProcessing,
-      rooms,
-      user.xmppUsername,
-      getTimeoutConfig,
-    ]
+    [getBlockingConfig, blockedRooms]
+  );
+
+  const markMessageSending = useCallback(
+    (roomJID: string, isSending: boolean) => {
+      if (isSending) {
+        sendingMessagesRef.current.add(roomJID);
+      } else {
+        sendingMessagesRef.current.delete(roomJID);
+      }
+    },
+    []
   );
 
   const sendMessage = useCallback(
@@ -105,8 +158,15 @@ export const useSendMessage = () => {
       mainMessage?: string
     ) => {
       if (isLastMessageFromUserAndProcessing(activeRoomJID)) {
-        console.log('Cannot send message: Last message is still processing');
+        console.log(
+          'Cannot send message: Message sending is currently blocked'
+        );
         return;
+      }
+
+      if (!editAction.isEdit) {
+        markMessageSending(activeRoomJID, true);
+        setupRoomTimeout(activeRoomJID);
       }
 
       if (editAction.isEdit) {
@@ -144,18 +204,6 @@ export const useSendMessage = () => {
         try {
           if (config?.translates?.enabled) {
             const id = `send-translate-message-${uuidv4()}`;
-
-            messageSendTimes.current.set(id, Date.now());
-            const timeoutConfig = getTimeoutConfig();
-            if (timeoutConfig.enabled && timeoutConfig.onTimeout) {
-              const timeout = setTimeout(() => {
-                timeoutConfig.onTimeout?.();
-                messageSendTimes.current.delete(id);
-                timeoutCallbacks.current.delete(id);
-              }, timeoutConfig.timeout);
-              timeoutCallbacks.current.set(id, timeout);
-            }
-
             dispatch(
               addRoomMessage({
                 roomJID: activeRoomJID,
@@ -225,18 +273,6 @@ export const useSendMessage = () => {
             });
           } else {
             const id = `send-text-message-${uuidv4()}`;
-
-            messageSendTimes.current.set(id, Date.now());
-            const timeoutConfig = getTimeoutConfig();
-            if (timeoutConfig.enabled && timeoutConfig.onTimeout) {
-              const timeout = setTimeout(() => {
-                timeoutConfig.onTimeout?.();
-                messageSendTimes.current.delete(id);
-                timeoutCallbacks.current.delete(id);
-              }, timeoutConfig.timeout);
-              timeoutCallbacks.current.set(id, timeout);
-            }
-
             dispatch(
               addRoomMessage({
                 roomJID: activeRoomJID,
@@ -310,6 +346,10 @@ export const useSendMessage = () => {
             error: error as Error,
             messageType: 'text',
           });
+        } finally {
+          if (!editAction.isEdit) {
+            markMessageSending(activeRoomJID, false);
+          }
         }
       }
     },
@@ -321,7 +361,8 @@ export const useSendMessage = () => {
       dispatch,
       langSource,
       isLastMessageFromUserAndProcessing,
-      getTimeoutConfig,
+      setupRoomTimeout,
+      markMessageSending,
     ]
   );
 
@@ -370,23 +411,14 @@ export const useSendMessage = () => {
       mainMessage = ''
     ) => {
       if (isLastMessageFromUserAndProcessing(activeRoomJID)) {
-        console.log('Cannot send media: Last message is still processing');
+        console.log('Cannot send media: Message sending is currently blocked');
         return;
       }
 
+      markMessageSending(activeRoomJID, true);
+      setupRoomTimeout(activeRoomJID);
+
       const id = `send-media-message:${uuidv4()}`;
-
-      messageSendTimes.current.set(id, Date.now());
-      const timeoutConfig = getTimeoutConfig();
-      if (timeoutConfig.enabled && timeoutConfig.onTimeout) {
-        const timeout = setTimeout(() => {
-          timeoutConfig.onTimeout?.();
-          messageSendTimes.current.delete(id);
-          timeoutCallbacks.current.delete(id);
-        }, timeoutConfig.timeout);
-        timeoutCallbacks.current.set(id, timeout);
-      }
-
       if (!config?.disableSentLogic) {
         dispatch(
           addRoomMessage({
@@ -481,6 +513,8 @@ export const useSendMessage = () => {
           error: error as Error,
           messageType: 'media',
         });
+      } finally {
+        markMessageSending(activeRoomJID, false);
       }
     },
     [
@@ -490,17 +524,10 @@ export const useSendMessage = () => {
       isLastMessageFromUserAndProcessing,
       handleMessageSent,
       handleMessageFailed,
-      getTimeoutConfig,
+      setupRoomTimeout,
+      markMessageSending,
     ]
   );
-
-  useEffect(() => {
-    return () => {
-      timeoutCallbacks.current.forEach((timeout) => clearTimeout(timeout));
-      timeoutCallbacks.current.clear();
-      messageSendTimes.current.clear();
-    };
-  }, []);
 
   return {
     sendMessage,

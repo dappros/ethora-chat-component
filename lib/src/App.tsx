@@ -82,10 +82,16 @@ const ChatComponent = React.memo(() => {
           //   overwriteEnterClick: true,
           // },
           disableMedia: true,
-          disableHeader: true,
           eventHandlers: {
             onMessageSent: async (event) => {
               console.log('✅ Message sent successfully:', event.message);
+            },
+          },
+          blockMessageSendingWhenProcessing: {
+            enabled: true,
+            timeout: 10000,
+            onTimeout: () => {
+              console.log('asdasdasd');
             },
           },
           ...config,
