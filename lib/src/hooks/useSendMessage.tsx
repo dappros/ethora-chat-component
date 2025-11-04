@@ -1,4 +1,4 @@
-import { FC, useCallback } from 'react';
+import { FC, useCallback, useRef, useEffect } from 'react';
 import { useXmppClient } from '../context/xmppProvider';
 import { useDispatch, useSelector } from 'react-redux';
 import { addRoomMessage, setEditAction } from '../roomStore/roomsSlice';
@@ -15,6 +15,9 @@ export const useSendMessage = () => {
   const dispatch = useDispatch();
   const { handleMessageSent, handleMessageFailed } = useEventHandlers(config);
 
+  const messageSendTimes = useRef<Map<string, number>>(new Map());
+  const timeoutCallbacks = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
   const { user, editAction, activeRoomJID, rooms } = useSelector(
     (state: RootState) => ({
       activeRoomJID: state.rooms.activeRoomJID,
@@ -25,17 +28,72 @@ export const useSendMessage = () => {
     })
   );
 
+  const getTimeoutConfig = useCallback(() => {
+    if (!config?.blockMessageSendingWhenProcessing) {
+      return { enabled: false, timeout: 0 };
+    }
+
+    if (typeof config.blockMessageSendingWhenProcessing === 'boolean') {
+      return { enabled: true, timeout: 300000 };
+    }
+
+    return {
+      enabled: config.blockMessageSendingWhenProcessing.enabled,
+      timeout: config.blockMessageSendingWhenProcessing.timeout || 300000,
+      onTimeout: config.blockMessageSendingWhenProcessing.onTimeout,
+    };
+  }, [config?.blockMessageSendingWhenProcessing]);
+
   const isLastMessageFromUserAndProcessing = useCallback(
     (roomJID: string): boolean => {
-      if (!config?.blockMessageSendingWhenProcessing) return false;
+      const timeoutConfig = getTimeoutConfig();
+      if (!timeoutConfig.enabled) return false;
 
       const room = rooms[roomJID];
       if (!room || !room.messages || room.messages.length === 0) return false;
 
       const lastMessage = room.messages[room.messages.length - 1];
-      return lastMessage.user.id === user.xmppUsername;
+
+      if (lastMessage.user.id !== user.xmppUsername) {
+        return false;
+      }
+
+      if (lastMessage.pending) {
+        return true;
+      }
+
+      const sendTime = messageSendTimes.current.get(lastMessage.id);
+      if (!sendTime) {
+        return false;
+      }
+
+      const elapsed = Date.now() - sendTime;
+      const hasExpired = elapsed >= timeoutConfig.timeout;
+
+      if (hasExpired) {
+        const callback =
+          typeof config?.blockMessageSendingWhenProcessing === 'object'
+            ? config.blockMessageSendingWhenProcessing.onTimeout
+            : undefined;
+        if (callback) {
+          callback();
+        }
+        messageSendTimes.current.delete(lastMessage.id);
+        const existingTimeout = timeoutCallbacks.current.get(lastMessage.id);
+        if (existingTimeout) {
+          clearTimeout(existingTimeout);
+          timeoutCallbacks.current.delete(lastMessage.id);
+        }
+      }
+
+      return !hasExpired;
     },
-    [config?.blockMessageSendingWhenProcessing, rooms, user.xmppUsername]
+    [
+      config?.blockMessageSendingWhenProcessing,
+      rooms,
+      user.xmppUsername,
+      getTimeoutConfig,
+    ]
   );
 
   const sendMessage = useCallback(
@@ -86,6 +144,18 @@ export const useSendMessage = () => {
         try {
           if (config?.translates?.enabled) {
             const id = `send-translate-message-${uuidv4()}`;
+
+            messageSendTimes.current.set(id, Date.now());
+            const timeoutConfig = getTimeoutConfig();
+            if (timeoutConfig.enabled && timeoutConfig.onTimeout) {
+              const timeout = setTimeout(() => {
+                timeoutConfig.onTimeout?.();
+                messageSendTimes.current.delete(id);
+                timeoutCallbacks.current.delete(id);
+              }, timeoutConfig.timeout);
+              timeoutCallbacks.current.set(id, timeout);
+            }
+
             dispatch(
               addRoomMessage({
                 roomJID: activeRoomJID,
@@ -155,6 +225,18 @@ export const useSendMessage = () => {
             });
           } else {
             const id = `send-text-message-${uuidv4()}`;
+
+            messageSendTimes.current.set(id, Date.now());
+            const timeoutConfig = getTimeoutConfig();
+            if (timeoutConfig.enabled && timeoutConfig.onTimeout) {
+              const timeout = setTimeout(() => {
+                timeoutConfig.onTimeout?.();
+                messageSendTimes.current.delete(id);
+                timeoutCallbacks.current.delete(id);
+              }, timeoutConfig.timeout);
+              timeoutCallbacks.current.set(id, timeout);
+            }
+
             dispatch(
               addRoomMessage({
                 roomJID: activeRoomJID,
@@ -239,6 +321,7 @@ export const useSendMessage = () => {
       dispatch,
       langSource,
       isLastMessageFromUserAndProcessing,
+      getTimeoutConfig,
     ]
   );
 
@@ -292,6 +375,18 @@ export const useSendMessage = () => {
       }
 
       const id = `send-media-message:${uuidv4()}`;
+
+      messageSendTimes.current.set(id, Date.now());
+      const timeoutConfig = getTimeoutConfig();
+      if (timeoutConfig.enabled && timeoutConfig.onTimeout) {
+        const timeout = setTimeout(() => {
+          timeoutConfig.onTimeout?.();
+          messageSendTimes.current.delete(id);
+          timeoutCallbacks.current.delete(id);
+        }, timeoutConfig.timeout);
+        timeoutCallbacks.current.set(id, timeout);
+      }
+
       if (!config?.disableSentLogic) {
         dispatch(
           addRoomMessage({
@@ -395,8 +490,17 @@ export const useSendMessage = () => {
       isLastMessageFromUserAndProcessing,
       handleMessageSent,
       handleMessageFailed,
+      getTimeoutConfig,
     ]
   );
+
+  useEffect(() => {
+    return () => {
+      timeoutCallbacks.current.forEach((timeout) => clearTimeout(timeout));
+      timeoutCallbacks.current.clear();
+      messageSendTimes.current.clear();
+    };
+  }, []);
 
   return {
     sendMessage,

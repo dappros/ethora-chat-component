@@ -116,7 +116,13 @@ export interface IConfig {
   };
 
   disableTypingIndicator?: boolean;
-  blockMessageSendingWhenProcessing?: boolean;
+  blockMessageSendingWhenProcessing?:
+    | boolean
+    | {
+        enabled: boolean;
+        timeout?: number;
+        onTimeout?: () => void;
+      };
   customTypingIndicator?: {
     enabled: boolean;
     text?: string | ((usersTyping: string[]) => string);

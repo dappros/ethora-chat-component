@@ -137,4 +137,13 @@ export const TextareaInput = styled.textarea<{ dynamicHeight?: number }>`
     border: 1px solid #0052cd;
     outline: none;
   }
+
+  /* Hide scrollbar for all browsers */
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Firefox */
+  scrollbar-width: none;
+  -ms-overflow-style: none; /* IE and Edge */
 `;

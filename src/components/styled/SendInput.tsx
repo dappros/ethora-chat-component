@@ -114,8 +114,8 @@ const SendInput: React.FC<SendInputProps> = ({
 
       const lineBreaks = (text.match(/\n/g) || []).length;
       const baseHeight = 40;
-      const heightPerLine = 8;
-      const maxHeight = 80;
+      const heightPerLine = 13;
+      const maxHeight = 92;
 
       const calculatedHeight = baseHeight + lineBreaks * heightPerLine;
       return Math.min(Math.max(calculatedHeight, baseHeight), maxHeight);
@@ -293,6 +293,9 @@ const SendInput: React.FC<SendInputProps> = ({
             {config?.secondarySendButton?.enabled && (
               <Button
                 onClick={() => handleSecondaryClick()}
+                disabled={
+                  isMessageProcessing || (!message && filePreviews.length === 0)
+                }
                 style={{
                   color:
                     filePreviews.length > 0
