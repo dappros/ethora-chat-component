@@ -121,6 +121,33 @@ export const useSendMessage = () => {
     }
   }, [getBlockingConfig]);
 
+  useEffect(() => {
+    const blockingConfig = getBlockingConfig();
+    if (!blockingConfig?.enabled) return;
+
+    Object.keys(rooms || {}).forEach((roomJID) => {
+      if (!blockedRooms.has(roomJID)) return;
+
+      const room = rooms[roomJID];
+      if (!room || !room.messages || room.messages.length === 0) return;
+
+      const lastMessage = room.messages[room.messages.length - 1];
+      const isLastFromUser = lastMessage?.user?.id === user.xmppUsername;
+
+      if (!isLastFromUser) {
+        clearRoomTimeout(roomJID);
+        updateBlockedRooms(roomJID, false);
+      }
+    });
+  }, [
+    rooms,
+    user.xmppUsername,
+    blockedRooms,
+    getBlockingConfig,
+    clearRoomTimeout,
+    updateBlockedRooms,
+  ]);
+
   /**
    * Checks if message sending is currently blocked for a room
    * @param roomJID - The room JID to check
