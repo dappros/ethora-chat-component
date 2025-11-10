@@ -15,7 +15,7 @@ import {
   MessageInput,
   ImagePreview,
 } from './StyledInputComponents/StyledInputComponents';
-import { TextareaInput } from './StyledInputComponents/StyledInputComponents';
+import { TextareaInput, TextareaWrapper } from './StyledInputComponents/StyledInputComponents';
 import AudioRecorder from '../InputComponents/AudioRecorder';
 import { IConfig } from '../../types/types';
 import Button from './Button';
@@ -56,6 +56,7 @@ const SendInput: React.FC<SendInputProps> = ({
   const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [textareaHeight, setTextareaHeight] = useState(40);
+  const [isFocused, setIsFocused] = useState(false);
 
   const [filePreviews, setFilePreviews] = useState<File[]>([]);
 
@@ -97,10 +98,12 @@ const SendInput: React.FC<SendInputProps> = ({
   );
 
   const handleFocus = () => {
+    setIsFocused(true);
     onFocus?.();
   };
 
   const handleBlur = () => {
+    setIsFocused(false);
     onBlur?.();
   };
 
@@ -259,17 +262,23 @@ const SendInput: React.FC<SendInputProps> = ({
               />
             )}
             {multiline ? (
-              <TextareaInput
-                ref={textareaRef}
-                placeholder="Type message"
-                value={message}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                onFocus={handleFocus}
-                onBlur={handleBlur}
-                disabled={isLoading || isMessageProcessing}
+              <TextareaWrapper 
                 dynamicHeight={textareaHeight}
-              />
+                color={config?.colors?.primary}
+                isFocused={isFocused}
+              >
+                <TextareaInput
+                  ref={textareaRef}
+                  placeholder="Type message"
+                  value={message}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  onFocus={handleFocus}
+                  onBlur={handleBlur}
+                  disabled={isLoading || isMessageProcessing}
+                  color={config?.colors?.primary}
+                />
+              </TextareaWrapper>
             ) : (
               <MessageInput
                 color={config?.colors?.primary}

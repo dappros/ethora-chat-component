@@ -115,10 +115,25 @@ export const StyledInput = styled.input<{}>`
   }
 `;
 
-export const TextareaInput = styled.textarea<{ dynamicHeight?: number }>`
+export const TextareaWrapper = styled.div<{ dynamicHeight?: number; color?: string; isFocused?: boolean }>`
   flex-grow: 1;
-  padding: 8px 10px;
+  position: relative;
   border-radius: 12px;
+  background-color: #f5f7f9;
+  padding: 2px;
+  height: ${(props) => props.dynamicHeight || 40}px;
+  max-height: ${(props) => props.dynamicHeight || 40}px;
+  min-height: 40px;
+  box-sizing: border-box;
+  transition: height 0.2s ease-in-out;
+  border: ${(props) => (props.isFocused ? `1px solid ${props.color || '#0052CD'}` : '1px solid transparent')};
+`;
+
+export const TextareaInput = styled.textarea<{ dynamicHeight?: number; color?: string }>`
+  width: 100%;
+  height: 100%;
+  padding: 8px 10px;
+  border-radius: 10px;
   border: none;
   color: #141414;
   background-color: #f5f7f9;
@@ -127,23 +142,37 @@ export const TextareaInput = styled.textarea<{ dynamicHeight?: number }>`
   font-family: inherit;
   overflow: auto;
   resize: none;
-  height: ${(props) => props.dynamicHeight || 40}px;
-  max-height: ${(props) => props.dynamicHeight || 40}px;
-  min-height: 40px;
   box-sizing: border-box;
   transition: height 0.2s ease-in-out;
 
   &:focus {
-    border: 1px solid #0052cd;
     outline: none;
   }
 
-  /* Hide scrollbar for all browsers */
+  /* Custom scrollbar styling for WebKit browsers (Chrome, Safari, Edge) */
   &::-webkit-scrollbar {
-    display: none;
+    width: 2px;
   }
 
-  /* Firefox */
-  scrollbar-width: none;
-  -ms-overflow-style: none; /* IE and Edge */
+  &::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 0;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: ${(props) => (props.color ? props.color : '#0052CD')};
+    border-radius: 2px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: ${(props) => (props.color ? props.color : '#0052CD')};
+  }
+
+  &::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /* Firefox scrollbar styling */
+  scrollbar-width: thin;
+  scrollbar-color: ${(props) => (props.color ? props.color : '#0052CD')} transparent;
 `;
