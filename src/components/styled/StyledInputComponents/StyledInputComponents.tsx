@@ -115,7 +115,11 @@ export const StyledInput = styled.input<{}>`
   }
 `;
 
-export const TextareaWrapper = styled.div<{ dynamicHeight?: number; color?: string; isFocused?: boolean }>`
+export const TextareaWrapper = styled.div<{
+  dynamicHeight?: number;
+  color?: string;
+  isFocused?: boolean;
+}>`
   flex-grow: 1;
   position: relative;
   border-radius: 12px;
@@ -126,10 +130,16 @@ export const TextareaWrapper = styled.div<{ dynamicHeight?: number; color?: stri
   min-height: 40px;
   box-sizing: border-box;
   transition: height 0.2s ease-in-out;
-  border: ${(props) => (props.isFocused ? `1px solid ${props.color || '#0052CD'}` : '1px solid transparent')};
+  border: ${(props) =>
+    props.isFocused
+      ? `1px solid ${props.color || '#0052CD'}`
+      : '1px solid transparent'};
 `;
 
-export const TextareaInput = styled.textarea<{ dynamicHeight?: number; color?: string }>`
+export const TextareaInput = styled.textarea<{
+  dynamicHeight?: number;
+  color?: string;
+}>`
   width: 100%;
   height: 100%;
   padding: 8px 10px;
@@ -140,7 +150,10 @@ export const TextareaInput = styled.textarea<{ dynamicHeight?: number; color?: s
   line-height: 20px;
   font-size: inherit;
   font-family: inherit;
-  overflow: auto;
+  /* Never show scrollbar for a single line (<= 40px) */
+  overflow-x: hidden;
+  overflow-y: ${(props) =>
+    props.dynamicHeight && props.dynamicHeight > 40 ? 'auto' : 'hidden'};
   resize: none;
   box-sizing: border-box;
   transition: height 0.2s ease-in-out;
@@ -151,7 +164,8 @@ export const TextareaInput = styled.textarea<{ dynamicHeight?: number; color?: s
 
   /* Custom scrollbar styling for WebKit browsers (Chrome, Safari, Edge) */
   &::-webkit-scrollbar {
-    width: 2px;
+    width: ${(props) =>
+      props.dynamicHeight && props.dynamicHeight > 40 ? '2px' : '0'};
   }
 
   &::-webkit-scrollbar-track {
@@ -173,6 +187,10 @@ export const TextareaInput = styled.textarea<{ dynamicHeight?: number; color?: s
   }
 
   /* Firefox scrollbar styling */
-  scrollbar-width: thin;
-  scrollbar-color: ${(props) => (props.color ? props.color : '#0052CD')} transparent;
+  scrollbar-width: ${(props) =>
+    props.dynamicHeight && props.dynamicHeight > 40 ? 'thin' : 'none'};
+  scrollbar-color: ${(props) =>
+      props.dynamicHeight && props.dynamicHeight > 40
+        ? `${props.color ? props.color : '#0052CD'} transparent`
+        : 'transparent transparent'};
 `;

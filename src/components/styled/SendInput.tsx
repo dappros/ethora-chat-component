@@ -276,6 +276,7 @@ const SendInput: React.FC<SendInputProps> = ({
                   onFocus={handleFocus}
                   onBlur={handleBlur}
                   disabled={isLoading || isMessageProcessing}
+                  dynamicHeight={textareaHeight}
                   color={config?.colors?.primary}
                 />
               </TextareaWrapper>
