@@ -176,5 +176,3 @@ export const TextareaInput = styled.textarea<{ dynamicHeight?: number; color?: s
   scrollbar-width: thin;
   scrollbar-color: ${(props) => (props.color ? props.color : '#0052CD')} transparent;
 `;
-<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>
-read_file

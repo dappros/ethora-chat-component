@@ -6,7 +6,6 @@ import {
   setDeleteModal,
 } from '../../roomStore/chatSettingsSlice';
 import { ChatWrapperBox } from '../styled/ChatWrapperBox';
-import { Overlay, StyledModal } from '../styled/MediaModal';
 import { Message } from '../MessageBubble/Message';
 import { IConfig, IRoom, MessageProps, ModalType } from '../../types/types';
 import LoginForm from '../AuthForms/Login';
@@ -29,6 +28,7 @@ import { ModalReportChat } from '../Modals/ModalReportChat/ModalReportChat.tsx';
 import { useQRCodeChat } from '../../hooks/useQRCodeChatHandler';
 import useChatWrapperInit from '../../hooks/useChatWrapperInit.ts';
 import { useHeapSender } from '../../hooks/useHeapSender';
+import ErrorFallback from './ErrorFallback';
 
 interface ChatWrapperProps {
   token?: string;
@@ -107,11 +107,12 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     dispatch(setDeleteModal({ isDeleteModal: false }));
   };
 
-  const { client, inited, isRetrying, showModal } = useChatWrapperInit({
-    roomJID,
-    wasAutoSelected,
-    config,
-  });
+  const { client, inited, isRetrying, showModal, setShowModal } =
+    useChatWrapperInit({
+      roomJID,
+      wasAutoSelected,
+      config,
+    });
   const { sendHeapMessages } = useHeapSender(client);
 
   useEffect(() => {
@@ -141,6 +142,18 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   //   queueMessageLoader
   // );
 
+  if (showModal) {
+    return (
+      <ErrorFallback
+        MainComponentStyles={MainComponentStyles}
+        onButtonClick={() => {
+          setShowModal(false);
+          window.location.reload();
+        }}
+      />
+    );
+  }
+
   if (config?.enableRoomsRetry?.enabled && isRetrying === 'norooms') {
     return (
       <StyledLoaderWrapper
@@ -168,13 +181,6 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
   return (
     <>
-      {showModal && (
-        <Overlay>
-          <StyledModal>
-            There was an error. Please, refresh the page
-          </StyledModal>
-        </Overlay>
-      )}
       {inited ? (
         <ChatWrapperBox
           style={{

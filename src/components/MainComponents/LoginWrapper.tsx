@@ -10,10 +10,10 @@ import {
   loginEmail,
   loginViaJwt,
 } from '../../networking/api-requests/auth.api';
-import { OrDelimiter, StyledLoaderWrapper } from '../styled/StyledComponents';
-import Button from '../styled/Button';
+import { StyledLoaderWrapper } from '../styled/StyledComponents';
 import { setBaseURL } from '../../networking/apiClient';
 import Loader from '../styled/Loader';
+import ErrorFallback from './ErrorFallback';
 
 interface LoginWrapperProps {
   user?: { email: string; password: string };
@@ -117,23 +117,10 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
   return (
     <>
       {showModal ? (
-        <div
-          style={{
-            ...MainComponentStyles,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            flexDirection: 'column',
-            padding: '20px',
-            gap: '8px',
-          }}
-        >
-          <p>Error on loading chat. Please, try again later</p>
-          <OrDelimiter>Or</OrDelimiter>
-          <Button onClick={() => setShowModal(false)} style={{ width: '100%' }}>
-            Enter with default account
-          </Button>
-        </div>
+        <ErrorFallback
+          MainComponentStyles={MainComponentStyles}
+          onButtonClick={() => setShowModal(false)}
+        />
       ) : user && user.xmppPassword !== '' ? (
         <ChatWrapper {...props} />
       ) : config?.jwtLogin?.enabled ? (
