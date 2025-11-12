@@ -28,11 +28,18 @@ const ErrorFallback: React.FC<ErrorFallbackProps> = ({
         fontSize: '14px',
       }}
     >
-      <p>{message}</p>
+      <p style={{ fontFamily: 'Inter, Arial, sans-serif', fontSize: '14px' }}>
+        {message}
+      </p>
+
       <OrDelimiter>Or</OrDelimiter>
       <Button
         onClick={onButtonClick}
-        style={{ width: '100%', fontSize: '14px' }}
+        style={{
+          width: '100%',
+          fontFamily: 'Inter, Arial, sans-serif',
+          fontSize: '14px',
+        }}
       >
         {buttonLabel}
       </Button>
