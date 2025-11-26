@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { IConfig, MessageProps, User } from '../../types/types';
+import { IConfig, User } from '../../types/types';
 import { ChatWrapper } from './ChatWrapper';
 import LoginForm from '../AuthForms/Login';
 import { RootState } from '../../roomStore';
@@ -15,10 +15,20 @@ import { setBaseURL } from '../../networking/apiClient';
 import Loader from '../styled/Loader';
 import ErrorFallback from './ErrorFallback';
 
-interface LoginWrapperProps {
+import { CustomComponentsContextValue } from '../../types/models/customComponents.model';
+
+interface LoginWrapperProps
+  extends Partial<
+    Pick<
+      CustomComponentsContextValue,
+      | 'CustomMessageComponent'
+      | 'CustomInputComponent'
+      | 'CustomScrollableArea'
+      | 'CustomDaySeparator'
+    >
+  > {
   user?: { email: string; password: string };
   MainComponentStyles?: React.CSSProperties;
-  CustomMessageComponent?: React.ComponentType<MessageProps>;
   config?: IConfig;
   roomJID?: string;
 }

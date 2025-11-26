@@ -1,7 +1,6 @@
 import React, {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -21,6 +20,8 @@ import { useRoomState } from '../../hooks/useRoomState';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { DownArrowIcon } from '../../assets/icons';
 import NewMessageLabel from '../styled/NewMessageLabel';
+import { useCustomComponents } from '../../context/CustomComponentsContext';
+import { DecoratedMessage } from '../../types/models/customComponents.model';
 
 interface MessageListProps<TMessage extends IMessage> {
   CustomMessage?: React.ComponentType<{
@@ -50,6 +51,7 @@ const MessageList = <TMessage extends IMessage>({
   isReply,
   activeMessage,
 }: MessageListProps<TMessage>) => {
+  const { CustomScrollableArea } = useCustomComponents();
   const { composing, messages, composingList } = useRoomState(roomJID).room;
   const { user } = useChatSettingState();
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -124,7 +126,7 @@ const MessageList = <TMessage extends IMessage>({
     };
   };
 
-  const waitForImagesLoaded = useCallback(() => {
+  const waitForImagesLoaded = useCallback((): Promise<void> => {
     const content = containerRef.current;
     if (!content) return Promise.resolve();
 
@@ -139,7 +141,7 @@ const MessageList = <TMessage extends IMessage>({
       });
     });
 
-    return Promise.all(promises);
+    return Promise.all(promises).then(() => {});
   }, []);
 
   const restoreScrollPosition = useCallback(async () => {
@@ -355,7 +357,93 @@ const MessageList = <TMessage extends IMessage>({
     waitForImagesLoaded,
   ]);
 
-  let lastDateLabel: string | null = null;
+  const decoratedMessages = useMemo<DecoratedMessage[]>(() => {
+    let lastDateLabel: string | null = null;
+    return memoizedMessages.map((message) => {
+      const messageDate = new Date(message.date).toDateString();
+      const showDateLabel = messageDate !== lastDateLabel;
+      lastDateLabel = messageDate;
+
+      return { message, showDateLabel };
+    });
+  }, [memoizedMessages]);
+
+  const renderDecoratedMessage = useCallback(
+    (decorated: DecoratedMessage) => {
+      const { message, showDateLabel } = decorated;
+
+      if (message.id === 'delimiter-new') {
+        return (
+          <div
+            key={message.id}
+            data-message-id="delimiter-new"
+            className="message-container"
+          >
+            <NewMessageLabel color={config?.colors?.primary} />
+          </div>
+        );
+      }
+
+      return (
+        <MessageContainer
+          key={message.id}
+          CustomMessage={CustomMessage}
+          message={message}
+          activeMessage={activeMessage}
+          config={config}
+          xmppUsername={user.xmppUsername}
+          isReply={isReply}
+          showDateLabel={showDateLabel}
+          data-message-id={message.id}
+        />
+      );
+    },
+    [CustomMessage, activeMessage, config, isReply, user.xmppUsername]
+  );
+
+  const typingIndicatorNode = config?.customTypingIndicator?.enabled ? (
+    composing && (
+      <CustomTypingIndicator
+        usersTyping={composingList || ['User']}
+        text={config.customTypingIndicator.text}
+        position={config.customTypingIndicator.position || 'bottom'}
+        styles={config.customTypingIndicator.styles}
+        customComponent={config.customTypingIndicator.customComponent}
+        isVisible={composing}
+      />
+    )
+  ) : config?.disableHeader && composing ? (
+    <Composing usersTyping={composingList || ['User']} />
+  ) : null;
+
+  const resetNewMessageCounter = useCallback(() => {
+    setShowScrollButton(false);
+    setNewMessagesCount(0);
+  }, []);
+
+  if (CustomScrollableArea) {
+    return (
+      <CustomScrollableArea
+        roomJID={roomJID}
+        messages={memoizedMessages}
+        decoratedMessages={decoratedMessages}
+        isLoading={loading}
+        isReply={isReply}
+        activeMessage={activeMessage}
+        loadMoreMessages={loadMoreMessages}
+        renderMessage={renderDecoratedMessage}
+        scrollController={{
+          scrollToBottom,
+          waitForImagesLoaded,
+          showScrollButton,
+          newMessagesCount,
+          resetNewMessageCounter,
+        }}
+        typingIndicator={typingIndicatorNode}
+        config={config}
+      />
+    );
+  }
 
   return (
     <MessagesList ref={outerRef}>
@@ -378,75 +466,10 @@ const MessageList = <TMessage extends IMessage>({
             />
           </React.Fragment>
         )}
-        {memoizedMessages.map((message) => {
-          const messageDate = new Date(message.date).toDateString();
-          const showDateLabel = messageDate !== lastDateLabel;
-          lastDateLabel = messageDate;
-
-          if (message.id === 'delimiter-new') {
-            return (
-              <div
-                key={message.id}
-                data-message-id="delimiter-new"
-                className="message-container"
-              >
-                <NewMessageLabel color={config?.colors?.primary} />
-              </div>
-            );
-          }
-
-          return (
-            <MessageContainer
-              key={message.id}
-              CustomMessage={CustomMessage}
-              message={message}
-              activeMessage={activeMessage}
-              config={config}
-              xmppUsername={user.xmppUsername}
-              isReply={isReply}
-              showDateLabel={showDateLabel}
-              data-message-id={message.id}
-            />
-          );
-        })}
-        {/* <VirtualizedList
-          data={memoizedMessages}
-          renderItem={(message) => {
-            const messageDate = new Date(message.date).toDateString();
-            const showDateLabel = messageDate !== lastDateLabel;
-            lastDateLabel = messageDate;
-            return (
-              <MessageContainer
-                key={message.id}
-                CustomMessage={CustomMessage}
-                message={message}
-                activeMessage={activeMessage}
-                config={config}
-                walletAddress={user.walletAddress}
-                isReply={isReply}
-                showDateLabel={showDateLabel}
-              />
-            );
-          }}
-          itemHeight={100}
-          containerHeight={containerRef.current.clientHeight}
-        /> */}
-        {/* Custom Typing Indicator */}
-        {config?.customTypingIndicator?.enabled && composing && (
-          <CustomTypingIndicator
-            usersTyping={composingList || ['User']}
-            text={config.customTypingIndicator.text}
-            position={config.customTypingIndicator.position || 'bottom'}
-            styles={config.customTypingIndicator.styles}
-            customComponent={config.customTypingIndicator.customComponent}
-            isVisible={composing}
-          />
+        {decoratedMessages.map((decorated) =>
+          renderDecoratedMessage(decorated)
         )}
-
-        {/* Default Typing Indicator (fallback) */}
-        {!config?.customTypingIndicator?.enabled &&
-          config?.disableHeader &&
-          composing && <Composing usersTyping={composingList || ['User']} />}
+        {typingIndicatorNode}
       </MessagesScroll>
       {showScrollButton && (
         <ScrollToBottomButton

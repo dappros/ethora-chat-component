@@ -6,6 +6,10 @@ import { useUnreadMessagesCounter } from './hooks/useUnreadMessagesCounter';
 import { IConfig } from './types/types';
 import { logoutService, handleQRChatId } from './main';
 import { handleCopyClick } from './helpers/handleCopyClick';
+import CustomChatInput from './examples/customComponents/CustomChatInput';
+import CustomScrollableArea from './examples/customComponents/CustomScrollableArea';
+import CustomDaySeparator from './examples/customComponents/CustomDaySeparator';
+import CustomMessageBubble from './examples/customComponents/CustomMessageBubble';
 
 const Apps = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -14,6 +18,10 @@ const Apps = () => {
       <button onClick={() => setIsChatOpen(!isChatOpen)}>Toggle Chat</button>
       {isChatOpen && (
         <ReduxWrapper
+          CustomMessageComponent={CustomMessageBubble}
+          CustomInputComponent={CustomChatInput}
+          CustomScrollableArea={CustomScrollableArea}
+          CustomDaySeparator={CustomDaySeparator}
           config={{
             baseUrl: 'https://api.ethoradev.com/v1',
           }}
@@ -57,6 +65,10 @@ const ChatComponent = React.memo(() => {
   return (
     <div style={{ height: 'calc(100vh - 20px)', overflow: 'hidden' }}>
       <ReduxWrapper
+        CustomMessageComponent={CustomMessageBubble}
+        CustomInputComponent={CustomChatInput}
+        CustomScrollableArea={CustomScrollableArea}
+        CustomDaySeparator={CustomDaySeparator}
         // roomJID="646cc8dc96d4a4dc8f7b2f2d_6824685682d635dba7522423@conference.xmpp.ethoradev.com"
         config={{
           xmppSettings: {

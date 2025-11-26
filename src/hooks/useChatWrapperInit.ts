@@ -31,6 +31,7 @@ interface useChatWrapperInitResult {
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   client: XmppClient | null;
   setClient: React.Dispatch<React.SetStateAction<XmppClient | null>>;
+  isConnectionLost: boolean;
 }
 
 const useChatWrapperInit = ({
@@ -41,6 +42,7 @@ const useChatWrapperInit = ({
   const dispatch = useDispatch<AppDispatch>();
   const [inited, setInited] = useState<boolean>(false);
   const [showModal, setShowModal] = useState<boolean>(false);
+  const [isConnectionLost, setConnectionLost] = useState<boolean>(false);
   const [isRetrying, setIsRetrying] = useState<boolean | 'norooms'>(false);
   const hasSyncedHistoryRef = useRef<boolean>(false);
 
@@ -90,6 +92,8 @@ const useChatWrapperInit = ({
   };
 
   useEffect(() => {
+    let retryTimeout: NodeJS.Timeout;
+
     const initXmmpClient = async () => {
       if (config?.translates?.enabled && !config?.translates?.translations) {
         dispatch(setLangSource(config?.translates?.translations));
@@ -151,6 +155,7 @@ const useChatWrapperInit = ({
                       hasSyncedHistoryRef.current = true;
                     }
                     setClient(newClient);
+                    setConnectionLost(false);
                   }
                 );
 
@@ -159,6 +164,8 @@ const useChatWrapperInit = ({
               }
             } catch (error) {
               console.log('err', error);
+              setConnectionLost(true);
+              retryTimeout = setTimeout(initXmmpClient, 5000);
             }
           } else {
             if (config?.newArch) {
@@ -186,6 +193,7 @@ const useChatWrapperInit = ({
                     hasSyncedHistoryRef.current = true;
                   }
                   setClient(client);
+                  setConnectionLost(false);
                 }
               );
             {
@@ -195,14 +203,20 @@ const useChatWrapperInit = ({
         }
         dispatch(setIsLoading({ loading: false }));
       } catch (error) {
-        setShowModal(true);
+        setShowModal(false);
+        setConnectionLost(true);
         setInited(false);
         dispatch(setIsLoading({ loading: false }));
         console.log(error);
+        retryTimeout = setTimeout(initXmmpClient, 5000);
       }
     };
 
     initXmmpClient();
+
+    return () => {
+      clearTimeout(retryTimeout);
+    };
   }, [user.xmppPassword, user.xmppUsername]);
 
   return {
@@ -210,6 +224,7 @@ const useChatWrapperInit = ({
     inited,
     isRetrying,
     showModal,
+    isConnectionLost,
     setClient,
     setInited,
     setShowModal,

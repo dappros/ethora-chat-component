@@ -7,7 +7,7 @@ import {
 } from '../../roomStore/chatSettingsSlice';
 import { ChatWrapperBox } from '../styled/ChatWrapperBox';
 import { Message } from '../MessageBubble/Message';
-import { IConfig, IRoom, MessageProps, ModalType } from '../../types/types';
+import { IConfig, IRoom, ModalType } from '../../types/types';
 import LoginForm from '../AuthForms/Login';
 import { RootState } from '../../roomStore';
 import {
@@ -29,23 +29,25 @@ import { useQRCodeChat } from '../../hooks/useQRCodeChatHandler';
 import useChatWrapperInit from '../../hooks/useChatWrapperInit.ts';
 import { useHeapSender } from '../../hooks/useHeapSender';
 import ErrorFallback from './ErrorFallback';
+import ConnectionBanner from './ConnectionBanner';
+import { useCustomComponents } from '../../context/CustomComponentsContext';
 
 interface ChatWrapperProps {
   token?: string;
   room?: IRoom;
   loginData?: { email: string; password: string };
   MainComponentStyles?: React.CSSProperties; //change to particular types
-  CustomMessageComponent?: React.ComponentType<MessageProps>;
   config?: IConfig;
   roomJID?: string;
 }
 
 const ChatWrapper: FC<ChatWrapperProps> = ({
   MainComponentStyles,
-  CustomMessageComponent,
   config,
   roomJID,
 }) => {
+  const { CustomMessageComponent } = useCustomComponents();
+  const resolvedMessageComponent = CustomMessageComponent || Message;
   const { user, activeModal, deleteModal } = useChatSettingState();
 
   const [isChatVisible, setIsChatVisible] = useState(false);
@@ -107,7 +109,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     dispatch(setDeleteModal({ isDeleteModal: false }));
   };
 
-  const { client, inited, isRetrying, showModal, setShowModal } =
+  const { client, inited, isRetrying, showModal, setShowModal, isConnectionLost } =
     useChatWrapperInit({
       roomJID,
       wasAutoSelected,
@@ -151,6 +153,24 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           window.location.reload();
         }}
       />
+    );
+  }
+
+  if (isConnectionLost && !inited) {
+    return (
+      <ChatWrapperBox
+        style={{
+          ...MainComponentStyles,
+        }}
+      >
+        <ConnectionBanner />
+        <StyledLoaderWrapper
+          style={{ alignItems: 'center', flexDirection: 'column', gap: '10px' }}
+        >
+          <Loader color={config?.colors?.primary} style={{ margin: '0px' }} />
+          <div>Connecting...</div>
+        </StyledLoaderWrapper>
+      </ChatWrapperBox>
     );
   }
 
@@ -214,17 +234,17 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
                   <ThreadWrapper
                     activeMessage={activeMessage}
                     user={user}
-                    customMessageComponent={CustomMessageComponent || Message}
+                    customMessageComponent={resolvedMessageComponent}
                   />
                 ) : (
                   <ChatRoom
-                    CustomMessageComponent={CustomMessageComponent || Message}
+                    CustomMessageComponent={resolvedMessageComponent}
                     handleBackClick={handleItemClick}
                   />
                 )
               ) : config?.disableRooms ? (
                 <ChatRoom
-                  CustomMessageComponent={CustomMessageComponent || Message}
+                  CustomMessageComponent={resolvedMessageComponent}
                   handleBackClick={handleItemClick}
                 />
               ) : null
@@ -232,11 +252,11 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
               <ThreadWrapper
                 activeMessage={activeMessage}
                 user={user}
-                customMessageComponent={CustomMessageComponent || Message}
+                customMessageComponent={resolvedMessageComponent}
               />
             ) : (
               <ChatRoom
-                CustomMessageComponent={CustomMessageComponent || Message}
+                CustomMessageComponent={resolvedMessageComponent}
               />
             )}
             <Modal

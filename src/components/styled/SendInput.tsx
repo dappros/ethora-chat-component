@@ -15,18 +15,21 @@ import {
   MessageInput,
   ImagePreview,
 } from './StyledInputComponents/StyledInputComponents';
-import { TextareaInput, TextareaWrapper } from './StyledInputComponents/StyledInputComponents';
+import {
+  TextareaInput,
+  TextareaWrapper,
+} from './StyledInputComponents/StyledInputComponents';
 import AudioRecorder from '../InputComponents/AudioRecorder';
 import { IConfig } from '../../types/types';
 import Button from './Button';
 import { AttachIcon, FileIcon, RemoveIcon, SendIcon } from '../../assets/icons';
 import { parseMessageBody } from '../../helpers/parseMessageBody';
 
-interface SendInputProps {
+export interface SendInputProps {
   sendMessage: (message: string) => void;
+  sendMedia: (data: any, type: string) => void;
   isLoading: boolean;
   editMessage?: string;
-  sendMedia: (data: any, type: string) => void;
   config?: IConfig;
   onFocus?: () => void;
   onBlur?: () => void;
@@ -36,6 +39,9 @@ interface SendInputProps {
   inputHeight?: number;
   showPreview?: boolean;
   previewParser?: (text: string) => (string | JSX.Element)[];
+  onSendMessage?: (message: string) => void;
+  onSendMedia?: (data: any, type: string) => void;
+  placeholderText?: string;
 }
 
 const SendInput: React.FC<SendInputProps> = ({
@@ -52,6 +58,9 @@ const SendInput: React.FC<SendInputProps> = ({
   inputHeight,
   showPreview,
   previewParser,
+  onSendMessage,
+  onSendMedia,
+  placeholderText,
 }) => {
   const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -150,37 +159,44 @@ const SendInput: React.FC<SendInputProps> = ({
     }
   }, [editMessage, updateTextareaHeight]);
 
+  const effectiveSendMessage = onSendMessage || sendMessage;
+  const effectiveSendMedia = onSendMedia || sendMedia;
+
   const handleSendClick = useCallback(
     (audioUrl?: string) => {
       if (filePreviews.length > 0) {
-        sendMedia(filePreviews[0], 'media');
+        effectiveSendMedia(filePreviews[0], 'media');
         setIsRecording(false);
       } else if (audioUrl) {
-        sendMedia(audioUrl, 'audio/');
+        effectiveSendMedia(audioUrl, 'audio/');
         setIsRecording(false);
       } else {
         const outgoing = formatMessage ? formatMessage(message) : message;
-        sendMessage(outgoing);
+        effectiveSendMessage(outgoing);
       }
       setMessage('');
       setFilePreviews([]);
       setTextareaHeight(40); // Reset height to default
     },
-    [filePreviews, message, sendMessage, sendMedia, formatMessage]
+    [
+      effectiveSendMedia,
+      effectiveSendMessage,
+      filePreviews,
+      formatMessage,
+      message,
+    ]
   );
 
   const handleSecondaryClick = useCallback(() => {
     const outgoingBase = config.secondarySendButton.messageEdit + message;
     const outgoing = formatMessage ? formatMessage(outgoingBase) : outgoingBase;
-    sendMessage(outgoing);
+    effectiveSendMessage(outgoing);
     setMessage('');
     setFilePreviews([]);
     setTextareaHeight(40);
   }, [
-    filePreviews,
+    effectiveSendMessage,
     message,
-    sendMessage,
-    sendMedia,
     config?.secondarySendButton?.messageEdit,
     formatMessage,
   ]);
@@ -262,7 +278,7 @@ const SendInput: React.FC<SendInputProps> = ({
               />
             )}
             {multiline ? (
-              <TextareaWrapper 
+              <TextareaWrapper
                 dynamicHeight={textareaHeight}
                 color={config?.colors?.primary}
                 isFocused={isFocused}
@@ -283,7 +299,7 @@ const SendInput: React.FC<SendInputProps> = ({
             ) : (
               <MessageInput
                 color={config?.colors?.primary}
-                placeholder="Type message"
+                placeholder={placeholderText || 'Type message'}
                 value={message}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}

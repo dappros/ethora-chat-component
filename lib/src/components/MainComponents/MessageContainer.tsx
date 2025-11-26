@@ -9,6 +9,7 @@ import {
   MessageTimestamp,
   UserName,
 } from '../styled/StyledComponents';
+import { useCustomComponents } from '../../context/CustomComponentsContext';
 
 interface MessageContainerProps {
   CustomMessage?: React.ComponentType<{
@@ -35,9 +36,36 @@ export const MessageContainer: FC<MessageContainerProps> = ({
   isReply,
   className,
 }) => {
+  const { CustomDaySeparator } = useCustomComponents();
   const isUser = message.user.id === xmppUsername;
 
   const messageDate = new Date(message.date);
+  const formattedDate = useMemo(() => {
+    try {
+      return new Intl.DateTimeFormat(undefined, {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      }).format(messageDate);
+    } catch {
+      return messageDate.toDateString();
+    }
+  }, [messageDate]);
+
+  const renderDaySeparator = () => {
+    if (!showDateLabel) {
+      return null;
+    }
+
+    if (CustomDaySeparator) {
+      return (
+        <CustomDaySeparator date={messageDate} formattedDate={formattedDate} />
+      );
+    }
+
+    return <DateLabel date={messageDate} colors={config?.colors} />;
+  };
 
   if (message?.isSystemMessage === 'true') {
     const isWhitelisted = config?.whitelistSystemMessage?.includes(
@@ -53,9 +81,7 @@ export const MessageContainer: FC<MessageContainerProps> = ({
     }
     return (
       <Fragment key={message.id}>
-        {showDateLabel && (
-          <DateLabel date={messageDate} colors={config?.colors} />
-        )}
+        {renderDaySeparator()}
         <SystemMessage messageText={message.body} colors={config?.colors} />
       </Fragment>
     );
@@ -69,9 +95,8 @@ export const MessageContainer: FC<MessageContainerProps> = ({
 
   return (
     <Fragment key={message.id}>
-      {showDateLabel && !activeMessage && message.id !== 'delimiter-new' && (
-        <DateLabel date={messageDate} colors={config?.colors} />
-      )}
+      {showDateLabel && !activeMessage && message.id !== 'delimiter-new' &&
+        renderDaySeparator()}
       <MessageComponent
         message={message}
         isUser={isUser}
