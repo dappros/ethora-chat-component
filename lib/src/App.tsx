@@ -65,10 +65,10 @@ const ChatComponent = React.memo(() => {
   return (
     <div style={{ height: 'calc(100vh - 20px)', overflow: 'hidden' }}>
       <ReduxWrapper
-        CustomMessageComponent={CustomMessageBubble}
-        CustomInputComponent={CustomChatInput}
-        CustomScrollableArea={CustomScrollableArea}
-        CustomDaySeparator={CustomDaySeparator}
+        // CustomMessageComponent={CustomMessageBubble}
+        // CustomInputComponent={CustomChatInput}
+        // CustomScrollableArea={CustomScrollableArea}
+        // CustomDaySeparator={CustomDaySeparator}
         // roomJID="646cc8dc96d4a4dc8f7b2f2d_6824685682d635dba7522423@conference.xmpp.ethoradev.com"
         config={{
           xmppSettings: {

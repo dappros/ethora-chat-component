@@ -89,6 +89,7 @@ const MessageList = <TMessage extends IMessage>({
     } else {
       return addReplyMessages.filter(
         (item: IMessage) =>
+          item.isSystemMessage === 'true' ||
           item.showInChannel === 'true' ||
           ((!item.isReply || item.isReply === 'false') && !item.mainMessage)
       );

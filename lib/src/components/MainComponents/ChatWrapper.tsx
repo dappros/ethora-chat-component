@@ -109,12 +109,18 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     dispatch(setDeleteModal({ isDeleteModal: false }));
   };
 
-  const { client, inited, isRetrying, showModal, setShowModal, isConnectionLost } =
-    useChatWrapperInit({
-      roomJID,
-      wasAutoSelected,
-      config,
-    });
+  const {
+    client,
+    inited,
+    isRetrying,
+    showModal,
+    setShowModal,
+    isConnectionLost,
+  } = useChatWrapperInit({
+    roomJID,
+    wasAutoSelected,
+    config,
+  });
   const { sendHeapMessages } = useHeapSender(client);
 
   useEffect(() => {
@@ -255,9 +261,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
                 customMessageComponent={resolvedMessageComponent}
               />
             ) : (
-              <ChatRoom
-                CustomMessageComponent={resolvedMessageComponent}
-              />
+              <ChatRoom CustomMessageComponent={resolvedMessageComponent} />
             )}
             <Modal
               modal={activeModal}

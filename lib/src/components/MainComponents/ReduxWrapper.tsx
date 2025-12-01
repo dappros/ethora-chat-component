@@ -49,7 +49,7 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
               CustomScrollableArea={CustomScrollableArea}
               CustomDaySeparator={CustomDaySeparator}
             >
-              <LoginWrapper config={memoizedConfig} {...props} />
+            <LoginWrapper config={memoizedConfig} {...props} />
             </CustomComponentsProvider>
           </ToastProvider>
         </PersistGate>
