@@ -98,7 +98,9 @@ export const MessageContainer: FC<MessageContainerProps> = ({
 
   return (
     <Fragment key={message.id}>
-      {showDateLabel && !activeMessage && message.id !== 'delimiter-new' &&
+      {showDateLabel &&
+        !activeMessage &&
+        message.id !== 'delimiter-new' &&
         renderDaySeparator()}
       <MessageComponent
         message={message}

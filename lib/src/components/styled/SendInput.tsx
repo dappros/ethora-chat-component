@@ -356,7 +356,10 @@ const SendInput: React.FC<SendInputProps> = ({
             {config?.secondarySendButton?.hideInputSendButton ? null : (
               <Button
                 onClick={() => handleSendClick()}
-                disabled={message === '' || isMessageProcessing}
+                disabled={
+                  (message === '' && filePreviews.length === 0) ||
+                  isMessageProcessing
+                }
                 EndIcon={
                   <SendIcon
                     color={

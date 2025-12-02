@@ -403,7 +403,14 @@ const MessageList = <TMessage extends IMessage>({
         />
       );
     },
-    [CustomMessage, activeMessage, config, isReply, user.xmppUsername, CustomNewMessageLabel]
+    [
+      CustomMessage,
+      activeMessage,
+      config,
+      isReply,
+      user.xmppUsername,
+      CustomNewMessageLabel,
+    ]
   );
 
   const typingIndicatorNode = config?.customTypingIndicator?.enabled ? (
