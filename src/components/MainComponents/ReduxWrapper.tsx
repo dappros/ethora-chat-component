@@ -18,6 +18,7 @@ interface ChatWrapperProps
     | 'CustomInputComponent'
     | 'CustomScrollableArea'
     | 'CustomDaySeparator'
+    | 'CustomNewMessageLabel'
   > {
   token?: string;
   roomJID?: string;
@@ -33,6 +34,7 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
     CustomInputComponent,
     CustomScrollableArea,
     CustomDaySeparator,
+    CustomNewMessageLabel,
     ...props
   }) => {
     const memoizedConfig = useMemo(() => {
@@ -48,8 +50,9 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
               CustomInputComponent={CustomInputComponent}
               CustomScrollableArea={CustomScrollableArea}
               CustomDaySeparator={CustomDaySeparator}
+              CustomNewMessageLabel={CustomNewMessageLabel}
             >
-            <LoginWrapper config={memoizedConfig} {...props} />
+              <LoginWrapper config={memoizedConfig} {...props} />
             </CustomComponentsProvider>
           </ToastProvider>
         </PersistGate>

@@ -7,6 +7,10 @@ export interface DaySeparatorProps {
   formattedDate: string;
 }
 
+export interface NewMessageLabelProps {
+  color?: string;
+}
+
 export interface DecoratedMessage {
   message: IMessage;
   showDateLabel: boolean;
@@ -49,4 +53,5 @@ export interface CustomComponentsContextValue {
   >;
   CustomScrollableArea?: React.ComponentType<CustomScrollableAreaProps>;
   CustomDaySeparator?: React.ComponentType<DaySeparatorProps>;
+  CustomNewMessageLabel?: React.ComponentType<NewMessageLabelProps>;
 }

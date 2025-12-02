@@ -36,7 +36,7 @@ export const MessageContainer: FC<MessageContainerProps> = ({
   isReply,
   className,
 }) => {
-  const { CustomDaySeparator } = useCustomComponents();
+  const { CustomDaySeparator, CustomNewMessageLabel } = useCustomComponents();
   const isUser = message.user.id === xmppUsername;
 
   const messageDate = new Date(message.date);
@@ -88,6 +88,9 @@ export const MessageContainer: FC<MessageContainerProps> = ({
   }
 
   if (message?.id === 'delimiter-new') {
+    if (CustomNewMessageLabel) {
+      return <CustomNewMessageLabel color={config?.colors?.primary} />;
+    }
     return <NewMessageLabel color={config?.colors?.primary} />;
   }
 

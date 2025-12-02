@@ -51,7 +51,7 @@ const MessageList = <TMessage extends IMessage>({
   isReply,
   activeMessage,
 }: MessageListProps<TMessage>) => {
-  const { CustomScrollableArea } = useCustomComponents();
+  const { CustomScrollableArea, CustomNewMessageLabel } = useCustomComponents();
   const { composing, messages, composingList } = useRoomState(roomJID).room;
   const { user } = useChatSettingState();
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -380,7 +380,11 @@ const MessageList = <TMessage extends IMessage>({
             data-message-id="delimiter-new"
             className="message-container"
           >
-            <NewMessageLabel color={config?.colors?.primary} />
+            {CustomNewMessageLabel ? (
+              <CustomNewMessageLabel color={config?.colors?.primary} />
+            ) : (
+              <NewMessageLabel color={config?.colors?.primary} />
+            )}
           </div>
         );
       }
@@ -399,7 +403,14 @@ const MessageList = <TMessage extends IMessage>({
         />
       );
     },
-    [CustomMessage, activeMessage, config, isReply, user.xmppUsername]
+    [
+      CustomMessage,
+      activeMessage,
+      config,
+      isReply,
+      user.xmppUsername,
+      CustomNewMessageLabel,
+    ]
   );
 
   const typingIndicatorNode = config?.customTypingIndicator?.enabled ? (
