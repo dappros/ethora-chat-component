@@ -245,9 +245,11 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
               cursor: 'pointer',
               fontWeight: '400',
             }}
-            onClick={() =>
-              window.open('https://ethora.ethoradev.com/register', '_blank')
-            }
+            onClick={() => {
+              if (typeof window !== "undefined") {
+                window.open("https://ethora.ethoradev.com/register", "_blank");
+              }
+            }}
           >
             Sign Up to Ethora
           </div>

@@ -76,6 +76,16 @@ const Message: React.FC<MessageProps> = forwardRef<
 
     const x = 'touches' in event ? event.touches[0].clientX : event.clientX;
     const y = 'touches' in event ? event.touches[0].clientY : event.clientY;
+    
+    if (typeof window === "undefined") {
+      setContextMenu({
+        visible: true,
+        x: x,
+        y: y,
+      });
+      return;
+    }
+
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
 

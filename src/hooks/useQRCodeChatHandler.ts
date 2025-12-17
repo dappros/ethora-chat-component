@@ -3,12 +3,19 @@ import { useEffect, useState } from 'react';
 const QR_CHAT_STORAGE_KEY = '@ethora/chat-component-qrChatId';
 
 export const handleQRChatId = (): void => {
+  // Check if we're in browser environment
+  if (typeof window === "undefined") {
+    return;
+  }
+
   try {
     const urlParams = new URLSearchParams(window.location.search);
     const qrChatId = urlParams.get('qrChatId');
 
     if (qrChatId) {
-      localStorage.setItem(QR_CHAT_STORAGE_KEY, qrChatId);
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem(QR_CHAT_STORAGE_KEY, qrChatId);
+      }
 
       urlParams.delete('qrChatId');
 
@@ -31,10 +38,18 @@ export const useQRCodeChat = (
   const [wasAutoSelected, setWasAutoSelected] = useState(false);
 
   useEffect(() => {
-    handleQRChatId();
+    // Only run on client-side
+    if (typeof window !== "undefined") {
+      handleQRChatId();
+    }
   }, []);
 
   useEffect(() => {
+    // Only run on client-side
+    if (typeof window === "undefined" || typeof localStorage === "undefined") {
+      return;
+    }
+
     try {
       const qrChatId = localStorage.getItem(QR_CHAT_STORAGE_KEY);
 

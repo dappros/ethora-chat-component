@@ -41,6 +41,9 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
             downloadFilenameExtesion = activeFile.fileName;
         }
         response.arrayBuffer().then(function (buffer) {
+          if (typeof window === "undefined") {
+            return;
+          }
           const url = window.URL.createObjectURL(new Blob([buffer]));
           const link = document.createElement('a');
           link.href = url;

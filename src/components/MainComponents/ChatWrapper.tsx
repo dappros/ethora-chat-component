@@ -62,15 +62,27 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   );
 
   useEffect(() => {
-    const handleResize = () => {
+    // Only run on client-side
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const checkScreenSize = () => {
       setIsSmallScreen(window.innerWidth < 768);
     };
-    handleResize();
-    window.addEventListener('resize', handleResize);
+
+    // Set initial value
+    checkScreenSize();
+
+    // Listen for resize events
+    window.addEventListener('resize', checkScreenSize);
+
     return () => {
-      window.removeEventListener('resize', handleResize);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('resize', checkScreenSize);
+      }
     };
-  }, [window.innerWidth]);
+  }, []); // Remove window.innerWidth from dependencies
 
   const handleItemClick = (value: boolean) => {
     setIsChatVisible(value);
@@ -156,7 +168,9 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
         MainComponentStyles={MainComponentStyles}
         onButtonClick={() => {
           setShowModal(false);
-          window.location.reload();
+          if (typeof window !== 'undefined') {
+            window.location.reload();
+          }
         }}
       />
     );

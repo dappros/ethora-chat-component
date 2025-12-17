@@ -11,6 +11,10 @@ export const useRoomUrl = (
   const dispatch = useDispatch();
 
   useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
     if (
       config?.setRoomJidInPath &&
       activeRoomJID &&
@@ -29,7 +33,7 @@ export const useRoomUrl = (
     }
 
     return () => {
-      if (config?.setRoomJidInPath) {
+      if (config?.setRoomJidInPath && typeof window !== "undefined") {
         const searchParams = new URLSearchParams(window.location.search);
         searchParams.delete('chatId');
 

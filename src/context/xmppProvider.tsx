@@ -148,18 +148,25 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
   }, [config?.initBeforeLoad]);
 
   useEffect(() => {
+    // Only set up event listeners in browser
+    if (typeof window === "undefined") {
+      return;
+    }
+
     const handleLogout = () => {
       if (client) {
-        console.log('XmppProvider: Disconnecting client due to logout event');
+        console.log("XmppProvider: Disconnecting client due to logout event");
         client.disconnect();
         setClient(null);
       }
     };
 
-    window.addEventListener('ethora-xmpp-logout', handleLogout);
+    window.addEventListener("ethora-xmpp-logout", handleLogout);
 
     return () => {
-      window.removeEventListener('ethora-xmpp-logout', handleLogout);
+      if (typeof window !== "undefined") {
+        window.removeEventListener("ethora-xmpp-logout", handleLogout);
+      }
     };
   }, [client]);
 

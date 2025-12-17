@@ -25,7 +25,9 @@ export const logoutMiddleware: Middleware =
             }
 
             const logoutEvent = new CustomEvent('ethora-xmpp-logout');
-            window.dispatchEvent(logoutEvent);
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(logoutEvent);
+            }
           }, 0);
         } catch (error) {
           console.error('Error disconnecting XMPP client:', error);

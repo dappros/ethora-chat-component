@@ -104,9 +104,11 @@ export const chatSlice = createSlice({
   reducers: {
     setUser: (state, action: PayloadAction<User>) => {
       state.user = unpackAndTransform(action.payload);
-      useLocalStorage(localStorageConstants.ETHORA_USER).set(
-        unpackAndTransform(action.payload)
-      );
+      if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
+        useLocalStorage(localStorageConstants.ETHORA_USER).set(
+          unpackAndTransform(action.payload)
+        );
+      }
     },
     updateUser(state, action: PayloadAction<{ updates: Partial<User> }>) {
       const { updates } = action.payload;
@@ -146,16 +148,20 @@ export const chatSlice = createSlice({
       state.user.refreshToken = action.payload.refreshToken;
       state.user.token = action.payload.token;
 
-      localStorage.setItem(
-        localStorageConstants.ETHORA_USER,
-        JSON.stringify(state.user)
-      );
+      if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
+        localStorage.setItem(
+          localStorageConstants.ETHORA_USER,
+          JSON.stringify(state.user)
+        );
+      }
     },
     logout: (state) => {
       state.user = unpackAndTransform();
       state.config = undefined;
 
-      localStorage.removeItem(localStorageConstants.ETHORA_USER);
+      if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
+        localStorage.removeItem(localStorageConstants.ETHORA_USER);
+      }
     },
   },
 });

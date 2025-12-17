@@ -280,10 +280,12 @@ const MessageList = <TMessage extends IMessage>({
   };
 
   const onScroll = () => {
-    window.clearTimeout(timeoutRef.current);
-    timeoutRef.current = window.setTimeout(() => {
-      checkAtBottom();
-    }, 50);
+    if (typeof window !== "undefined") {
+      window.clearTimeout(timeoutRef.current);
+      timeoutRef.current = window.setTimeout(() => {
+        checkAtBottom();
+      }, 50);
+    }
   };
 
   useEffect(() => {

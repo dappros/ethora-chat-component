@@ -58,9 +58,22 @@ const ChatComponent = React.memo(() => {
   );
 
   useEffect(() => {
-    handleQRChatId();
+    if (typeof window !== 'undefined') {
+      handleQRChatId();
+    }
     return () => {};
-  }, [window.location.pathname]);
+  }, []); // Remove window.location.pathname from dependencies
+
+  // If you need to react to pathname changes, use a separate effect:
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const handlePathChange = () => {
+        handleQRChatId();
+      };
+      window.addEventListener('popstate', handlePathChange);
+      return () => window.removeEventListener('popstate', handlePathChange);
+    }
+  }, []);
 
   return (
     <div style={{ height: 'calc(100vh - 20px)', overflow: 'hidden' }}>
