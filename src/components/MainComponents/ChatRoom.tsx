@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ChatContainer, NonRoomChat } from '../styled/StyledComponents';
 import { useDispatch } from 'react-redux';
 import MessageList from './MessageList';
-import SendInput from '../styled/SendInput';
+import SendInput, { SendInputProps } from '../styled/SendInput';
+import CustomTypingIndicator from '../styled/StyledInputComponents/CustomTypingIndicator';
 import {
   deleteRoomMessage,
   setEditAction,
@@ -22,14 +23,17 @@ import { useRoomInitialization } from '../../hooks/useRoomInitialization.tsx';
 import { useRoomState } from '../../hooks/useRoomState.tsx';
 import { useChatSettingState } from '../../hooks/useChatSettingState.tsx';
 import useComposing from '../../hooks/useComposing.tsx';
+import { useCustomComponents } from '../../context/CustomComponentsContext';
+import { MessageProps } from '../../types/types';
 
 interface ChatRoomProps {
-  CustomMessageComponent?: any;
+  CustomMessageComponent?: React.ComponentType<MessageProps>;
   handleBackClick?: (value: boolean) => void;
 }
 
 const ChatRoom: React.FC<ChatRoomProps> = React.memo(
   ({ CustomMessageComponent, handleBackClick }) => {
+    const { CustomInputComponent } = useCustomComponents();
     const { client } = useXmppClient();
     const dispatch = useDispatch();
 
@@ -48,8 +52,9 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       sendMessage: sendMs,
       sendMedia: sendMessageMedia,
       sendEditMessage,
+      isLastMessageFromUserAndProcessing,
     } = useSendMessage();
-    const { sendStartComposing, sendEndComposing } = useComposing();
+    const { sendStartComposing, sendEndComposing } = useComposing(config);
 
     const sendMessage = useCallback(
       (message: string) => {
@@ -163,6 +168,8 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             handleBackClick={handleBackClick}
           />
         )}
+        {config?.chatHeaderAdditional?.enabled &&
+          config.chatHeaderAdditional.element()}
         {globalLoading ||
         (!roomsList[activeRoomJID].historyComplete &&
           roomsList[activeRoomJID].messages.length < 1) ? (
@@ -186,15 +193,48 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         {editAction.isEdit && (
           <EditWrapper text={editAction.text} onClose={onCloseEdit} />
         )}
-        <SendInput
-          editMessage={editAction.text}
-          sendMessage={editAction.isEdit ? sendEditMessage : sendMessage}
-          sendMedia={sendMedia}
-          config={config}
-          onFocus={sendStartComposing}
-          onBlur={sendEndComposing}
-          isLoading={false}
-        />
+        {(() => {
+          const baseInputProps: SendInputProps = {
+            editMessage: editAction.text,
+            sendMessage: editAction.isEdit ? sendEditMessage : sendMessage,
+            sendMedia,
+            config,
+            onFocus: sendStartComposing,
+            onBlur: sendEndComposing,
+            isLoading: false,
+            isMessageProcessing:
+              isLastMessageFromUserAndProcessing(activeRoomJID),
+            multiline: true,
+            placeholderText: 'Type message',
+          };
+
+          const normalizedProps = {
+            ...baseInputProps,
+            onSendMessage: baseInputProps.sendMessage,
+            onSendMedia: baseInputProps.sendMedia,
+          };
+
+          return CustomInputComponent ? (
+            <CustomInputComponent {...normalizedProps} />
+          ) : (
+            <SendInput {...baseInputProps} />
+          );
+        })()}
+
+        {/* Custom Typing Indicator for overlay/floating positions */}
+        {config?.customTypingIndicator?.enabled &&
+          (config.customTypingIndicator.position === 'overlay' ||
+            config.customTypingIndicator.position === 'floating') &&
+          roomsList[activeRoomJID]?.composing && (
+            <CustomTypingIndicator
+              usersTyping={roomsList[activeRoomJID]?.composingList || ['User']}
+              text={config.customTypingIndicator.text}
+              position={config.customTypingIndicator.position}
+              styles={config.customTypingIndicator.styles}
+              customComponent={config.customTypingIndicator.customComponent}
+              isVisible={roomsList[activeRoomJID]?.composing || false}
+            />
+          )}
       </ChatContainer>
     );
   }

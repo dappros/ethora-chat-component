@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { IConfig, MessageProps, User } from '../../types/types';
+import { IConfig, User } from '../../types/types';
 import { ChatWrapper } from './ChatWrapper';
 import LoginForm from '../AuthForms/Login';
 import { RootState } from '../../roomStore';
@@ -10,20 +10,32 @@ import {
   loginEmail,
   loginViaJwt,
 } from '../../networking/api-requests/auth.api';
-import { OrDelimiter } from '../styled/StyledComponents';
-import Button from '../styled/Button';
+import { StyledLoaderWrapper } from '../styled/StyledComponents';
 import { setBaseURL } from '../../networking/apiClient';
+import Loader from '../styled/Loader';
+import ErrorFallback from './ErrorFallback';
 
-interface LoginWrapperProps {
+import { CustomComponentsContextValue } from '../../types/models/customComponents.model';
+
+interface LoginWrapperProps
+  extends Partial<
+    Pick<
+      CustomComponentsContextValue,
+      | 'CustomMessageComponent'
+      | 'CustomInputComponent'
+      | 'CustomScrollableArea'
+      | 'CustomDaySeparator'
+    >
+  > {
   user?: { email: string; password: string };
   MainComponentStyles?: React.CSSProperties;
-  CustomMessageComponent?: React.ComponentType<MessageProps>;
   config?: IConfig;
   roomJID?: string;
 }
 
 const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
   const [showModal, setShowModal] = useState(false);
+  const { config, MainComponentStyles } = props;
 
   const { user } = useSelector((state: RootState) => state.chatSettingStore);
 
@@ -48,11 +60,11 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    if (props.config?.baseUrl) {
-      setBaseURL(props.config?.baseUrl, props.config?.customAppToken);
+    if (config?.baseUrl) {
+      setBaseURL(config?.baseUrl, config?.customAppToken);
     }
     if (props?.config?.userLogin?.enabled && props?.config?.userLogin?.user) {
-      dispatch(setUser(props.config.userLogin.user));
+      dispatch(setUser(config.userLogin.user));
       return;
     }
 
@@ -67,10 +79,10 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
 
     //if jwt send api req with jwt and get user data
 
-    if (props.config?.jwtLogin?.enabled) {
+    if (config?.jwtLogin?.enabled) {
       const jwtLogin = async () => {
         try {
-          const loginData = await loginViaJwt(props.config.jwtLogin.token);
+          const loginData = await loginViaJwt(config.jwtLogin.token);
           if (loginData) {
             dispatch(setUser(loginData));
           }
@@ -86,10 +98,10 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
     //if no login config - default user login
 
     if (
-      !props.config?.googleLogin &&
-      !props.config?.defaultLogin &&
-      !props.config?.jwtLogin &&
-      !props.config?.userLogin &&
+      !config?.googleLogin &&
+      !config?.defaultLogin &&
+      !config?.jwtLogin &&
+      !config?.userLogin &&
       user.xmppUsername === ''
     ) {
       const defaultLogin = async () => {
@@ -115,25 +127,18 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
   return (
     <>
       {showModal ? (
-        <div
-          style={{
-            ...props.MainComponentStyles,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            flexDirection: 'column',
-            padding: '20px',
-            gap: '8px',
-          }}
-        >
-          <p>Error on loading chat. Please, try again later</p>
-          <OrDelimiter>Or</OrDelimiter>
-          <Button onClick={() => setShowModal(false)} style={{ width: '100%' }}>
-            Enter with default account
-          </Button>
-        </div>
+        <ErrorFallback
+          MainComponentStyles={MainComponentStyles}
+          onButtonClick={() => setShowModal(false)}
+        />
       ) : user && user.xmppPassword !== '' ? (
         <ChatWrapper {...props} />
+      ) : config?.jwtLogin?.enabled ? (
+        <StyledLoaderWrapper
+          style={{ alignItems: 'center', flexDirection: 'column', gap: '10px' }}
+        >
+          <Loader color={config?.colors?.primary} style={{ margin: '0px' }} />
+        </StyledLoaderWrapper>
       ) : (
         <LoginForm {...props} />
       )}

@@ -30,8 +30,10 @@ import { MessageReaction } from './MessageReaction';
 import MessageTranslations from './MessageTranslations';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { DoubleTick } from '../../assets/icons';
-import { parseMessageBody } from '../../helpers/parseUrls';
+import { parseMessageBody } from '../../helpers/parseMessageBody';
 import URLPreviewCard from './URLPreviewCard';
+import { useMessageHeapState } from '../../hooks/useMessageHeapState';
+import { resendMessage } from '../../main';
 
 const firstUrlRegex =
   /(https?:\/\/[\w.-]+(?:\.[\w.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+)/;
@@ -42,6 +44,7 @@ const Message: React.FC<MessageProps> = forwardRef<
 >(({ message, isUser, isReply }, ref) => {
   const { client } = useXmppClient();
   const { user, config, langSource } = useChatSettingState();
+  const { idSet } = useMessageHeapState();
 
   const dispatch = useDispatch();
 
@@ -73,6 +76,16 @@ const Message: React.FC<MessageProps> = forwardRef<
 
     const x = 'touches' in event ? event.touches[0].clientX : event.clientX;
     const y = 'touches' in event ? event.touches[0].clientY : event.clientY;
+    
+    if (typeof window === "undefined") {
+      setContextMenu({
+        visible: true,
+        x: x,
+        y: y,
+      });
+      return;
+    }
+
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
 
@@ -185,6 +198,8 @@ const Message: React.FC<MessageProps> = forwardRef<
     );
   };
 
+  const isPending = idSet.has(message.id) || message?.pending || false;
+
   return (
     <>
       <CustomMessageContainer
@@ -255,7 +270,13 @@ const Message: React.FC<MessageProps> = forwardRef<
               {message.isDeleted && message.id !== 'delimiter-new' ? (
                 <DeletedMessage />
               ) : (
-                <span>{parseMessageBody(message.body)}</span>
+                <div className="message-body">
+                  {parseMessageBody({
+                    text: config?.messageTextFilter?.enabled
+                      ? config.messageTextFilter.filterFunction(message.body)
+                      : message.body,
+                  })}
+                </div>
               )}
             </CustomMessageText>
           )}
@@ -269,15 +290,12 @@ const Message: React.FC<MessageProps> = forwardRef<
             />
           )}
           <CustomMessageTimestamp>
-            {!config?.disableSentLogic &&
-              isUser &&
-              message?.pending &&
-              'sending...'}
+            {!config?.disableSentLogic && isUser && isPending && 'sending...'}
             {new Date(message.date).toLocaleTimeString([], {
               hour: '2-digit',
               minute: '2-digit',
             })}
-            {!config?.disableSentLogic && isUser && !message?.pending && (
+            {!config?.disableSentLogic && isUser && !isPending && (
               <DoubleTick />
             )}
           </CustomMessageTimestamp>
@@ -303,6 +321,23 @@ const Message: React.FC<MessageProps> = forwardRef<
             />
           )}
         </MessageFooter>
+        {/* <button
+          onClick={() =>
+            resendMessage({
+              originalMessageId: message.id,
+              body: message.body,
+              roomJid: message.roomJid,
+              isReply:
+                typeof message.isReply === 'boolean'
+                  ? message.isReply
+                  : !!message.isReply,
+              showInChannel: message.showInChannel,
+              mainMessage: message.mainMessage,
+            })
+          }
+        >
+          asdasdsd
+        </button> */}
       </CustomMessageContainer>
 
       {!config?.disableInteractions && (

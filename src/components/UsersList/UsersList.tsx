@@ -51,8 +51,9 @@ const UsersList: React.FC<UsersListProps> = ({
     () =>
       debounce((term: string) => {
         const lower = term.toLowerCase();
-        const users = Object.values(usersSet).filter((user) =>
-          `${user.firstName} ${user.lastName}`.toLowerCase().includes(lower)
+        const users = (Object.values(usersSet) as RoomMember[]).filter(
+          (user: RoomMember) =>
+            `${user.firstName} ${user.lastName}`.toLowerCase().includes(lower)
         );
         setFilteredUsers(users);
       }, 100),
@@ -64,7 +65,7 @@ const UsersList: React.FC<UsersListProps> = ({
   }, [searchTerm, debouncedFilter]);
 
   useEffect(() => {
-    setFilteredUsers(Object.values(usersSet));
+    setFilteredUsers(Object.values(usersSet) as RoomMember[]);
   }, [usersSet]);
 
   return (

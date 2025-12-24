@@ -2,9 +2,13 @@ import { useState } from 'react';
 
 export function useLocalStorage<T>(key: string) {
   const get = (): T | null => {
-    const storedValue = localStorage.getItem(key);
-    if (!storedValue) return null;
+    if (typeof window === "undefined" || typeof localStorage === "undefined") {
+      return null;
+    }
+
     try {
+      const storedValue = localStorage.getItem(key);
+      if (!storedValue) return null;
       return JSON.parse(storedValue) as T;
     } catch (error) {
       console.error('Failed to parse localStorage value', error);
@@ -13,6 +17,10 @@ export function useLocalStorage<T>(key: string) {
   };
 
   const set = (value: T) => {
+    if (typeof window === "undefined" || typeof localStorage === "undefined") {
+      return;
+    }
+
     try {
       const stringValue = JSON.stringify(value);
       localStorage.setItem(key, stringValue);

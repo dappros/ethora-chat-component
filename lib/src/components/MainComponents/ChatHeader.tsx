@@ -63,8 +63,10 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       Object.keys(roomsList).length < 1 ||
       activeRoomJID === Object.keys(roomsList)[0]
     ) {
-      const newUrl = `${window.location.pathname}`;
-      window.history.pushState(null, '', newUrl);
+      if (typeof window !== "undefined") {
+        const newUrl = `${window.location.pathname}`;
+        window.history.pushState(null, "", newUrl);
+      }
       dispatch(setCurrentRoom({ roomJID: null }));
       return;
     }

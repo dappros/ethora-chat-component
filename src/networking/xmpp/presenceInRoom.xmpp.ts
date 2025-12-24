@@ -49,11 +49,9 @@ export const presenceInRoom = async (
       await client.send(presence);
     } catch (err) {
       unsubscribe();
-      return reject(err);
+      return [];
     }
 
-    await createTimeoutPromise(2000, () =>
-      finish(reject, new Error('Presence in room timeout'))
-    ).catch(() => {});
+    await createTimeoutPromise(2000, unsubscribe).catch(reject);
   });
 };

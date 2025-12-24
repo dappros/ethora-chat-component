@@ -6,7 +6,11 @@ let previousMessagesCount: { [jid: string]: number } = {};
 
 export const unreadMiddleware: Middleware =
   (storeAPI) => (next) => (action: any) => {
-    if (action.type === 'roomMessages/deleteRoomMessage') {
+    if (!action || !action.type) {
+      console.error('Invalid action in unreadMiddleware:', action);
+      return next(action);
+    }
+    if (action?.type === 'roomMessages/deleteRoomMessage') {
       return next(action);
     }
 

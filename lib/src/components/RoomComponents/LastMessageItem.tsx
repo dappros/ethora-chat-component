@@ -5,6 +5,7 @@ import LastTextMessage from './styled/LastTextMessage';
 import LastMessagePhoto from './styled/LastMessagePhoto';
 import LastMessageEmoji from './styled/LastMessageEmoji';
 import LastMessageFile from './styled/LastMessageFile';
+import LastAudioMessage from './styled/LastAudioMessage';
 
 interface LastMessageItemProps {
   lastMessage: LastMessage;
@@ -20,6 +21,13 @@ const LastMessageItem: FC<LastMessageItemProps> = ({ lastMessage }) => {
 
     if (mimetype.startsWith('video/')) {
       return <LastMessageVideo {...lastMessage} />;
+    }
+
+    if (
+      mimetype.startsWith('audio/') ||
+      mimetype.includes('application/octet-stream')
+    ) {
+      return <LastAudioMessage {...lastMessage} />;
     }
 
     return <LastMessageFile {...lastMessage} />;

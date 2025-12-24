@@ -107,6 +107,10 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
     const pickerWidth = 320;
     const pickerHeight = 435;
 
+    if (typeof window === "undefined") {
+      return { adjustedX: x, adjustedY: y };
+    }
+
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
 
@@ -125,6 +129,10 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
   };
 
   useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
     const handleScroll = () => {
       if (showPicker) {
         const { adjustedX, adjustedY } = calculatePickerPosition(
@@ -138,7 +146,9 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
     window.addEventListener('scroll', handleScroll);
 
     return () => {
-      window.removeEventListener('scroll', handleScroll);
+      if (typeof window !== "undefined") {
+        window.removeEventListener('scroll', handleScroll);
+      }
     };
   }, [showPicker, contextMenu.x, contextMenu.y]);
 

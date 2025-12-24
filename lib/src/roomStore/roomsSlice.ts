@@ -1,4 +1,4 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import {
   AddRoomMessageAction,
   ApiRoom,
@@ -41,6 +41,27 @@ const initialState: RoomMessagesState = {
   },
   loadingText: undefined,
 };
+
+export const addRoomViaApi = createAsyncThunk(
+  'roomMessages/addRoomViaApi',
+  async (
+    { room, xmpp }: { room: IRoom; xmpp: XmppClient },
+    { dispatch, getState }
+  ) => {
+    const state = getState() as { rooms: RoomMessagesState };
+    const isRoomAlreadyAdded = Object.values(state.rooms.rooms).some(
+      (element) => element.jid === room?.jid
+    );
+
+    if (!isRoomAlreadyAdded) {
+      if (room.jid) {
+        xmpp.presenceInRoomStanza(room.jid);
+        xmpp?.getHistoryStanza(room.jid, 10);
+      }
+      dispatch(roomsStore.actions.addRoomFromApi({ room }));
+    }
+  }
+);
 
 export const roomsStore = createSlice({
   name: 'roomMessages',
@@ -167,7 +188,17 @@ export const roomsStore = createSlice({
         state.rooms[roomJID].messages = [];
       }
 
-      if (roomMessages.some((msg) => msg.id === message.id)) {
+      const existingIndex = roomMessages.findIndex(
+        (msg) =>
+          msg.id === message.id ||
+          (message.xmppId && msg.id === message.xmppId) ||
+          (msg.xmppId && msg.xmppId === message.id)
+      );
+      if (existingIndex !== -1) {
+        roomMessages[existingIndex] = deepMerge(
+          { ...roomMessages[existingIndex] },
+          { ...message, pending: false }
+        );
         return;
       }
 
@@ -181,7 +212,7 @@ export const roomsStore = createSlice({
 
       if (roomMessages.length === 0 || start) {
         const index = roomMessages.findIndex(
-          (msg) => msg.id === message.xmppId
+          (msg) => msg.id === message.xmppId || msg.id === message.id
         );
         if (index !== -1) {
           roomMessages[index] = {
@@ -207,6 +238,14 @@ export const roomsStore = createSlice({
     deleteAllRooms(state) {
       state.rooms = {};
     },
+    insertUsers(state, action: PayloadAction<{ newUsers: RoomMember[] }>) {
+      const { newUsers } = action.payload;
+      if (!newUsers || newUsers.length === 0) return;
+
+      newUsers.forEach((user) => {
+        state.usersSet[user.xmppUsername] = user;
+      });
+    },
     setComposing(
       state,
       action: PayloadAction<{
@@ -216,6 +255,9 @@ export const roomsStore = createSlice({
       }>
     ) {
       const { chatJID, composing, composingList } = action.payload;
+      if (!state.rooms[chatJID]) {
+        return;
+      }
       state.rooms[chatJID].composing = composing;
       state.rooms[chatJID].composingList = composingList;
     },
@@ -308,23 +350,9 @@ export const roomsStore = createSlice({
         message.activeMessage = false;
       });
     },
-    addRoomViaApi: (
-      state,
-      action: PayloadAction<{ room: IRoom; xmpp: XmppClient }>
-    ) => {
-      const { room, xmpp } = action.payload;
-
-      const isRoomAlreadyAdded = Object.values(state.rooms).some(
-        (element) => element.jid === room?.jid
-      );
-
-      if (!isRoomAlreadyAdded) {
-        state.rooms[room.jid] = room;
-
-        if (room.jid) {
-          xmpp.presenceInRoomStanza(room.jid);
-        }
-      }
+    addRoomFromApi: (state, action: PayloadAction<{ room: IRoom }>) => {
+      const { room } = action.payload;
+      state.rooms[room.jid] = room;
     },
     updateUsersSet: (state, action: PayloadAction<{ rooms: ApiRoom[] }>) => {
       const { rooms } = action.payload;
@@ -335,6 +363,21 @@ export const roomsStore = createSlice({
     },
   },
 });
+
+function deepMerge(target: any, source: any): any {
+  for (const key in source) {
+    if (
+      source[key] &&
+      typeof source[key] === 'object' &&
+      !Array.isArray(source[key])
+    ) {
+      target[key] = deepMerge(target[key] || {}, source[key]);
+    } else {
+      target[key] = source[key];
+    }
+  }
+  return target;
+}
 
 const countNewerMessages = (
   messages: IMessage[],
@@ -379,9 +422,9 @@ export const {
   setCloseActiveMessage,
   deleteRoom,
   updateRoom,
-  addRoomViaApi,
   updateUsersSet,
   setOpenReportModal,
+  insertUsers,
 } = roomsStore.actions;
 
 export default roomsStore.reducer;

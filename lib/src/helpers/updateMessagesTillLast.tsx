@@ -2,9 +2,11 @@ import XmppClient from '../networking/xmppClient';
 import { store } from '../roomStore';
 import {
   getLastMessageTimestamp,
+  insertUsers,
   setRoomMessages,
 } from '../roomStore/roomsSlice';
 import { IMessage, IRoom } from '../types/types';
+import { checkUniqueUsers } from './checkUniqueUsers';
 
 export const updateMessagesTillLast = async (
   rooms: {
@@ -73,6 +75,13 @@ export const updateMessagesTillLast = async (
               );
 
               if (!isMessageFound && !(counter <= maxFetchAttempts - 1)) {
+                const fixedUsers = await checkUniqueUsers(
+                  currentJidNewMessages
+                );
+                if (fixedUsers && fixedUsers.length > 0) {
+                  store.dispatch(insertUsers({ newUsers: fixedUsers }));
+                }
+
                 store.dispatch(
                   setRoomMessages({
                     roomJID: jid,

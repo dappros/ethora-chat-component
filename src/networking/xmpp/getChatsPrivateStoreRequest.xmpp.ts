@@ -1,46 +1,46 @@
 import { Client, xml } from '@xmpp/client';
 import { Element } from 'ltx';
-import { createTimeoutPromise } from './createTimeoutPromise.xmpp';
-import { store } from '../../roomStore';
-import { setLastViewedTimestamp } from '../../roomStore/roomsSlice';
 
 export async function getChatsPrivateStoreRequest(client: Client) {
   const id = `get-chats-private-req:${Date.now().toString()}`;
-  let stanzaHdlrPointer: {
-    (el: Element): void;
-    (stanza: any): void;
-  };
 
-  const unsubscribe = () => {
-    client.off('stanza', stanzaHdlrPointer);
-  };
+  return new Promise((resolve, reject) => {
+    let stanzaHdlrPointer: (stanza: Element) => void;
 
-  const responsePromise = new Promise((resolve, _reject) => {
-    try {
-      stanzaHdlrPointer = (stanza: Element) => {
-        if (stanza.is('iq') && stanza.attrs.id === id) {
-          let chatjson = stanza.getChild('query')?.getChild('chatjson');
+    const timeout = setTimeout(() => {
+      client.off('stanza', stanzaHdlrPointer);
+      reject(new Error('get-chats-private timed out'));
+    }, 10000);
 
-          if (chatjson && chatjson?.attrs?.value) {
+    stanzaHdlrPointer = (stanza: Element) => {
+      if (stanza.is('iq') && stanza.attrs.id === id) {
+        clearTimeout(timeout);
+        client.off('stanza', stanzaHdlrPointer);
+
+        if (stanza.attrs.type === 'error') {
+          reject(new Error('Error response from server'));
+          return;
+        }
+
+        const chatjson = stanza.getChild('query')?.getChild('chatjson');
+        if (chatjson && chatjson.attrs.value) {
+          try {
             const roomTimestampObject = JSON.parse(chatjson.attrs.value);
             resolve(roomTimestampObject);
-          } else {
-            resolve(null);
+          } catch (e) {
+            reject(e);
           }
+        } else {
+          resolve(null);
         }
-      };
-    } catch (error) {
-      console.log('err', error);
-    }
+      }
+    };
 
     client.on('stanza', stanzaHdlrPointer);
 
     const message = xml(
       'iq',
-      {
-        id: id,
-        type: 'get',
-      },
+      { id, type: 'get' },
       xml(
         'query',
         { xmlns: 'jabber:iq:private' },
@@ -48,16 +48,10 @@ export async function getChatsPrivateStoreRequest(client: Client) {
       )
     );
 
-    client.send(message);
+    client.send(message).catch((err) => {
+      clearTimeout(timeout);
+      client.off('stanza', stanzaHdlrPointer);
+      reject(err);
+    });
   });
-
-  const timeoutPromise = createTimeoutPromise(2000, unsubscribe);
-
-  try {
-    const res = await Promise.race([responsePromise, timeoutPromise]);
-    return res;
-  } catch (e) {
-    console.log('=-> error in getting last read timestamps', e);
-    return null;
-  }
 }

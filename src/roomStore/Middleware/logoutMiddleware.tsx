@@ -2,6 +2,11 @@ import { Middleware } from '@reduxjs/toolkit';
 
 export const logoutMiddleware: Middleware =
   (storeAPI) => (next) => (action: any) => {
+    if (!action || !action.type) {
+      console.error('Invalid action in logoutMiddleware:', action);
+      return next(action);
+    }
+
     const result = next(action);
 
     if (action.type === 'chatSettingStore/logout') {
@@ -20,7 +25,9 @@ export const logoutMiddleware: Middleware =
             }
 
             const logoutEvent = new CustomEvent('ethora-xmpp-logout');
-            window.dispatchEvent(logoutEvent);
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(logoutEvent);
+            }
           }, 0);
         } catch (error) {
           console.error('Error disconnecting XMPP client:', error);

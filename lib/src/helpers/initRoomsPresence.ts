@@ -1,5 +1,6 @@
 import XmppClient from '../networking/xmppClient';
 import { IRoom } from '../types/types';
+import { presenceInRoom } from '../networking/xmpp/presenceInRoom.xmpp';
 
 export const initRoomsPresence = async (
   client: XmppClient,
@@ -7,14 +8,13 @@ export const initRoomsPresence = async (
 ) => {
   console.log('Persisted presence');
   if (!client) return null;
-  return new Promise<void>((resolve, reject) => {
-    Promise.all(
-      Object.keys(rooms).map((jid) => {
-        client.presenceInRoomStanza(jid);
-        console.log('Persisted history');
-      })
-    )
-      .then(() => resolve())
-      .catch(reject);
-  });
+  const jids = Object.keys(rooms || {});
+  if (!jids.length) return null;
+  await Promise.allSettled(
+    jids.map(async (jid) => {
+      try {
+        await presenceInRoom(client.client, jid);
+      } catch (e) {}
+    })
+  );
 };

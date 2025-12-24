@@ -27,8 +27,8 @@ const ActionButton: FC<ActionButtonProps> = ({ icon, ...props }) => {
       {...props}
     >
       {icon ? (
-        React.cloneElement(icon as React.ReactElement, {
-          style: { width: 40, height: 40 },
+        React.cloneElement(icon as React.ReactElement<any>, {
+          style: { width: 20, height: 20 },
         })
       ) : (
         <DownloadIcon style={{ width: 40, height: 40 }} />

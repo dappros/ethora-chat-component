@@ -26,16 +26,18 @@ export const chatAutoEnterer = ({
   }
 
   if (!wasAutoSelected) {
-    const searchParams = new URLSearchParams(window.location.search);
-    const chatId = searchParams.get('chatId');
+    if (typeof window !== "undefined") {
+      const searchParams = new URLSearchParams(window.location.search);
+      const chatId = searchParams.get('chatId');
 
-    if (chatId) {
-      const conferenceDomain = config.xmppSettings?.conference ?? '';
-      dispatch(
-        setCurrentRoom({
-          roomJID: `${chatId}@${conferenceDomain}`,
-        })
-      );
+      if (chatId) {
+        const conferenceDomain = config.xmppSettings?.conference ?? '';
+        dispatch(
+          setCurrentRoom({
+            roomJID: `${chatId}@${conferenceDomain}`,
+          })
+        );
+      }
     }
   }
 };

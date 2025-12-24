@@ -6,6 +6,10 @@ import { useUnreadMessagesCounter } from './hooks/useUnreadMessagesCounter';
 import { IConfig } from './types/types';
 import { logoutService, handleQRChatId } from './main';
 import { handleCopyClick } from './helpers/handleCopyClick';
+import CustomChatInput from './examples/customComponents/CustomChatInput';
+import CustomScrollableArea from './examples/customComponents/CustomScrollableArea';
+import CustomDaySeparator from './examples/customComponents/CustomDaySeparator';
+import CustomMessageBubble from './examples/customComponents/CustomMessageBubble';
 
 const Apps = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -14,6 +18,10 @@ const Apps = () => {
       <button onClick={() => setIsChatOpen(!isChatOpen)}>Toggle Chat</button>
       {isChatOpen && (
         <ReduxWrapper
+          CustomMessageComponent={CustomMessageBubble}
+          CustomInputComponent={CustomChatInput}
+          CustomScrollableArea={CustomScrollableArea}
+          CustomDaySeparator={CustomDaySeparator}
           config={{
             baseUrl: 'https://api.ethoradev.com/v1',
           }}
@@ -27,7 +35,10 @@ const ChatComponent = React.memo(() => {
   const config: IConfig = useMemo(
     () => ({
       colors: { primary: '#5E3FDE', secondary: '#E1E4FE' },
-      userLogin: { enabled: true, user: null },
+      userLogin: {
+        enabled: true,
+        user: null,
+      },
       chatRoomStyles: { borderRadius: '16px' },
       roomListStyles: { borderRadius: '16px' },
       setRoomJidInPath: true,
@@ -47,33 +58,67 @@ const ChatComponent = React.memo(() => {
   );
 
   useEffect(() => {
-    handleQRChatId();
+    if (typeof window !== 'undefined') {
+      handleQRChatId();
+    }
     return () => {};
-  }, [window.location.pathname]);
+  }, []); // Remove window.location.pathname from dependencies
+
+  // If you need to react to pathname changes, use a separate effect:
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const handlePathChange = () => {
+        handleQRChatId();
+      };
+      window.addEventListener('popstate', handlePathChange);
+      return () => window.removeEventListener('popstate', handlePathChange);
+    }
+  }, []);
 
   return (
     <div style={{ height: 'calc(100vh - 20px)', overflow: 'hidden' }}>
       <ReduxWrapper
-        roomJID="646cc8dc96d4a4dc8f7b2f2d_6824685682d635dba7522423@conference.xmpp.ethoradev.com"
+        // CustomMessageComponent={CustomMessageBubble}
+        // CustomInputComponent={CustomChatInput}
+        // CustomScrollableArea={CustomScrollableArea}
+        // CustomDaySeparator={CustomDaySeparator}
+        // roomJID="646cc8dc96d4a4dc8f7b2f2d_6824685682d635dba7522423@conference.xmpp.ethoradev.com"
         config={{
           xmppSettings: {
             devServer: 'wss://xmpp.ethoradev.com:5443/ws',
             host: 'xmpp.ethoradev.com',
             conference: 'conference.xmpp.ethoradev.com',
+            xmppPingOnSendEnabled: true,
           },
           baseUrl: 'https://api.ethoradev.com/v1',
           newArch: true,
           setRoomJidInPath: true,
           qrUrl: 'https://beta.ethora.com/app/chat/?qrChatId=',
+          refreshTokens: { enabled: true },
           // secondarySendButton: {
           //   enabled: true,
-          //   messageEdit: `videoId:${window.location.href}`,
-          //   buttonText: 'With Id',
+          //   messageEdit: 'asdasd',
+          //   label: <div>'Send'</div>,
           //   buttonStyles: {
           //     whiteSpace: 'nowrap',
           //     width: '60px',
           //   },
+          //   hideInputSendButton: true,
+          //   overwriteEnterClick: true,
           // },
+          disableMedia: true,
+          eventHandlers: {
+            onMessageSent: async (event) => {
+              console.log('✅ Message sent successfully:', event.message);
+            },
+          },
+          blockMessageSendingWhenProcessing: {
+            enabled: true,
+            timeout: 10000,
+            onTimeout: () => {
+              console.log('asdasdasd');
+            },
+          },
           ...config,
         }}
         MainComponentStyles={mainStyles}

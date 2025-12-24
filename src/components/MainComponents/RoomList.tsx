@@ -62,10 +62,13 @@ const RoomList: React.FC<RoomListProps> = ({
 
   const performClick = useCallback(
     (chat: IRoom) => {
-      if (chat.jid !== activeRoomJID) {
-        onRoomClick?.(chat);
-        setOpen(false);
+      if (chat.jid === activeRoomJID && !isSmallScreen) {
+        return;
       }
+
+      onRoomClick?.(chat);
+      setOpen(false);
+      
     },
     [onRoomClick]
   );
@@ -133,7 +136,7 @@ const RoomList: React.FC<RoomListProps> = ({
   }, [burgerMenu, handleClickOutside]);
 
   const isChatActive = useCallback(
-    (room: IRoom) => activeRoomJID === room.jid,
+    (room: IRoom) => !isSmallScreen && activeRoomJID === room.jid,
     [activeRoomJID]
   );
 
@@ -211,19 +214,16 @@ const RoomList: React.FC<RoomListProps> = ({
               style={{ flexGrow: 1, overflowY: 'auto', padding: '16px 0px' }}
             >
               {filteredChats.map((chat: IRoom, index: number) => (
-                <>
+                <React.Fragment key={`${chat.id}-${index}`}>
                   <ChatRoomItem
-                    key={chat.id}
                     chat={chat}
                     index={index}
                     isChatActive={isChatActive(chat)}
                     performClick={performClick}
                     config={config}
                   />
-                  {index < filteredChats.length - 1 && (
-                    <Divider key={`divider-${chat.id}`} />
-                  )}
-                </>
+                  {index < filteredChats.length - 1 && <Divider />}
+                </React.Fragment>
               ))}
             </div>
           </ScollableContainer>

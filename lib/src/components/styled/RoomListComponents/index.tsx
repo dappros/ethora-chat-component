@@ -1,7 +1,9 @@
 import styled, { css } from 'styled-components';
 import { getTintedColor } from '../../../helpers/getTintedColor';
 
-export const Container = styled.div<{ burgerMenu?: boolean; open?: boolean }>`
+export const Container = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== 'burgerMenu' && prop !== 'open',
+})<{ burgerMenu?: boolean; open?: boolean }>`
   ${({ burgerMenu, open }) =>
     burgerMenu
       ? css`
@@ -45,7 +47,9 @@ export const BurgerButton = styled.button`
   z-index: 1000;
 `;
 
-export const ChatItem = styled.div<{ active: boolean; bg?: string }>`
+export const ChatItem = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== 'active',
+})<{ active: boolean; bg?: string }>`
   display: flex;
   justify-content: space-between;
   border-radius: 16px;
@@ -104,7 +108,9 @@ export const LastMessage = styled.div`
   text-overflow: ellipsis;
 `;
 
-export const UserCount = styled.div<{ active: boolean }>`
+export const UserCount = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== 'active',
+})<{ active: boolean }>`
   color: ${({ active }) => (!active ? '#000' : '#fff')};
   margin-left: auto;
 `;

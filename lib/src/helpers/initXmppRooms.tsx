@@ -1,7 +1,6 @@
 import { setCurrentRoom, setIsLoading } from '../roomStore/roomsSlice';
 import { updatedChatLastTimestamps } from './updatedChatLastTimestamps';
 import { initRoomsPresence } from './initRoomsPresence';
-import { updateMessagesTillLast } from './updateMessagesTillLast';
 import XmppClient from '../networking/xmppClient';
 import { IConfig, IRoom, User } from '../types/types';
 import { store } from '../roomStore';
@@ -52,13 +51,11 @@ const initXmppRooms = async (
       const roomTimestampObject: [jid: string, timestamp: string] =
         await xmmpClient.getChatsPrivateStoreRequestStanza();
       updatedChatLastTimestamps(roomTimestampObject, store.dispatch);
-      await updateMessagesTillLast(rooms, xmmpClient);
     } else {
       //@ts-ignore
       const roomTimestampObject: [jid: string, timestamp: string] =
         await xmmpClient.getChatsPrivateStoreRequestStanza();
       updatedChatLastTimestamps(roomTimestampObject, store.dispatch);
-      await updateMessagesTillLast(rooms, xmmpClient);
     }
 
     if (config?.refreshTokens?.enabled) {

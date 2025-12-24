@@ -1,21 +1,49 @@
 import { IMessage } from '../types/types';
 import { isDateAfter, isDateBefore } from './dateComparison';
 
+function deepMerge(target: any, source: any): any {
+  for (const key in source) {
+    if (
+      source[key] &&
+      typeof source[key] === 'object' &&
+      !Array.isArray(source[key])
+    ) {
+      target[key] = deepMerge(target[key] || {}, source[key]);
+    } else {
+      target[key] = source[key];
+    }
+  }
+  return target;
+}
+
 export function insertMessageWithDelimiter(
   roomMessages: Partial<IMessage>[],
   message: IMessage,
   lastViewedTimestamp: { toString: () => string }
 ) {
-  const existingMessage = roomMessages.find((msg) => msg.id === message.id);
+  const existingIndex = roomMessages.findIndex(
+    (msg) =>
+      msg.id === message.id ||
+      (message.xmppId && msg.id === message.xmppId) ||
+      (msg.xmppId && msg.xmppId === message.id)
+  );
 
-  if (existingMessage) return;
+  if (existingIndex !== -1) {
+    roomMessages[existingIndex] = deepMerge(
+      { ...roomMessages[existingIndex] },
+      { ...message, pending: false }
+    );
+    return;
+  }
 
   const newMessageDate = message.date;
   const lastMessage = roomMessages[roomMessages.length - 1];
   const firstMessage = roomMessages[0];
 
   if (isDateAfter(newMessageDate.toString(), lastMessage.date.toString())) {
-    const index = roomMessages.findIndex((msg) => msg.id === message.xmppId);
+    const index = roomMessages.findIndex(
+      (msg) => msg.id === message.xmppId || msg.id === message.id
+    );
     if (index !== -1) {
       roomMessages[index] = { ...message, id: message.id, pending: false };
     } else {

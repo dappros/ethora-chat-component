@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { IConfig } from '../types/types';
 import XmppClient from '../networking/xmppClient';
@@ -31,6 +31,7 @@ interface useChatWrapperInitResult {
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   client: XmppClient | null;
   setClient: React.Dispatch<React.SetStateAction<XmppClient | null>>;
+  isConnectionLost: boolean;
 }
 
 const useChatWrapperInit = ({
@@ -41,7 +42,9 @@ const useChatWrapperInit = ({
   const dispatch = useDispatch<AppDispatch>();
   const [inited, setInited] = useState<boolean>(false);
   const [showModal, setShowModal] = useState<boolean>(false);
+  const [isConnectionLost, setConnectionLost] = useState<boolean>(false);
   const [isRetrying, setIsRetrying] = useState<boolean | 'norooms'>(false);
+  const hasSyncedHistoryRef = useRef<boolean>(false);
 
   const { client, initializeClient, setClient } = useXmppClient();
   const syncRooms = useGetNewArchRoom();
@@ -89,6 +92,8 @@ const useChatWrapperInit = ({
   };
 
   useEffect(() => {
+    let retryTimeout: NodeJS.Timeout;
+
     const initXmmpClient = async () => {
       if (config?.translates?.enabled && !config?.translates?.translations) {
         dispatch(setLangSource(config?.translates?.translations));
@@ -100,58 +105,67 @@ const useChatWrapperInit = ({
           console.log('Error, no user');
         } else {
           chatAutoEnterer({ roomJID, wasAutoSelected, config, dispatch });
-
           if (!client) {
-            setInited(false);
-            setShowModal(false);
+            try {
+              setInited(false);
+              setShowModal(false);
 
-            console.log('No client, so initing one');
-            const newClient = await initializeClient(
-              user.xmppUsername || user?.defaultWallet?.walletAddress,
-              user?.xmppPassword,
-              config?.xmppSettings,
-              roomsList
-            ).then((client) => {
-              return client;
-            });
+              console.log('No client, so initing one');
+              const newClient = await initializeClient(
+                user.xmppUsername || user?.defaultWallet?.walletAddress,
+                user?.xmppPassword,
+                config?.xmppSettings,
+                roomsList
+              ).then((client) => {
+                return client;
+              });
 
-            if (roomsList && Object.keys(roomsList).length > 0) {
-              setInited(true);
-              await initRoomsPresence(newClient, roomsList);
-            } else {
-              if (config?.newArch) {
-                const loadedRooms = await loadRooms(newClient);
-                if (config?.enableRoomsRetry?.enabled) {
-                  const isSelectedRoomPresent = isChatIdPresentInArray(
-                    roomJID,
-                    loadedRooms
-                  );
-                  if (!isSelectedRoomPresent) {
-                    await getRoomsWithRertyRequest();
-                  }
-                }
+              if (roomsList && Object.keys(roomsList).length > 0) {
                 setInited(true);
+                await initRoomsPresence(newClient, roomsList);
               } else {
-                await newClient.getRoomsStanza();
-              }
-            }
-            await newClient
-              .getChatsPrivateStoreRequestStanza()
-              .then(
-                async (
-                  roomTimestampObject: [jid: string, timestamp: string]
-                ) => {
-                  updatedChatLastTimestamps(roomTimestampObject, dispatch);
-                  // newClient.setVCardStanza(
-                  //   `${user.firstName} ${user.lastName}`
-                  // );
-                  await updateMessagesTillLast(rooms, newClient);
-                  setClient(newClient);
+                if (config?.newArch) {
+                  const loadedRooms = await loadRooms(newClient);
+                  if (config?.enableRoomsRetry?.enabled) {
+                    const isSelectedRoomPresent = isChatIdPresentInArray(
+                      roomJID,
+                      loadedRooms
+                    );
+                    if (!isSelectedRoomPresent) {
+                      await getRoomsWithRertyRequest();
+                    }
+                  }
+                  setInited(true);
+                } else {
+                  await newClient.getRoomsStanza();
                 }
-              );
+              }
+              await newClient
+                .getChatsPrivateStoreRequestStanza()
+                .then(
+                  async (
+                    roomTimestampObject: [jid: string, timestamp: string]
+                  ) => {
+                    updatedChatLastTimestamps(roomTimestampObject, dispatch);
+                    // newClient.setVCardStanza(
+                    //   `${user.firstName} ${user.lastName}`
+                    // );
+                    if (!hasSyncedHistoryRef.current) {
+                      await updateMessagesTillLast(rooms, newClient);
+                      hasSyncedHistoryRef.current = true;
+                    }
+                    setClient(newClient);
+                    setConnectionLost(false);
+                  }
+                );
 
-            {
-              config?.refreshTokens?.enabled && refresh();
+              {
+                config?.refreshTokens?.enabled && refresh();
+              }
+            } catch (error) {
+              console.log('err', error);
+              setConnectionLost(true);
+              retryTimeout = setTimeout(initXmmpClient, 5000);
             }
           } else {
             if (config?.newArch) {
@@ -174,8 +188,12 @@ const useChatWrapperInit = ({
                   roomTimestampObject: [jid: string, timestamp: string]
                 ) => {
                   updatedChatLastTimestamps(roomTimestampObject, dispatch);
-                  await updateMessagesTillLast(rooms, client);
+                  if (!hasSyncedHistoryRef.current) {
+                    await updateMessagesTillLast(rooms, client);
+                    hasSyncedHistoryRef.current = true;
+                  }
                   setClient(client);
+                  setConnectionLost(false);
                 }
               );
             {
@@ -185,21 +203,28 @@ const useChatWrapperInit = ({
         }
         dispatch(setIsLoading({ loading: false }));
       } catch (error) {
-        setShowModal(true);
+        setShowModal(false);
+        setConnectionLost(true);
         setInited(false);
         dispatch(setIsLoading({ loading: false }));
         console.log(error);
+        retryTimeout = setTimeout(initXmmpClient, 5000);
       }
     };
 
     initXmmpClient();
-  }, [user.xmppPassword, user.defaultWallet?.walletAddress]);
+
+    return () => {
+      clearTimeout(retryTimeout);
+    };
+  }, [user.xmppPassword, user.xmppUsername]);
 
   return {
     client,
     inited,
     isRetrying,
     showModal,
+    isConnectionLost,
     setClient,
     setInited,
     setShowModal,

@@ -115,24 +115,82 @@ export const StyledInput = styled.input<{}>`
   }
 `;
 
-export const TextareaInput = styled.textarea<{}>`
-  padding: 16px 12px 0;
+export const TextareaWrapper = styled.div<{
+  dynamicHeight?: number;
+  color?: string;
+  isFocused?: boolean;
+}>`
+  flex-grow: 1;
+  position: relative;
+  border-radius: 12px;
   background-color: #f5f7f9;
-  border: none;
-  outline: none;
-  font-size: 16px;
-  color: #000;
-  transition:
-    width 0.7s ease-in-out,
-    padding 0.7s ease-in-out;
-  opacity: 1;
-  z-index: 1;
-  border-radius: 16px;
-  overflow: hidden;
-  resize: none;
+  padding: 2px;
+  height: ${(props) => props.dynamicHeight || 40}px;
+  max-height: ${(props) => props.dynamicHeight || 40}px;
+  min-height: 40px;
+  box-sizing: border-box;
+  transition: height 0.2s ease-in-out;
+  border: ${(props) =>
+    props.isFocused
+      ? `1px solid ${props.color || '#0052CD'}`
+      : '1px solid transparent'};
+`;
 
-  &::placeholder {
-    opacity: 1;
-    transition: opacity 0.7s ease-in-out;
+export const TextareaInput = styled.textarea<{
+  dynamicHeight?: number;
+  color?: string;
+}>`
+  width: 100%;
+  height: 100%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: none;
+  color: #141414;
+  background-color: #f5f7f9;
+  line-height: 20px;
+  font-size: inherit;
+  font-family: inherit;
+  /* Never show scrollbar for a single line (<= 40px) */
+  overflow-x: hidden;
+  overflow-y: ${(props) =>
+    props.dynamicHeight && props.dynamicHeight > 40 ? 'auto' : 'hidden'};
+  resize: none;
+  box-sizing: border-box;
+  transition: height 0.2s ease-in-out;
+
+  &:focus {
+    outline: none;
   }
+
+  /* Custom scrollbar styling for WebKit browsers (Chrome, Safari, Edge) */
+  &::-webkit-scrollbar {
+    width: ${(props) =>
+      props.dynamicHeight && props.dynamicHeight > 40 ? '2px' : '0'};
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 0;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: ${(props) => (props.color ? props.color : '#0052CD')};
+    border-radius: 2px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: ${(props) => (props.color ? props.color : '#0052CD')};
+  }
+
+  &::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /* Firefox scrollbar styling */
+  scrollbar-width: ${(props) =>
+    props.dynamicHeight && props.dynamicHeight > 40 ? 'thin' : 'none'};
+  scrollbar-color: ${(props) =>
+      props.dynamicHeight && props.dynamicHeight > 40
+        ? `${props.color ? props.color : '#0052CD'} transparent`
+        : 'transparent transparent'};
 `;

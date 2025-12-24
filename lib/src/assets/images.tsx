@@ -12,7 +12,7 @@ export const SendItemIcon = ({ color = '#8C8C8C', ...props }) => (
       d="M4.50577 7.6732L12 3.34641L19.4942 7.67321V16.3268L12 20.6536L4.50577 16.3268V7.6732Z"
       fill="url(#pattern0_846_13873)"
       stroke="#0052CD"
-      stroke-width="0.6"
+      strokeWidth="0.6"
     />
     <defs>
       <pattern

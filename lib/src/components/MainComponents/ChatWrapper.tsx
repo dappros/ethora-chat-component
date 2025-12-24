@@ -6,9 +6,8 @@ import {
   setDeleteModal,
 } from '../../roomStore/chatSettingsSlice';
 import { ChatWrapperBox } from '../styled/ChatWrapperBox';
-import { Overlay, StyledModal } from '../styled/MediaModal';
 import { Message } from '../MessageBubble/Message';
-import { IConfig, IRoom, MessageProps, ModalType } from '../../types/types';
+import { IConfig, IRoom, ModalType } from '../../types/types';
 import LoginForm from '../AuthForms/Login';
 import { RootState } from '../../roomStore';
 import {
@@ -28,23 +27,27 @@ import Loader from '../styled/Loader';
 import { ModalReportChat } from '../Modals/ModalReportChat/ModalReportChat.tsx';
 import { useQRCodeChat } from '../../hooks/useQRCodeChatHandler';
 import useChatWrapperInit from '../../hooks/useChatWrapperInit.ts';
+import { useHeapSender } from '../../hooks/useHeapSender';
+import ErrorFallback from './ErrorFallback';
+import ConnectionBanner from './ConnectionBanner';
+import { useCustomComponents } from '../../context/CustomComponentsContext';
 
 interface ChatWrapperProps {
   token?: string;
   room?: IRoom;
   loginData?: { email: string; password: string };
   MainComponentStyles?: React.CSSProperties; //change to particular types
-  CustomMessageComponent?: React.ComponentType<MessageProps>;
   config?: IConfig;
   roomJID?: string;
 }
 
 const ChatWrapper: FC<ChatWrapperProps> = ({
   MainComponentStyles,
-  CustomMessageComponent,
   config,
   roomJID,
 }) => {
+  const { CustomMessageComponent } = useCustomComponents();
+  const resolvedMessageComponent = CustomMessageComponent || Message;
   const { user, activeModal, deleteModal } = useChatSettingState();
 
   const [isChatVisible, setIsChatVisible] = useState(false);
@@ -59,15 +62,27 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   );
 
   useEffect(() => {
-    const handleResize = () => {
+    // Only run on client-side
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const checkScreenSize = () => {
       setIsSmallScreen(window.innerWidth < 768);
     };
-    handleResize();
-    window.addEventListener('resize', handleResize);
+
+    // Set initial value
+    checkScreenSize();
+
+    // Listen for resize events
+    window.addEventListener('resize', checkScreenSize);
+
     return () => {
-      window.removeEventListener('resize', handleResize);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('resize', checkScreenSize);
+      }
     };
-  }, [window.innerWidth]);
+  }, []); // Remove window.innerWidth from dependencies
 
   const handleItemClick = (value: boolean) => {
     setIsChatVisible(value);
@@ -87,11 +102,13 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   }, [rooms, activeRoomJID]);
 
   const handleChangeChat = (chat: IRoom) => {
-    if (activeRoomJID !== chat.jid) {
-      dispatch(setIsLoading({ chatJID: chat.jid, loading: true }));
-      dispatch(setCurrentRoom({ roomJID: chat.jid }));
-      dispatch(setEditAction({ isEdit: false }));
-      handleItemClick(true);
+    dispatch(setCurrentRoom({ roomJID: null }));
+    dispatch(setIsLoading({ chatJID: chat.jid, loading: true }));
+    dispatch(setCurrentRoom({ roomJID: chat.jid }));
+    dispatch(setEditAction({ isEdit: false }));
+    handleItemClick(true);
+    if (!chat?.historyComplete && chat.messages?.length < 30) {
+      client?.getHistoryStanza(chat.jid, 30);
     }
   };
 
@@ -104,30 +121,78 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     dispatch(setDeleteModal({ isDeleteModal: false }));
   };
 
-  const { client, inited, isRetrying, showModal } = useChatWrapperInit({
+  const {
+    client,
+    inited,
+    isRetrying,
+    showModal,
+    setShowModal,
+    isConnectionLost,
+  } = useChatWrapperInit({
     roomJID,
     wasAutoSelected,
     config,
   });
+  const { sendHeapMessages } = useHeapSender(client);
 
-  const queueMessageLoader = useCallback(
-    async (chatJID: string, max: number) => {
-      try {
-        return await client?.getHistoryStanza(chatJID, max);
-      } catch (error) {
-        console.log('Error in loading queue messages', error);
-      }
-    },
-    [globalLoading, loading, !!client]
-  );
+  useEffect(() => {
+    if (inited && client) {
+      sendHeapMessages();
+    }
+  }, [inited, client]);
 
-  useMessageLoaderQueue(
-    Object.keys(roomsList),
-    roomsList,
-    globalLoading,
-    loading,
-    queueMessageLoader
-  );
+  //upd logic to use
+  // const queueMessageLoader = useCallback(
+  //   async (chatJID: string, max: number) => {
+  //     try {
+  //       console.log('2'); //bad
+  //       return await client?.getHistoryStanza(chatJID, max);
+  //     } catch (error) {
+  //       console.log('Error in loading queue messages', error);
+  //     }
+  //   },
+  //   [globalLoading, loading, !!client]
+  // );
+
+  // useMessageLoaderQueue(
+  //   Object.keys(roomsList),
+  //   roomsList,
+  //   globalLoading,
+  //   loading,
+  //   queueMessageLoader
+  // );
+
+  if (showModal) {
+    return (
+      <ErrorFallback
+        MainComponentStyles={MainComponentStyles}
+        onButtonClick={() => {
+          setShowModal(false);
+          if (typeof window !== 'undefined') {
+            window.location.reload();
+          }
+        }}
+      />
+    );
+  }
+
+  if (isConnectionLost && !inited) {
+    return (
+      <ChatWrapperBox
+        style={{
+          ...MainComponentStyles,
+        }}
+      >
+        <ConnectionBanner />
+        <StyledLoaderWrapper
+          style={{ alignItems: 'center', flexDirection: 'column', gap: '10px' }}
+        >
+          <Loader color={config?.colors?.primary} style={{ margin: '0px' }} />
+          <div>Connecting...</div>
+        </StyledLoaderWrapper>
+      </ChatWrapperBox>
+    );
+  }
 
   if (config?.enableRoomsRetry?.enabled && isRetrying === 'norooms') {
     return (
@@ -135,7 +200,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
         style={{ alignItems: 'center', flexDirection: 'column', gap: '10px' }}
       >
         {config.enableRoomsRetry.helperText ||
-          'We couldn’t create any chat room.'}
+          "We couldn't create any chat room."}
       </StyledLoaderWrapper>
     );
   }
@@ -156,13 +221,6 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
   return (
     <>
-      {showModal && (
-        <Overlay>
-          <StyledModal>
-            There was an error. Please, refresh the page
-          </StyledModal>
-        </Overlay>
-      )}
       {inited ? (
         <ChatWrapperBox
           style={{
@@ -196,17 +254,17 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
                   <ThreadWrapper
                     activeMessage={activeMessage}
                     user={user}
-                    customMessageComponent={CustomMessageComponent || Message}
+                    customMessageComponent={resolvedMessageComponent}
                   />
                 ) : (
                   <ChatRoom
-                    CustomMessageComponent={CustomMessageComponent || Message}
+                    CustomMessageComponent={resolvedMessageComponent}
                     handleBackClick={handleItemClick}
                   />
                 )
               ) : config?.disableRooms ? (
                 <ChatRoom
-                  CustomMessageComponent={CustomMessageComponent || Message}
+                  CustomMessageComponent={resolvedMessageComponent}
                   handleBackClick={handleItemClick}
                 />
               ) : null
@@ -214,12 +272,10 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
               <ThreadWrapper
                 activeMessage={activeMessage}
                 user={user}
-                customMessageComponent={CustomMessageComponent || Message}
+                customMessageComponent={resolvedMessageComponent}
               />
             ) : (
-              <ChatRoom
-                CustomMessageComponent={CustomMessageComponent || Message}
-              />
+              <ChatRoom CustomMessageComponent={resolvedMessageComponent} />
             )}
             <Modal
               modal={activeModal}

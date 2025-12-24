@@ -1,6 +1,7 @@
 import { Element } from 'ltx';
 import { IUser } from '../types/types';
 import { transformArrayToObject } from './transformTranslatations';
+import { Iso639_1Codes } from '../types/types';
 
 const extractTimestamp = (str: string, stanza?: any): string | null => {
   if (!str) return;
@@ -20,7 +21,7 @@ interface DataXml {
   user: IUser;
   deleted?: boolean;
   translations?: any;
-  langSource?: string;
+  langSource?: Iso639_1Codes;
   xmppId?: string;
   xmppFrom?: string;
   data: { [x: string]: any };
@@ -33,11 +34,13 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
   const xmppId = fullData?.attrs.id;
   const xmppFrom = fullData?.attrs?.from;
   const [roomJid, userWallet] = xmppFrom.split('/');
-  const id =
+  let id =
     stanza.getChild('result')?.attrs.id ||
     extractTimestamp(stanza?.getChild('stanza-id')?.attrs?.id, stanza);
 
-  if (!id) return;
+  if (!id) {
+    id = xmppId || Date.now().toString();
+  }
 
   const body = fullData?.getChild('body')?.getText() || undefined;
   const deleted = !!fullData?.getChild('deleted');
@@ -46,8 +49,13 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
         JSON.parse(fullData.getChild('translations')!.attrs.value).translates
       )
     : undefined;
-  const langSource = fullData?.getChild('translate')?.attrs?.source;
-  const date = new Date(+id?.slice(0, 13)).toISOString();
+  const langSource = fullData?.getChild('translate')?.attrs?.source as
+    | Iso639_1Codes
+    | undefined;
+  const numericPart = /\d{13,}/.exec(id || '')?.[0];
+  const date = numericPart
+    ? new Date(+numericPart.slice(0, 13)).toISOString()
+    : new Date().toISOString();
 
   const data = fullData?.getChild('data') || stanza?.getChild('data');
   const photoURL = data?.attrs?.['photo'];
@@ -57,8 +65,10 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
     photoURL,
   };
 
+  const dataAttrs = data?.attrs || {};
+
   return {
-    data: { ...data?.attrs },
+    data: dataAttrs,
     id,
     body,
     roomJid,

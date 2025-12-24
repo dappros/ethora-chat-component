@@ -4,8 +4,10 @@ import React, {
   useContext,
   useState,
   useEffect,
+  useRef,
 } from 'react';
 import XmppClient from '../networking/xmppClient';
+import { setGlobalXmppClient } from '../utils/clientRegistry';
 import { IConfig, IRoom, xmppSettingsInterface } from '../types/types';
 import initXmppRooms from '../helpers/initXmppRooms';
 import { walletToUsername } from '../helpers/walletUsername';
@@ -15,8 +17,8 @@ interface XmppContextType {
   client: XmppClient;
   setClient: (client: XmppClient | null) => void;
   initializeClient: (
+    username: string,
     password: string,
-    email: string,
     xmppSettings?: xmppSettingsInterface,
     roomsList?: { [jid: string]: IRoom }
   ) => Promise<XmppClient>;
@@ -37,10 +39,11 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
   const [password, setPassword] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [reconnectAttempts, setReconnectAttempts] = useState<number>(0);
+  const initializingRef = useRef<Promise<XmppClient> | null>(null);
 
   const initializeClient = async (
+    username: string,
     password: string,
-    email: string,
     xmppSettings?: xmppSettingsInterface,
     roomsList?: { [jid: string]: IRoom }
   ): Promise<XmppClient> => {
@@ -49,64 +52,78 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
       setClient(client);
       return client;
     }
+    if (initializingRef.current) {
+      return initializingRef.current;
+    }
 
     try {
-      const newClient = new XmppClient(password, email, xmppSettings);
-      setClient(newClient);
+      const initPromise = (async () => {
+        const newClient = new XmppClient(username, password, xmppSettings);
+        setClient(newClient);
+        setGlobalXmppClient(newClient);
 
-      await new Promise<void>((resolve, reject) => {
-        const checkStatus = () => {
-          if (newClient.status === 'online') {
-            resolve();
-          } else if (newClient.status === 'error') {
-            reject(new Error('Failed to connect.'));
-          } else {
-            setTimeout(checkStatus, 500);
-          }
-        };
-        checkStatus();
-      });
+        await new Promise<void>((resolve, reject) => {
+          const checkStatus = () => {
+            if (newClient.status === 'online') {
+              resolve();
+            } else if (newClient.status === 'error') {
+              reject(new Error('Failed to connect.'));
+            } else {
+              setTimeout(checkStatus, 300);
+            }
+          };
+          checkStatus();
+        });
 
-      setPassword(password);
-      setEmail(email);
-      setClient(newClient);
-      setReconnectAttempts(0);
-      {
-        roomsList && initRoomsPresence(client, roomsList);
-      }
-      return newClient;
+        setPassword(password);
+        setEmail(username);
+        setClient(newClient);
+        setReconnectAttempts(0);
+        if (roomsList) {
+          await initRoomsPresence(newClient, roomsList);
+        }
+        return newClient;
+      })();
+      initializingRef.current = initPromise;
+      const created = await initPromise;
+      initializingRef.current = null;
+      return created;
     } catch (error) {
       console.error('Error initializing client:', error);
       setClient(null);
+      setGlobalXmppClient(null);
+      initializingRef.current = null;
       throw error;
     }
   };
 
   const reconnectClient = () => {
-    if (client && client.status !== 'offline' && reconnectAttempts < 3) {
+    if (!client) return;
+    if (
+      (client.status === 'error' || client.status === 'offline') &&
+      reconnectAttempts < 3
+    ) {
       console.log('Attempting to reconnect...');
       client.reconnect();
       setReconnectAttempts((prev) => prev + 1);
-    } else if (client?.status === 'offline') {
-      console.log('Client is offline. Not attempting to reconnect.');
-    } else if (reconnectAttempts >= 3) {
-      console.log(
-        'Maximum reconnect attempts reached. Stopping further attempts.'
-      );
-    } else if (password && email && reconnectAttempts >= 3) {
-      console.log('No active client found. Reinitializing...');
-      initializeClient(password, email).catch((error) => {
+    } else if (reconnectAttempts >= 3 && password && email) {
+      console.log('Reinitializing XMPP client after failed reconnects...');
+      initializeClient(email, password).catch((error) => {
         console.error('Reconnection failed:', error);
       });
     }
   };
 
   useEffect(() => {
-    if (client && client.status === 'offline' && reconnectAttempts < 3) {
+    if (
+      client &&
+      (client.status === 'offline' || client.status === 'error') &&
+      reconnectAttempts < 3
+    ) {
       reconnectClient();
     }
     return () => {};
-  }, [client, reconnectAttempts]);
+  }, [client?.status, reconnectAttempts]);
 
   useEffect(() => {
     const initBeforeLoad = async () => {
@@ -131,18 +148,25 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
   }, [config?.initBeforeLoad]);
 
   useEffect(() => {
+    // Only set up event listeners in browser
+    if (typeof window === "undefined") {
+      return;
+    }
+
     const handleLogout = () => {
       if (client) {
-        console.log('XmppProvider: Disconnecting client due to logout event');
+        console.log("XmppProvider: Disconnecting client due to logout event");
         client.disconnect();
         setClient(null);
       }
     };
 
-    window.addEventListener('ethora-xmpp-logout', handleLogout);
+    window.addEventListener("ethora-xmpp-logout", handleLogout);
 
     return () => {
-      window.removeEventListener('ethora-xmpp-logout', handleLogout);
+      if (typeof window !== "undefined") {
+        window.removeEventListener("ethora-xmpp-logout", handleLogout);
+      }
     };
   }, [client]);
 

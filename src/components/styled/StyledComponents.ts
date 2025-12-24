@@ -6,10 +6,11 @@ export const ChatContainer = styled.div`
   height: 100%;
   width: 100%;
   box-sizing: border-box;
-  background-color: #f3f6fc;
+  background: linear-gradient(135deg, #f8f9ff 0%, #f3f6fc 100%);
   flex: 1;
   min-width: 0;
-  /* border: 10px solid yellow; */
+  position: relative;
+  overflow: hidden;
 `;
 
 export const ChatContainerHeader = styled.div`
@@ -107,8 +108,10 @@ export const Message = styled.div<{ isUser: boolean }>`
   padding: 10px;
   margin: 10px 0;
   border-radius: 8px;
-  max-width: 60%;
+  max-width: 70%;
   flex-direction: ${(props) => (!props.isUser ? 'row' : 'row-reverse')};
+  overflow: hidden;
+  word-wrap: break-word;
 `;
 
 export const MessageText = styled.p`
@@ -155,20 +158,20 @@ export const CustomMessageContainer = styled.div<{
   reaction: boolean;
 }>`
   display: flex;
-  flex-direction: ${(props) => (!props.isUser ? 'row' : 'row-reverse')};
-  align-items: end;
+  flex-direction: ${(props) => (props.isUser ? 'row-reverse' : 'row')};
+  align-items: flex-end;
   margin: 10px 0;
   gap: 5px;
   position: relative;
   margin-bottom: ${(props) =>
-    !!props.reply || !!props.reaction ? '40px' : '10px'};
+    props.reply || props.reaction ? '40px' : '10px'};
 `;
 
 export const CustomMessageBubble = styled.div<{
   isUser: boolean;
   deleted: boolean;
 }>`
-  max-width: 60%;
+  max-width: 70%;
   min-width: 15%;
   padding: 8px 16px;
   border-radius: ${(props) =>
@@ -331,7 +334,9 @@ export const AlsoCheckbox = styled.input<{ accentColor: string }>`
   accent-color: ${(props) => props.accentColor};
 `;
 
-export const Wrapper = styled.div<{
+export const Wrapper = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== 'isClickable' && prop !== 'bgColor',
+})<{
   bgColor: string;
   size?: number;
   isClickable: boolean;
@@ -349,7 +354,9 @@ export const Wrapper = styled.div<{
   position: relative;
 `;
 
-export const AvatarCircle = styled.div<{
+export const AvatarCircle = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== 'isClickable' && prop !== 'bgColor',
+})<{
   bgColor: string;
   size?: number;
   isClickable: boolean;

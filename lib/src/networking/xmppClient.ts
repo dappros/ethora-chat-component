@@ -28,6 +28,10 @@ import { sendMessageReaction } from './xmpp/sendMessageReaction.xmpp';
 import { sendTextMessageWithTranslateTag } from './xmpp/sendTextMessageWithTranslateTag.xmpp';
 import { getRoomsPaged } from './xmpp/getRoomsPaged.xmpp';
 import { allRoomPresences } from './xmpp/allRoomPresences.xmpp';
+import { sendPing } from './xmpp/sendPing.xmpp';
+import { isPong } from './xmpp/handlePong.xmpp';
+import { store } from '../roomStore';
+import { IMessage } from '../types/types';
 
 export class XmppClient implements XmppClientInterface {
   client!: Client;
@@ -37,15 +41,44 @@ export class XmppClient implements XmppClientInterface {
   conference: string;
   username: string;
   status: string = 'offline';
+  resource: string;
 
   password = '';
   reconnectAttempts = 0;
   maxReconnectAttempts = 5;
   reconnectDelay = 2000;
 
+  private reconnecting: boolean = false;
+  private reconnectPromise: Promise<void> | null = null;
+  presencesReady: boolean = false;
+
+  private connectionSteps: Array<{ ts: number; step: string }> = [];
+
+  private messageQueue: Array<() => Promise<boolean>> = [];
+  private inFlightIds: Set<string> = new Set();
+  private processingQueue: boolean = false;
+
   checkOnline() {
     return this.client && this.client.status === 'online';
   }
+
+  pingInterval: any = null;
+  pingTimeout: any = null;
+  lastPingId: string | null = null;
+  pingIntervalMs = 60000;
+  pongTimeoutMs = 1000;
+  pingOnSendEnabled: boolean = false;
+
+  idleThresholdMs = 60000;
+  lastActivityTs: number = Date.now();
+  pingInFlight: boolean = false;
+
+  private idlePingTimeout: NodeJS.Timeout | null = null;
+  private reconnectTimer: NodeJS.Timeout | null = null;
+  private offlineReconnectAttempts: number = 0;
+  private maxOfflineReconnectAttempts: number = 10;
+  private reconnectBaseDelayMs: number = 1000;
+  private pausedDueToOfflineCap: boolean = false;
 
   constructor(
     username: string,
@@ -61,11 +94,18 @@ export class XmppClient implements XmppClientInterface {
     this.conference = `conference.${this.host}`;
     this.username = username;
     this.password = password;
+    this.pingOnSendEnabled = xmppSettings?.xmppPingOnSendEnabled === true;
     this.initializeClient();
   }
 
   async initializeClient() {
     try {
+      this.logStep('initializeClient:start');
+
+      if (this.client) {
+        this.logStep('initializeClient:disconnect-previous');
+        await this.disconnect();
+      }
       const url = this.devServer || `wss://xmpp.ethoradev.com:5443/ws`;
 
       this.host = url.match(/wss:\/\/([^:/]+)/)?.[1] || '';
@@ -79,10 +119,15 @@ export class XmppClient implements XmppClientInterface {
         password: this.password,
       });
 
+      if (this.client.setMaxListeners) {
+        this.client.setMaxListeners(50);
+      }
+
       this.attachEventListeners();
       this.client.start().catch((error) => {
         console.error('Error starting client:', error);
       });
+      this.logStep('initializeClient:started');
     } catch (error) {
       console.error('Error initializing client:', error);
     }
@@ -90,8 +135,47 @@ export class XmppClient implements XmppClientInterface {
 
   async disconnect() {
     if (!this.client) return;
-
     try {
+      if (this.pingInterval) clearInterval(this.pingInterval);
+      if (this.pingTimeout) clearTimeout(this.pingTimeout);
+      if (this.idlePingTimeout) clearTimeout(this.idlePingTimeout as any);
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
+      try {
+        if (typeof window !== 'undefined') {
+          window.removeEventListener('online', this.onBrowserOnline);
+          window.removeEventListener('offline', this.onBrowserOffline);
+        }
+      } catch {}
+      if (this.client.removeAllListeners) {
+        this.client.removeAllListeners();
+        ['stanza', 'online', 'disconnect', 'error', 'connecting'].forEach(
+          (event) => this.client.removeAllListeners(event)
+        );
+      }
+
+      try {
+        // @ts-ignore: underlying transport/socket is not typed in xmpp.js
+        this.client?.transport?.socket?.close?.();
+      } catch (e) {
+        console.log('err', e);
+      }
+
+      await new Promise<void>((resolve) => {
+        let resolved = false;
+        const cleanup = () => {
+          if (!resolved) {
+            resolved = true;
+            resolve();
+          }
+        };
+        this.client.once && this.client.once('disconnect', cleanup);
+        this.client.once && this.client.once('offline', cleanup);
+        setTimeout(cleanup, 2000);
+      });
+
       await this.client.stop();
       this.client = null;
       console.log('Client disconnected');
@@ -104,80 +188,180 @@ export class XmppClient implements XmppClientInterface {
     this.client.on('disconnect', () => {
       console.log('Disconnected from server.');
       this.status = 'offline';
+      this.presencesReady = false;
+      this.logStep('event:disconnect');
+      if (this.pingInterval) clearInterval(this.pingInterval);
+      this.scheduleReconnect('event:disconnect');
     });
 
-    this.client.on('online', () => {
-      console.log('Client is online.', new Date());
-      this.status = 'online';
-      this.reconnectAttempts = 0;
-      this.client.send(xml('presence'));
+    this.client.on('online', async (jid) => {
+      try {
+        this.resource = jid.resource || 'default';
+        console.log('Client is online.', new Date());
+        this.status = 'online';
+        this.reconnectAttempts = 0;
+        this.offlineReconnectAttempts = 0;
+        this.pausedDueToOfflineCap = false;
+        if (this.reconnectTimer) {
+          clearTimeout(this.reconnectTimer);
+          this.reconnectTimer = null;
+        }
+        this.client.send(xml('presence'));
+        await this.sendAllPresencesAndMarkReady();
+        this.logStep('event:online');
+        this.processQueue().catch(() => {});
+
+        await this.drainHeap();
+      } catch (error) {
+        console.log('Error', error);
+      }
     });
 
     this.client.on('connecting', () => {
       console.log('Client is connecting...');
       this.status = 'connecting';
+      this.logStep('event:connecting');
     });
 
     this.client.on('error', (error) => {
       console.error('XMPP client error:', error);
       this.status = 'error';
+      this.logStep('event:error');
+      this.scheduleReconnect('event:error');
     });
 
     this.client.on('stanza', (stanza) => {
+      this.lastActivityTs = Date.now();
+      try {
+        if (this.lastPingId && isPong(stanza, this.lastPingId)) {
+          this.handlePong();
+        }
+      } catch {}
       handleStanza.bind(this, stanza, this)();
     });
+
+    this.startAdaptivePing();
+
+    try {
+      if (typeof window !== 'undefined') {
+        window.addEventListener('online', this.onBrowserOnline);
+        window.addEventListener('offline', this.onBrowserOffline);
+      }
+    } catch {}
+  }
+
+  private scheduleAdaptivePing() {
+    if (this.idlePingTimeout) clearTimeout(this.idlePingTimeout);
+
+    const idleTime = 2000;
+    const pongWait = 2000;
+
+    this.idlePingTimeout = setTimeout(() => {
+      if (this.status !== 'online' || this.pingInFlight) return;
+
+      this.pingInFlight = true;
+      const pingId = sendPing(this.client, this.host);
+      this.lastPingId = pingId;
+
+      let pongReceived = false;
+
+      const pongListener = (stanza: any) => {
+        if (isPong(stanza, pingId)) {
+          pongReceived = true;
+          if (this.pingTimeout) clearTimeout(this.pingTimeout);
+          this.client.removeListener('stanza', pongListener);
+          this.lastPingId = null;
+          this.pingInFlight = false;
+          this.markActivity();
+        }
+      };
+
+      this.client.on('stanza', pongListener);
+
+      this.pingTimeout = setTimeout(async () => {
+        if (!pongReceived) {
+          this.client.removeListener('stanza', pongListener);
+          this.lastPingId = null;
+          this.pingInFlight = false;
+          console.warn('Ping timeout, scheduling reconnect...');
+          this.scheduleReconnect('ping-timeout');
+        }
+      }, pongWait);
+    }, idleTime);
+  }
+
+  private startAdaptivePing() {
+    if (this.idlePingTimeout) {
+      clearTimeout(this.idlePingTimeout);
+    }
+
+    this.idlePingTimeout = setTimeout(() => {
+      if (this.status === 'online') {
+        this.pingInFlight = true;
+        const pingId = sendPing(this.client, this.host);
+        this.lastPingId = pingId;
+
+        this.pingTimeout = setTimeout(() => {
+          this.handlePingTimeout();
+          this.pingInFlight = false;
+        }, this.pongTimeoutMs);
+
+        const pongListener = (stanza: any) => {
+          if (isPong(stanza, pingId)) {
+            if (this.pingTimeout) clearTimeout(this.pingTimeout);
+            this.lastPingId = null;
+            this.pingInFlight = false;
+            this.client.removeListener('stanza', pongListener);
+            this.markActivity();
+          }
+        };
+        this.client.on('stanza', pongListener);
+      }
+    }, this.idleThresholdMs);
+  }
+
+  private markActivity() {
+    this.lastActivityTs = Date.now();
+    this.scheduleAdaptivePing();
+  }
+
+  async sendAllPresencesAndMarkReady() {
+    this.presencesReady = false;
+    await this.allRoomPresencesStanza();
+    this.presencesReady = true;
   }
 
   async reconnect() {
-    const now = Date.now();
-    if (this.status === 'connecting') {
-      console.log(
-        'Already attempting to connect or too soon after last attempt, skipping reconnect'
-      );
-      return;
-    }
+    this.presencesReady = false;
 
-    console.log('Attempting to reconnect...');
-    try {
-      if (this.client) {
-        await this.client.stop();
+    if (this.reconnecting) {
+      return this.reconnectPromise;
+    }
+    if (!this.isBrowserOnline()) {
+      this.logStep('reconnect:skipped-offline');
+      return Promise.resolve();
+    }
+    if (this.pausedDueToOfflineCap) {
+      this.logStep('reconnect:paused-due-to-cap');
+      return Promise.resolve();
+    }
+    this.reconnecting = true;
+    this.reconnectPromise = (async () => {
+      try {
+        this.logStep('reconnect:start');
+        await this.disconnect();
+        await this.initializeClient();
+      } finally {
+        this.reconnecting = false;
+        this.reconnectPromise = null;
+        this.logStep('reconnect:end');
       }
-      this.initializeClient();
-      this.allRoomPresencesStanza();
-
-      await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Connection timeout'));
-        }, 10000);
-
-        const checkStatus = () => {
-          if (this.status === 'online') {
-            clearTimeout(timeout);
-            resolve();
-          } else if (this.status === 'error') {
-            clearTimeout(timeout);
-            reject(new Error('Connection error'));
-          } else {
-            setTimeout(checkStatus, 500);
-          }
-        };
-        checkStatus();
-      });
-
-      console.log('Reconnection successful');
-    } catch (error) {
-      console.error('Reconnection failed:', error);
-
-      const backoffDelay =
-        this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
-      console.log(`Will try again in ${backoffDelay / 1000} seconds`);
-
-      throw error;
-    }
+    })();
+    return this.reconnectPromise;
   }
 
-  allRoomPresencesStanza() {
-    allRoomPresences(this.client);
+  async allRoomPresencesStanza() {
+    await allRoomPresences(this.client);
   }
 
   async ensureConnected(timeout: number = 10000): Promise<void> {
@@ -186,7 +370,9 @@ export class XmppClient implements XmppClientInterface {
     }
 
     if (this.status === 'offline' || this.status === 'error') {
-      await this.reconnect();
+      this.logStep(`ensureConnected:trigger-reconnect:${this.status}`);
+      this.scheduleReconnect('ensure-connected');
+      throw new Error('Not connected');
     }
 
     if (this.status === 'connecting') {
@@ -233,6 +419,98 @@ export class XmppClient implements XmppClientInterface {
     } catch (error) {
       console.error('Operation failed due to connection issues:', error);
       throw error;
+    }
+  }
+
+  private enqueue(task: () => Promise<boolean>): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      this.messageQueue.push(async () => {
+        try {
+          const res = await task();
+          resolve(res);
+          return res;
+        } catch (e) {
+          resolve(false);
+          return false;
+        }
+      });
+
+      this.processQueue().catch(() => {});
+    });
+  }
+
+  private async processQueue(): Promise<void> {
+    if (this.processingQueue) return;
+    this.processingQueue = true;
+    try {
+      while (this.messageQueue.length > 0) {
+        try {
+          await this.ensureConnected();
+        } catch (e) {
+          break;
+        }
+        const next = this.messageQueue[0];
+        if (!next) break;
+        const okRaw = await next();
+        const ok = okRaw !== false;
+        if (ok) {
+          this.messageQueue.shift();
+        } else {
+          break;
+        }
+      }
+    } finally {
+      this.processingQueue = false;
+    }
+
+    if (this.messageQueue.length > 0 && this.status === 'online') {
+      setTimeout(() => this.processQueue().catch(() => {}), 1000);
+    }
+  }
+
+  private async withIdLock<T>(
+    id: string | undefined,
+    fn: () => Promise<T>
+  ): Promise<any> {
+    if (!id) return fn();
+    if (this.inFlightIds.has(id)) {
+      return Promise.resolve(true);
+    }
+    this.inFlightIds.add(id);
+    try {
+      const res = await fn();
+      return res;
+    } finally {
+      this.inFlightIds.delete(id);
+    }
+  }
+
+  private onBrowserOnline = () => {
+    this.logStep('browser:online');
+    this.offlineReconnectAttempts = 0;
+    this.pausedDueToOfflineCap = false;
+    this.processQueue().catch(() => {});
+    if (this.status !== 'online') {
+      this.scheduleReconnect('browser:online');
+    }
+  };
+
+  private onBrowserOffline = () => {
+    this.logStep('browser:offline');
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+  };
+
+  getConnectionSteps(): Array<{ ts: number; step: string }> {
+    return [...this.connectionSteps];
+  }
+
+  private logStep(step: string) {
+    this.connectionSteps.push({ ts: Date.now(), step });
+    if (this.connectionSteps.length > 200) {
+      this.connectionSteps.shift();
     }
   }
 
@@ -283,9 +561,7 @@ export class XmppClient implements XmppClientInterface {
     before?: number,
     otherStanzaId?: string
   ) => {
-    return this.wrapWithConnectionCheck(async () => {
-      return await getHistory(this.client, chatJID, max, before, otherStanzaId);
-    });
+    return await getHistory(this.client, chatJID, max, before, otherStanzaId);
   };
 
   getLastMessageArchiveStanza(roomJID: string) {
@@ -324,6 +600,19 @@ export class XmppClient implements XmppClientInterface {
   }
 
   //messages
+  async sendMessageWithPingCheck(
+    sendFn: () => Promise<void>
+  ): Promise<boolean> {
+    this.markActivity();
+
+    try {
+      await sendFn();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   sendMessage = (
     roomJID: string,
     firstName: string,
@@ -336,23 +625,29 @@ export class XmppClient implements XmppClientInterface {
     showInChannel?: boolean,
     mainMessage?: string,
     customId?: string
-  ) => {
-    this.wrapWithConnectionCheck(async () => {
-      sendTextMessage(
-        this.client,
-        roomJID,
-        firstName,
-        lastName,
-        photo,
-        walletAddress,
-        userMessage,
-        notDisplayedValue,
-        isReply,
-        showInChannel,
-        mainMessage,
-        this.devServer || `wss://'xmpp.ethoradev.com:5443'/ws`,
-        customId
-      );
+  ): Promise<boolean> => {
+    return this.enqueue(async () => {
+      return this.withIdLock(customId, async () => {
+        return this.sendMessageWithPingCheck(async () => {
+          return this.wrapWithConnectionCheck(async () => {
+            sendTextMessage(
+              this.client,
+              roomJID,
+              firstName,
+              lastName,
+              photo,
+              walletAddress,
+              userMessage,
+              notDisplayedValue,
+              isReply,
+              showInChannel,
+              mainMessage,
+              this.devServer || `wss://'xmpp.ethoradev.com:5443'/ws`,
+              customId
+            );
+          });
+        });
+      });
     });
   };
 
@@ -367,26 +662,34 @@ export class XmppClient implements XmppClientInterface {
     isReply?: boolean,
     showInChannel?: boolean,
     mainMessage?: string,
-    langSource?: Iso639_1Codes
-  ) => {
-    this.wrapWithConnectionCheck(async () => {
-      sendTextMessageWithTranslateTag(
-        this.client,
-        {
-          roomJID,
-          firstName,
-          lastName,
-          photo,
-          walletAddress,
-          userMessage,
-          notDisplayedValue,
-          isReply,
-          showInChannel,
-          mainMessage,
-          devServer: this.devServer || 'xmpp.ethoradev.com:5443',
-        },
-        langSource
-      );
+    langSource?: Iso639_1Codes,
+    customId?: string
+  ): Promise<boolean> => {
+    return this.enqueue(async () => {
+      return this.withIdLock(customId, async () => {
+        return this.sendMessageWithPingCheck(async () => {
+          return this.wrapWithConnectionCheck(async () => {
+            sendTextMessageWithTranslateTag(
+              this.client,
+              {
+                roomJID,
+                firstName,
+                lastName,
+                photo,
+                walletAddress,
+                userMessage,
+                notDisplayedValue,
+                isReply,
+                showInChannel,
+                mainMessage,
+                devServer: this.devServer || 'xmpp.ethoradev.com:5443',
+              },
+              langSource,
+              customId
+            );
+          });
+        });
+      });
     });
   };
 
@@ -463,10 +766,124 @@ export class XmppClient implements XmppClientInterface {
     });
   }
 
-  sendMediaMessageStanza(roomJID: string, data: any) {
-    this.wrapWithConnectionCheck(async () => {
-      sendMediaMessage(this.client, roomJID, data);
+  sendMediaMessageStanza(roomJID: string, data: any, id: string) {
+    this.enqueue(async () => {
+      return this.withIdLock(id, async () => {
+        return this.wrapWithConnectionCheck(async () => {
+          sendMediaMessage(this.client, roomJID, data, id);
+        }).then(() => true);
+      });
     });
+  }
+
+  sendPingStanza() {
+    if (!this.client || this.status !== 'online') return;
+    const pingId = sendPing(this.client, this.host);
+    this.lastPingId = pingId;
+    if (this.pingTimeout) clearTimeout(this.pingTimeout);
+    this.pingTimeout = setTimeout(() => {}, this.pongTimeoutMs);
+  }
+
+  handlePong() {
+    if (this.pingTimeout) {
+      clearTimeout(this.pingTimeout);
+      this.pingTimeout = null;
+    }
+    this.lastPingId = null;
+  }
+
+  handlePingTimeout() {
+    console.warn('No pong received, forcing reconnect...');
+    this.scheduleReconnect('ping-timeout');
+  }
+
+  private async drainHeap(): Promise<void> {
+    try {
+      const state = store.getState();
+      const heap = (state as any)?.roomHeapSlice?.messageHeap as IMessage[];
+      if (!heap || heap.length === 0) return;
+
+      for (const msg of heap) {
+        const isTranslate = !!msg.langSource;
+        const firstName = (msg.user as any)?.firstName || '';
+        const lastName = (msg.user as any)?.lastName || '';
+        const wallet = (msg.user as any)?.walletAddress || '';
+
+        if (isTranslate) {
+          const ok = await this.sendTextMessageWithTranslateTagStanza(
+            msg.roomJid,
+            firstName,
+            lastName,
+            '',
+            wallet,
+            msg.body,
+            '',
+            !!msg.isReply,
+            (msg.showInChannel as any) === 'true',
+            msg.mainMessage,
+            (msg as any).langSource as any,
+            msg.id
+          );
+          if (ok === false) break;
+        } else {
+          const ok = await this.sendMessage(
+            msg.roomJid,
+            firstName,
+            lastName,
+            '',
+            wallet,
+            msg.body,
+            '',
+            !!msg.isReply,
+            (msg.showInChannel as any) === 'true',
+            msg.mainMessage,
+            msg.id
+          );
+          if (ok === false) break;
+        }
+      }
+      store.dispatch({ type: 'roomHeapStore/clearHeap' });
+    } catch {}
+  }
+
+  private isBrowserOnline(): boolean {
+    try {
+      if (typeof navigator !== 'undefined' && 'onLine' in navigator) {
+        return (navigator as any).onLine !== false;
+      }
+    } catch {}
+    return true;
+  }
+
+  private scheduleReconnect(reason: string) {
+    if (this.status === 'online') return;
+    if (this.reconnectTimer) return;
+    if (!this.isBrowserOnline()) {
+      this.logStep(`scheduleReconnect:skip-offline:${reason}`);
+      return;
+    }
+    if (this.pausedDueToOfflineCap) {
+      this.logStep(`scheduleReconnect:paused-cap:${reason}`);
+      return;
+    }
+
+    if (this.offlineReconnectAttempts >= this.maxOfflineReconnectAttempts) {
+      this.pausedDueToOfflineCap = true;
+      this.logStep(`scheduleReconnect:cap-reached:${reason}`);
+      return;
+    }
+
+    const attempt = this.offlineReconnectAttempts + 1;
+    const delay = Math.min(this.reconnectBaseDelayMs * attempt, 10000);
+    this.logStep(`scheduleReconnect:${reason}:in:${delay}`);
+    this.reconnectTimer = setTimeout(async () => {
+      this.reconnectTimer = null;
+      if (!this.isBrowserOnline() || this.pausedDueToOfflineCap) {
+        return;
+      }
+      this.offlineReconnectAttempts += 1;
+      await this.reconnect();
+    }, delay);
   }
 }
 

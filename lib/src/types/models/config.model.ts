@@ -1,7 +1,7 @@
 import { User } from './user.model';
 import { xmppSettingsInterface } from './xmpp.model';
 import { PartialRoomWithMandatoryKeys, ConfigRoom } from './room.model';
-import { MessageBubble } from './message.model';
+import { MessageBubble, MessageProps } from './message.model';
 import { Iso639_1Codes } from './language.model';
 import React from 'react'; // Assuming React types are globally available or managed by the project's tsconfig
 
@@ -80,9 +80,60 @@ export interface IConfig {
   secondarySendButton?: {
     enabled: boolean;
     messageEdit: string;
-    buttonText: string;
+    label?: React.ReactNode;
     buttonStyles?: React.CSSProperties;
+    hideInputSendButton?: boolean;
+    overwriteEnterClick?: true;
   };
   enableRoomsRetry?: { enabled: boolean; helperText: string };
   disableNewChatButton?: boolean;
+  chatHeaderAdditional?: { enabled: boolean; element: any };
+  botMessageAutoScroll?: boolean;
+  messageTextFilter?: {
+    enabled: boolean;
+    filterFunction: (text: string) => string;
+  };
+  eventHandlers?: {
+    onMessageSent?: (event: {
+      message: string;
+      roomJID: string;
+      user: any;
+      messageType: 'text' | 'media';
+      metadata?: any;
+    }) => void | Promise<void>;
+    onMessageFailed?: (event: {
+      message: string;
+      roomJID: string;
+      error: Error;
+      messageType: 'text' | 'media';
+    }) => void;
+    onMessageEdited?: (event: {
+      messageId: string;
+      newMessage: string;
+      roomJID: string;
+      user: any;
+    }) => void;
+  };
+
+  disableTypingIndicator?: boolean;
+  blockMessageSendingWhenProcessing?:
+    | boolean
+    | {
+        enabled: boolean;
+        timeout?: number;
+        onTimeout?: (roomJID: string) => void;
+      };
+  customTypingIndicator?: {
+    enabled: boolean;
+    text?: string | ((usersTyping: string[]) => string);
+    position?: 'bottom' | 'top' | 'overlay' | 'floating';
+    styles?: React.CSSProperties;
+    customComponent?: React.ComponentType<{
+      usersTyping: string[];
+      text: string;
+      isVisible: boolean;
+    }>;
+  };
+  whitelistSystemMessage?: string[];
+  customSystemMessage?: React.ComponentType<MessageProps>;
 }

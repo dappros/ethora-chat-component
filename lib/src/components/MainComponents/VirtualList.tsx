@@ -4,7 +4,7 @@ import { IMessage } from '../../types/types';
 
 interface VirtualizedListProps {
   data: IMessage[];
-  renderItem: (item: IMessage) => JSX.Element;
+  renderItem: (item: IMessage) => React.ReactNode;
   itemHeight: number;
   containerHeight: number;
 }
@@ -47,7 +47,9 @@ export const VirtualizedList: React.FC<VirtualizedListProps> = ({
 
   return (
     <ListContainer ref={containerRef} style={{ height: containerHeight }}>
-      {visibleItems.map((item, index) => renderItem(item))}
+      {visibleItems.map((item, index) => (
+        <div key={startIndex + index}>{renderItem(item)}</div>
+      ))}
     </ListContainer>
   );
 };
