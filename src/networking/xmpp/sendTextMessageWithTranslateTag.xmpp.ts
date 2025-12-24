@@ -31,6 +31,7 @@ export const sendTextMessageWithTranslateTag = (
       },
       xml('data', {
         ...stanzaMessage,
+        push: "true",
       }),
       xml('body', {}, stanzaMessage.userMessage),
       xml('translate', { source: source })

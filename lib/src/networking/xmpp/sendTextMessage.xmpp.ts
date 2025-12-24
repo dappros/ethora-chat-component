@@ -45,6 +45,7 @@ export const sendTextMessage = (
         showInChannel: showInChannel || false,
         isReply: isReply || false,
         mainMessage: mainMessage || '',
+        push: "true",
       }),
       xml('body', {}, userMessage)
     );

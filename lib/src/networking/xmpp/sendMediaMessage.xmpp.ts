@@ -36,6 +36,7 @@ export function sendMediaMessage(
     showInChannel: data?.showInChannel,
     mainMessage: data?.mainMessage,
     roomJid: data?.roomJid,
+    push: "true",
   };
 
   const message = xml(
