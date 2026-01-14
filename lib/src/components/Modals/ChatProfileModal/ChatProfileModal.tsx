@@ -65,7 +65,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   const dispatch = useDispatch();
 
   const { client } = useXmppClient();
-  const { user: stateUser } = useChatSettingState();
+  const { user: stateUser, config } = useChatSettingState();
   const activeRoom = useSelector((state: RootState) => getActiveRoom(state));
 
   const onUpload = async (file: File) => {
@@ -228,14 +228,18 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
             <SelectUsersModal />
           </>
         )}
-        <BorderedContainer>
-          <LabelData>Description</LabelData>
-          <Label>{activeRoom?.description}</Label>
-        </BorderedContainer>
-        <BorderedContainer>
-          <LabelData>Chat type</LabelData>
-          <Label>{activeRoom.type}</Label>
-        </BorderedContainer>
+        {!config?.disableChatInfo?.disableDescription && (
+          <BorderedContainer>
+            <LabelData>Description</LabelData>
+            <Label>{activeRoom?.description}</Label>
+          </BorderedContainer>
+        )}
+        {!config?.disableChatInfo?.disableType && (
+          <BorderedContainer>
+            <LabelData>Chat type</LabelData>
+            <Label>{activeRoom.type}</Label>
+          </BorderedContainer>
+        )}
         {/* <BorderedContainer
           style={{
             justifyContent: 'space-between',
@@ -253,94 +257,110 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
             />
           </Label>
         </BorderedContainer> */}
-        <BorderedContainer style={{ padding: '8px 16px' }}>
-          {loading ? (
-            <Loader />
-          ) : (
-            activeRoom?.members?.map((user, index) => (
-              <div
-                key={user.xmppUsername}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'start',
-                  boxSizing: 'border-box',
-                }}
-              >
+        {!config?.disableChatInfo?.hideMembers && (
+          <BorderedContainer style={{ padding: '8px 16px' }}>
+            {loading ? (
+              <Loader />
+            ) : (
+              activeRoom?.members?.map((user, index) => (
                 <div
+                  key={user.xmppUsername}
                   style={{
                     display: 'flex',
-                    justifyContent: 'space-between',
-                    padding: '8px 0px',
-                    alignItems: 'center',
-                    width: '100%',
+                    flexDirection: 'column',
+                    alignItems: 'start',
+                    boxSizing: 'border-box',
                   }}
                 >
                   <div
-                    style={{ display: 'flex', gap: '8px', cursor: 'pointer' }}
-                    onClick={() => handleUserAvatarClick(user)}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      padding: '8px 0px',
+                      alignItems: 'center',
+                      width: '100%',
+                    }}
                   >
-                    <ProfileImagePlaceholder
-                      name={`${user.firstName} ${user.lastName}`}
-                      size={40}
-                    />
                     <div
                       style={{
                         display: 'flex',
-                        flexDirection: 'column',
-                        gap: '2px',
-                        alignItems: 'start',
-                        justifyContent: 'center',
+                        gap: '8px',
+                        cursor: config?.disableChatInfo?.disableMembers
+                          ? 'default'
+                          : 'pointer',
                       }}
+                      onClick={
+                        config?.disableChatInfo?.disableMembers
+                          ? undefined
+                          : () => handleUserAvatarClick(user)
+                      }
                     >
-                      <Label style={{ fontSize: '16px', fontWeight: 600 }}>
-                        {user.firstName} {user.lastName}
-                      </Label>
-                      {user.last_active && (
-                        <LabelData>
-                          {new Date(user.last_active * 1000).toLocaleString()}
-                        </LabelData>
-                      )}
-                    </div>
-                  </div>
-                  {user.role && user.role !== 'none' && (
-                    <div
-                      style={{
-                        backgroundColor:
-                          user.ban_status !== 'banned' ? '#F3F6FC' : '#FFEBEE',
-                        color:
-                          user.ban_status !== 'banned' ? '#0052CD' : '#F44336',
-                        padding: '5px 8px',
-                        borderRadius: '16px',
-                        fontSize: '12px',
-                      }}
-                    >
-                      {user.role}
-                    </div>
-                  )}
-                  {stateUser.xmppUsername !== user.xmppUsername &&
-                    activeRoom.role === 'moderator' &&
-                    activeRoom.type !== 'private' && (
-                      <DropdownMenu
-                        options={menuOptions(user.xmppUsername)}
-                        openButton={
-                          <Button
-                            onClick={(e) => {
-                              e.preventDefault();
-                            }}
-                          >
-                            More Options
-                          </Button>
-                        }
-                        onClose={() => console.log('Dropdown closed')}
+                      <ProfileImagePlaceholder
+                        name={`${user.firstName} ${user.lastName}`}
+                        size={40}
                       />
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '2px',
+                          alignItems: 'start',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Label style={{ fontSize: '16px', fontWeight: 600 }}>
+                          {user.firstName} {user.lastName}
+                        </Label>
+                        {user.last_active && (
+                          <LabelData>
+                            {new Date(user.last_active * 1000).toLocaleString()}
+                          </LabelData>
+                        )}
+                      </div>
+                    </div>
+                    {user.role && user.role !== 'none' && (
+                      <div
+                        style={{
+                          backgroundColor:
+                            user.ban_status !== 'banned'
+                              ? '#F3F6FC'
+                              : '#FFEBEE',
+                          color:
+                            user.ban_status !== 'banned'
+                              ? '#0052CD'
+                              : '#F44336',
+                          padding: '5px 8px',
+                          borderRadius: '16px',
+                          fontSize: '12px',
+                        }}
+                      >
+                        {user.role}
+                      </div>
                     )}
+                    {stateUser.xmppUsername !== user.xmppUsername &&
+                      activeRoom.role === 'moderator' &&
+                      activeRoom.type !== 'private' && (
+                        <DropdownMenu
+                          options={menuOptions(user.xmppUsername)}
+                          openButton={
+                            <Button
+                              onClick={(e) => {
+                                e.preventDefault();
+                              }}
+                            >
+                              More Options
+                            </Button>
+                          }
+                          onClose={() => console.log('Dropdown closed')}
+                        />
+                      )}
+                  </div>
+                  {index < activeRoom?.members.length - 1 && <Divider />}
                 </div>
-                {index < activeRoom?.members.length - 1 && <Divider />}
-              </div>
-            ))
-          )}
-        </BorderedContainer>
+              ))
+            )}
+          </BorderedContainer>
+        )}
       </CenterContainer>
       <OperationalModal
         isVisible={visible}

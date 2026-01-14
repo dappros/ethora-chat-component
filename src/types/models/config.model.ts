@@ -136,4 +136,18 @@ export interface IConfig {
   };
   whitelistSystemMessage?: string[];
   customSystemMessage?: React.ComponentType<MessageProps>;
+  disableChatInfo?: {
+    disableHeader?: boolean;
+    disableDescription?: boolean;
+    disableType?: boolean;
+    disableMembers?: boolean;
+    hideMembers?: boolean;
+    disableChatHeaderMenu?: boolean;
+  };
+  chatHeaderSettings?: {
+    hide?: boolean;
+    disableCreate?: boolean;
+    disableMenu?: boolean;
+    hideSearch?: boolean;
+  };
 }

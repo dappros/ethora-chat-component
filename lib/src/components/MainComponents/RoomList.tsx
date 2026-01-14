@@ -68,7 +68,6 @@ const RoomList: React.FC<RoomListProps> = ({
 
       onRoomClick?.(chat);
       setOpen(false);
-      
     },
     [onRoomClick]
   );
@@ -193,23 +192,28 @@ const RoomList: React.FC<RoomListProps> = ({
       >
         {(open || !burgerMenu) && (
           <ScollableContainer>
-            <SearchContainer>
-              {!config?.disableRoomMenu && (
-                <DropdownMenu
-                  options={menuOptions}
-                  // onClose={dispatch(setActiveModal())}
-                />
-              )}
-              <SearchInput
-                icon={<SearchIcon height={'20px'} />}
-                value={searchTerm}
-                onChange={handleSearchChange}
-                placeholder="Search..."
-                // animated={true}
-              />
+            {!config?.chatHeaderSettings?.hide && (
+              <SearchContainer>
+                {!config?.disableRoomMenu &&
+                  !config?.chatHeaderSettings?.disableMenu && (
+                    <DropdownMenu
+                      options={menuOptions}
+                      // onClose={dispatch(setActiveModal())}
+                    />
+                  )}
+                {!config?.chatHeaderSettings?.hideSearch && (
+                  <SearchInput
+                    icon={<SearchIcon height={'20px'} />}
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                    placeholder="Search..."
+                    // animated={true}
+                  />
+                )}
 
-              <NewChatModal />
-            </SearchContainer>
+                {!config?.chatHeaderSettings?.disableCreate && <NewChatModal />}
+              </SearchContainer>
+            )}
             <div
               style={{ flexGrow: 1, overflowY: 'auto', padding: '16px 0px' }}
             >
