@@ -6,5 +6,31 @@ export const useStoreConsole = () => {
   return state; // Return the state so it can be accessed in the console
 };
 
-// Make the function globally available in the browser
-(window as any).useStoreConsole = useStoreConsole;
+
+const initializeStoreConsole = () => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    const state = store.getState();
+    const config = state.chatSettingStore?.config;
+    
+    if (config?.useStoreConsoleEnabled === true) {
+      (window as any).useStoreConsole = useStoreConsole;
+    } else {
+      if ((window as any).useStoreConsole) {
+        delete (window as any).useStoreConsole;
+      }
+    }
+  } catch (error) {
+  }
+};
+
+if (typeof window !== 'undefined') {
+  initializeStoreConsole();
+  
+  store.subscribe(() => {
+    initializeStoreConsole();
+  });
+}

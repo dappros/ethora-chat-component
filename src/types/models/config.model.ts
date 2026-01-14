@@ -150,4 +150,5 @@ export interface IConfig {
     disableMenu?: boolean;
     hideSearch?: boolean;
   };
+  useStoreConsoleEnabled?: boolean;
 }
