@@ -28,6 +28,9 @@ import { checkSingleUser } from '../helpers/checkUniqueUsers';
 import { presenceInRoom } from './xmpp/presenceInRoom.xmpp';
 import { removeMessageFromHeapById } from '../roomStore/roomHeapSlice';
 import { xml } from '@xmpp/client';
+import { messageNotificationManager } from '../utils/messageNotificationManager';
+import { createUserNameFromSetUser } from '../helpers/createUserNameFromSetUser';
+import XmppClient from './xmppClient';
 // TO DO: we are thinking to refactor this code in the following way:
 // each stanza will be parsed for 'type'
 // then it will be handled based on the type
@@ -37,7 +40,7 @@ import { xml } from '@xmpp/client';
 // types can be added into our chat protocol (XMPP stanza add field type="") to make it easier to parse here
 
 //core default
-const onRealtimeMessage = async (stanza: Element) => {
+const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
   const mucX = stanza
     ?.getChildren('x')
     ?.find(
@@ -94,6 +97,47 @@ const onRealtimeMessage = async (stanza: Element) => {
     if (removeId) {
       store.dispatch(removeMessageFromHeapById(removeId));
     }
+
+    // Show notification if user is online and message is not from current user
+    const state = store.getState();
+    const currentUser = state.chatSettingStore.user;
+    const roomJID = stanza.attrs.from.split('/')[0];
+    const room = state.rooms.rooms[roomJID];
+    const isCurrentUserMessage = message.user.id === currentUser.xmppUsername;
+
+    // Only show notification if:
+    // 1. User is online
+    // 2. Message is not from current user
+    // 3. Message is not a system message (unless configured otherwise)
+    // 4. Message is not from the currently active chat room
+    // 5. Tab visibility check is handled in the context
+    const activeRoomJID = state.rooms.activeRoomJID;
+    const isActiveChatMessage = roomJID === activeRoomJID;
+
+    if (
+      xmppClient &&
+      xmppClient.checkOnline() &&
+      !isCurrentUserMessage &&
+      message.isSystemMessage !== 'true' &&
+      !isActiveChatMessage
+    ) {
+      const roomName = room?.name || room?.title || roomJID.split('@')[0];
+      
+      // Get sender name from usersSet using createUserNameFromSetUser helper
+      const senderName = createUserNameFromSetUser(
+        state.rooms.usersSet,
+        message.user.id
+      );
+
+      // Trigger notification via global manager
+      messageNotificationManager.showNotification(
+        message,
+        roomName,
+        senderName,
+        roomJID
+      );
+    }
+
     return message;
   }
 };

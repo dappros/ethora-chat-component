@@ -53,3 +53,84 @@ body,
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
+
+/* Message highlight animation for notifications */
+.message-highlight {
+  animation: messageHighlight 2s ease-out;
+  transition: background-color 0.3s ease;
+}
+
+@keyframes messageHighlight {
+  0% {
+    background-color: rgba(33, 150, 243, 0.4);
+    transform: scale(1.02);
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+  }
+  30% {
+    background-color: rgba(33, 150, 243, 0.3);
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.15);
+  }
+  60% {
+    background-color: rgba(33, 150, 243, 0.2);
+    box-shadow: 0 0 0 1px rgba(33, 150, 243, 0.1);
+  }
+  100% {
+    background-color: transparent;
+    transform: scale(1);
+    box-shadow: none;
+  }
+}
+
+/* Responsive notification container */
+@media (max-width: 768px) {
+  .message-notification-container {
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+    align-items: center !important;
+  }
+  
+  .message-notification-container[data-position-horizontal="left"],
+  .message-notification-container[data-position-horizontal="right"] {
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+  }
+}
+
+/* Responsive notification container */
+@media (max-width: 768px) {
+  .message-notification-container {
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%);
+    align-items: center !important;
+  }
+}
+
+/* Message highlight animation for notifications */
+.message-highlight {
+  animation: messageHighlight 2s ease-out;
+  transition: background-color 0.3s ease;
+}
+
+@keyframes messageHighlight {
+  0% {
+    background-color: rgba(33, 150, 243, 0.4);
+    transform: scale(1.02);
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+  }
+  30% {
+    background-color: rgba(33, 150, 243, 0.3);
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.15);
+  }
+  60% {
+    background-color: rgba(33, 150, 243, 0.2);
+    box-shadow: 0 0 0 1px rgba(33, 150, 243, 0.1);
+  }
+  100% {
+    background-color: transparent;
+    transform: scale(1);
+    box-shadow: none;
+  }
+}

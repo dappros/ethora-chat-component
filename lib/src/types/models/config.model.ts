@@ -1,7 +1,7 @@
 import { User } from './user.model';
 import { xmppSettingsInterface } from './xmpp.model';
 import { PartialRoomWithMandatoryKeys, ConfigRoom } from './room.model';
-import { MessageBubble, MessageProps } from './message.model';
+import { MessageBubble, MessageProps, IMessage } from './message.model';
 import { Iso639_1Codes } from './language.model';
 import React from 'react'; // Assuming React types are globally available or managed by the project's tsconfig
 
@@ -151,4 +151,27 @@ export interface IConfig {
     hideSearch?: boolean;
   };
   useStoreConsoleEnabled?: boolean;
+  messageNotifications?: {
+    enabled?: boolean;
+    showInContext?: boolean; // If true, show notifications inside the chat component context
+    position?: {
+      horizontal?: 'left' | 'right' | 'center';
+      vertical?: 'top' | 'bottom';
+      offset?: {
+        top?: number | string;
+        bottom?: number | string;
+        left?: number | string;
+        right?: number | string;
+      };
+    };
+    maxNotifications?: number;
+    duration?: number; // Auto-hide duration in milliseconds
+    onClick?: (params: {
+      roomJID: string;
+      messageId: string;
+      message: IMessage;
+      roomName: string;
+      senderName: string;
+    }) => void | Promise<void>; // Custom onClick handler for notifications
+  };
 }

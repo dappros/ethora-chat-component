@@ -10,6 +10,8 @@ import Loader from '../styled/Loader.tsx';
 import { ToastProvider } from '../../context/ToastContext.tsx';
 import { CustomComponentsProvider } from '../../context/CustomComponentsContext';
 import { CustomComponentsContextValue } from '../../types/models/customComponents.model';
+import { MessageNotificationProvider } from '../../context/MessageNotificationContext';
+import { useMessageNotifications } from '../../hooks/useMessageNotifications';
 
 interface ChatWrapperProps
   extends Pick<
@@ -28,6 +30,12 @@ interface ChatWrapperProps
   config?: IConfig;
 }
 
+// Internal component that uses the hook (needs to be inside Redux Provider)
+const NotificationEnabler: React.FC = () => {
+  useMessageNotifications();
+  return null;
+};
+
 export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
   ({
     CustomMessageComponent,
@@ -45,15 +53,18 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
       <Provider store={store}>
         <PersistGate loading={<Loader />} persistor={persistor}>
           <ToastProvider>
-            <CustomComponentsProvider
-              CustomMessageComponent={CustomMessageComponent}
-              CustomInputComponent={CustomInputComponent}
-              CustomScrollableArea={CustomScrollableArea}
-              CustomDaySeparator={CustomDaySeparator}
-              CustomNewMessageLabel={CustomNewMessageLabel}
-            >
-              <LoginWrapper config={memoizedConfig} {...props} />
-            </CustomComponentsProvider>
+            <MessageNotificationProvider config={memoizedConfig}>
+              <NotificationEnabler />
+              <CustomComponentsProvider
+                CustomMessageComponent={CustomMessageComponent}
+                CustomInputComponent={CustomInputComponent}
+                CustomScrollableArea={CustomScrollableArea}
+                CustomDaySeparator={CustomDaySeparator}
+                CustomNewMessageLabel={CustomNewMessageLabel}
+              >
+                <LoginWrapper config={memoizedConfig} {...props} />
+              </CustomComponentsProvider>
+            </MessageNotificationProvider>
           </ToastProvider>
         </PersistGate>
       </Provider>

@@ -1,34 +1,69 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { Provider } from 'react-redux';
+import { store } from './roomStore';
 import { ReduxWrapper } from './components/MainComponents/ReduxWrapper';
 import { XmppProvider } from './context/xmppProvider';
 import { useUnreadMessagesCounter } from './hooks/useUnreadMessagesCounter';
 import { IConfig } from './types/types';
-import { logoutService, handleQRChatId } from './main';
+import { logoutService, handleQRChatId, useMessageNotifications } from './main';
 import { handleCopyClick } from './helpers/handleCopyClick';
 import CustomChatInput from './examples/customComponents/CustomChatInput';
 import CustomScrollableArea from './examples/customComponents/CustomScrollableArea';
 import CustomDaySeparator from './examples/customComponents/CustomDaySeparator';
 import CustomMessageBubble from './examples/customComponents/CustomMessageBubble';
+import { MessageNotificationProvider } from './context/MessageNotificationContext';
 
 const Apps = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
+  
+  // Global notification config for Apps tab
+  const appsNotificationConfig: IConfig = useMemo(() => ({
+    messageNotifications: {
+      enabled: true,
+      showInContext: true, // Show notifications in this context
+      position: {
+        horizontal: 'left',
+        vertical: 'bottom',
+        offset: {
+          left: 20,
+          bottom: 20,
+        },
+      },
+    },
+  }), []);
+
   return (
-    <div>
-      <button onClick={() => setIsChatOpen(!isChatOpen)}>Toggle Chat</button>
-      {isChatOpen && (
-        <ReduxWrapper
-          CustomMessageComponent={CustomMessageBubble}
-          CustomInputComponent={CustomChatInput}
-          CustomScrollableArea={CustomScrollableArea}
-          CustomDaySeparator={CustomDaySeparator}
-          config={{
-            baseUrl: 'https://api.ethoradev.com/v1',
-          }}
-        />
-      )}
-    </div>
+    <Provider store={store}>
+      <MessageNotificationProvider config={appsNotificationConfig}>
+        <NotificationEnabler />
+        <div>
+          <button onClick={() => setIsChatOpen(!isChatOpen)}>Toggle Chat</button>
+          {isChatOpen && (
+            <ReduxWrapper
+              CustomMessageComponent={CustomMessageBubble}
+              CustomInputComponent={CustomChatInput}
+              CustomScrollableArea={CustomScrollableArea}
+              CustomDaySeparator={CustomDaySeparator}
+              config={{
+                baseUrl: 'https://api.ethoradev.com/v1',
+                messageNotifications: {
+                  enabled: true,
+                  showInContext: true, // Show in chat component context as well
+                },
+              }}
+            />
+          )}
+        </div>
+      </MessageNotificationProvider>
+    </Provider>
   );
+};
+
+// Component to enable notifications (needs Redux)
+const NotificationEnabler: React.FC = () => {
+  useMessageNotifications();
+  return null;
 };
 
 const ChatComponent = React.memo(() => {
@@ -42,6 +77,18 @@ const ChatComponent = React.memo(() => {
       chatRoomStyles: { borderRadius: '16px' },
       roomListStyles: { borderRadius: '16px' },
       setRoomJidInPath: true,
+      messageNotifications: {
+        enabled: true,
+        showInContext: true, // Show notifications when chat component is mounted
+        position: {
+          horizontal: 'left',
+          vertical: 'bottom',
+          offset: {
+            left: 20,
+            bottom: 20,
+          },
+        },
+      },
     }),
     []
   );
@@ -112,14 +159,19 @@ const ChatComponent = React.memo(() => {
               console.log('✅ Message sent successfully:', event.message);
             },
           },
-          blockMessageSendingWhenProcessing: {
+          ...config,
+          messageNotifications: {
             enabled: true,
-            timeout: 10000,
-            onTimeout: () => {
-              console.log('asdasdasd');
+            showInContext: true, // Show notifications in chat component
+            position: {
+              horizontal: 'left',
+              vertical: 'bottom',
+              offset: {
+                left: 20,
+                bottom: 20,
+              },
             },
           },
-          ...config,
         }}
         MainComponentStyles={mainStyles}
       />
