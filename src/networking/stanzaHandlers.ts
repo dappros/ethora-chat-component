@@ -30,7 +30,6 @@ import { removeMessageFromHeapById } from '../roomStore/roomHeapSlice';
 import { xml } from '@xmpp/client';
 import { messageNotificationManager } from '../utils/messageNotificationManager';
 import { createUserNameFromSetUser } from '../helpers/createUserNameFromSetUser';
-import XmppClient from './xmppClient';
 // TO DO: we are thinking to refactor this code in the following way:
 // each stanza will be parsed for 'type'
 // then it will be handled based on the type

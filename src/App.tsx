@@ -16,29 +16,33 @@ import { MessageNotificationProvider } from './context/MessageNotificationContex
 
 const Apps = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
-  
-  // Global notification config for Apps tab
-  const appsNotificationConfig: IConfig = useMemo(() => ({
-    messageNotifications: {
-      enabled: true,
-      showInContext: true, // Show notifications in this context
-      position: {
-        horizontal: 'left',
-        vertical: 'bottom',
-        offset: {
-          left: 20,
-          bottom: 20,
+
+  const appsNotificationConfig: IConfig = useMemo(
+    () => ({
+      messageNotifications: {
+        enabled: true,
+        showInContext: true,
+        position: {
+          horizontal: 'left',
+          vertical: 'bottom',
+          offset: {
+            left: 20,
+            bottom: 20,
+          },
         },
       },
-    },
-  }), []);
+    }),
+    []
+  );
 
   return (
     <Provider store={store}>
       <MessageNotificationProvider config={appsNotificationConfig}>
         <NotificationEnabler />
         <div>
-          <button onClick={() => setIsChatOpen(!isChatOpen)}>Toggle Chat</button>
+          <button onClick={() => setIsChatOpen(!isChatOpen)}>
+            Toggle Chat
+          </button>
           {isChatOpen && (
             <ReduxWrapper
               CustomMessageComponent={CustomMessageBubble}
@@ -89,6 +93,7 @@ const ChatComponent = React.memo(() => {
           },
         },
       },
+      useStoreConsoleEnabled: true,
     }),
     []
   );
