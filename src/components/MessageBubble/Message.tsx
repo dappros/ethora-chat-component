@@ -220,8 +220,7 @@ const Message: React.FC<MessageProps> = forwardRef<
             {message.user?.profileImage && message.user.profileImage !== '' ? (
               <CustomMessagePhoto
                 src={
-                  message.user.profileImage ||
-                  'https://soccerpointeclaire.com/wp-content/uploads/2021/06/default-profile-pic-e1513291410505.jpg'
+                  message.user.profileImage 
                 }
                 alt="userIcon"
               />

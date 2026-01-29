@@ -16,11 +16,17 @@ import {
   onReactionHistory,
   onRoomKicked,
   onMessageError,
+  onUserUpdate,
+  onChatUpdate,
 } from '../stanzaHandlers';
 import XmppClient from '../xmppClient';
 
 export function handleStanza(stanza: Element, xmppWs: XmppClient) {
-  if (stanza?.attrs?.type === 'headline') return;
+  if (stanza?.attrs?.type === 'headline') {
+    onUserUpdate(stanza);
+    onChatUpdate(stanza);
+    return;
+  }
   switch (stanza.name) {
     case 'message':
       onMessageError(stanza, xmppWs);
