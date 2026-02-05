@@ -1,39 +1,58 @@
 import { Client, xml } from '@xmpp/client';
-import { createTimeoutPromise } from './createTimeoutPromise.xmpp';
 import { Element } from '@xmpp/xml';
 export const presenceInRoom = async (
   client: Client,
   roomJID: string,
-  delay = 2000
-): Promise<Element> => {
-  let stanzaHandler: (stanza: Element) => void;
+  delay = 2000,
+  timeoutMs = 6000
+): Promise<Element | null> => {
+  let stanzaHandler: ((stanza: Element) => void) | null = null;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-  const unsubscribe = () => client.off('stanza', stanzaHandler);
+  const unsubscribe = () => {
+    try {
+      if (stanzaHandler) client.off('stanza', stanzaHandler);
+    } catch (e) {}
+    stanzaHandler = null;
+  };
 
   return new Promise(async (resolve, reject) => {
     let settled = false;
 
-    const finish = (cb: (value?: any) => void, value?: any) => {
+    const finish = (value: Element | null) => {
       if (settled) return;
       settled = true;
-
+      if (timeoutId) clearTimeout(timeoutId);
+      // Small delay keeps join/roster churn calmer for some servers.
       setTimeout(() => {
         unsubscribe();
-        cb(value);
+        resolve(value);
       }, delay);
     };
 
     stanzaHandler = (stanza) => {
-      if (
-        stanza.is('presence') &&
-        stanza.attrs.id === 'presenceInRoom' &&
-        stanza.attrs.from?.startsWith(roomJID)
-      ) {
-        finish(resolve, stanza);
-      }
+      if (!stanza.is('presence')) return;
+      if (!stanza.attrs?.from?.startsWith(`${roomJID}/`)) return;
+
+      // Different servers may not preserve/echo our 'id' attribute.
+      // We treat any MUC-related presence from the room as a join confirmation.
+      const mucUserX = stanza.getChild(
+        'x',
+        'http://jabber.org/protocol/muc#user'
+      );
+      const mucX = stanza.getChild('x', 'http://jabber.org/protocol/muc');
+      if (!mucUserX && !mucX) return;
+
+      finish(stanza);
     };
 
     client.on('stanza', stanzaHandler);
+
+    timeoutId = setTimeout(() => {
+      // Don't reject: callers use this only as a "best effort" join.
+      // If we reject here, it can block presencesReady and keep messages pending forever.
+      finish(null);
+    }, timeoutMs);
 
     const presence = xml(
       'presence',
@@ -48,10 +67,9 @@ export const presenceInRoom = async (
     try {
       await client.send(presence);
     } catch (err) {
+      if (timeoutId) clearTimeout(timeoutId);
       unsubscribe();
-      return [];
+      reject(err);
     }
-
-    await createTimeoutPromise(2000, unsubscribe).catch(reject);
   });
 };
