@@ -417,7 +417,9 @@ export class XmppClient implements XmppClientInterface {
       await this.ensureConnected();
       return await operation();
     } catch (error) {
-      console.error('Operation failed due to connection issues:', error);
+      if (error) {
+        console.error('Operation failed due to connection issues:', error);
+      }
       throw error;
     }
   }

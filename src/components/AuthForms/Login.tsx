@@ -177,6 +177,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
             type="email"
             value={email}
             placeholder="Email"
+            autoComplete="email"
             onChange={(e) => setEmail(e.target.value)}
             style={{
               border: `1px solid ${
@@ -200,6 +201,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
             type="password"
             value={password}
             placeholder="Password"
+            autoComplete="current-password"
             onChange={(e) => setPassword(e.target.value)}
             style={{
               border: `1px solid ${

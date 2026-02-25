@@ -49,7 +49,7 @@ const useChatWrapperInit = ({
   const { client, initializeClient, setClient } = useXmppClient();
   const syncRooms = useGetNewArchRoom();
 
-  const { rooms } = useSelector((state: RootState) => state.rooms);
+  const rooms = useSelector((state: RootState) => state.rooms.rooms);
   const { roomsList } = useRoomState();
   const { user } = useChatSettingState();
 

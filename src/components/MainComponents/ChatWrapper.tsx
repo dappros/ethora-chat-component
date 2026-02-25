@@ -88,9 +88,9 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     setIsChatVisible(value);
   };
 
-  const { rooms, activeRoomJID, reportRoom } = useSelector(
-    (state: RootState) => state.rooms
-  );
+  const rooms = useSelector((state: RootState) => state.rooms.rooms);
+  const activeRoomJID = useSelector((state: RootState) => state.rooms.activeRoomJID);
+  const reportRoom = useSelector((state: RootState) => state.rooms.reportRoom);
   const { roomsList, loading, globalLoading, loadingText } = useRoomState();
 
   const activeMessage = useMemo(() => {

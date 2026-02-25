@@ -87,6 +87,7 @@ const chatSettingPersistConfig = {
     'config.refreshTokens',
     'refreshTokens',
     'client',
+    'config',
   ],
   transforms: [encryptor],
 };
@@ -147,6 +148,8 @@ export const store = configureStore({
           'roomMessages/addRoomViaApi/pending',
           'roomMessages/addRoomViaApi/fulfilled',
           'roomMessages/addRoomViaApi/rejected',
+          // setConfig payload contains non-serializable callback functions (eventHandlers)
+          'chatSettingStore/setConfig',
         ],
         ignoredPaths: [
           'chat.messages.timestamp',

@@ -17,6 +17,38 @@ export async function requestNotificationPermission(): Promise<boolean> {
 }
 
 /**
+ * registerFirebaseServiceWorker()
+ * Ensures the Firebase Messaging service worker is registered.
+ * FCM requires the SW to be registered before getToken() is called.
+ * @returns ServiceWorkerRegistration or null on failure.
+ */
+async function registerFirebaseServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+  if (!('serviceWorker' in navigator)) {
+    console.warn('[WebPush] Service workers not supported in this browser.');
+    return null;
+  }
+  try {
+    // Re-use an already active registration if available
+    const existing = await navigator.serviceWorker.getRegistrations();
+    const alreadyRegistered = existing.find((r) =>
+      r.active?.scriptURL?.includes('firebase-messaging-sw.js')
+    );
+    if (alreadyRegistered) {
+      return alreadyRegistered;
+    }
+    const registration = await navigator.serviceWorker.register(
+      '/firebase-messaging-sw.js',
+      { scope: '/' }
+    );
+    console.log('[WebPush] Firebase service worker registered:', registration.scope);
+    return registration;
+  } catch (err) {
+    console.warn('[WebPush] Failed to register Firebase service worker:', err);
+    return null;
+  }
+}
+
+/**
  * getFCMToken()
  * Obtains the FCM registration token for the current device/browser.
  * @param vapidPublicKey - The VAPID Public Key from Firebase Console.
@@ -24,19 +56,24 @@ export async function requestNotificationPermission(): Promise<boolean> {
  */
 export async function getFCMToken(vapidPublicKey?: string): Promise<string | null> {
   try {
+    const swRegistration = await registerFirebaseServiceWorker();
+
     const token = await getToken(messaging, {
       vapidKey: vapidPublicKey || (import.meta as any).env?.VITE_VAPID_PUBLIC_KEY,
+      ...(swRegistration ? { serviceWorkerRegistration: swRegistration } : {}),
     });
-    
+
     if (token) {
-      console.log('[WebPush] FCM Token obtained:', token);
+      console.log('[WebPush] FCM Token obtained:', token.substring(0, 15) + '...');
       return token;
     } else {
-      console.warn('[WebPush] No registration token available. Request permission to generate one.');
+      console.warn(
+        '[WebPush] No registration token available. Request permission to generate one.'
+      );
       return null;
     }
   } catch (error) {
-    console.error('[WebPush] An error occurred while retrieving token:', error);
+    console.warn('[WebPush] An error occurred while retrieving FCM token:', error);
     return null;
   }
 }
@@ -44,16 +81,15 @@ export async function getFCMToken(vapidPublicKey?: string): Promise<string | nul
 /**
  * initPushNotifications()
  * Orchestrates the full push initialization flow.
- * @returns The FCM token if successful.
+ * @returns The FCM token if successful, or null.
  */
 export async function initPushNotifications(vapidPublicKey?: string): Promise<string | null> {
   const hasPermission = await requestNotificationPermission();
-  
+
   if (!hasPermission) {
-    console.error('[WebPush] Push notification permission denied');
+    console.warn('[WebPush] Push notification permission denied');
     return null;
   }
 
-  const token = await getFCMToken(vapidPublicKey);
-  return token;
+  return getFCMToken(vapidPublicKey);
 }

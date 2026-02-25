@@ -32,13 +32,21 @@ export async function registerPushToken(registrationToken: string): Promise<any>
     token: registrationToken.substring(0, 10) + '...',
   });
 
-  const response = await http.post(`/push/subscription/${userId}`, payload, {
-    headers: {
-      Authorization: token,
-    },
-  });
-
-  return response.data;
+  try {
+    const response = await http.post(`/push/subscription/${userId}`, payload, {
+      headers: {
+        Authorization: token,
+      },
+    });
+    return response?.data ?? null;
+  } catch (err: any) {
+    const status = err?.response?.status;
+    console.warn(
+      `[WebPush] Backend push registration failed (HTTP ${status ?? 'unknown'}). Push notifications may not work.`,
+      err?.response?.data ?? err?.message
+    );
+    return null;
+  }
 }
 
 /**
@@ -51,24 +59,16 @@ export async function unregisterPushToken(registrationToken: string): Promise<an
 
   console.log('[WebPush] Unregistering FCM token from backend:', registrationToken.substring(0, 10) + '...');
 
-  const response = await http.delete('/users/endpoints', {
-    headers: {
-      Authorization: token,
-    },
-    data: { endpoint: registrationToken }, // Keep endpoint key for compatibility or update BE accordingly
-  });
-
-  return response.data;
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function arrayBufferToBase64(buffer: ArrayBuffer | null): string {
-  if (!buffer) return '';
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
+  try {
+    const response = await http.delete('/users/endpoints', {
+      headers: {
+        Authorization: token,
+      },
+      data: { endpoint: registrationToken },
+    });
+    return response?.data ?? null;
+  } catch (err: any) {
+    console.warn('[WebPush] Failed to unregister push token:', err?.message);
+    return null;
   }
-  return window.btoa(binary);
 }
