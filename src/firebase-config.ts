@@ -24,3 +24,6 @@ import { initializeApp } from 'firebase/app';
 
 // Initialize Firebase
 export const app = initializeApp(config);
+
+import { getMessaging } from 'firebase/messaging';
+export const messaging = getMessaging(app);
