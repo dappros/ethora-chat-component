@@ -249,11 +249,21 @@ export const MessageNotificationProvider: React.FC<{
 
   // Register the callback with the global manager
   useEffect(() => {
-    messageNotificationManager.setCallback(showMessageNotification);
+    const unsubscribe = messageNotificationManager.addCallback(
+      showMessageNotification
+    );
+    if (config?.useStoreConsoleEnabled) {
+      console.log(
+        `[NotifyPolicy] source=in_app action=callback_registered count=${messageNotificationManager.getCallbackCount()}`
+      );
+    }
     return () => {
-      messageNotificationManager.removeCallback();
+      unsubscribe();
+      if (isEnabled && messageNotificationManager.getCallbackCount() === 0) {
+        console.warn('[NotifyPolicy] source=in_app action=callbacks_empty');
+      }
     };
-  }, [showMessageNotification]);
+  }, [isEnabled, showMessageNotification]);
 
   return (
     <MessageNotificationContext.Provider value={{ showMessageNotification }}>

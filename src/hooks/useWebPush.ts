@@ -23,7 +23,14 @@ import { messageNotificationManager } from '../utils/messageNotificationManager'
 import { IMessage } from '../types/models/message.model';
 import { pushSubscriptionService } from '../utils/pushSubscriptionService';
 import { getGlobalXmppClient } from '../utils/clientRegistry';
-import { IRoom } from '../types/types';
+import { IConfig } from '../types/types';
+import {
+  buildNotificationUrl,
+  hasMessageInRooms,
+  isSystemPayload,
+  shouldShowForegroundOsPush,
+  shouldShowForegroundPushToast,
+} from '../utils/notificationPolicy';
 
 interface UseWebPushOptions {
   /** Enable or disable the web push flow. Default: true */
@@ -57,7 +64,7 @@ interface UseWebPushResult {
 }
 
 let _subscriptionRegistered = false; // module-level guard to prevent duplicate subscriptions
-let _foregroundListenerCount = 0;
+let _foregroundHandlers = new Set<(payload: any) => void>();
 let _foregroundUnsubscribe: (() => void) | null = null;
 
 const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
@@ -75,10 +82,12 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
     (state: RootState) => state.chatSettingStore.user.xmppUsername
   );
   const roomsMap = useSelector((state: RootState) => state.rooms.rooms);
+  const config = useSelector((state: RootState) => state.chatSettingStore.config as IConfig | undefined);
 
   const hasRanRef = useRef(false);
   const fcmTokenRef = useRef<string | null>(null);
   const recentPushToastsRef = useRef<Map<string, number>>(new Map());
+  const lastRoomsHashRef = useRef<string>('');
 
   // ─────────────────────────────────────────────────────────────────────────────
   const runPushFlow = useCallback(async () => {
@@ -153,7 +162,7 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
     [options.serviceWorkerScope]
   );
 
-  // Foreground push: show toast + OS notification when app is open
+  // Foreground push handler: config-driven push/in-app behavior
   useEffect(() => {
     if (!enabled) return;
     if (typeof window === 'undefined') return;
@@ -166,7 +175,9 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
       const roomJid = data.jid || '';
       const senderId = data.userJid || '';
       const messageId = payload.messageId || data.msgID || String(Date.now());
-      const url = data.url || '/';
+      const url = buildNotificationUrl(payload, window.location.origin);
+      const isSystemMessage = isSystemPayload(payload);
+      const isTabVisible = document.visibilityState === 'visible';
 
       const now = Date.now();
       const dedupeKey =
@@ -175,17 +186,16 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
         `${roomJid}|${senderId}|${title}|${body}`;
       const lastSeen = recentPushToastsRef.current.get(dedupeKey);
       const existingMessageId = payload.messageId || data.msgID;
-      const alreadyInStore = existingMessageId
-        ? (Object.values(roomsMap || {}) as IRoom[]).some((room) =>
-            room?.messages?.some(
-              (msg) =>
-                msg.id === existingMessageId || msg.xmppId === existingMessageId
-            )
-          )
-        : false;
+      const alreadyInStore = hasMessageInRooms(roomsMap, existingMessageId);
       const xmppOnline = !!getGlobalXmppClient()?.checkOnline?.();
-      const skipToast =
-        (lastSeen && now - lastSeen < 30_000) || alreadyInStore || xmppOnline;
+      const deduped = !!(lastSeen && now - lastSeen < 30_000);
+      const fgToastDecision = shouldShowForegroundPushToast({
+        config,
+        tabVisible: isTabVisible,
+        alreadyInStore,
+        deduped,
+        isSystem: isSystemMessage,
+      });
 
       const message: IMessage = {
         id: messageId,
@@ -199,22 +209,33 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
         roomJid,
       };
 
-      const roomName = roomJid || title;
-      const senderName = senderId || 'Unknown sender';
+      const roomName = isSystemMessage ? 'System' : roomJid || title;
+      const senderName = isSystemMessage ? 'System' : senderId || 'Unknown sender';
 
-      if (!skipToast) {
+      if (fgToastDecision.show) {
         messageNotificationManager.showNotification(
           message,
           roomName,
           senderName,
           roomJid
         );
+        if (config?.useStoreConsoleEnabled) {
+          console.log(`[NotifyPolicy] source=push_fg action=show reason=${fgToastDecision.reason} msgId=${messageId}`);
+        }
+      } else if (config?.useStoreConsoleEnabled) {
+        console.log(`[NotifyPolicy] source=push_fg action=skip reason=${fgToastDecision.reason} msgId=${messageId}`);
       }
 
       recentPushToastsRef.current.set(dedupeKey, now);
 
-      if (!payload.notification) {
-        void showOsNotification(title, {
+      const osPushDecision = shouldShowForegroundOsPush({
+        config,
+        tabVisible: isTabVisible,
+        xmppOnline,
+      });
+      if (osPushDecision.show) {
+        const osTitle = isSystemMessage ? 'System' : title;
+        void showOsNotification(osTitle, {
           body,
           icon: payload.notification?.image || '/favicon.ico',
           badge: '/favicon.ico',
@@ -226,23 +247,34 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
             messageId,
           },
         });
+        if (config?.useStoreConsoleEnabled) {
+          console.log(`[NotifyPolicy] source=push_fg action=show_os reason=${osPushDecision.reason} msgId=${messageId}`);
+        }
+      } else if (config?.useStoreConsoleEnabled) {
+        console.log(`[NotifyPolicy] source=push_fg action=skip_os reason=${osPushDecision.reason} msgId=${messageId}`);
       }
     };
 
     if (!_foregroundUnsubscribe) {
-      _foregroundUnsubscribe = listenForForegroundMessages(handler);
+      _foregroundUnsubscribe = listenForForegroundMessages((payload) => {
+        _foregroundHandlers.forEach((cb) => cb(payload));
+      });
     }
-    _foregroundListenerCount += 1;
+    _foregroundHandlers.add(handler);
 
     return () => {
-      _foregroundListenerCount -= 1;
-      if (_foregroundListenerCount <= 0 && _foregroundUnsubscribe) {
+      _foregroundHandlers.delete(handler);
+      if (_foregroundHandlers.size === 0 && _foregroundUnsubscribe) {
         _foregroundUnsubscribe();
         _foregroundUnsubscribe = null;
-        _foregroundListenerCount = 0;
       }
     };
-  }, [enabled, roomsMap, showOsNotification]);
+  }, [
+    config,
+    enabled,
+    roomsMap,
+    showOsNotification,
+  ]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Auto-run after the user logs in (unless softAsk is enabled)
@@ -262,8 +294,12 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
 
     const roomJIDs = Object.keys(roomsMap || {}).filter(Boolean);
     if (!roomJIDs.length) return;
+    const roomsHash = roomJIDs.sort().join('|');
+    if (roomsHash === lastRoomsHashRef.current) return;
+    lastRoomsHashRef.current = roomsHash;
 
     const client = getGlobalXmppClient();
+    if (!client?.checkOnline?.()) return;
     pushSubscriptionService.subscribeToRooms(roomJIDs, client).catch((error) => {
       console.warn('[WebPush] Failed to subscribe to rooms:', error);
     });

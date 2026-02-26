@@ -6,9 +6,20 @@
 
 const APP_URL = self.location.origin;
 
+const isSystemPayload = (data) =>
+  !data?.msgID && !data?.jid && !!data?.userJid;
+
+const buildTargetUrl = (data, fallbackUrl) => {
+  if (isSystemPayload(data)) return APP_URL;
+  if (fallbackUrl) return fallbackUrl;
+  if (!data?.jid) return APP_URL;
+  const chatId = String(data.jid).split('@')[0];
+  return `${APP_URL}/chat?chatId=${encodeURIComponent(chatId)}`;
+};
+
 // ── Push Event ────────────────────────────────────────────────
 self.addEventListener('push', (event) => {
-  console.log('[SW][WebPush] Push event received');
+  console.log('[NotifyPolicy] source=push_bg action=received');
 
   let data = {};
   try {
@@ -21,35 +32,39 @@ self.addEventListener('push', (event) => {
   }
 
   const notification = data.notification || {};
-  const title = notification.title || data.title || 'Ethora Chat';
+  const payloadData = data?.data || {};
+  const isSystem = isSystemPayload(payloadData);
+  const title = (isSystem ? 'System' : undefined) || notification.title || data.title || 'Ethora Chat';
   const options = {
     body:
       notification.body ||
       data.body ||
       data.message ||
-      data?.data?.body ||
+      payloadData?.body ||
       'You have a new message.',
     icon: data.icon || '/favicon.ico',
     badge: data.badge || '/favicon.ico',
     tag: data.tag || 'ethora-notification',
     data: {
-      url: data.url || data.clickAction || APP_URL,
-      roomJid: data.roomJid || data?.data?.jid || null,
-      senderId: data.senderId || data?.data?.userJid || null,
-      messageId: data.messageId || data?.data?.msgID || null,
+      url: buildTargetUrl(payloadData, data.url || data.clickAction),
+      roomJid: data.roomJid || payloadData?.jid || null,
+      senderId: data.senderId || payloadData?.userJid || null,
+      messageId: data.messageId || payloadData?.msgID || null,
     },
     requireInteraction: false,
     silent: false,
   };
 
-  console.log('[SW][WebPush] Showing notification:', { title, options });
+  console.log(
+    `[NotifyPolicy] source=push_bg action=show reason=${isSystem ? 'system' : 'background'} msgId=${options.data.messageId || ''}`
+  );
 
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
 // ── Notification Click ────────────────────────────────────────
 self.addEventListener('notificationclick', (event) => {
-  console.log('[SW][WebPush] Notification clicked:', event.notification);
+  console.log('[NotifyPolicy] source=push_bg action=click');
 
   event.notification.close();
 
@@ -65,7 +80,7 @@ self.addEventListener('notificationclick', (event) => {
           const targetUrlObj = new URL(targetUrl);
 
           if (clientUrl.origin === targetUrlObj.origin && 'focus' in client) {
-            console.log('[SW][WebPush] Focusing existing tab');
+            console.log('[NotifyPolicy] source=push_bg action=focus_existing');
             return client.focus().then((focusedClient) => {
               // Navigate within the focused client if needed
               if (focusedClient && targetUrl !== focusedClient.url) {
@@ -77,7 +92,7 @@ self.addEventListener('notificationclick', (event) => {
         }
 
         // No existing tab found – open a new one
-        console.log('[SW][WebPush] Opening new tab:', targetUrl);
+        console.log('[NotifyPolicy] source=push_bg action=open_new', targetUrl);
         return clients.openWindow(targetUrl);
       })
   );

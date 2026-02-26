@@ -16,29 +16,49 @@ firebase.initializeApp({
 
 // Retrieve an instance of Firebase Messaging so that it can handle background messages.
 const messaging = firebase.messaging();
+const APP_URL = self.location.origin;
+
+function isSystemPayload(data) {
+  return !data?.msgID && !data?.jid && !!data?.userJid;
+}
+
+function buildUrl(data) {
+  if (isSystemPayload(data)) return APP_URL;
+  if (data?.url) return data.url;
+  if (!data?.jid) return APP_URL;
+  const chatId = String(data.jid).split('@')[0];
+  return `${APP_URL}/chat?chatId=${encodeURIComponent(chatId)}`;
+}
 
 messaging.onBackgroundMessage((payload) => {
-  console.log('[firebase-messaging-sw.js] Received background message ', payload);
-  
+  console.log('[NotifyPolicy] source=push_bg action=received', payload);
+  const data = payload.data || {};
+  const isSystem = isSystemPayload(data);
   const notificationTitle =
-    payload.notification?.title || payload.data?.title || 'New Message';
+    (isSystem ? 'System' : undefined) ||
+    payload.notification?.title || data?.title || 'New Message';
   const notificationOptions = {
     body:
-      payload.notification?.body || payload.data?.body || 'You have a new message.',
+      payload.notification?.body || data?.body || 'You have a new message.',
     icon: payload.notification?.image || '/favicon.ico',
     data: {
-      ...payload.data,
-      messageId: payload.messageId || payload.data?.msgID || null,
+      ...data,
+      url: buildUrl(data),
+      messageId: payload.messageId || data?.msgID || null,
     },
   };
 
+  console.log(
+    `[NotifyPolicy] source=push_bg action=show reason=${isSystem ? 'system' : 'background'} msgId=${notificationOptions.data.messageId || ''}`
+  );
   self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
 // Handle notification click
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const urlToOpen = event.notification.data?.url || '/';
+  const urlToOpen = event.notification.data?.url || APP_URL;
+  console.log('[NotifyPolicy] source=push_bg action=click', { url: urlToOpen });
   
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {

@@ -2,11 +2,15 @@ import { Client, xml } from '@xmpp/client';
 import { Element } from '@xmpp/xml';
 import { createTimeoutPromise } from './createTimeoutPromise.xmpp';
 
+export type SubscribeResult =
+  | { ok: true }
+  | { ok: false; reason?: 'forbidden' | 'error' | 'timeout'; message?: string };
+
 export async function subscribeToRoomMessages(
   client: Client,
   roomJID: string,
   userNick?: string
-): Promise<boolean> {
+): Promise<SubscribeResult> {
   const id = `newSubscription:${Date.now().toString()}`;
   let stanzaHandler: (stanza: Element) => void;
 
@@ -31,9 +35,22 @@ export async function subscribeToRoomMessages(
     stanzaHandler = (stanza: Element) => {
       if (stanza.is('iq') && stanza.attrs.id === id) {
         if (stanza.attrs.type === 'result') {
-          finish(resolve, true);
+          finish(resolve, { ok: true });
         } else if (stanza.attrs.type === 'error') {
-          finish(resolve, false);
+          const errorEl = stanza.getChild('error');
+          const forbidden = errorEl?.getChild(
+            'forbidden',
+            'urn:ietf:params:xml:ns:xmpp-stanzas'
+          );
+          const textEl = errorEl?.getChild(
+            'text',
+            'urn:ietf:params:xml:ns:xmpp-stanzas'
+          );
+          finish(resolve, {
+            ok: false,
+            reason: forbidden ? 'forbidden' : 'error',
+            message: textEl?.text?.() || undefined,
+          });
         }
       }
     };
@@ -61,13 +78,13 @@ export async function subscribeToRoomMessages(
     } catch (error) {
       unsubscribe();
       console.error('Error sending subscribe stanza:', error);
-      reject(error);
+      resolve({ ok: false, reason: 'error', message: String(error) });
       return;
     }
 
     createTimeoutPromise(5000, unsubscribe).catch(() => {
       if (!settled) {
-        finish(reject, false);
+        finish(resolve, { ok: false, reason: 'timeout' });
       }
     });
   });

@@ -84,7 +84,7 @@ const ChatComponent = React.memo(() => {
       setRoomJidInPath: true,
       messageNotifications: {
         enabled: true,
-        showInContext: true, // Show notifications when chat component is mounted
+        showInContext: true,
         position: {
           horizontal: 'left',
           vertical: 'bottom',
@@ -96,10 +96,8 @@ const ChatComponent = React.memo(() => {
       },
       webPush: {
         enabled: true,
-        // Provide a VAPID public key either here or via VITE_VAPID_PUBLIC_KEY in .env
         vapidPublicKey:
           'BIZdmCnHiDRMrBBRzW79Dm1i7hMFRQM9CS1QfbalxjNwY-yvLtkj3IuZQaZ0ChZtjzlRSowkXUCmJC_jVgbFqew',
-        // Set softAsk: true if you want to defer the browser permission dialog
         softAsk: false,
       },
       useStoreConsoleEnabled: true,

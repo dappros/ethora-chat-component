@@ -30,6 +30,9 @@ import { removeMessageFromHeapById } from '../roomStore/roomHeapSlice';
 import { xml } from '@xmpp/client';
 import { messageNotificationManager } from '../utils/messageNotificationManager';
 import { createUserNameFromSetUser } from '../helpers/createUserNameFromSetUser';
+import {
+  isActiveRoom,
+} from '../utils/notificationPolicy';
 // TO DO: we are thinking to refactor this code in the following way:
 // each stanza will be parsed for 'type'
 // then it will be handled based on the type
@@ -99,27 +102,33 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
 
     // Show notification if user is online and message is not from current user
     const state = store.getState();
-    const currentUser = state.chatSettingStore.user;
     const roomJID = stanza.attrs.from.split('/')[0];
     const room = state.rooms.rooms[roomJID];
-    const isCurrentUserMessage = message.user.id === currentUser.xmppUsername;
-
-    // Only show notification if:
-    // 1. User is online
-    // 2. Message is not from current user
-    // 3. Message is not a system message (unless configured otherwise)
-    // 4. Message is not from the currently active chat room
-    // 5. Tab visibility check is handled in the context
+    // XMPP in-app notification policy is intentionally simple here:
+    // enabled + non-system + (active room allowed by showInContext)
     const activeRoomJID = state.rooms.activeRoomJID;
-    const isActiveChatMessage = roomJID === activeRoomJID;
+    const isActiveChatMessage = isActiveRoom(activeRoomJID, roomJID);
+    const inAppEnabled =
+      state.chatSettingStore.config?.messageNotifications?.enabled !== false;
+    const showInContext =
+      state.chatSettingStore.config?.messageNotifications?.showInContext ?? true;
+    const isSystemMessage = message.isSystemMessage === 'true';
 
-    if (
-      xmppClient &&
-      xmppClient.checkOnline() &&
-      !isCurrentUserMessage &&
-      message.isSystemMessage !== 'true' &&
-      !isActiveChatMessage
-    ) {
+    const decision = {
+      show:
+        inAppEnabled &&
+        !isSystemMessage &&
+        (!isActiveChatMessage || showInContext),
+      reason: !inAppEnabled
+        ? 'in_app_disabled'
+        : isSystemMessage
+          ? 'system_message'
+          : isActiveChatMessage && !showInContext
+            ? 'active_room_hidden'
+            : 'ok',
+    };
+
+    if (decision.show) {
       const roomName = room?.name || room?.title || roomJID.split('@')[0];
       
       // Get sender name from usersSet using createUserNameFromSetUser helper
@@ -135,6 +144,11 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
         senderName,
         roomJID
       );
+      if (state.chatSettingStore.config?.useStoreConsoleEnabled) {
+        console.log(`[NotifyPolicy] source=xmpp action=show reason=${decision.reason} msgId=${message.id}`);
+      }
+    } else if (state.chatSettingStore.config?.useStoreConsoleEnabled) {
+      console.log(`[NotifyPolicy] source=xmpp action=skip reason=${decision.reason} msgId=${message.id}`);
     }
 
     return message;
