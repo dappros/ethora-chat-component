@@ -62,10 +62,7 @@ export const shouldShowXmppToast = ({
   const inAppEnabled = config?.messageNotifications?.enabled !== false;
   const showInContext = config?.messageNotifications?.showInContext ?? true;
   if (!inAppEnabled) return { show: false, reason: 'in_app_disabled' };
-  // Current-user suppression is intentionally disabled for XMPP in-app cards
-  // because several backends mirror sender identifiers inconsistently.
-  // If needed, this can be re-enabled behind an explicit config flag.
-  if (isSystem) return { show: false, reason: 'system_message' };
+  // Current-user suppression is intentionally disabled for XMPP in-app cards.
   if (activeRoom && !showInContext) return { show: false, reason: 'active_room_hidden' };
   return { show: true, reason: 'ok' };
 };
@@ -87,7 +84,6 @@ export const shouldShowForegroundPushToast = ({
 }: ForegroundPushToastInput): DecisionResult => {
   const inAppEnabled = config?.messageNotifications?.enabled !== false;
   if (!inAppEnabled) return { show: false, reason: 'in_app_disabled' };
-  if (isSystem) return { show: false, reason: 'system_message' };
   if (!tabVisible) return { show: false, reason: 'tab_hidden' };
   if (alreadyInStore) return { show: false, reason: 'already_in_store' };
   if (deduped) return { show: false, reason: 'deduped' };
