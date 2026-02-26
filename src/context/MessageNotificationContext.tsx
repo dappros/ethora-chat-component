@@ -42,6 +42,7 @@ export const MessageNotificationProvider: React.FC<{
   );
   const isTabVisible = useTabVisibility();
   const dispatch = useDispatch();
+  const activeRoomJID = useSelector((state: RootState) => state.rooms.activeRoomJID);
   
   // Try to get config from Redux, handle case where Provider might not be available yet
   let contextConfig: IConfig | undefined;
@@ -146,14 +147,23 @@ export const MessageNotificationProvider: React.FC<{
     }
   }, [isTabVisible, removeExpiredNotifications]);
 
+  const clearNotificationsByRoom = useCallback((roomJID: string | null | undefined) => {
+    if (!roomJID) return;
+    setNotifications((prev) => prev.filter((n) => n.roomJID !== roomJID));
+  }, []);
+  
+  useEffect(() => {
+    if (!activeRoomJID) return;
+    clearNotificationsByRoom(activeRoomJID);
+  }, [activeRoomJID, clearNotificationsByRoom]);
+
   const clearAllNotifications = useCallback(() => {
     setNotifications([]);
   }, []);
 
   const navigateToMessage = useCallback(
     (roomJID: string, messageId: string, message: IMessage, roomName: string, senderName: string) => {
-      // Clear all notifications when navigating
-      setNotifications([]);
+      clearNotificationsByRoom(roomJID);
 
       // Check if custom onClick handler is provided
       const customOnClick = notificationConfig?.onClick;
@@ -168,6 +178,11 @@ export const MessageNotificationProvider: React.FC<{
         })).catch((error) => {
           console.error('Error in custom notification onClick handler:', error);
         });
+        return;
+      }
+
+      // System notifications can be shown in-app without chat navigation.
+      if (!roomJID) {
         return;
       }
 
@@ -211,7 +226,7 @@ export const MessageNotificationProvider: React.FC<{
         }
       }, 100);
     },
-    [dispatch, notificationConfig]
+    [clearNotificationsByRoom, dispatch, notificationConfig]
   );
 
   const showMessageNotification = useCallback(
@@ -282,6 +297,28 @@ export const MessageNotificationProvider: React.FC<{
               />
             </div>
           ))}
+          {notifications.length > 2 && (
+            <div style={{ pointerEvents: 'auto', width: '100%' }}>
+              <button
+                type="button"
+                onClick={clearAllNotifications}
+                style={{
+                  marginTop: 4,
+                  width: '100%',
+                  border: 'none',
+                  borderRadius: 10,
+                  padding: '8px 10px',
+                  fontSize: 12,
+                  lineHeight: 1.2,
+                  cursor: 'pointer',
+                  background: '#efefef',
+                  color: '#2f2f2f',
+                }}
+              >
+                Remove all
+              </button>
+            </div>
+          )}
         </div>
       )}
     </MessageNotificationContext.Provider>

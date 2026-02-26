@@ -86,6 +86,7 @@ export const shouldShowForegroundPushToast = ({
   const inAppEnabled = config?.messageNotifications?.enabled !== false;
   if (!inAppEnabled) return { show: false, reason: 'in_app_disabled' };
   if (!tabVisible) return { show: false, reason: 'tab_hidden' };
+  if (isSystem && !deduped) return { show: true, reason: 'system_ok' };
   if (alreadyInStore) return { show: false, reason: 'already_in_store' };
   if (deduped) return { show: false, reason: 'deduped' };
   return { show: true, reason: 'ok' };

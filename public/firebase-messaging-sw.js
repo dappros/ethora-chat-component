@@ -51,6 +51,16 @@ messaging.onBackgroundMessage((payload) => {
   console.log(
     `[NotifyPolicy] source=push_bg action=show reason=${isSystem ? 'system' : 'background'} msgId=${notificationOptions.data.messageId || ''}`
   );
+
+  clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+    windowClients.forEach((client) => {
+      client.postMessage({
+        type: 'PUSH_FOREGROUND_BRIDGE',
+        payload,
+      });
+    });
+  });
+
   self.registration.showNotification(notificationTitle, notificationOptions);
 });
 

@@ -33,6 +33,25 @@ self.addEventListener('push', (event) => {
 
   const notification = data.notification || {};
   const payloadData = data?.data || {};
+  const bridgePayload = {
+    messageId: data.messageId || payloadData?.msgID || null,
+    notification: {
+      title: notification.title || data.title || 'Ethora Chat',
+      body:
+        notification.body ||
+        data.body ||
+        data.message ||
+        payloadData?.body ||
+        'You have a new message.',
+      image: data.icon || '/favicon.ico',
+    },
+    data: {
+      ...payloadData,
+      jid: data.roomJid || payloadData?.jid || '',
+      userJid: data.senderId || payloadData?.userJid || '',
+      msgID: data.messageId || payloadData?.msgID || '',
+    },
+  };
   const isSystem = isSystemPayload(payloadData);
   const title = (isSystem ? 'System' : undefined) || notification.title || data.title || 'Ethora Chat';
   const options = {
@@ -59,7 +78,19 @@ self.addEventListener('push', (event) => {
     `[NotifyPolicy] source=push_bg action=show reason=${isSystem ? 'system' : 'background'} msgId=${options.data.messageId || ''}`
   );
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(
+    clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then((windowClients) => {
+        windowClients.forEach((client) => {
+          client.postMessage({
+            type: 'PUSH_FOREGROUND_BRIDGE',
+            payload: bridgePayload,
+          });
+        });
+      })
+      .then(() => self.registration.showNotification(title, options))
+  );
 });
 
 // ── Notification Click ────────────────────────────────────────

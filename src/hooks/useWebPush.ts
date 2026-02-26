@@ -196,6 +196,10 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
         deduped,
         isSystem: isSystemMessage,
       });
+      const shouldForceSystemToast =
+        isSystemMessage &&
+        config?.messageNotifications?.enabled !== false &&
+        isTabVisible;
 
       const message: IMessage = {
         id: messageId,
@@ -212,7 +216,7 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
       const roomName = isSystemMessage ? 'System' : roomJid || title;
       const senderName = isSystemMessage ? 'System' : senderId || 'Unknown sender';
 
-      if (fgToastDecision.show) {
+      if (shouldForceSystemToast || fgToastDecision.show) {
         messageNotificationManager.showNotification(
           message,
           roomName,
@@ -220,7 +224,8 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
           roomJid
         );
         if (config?.useStoreConsoleEnabled) {
-          console.log(`[NotifyPolicy] source=push_fg action=show reason=${fgToastDecision.reason} msgId=${messageId}`);
+          const reason = shouldForceSystemToast ? 'system_forced' : fgToastDecision.reason;
+          console.log(`[NotifyPolicy] source=push_fg action=show reason=${reason} msgId=${messageId}`);
         }
       } else if (config?.useStoreConsoleEnabled) {
         console.log(`[NotifyPolicy] source=push_fg action=skip reason=${fgToastDecision.reason} msgId=${messageId}`);
@@ -275,6 +280,23 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
     roomsMap,
     showOsNotification,
   ]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    if (typeof window === 'undefined') return;
+    if (!('serviceWorker' in navigator)) return;
+
+    const onServiceWorkerMessage = (event: MessageEvent<any>) => {
+      const data = event?.data;
+      if (!data || data.type !== 'PUSH_FOREGROUND_BRIDGE' || !data.payload) return;
+      _foregroundHandlers.forEach((cb) => cb(data.payload));
+    };
+
+    navigator.serviceWorker.addEventListener('message', onServiceWorkerMessage);
+    return () => {
+      navigator.serviceWorker.removeEventListener('message', onServiceWorkerMessage);
+    };
+  }, [enabled]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Auto-run after the user logs in (unless softAsk is enabled)
