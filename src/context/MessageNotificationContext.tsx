@@ -274,11 +274,15 @@ export const MessageNotificationProvider: React.FC<{
     }
     return () => {
       unsubscribe();
-      if (isEnabled && messageNotificationManager.getCallbackCount() === 0) {
+      if (
+        config?.useStoreConsoleEnabled &&
+        isEnabled &&
+        messageNotificationManager.getCallbackCount() === 0
+      ) {
         console.warn('[NotifyPolicy] source=in_app action=callbacks_empty');
       }
     };
-  }, [isEnabled, showMessageNotification]);
+  }, [config?.useStoreConsoleEnabled, isEnabled, showMessageNotification]);
 
   return (
     <MessageNotificationContext.Provider value={{ showMessageNotification }}>
