@@ -15,6 +15,7 @@ export interface FBConfig {
 }
 
 export interface IConfig {
+  appId?: string;
   disableHeader?: boolean;
   disableMedia?: boolean;
   colors?: { primary: string; secondary: string };
@@ -173,5 +174,13 @@ export interface IConfig {
       roomName: string;
       senderName: string;
     }) => void | Promise<void>;
+  };
+
+  webPush?: {
+    enabled?: boolean;
+    vapidPublicKey?: string;
+    serviceWorkerPath?: string;
+    serviceWorkerScope?: string;
+    softAsk?: boolean;
   };
 }

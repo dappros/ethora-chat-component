@@ -16,6 +16,7 @@ import XmppClient from '../networking/xmppClient';
 interface ChatState {
   user: User;
   config?: IConfig;
+  appId?: string;
   activeModal?: ModalType;
   deleteModal?: DeleteModal;
   selectedUser?: IUser;
@@ -96,6 +97,7 @@ const initialState: ChatState = {
     messageId: '',
   },
   config: { colors: { primary: '#0052CD', secondary: '#F3F6FC' } },
+  appId: '',
 };
 
 export const chatSlice = createSlice({
@@ -104,6 +106,7 @@ export const chatSlice = createSlice({
   reducers: {
     setUser: (state, action: PayloadAction<User>) => {
       state.user = unpackAndTransform(action.payload);
+      state.appId = action.payload.appId || state.appId;
       if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
         useLocalStorage(localStorageConstants.ETHORA_USER).set(
           unpackAndTransform(action.payload)
@@ -122,6 +125,9 @@ export const chatSlice = createSlice({
     },
     setConfig: (state, action: PayloadAction<IConfig | undefined>) => {
       state.config = action.payload;
+      if (action.payload?.appId) {
+        state.appId = action.payload.appId;
+      }
     },
     setActiveModal: (state, action: PayloadAction<ModalType | undefined>) => {
       state.activeModal = action.payload;

@@ -204,9 +204,9 @@ const Message: React.FC<MessageProps> = forwardRef<
     <>
       <CustomMessageContainer
         key={message.id}
-        isUser={isUser}
-        reply={!!message?.reply?.length}
-        reaction={message?.reaction && !!Object.keys(message?.reaction)?.length}
+        $isUser={isUser}
+        $reply={!!message?.reply?.length}
+        $reaction={message?.reaction && !!Object.keys(message?.reaction)?.length}
         ref={ref}
       >
         {!isUser && (
@@ -238,14 +238,14 @@ const Message: React.FC<MessageProps> = forwardRef<
           </CustomMessagePhotoContainer>
         )}
         <CustomMessageBubble
-          deleted={message.isDeleted}
-          isUser={isUser}
+          $deleted={message.isDeleted}
+          $isUser={isUser}
           onContextMenu={handleContextMenu}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
           {!isUser && (
-            <CustomUserName isUser={isUser} color={config?.colors?.primary}>
+            <CustomUserName $isUser={isUser} $color={config?.colors?.primary}>
               {message.user.name}
             </CustomUserName>
           )}
@@ -302,7 +302,7 @@ const Message: React.FC<MessageProps> = forwardRef<
             <URLPreviewCard url={previewUrl} isUserMessage={isUser} />
           )}
         </CustomMessageBubble>
-        <MessageFooter isUser={isUser}>
+        <MessageFooter $isUser={isUser}>
           {message?.reply?.length && message?.reply?.length > 0 ? (
             <BottomReplyContainer
               isUser={isUser}

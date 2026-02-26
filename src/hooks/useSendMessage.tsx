@@ -23,15 +23,10 @@ export const useSendMessage = () => {
   const dispatch = useDispatch();
   const { handleMessageSent, handleMessageFailed } = useEventHandlers(config);
 
-  const { user, editAction, activeRoomJID, rooms } = useSelector(
-    (state: RootState) => ({
-      activeRoomJID: state.rooms.activeRoomJID,
-      user: state.chatSettingStore.user,
-      editAction: state.rooms.editAction,
-      config: state.chatSettingStore.config,
-      rooms: state.rooms.rooms,
-    })
-  );
+  const activeRoomJID = useSelector((state: RootState) => state.rooms.activeRoomJID);
+  const user = useSelector((state: RootState) => state.chatSettingStore.user);
+  const editAction = useSelector((state: RootState) => state.rooms.editAction);
+  const rooms = useSelector((state: RootState) => state.rooms.rooms);
 
   const timeoutTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const sendingMessagesRef = useRef<Set<string>>(new Set());

@@ -91,12 +91,12 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   const rooms = useSelector((state: RootState) => state.rooms.rooms);
   const activeRoomJID = useSelector((state: RootState) => state.rooms.activeRoomJID);
   const reportRoom = useSelector((state: RootState) => state.rooms.reportRoom);
-  const { roomsList, loading, globalLoading, loadingText } = useRoomState();
+  const {  loadingText } = useRoomState();
 
   const activeMessage = useMemo(() => {
     if (activeRoomJID) {
       return rooms[activeRoomJID]?.messages?.find(
-        (message) => message?.activeMessage
+        (message: { activeMessage: any; }) => message?.activeMessage
       );
     }
   }, [rooms, activeRoomJID]);

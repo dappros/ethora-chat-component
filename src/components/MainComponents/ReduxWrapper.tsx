@@ -12,6 +12,7 @@ import { CustomComponentsProvider } from '../../context/CustomComponentsContext'
 import { CustomComponentsContextValue } from '../../types/models/customComponents.model';
 import { MessageNotificationProvider } from '../../context/MessageNotificationContext';
 import { useMessageNotifications } from '../../hooks/useMessageNotifications';
+import useWebPush from '../../hooks/useWebPush';
 
 interface ChatWrapperProps
   extends Pick<
@@ -35,6 +36,17 @@ const NotificationEnabler: React.FC = () => {
   return null;
 };
 
+const WebPushEnabler: React.FC<{ config?: IConfig }> = ({ config }) => {
+  useWebPush({
+    enabled: config?.webPush?.enabled,
+    vapidPublicKey: config?.webPush?.vapidPublicKey,
+    serviceWorkerPath: config?.webPush?.serviceWorkerPath,
+    serviceWorkerScope: config?.webPush?.serviceWorkerScope,
+    softAsk: config?.webPush?.softAsk,
+  });
+  return null;
+};
+
 export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
   ({
     CustomMessageComponent,
@@ -54,6 +66,7 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
           <ToastProvider>
             <MessageNotificationProvider config={memoizedConfig}>
               <NotificationEnabler />
+              <WebPushEnabler config={memoizedConfig} />
               <CustomComponentsProvider
                 CustomMessageComponent={CustomMessageComponent}
                 CustomInputComponent={CustomInputComponent}

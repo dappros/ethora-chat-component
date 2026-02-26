@@ -78,7 +78,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children?: React.ReactNode;
 }
 
-const Button: React.FC<ButtonProps> = ({
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
   text,
   EndIcon,
   loading = false,
@@ -88,9 +88,10 @@ const Button: React.FC<ButtonProps> = ({
   children,
   StartIcon,
   ...props
-}) => {
+}, ref) => {
   return (
     <CustomButton
+      ref={ref}
       disabled={disabled}
       $backgroundColor={props?.style?.backgroundColor}
       $unstyled={unstyled}
@@ -103,6 +104,6 @@ const Button: React.FC<ButtonProps> = ({
       {!loading && EndIcon}
     </CustomButton>
   );
-};
+});
 
 export default Button;

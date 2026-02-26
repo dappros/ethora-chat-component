@@ -14,15 +14,33 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../roomStore';
-import { initPushNotifications } from '../utils/firebasePushManager';
+import {
+  initPushNotifications,
+  listenForForegroundMessages,
+} from '../utils/firebasePushManager';
 import { registerPushToken } from '../networking/api-requests/push.api';
+import { messageNotificationManager } from '../utils/messageNotificationManager';
+import { IMessage } from '../types/models/message.model';
+import { pushSubscriptionService } from '../utils/pushSubscriptionService';
+import { getGlobalXmppClient } from '../utils/clientRegistry';
+import { IRoom } from '../types/types';
 
 interface UseWebPushOptions {
+  /** Enable or disable the web push flow. Default: true */
+  enabled?: boolean;
+
   /**
    * URL-safe Base64 encoded VAPID public key.
    * Falls back to the VITE_VAPID_PUBLIC_KEY environment variable.
    */
   vapidPublicKey?: string;
+
+  /**
+   * Service worker path and scope for Firebase Messaging.
+   * Defaults to `/firebase-messaging-sw.js` with scope `/`.
+   */
+  serviceWorkerPath?: string;
+  serviceWorkerScope?: string;
 
   /**
    * Show a UI "soft ask" before triggering the browser permission dialog.
@@ -39,9 +57,11 @@ interface UseWebPushResult {
 }
 
 let _subscriptionRegistered = false; // module-level guard to prevent duplicate subscriptions
+let _foregroundListenerCount = 0;
+let _foregroundUnsubscribe: (() => void) | null = null;
 
 const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
-  const { softAsk = false } = options;
+  const { softAsk = false, enabled = false } = options;
 
   // Resolve VAPID key: hook option > env variable > empty string
   const vapidPublicKey =
@@ -54,19 +74,27 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
   const userXmppUsername = useSelector(
     (state: RootState) => state.chatSettingStore.user.xmppUsername
   );
+  const roomsMap = useSelector((state: RootState) => state.rooms.rooms);
 
   const hasRanRef = useRef(false);
+  const fcmTokenRef = useRef<string | null>(null);
+  const recentPushToastsRef = useRef<Map<string, number>>(new Map());
 
   // ─────────────────────────────────────────────────────────────────────────────
   const runPushFlow = useCallback(async () => {
     try {
+      if (!enabled) return;
       if (_subscriptionRegistered) {
         console.log('[WebPush] Already subscribed this session, skipping.');
         return;
       }
 
       console.log('[WebPush] Initializing FCM push notifications…');
-      const fcmToken = await initPushNotifications(vapidPublicKey);
+      const fcmToken = await initPushNotifications({
+        vapidPublicKey,
+        serviceWorkerPath: options.serviceWorkerPath,
+        serviceWorkerScope: options.serviceWorkerScope,
+      });
 
       if (!fcmToken) {
         console.warn('[WebPush] Failed to obtain FCM token.');
@@ -78,6 +106,7 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
       await registerPushToken(fcmToken);
 
       _subscriptionRegistered = true;
+      fcmTokenRef.current = fcmToken;
 
       // Log: subscribed via API
       console.log(
@@ -95,7 +124,125 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
     } catch (error) {
       console.error('[WebPush] Registration error:', error);
     }
-  }, [vapidPublicKey, userXmppUsername]);
+  }, [
+    enabled,
+    options.serviceWorkerPath,
+    options.serviceWorkerScope,
+    userXmppUsername,
+    vapidPublicKey,
+  ]);
+
+  const showOsNotification = useCallback(
+    async (title: string, notifOptions: NotificationOptions) => {
+      if (typeof window === 'undefined') return;
+      if (!('Notification' in window)) return;
+      if (Notification.permission !== 'granted') return;
+
+      if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.getRegistration(
+          options.serviceWorkerScope || '/'
+        );
+        if (registration) {
+          await registration.showNotification(title, notifOptions);
+          return;
+        }
+      }
+
+      new Notification(title, notifOptions);
+    },
+    [options.serviceWorkerScope]
+  );
+
+  // Foreground push: show toast + OS notification when app is open
+  useEffect(() => {
+    if (!enabled) return;
+    if (typeof window === 'undefined') return;
+
+    const handler = (payload: any) => {
+      const data = payload.data ?? {};
+      const title = payload.notification?.title || data.title || 'New message';
+      const body =
+        payload.notification?.body || data.body || 'You have a new message.';
+      const roomJid = data.jid || '';
+      const senderId = data.userJid || '';
+      const messageId = payload.messageId || data.msgID || String(Date.now());
+      const url = data.url || '/';
+
+      const now = Date.now();
+      const dedupeKey =
+        payload.messageId ||
+        data.msgID ||
+        `${roomJid}|${senderId}|${title}|${body}`;
+      const lastSeen = recentPushToastsRef.current.get(dedupeKey);
+      const existingMessageId = payload.messageId || data.msgID;
+      const alreadyInStore = existingMessageId
+        ? (Object.values(roomsMap || {}) as IRoom[]).some((room) =>
+            room?.messages?.some(
+              (msg) =>
+                msg.id === existingMessageId || msg.xmppId === existingMessageId
+            )
+          )
+        : false;
+      const xmppOnline = !!getGlobalXmppClient()?.checkOnline?.();
+      const skipToast =
+        (lastSeen && now - lastSeen < 30_000) || alreadyInStore || xmppOnline;
+
+      const message: IMessage = {
+        id: messageId,
+        user: {
+          id: senderId || 'unknown',
+          name: senderId || 'Unknown sender',
+          userJID: senderId || null,
+        },
+        date: new Date().toISOString(),
+        body,
+        roomJid,
+      };
+
+      const roomName = roomJid || title;
+      const senderName = senderId || 'Unknown sender';
+
+      if (!skipToast) {
+        messageNotificationManager.showNotification(
+          message,
+          roomName,
+          senderName,
+          roomJid
+        );
+      }
+
+      recentPushToastsRef.current.set(dedupeKey, now);
+
+      if (!payload.notification) {
+        void showOsNotification(title, {
+          body,
+          icon: payload.notification?.image || '/favicon.ico',
+          badge: '/favicon.ico',
+          tag: 'ethora-notification',
+          data: {
+            url,
+            roomJid,
+            senderId,
+            messageId,
+          },
+        });
+      }
+    };
+
+    if (!_foregroundUnsubscribe) {
+      _foregroundUnsubscribe = listenForForegroundMessages(handler);
+    }
+    _foregroundListenerCount += 1;
+
+    return () => {
+      _foregroundListenerCount -= 1;
+      if (_foregroundListenerCount <= 0 && _foregroundUnsubscribe) {
+        _foregroundUnsubscribe();
+        _foregroundUnsubscribe = null;
+        _foregroundListenerCount = 0;
+      }
+    };
+  }, [enabled, roomsMap, showOsNotification]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Auto-run after the user logs in (unless softAsk is enabled)
@@ -107,6 +254,20 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
     hasRanRef.current = true;
     runPushFlow();
   }, [userToken, softAsk, runPushFlow]);
+
+  // Subscribe to all known rooms for push delivery
+  useEffect(() => {
+    if (!enabled) return;
+    if (!fcmTokenRef.current) return;
+
+    const roomJIDs = Object.keys(roomsMap || {}).filter(Boolean);
+    if (!roomJIDs.length) return;
+
+    const client = getGlobalXmppClient();
+    pushSubscriptionService.subscribeToRooms(roomJIDs, client).catch((error) => {
+      console.warn('[WebPush] Failed to subscribe to rooms:', error);
+    });
+  }, [enabled, roomsMap]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Expose a manual trigger for soft-ask patterns

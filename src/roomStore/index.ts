@@ -140,7 +140,9 @@ export const store = configureStore({
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       thunk: true,
+      immutableCheck: { warnAfter: 128 },
       serializableCheck: {
+        warnAfter: 128,
         ignoredActions: [
           'chat/addMessage',
           'persist/PERSIST',

@@ -238,7 +238,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 : 'No description'}
             </LabelData>
           </BorderedContainer>
-          {selectedUser && (
+          {selectedUser && selectedUser.xmppUsername !== user.xmppUsername && (
             <>
               <ActionButton
                 StartIcon={<ChatIcon />}

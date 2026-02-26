@@ -13,7 +13,6 @@ import CustomScrollableArea from './examples/customComponents/CustomScrollableAr
 import CustomDaySeparator from './examples/customComponents/CustomDaySeparator';
 import CustomMessageBubble from './examples/customComponents/CustomMessageBubble';
 import { MessageNotificationProvider } from './context/MessageNotificationContext';
-import useWebPush from './hooks/useWebPush';
 
 const Apps = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -71,22 +70,10 @@ const NotificationEnabler: React.FC = () => {
   return null;
 };
 
-const WebPushInitializer: React.FC = () => {
-  useWebPush({
-    // Provide a VAPID public key either here or via VITE_VAPID_PUBLIC_KEY in .env
-    vapidPublicKey: 'BIZdmCnHiDRMrBBRzW79Dm1i7hMFRQM9CS1QfbalxjNwY-yvLtkj3IuZQaZ0ChZtjzlRSowkXUCmJC_jVgbFqew',
-
-    // Set softAsk: true if you want to defer the browser permission dialog
-    // until the user explicitly clicks a "Enable notifications" button,
-    // then call the returned requestPermission() function.
-    softAsk: false,
-  });
-  return null;
-};
-
 const ChatComponent = React.memo(() => {
   const config: IConfig = useMemo(
     () => ({
+      appId: '66f5edf81b762117e1bfa26a', //default app id
       colors: { primary: '#5E3FDE', secondary: '#E1E4FE' },
       userLogin: {
         enabled: true,
@@ -106,6 +93,14 @@ const ChatComponent = React.memo(() => {
             bottom: 20,
           },
         },
+      },
+      webPush: {
+        enabled: true,
+        // Provide a VAPID public key either here or via VITE_VAPID_PUBLIC_KEY in .env
+        vapidPublicKey:
+          'BIZdmCnHiDRMrBBRzW79Dm1i7hMFRQM9CS1QfbalxjNwY-yvLtkj3IuZQaZ0ChZtjzlRSowkXUCmJC_jVgbFqew',
+        // Set softAsk: true if you want to defer the browser permission dialog
+        softAsk: false,
       },
       useStoreConsoleEnabled: true,
     }),
@@ -143,9 +138,6 @@ const ChatComponent = React.memo(() => {
 
   return (
     <div style={{ height: 'calc(100vh - 20px)', overflow: 'hidden' }}>
-      <Provider store={store}>
-        <WebPushInitializer />
-      </Provider>
       <ReduxWrapper
         // CustomMessageComponent={CustomMessageBubble}
         // CustomInputComponent={CustomChatInput}

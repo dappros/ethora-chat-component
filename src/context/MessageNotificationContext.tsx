@@ -7,7 +7,7 @@ import React, {
   ReactNode,
   useEffect,
 } from 'react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { IMessage } from '../types/models/message.model';
 import { MessageNotificationData } from '../components/MessageNotification/MessageNotificationToast';
 import MessageNotificationToast from '../components/MessageNotification/MessageNotificationToast';
@@ -15,7 +15,7 @@ import { messageNotificationManager } from '../utils/messageNotificationManager'
 import { useTabVisibility } from '../hooks/useTabVisibility';
 import { setCurrentRoom } from '../roomStore/roomsSlice';
 import { IConfig } from '../types/types';
-import { useChatSettingState } from '../hooks/useChatSettingState';
+import { RootState } from '../roomStore';
 
 interface MessageNotificationContextType {
   showMessageNotification: (
@@ -43,11 +43,10 @@ export const MessageNotificationProvider: React.FC<{
   const isTabVisible = useTabVisibility();
   const dispatch = useDispatch();
   
-  // Try to get config from context, but handle case where it might not be available
+  // Try to get config from Redux, handle case where Provider might not be available yet
   let contextConfig: IConfig | undefined;
   try {
-    const chatState = useChatSettingState();
-    contextConfig = chatState?.config;
+    contextConfig = useSelector((state: RootState) => state.chatSettingStore?.config);
   } catch {
     // Context not available, that's okay
     contextConfig = undefined;

@@ -20,16 +20,23 @@ self.addEventListener('push', (event) => {
     data = { title: 'New message', body: event.data ? event.data.text() : '' };
   }
 
-  const title = data.title || 'Ethora Chat';
+  const notification = data.notification || {};
+  const title = notification.title || data.title || 'Ethora Chat';
   const options = {
-    body: data.body || data.message || 'You have a new message.',
+    body:
+      notification.body ||
+      data.body ||
+      data.message ||
+      data?.data?.body ||
+      'You have a new message.',
     icon: data.icon || '/favicon.ico',
     badge: data.badge || '/favicon.ico',
     tag: data.tag || 'ethora-notification',
     data: {
       url: data.url || data.clickAction || APP_URL,
-      roomJid: data.roomJid || null,
-      senderId: data.senderId || null,
+      roomJid: data.roomJid || data?.data?.jid || null,
+      senderId: data.senderId || data?.data?.userJid || null,
+      messageId: data.messageId || data?.data?.msgID || null,
     },
     requireInteraction: false,
     silent: false,

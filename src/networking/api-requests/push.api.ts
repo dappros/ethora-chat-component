@@ -16,10 +16,10 @@ import { store } from '../../roomStore';
 export async function registerPushToken(registrationToken: string): Promise<any> {
   const state = store.getState();
   const token = state.chatSettingStore.user.token || '';
-  const userId = state.chatSettingStore.user._id;
+  const appId = state.chatSettingStore.appId;
 
-  if (!userId) {
-    throw new Error('[WebPush] Cannot register push token: No user ID found in store.');
+  if (!appId) {
+    throw new Error('[WebPush] Cannot register push token: No app ID found in store.');
   }
 
   const payload = {
@@ -28,12 +28,12 @@ export async function registerPushToken(registrationToken: string): Promise<any>
   };
 
   console.log('[WebPush] Registering FCM token with backend:', {
-    userId,
+    appId,
     token: registrationToken.substring(0, 10) + '...',
   });
 
   try {
-    const response = await http.post(`/push/subscription/${userId}`, payload, {
+    const response = await http.post(`/push/subscription/${appId}`, payload, {
       headers: {
         Authorization: token,
       },
