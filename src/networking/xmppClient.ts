@@ -27,11 +27,15 @@ import { createPrivateRoom } from './xmpp/createPrivateRoom.xmpp';
 import { sendMessageReaction } from './xmpp/sendMessageReaction.xmpp';
 import { sendTextMessageWithTranslateTag } from './xmpp/sendTextMessageWithTranslateTag.xmpp';
 import { getRoomsPaged } from './xmpp/getRoomsPaged.xmpp';
-import { allRoomPresences } from './xmpp/allRoomPresences.xmpp';
+import {
+  allRoomPresences,
+  type AllRoomPresenceSummary,
+} from './xmpp/allRoomPresences.xmpp';
 import { sendPing } from './xmpp/sendPing.xmpp';
 import { isPong } from './xmpp/handlePong.xmpp';
 import { store } from '../roomStore';
 import { IMessage } from '../types/types';
+import { formatError } from '../utils/formatError';
 
 export class XmppClient implements XmppClientInterface {
   client!: Client;
@@ -54,9 +58,25 @@ export class XmppClient implements XmppClientInterface {
 
   private connectionSteps: Array<{ ts: number; step: string }> = [];
 
-  private messageQueue: Array<() => Promise<boolean>> = [];
+  private messageQueue: Array<{
+    id?: string;
+    roomJid?: string;
+    createdAt: number;
+    attempts: number;
+    state: 'queued' | 'sending' | 'sent_echoed' | 'failed';
+    task: () => Promise<boolean>;
+  }> = [];
+  private pendingSendById: Map<
+    string,
+    { state: 'queued' | 'sending' | 'sent_echoed' | 'failed'; roomJid?: string }
+  > = new Map();
   private inFlightIds: Set<string> = new Set();
   private processingQueue: boolean = false;
+  private currentlyProcessingQueueId: string | null = null;
+  private isRecoveringRoomPresence: boolean = false;
+  private recoveryRoomJid: string | null = null;
+  private joinedRooms: Set<string> = new Set();
+  private roomPresenceInFlight: Map<string, Promise<boolean>> = new Map();
 
   checkOnline() {
     return this.client && this.client.status === 'online';
@@ -189,6 +209,11 @@ export class XmppClient implements XmppClientInterface {
       console.log('Disconnected from server.');
       this.status = 'offline';
       this.presencesReady = false;
+      this.joinedRooms.clear();
+      this.roomPresenceInFlight.clear();
+      this.pendingSendById.clear();
+      this.isRecoveringRoomPresence = false;
+      this.recoveryRoomJid = null;
       this.logStep('event:disconnect');
       if (this.pingInterval) clearInterval(this.pingInterval);
       this.scheduleReconnect('event:disconnect');
@@ -206,14 +231,53 @@ export class XmppClient implements XmppClientInterface {
           clearTimeout(this.reconnectTimer);
           this.reconnectTimer = null;
         }
-        this.client.send(xml('presence'));
-        await this.sendAllPresencesAndMarkReady();
-        this.logStep('event:online');
-        this.processQueue().catch(() => {});
+        try {
+          const sendPresenceStart = Date.now();
+          console.log('[XMPP] online: sendPresence:start');
+          this.client.send(xml('presence'));
+          console.log('[XMPP] online: sendPresence:done');
+          console.log(
+            `[InitTiming] online:send_presence ${Date.now() - sendPresenceStart}ms`
+          );
+        } catch (error) {
+          console.error('[XMPP] online: sendPresence:error', formatError(error));
+        }
 
-        await this.drainHeap();
+        const allPresenceStart = Date.now();
+        console.log('[XMPP] online: sendAllPresences:start');
+        this.sendAllPresencesAndMarkReady()
+          .then(() => {
+            console.log('[XMPP] online: sendAllPresences:done');
+            console.log(
+              `[InitTiming] online:all_room_presences ${Date.now() - allPresenceStart}ms`
+            );
+          })
+          .catch((error) => {
+            console.error(
+              '[XMPP] online: sendAllPresences:error',
+              formatError(error)
+            );
+          });
+
+        this.logStep('event:online');
+
+        try {
+          console.log('[XMPP] online: processQueue:start');
+          await this.processQueue();
+          console.log('[XMPP] online: processQueue:done');
+        } catch (error) {
+          console.error('[XMPP] online: processQueue:error', formatError(error));
+        }
+
+        try {
+          console.log('[XMPP] online: drainHeap:start');
+          await this.drainHeap();
+          console.log('[XMPP] online: drainHeap:done');
+        } catch (error) {
+          console.error('[XMPP] online: drainHeap:error', formatError(error));
+        }
       } catch (error) {
-        console.log('Error', error);
+        console.error('XMPP client online handler error:', formatError(error));
       }
     });
 
@@ -327,7 +391,40 @@ export class XmppClient implements XmppClientInterface {
 
   async sendAllPresencesAndMarkReady() {
     this.presencesReady = false;
-    await this.allRoomPresencesStanza();
+    const start = Date.now();
+    let summary: AllRoomPresenceSummary = {
+      total: 0,
+      success: 0,
+      failed: 0,
+      failedRooms: [] as string[],
+      failures: [],
+    };
+    try {
+      summary = await this.allRoomPresencesStanza();
+    } catch (error) {
+      console.warn(
+        `[XMPP] allRoomPresences fallback reason=${formatError(error)}`
+      );
+    }
+    if (summary.total > 0) {
+      const allRooms = Object.keys(store.getState().rooms.rooms || {});
+      allRooms.forEach((jid) => {
+        if (!summary.failedRooms.includes(jid)) {
+          this.joinedRooms.add(jid);
+        }
+      });
+    }
+    console.log(`[InitTiming] xmpp:allRoomPresences ${Date.now() - start}ms`);
+    console.log(
+      `[XMPP] allRoomPresences summary total=${summary.total} success=${summary.success} failed=${summary.failed}`
+    );
+    if (summary.failed > 0 && summary.failures?.length) {
+      const topFailures = summary.failures.slice(0, 3);
+      const text = topFailures
+        .map((item) => `${item.roomJid}:${item.reason}`)
+        .join(' | ');
+      console.warn(`[XMPP] allRoomPresences failures_top3=${text}`);
+    }
     this.presencesReady = true;
   }
 
@@ -360,8 +457,26 @@ export class XmppClient implements XmppClientInterface {
     return this.reconnectPromise;
   }
 
-  async allRoomPresencesStanza() {
-    await allRoomPresences(this.client);
+  async allRoomPresencesStanza(): Promise<AllRoomPresenceSummary> {
+    const start = Date.now();
+    try {
+      const summary = await allRoomPresences(this.client);
+      console.log(
+        `[InitTiming] xmpp:allRoomPresencesStanza ${Date.now() - start}ms`
+      );
+      return summary;
+    } catch (error) {
+      console.warn(
+        `[XMPP] allRoomPresencesStanza:error ${formatError(error)}`
+      );
+      return {
+        total: 0,
+        success: 0,
+        failed: 0,
+        failedRooms: [],
+        failures: [],
+      };
+    }
   }
 
   async ensureConnected(timeout: number = 10000): Promise<void> {
@@ -424,17 +539,46 @@ export class XmppClient implements XmppClientInterface {
     }
   }
 
-  private enqueue(task: () => Promise<boolean>): Promise<boolean> {
+  private enqueue(
+    task: () => Promise<boolean>,
+    id?: string,
+    roomJid?: string
+  ): Promise<boolean> {
     return new Promise<boolean>((resolve) => {
-      this.messageQueue.push(async () => {
-        try {
-          const res = await task();
-          resolve(res);
-          return res;
-        } catch (e) {
-          resolve(false);
-          return false;
+      if (id) {
+        const existing = this.pendingSendById.get(id);
+        if (existing && (existing.state === 'queued' || existing.state === 'sending')) {
+          resolve(true);
+          return;
         }
+        this.pendingSendById.set(id, { state: 'queued', roomJid });
+      }
+
+      this.messageQueue.push({
+        id,
+        roomJid,
+        createdAt: Date.now(),
+        attempts: 0,
+        state: 'queued',
+        task: async () => {
+          try {
+            const res = await task();
+            if (id && res) {
+              this.pendingSendById.set(id, { state: 'sent_echoed', roomJid });
+            }
+            if (id && !res) {
+              this.pendingSendById.set(id, { state: 'failed', roomJid });
+            }
+            resolve(res);
+            return res;
+          } catch (e) {
+            if (id) {
+              this.pendingSendById.set(id, { state: 'failed', roomJid });
+            }
+            resolve(false);
+            return false;
+          }
+        },
       });
 
       this.processQueue().catch(() => {});
@@ -443,30 +587,65 @@ export class XmppClient implements XmppClientInterface {
 
   private async processQueue(): Promise<void> {
     if (this.processingQueue) return;
+    if (this.isRecoveringRoomPresence) return;
     this.processingQueue = true;
     try {
       while (this.messageQueue.length > 0) {
-        try {
-          await this.ensureConnected();
-        } catch (e) {
+        if (this.isRecoveringRoomPresence) {
           break;
         }
-        const next = this.messageQueue[0];
-        if (!next) break;
-        const okRaw = await next();
+        if (this.status !== 'online') {
+          if (!this.reconnectTimer) {
+            this.scheduleReconnect('queue-not-online');
+          }
+          break;
+        }
+        const nextEntry = this.messageQueue[0];
+        if (!nextEntry) break;
+        nextEntry.state = 'sending';
+        nextEntry.attempts += 1;
+        this.currentlyProcessingQueueId = nextEntry.id || null;
+        if (nextEntry.id) {
+          this.pendingSendById.set(nextEntry.id, {
+            state: 'sending',
+            roomJid: nextEntry.roomJid,
+          });
+        }
+        const okRaw = await nextEntry.task();
+        this.currentlyProcessingQueueId = null;
         const ok = okRaw !== false;
         if (ok) {
+          if (nextEntry.id) {
+            this.pendingSendById.delete(nextEntry.id);
+          }
+          if (nextEntry.createdAt) {
+            const waitMs = Date.now() - nextEntry.createdAt;
+            console.log(
+              `[XMPP] send_wait_ms id=${nextEntry.id || 'unknown'} room=${nextEntry.roomJid || 'unknown'} wait=${waitMs}`
+            );
+          }
           this.messageQueue.shift();
         } else {
+          nextEntry.state = 'failed';
+          if (nextEntry.id) {
+            this.pendingSendById.set(nextEntry.id, {
+              state: 'failed',
+              roomJid: nextEntry.roomJid,
+            });
+          }
           break;
         }
       }
     } finally {
+      this.currentlyProcessingQueueId = null;
       this.processingQueue = false;
     }
 
-    if (this.messageQueue.length > 0 && this.status === 'online') {
-      setTimeout(() => this.processQueue().catch(() => {}), 1000);
+    if (
+      this.messageQueue.length > 0 &&
+      !this.isRecoveringRoomPresence
+    ) {
+      setTimeout(() => this.processQueue().catch(() => {}), 200);
     }
   }
 
@@ -551,9 +730,73 @@ export class XmppClient implements XmppClientInterface {
     });
   };
 
-  presenceInRoomStanza = async (roomJID: string, settleDelay = 0) => {
-    return this.wrapWithConnectionCheck(async () => {
-      await presenceInRoom(this.client, roomJID, settleDelay);
+  private ensureRoomPresence = async (
+    roomJID: string,
+    options?: {
+      settleDelay?: number;
+      timeoutMs?: number;
+      waitForJoin?: boolean;
+      source?: 'active_room' | 'send' | 'background' | 'other';
+    }
+  ): Promise<boolean> => {
+    if (!roomJID) return true;
+    if (this.joinedRooms.has(roomJID)) return true;
+
+    const settleDelay = options?.settleDelay ?? 0;
+    const timeoutMs = options?.timeoutMs ?? 2000;
+    const waitForJoin = options?.waitForJoin ?? true;
+    const source = options?.source || 'other';
+
+    const existing = this.roomPresenceInFlight.get(roomJID);
+    if (existing) {
+      if (waitForJoin) {
+        return existing;
+      }
+      return true;
+    }
+
+    const promise = this.wrapWithConnectionCheck(async () => {
+      await presenceInRoom(this.client, roomJID, settleDelay, timeoutMs);
+      this.joinedRooms.add(roomJID);
+      return true;
+    })
+      .catch((error) => {
+        console.warn(
+          `[XMPP] room_presence_failed room=${roomJID} source=${source} error=${formatError(error)}`
+        );
+        return false;
+      })
+      .finally(() => {
+        this.roomPresenceInFlight.delete(roomJID);
+      });
+
+    this.roomPresenceInFlight.set(roomJID, promise);
+    if (waitForJoin) {
+      return promise;
+    }
+    return true;
+  };
+
+  presenceInRoomStanza = async (
+    roomJID: string,
+    settleDelay = 0,
+    timeoutMs = 2000,
+    waitForJoin = true
+  ): Promise<boolean> => {
+    return this.ensureRoomPresence(roomJID, {
+      settleDelay,
+      timeoutMs,
+      waitForJoin,
+      source: 'other',
+    });
+  };
+
+  prioritizeRoomPresence = async (roomJID: string): Promise<boolean> => {
+    return this.ensureRoomPresence(roomJID, {
+      settleDelay: 0,
+      timeoutMs: 900,
+      waitForJoin: false,
+      source: 'active_room',
     });
   };
 
@@ -603,13 +846,12 @@ export class XmppClient implements XmppClientInterface {
 
   //messages
   async sendMessageWithPingCheck(
-    sendFn: () => Promise<void>
+    sendFn: () => Promise<boolean>
   ): Promise<boolean> {
     this.markActivity();
 
     try {
-      await sendFn();
-      return true;
+      return await sendFn();
     } catch {
       return false;
     }
@@ -631,8 +873,13 @@ export class XmppClient implements XmppClientInterface {
     return this.enqueue(async () => {
       return this.withIdLock(customId, async () => {
         return this.sendMessageWithPingCheck(async () => {
+          // Optimistic send: start presence join in background, do not block first send.
+          this.prioritizeRoomPresence(roomJID).catch(() => {});
+          if (this.status !== 'online') {
+            throw new Error('not_online');
+          }
           return this.wrapWithConnectionCheck(async () => {
-            sendTextMessage(
+            return sendTextMessage(
               this.client,
               roomJID,
               firstName,
@@ -650,7 +897,7 @@ export class XmppClient implements XmppClientInterface {
           });
         });
       });
-    });
+    }, customId, roomJID);
   };
 
   sendTextMessageWithTranslateTagStanza = (
@@ -670,8 +917,13 @@ export class XmppClient implements XmppClientInterface {
     return this.enqueue(async () => {
       return this.withIdLock(customId, async () => {
         return this.sendMessageWithPingCheck(async () => {
+          // Optimistic send: start presence join in background, do not block first send.
+          this.prioritizeRoomPresence(roomJID).catch(() => {});
+          if (this.status !== 'online') {
+            throw new Error('not_online');
+          }
           return this.wrapWithConnectionCheck(async () => {
-            sendTextMessageWithTranslateTag(
+            return sendTextMessageWithTranslateTag(
               this.client,
               {
                 roomJID,
@@ -692,7 +944,7 @@ export class XmppClient implements XmppClientInterface {
           });
         });
       });
-    });
+    }, customId, roomJID);
   };
 
   deleteMessageStanza(room: string, msgId: string) {
@@ -771,11 +1023,52 @@ export class XmppClient implements XmppClientInterface {
   sendMediaMessageStanza(roomJID: string, data: any, id: string) {
     this.enqueue(async () => {
       return this.withIdLock(id, async () => {
+        if (this.status !== 'online') {
+          return true;
+        }
         return this.wrapWithConnectionCheck(async () => {
           sendMediaMessage(this.client, roomJID, data, id);
         }).then(() => true);
       });
-    });
+    }, id, roomJID);
+  }
+
+  async recoverRoomPresenceOnly(roomJID: string): Promise<boolean> {
+    if (!roomJID) return false;
+    if (this.isRecoveringRoomPresence && this.recoveryRoomJid === roomJID) {
+      return false;
+    }
+
+    this.isRecoveringRoomPresence = true;
+    this.recoveryRoomJid = roomJID;
+    console.log(
+      `[XMPP] recover:start room=${roomJID}`
+    );
+
+    try {
+      const joined = await this.ensureRoomPresence(roomJID, {
+        settleDelay: 0,
+        timeoutMs: 1200,
+        waitForJoin: true,
+        source: 'send',
+      });
+      if (joined) {
+        console.log(`[XMPP] recover:presence_ok room=${roomJID}`);
+      } else {
+        console.warn(`[XMPP] recover:presence_failed room=${roomJID}`);
+      }
+      return joined;
+    } catch (error) {
+      console.warn(
+        `[XMPP] recover:error room=${roomJID} error=${formatError(error)}`
+      );
+      return false;
+    } finally {
+      this.isRecoveringRoomPresence = false;
+      this.recoveryRoomJid = null;
+      this.processQueue().catch(() => {});
+      console.log('[XMPP] recover:queue_resume');
+    }
   }
 
   sendPingStanza() {
@@ -805,6 +1098,7 @@ export class XmppClient implements XmppClientInterface {
       const heap = (state as any)?.roomHeapSlice?.messageHeap as IMessage[];
       if (!heap || heap.length === 0) return;
 
+      const start = Date.now();
       for (const msg of heap) {
         const isTranslate = !!msg.langSource;
         const firstName = (msg.user as any)?.firstName || '';
@@ -845,6 +1139,7 @@ export class XmppClient implements XmppClientInterface {
         }
       }
       store.dispatch({ type: 'roomHeapStore/clearHeap' });
+      console.log(`[InitTiming] xmpp:drainHeap ${Date.now() - start}ms`);
     } catch {}
   }
 

@@ -22,6 +22,11 @@ export const useSendMessage = () => {
   const { client } = useXmppClient();
   const dispatch = useDispatch();
   const { handleMessageSent, handleMessageFailed } = useEventHandlers(config);
+  const emitMessageSent = useCallback((payload: Parameters<typeof handleMessageSent>[0]) => {
+    Promise.resolve(handleMessageSent(payload)).catch((error) => {
+      console.error('Error in async message sent hook:', error);
+    });
+  }, [handleMessageSent]);
 
   const activeRoomJID = useSelector((state: RootState) => state.rooms.activeRoomJID);
   const user = useSelector((state: RootState) => state.chatSettingStore.user);
@@ -200,7 +205,7 @@ export const useSendMessage = () => {
           );
           dispatch(setEditAction({ isEdit: false }));
 
-          await handleMessageSent({
+          emitMessageSent({
             message,
             roomJID: activeRoomJID,
             user,
@@ -279,7 +284,7 @@ export const useSendMessage = () => {
               id
             );
 
-            await handleMessageSent({
+            emitMessageSent({
               message,
               roomJID: activeRoomJID,
               user,
@@ -345,7 +350,7 @@ export const useSendMessage = () => {
               id
             );
 
-            await handleMessageSent({
+            emitMessageSent({
               message,
               roomJID: activeRoomJID,
               user,
@@ -399,7 +404,7 @@ export const useSendMessage = () => {
 
         dispatch(setEditAction({ isEdit: false }));
 
-        await handleMessageSent({
+        emitMessageSent({
           message,
           roomJID: editAction.roomJid,
           user,
@@ -512,7 +517,7 @@ export const useSendMessage = () => {
           client?.sendMediaMessageStanza(activeRoomJID, messagePayload, id);
         }
 
-        await handleMessageSent({
+        emitMessageSent({
           message: 'media',
           roomJID: activeRoomJID,
           user,
@@ -548,6 +553,7 @@ export const useSendMessage = () => {
       handleMessageFailed,
       setupRoomTimeout,
       markMessageSending,
+      emitMessageSent,
     ]
   );
 

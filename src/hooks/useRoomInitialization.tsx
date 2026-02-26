@@ -20,6 +20,13 @@ export const useRoomInitialization = (
   const syncRooms = useGetNewArchRoom();
 
   useEffect(() => {
+    if (client && activeRoomJID) {
+      // Prioritize active room join without blocking UI.
+      client.prioritizeRoomPresence(activeRoomJID).catch(() => {});
+    }
+  }, [client, activeRoomJID]);
+
+  useEffect(() => {
     const getDefaultHistory = async () => {
       if (!client) return;
       dispatch(setIsLoading({ loading: true, chatJID: activeRoomJID }));

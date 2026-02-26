@@ -1,11 +1,7 @@
 // Hook to enable message notifications - can be imported and used anywhere
 // Similar to logout service pattern
 import { useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '../roomStore';
-import { messageNotificationManager } from '../utils/messageNotificationManager';
-import { IMessage } from '../types/models/message.model';
-import { createUserNameFromSetUser } from '../helpers/createUserNameFromSetUser';
+import { useDispatch } from 'react-redux';
 import { setCurrentRoom } from '../roomStore/roomsSlice';
 
 /**
@@ -25,13 +21,6 @@ import { setCurrentRoom } from '../roomStore/roomsSlice';
  */
 export const useMessageNotifications = () => {
   const dispatch = useDispatch();
-  const { rooms, activeRoomJID, usersSet } = useSelector(
-    (state: RootState) => ({
-      rooms: state.rooms.rooms,
-      activeRoomJID: state.rooms.activeRoomJID,
-      usersSet: state.rooms.usersSet,
-    })
-  );
 
   // This hook enables the notification system
   // The actual filtering and display is handled by MessageNotificationProvider

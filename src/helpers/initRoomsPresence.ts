@@ -1,6 +1,5 @@
 import XmppClient from '../networking/xmppClient';
 import { IRoom } from '../types/types';
-import { presenceInRoom } from '../networking/xmpp/presenceInRoom.xmpp';
 
 const inFlightByClient = new Map<string, Promise<void>>();
 
@@ -23,7 +22,7 @@ export const initRoomsPresence = async (
   const run = (async () => {
     for (const jid of jids) {
       try {
-        await presenceInRoom(client.client, jid);
+        await client.presenceInRoomStanza(jid, 0, 3000, true);
       } catch (e) {
         // ignore individual failures
       }

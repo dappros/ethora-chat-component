@@ -25,14 +25,15 @@ import { getRooms } from '../networking/api-requests/rooms.api';
 import { createRoomFromApi } from '../helpers/createRoomFromApi';
 import XmppClient from './xmppClient';
 import { checkSingleUser } from '../helpers/checkUniqueUsers';
-import { presenceInRoom } from './xmpp/presenceInRoom.xmpp';
 import { removeMessageFromHeapById } from '../roomStore/roomHeapSlice';
-import { xml } from '@xmpp/client';
 import { messageNotificationManager } from '../utils/messageNotificationManager';
 import { createUserNameFromSetUser } from '../helpers/createUserNameFromSetUser';
 import {
   isActiveRoom,
+  isCurrentUserMessage,
+  shouldShowXmppToast,
 } from '../utils/notificationPolicy';
+import { formatError } from '../utils/formatError';
 // TO DO: we are thinking to refactor this code in the following way:
 // each stanza will be parsed for 'type'
 // then it will be handled based on the type
@@ -96,37 +97,38 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
       })
     );
     const removeId = message?.xmppId || message?.id;
+    const heapBeforeRemove = store.getState().roomHeapSlice.messageHeap as IMessage[];
+    const matchedPendingMessage = !!(
+      removeId &&
+      heapBeforeRemove?.some((m) => (m.xmppId || m.id) === removeId)
+    );
     if (removeId) {
       store.dispatch(removeMessageFromHeapById(removeId));
     }
 
-    // Show notification if user is online and message is not from current user
     const state = store.getState();
     const roomJID = stanza.attrs.from.split('/')[0];
     const room = state.rooms.rooms[roomJID];
-    // XMPP in-app notification policy is intentionally simple here:
-    // enabled + non-system + (active room allowed by showInContext)
     const activeRoomJID = state.rooms.activeRoomJID;
     const isActiveChatMessage = isActiveRoom(activeRoomJID, roomJID);
-    const inAppEnabled =
-      state.chatSettingStore.config?.messageNotifications?.enabled !== false;
-    const showInContext =
-      state.chatSettingStore.config?.messageNotifications?.showInContext ?? true;
+    const currentXmppUsername = state.chatSettingStore.user?.xmppUsername;
+    const senderFromStanza = stanza.attrs.from?.split('/')[1] || '';
+    const senderIsExactCurrentUser =
+      !!currentXmppUsername && senderFromStanza === currentXmppUsername;
+    const senderLooksLikeCurrentUser = isCurrentUserMessage(
+      message.user?.id,
+      currentXmppUsername
+    );
+    // Suppress only exact sender match from stanza resource.
+    const currentUserMessage = senderIsExactCurrentUser;
     const isSystemMessage = message.isSystemMessage === 'true';
 
-    const decision = {
-      show:
-        inAppEnabled &&
-        !isSystemMessage &&
-        (!isActiveChatMessage || showInContext),
-      reason: !inAppEnabled
-        ? 'in_app_disabled'
-        : isSystemMessage
-          ? 'system_message'
-          : isActiveChatMessage && !showInContext
-            ? 'active_room_hidden'
-            : 'ok',
-    };
+    const decision = shouldShowXmppToast({
+      config: state.chatSettingStore.config,
+      activeRoom: isActiveChatMessage,
+      currentUserMessage,
+      isSystem: isSystemMessage,
+    });
 
     if (decision.show) {
       const roomName = room?.name || room?.title || roomJID.split('@')[0];
@@ -145,10 +147,14 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
         roomJID
       );
       if (state.chatSettingStore.config?.useStoreConsoleEnabled) {
-        console.log(`[NotifyPolicy] source=xmpp action=show reason=${decision.reason} msgId=${message.id}`);
+        console.log(
+          `[NotifyPolicy] source=xmpp action=show reason=${decision.reason} msgId=${message.id} room=${roomJID} sender=${message.user?.id} activeRoom=${isActiveChatMessage}`
+        );
       }
     } else if (state.chatSettingStore.config?.useStoreConsoleEnabled) {
-      console.log(`[NotifyPolicy] source=xmpp action=skip reason=${decision.reason} msgId=${message.id}`);
+      console.log(
+        `[NotifyPolicy] source=xmpp action=skip reason=${decision.reason} msgId=${message.id} room=${roomJID} sender=${message.user?.id} activeRoom=${isActiveChatMessage} currentUser=${currentUserMessage} system=${isSystemMessage} pendingEcho=${matchedPendingMessage} looksLikeCurrent=${senderLooksLikeCurrentUser}`
+      );
     }
 
     return message;
@@ -513,34 +519,43 @@ const onRoomKicked = async (stanza: Element) => {
 
 const onMessageError = async (stanza: Element, client: XmppClient) => {
   if (stanza.name === 'message' && stanza.attrs.type === 'error') {
-    const roomJID = stanza.attrs.from?.split('/')[0];
+    const errorInfo = handleErrorMessageStanza(stanza);
+    const from = stanza.attrs.from || '';
+    const roomJID = from.split('/')[0];
+    const isMucRoom = roomJID.includes('@conference.');
+    const condition = errorInfo?.condition?.toLowerCase() || '';
+    const messageText = errorInfo?.message?.toLowerCase() || '';
+    const shouldRecoverPresence =
+      isMucRoom &&
+      (condition === 'forbidden' ||
+        condition === 'not-authorized' ||
+        messageText.includes('only occupants are allowed'));
+
+    console.log(
+      `[XMPP] message_error condition=${errorInfo?.condition || 'unknown'} text="${errorInfo?.message || ''}" id=${stanza.attrs.id || ''} from=${from} to=${stanza.attrs.to || ''}`
+    );
+
+    if (!isMucRoom) {
+      console.log(
+        `[XMPP] message_error skip_presence reason=non_muc from=${from}`
+      );
+      return;
+    }
+
+    if (!shouldRecoverPresence) {
+      console.log(
+        `[XMPP] message_error skip_presence reason=unsupported_condition condition=${errorInfo?.condition || 'unknown'} from=${from}`
+      );
+      return;
+    }
+
     if (roomJID && client) {
       try {
-        client?.client?.send(xml('presence'));
-        await presenceInRoom(client.client, roomJID);
-        console.log(
-          `Sent presence to room ${roomJID} due to error: Only occupants are allowed to send messages to the conference.`
-        );
-        const queue = store.getState().roomHeapSlice.messageHeap as IMessage[];
-        await Promise.all(
-          queue.map((msg: IMessage) =>
-            client.sendMessage(
-              msg.roomJid,
-              msg.user.firstName,
-              msg.user.lastName,
-              '',
-              msg.user.walletAddress,
-              msg.body,
-              '',
-              !!msg.isReply,
-              !!msg.showInChannel,
-              msg.mainMessage,
-              msg.id
-            )
-          )
-        );
+        await client.recoverRoomPresenceOnly(roomJID);
       } catch (e) {
-        console.warn('Failed to send presence in response to error:', e);
+        console.warn(
+          `[XMPP] message_error presence_recovery_failed room=${roomJID || 'unknown'} error=${formatError(e)}`
+        );
       }
     }
   }

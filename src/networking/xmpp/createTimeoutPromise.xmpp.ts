@@ -9,7 +9,7 @@ export function createTimeoutPromise(
           unsubscribe();
         }
       } catch (e) {}
-      reject();
+      reject(new Error(`timeout:${ms ?? 0}`));
     }, ms);
   });
 }

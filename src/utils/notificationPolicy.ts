@@ -56,14 +56,15 @@ export interface DecisionResult {
 export const shouldShowXmppToast = ({
   config,
   activeRoom,
-  currentUserMessage: _currentUserMessage,
+  currentUserMessage,
   isSystem,
 }: XmppToastDecisionInput): DecisionResult => {
   const inAppEnabled = config?.messageNotifications?.enabled !== false;
-  const showInContext = config?.messageNotifications?.showInContext ?? true;
   if (!inAppEnabled) return { show: false, reason: 'in_app_disabled' };
-  // Current-user suppression is intentionally disabled for XMPP in-app cards.
-  if (activeRoom && !showInContext) return { show: false, reason: 'active_room_hidden' };
+  if (currentUserMessage && !isSystem) {
+    return { show: false, reason: 'current_user_exact_match' };
+  }
+  if (activeRoom) return { show: true, reason: 'ok_active_room_allowed' };
   return { show: true, reason: 'ok' };
 };
 
