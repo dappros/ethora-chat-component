@@ -20,7 +20,7 @@ export const MessageInputContainer = styled.div`
   gap: 16px;
 `;
 
-export const MessageInput = styled.input<{ color?: string }>`
+export const MessageInput = styled.input<{ $color?: string }>`
   flex-grow: 1;
   padding: 10px;
   border-radius: 12px;
@@ -29,7 +29,7 @@ export const MessageInput = styled.input<{ color?: string }>`
   background-color: #f5f7f9;
   max-height: 40px;
   &:focus {
-    border: 1px solid ${(props) => (props.color ? props.color : '#0052CD')};
+    border: 1px solid ${(props) => (props.$color ? props.$color : '#0052CD')};
     outline: none;
   }
 `;
@@ -116,29 +116,29 @@ export const StyledInput = styled.input<{}>`
 `;
 
 export const TextareaWrapper = styled.div<{
-  dynamicHeight?: number;
-  color?: string;
-  isFocused?: boolean;
+  $dynamicHeight?: number;
+  $color?: string;
+  $isFocused?: boolean;
 }>`
   flex-grow: 1;
   position: relative;
   border-radius: 12px;
   background-color: #f5f7f9;
   padding: 2px;
-  height: ${(props) => props.dynamicHeight || 40}px;
-  max-height: ${(props) => props.dynamicHeight || 40}px;
+  height: ${(props) => props.$dynamicHeight || 40}px;
+  max-height: ${(props) => props.$dynamicHeight || 40}px;
   min-height: 40px;
   box-sizing: border-box;
   transition: height 0.2s ease-in-out;
   border: ${(props) =>
-    props.isFocused
-      ? `1px solid ${props.color || '#0052CD'}`
+    props.$isFocused
+      ? `1px solid ${props.$color || '#0052CD'}`
       : '1px solid transparent'};
 `;
 
 export const TextareaInput = styled.textarea<{
-  dynamicHeight?: number;
-  color?: string;
+  $dynamicHeight?: number;
+  $color?: string;
 }>`
   width: 100%;
   height: 100%;
@@ -153,7 +153,7 @@ export const TextareaInput = styled.textarea<{
   /* Never show scrollbar for a single line (<= 40px) */
   overflow-x: hidden;
   overflow-y: ${(props) =>
-    props.dynamicHeight && props.dynamicHeight > 40 ? 'auto' : 'hidden'};
+    props.$dynamicHeight && props.$dynamicHeight > 40 ? 'auto' : 'hidden'};
   resize: none;
   box-sizing: border-box;
   transition: height 0.2s ease-in-out;
@@ -165,7 +165,7 @@ export const TextareaInput = styled.textarea<{
   /* Custom scrollbar styling for WebKit browsers (Chrome, Safari, Edge) */
   &::-webkit-scrollbar {
     width: ${(props) =>
-      props.dynamicHeight && props.dynamicHeight > 40 ? '2px' : '0'};
+      props.$dynamicHeight && props.$dynamicHeight > 40 ? '2px' : '0'};
   }
 
   &::-webkit-scrollbar-track {
@@ -174,12 +174,12 @@ export const TextareaInput = styled.textarea<{
   }
 
   &::-webkit-scrollbar-thumb {
-    background-color: ${(props) => (props.color ? props.color : '#0052CD')};
+    background-color: ${(props) => (props.$color ? props.$color : '#0052CD')};
     border-radius: 2px;
   }
 
   &::-webkit-scrollbar-thumb:hover {
-    background-color: ${(props) => (props.color ? props.color : '#0052CD')};
+    background-color: ${(props) => (props.$color ? props.$color : '#0052CD')};
   }
 
   &::-webkit-scrollbar-corner {
@@ -188,9 +188,9 @@ export const TextareaInput = styled.textarea<{
 
   /* Firefox scrollbar styling */
   scrollbar-width: ${(props) =>
-    props.dynamicHeight && props.dynamicHeight > 40 ? 'thin' : 'none'};
+    props.$dynamicHeight && props.$dynamicHeight > 40 ? 'thin' : 'none'};
   scrollbar-color: ${(props) =>
-      props.dynamicHeight && props.dynamicHeight > 40
-        ? `${props.color ? props.color : '#0052CD'} transparent`
+      props.$dynamicHeight && props.$dynamicHeight > 40
+        ? `${props.$color ? props.$color : '#0052CD'} transparent`
         : 'transparent transparent'};
 `;

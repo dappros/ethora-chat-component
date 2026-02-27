@@ -18,7 +18,7 @@ export const sendTextMessageWithTranslateTag = (
   },
   source: Iso639_1Codes,
   customId?: string
-) => {
+): boolean => {
   const id = customId || `get-translate-messsage:${Date.now().toString()}`;
 
   try {
@@ -38,7 +38,9 @@ export const sendTextMessageWithTranslateTag = (
     );
 
     client.send(message);
+    return true;
   } catch (error) {
     console.error('An error occurred while sending message:', error);
+    return false;
   }
 };

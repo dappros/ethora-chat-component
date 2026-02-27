@@ -24,6 +24,7 @@ interface DataXml {
   langSource?: Iso639_1Codes;
   xmppId?: string;
   xmppFrom?: string;
+  isHistory?: boolean;
   data: { [x: string]: any };
 }
 export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
@@ -66,6 +67,10 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
   };
 
   const dataAttrs = data?.attrs || {};
+  const delay =
+    fullData?.getChild('delay', 'urn:xmpp:delay') ||
+    fullData?.getChild('x', 'jabber:x:delay');
+  const isHistory = !!delay;
 
   return {
     data: dataAttrs,
@@ -79,5 +84,6 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
     langSource,
     xmppId,
     xmppFrom,
+    isHistory,
   };
 };

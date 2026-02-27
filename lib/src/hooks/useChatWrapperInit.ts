@@ -45,13 +45,96 @@ const useChatWrapperInit = ({
   const [isConnectionLost, setConnectionLost] = useState<boolean>(false);
   const [isRetrying, setIsRetrying] = useState<boolean | 'norooms'>(false);
   const hasSyncedHistoryRef = useRef<boolean>(false);
+  const presenceBootstrappedClientsRef = useRef<Set<string>>(new Set());
+  const startupSummaryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const { client, initializeClient, setClient } = useXmppClient();
   const syncRooms = useGetNewArchRoom();
 
-  const { rooms } = useSelector((state: RootState) => state.rooms);
+  const rooms = useSelector((state: RootState) => state.rooms.rooms);
   const { roomsList } = useRoomState();
   const { user } = useChatSettingState();
+  const timingsRef = useRef<{ [k: string]: number }>({});
+
+  const mark = (label: string) => {
+    timingsRef.current[label] = Date.now();
+  };
+
+  const logDuration = (label: string, startLabel: string) => {
+    const start = timingsRef.current[startLabel];
+    if (!start) return;
+    const ms = Date.now() - start;
+    console.log(`[InitTiming] ${label} ${ms}ms`);
+  };
+
+  const scheduleStartupSummary = () => {
+    if (startupSummaryTimeoutRef.current) return;
+    startupSummaryTimeoutRef.current = setTimeout(() => {
+      const points = timingsRef.current;
+      const report: Record<string, number> = {};
+      [
+        'xmpp:initClient:start',
+        'initClient:create_instance:start',
+        'initClient:wait_online:start',
+        'online:send_presence:start',
+        'online:all_room_presences:start',
+        'bg:initRoomsPresence:start',
+        'bg:getChatsPrivateStore:start',
+        'bg:updateMessagesTillLast:start',
+      ].forEach((key) => {
+        if (points[key]) {
+          report[key] = Date.now() - points[key];
+        }
+      });
+      console.log('[InitTiming] startup_summary', report);
+    }, 10000);
+  };
+
+  const runBackgroundTasks = (targetClient: XmppClient) => {
+    const clientKey =
+      targetClient.client?.jid?.toString() || targetClient.username || 'xmpp-client';
+
+    setTimeout(() => {
+      if (!(roomsList && Object.keys(roomsList).length > 0)) return;
+      if (presenceBootstrappedClientsRef.current.has(clientKey)) return;
+      presenceBootstrappedClientsRef.current.add(clientKey);
+
+      mark('bg:initRoomsPresence:start');
+      initRoomsPresence(targetClient, roomsList)
+        .then(() => {
+          logDuration('bg:initRoomsPresence', 'bg:initRoomsPresence:start');
+        })
+        .catch((error) => {
+          console.warn('[InitTiming] bg:initRoomsPresence:error', error);
+        });
+    }, 0);
+
+    setTimeout(() => {
+      mark('bg:getChatsPrivateStore:start');
+      targetClient
+        .getChatsPrivateStoreRequestStanza()
+        .then(async (roomTimestampObject: [jid: string, timestamp: string]) => {
+          updatedChatLastTimestamps(roomTimestampObject, dispatch);
+          logDuration('bg:getChatsPrivateStore', 'bg:getChatsPrivateStore:start');
+        })
+        .catch((error) => {
+          console.warn('[InitTiming] bg:getChatsPrivateStore:error', error);
+        });
+    }, 0);
+
+    setTimeout(() => {
+      if (hasSyncedHistoryRef.current) return;
+      mark('bg:updateMessagesTillLast:start');
+      updateMessagesTillLast(rooms, targetClient)
+        .then(() => {
+          hasSyncedHistoryRef.current = true;
+          logDuration('bg:updateMessagesTillLast', 'bg:updateMessagesTillLast:start');
+        })
+        .catch((error) => {
+          console.warn('[InitTiming] bg:updateMessagesTillLast:error', error);
+        });
+    }, 0);
+  };
 
   useEffect(() => {
     return () => {
@@ -86,7 +169,9 @@ const useChatWrapperInit = ({
       dispatch(
         setIsLoading({ loading: true, loadingText: 'Loading rooms...' })
       );
+    mark('loadRooms:start');
     const rooms = await syncRooms(client, config);
+    logDuration('loadRooms', 'loadRooms:start');
     dispatch(setIsLoading({ loading: false, loadingText: undefined }));
     return rooms;
   };
@@ -111,6 +196,9 @@ const useChatWrapperInit = ({
               setShowModal(false);
 
               console.log('No client, so initing one');
+              mark('xmpp:initClient:start');
+              mark('initClient:create_instance:start');
+              mark('initClient:wait_online:start');
               const newClient = await initializeClient(
                 user.xmppUsername || user?.defaultWallet?.walletAddress,
                 user?.xmppPassword,
@@ -119,10 +207,12 @@ const useChatWrapperInit = ({
               ).then((client) => {
                 return client;
               });
+              logDuration('xmpp:initClient', 'xmpp:initClient:start');
+              logDuration('initClient:create_instance', 'initClient:create_instance:start');
+              logDuration('initClient:wait_online', 'initClient:wait_online:start');
 
               if (roomsList && Object.keys(roomsList).length > 0) {
                 setInited(true);
-                await initRoomsPresence(newClient, roomsList);
               } else {
                 if (config?.newArch) {
                   const loadedRooms = await loadRooms(newClient);
@@ -137,27 +227,18 @@ const useChatWrapperInit = ({
                   }
                   setInited(true);
                 } else {
+                  mark('xmpp:getRoomsStanza:start');
                   await newClient.getRoomsStanza();
+                  logDuration('xmpp:getRoomsStanza', 'xmpp:getRoomsStanza:start');
                 }
               }
-              await newClient
-                .getChatsPrivateStoreRequestStanza()
-                .then(
-                  async (
-                    roomTimestampObject: [jid: string, timestamp: string]
-                  ) => {
-                    updatedChatLastTimestamps(roomTimestampObject, dispatch);
-                    // newClient.setVCardStanza(
-                    //   `${user.firstName} ${user.lastName}`
-                    // );
-                    if (!hasSyncedHistoryRef.current) {
-                      await updateMessagesTillLast(rooms, newClient);
-                      hasSyncedHistoryRef.current = true;
-                    }
-                    setClient(newClient);
-                    setConnectionLost(false);
-                  }
-                );
+              // Background tasks to avoid blocking UI
+              setClient(newClient);
+              setConnectionLost(false);
+              dispatch(setIsLoading({ loading: false }));
+              scheduleStartupSummary();
+
+              runBackgroundTasks(newClient);
 
               {
                 config?.refreshTokens?.enabled && refresh();
@@ -181,21 +262,12 @@ const useChatWrapperInit = ({
               }
             }
             setInited(true);
-            await client
-              .getChatsPrivateStoreRequestStanza()
-              .then(
-                async (
-                  roomTimestampObject: [jid: string, timestamp: string]
-                ) => {
-                  updatedChatLastTimestamps(roomTimestampObject, dispatch);
-                  if (!hasSyncedHistoryRef.current) {
-                    await updateMessagesTillLast(rooms, client);
-                    hasSyncedHistoryRef.current = true;
-                  }
-                  setClient(client);
-                  setConnectionLost(false);
-                }
-              );
+            setClient(client);
+            setConnectionLost(false);
+            dispatch(setIsLoading({ loading: false }));
+            scheduleStartupSummary();
+
+            runBackgroundTasks(client);
             {
               config?.refreshTokens?.enabled && refresh();
             }
@@ -216,6 +288,10 @@ const useChatWrapperInit = ({
 
     return () => {
       clearTimeout(retryTimeout);
+      if (startupSummaryTimeoutRef.current) {
+        clearTimeout(startupSummaryTimeoutRef.current);
+        startupSummaryTimeoutRef.current = null;
+      }
     };
   }, [user.xmppPassword, user.xmppUsername]);
 

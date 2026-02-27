@@ -51,7 +51,14 @@ export interface XmppClientInterface {
   ): Promise<string | object>;
   inviteRoomRequestStanza(to: string, roomJid: string): Promise<void>;
   leaveTheRoomStanza(roomJID: string): void;
-  presenceInRoomStanza(roomJID: string): void;
+  presenceInRoomStanza(
+    roomJID: string,
+    settleDelay?: number,
+    timeoutMs?: number,
+    waitForJoin?: boolean
+  ): Promise<boolean>;
+  prioritizeRoomPresence(roomJID: string): Promise<boolean>;
+  recoverRoomPresenceOnly(roomJID: string): Promise<boolean>;
   getHistoryStanza(
     chatJID: string,
     max: number,

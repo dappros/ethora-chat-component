@@ -2,7 +2,28 @@ import { Middleware } from '@reduxjs/toolkit';
 import { updateRoom } from '../roomsSlice';
 import { IMessage } from '../../types/types';
 
-let previousMessagesCount: { [jid: string]: number } = {};
+const TRACKED_ACTION_PREFIXES = ['roomMessages/'];
+
+const shouldRecalculateUnread = (actionType: string): boolean =>
+  TRACKED_ACTION_PREFIXES.some((prefix) => actionType.startsWith(prefix));
+
+const getMessageTimestamp = (message: IMessage): number => {
+  const dateTs = new Date(message?.date as string).getTime();
+  if (Number.isFinite(dateTs) && dateTs > 0) return dateTs;
+
+  const numericId = Number(message?.id);
+  if (Number.isFinite(numericId) && numericId > 0) return numericId;
+
+  const inlineTimestamp = Number((message as any)?.timestamp);
+  if (Number.isFinite(inlineTimestamp) && inlineTimestamp > 0) {
+    return inlineTimestamp;
+  }
+
+  return 0;
+};
+
+const isCountableMessage = (msg: IMessage): boolean =>
+  !!msg && msg.id !== 'delimiter-new' && !msg.pending;
 
 export const unreadMiddleware: Middleware =
   (storeAPI) => (next) => (action: any) => {
@@ -10,7 +31,8 @@ export const unreadMiddleware: Middleware =
       console.error('Invalid action in unreadMiddleware:', action);
       return next(action);
     }
-    if (action?.type === 'roomMessages/deleteRoomMessage') {
+
+    if (!shouldRecalculateUnread(action.type)) {
       return next(action);
     }
 
@@ -20,33 +42,33 @@ export const unreadMiddleware: Middleware =
     const rooms = state.rooms.rooms;
     const activeChatJID = state.rooms.activeRoomJID;
 
-    if (rooms && Object.keys(rooms).length > 0) {
-      Object.keys(rooms).forEach((jid) => {
-        const room = rooms[jid];
-        if (room.lastViewedTimestamp !== 0 && jid !== activeChatJID) {
-          const currentMessagesLength = room.messages?.length || 0;
+    if (!rooms || Object.keys(rooms).length === 0) return result;
 
-          if (previousMessagesCount[jid] !== currentMessagesLength) {
-            previousMessagesCount[jid] = currentMessagesLength;
+    Object.keys(rooms).forEach((jid) => {
+      const room = rooms[jid];
+      if (!room) return;
 
-            const unreadMessagesCount = room.messages?.filter(
-              (msg: IMessage) =>
-                msg.id !== 'delimiter-new' &&
-                new Date(msg.date).getTime() > (room.lastViewedTimestamp || 0)
-            ).length;
+      const nextUnread =
+        jid === activeChatJID
+          ? 0
+          : (room.messages || []).filter((msg: IMessage) => {
+              if (!isCountableMessage(msg)) return false;
+              const ts = getMessageTimestamp(msg);
+              if (ts <= 0) return false;
+              const lastViewed = Number(room.lastViewedTimestamp || 0);
+              if (lastViewed <= 0) return true;
+              return ts > lastViewed;
+            }).length;
 
-            if (room.unreadMessages !== unreadMessagesCount) {
-              storeAPI.dispatch(
-                updateRoom({
-                  jid,
-                  updates: { unreadMessages: unreadMessagesCount },
-                })
-              );
-            }
-          }
-        }
-      });
-    }
+      if ((room.unreadMessages || 0) !== nextUnread) {
+        storeAPI.dispatch(
+          updateRoom({
+            jid,
+            updates: { unreadMessages: nextUnread },
+          })
+        );
+      }
+    });
 
     return result;
   };

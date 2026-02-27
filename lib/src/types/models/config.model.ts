@@ -15,6 +15,7 @@ export interface FBConfig {
 }
 
 export interface IConfig {
+  appId?: string;
   disableHeader?: boolean;
   disableMedia?: boolean;
   colors?: { primary: string; secondary: string };
@@ -153,7 +154,7 @@ export interface IConfig {
   useStoreConsoleEnabled?: boolean;
   messageNotifications?: {
     enabled?: boolean;
-    showInContext?: boolean; // If true, show notifications inside the chat component context
+    showInContext?: boolean;
     position?: {
       horizontal?: 'left' | 'right' | 'center';
       vertical?: 'top' | 'bottom';
@@ -165,13 +166,21 @@ export interface IConfig {
       };
     };
     maxNotifications?: number;
-    duration?: number; // Auto-hide duration in milliseconds
+    duration?: number;
     onClick?: (params: {
       roomJID: string;
       messageId: string;
       message: IMessage;
       roomName: string;
       senderName: string;
-    }) => void | Promise<void>; // Custom onClick handler for notifications
+    }) => void | Promise<void>;
+  };
+
+  webPush?: {
+    enabled?: boolean;
+    vapidPublicKey?: string;
+    serviceWorkerPath?: string;
+    serviceWorkerScope?: string;
+    softAsk?: boolean;
   };
 }

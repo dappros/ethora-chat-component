@@ -62,7 +62,7 @@ const slideOutMobile = keyframes`
   }
 `;
 
-const ToastContainer = styled.div<{ isClosing: boolean }>`
+const ToastContainer = styled.div<{ $isClosing: boolean }>`
   position: relative;
   background: white;
   border-radius: 12px;
@@ -71,7 +71,7 @@ const ToastContainer = styled.div<{ isClosing: boolean }>`
   margin-bottom: 8px;
   width: 320px;
   cursor: pointer;
-  animation: ${({ isClosing }) => (isClosing ? slideOut : slideIn)} 0.3s ease-out;
+  animation: ${({ $isClosing }) => ($isClosing ? slideOut : slideIn)} 0.3s ease-out;
   transition: transform 0.2s ease;
 
   &:hover {
@@ -83,7 +83,7 @@ const ToastContainer = styled.div<{ isClosing: boolean }>`
     max-width: 320px;
     padding: 10px;
     border-radius: 10px;
-    animation: ${({ isClosing }) => (isClosing ? slideOutMobile : slideInMobile)} 0.3s ease-out;
+    animation: ${({ $isClosing }) => ($isClosing ? slideOutMobile : slideInMobile)} 0.3s ease-out;
     
     &:hover {
       transform: translateY(-2px);
@@ -308,7 +308,7 @@ const MessageNotificationToast: React.FC<MessageNotificationToastProps> = ({
     (message.user as any)?.photoURL || (message.user as any)?.profileImage;
 
   return (
-    <ToastContainer isClosing={isClosing} onClick={handleClick}>
+    <ToastContainer $isClosing={isClosing} onClick={handleClick}>
       <CloseButton onClick={handleCloseClick} aria-label="Close notification">
         ×
       </CloseButton>

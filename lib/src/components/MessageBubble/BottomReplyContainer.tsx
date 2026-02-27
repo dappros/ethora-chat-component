@@ -3,7 +3,7 @@ import { IReply, IUser } from '../../types/types';
 import { Avatar } from './Avatar';
 import { styled } from 'styled-components';
 
-const ReplyContainer = styled.button<{ isUser: boolean; color: string }>`
+const ReplyContainer = styled.button<{ $isUser: boolean; $color: string }>`
   box-shadow: 0px 0px 8px 0px rgba(185, 198, 199, 1);
   background-color: #ffffff;
   font-size: 14px;
@@ -12,7 +12,7 @@ const ReplyContainer = styled.button<{ isUser: boolean; color: string }>`
   display: flex;
   align-items: center;
   gap: 6px;
-  color: ${({ color }) => color || '#0052cd'};
+  color: ${({ $color }) => $color || '#0052cd'};
   font-weight: 600;
   border: none;
   cursor: pointer;
@@ -71,7 +71,7 @@ export const BottomReplyContainer: FC<BottomReplyContainerProps> = ({
   //TODO Add user avatars
 
   return (
-    <ReplyContainer onClick={onClick} isUser={isUser} color={color}>
+    <ReplyContainer onClick={onClick} $isUser={isUser} $color={color}>
       <div style={{ display: 'flex' }}>
         {uniqueUsers.slice(0, 3).map((item) => (
           <AvatarCircle key={item.id}>

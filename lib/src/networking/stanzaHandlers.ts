@@ -15,9 +15,9 @@ import {
   deleteRoom,
   insertUsers,
 } from '../roomStore/roomsSlice';
-import { IMessage, IRoom } from '../types/types';
+import { IMessage, IRoom, RoomMember, User } from '../types/types';
 import { createMessageFromXml } from '../helpers/createMessageFromXml';
-import { setDeleteModal } from '../roomStore/chatSettingsSlice';
+import { setDeleteModal, updateUser } from '../roomStore/chatSettingsSlice';
 import { getDataFromXml } from '../helpers/getDataFromXml';
 import { getBooleanFromString } from '../helpers/getBooleanFromString';
 import { getNumberFromString } from '../helpers/getNumberFromString';
@@ -25,12 +25,15 @@ import { getRooms } from '../networking/api-requests/rooms.api';
 import { createRoomFromApi } from '../helpers/createRoomFromApi';
 import XmppClient from './xmppClient';
 import { checkSingleUser } from '../helpers/checkUniqueUsers';
-import { presenceInRoom } from './xmpp/presenceInRoom.xmpp';
 import { removeMessageFromHeapById } from '../roomStore/roomHeapSlice';
-import { xml } from '@xmpp/client';
 import { messageNotificationManager } from '../utils/messageNotificationManager';
 import { createUserNameFromSetUser } from '../helpers/createUserNameFromSetUser';
-import XmppClient from './xmppClient';
+import {
+  isActiveRoom,
+  isCurrentUserMessage,
+  shouldShowXmppToast,
+} from '../utils/notificationPolicy';
+import { formatError } from '../utils/formatError';
 // TO DO: we are thinking to refactor this code in the following way:
 // each stanza will be parsed for 'type'
 // then it will be handled based on the type
@@ -94,33 +97,47 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
       })
     );
     const removeId = message?.xmppId || message?.id;
+    const heapBeforeRemove = store.getState().roomHeapSlice.messageHeap as IMessage[];
+    const matchedPendingMessage = !!(
+      removeId &&
+      heapBeforeRemove?.some((m) => (m.xmppId || m.id) === removeId)
+    );
     if (removeId) {
       store.dispatch(removeMessageFromHeapById(removeId));
     }
 
-    // Show notification if user is online and message is not from current user
     const state = store.getState();
-    const currentUser = state.chatSettingStore.user;
     const roomJID = stanza.attrs.from.split('/')[0];
     const room = state.rooms.rooms[roomJID];
-    const isCurrentUserMessage = message.user.id === currentUser.xmppUsername;
-
-    // Only show notification if:
-    // 1. User is online
-    // 2. Message is not from current user
-    // 3. Message is not a system message (unless configured otherwise)
-    // 4. Message is not from the currently active chat room
-    // 5. Tab visibility check is handled in the context
     const activeRoomJID = state.rooms.activeRoomJID;
-    const isActiveChatMessage = roomJID === activeRoomJID;
+    const isActiveChatMessage = isActiveRoom(activeRoomJID, roomJID);
+    const currentXmppUsername = state.chatSettingStore.user?.xmppUsername;
+    const senderFromStanza = stanza.attrs.from?.split('/')[1] || '';
+    const senderIsExactCurrentUser =
+      !!currentXmppUsername && senderFromStanza === currentXmppUsername;
+    const senderLooksLikeCurrentUser = isCurrentUserMessage(
+      message.user?.id,
+      currentXmppUsername
+    );
+    // Suppress only exact sender match from stanza resource.
+    const currentUserMessage = senderIsExactCurrentUser;
+    const isSystemMessage = message.isSystemMessage === 'true';
 
-    if (
-      xmppClient &&
-      xmppClient.checkOnline() &&
-      !isCurrentUserMessage &&
-      message.isSystemMessage !== 'true' &&
-      !isActiveChatMessage
-    ) {
+    const isHistory = (message as any).isHistory;
+    // Suppress notifications for some time after app load to avoid login flood
+    const appLoadTime = (window as any)._ethoraAppLoadTime || Date.now();
+    const isWithinCatchupPeriod = Date.now() - appLoadTime < 10000;
+
+    const decision = shouldShowXmppToast({
+      config: state.chatSettingStore.config,
+      tabVisible: document.visibilityState === 'visible',
+      activeRoom: isActiveChatMessage,
+      currentUserMessage,
+      isSystem: isSystemMessage,
+      isHistory: isHistory || isWithinCatchupPeriod,
+    });
+
+    if (decision.show) {
       const roomName = room?.name || room?.title || roomJID.split('@')[0];
       
       // Get sender name from usersSet using createUserNameFromSetUser helper
@@ -135,6 +152,15 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
         roomName,
         senderName,
         roomJID
+      );
+      if (state.chatSettingStore.config?.useStoreConsoleEnabled) {
+        console.log(
+          `[NotifyPolicy] source=xmpp action=show reason=${decision.reason} msgId=${message.id} room=${roomJID} sender=${message.user?.id} activeRoom=${isActiveChatMessage}`
+        );
+      }
+    } else if (state.chatSettingStore.config?.useStoreConsoleEnabled) {
+      console.log(
+        `[NotifyPolicy] source=xmpp action=skip reason=${decision.reason} msgId=${message.id} room=${roomJID} sender=${message.user?.id} activeRoom=${isActiveChatMessage} currentUser=${currentUserMessage} system=${isSystemMessage} pendingEcho=${matchedPendingMessage} looksLikeCurrent=${senderLooksLikeCurrentUser}`
       );
     }
 
@@ -500,34 +526,43 @@ const onRoomKicked = async (stanza: Element) => {
 
 const onMessageError = async (stanza: Element, client: XmppClient) => {
   if (stanza.name === 'message' && stanza.attrs.type === 'error') {
-    const roomJID = stanza.attrs.from?.split('/')[0];
+    const errorInfo = handleErrorMessageStanza(stanza);
+    const from = stanza.attrs.from || '';
+    const roomJID = from.split('/')[0];
+    const isMucRoom = roomJID.includes('@conference.');
+    const condition = errorInfo?.condition?.toLowerCase() || '';
+    const messageText = errorInfo?.message?.toLowerCase() || '';
+    const shouldRecoverPresence =
+      isMucRoom &&
+      (condition === 'forbidden' ||
+        condition === 'not-authorized' ||
+        messageText.includes('only occupants are allowed'));
+
+    console.log(
+      `[XMPP] message_error condition=${errorInfo?.condition || 'unknown'} text="${errorInfo?.message || ''}" id=${stanza.attrs.id || ''} from=${from} to=${stanza.attrs.to || ''}`
+    );
+
+    if (!isMucRoom) {
+      console.log(
+        `[XMPP] message_error skip_presence reason=non_muc from=${from}`
+      );
+      return;
+    }
+
+    if (!shouldRecoverPresence) {
+      console.log(
+        `[XMPP] message_error skip_presence reason=unsupported_condition condition=${errorInfo?.condition || 'unknown'} from=${from}`
+      );
+      return;
+    }
+
     if (roomJID && client) {
       try {
-        client?.client?.send(xml('presence'));
-        await presenceInRoom(client.client, roomJID);
-        console.log(
-          `Sent presence to room ${roomJID} due to error: Only occupants are allowed to send messages to the conference.`
-        );
-        const queue = store.getState().roomHeapSlice.messageHeap as IMessage[];
-        await Promise.all(
-          queue.map((msg: IMessage) =>
-            client.sendMessage(
-              msg.roomJid,
-              msg.user.firstName,
-              msg.user.lastName,
-              '',
-              msg.user.walletAddress,
-              msg.body,
-              '',
-              !!msg.isReply,
-              !!msg.showInChannel,
-              msg.mainMessage,
-              msg.id
-            )
-          )
-        );
+        await client.recoverRoomPresenceOnly(roomJID);
       } catch (e) {
-        console.warn('Failed to send presence in response to error:', e);
+        console.warn(
+          `[XMPP] message_error presence_recovery_failed room=${roomJID || 'unknown'} error=${formatError(e)}`
+        );
       }
     }
   }
@@ -584,6 +619,144 @@ export const handleErrorMessageStanza = (
   return null;
 };
 
+const onUserUpdate = async (stanza: Element) => {
+  if (stanza.attrs?.type !== 'headline') {
+    return;
+  }
+
+  const userUpdateElement = stanza.getChild('user-update');
+  if (!userUpdateElement || userUpdateElement.attrs?.xmlns !== 'your:custom:ns') {
+    return;
+  }
+
+  try {
+    const attrs = userUpdateElement.attrs;
+    const state = store.getState();
+    
+    // Extract user identifier from multiple possible sources:
+    let xmppUsername = attrs.xmppUsername || attrs.userId || attrs._id || attrs.id;
+    
+    // Try to extract from stanza 'from' attribute if available
+    if (!xmppUsername && stanza.attrs?.from) {
+      const fromParts = stanza.attrs.from.split('/');
+      if (fromParts.length > 1) {
+        xmppUsername = fromParts[1]; // User identifier after the room JID
+      }
+    }
+    
+    if (!xmppUsername) {
+      console.warn('User update received but no user identifier found in attributes or from stanza');
+      return;
+    }
+
+    // Build user update object with available attributes
+    const userUpdates: Partial<RoomMember> = {};
+    if (attrs.firstName !== undefined) userUpdates.firstName = attrs.firstName;
+    if (attrs.lastName !== undefined) userUpdates.lastName = attrs.lastName;
+    if (attrs.email !== undefined) userUpdates.name = attrs.email; // Note: RoomMember doesn't have email, using name
+    if (attrs.profileImage !== undefined) {
+      // RoomMember doesn't have profileImage directly, but we can store it
+      // For now, we'll update what we can
+    }
+
+    // Update user in usersSet if they exist
+    const existingUser = state.rooms.usersSet[xmppUsername];
+    if (existingUser) {
+      const updatedUser: RoomMember = {
+        ...existingUser,
+        ...userUpdates,
+        xmppUsername, // Ensure xmppUsername is set
+      };
+      store.dispatch(insertUsers({ newUsers: [updatedUser] }));
+    } else {
+      // Create new user entry if it doesn't exist
+      const newUser: RoomMember = {
+        firstName: attrs.firstName || '',
+        lastName: attrs.lastName || '',
+        xmppUsername,
+        _id: attrs._id || xmppUsername,
+        ...userUpdates,
+      };
+      store.dispatch(insertUsers({ newUsers: [newUser] }));
+    }
+
+    // If this is the current logged-in user, also update the user state
+    const currentUser = state.chatSettingStore.user;
+    if (currentUser && currentUser.xmppUsername === xmppUsername) {
+      const userStateUpdates: Partial<User> = {};
+      if (attrs.firstName !== undefined) userStateUpdates.firstName = attrs.firstName;
+      if (attrs.lastName !== undefined) userStateUpdates.lastName = attrs.lastName;
+      if (attrs.email !== undefined) userStateUpdates.email = attrs.email;
+      if (attrs.profileImage !== undefined) userStateUpdates.profileImage = attrs.profileImage;
+      if (attrs.description !== undefined) userStateUpdates.description = attrs.description;
+
+      if (Object.keys(userStateUpdates).length > 0) {
+        store.dispatch(updateUser({ updates: userStateUpdates }));
+      }
+    }
+  } catch (error) {
+    console.error('Error processing user update:', error);
+  }
+};
+
+const onChatUpdate = async (stanza: Element) => {
+  if (stanza.attrs?.type !== 'headline') {
+    return;
+  }
+
+  const chatUpdateElement = stanza.getChild('chat-update');
+  if (!chatUpdateElement || chatUpdateElement.attrs?.xmlns !== 'your:custom:ns') {
+    return;
+  }
+
+  try {
+    const attrs = chatUpdateElement.attrs;
+    const state = store.getState();
+    
+    // Extract room JID from 'to' attribute
+    const roomJID = stanza.attrs.to;
+    
+    if (!roomJID) {
+      console.warn('Chat update received but no room JID found');
+      return;
+    }
+
+    // Check if room exists
+    const existingRoom = state.rooms.rooms[roomJID];
+    if (!existingRoom) {
+      console.warn(`Chat update received for non-existent room: ${roomJID}`);
+      return;
+    }
+
+    // Build room update object with available attributes
+    const roomUpdates: Partial<IRoom> = {};
+    
+    if (attrs.title !== undefined) {
+      roomUpdates.title = attrs.title;
+      roomUpdates.name = attrs.title; // Also update name field
+    }
+    if (attrs.description !== undefined) {
+      roomUpdates.description = attrs.description;
+    }
+    if (attrs.picture !== undefined) {
+      roomUpdates.icon = attrs.picture;
+      roomUpdates.picture = attrs.picture;
+    }
+    if (attrs.usersCnt !== undefined) {
+      roomUpdates.usersCnt = getNumberFromString(attrs.usersCnt);
+    }
+    if (attrs.chatName !== undefined) {
+    }
+
+    // Update room if we have any updates
+    if (Object.keys(roomUpdates).length > 0) {
+      store.dispatch(updateRoom({ jid: roomJID, updates: roomUpdates }));
+    }
+  } catch (error) {
+    console.error('Error processing chat update:', error);
+  }
+};
+
 export {
   onRealtimeMessage,
   onMessageHistory,
@@ -601,4 +774,6 @@ export {
   onChatInvite,
   onRoomKicked,
   onMessageError,
+  onUserUpdate,
+  onChatUpdate,
 };

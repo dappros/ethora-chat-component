@@ -11,7 +11,6 @@ import { setGlobalXmppClient } from '../utils/clientRegistry';
 import { IConfig, IRoom, xmppSettingsInterface } from '../types/types';
 import initXmppRooms from '../helpers/initXmppRooms';
 import { walletToUsername } from '../helpers/walletUsername';
-import { initRoomsPresence } from '../helpers/initRoomsPresence';
 // Declare XmppContext
 interface XmppContextType {
   client: XmppClient;
@@ -58,10 +57,15 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
 
     try {
       const initPromise = (async () => {
+        const createInstanceStart = Date.now();
         const newClient = new XmppClient(username, password, xmppSettings);
+        console.log(
+          `[InitTiming] initClient:create_instance ${Date.now() - createInstanceStart}ms`
+        );
         setClient(newClient);
         setGlobalXmppClient(newClient);
 
+        const waitOnlineStart = Date.now();
         await new Promise<void>((resolve, reject) => {
           const checkStatus = () => {
             if (newClient.status === 'online') {
@@ -74,14 +78,14 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
           };
           checkStatus();
         });
+        console.log(
+          `[InitTiming] initClient:wait_online ${Date.now() - waitOnlineStart}ms`
+        );
 
         setPassword(password);
         setEmail(username);
         setClient(newClient);
         setReconnectAttempts(0);
-        if (roomsList) {
-          await initRoomsPresence(newClient, roomsList);
-        }
         return newClient;
       })();
       initializingRef.current = initPromise;
