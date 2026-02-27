@@ -123,11 +123,18 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
     const currentUserMessage = senderIsExactCurrentUser;
     const isSystemMessage = message.isSystemMessage === 'true';
 
+    const isHistory = (message as any).isHistory;
+    // Suppress notifications for some time after app load to avoid login flood
+    const appLoadTime = (window as any)._ethoraAppLoadTime || Date.now();
+    const isWithinCatchupPeriod = Date.now() - appLoadTime < 10000;
+
     const decision = shouldShowXmppToast({
       config: state.chatSettingStore.config,
+      tabVisible: document.visibilityState === 'visible',
       activeRoom: isActiveChatMessage,
       currentUserMessage,
       isSystem: isSystemMessage,
+      isHistory: isHistory || isWithinCatchupPeriod,
     });
 
     if (decision.show) {

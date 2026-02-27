@@ -1,3 +1,12 @@
+import './index.css';
+
+if (typeof window !== 'undefined') {
+  (window as any)._ethoraAppLoadTime = Date.now();
+}
+
+/**
+ * Main entry point for the Ethora Chat Component.
+ */
 export { XmppProvider } from './context/xmppProvider';
 export { ReduxWrapper as Chat } from './components/MainComponents/ReduxWrapper';
 export { useUnread } from './hooks/useUnreadMessagesCounter';

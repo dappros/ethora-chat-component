@@ -189,12 +189,17 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
       const alreadyInStore = hasMessageInRooms(roomsMap, existingMessageId);
       const xmppOnline = !!getGlobalXmppClient()?.checkOnline?.();
       const deduped = !!(lastSeen && now - lastSeen < 30_000);
+      const appLoadTime = (window as any)._ethoraAppLoadTime || Date.now();
+      const isWithinCatchupPeriod = Date.now() - appLoadTime < 10000;
+      const isHistory = isWithinCatchupPeriod || (isSystemMessage ? false : !!(payload as any).isHistory);
+
       const fgToastDecision = shouldShowForegroundPushToast({
         config,
         tabVisible: isTabVisible,
         alreadyInStore,
         deduped,
         isSystem: isSystemMessage,
+        isHistory,
       });
       const shouldForceSystemToast =
         isSystemMessage &&
@@ -238,6 +243,7 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
         tabVisible: isTabVisible,
         xmppOnline,
       });
+
       if (osPushDecision.show) {
         const osTitle = isSystemMessage ? 'System' : title;
         void showOsNotification(osTitle, {

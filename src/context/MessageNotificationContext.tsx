@@ -134,11 +134,14 @@ export const MessageNotificationProvider: React.FC<{
   // Check for expired notifications periodically
   useEffect(() => {
     const interval = setInterval(() => {
-      removeExpiredNotifications();
+      // If tab is hidden, we might want to keep notifications longer so the user sees them when they return
+      if (isTabVisible) {
+        removeExpiredNotifications();
+      }
     }, 1000); // Check every second
 
     return () => clearInterval(interval);
-  }, [removeExpiredNotifications]);
+  }, [isTabVisible, removeExpiredNotifications]);
 
   // When tab becomes visible, remove expired notifications
   useEffect(() => {

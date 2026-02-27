@@ -42,9 +42,11 @@ export const buildNotificationUrl = (
 
 export interface XmppToastDecisionInput {
   config?: IConfig;
+  tabVisible: boolean;
   activeRoom: boolean;
   currentUserMessage: boolean;
   isSystem: boolean;
+  isHistory?: boolean;
   xmppOnline?: boolean;
 }
 
@@ -55,11 +57,14 @@ export interface DecisionResult {
 
 export const shouldShowXmppToast = ({
   config,
+  tabVisible,
   activeRoom,
   currentUserMessage,
   isSystem,
+  isHistory,
 }: XmppToastDecisionInput): DecisionResult => {
   const inAppEnabled = config?.messageNotifications?.enabled !== false;
+  if (isHistory) return { show: false, reason: 'historical_message' };
   if (!inAppEnabled) return { show: false, reason: 'in_app_disabled' };
   if (currentUserMessage && !isSystem) {
     return { show: false, reason: 'current_user_exact_match' };
@@ -74,6 +79,7 @@ export interface ForegroundPushToastInput {
   alreadyInStore: boolean;
   deduped: boolean;
   isSystem: boolean;
+  isHistory?: boolean;
 }
 
 export const shouldShowForegroundPushToast = ({
@@ -82,10 +88,11 @@ export const shouldShowForegroundPushToast = ({
   alreadyInStore,
   deduped,
   isSystem,
+  isHistory,
 }: ForegroundPushToastInput): DecisionResult => {
   const inAppEnabled = config?.messageNotifications?.enabled !== false;
+  if (isHistory) return { show: false, reason: 'historical_message' };
   if (!inAppEnabled) return { show: false, reason: 'in_app_disabled' };
-  if (!tabVisible) return { show: false, reason: 'tab_hidden' };
   if (isSystem && !deduped) return { show: true, reason: 'system_ok' };
   if (alreadyInStore) return { show: false, reason: 'already_in_store' };
   if (deduped) return { show: false, reason: 'deduped' };
