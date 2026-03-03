@@ -6,7 +6,7 @@ import {
 } from '@reduxjs/toolkit';
 import chatSettingsReducer from './chatSettingsSlice';
 import roomsSlice from './roomsSlice';
-import roomHeapSlice from './roomHeapSlice';
+import roomHeapSlice, { roomHeapSliceState } from './roomHeapSlice';
 import { IRoom } from '../types/types';
 import { unreadMiddleware } from './Middleware/unreadMidlleware';
 import { storage } from './storage';

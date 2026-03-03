@@ -40,6 +40,7 @@ const WebPushEnabler: React.FC<{ config?: IConfig }> = ({ config }) => {
   useWebPush({
     enabled: config?.webPush?.enabled,
     vapidPublicKey: config?.webPush?.vapidPublicKey,
+    firebaseConfig: config?.webPush?.firebaseConfig,
     serviceWorkerPath: config?.webPush?.serviceWorkerPath,
     serviceWorkerScope: config?.webPush?.serviceWorkerScope,
     softAsk: config?.webPush?.softAsk,

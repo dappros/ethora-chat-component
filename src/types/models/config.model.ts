@@ -179,6 +179,7 @@ export interface IConfig {
   webPush?: {
     enabled?: boolean;
     vapidPublicKey?: string;
+    firebaseConfig?: FBConfig;
     serviceWorkerPath?: string;
     serviceWorkerScope?: string;
     softAsk?: boolean;

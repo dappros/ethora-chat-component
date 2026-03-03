@@ -1,5 +1,5 @@
-import { messaging } from '../firebase-config';
-import { getToken, onMessage, MessagePayload } from 'firebase/messaging';
+import { getFirebaseMessaging } from '../firebase-config';
+import { getToken, onMessage, MessagePayload, Messaging } from 'firebase/messaging';
 
 /**
  * requestNotificationPermission()
@@ -7,6 +7,7 @@ import { getToken, onMessage, MessagePayload } from 'firebase/messaging';
  * @returns boolean indicating if permission was granted.
  */
 export async function requestNotificationPermission(): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
   if (!('Notification' in window)) {
     console.warn('This browser does not support notifications.');
     return false;
@@ -20,6 +21,7 @@ interface FcmRegistrationOptions {
   vapidPublicKey?: string;
   serviceWorkerPath?: string;
   serviceWorkerScope?: string;
+  firebaseConfig?: any;
 }
 
 /**
@@ -32,7 +34,7 @@ async function registerFirebaseServiceWorker(
   serviceWorkerPath = '/firebase-messaging-sw.js',
   serviceWorkerScope = '/'
 ): Promise<ServiceWorkerRegistration | null> {
-  if (!('serviceWorker' in navigator)) {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
     console.warn('[WebPush] Service workers not supported in this browser.');
     return null;
   }
@@ -65,6 +67,9 @@ async function registerFirebaseServiceWorker(
  */
 export async function getFCMToken(options: FcmRegistrationOptions = {}): Promise<string | null> {
   try {
+    const messaging = getFirebaseMessaging(options.firebaseConfig);
+    if (!messaging) return null;
+
     const swRegistration = await registerFirebaseServiceWorker(
       options.serviceWorkerPath,
       options.serviceWorkerScope
@@ -115,7 +120,10 @@ export async function initPushNotifications(
  * Returns an unsubscribe function.
  */
 export function listenForForegroundMessages(
-  handler: (payload: MessagePayload) => void
+  handler: (payload: MessagePayload) => void,
+  firebaseConfig?: any
 ): () => void {
+  const messaging = getFirebaseMessaging(firebaseConfig);
+  if (!messaging) return () => {};
   return onMessage(messaging, handler);
 }

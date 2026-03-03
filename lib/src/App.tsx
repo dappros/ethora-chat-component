@@ -7,7 +7,6 @@ import { XmppProvider } from './context/xmppProvider';
 import { useUnreadMessagesCounter } from './hooks/useUnreadMessagesCounter';
 import { IConfig } from './types/types';
 import { logoutService, handleQRChatId, useMessageNotifications } from './main';
-import { handleCopyClick } from './helpers/handleCopyClick';
 import CustomChatInput from './examples/customComponents/CustomChatInput';
 import CustomScrollableArea from './examples/customComponents/CustomScrollableArea';
 import CustomDaySeparator from './examples/customComponents/CustomDaySeparator';

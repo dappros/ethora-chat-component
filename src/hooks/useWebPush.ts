@@ -50,6 +50,12 @@ interface UseWebPushOptions {
   serviceWorkerScope?: string;
 
   /**
+   * Custom Firebase configuration object.
+   * If provided, it overrides the environment variables.
+   */
+  firebaseConfig?: any;
+
+  /**
    * Show a UI "soft ask" before triggering the browser permission dialog.
    * When true the hook will NOT immediately request permission;
    * instead the consumer should call `requestPermission()` manually.
@@ -103,6 +109,7 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
         vapidPublicKey,
         serviceWorkerPath: options.serviceWorkerPath,
         serviceWorkerScope: options.serviceWorkerScope,
+        firebaseConfig: options.firebaseConfig || config?.webPush?.firebaseConfig,
       });
 
       if (!fcmToken) {
@@ -269,7 +276,7 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
     if (!_foregroundUnsubscribe) {
       _foregroundUnsubscribe = listenForForegroundMessages((payload) => {
         _foregroundHandlers.forEach((cb) => cb(payload));
-      });
+      }, options.firebaseConfig || config?.webPush?.firebaseConfig);
     }
     _foregroundHandlers.add(handler);
 
