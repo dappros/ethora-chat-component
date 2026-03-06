@@ -82,18 +82,18 @@ const ChatComponent = React.memo(() => {
       chatRoomStyles: { borderRadius: '16px' },
       roomListStyles: { borderRadius: '16px' },
       setRoomJidInPath: true,
-      messageNotifications: {
-        enabled: true,
-        showInContext: true,
-        position: {
-          horizontal: 'left',
-          vertical: 'bottom',
-          offset: {
-            left: 20,
-            bottom: 20,
-          },
-        },
-      },
+      // messageNotifications: {
+      //   enabled: true,
+      //   showInContext: true,
+      //   position: {
+      //     horizontal: 'left',
+      //     vertical: 'bottom',
+      //     offset: {
+      //       left: 20,
+      //       bottom: 20,
+      //     },
+      //   },
+      // },
       webPush: {
         enabled: true,
         vapidPublicKey:
@@ -172,18 +172,24 @@ const ChatComponent = React.memo(() => {
             },
           },
           ...config,
-          messageNotifications: {
-            enabled: true,
-            showInContext: true, // Show notifications in chat component
-            position: {
-              horizontal: 'left',
-              vertical: 'bottom',
-              offset: {
-                left: 20,
-                bottom: 20,
-              },
-            },
-          },
+          // messageNotifications: {
+          //   enabled: true,
+          //   showInContext: true, // Show notifications in chat component
+          //   position: {
+          //     horizontal: 'left',
+          //     vertical: 'bottom',
+          //     offset: {
+          //       left: 20,
+          //       bottom: 20,
+          //     },
+          //   },
+          // },
+            webPush: {
+        enabled: true,
+        vapidPublicKey:
+          'BIZdmCnHiDRMrBBRzW79Dm1i7hMFRQM9CS1QfbalxjNwY-yvLtkj3IuZQaZ0ChZtjzlRSowkXUCmJC_jVgbFqew',
+        softAsk: false,
+      },
         }}
         MainComponentStyles={mainStyles}
       />

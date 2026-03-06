@@ -126,7 +126,7 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
     const isHistory = (message as any).isHistory;
     // Suppress notifications for some time after app load to avoid login flood
     const appLoadTime = (window as any)._ethoraAppLoadTime || Date.now();
-    const isWithinCatchupPeriod = Date.now() - appLoadTime < 10000;
+    const isWithinCatchupPeriod = Date.now() - appLoadTime < 2000;
 
     const decision = shouldShowXmppToast({
       config: state.chatSettingStore.config,
@@ -134,7 +134,8 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
       activeRoom: isActiveChatMessage,
       currentUserMessage,
       isSystem: isSystemMessage,
-      isHistory: isHistory || isWithinCatchupPeriod,
+      isHistory: isHistory,
+      isCatchup: isWithinCatchupPeriod,
     });
 
     if (decision.show) {
@@ -155,12 +156,12 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
       );
       if (state.chatSettingStore.config?.useStoreConsoleEnabled) {
         console.log(
-          `[NotifyPolicy] source=xmpp action=show reason=${decision.reason} msgId=${message.id} room=${roomJID} sender=${message.user?.id} activeRoom=${isActiveChatMessage}`
+          `[NotifyPolicy] source=xmpp action=show reason=${decision.reason} msgId=${message.id} room=${roomJID} sender=${message.user?.id} activeRoom=${isActiveChatMessage} history=${isHistory} catchup=${isWithinCatchupPeriod}`
         );
       }
     } else if (state.chatSettingStore.config?.useStoreConsoleEnabled) {
       console.log(
-        `[NotifyPolicy] source=xmpp action=skip reason=${decision.reason} msgId=${message.id} room=${roomJID} sender=${message.user?.id} activeRoom=${isActiveChatMessage} currentUser=${currentUserMessage} system=${isSystemMessage} pendingEcho=${matchedPendingMessage} looksLikeCurrent=${senderLooksLikeCurrentUser}`
+        `[NotifyPolicy] source=xmpp action=skip reason=${decision.reason} msgId=${message.id} room=${roomJID} sender=${message.user?.id} activeRoom=${isActiveChatMessage} currentUser=${currentUserMessage} system=${isSystemMessage} pendingEcho=${matchedPendingMessage} looksLikeCurrent=${senderLooksLikeCurrentUser} history=${isHistory} catchup=${isWithinCatchupPeriod}`
       );
     }
 
@@ -620,84 +621,74 @@ export const handleErrorMessageStanza = (
 };
 
 const onUserUpdate = async (stanza: Element) => {
-  if (stanza.attrs?.type !== 'headline') {
-    return;
-  }
+  if (stanza.attrs?.type !== 'headline') return;
 
   const userUpdateElement = stanza.getChild('user-update');
-  if (!userUpdateElement || userUpdateElement.attrs?.xmlns !== 'your:custom:ns') {
-    return;
-  }
+  if (!userUpdateElement || userUpdateElement.attrs?.xmlns !== 'your:custom:ns') return;
 
   try {
     const attrs = userUpdateElement.attrs;
-    const state = store.getState();
-    
-    // Extract user identifier from multiple possible sources:
-    let xmppUsername = attrs.xmppUsername || attrs.userId || attrs._id || attrs.id;
-    
-    // Try to extract from stanza 'from' attribute if available
-    if (!xmppUsername && stanza.attrs?.from) {
-      const fromParts = stanza.attrs.from.split('/');
-      if (fromParts.length > 1) {
-        xmppUsername = fromParts[1]; // User identifier after the room JID
-      }
-    }
-    
+
+    const fromRaw = stanza.attrs?.from || '';
+    const xmppUsername = fromRaw.split('@')[0];
+
     if (!xmppUsername) {
-      console.warn('User update received but no user identifier found in attributes or from stanza');
+      console.warn('[UserUpdate] No xmppUsername found in stanza from attribute');
       return;
     }
 
-    // Build user update object with available attributes
+    // Build the partial update from all fields present in the stanza.
     const userUpdates: Partial<RoomMember> = {};
     if (attrs.firstName !== undefined) userUpdates.firstName = attrs.firstName;
     if (attrs.lastName !== undefined) userUpdates.lastName = attrs.lastName;
-    if (attrs.email !== undefined) userUpdates.name = attrs.email; // Note: RoomMember doesn't have email, using name
-    if (attrs.profileImage !== undefined) {
-      // RoomMember doesn't have profileImage directly, but we can store it
-      // For now, we'll update what we can
-    }
+    if (attrs.photoURL !== undefined) userUpdates.profileImage = attrs.photoURL;
+    if (attrs.description !== undefined) userUpdates.description = attrs.description;
 
-    // Update user in usersSet if they exist
-    const existingUser = state.rooms.usersSet[xmppUsername];
-    if (existingUser) {
-      const updatedUser: RoomMember = {
-        ...existingUser,
-        ...userUpdates,
-        xmppUsername, // Ensure xmppUsername is set
-      };
-      store.dispatch(insertUsers({ newUsers: [updatedUser] }));
+    const state = store.getState();
+    const usersSet = state.rooms.usersSet;
+
+    // Patch every entry in usersSet whose key matches this xmppUsername.
+    // Keys may be stored as a full bare JID or just the local part.
+    const matchedUsers: RoomMember[] = Object.entries(usersSet)
+      .filter(([key]) => key === xmppUsername || key.split('@')[0] === xmppUsername)
+      .map(([, user]) => ({ ...(user as RoomMember), ...userUpdates }));
+
+    if (matchedUsers.length > 0) {
+      store.dispatch(insertUsers({ newUsers: matchedUsers }));
     } else {
-      // Create new user entry if it doesn't exist
+      // User not yet in the set — create a minimal entry so future renders pick up the name.
       const newUser: RoomMember = {
         firstName: attrs.firstName || '',
         lastName: attrs.lastName || '',
         xmppUsername,
-        _id: attrs._id || xmppUsername,
+        _id: xmppUsername,
         ...userUpdates,
       };
       store.dispatch(insertUsers({ newUsers: [newUser] }));
     }
 
-    // If this is the current logged-in user, also update the user state
+    console.log(
+      `[UserUpdate] xmppUsername=${xmppUsername} firstName=${attrs.firstName ?? '-'} lastName=${attrs.lastName ?? '-'} matched=${matchedUsers.length}`
+    );
+
+    // Also update the current logged-in user's own state if it's them.
     const currentUser = state.chatSettingStore.user;
-    if (currentUser && currentUser.xmppUsername === xmppUsername) {
+    const currentLocal = currentUser?.xmppUsername?.split('@')[0] ?? '';
+    if (currentLocal && currentLocal === xmppUsername) {
       const userStateUpdates: Partial<User> = {};
       if (attrs.firstName !== undefined) userStateUpdates.firstName = attrs.firstName;
       if (attrs.lastName !== undefined) userStateUpdates.lastName = attrs.lastName;
-      if (attrs.email !== undefined) userStateUpdates.email = attrs.email;
-      if (attrs.profileImage !== undefined) userStateUpdates.profileImage = attrs.profileImage;
+      if (attrs.photoURL !== undefined) userStateUpdates.profileImage = attrs.photoURL;
       if (attrs.description !== undefined) userStateUpdates.description = attrs.description;
-
       if (Object.keys(userStateUpdates).length > 0) {
         store.dispatch(updateUser({ updates: userStateUpdates }));
       }
     }
   } catch (error) {
-    console.error('Error processing user update:', error);
+    console.error('[UserUpdate] Error processing stanza:', error);
   }
 };
+
 
 const onChatUpdate = async (stanza: Element) => {
   if (stanza.attrs?.type !== 'headline') {

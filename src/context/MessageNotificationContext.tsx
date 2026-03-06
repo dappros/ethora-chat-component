@@ -322,7 +322,7 @@ export const MessageNotificationProvider: React.FC<{
                   color: '#2f2f2f',
                 }}
               >
-                Remove all
+                Clear all
               </button>
             </div>
           )}

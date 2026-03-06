@@ -69,12 +69,13 @@ class PushSubscriptionService {
 
   async subscribeToRoom(
     roomJID: string,
-    client?: XmppClient | null
+    client?: XmppClient | null,
+    force: boolean = false
   ): Promise<boolean> {
     await this.loadSubscribedRooms();
 
     if (!roomJID) return false;
-    if (this.subscribedRooms.has(roomJID)) return true;
+    if (!force && this.subscribedRooms.has(roomJID)) return true;
     if (this.blockedRooms.has(roomJID)) return false;
     const lastFailedAt = this.failedRooms.get(roomJID);
     if (lastFailedAt && Date.now() - lastFailedAt < this.retryCooldownMs) {
@@ -133,7 +134,8 @@ class PushSubscriptionService {
 
   async subscribeToRooms(
     roomJIDs: string[],
-    client?: XmppClient | null
+    client?: XmppClient | null,
+    force: boolean = false
   ): Promise<void> {
     await this.loadSubscribedRooms();
     if (!roomJIDs?.length) return;
@@ -145,14 +147,12 @@ class PushSubscriptionService {
       let failed = 0;
 
       for (const roomJID of roomJIDs) {
-        if (this.subscribedRooms.has(roomJID)) {
-          continue;
-        }
+        if (!force && this.subscribedRooms.has(roomJID)) continue;
         if (this.blockedRooms.has(roomJID)) {
           continue;
         }
         try {
-          const result = await this.subscribeToRoom(roomJID, client);
+          const result = await this.subscribeToRoom(roomJID, client, force);
           if (result) {
             successful++;
           } else {

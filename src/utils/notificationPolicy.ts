@@ -47,6 +47,7 @@ export interface XmppToastDecisionInput {
   currentUserMessage: boolean;
   isSystem: boolean;
   isHistory?: boolean;
+  isCatchup?: boolean;
   xmppOnline?: boolean;
 }
 
@@ -62,9 +63,11 @@ export const shouldShowXmppToast = ({
   currentUserMessage,
   isSystem,
   isHistory,
+  isCatchup,
 }: XmppToastDecisionInput): DecisionResult => {
   const inAppEnabled = config?.messageNotifications?.enabled !== false;
   if (isHistory) return { show: false, reason: 'historical_message' };
+  if (isCatchup) return { show: false, reason: 'catchup_period' };
   if (!inAppEnabled) return { show: false, reason: 'in_app_disabled' };
   if (currentUserMessage && !isSystem) {
     return { show: false, reason: 'current_user_exact_match' };
@@ -80,6 +83,7 @@ export interface ForegroundPushToastInput {
   deduped: boolean;
   isSystem: boolean;
   isHistory?: boolean;
+  isCatchup?: boolean;
 }
 
 export const shouldShowForegroundPushToast = ({
@@ -89,12 +93,13 @@ export const shouldShowForegroundPushToast = ({
   deduped,
   isSystem,
   isHistory,
+  isCatchup,
 }: ForegroundPushToastInput): DecisionResult => {
   const inAppEnabled = config?.messageNotifications?.enabled !== false;
   if (isHistory) return { show: false, reason: 'historical_message' };
+  if (isCatchup) return { show: false, reason: 'catchup_period' };
   if (!inAppEnabled) return { show: false, reason: 'in_app_disabled' };
   if (isSystem && !deduped) return { show: true, reason: 'system_ok' };
-  if (alreadyInStore) return { show: false, reason: 'already_in_store' };
   if (deduped) return { show: false, reason: 'deduped' };
   return { show: true, reason: 'ok' };
 };

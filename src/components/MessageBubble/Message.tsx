@@ -11,7 +11,8 @@ import {
   MessageFooter,
 } from '../styled/StyledComponents';
 import MediaMessage from '../MainComponents/MediaMessage';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '../../roomStore';
 
 import { Avatar } from './Avatar';
 import MessageInteractions from './MessageInteractions';
@@ -45,6 +46,16 @@ const Message: React.FC<MessageProps> = forwardRef<
   const { client } = useXmppClient();
   const { user, config, langSource } = useChatSettingState();
   const { idSet } = useMessageHeapState();
+
+  // Read sender name live from usersSet so user-update stanzas trigger immediate re-render.
+  const usersSet = useSelector((state: RootState) => state.rooms.usersSet);
+  const senderUserId = message.user?.id ?? '';
+  const senderLocal = senderUserId.split('@')[0];
+  const senderEntry = usersSet[senderLocal] ?? usersSet[senderUserId];
+  const senderDisplayName = senderEntry
+    ? `${senderEntry.firstName ?? ''} ${senderEntry.lastName ?? ''}`.trim() || senderLocal
+    : message.user?.name || senderLocal || 'Unknown';
+
 
   const dispatch = useDispatch();
 
@@ -212,7 +223,7 @@ const Message: React.FC<MessageProps> = forwardRef<
         {!isUser && (
           <CustomMessagePhotoContainer
             onClick={() =>
-              message.user.name !== 'Deleted User'
+              senderDisplayName !== 'Deleted User'
                 ? handleUserAvatarClick(message.user)
                 : null
             }
@@ -226,10 +237,10 @@ const Message: React.FC<MessageProps> = forwardRef<
               />
             ) : (
               <Avatar
-                username={message.user.name}
+                username={senderDisplayName}
                 style={{
                   cursor:
-                    message.user.name !== 'Deleted User'
+                    senderDisplayName !== 'Deleted User'
                       ? 'pointer'
                       : 'default',
                 }}
@@ -246,7 +257,7 @@ const Message: React.FC<MessageProps> = forwardRef<
         >
           {!isUser && (
             <CustomUserName $isUser={isUser} $color={config?.colors?.primary}>
-              {message.user.name}
+              {senderDisplayName}
             </CustomUserName>
           )}
           {!isReply && message.mainMessage && (

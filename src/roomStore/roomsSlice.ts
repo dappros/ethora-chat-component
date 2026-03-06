@@ -245,6 +245,25 @@ export const roomsStore = createSlice({
       newUsers.forEach((user) => {
         state.usersSet[user.xmppUsername] = user;
       });
+
+      const updatedUsernames = new Set(newUsers.map((u) => u.xmppUsername));
+      Object.values(state.rooms).forEach((room) => {
+        room.messages.forEach((message) => {
+          const msgUserLocal = message.user?.id?.split('@')[0] ?? '';
+          if (updatedUsernames.has(msgUserLocal) || updatedUsernames.has(message.user?.id)) {
+            const matched =
+              state.usersSet[msgUserLocal] ||
+              state.usersSet[message.user?.id];
+            if (matched) {
+              message.user = {
+                ...message.user,
+                name: createUserNameFromSetUser(state.usersSet, msgUserLocal) ||
+                      createUserNameFromSetUser(state.usersSet, message.user?.id),
+              };
+            }
+          }
+        });
+      });
     },
     setComposing(
       state,

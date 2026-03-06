@@ -146,7 +146,7 @@ const ChatComponent = React.memo(() => {
             devServer: 'wss://xmpp.ethoradev.com:5443/ws',
             host: 'xmpp.ethoradev.com',
             conference: 'conference.xmpp.ethoradev.com',
-            xmppPingOnSendEnabled: true,
+            // xmppPingOnSendEnabled: true,
           },
           baseUrl: 'https://api.ethoradev.com/v1',
           newArch: true,

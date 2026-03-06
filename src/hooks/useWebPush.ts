@@ -11,7 +11,7 @@
  * Logs every major step to the console so developers can trace the flow.
  */
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../roomStore';
 import {
@@ -92,6 +92,8 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
 
   const hasRanRef = useRef(false);
   const fcmTokenRef = useRef<string | null>(null);
+  // State-based mirror of fcmTokenRef so effects can react to token readiness.
+  const [fcmTokenReady, setFcmTokenReady] = useState<string | null>(null);
   const recentPushToastsRef = useRef<Map<string, number>>(new Map());
   const lastRoomsHashRef = useRef<string>('');
 
@@ -123,6 +125,7 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
 
       _subscriptionRegistered = true;
       fcmTokenRef.current = fcmToken;
+      setFcmTokenReady(fcmToken); // signal room-subscription effect
 
       // Log: subscribed via API
       console.log(
@@ -197,8 +200,8 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
       const xmppOnline = !!getGlobalXmppClient()?.checkOnline?.();
       const deduped = !!(lastSeen && now - lastSeen < 30_000);
       const appLoadTime = (window as any)._ethoraAppLoadTime || Date.now();
-      const isWithinCatchupPeriod = Date.now() - appLoadTime < 10000;
-      const isHistory = isWithinCatchupPeriod || (isSystemMessage ? false : !!(payload as any).isHistory);
+      const isWithinCatchupPeriod = Date.now() - appLoadTime < 2000;
+      const isHistory = (isSystemMessage ? false : !!(payload as any).isHistory);
 
       const fgToastDecision = shouldShowForegroundPushToast({
         config,
@@ -207,6 +210,7 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
         deduped,
         isSystem: isSystemMessage,
         isHistory,
+        isCatchup: isWithinCatchupPeriod,
       });
       const shouldForceSystemToast =
         isSystemMessage &&
@@ -237,10 +241,10 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
         );
         if (config?.useStoreConsoleEnabled) {
           const reason = shouldForceSystemToast ? 'system_forced' : fgToastDecision.reason;
-          console.log(`[NotifyPolicy] source=push_fg action=show reason=${reason} msgId=${messageId}`);
+          console.log(`[NotifyPolicy] source=push action=show reason=${reason} msgId=${messageId} history=${isHistory} catchup=${isWithinCatchupPeriod}`);
         }
       } else if (config?.useStoreConsoleEnabled) {
-        console.log(`[NotifyPolicy] source=push_fg action=skip reason=${fgToastDecision.reason} msgId=${messageId}`);
+        console.log(`[NotifyPolicy] source=push action=skip reason=${fgToastDecision.reason} msgId=${messageId} history=${isHistory} catchup=${isWithinCatchupPeriod}`);
       }
 
       recentPushToastsRef.current.set(dedupeKey, now);
@@ -266,10 +270,10 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
           },
         });
         if (config?.useStoreConsoleEnabled) {
-          console.log(`[NotifyPolicy] source=push_fg action=show_os reason=${osPushDecision.reason} msgId=${messageId}`);
+          console.log(`[NotifyPolicy] source=push action=show_os reason=${osPushDecision.reason} msgId=${messageId}`);
         }
       } else if (config?.useStoreConsoleEnabled) {
-        console.log(`[NotifyPolicy] source=push_fg action=skip_os reason=${osPushDecision.reason} msgId=${messageId}`);
+        console.log(`[NotifyPolicy] source=push action=skip_os reason=${osPushDecision.reason} msgId=${messageId}`);
       }
     };
 
@@ -325,7 +329,7 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
   // Subscribe to all known rooms for push delivery
   useEffect(() => {
     if (!enabled) return;
-    if (!fcmTokenRef.current) return;
+    if (!fcmTokenReady) return;
 
     const roomJIDs = Object.keys(roomsMap || {}).filter(Boolean);
     if (!roomJIDs.length) return;
@@ -338,7 +342,7 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
     pushSubscriptionService.subscribeToRooms(roomJIDs, client).catch((error) => {
       console.warn('[WebPush] Failed to subscribe to rooms:', error);
     });
-  }, [enabled, roomsMap]);
+  }, [enabled, roomsMap, fcmTokenReady]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Expose a manual trigger for soft-ask patterns
