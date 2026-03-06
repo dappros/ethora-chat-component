@@ -1,4 +1,4 @@
-// Context for managing message notifications (Telegram-style)
+// Context for managing in-app notifications (Telegram-style)
 import React, {
   createContext,
   useContext,
@@ -55,16 +55,14 @@ export const MessageNotificationProvider: React.FC<{
   
   // Use config from props, context, or defaults
   const config = propConfig || contextConfig;
-  const notificationConfig = config?.messageNotifications;
-  const isEnabled = notificationConfig?.enabled !== false; // Default to true
+  const notificationConfig = config?.inAppNotifications;
+  const isEnabled = notificationConfig?.enabled === true;
   const showInContext = notificationConfig?.showInContext ?? true; // Default to true - show in chat context
   
   const MAX_NOTIFICATIONS = notificationConfig?.maxNotifications ?? DEFAULT_MAX_NOTIFICATIONS;
   const NOTIFICATION_DURATION = notificationConfig?.duration ?? DEFAULT_NOTIFICATION_DURATION;
   
-  // Determine if we should render notifications
-  // If showInContext is false, we might want to skip rendering here (for global-only mode)
-  // But for now, we'll always render if enabled - the showInContext can be used for other logic
+  // Determine if we should render in-app notifications.
   const shouldRender = isEnabled;
   
   // Get position from config
@@ -267,6 +265,7 @@ export const MessageNotificationProvider: React.FC<{
 
   // Register the callback with the global manager
   useEffect(() => {
+    if (!isEnabled) return;
     const unsubscribe = messageNotificationManager.addCallback(
       showMessageNotification
     );

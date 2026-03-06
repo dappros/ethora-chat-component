@@ -152,7 +152,7 @@ export interface IConfig {
     hideSearch?: boolean;
   };
   useStoreConsoleEnabled?: boolean;
-  messageNotifications?: {
+  inAppNotifications?: {
     enabled?: boolean;
     showInContext?: boolean;
     position?: {
@@ -176,7 +176,7 @@ export interface IConfig {
     }) => void | Promise<void>;
   };
 
-  webPush?: {
+  pushNotifications?: {
     enabled?: boolean;
     vapidPublicKey?: string;
     firebaseConfig?: FBConfig;

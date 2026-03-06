@@ -1,5 +1,5 @@
-import { messaging } from '../firebase-config';
-import { getToken, onMessage, MessagePayload } from 'firebase/messaging';
+import { getFirebaseMessaging } from '../firebase-config';
+import { getToken, onMessage, MessagePayload, Messaging } from 'firebase/messaging';
 
 /**
  * requestNotificationPermission()
@@ -7,6 +7,7 @@ import { getToken, onMessage, MessagePayload } from 'firebase/messaging';
  * @returns boolean indicating if permission was granted.
  */
 export async function requestNotificationPermission(): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
   if (!('Notification' in window)) {
     console.warn('This browser does not support notifications.');
     return false;
@@ -20,6 +21,7 @@ interface FcmRegistrationOptions {
   vapidPublicKey?: string;
   serviceWorkerPath?: string;
   serviceWorkerScope?: string;
+  firebaseConfig?: any;
 }
 
 /**
@@ -32,8 +34,8 @@ async function registerFirebaseServiceWorker(
   serviceWorkerPath = '/firebase-messaging-sw.js',
   serviceWorkerScope = '/'
 ): Promise<ServiceWorkerRegistration | null> {
-  if (!('serviceWorker' in navigator)) {
-    console.warn('[WebPush] Service workers not supported in this browser.');
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
+    console.warn('[PushNotifications] Service workers not supported in this browser.');
     return null;
   }
   try {
@@ -49,10 +51,10 @@ async function registerFirebaseServiceWorker(
       serviceWorkerPath,
       { scope: serviceWorkerScope }
     );
-    console.log('[WebPush] Firebase service worker registered:', registration.scope);
+    console.log('[PushNotifications] Firebase service worker registered:', registration.scope);
     return registration;
   } catch (err) {
-    console.warn('[WebPush] Failed to register Firebase service worker:', err);
+    console.warn('[PushNotifications] Failed to register Firebase service worker:', err);
     return null;
   }
 }
@@ -65,6 +67,9 @@ async function registerFirebaseServiceWorker(
  */
 export async function getFCMToken(options: FcmRegistrationOptions = {}): Promise<string | null> {
   try {
+    const messaging = getFirebaseMessaging(options.firebaseConfig);
+    if (!messaging) return null;
+
     const swRegistration = await registerFirebaseServiceWorker(
       options.serviceWorkerPath,
       options.serviceWorkerScope
@@ -77,16 +82,16 @@ export async function getFCMToken(options: FcmRegistrationOptions = {}): Promise
     });
 
     if (token) {
-      console.log('[WebPush] FCM Token obtained:', token.substring(0, 15) + '...');
+      console.log('[PushNotifications] FCM Token obtained:', token.substring(0, 15) + '...');
       return token;
     } else {
       console.warn(
-        '[WebPush] No registration token available. Request permission to generate one.'
+        '[PushNotifications] No registration token available. Request permission to generate one.'
       );
       return null;
     }
   } catch (error) {
-    console.warn('[WebPush] An error occurred while retrieving FCM token:', error);
+    console.warn('[PushNotifications] An error occurred while retrieving FCM token:', error);
     return null;
   }
 }
@@ -102,7 +107,7 @@ export async function initPushNotifications(
   const hasPermission = await requestNotificationPermission();
 
   if (!hasPermission) {
-    console.warn('[WebPush] Push notification permission denied');
+    console.warn('[PushNotifications] Push notification permission denied');
     return null;
   }
 
@@ -115,7 +120,10 @@ export async function initPushNotifications(
  * Returns an unsubscribe function.
  */
 export function listenForForegroundMessages(
-  handler: (payload: MessagePayload) => void
+  handler: (payload: MessagePayload) => void,
+  firebaseConfig?: any
 ): () => void {
+  const messaging = getFirebaseMessaging(firebaseConfig);
+  if (!messaging) return () => {};
   return onMessage(messaging, handler);
 }

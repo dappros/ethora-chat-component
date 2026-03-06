@@ -63,7 +63,7 @@ export const shouldShowXmppToast = ({
   isSystem,
   isHistory,
 }: XmppToastDecisionInput): DecisionResult => {
-  const inAppEnabled = config?.messageNotifications?.enabled !== false;
+  const inAppEnabled = config?.inAppNotifications?.enabled === true;
   if (isHistory) return { show: false, reason: 'historical_message' };
   if (!inAppEnabled) return { show: false, reason: 'in_app_disabled' };
   if (currentUserMessage && !isSystem) {
@@ -90,7 +90,7 @@ export const shouldShowForegroundPushToast = ({
   isSystem,
   isHistory,
 }: ForegroundPushToastInput): DecisionResult => {
-  const inAppEnabled = config?.messageNotifications?.enabled !== false;
+  const inAppEnabled = config?.inAppNotifications?.enabled === true;
   if (isHistory) return { show: false, reason: 'historical_message' };
   if (!inAppEnabled) return { show: false, reason: 'in_app_disabled' };
   if (isSystem && !deduped) return { show: true, reason: 'system_ok' };
@@ -110,11 +110,14 @@ export const shouldShowForegroundOsPush = ({
   tabVisible,
   xmppOnline,
 }: ForegroundOsPushInput): DecisionResult => {
-  const pushEnabled = config?.webPush?.enabled === true;
+  const pushEnabled = config?.pushNotifications?.enabled === true;
+  const inAppEnabled = config?.inAppNotifications?.enabled === true;
   if (!pushEnabled) return { show: false, reason: 'push_disabled' };
-  if (!tabVisible) return { show: true, reason: 'tab_hidden' };
-  if (!xmppOnline) return { show: true, reason: 'xmpp_offline' };
-  return { show: false, reason: 'visible_and_xmpp_online' };
+  if (inAppEnabled && tabVisible) {
+    return { show: false, reason: 'tab_active_in_app_only' };
+  }
+  if (inAppEnabled) return { show: true, reason: 'combined_other_situations' };
+  return { show: true, reason: 'push_only_always' };
 };
 
 export const hasMessageInRooms = (

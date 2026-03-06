@@ -1,6 +1,6 @@
 /**
  * push.api.ts
- * API methods for registering / unregistering a Web Push (VAPID) subscription
+ * API methods for registering / unregistering a push notification subscription
  * with the Ethora backend so the server can target this browser for push events.
  */
 
@@ -8,7 +8,7 @@ import http from '../apiClient';
 import { store } from '../../roomStore';
 
 /**
- * Register a Web Push/FCM registration token with the backend.
+ * Register a push notification/FCM registration token with the backend.
  * Sends a POST to /push/subscription/{userId} with the registration token.
  *
  * @param registrationToken – The FCM token obtained via Firebase Messaging.
@@ -19,7 +19,7 @@ export async function registerPushToken(registrationToken: string): Promise<any>
   const appId = state.chatSettingStore.appId;
 
   if (!appId) {
-    throw new Error('[WebPush] Cannot register push token: No app ID found in store.');
+    throw new Error('[PushNotifications] Cannot register push token: No app ID found in store.');
   }
 
   const payload = {
@@ -27,7 +27,7 @@ export async function registerPushToken(registrationToken: string): Promise<any>
     deviceType: 'web',
   };
 
-  console.log('[WebPush] Registering FCM token with backend:', {
+  console.log('[PushNotifications] Registering FCM token with backend:', {
     appId,
     token: registrationToken.substring(0, 10) + '...',
   });
@@ -42,7 +42,7 @@ export async function registerPushToken(registrationToken: string): Promise<any>
   } catch (err: any) {
     const status = err?.response?.status;
     console.warn(
-      `[WebPush] Backend push registration failed (HTTP ${status ?? 'unknown'}). Push notifications may not work.`,
+      `[PushNotifications] Backend push registration failed (HTTP ${status ?? 'unknown'}). Push notifications may not work.`,
       err?.response?.data ?? err?.message
     );
     return null;
@@ -57,7 +57,7 @@ export async function registerPushToken(registrationToken: string): Promise<any>
 export async function unregisterPushToken(registrationToken: string): Promise<any> {
   const token = store.getState().chatSettingStore.user.token || '';
 
-  console.log('[WebPush] Unregistering FCM token from backend:', registrationToken.substring(0, 10) + '...');
+  console.log('[PushNotifications] Unregistering FCM token from backend:', registrationToken.substring(0, 10) + '...');
 
   try {
     const response = await http.delete('/users/endpoints', {
@@ -68,7 +68,7 @@ export async function unregisterPushToken(registrationToken: string): Promise<an
     });
     return response?.data ?? null;
   } catch (err: any) {
-    console.warn('[WebPush] Failed to unregister push token:', err?.message);
+    console.warn('[PushNotifications] Failed to unregister push token:', err?.message);
     return null;
   }
 }

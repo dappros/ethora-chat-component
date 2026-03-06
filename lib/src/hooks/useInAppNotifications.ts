@@ -1,25 +1,25 @@
-// Hook to enable message notifications - can be imported and used anywhere
+// Hook to enable in-app notifications - can be imported and used anywhere
 // Similar to logout service pattern
 import { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { setCurrentRoom } from '../roomStore/roomsSlice';
 
 /**
- * Hook to enable message notifications globally
+ * Hook to enable in-app notifications globally
  * Call this hook in your app root or XMPP provider to enable notifications
  * even when the chat component isn't mounted
  * 
  * @example
  * ```tsx
- * import { useMessageNotifications } from '@ethora/chat-component';
+ * import { useInAppNotifications } from '@ethora/chat-component';
  * 
  * function App() {
- *   useMessageNotifications();
+ *   useInAppNotifications();
  *   return <YourApp />;
  * }
  * ```
  */
-export const useMessageNotifications = () => {
+export const useInAppNotifications = () => {
   const dispatch = useDispatch();
 
   // This hook enables the notification system

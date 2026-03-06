@@ -1,3 +1,6 @@
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { getMessaging, Messaging } from 'firebase/messaging';
+
 export const config = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -7,23 +10,32 @@ export const config = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Import the functions you need from the SDKs you need
-import { initializeApp } from 'firebase/app';
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+let firebaseApp: FirebaseApp | undefined;
+let messagingInstance: Messaging | undefined;
 
-// Your web app's Firebase configuration
-// export const firebaseConfig = {
-//   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-//   authDomain: "deepx-7e231.firebaseapp.com",
-//   projectId: "deepx-7e231",
-//   storageBucket: "deepx-7e231.appspot.com",
-//   messagingSenderId: "587754003300",
-//   appId: "1:587754003300:web:3d872072f88cbe41253871",
-// };
+export const getFirebaseMessaging = (customConfig?: any): Messaging | null => {
+  if (typeof window === 'undefined') return null;
 
-// Initialize Firebase
-export const app = initializeApp(config);
+  try {
+    if (!firebaseApp) {
+      const activeApps = getApps();
+      if (activeApps.length > 0 && !customConfig) {
+        firebaseApp = activeApps[0];
+      } else {
+        firebaseApp = initializeApp(customConfig || config);
+      }
+    }
 
-import { getMessaging } from 'firebase/messaging';
+    if (!messagingInstance && firebaseApp) {
+      messagingInstance = getMessaging(firebaseApp);
+    }
+
+    return messagingInstance || null;
+  } catch (error) {
+    console.error('[FirebaseConfig] Failed to initialize messaging:', error);
+    return null;
+  }
+};
+
+export const app = getApps().length > 0 ? getApp() : initializeApp(config);
 export const messaging = getMessaging(app);

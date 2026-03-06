@@ -10,7 +10,7 @@ import roomHeapSlice from './roomHeapSlice';
 import { IRoom } from '../types/types';
 import { unreadMiddleware } from './Middleware/unreadMidlleware';
 import { storage } from './storage';
-import { persistReducer, persistStore } from 'redux-persist';
+import { persistReducer, persistStore, Persistor } from 'redux-persist';
 import { createTransform } from 'redux-persist';
 import { newMessageMidlleware } from './Middleware/newMessageMidlleware';
 import { logoutMiddleware } from './Middleware/logoutMiddleware';
@@ -171,7 +171,7 @@ export const store = configureStore({
 
 export type AppDispatch = typeof store.dispatch;
 
-export const persistor = persistStore(store);
+export const persistor: Persistor = persistStore(store);
 
 try {
   console.log('[EthoraChatComponent] version:', ETHORA_CHAT_COMPONENT_VERSION);

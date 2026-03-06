@@ -1,6 +1,6 @@
 /**
- * useWebPush.ts
- * React hook that orchestrates the full Web Push subscription lifecycle:
+ * usePushNotifications.ts
+ * React hook that orchestrates the full push notification subscription lifecycle:
  *  1. Check browser support
  *  2. Register the service worker
  *  3. Request notification permission
@@ -17,7 +17,7 @@ import { RootState } from '../roomStore';
 import {
   initPushNotifications,
   listenForForegroundMessages,
-} from '../utils/firebasePushManager';
+} from '../utils/firebasePushNotifications';
 import { registerPushToken } from '../networking/api-requests/push.api';
 import { messageNotificationManager } from '../utils/messageNotificationManager';
 import { IMessage } from '../types/models/message.model';
@@ -32,8 +32,8 @@ import {
   shouldShowForegroundPushToast,
 } from '../utils/notificationPolicy';
 
-interface UseWebPushOptions {
-  /** Enable or disable the web push flow. Default: true */
+interface UsePushNotificationsOptions {
+  /** Enable or disable the push notification flow. Default: true */
   enabled?: boolean;
 
   /**
@@ -48,6 +48,7 @@ interface UseWebPushOptions {
    */
   serviceWorkerPath?: string;
   serviceWorkerScope?: string;
+  firebaseConfig?: any;
 
   /**
    * Show a UI "soft ask" before triggering the browser permission dialog.
@@ -58,7 +59,7 @@ interface UseWebPushOptions {
   softAsk?: boolean;
 }
 
-interface UseWebPushResult {
+interface UsePushNotificationsResult {
   /** Manually trigger the permission + subscription flow (for soft-ask UIs). */
   requestPermission: () => Promise<void>;
 }
@@ -67,7 +68,9 @@ let _subscriptionRegistered = false; // module-level guard to prevent duplicate 
 let _foregroundHandlers = new Set<(payload: any) => void>();
 let _foregroundUnsubscribe: (() => void) | null = null;
 
-const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
+const usePushNotifications = (
+  options: UsePushNotificationsOptions = {}
+): UsePushNotificationsResult => {
   const { softAsk = false, enabled = false } = options;
 
   // Resolve VAPID key: hook option > env variable > empty string
@@ -94,24 +97,25 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
     try {
       if (!enabled) return;
       if (_subscriptionRegistered) {
-        console.log('[WebPush] Already subscribed this session, skipping.');
+        console.log('[PushNotifications] Already subscribed this session, skipping.');
         return;
       }
 
-      console.log('[WebPush] Initializing FCM push notifications…');
+      console.log('[PushNotifications] Initializing FCM push notifications…');
       const fcmToken = await initPushNotifications({
         vapidPublicKey,
         serviceWorkerPath: options.serviceWorkerPath,
         serviceWorkerScope: options.serviceWorkerScope,
+        firebaseConfig: options.firebaseConfig || config?.pushNotifications?.firebaseConfig,
       });
 
       if (!fcmToken) {
-        console.warn('[WebPush] Failed to obtain FCM token.');
+        console.warn('[PushNotifications] Failed to obtain FCM token.');
         return;
       }
 
       // Step 4 – Backend registration
-      console.log('[WebPush] Registering FCM token with Ethora backend (API)…');
+      console.log('[PushNotifications] Registering FCM token with Ethora backend (API)…');
       await registerPushToken(fcmToken);
 
       _subscriptionRegistered = true;
@@ -119,19 +123,19 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
 
       // Log: subscribed via API
       console.log(
-        `%c[WebPush] ✅ User subscribed via API – Token: ${fcmToken.substring(0, 15)}...`,
+        `%c[PushNotifications] ✅ User subscribed via API – Token: ${fcmToken.substring(0, 15)}...`,
         'color: #22c55e; font-weight: bold'
       );
 
       // Log: XMPP session linked (informational)
       if (userXmppUsername) {
         console.log(
-          `%c[WebPush] ✅ Device linked to XMPP – JID: ${userXmppUsername}`,
+          `%c[PushNotifications] ✅ Device linked to XMPP – JID: ${userXmppUsername}`,
           'color: #3b82f6; font-weight: bold'
         );
       }
     } catch (error) {
-      console.error('[WebPush] Registration error:', error);
+      console.error('[PushNotifications] Registration error:', error);
     }
   }, [
     enabled,
@@ -203,7 +207,7 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
       });
       const shouldForceSystemToast =
         isSystemMessage &&
-        config?.messageNotifications?.enabled !== false &&
+        config?.inAppNotifications?.enabled === true &&
         isTabVisible;
 
       const message: IMessage = {
@@ -269,7 +273,7 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
     if (!_foregroundUnsubscribe) {
       _foregroundUnsubscribe = listenForForegroundMessages((payload) => {
         _foregroundHandlers.forEach((cb) => cb(payload));
-      });
+      }, options.firebaseConfig || config?.pushNotifications?.firebaseConfig);
     }
     _foregroundHandlers.add(handler);
 
@@ -329,7 +333,7 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
     const client = getGlobalXmppClient();
     if (!client?.checkOnline?.()) return;
     pushSubscriptionService.subscribeToRooms(roomJIDs, client).catch((error) => {
-      console.warn('[WebPush] Failed to subscribe to rooms:', error);
+      console.warn('[PushNotifications] Failed to subscribe to rooms:', error);
     });
   }, [enabled, roomsMap]);
 
@@ -344,4 +348,4 @@ const useWebPush = (options: UseWebPushOptions = {}): UseWebPushResult => {
   return { requestPermission };
 };
 
-export default useWebPush;
+export default usePushNotifications;

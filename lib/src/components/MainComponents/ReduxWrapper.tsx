@@ -11,8 +11,8 @@ import { ToastProvider } from '../../context/ToastContext.tsx';
 import { CustomComponentsProvider } from '../../context/CustomComponentsContext';
 import { CustomComponentsContextValue } from '../../types/models/customComponents.model';
 import { MessageNotificationProvider } from '../../context/MessageNotificationContext';
-import { useMessageNotifications } from '../../hooks/useMessageNotifications';
-import useWebPush from '../../hooks/useWebPush';
+import { useInAppNotifications } from '../../hooks/useInAppNotifications';
+import usePushNotifications from '../../hooks/usePushNotifications';
 
 interface ChatWrapperProps
   extends Pick<
@@ -32,17 +32,18 @@ interface ChatWrapperProps
 }
 
 const NotificationEnabler: React.FC = () => {
-  useMessageNotifications();
+  useInAppNotifications();
   return null;
 };
 
-const WebPushEnabler: React.FC<{ config?: IConfig }> = ({ config }) => {
-  useWebPush({
-    enabled: config?.webPush?.enabled,
-    vapidPublicKey: config?.webPush?.vapidPublicKey,
-    serviceWorkerPath: config?.webPush?.serviceWorkerPath,
-    serviceWorkerScope: config?.webPush?.serviceWorkerScope,
-    softAsk: config?.webPush?.softAsk,
+const PushNotificationsEnabler: React.FC<{ config?: IConfig }> = ({ config }) => {
+  usePushNotifications({
+    enabled: config?.pushNotifications?.enabled,
+    vapidPublicKey: config?.pushNotifications?.vapidPublicKey,
+    firebaseConfig: config?.pushNotifications?.firebaseConfig,
+    serviceWorkerPath: config?.pushNotifications?.serviceWorkerPath,
+    serviceWorkerScope: config?.pushNotifications?.serviceWorkerScope,
+    softAsk: config?.pushNotifications?.softAsk,
   });
   return null;
 };
@@ -62,11 +63,11 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
 
     return (
       <Provider store={store}>
-        <PersistGate loading={<Loader />} persistor={persistor}>
+        <PersistGate loading={<Loader />} persistor={persistor as any}>
           <ToastProvider>
             <MessageNotificationProvider config={memoizedConfig}>
               <NotificationEnabler />
-              <WebPushEnabler config={memoizedConfig} />
+              <PushNotificationsEnabler config={memoizedConfig} />
               <CustomComponentsProvider
                 CustomMessageComponent={CustomMessageComponent}
                 CustomInputComponent={CustomInputComponent}

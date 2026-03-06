@@ -6,7 +6,7 @@ import { ReduxWrapper } from './components/MainComponents/ReduxWrapper';
 import { XmppProvider } from './context/xmppProvider';
 import { useUnreadMessagesCounter } from './hooks/useUnreadMessagesCounter';
 import { IConfig } from './types/types';
-import { logoutService, handleQRChatId, useMessageNotifications } from './main';
+import { logoutService, handleQRChatId, useInAppNotifications } from './main';
 import CustomChatInput from './examples/customComponents/CustomChatInput';
 import CustomScrollableArea from './examples/customComponents/CustomScrollableArea';
 import CustomDaySeparator from './examples/customComponents/CustomDaySeparator';
@@ -18,7 +18,7 @@ const Apps = () => {
 
   const appsNotificationConfig: IConfig = useMemo(
     () => ({
-      messageNotifications: {
+      inAppNotifications: {
         enabled: true,
         showInContext: true,
         position: {
@@ -50,7 +50,7 @@ const Apps = () => {
               CustomDaySeparator={CustomDaySeparator}
               config={{
                 baseUrl: 'https://api.ethoradev.com/v1',
-                messageNotifications: {
+                inAppNotifications: {
                   enabled: true,
                   showInContext: true, // Show in chat component context as well
                 },
@@ -65,7 +65,7 @@ const Apps = () => {
 
 // Component to enable notifications (needs Redux)
 const NotificationEnabler: React.FC = () => {
-  useMessageNotifications();
+  useInAppNotifications();
   return null;
 };
 
@@ -81,7 +81,7 @@ const ChatComponent = React.memo(() => {
       chatRoomStyles: { borderRadius: '16px' },
       roomListStyles: { borderRadius: '16px' },
       setRoomJidInPath: true,
-      messageNotifications: {
+      inAppNotifications: {
         enabled: true,
         showInContext: true,
         position: {
@@ -93,7 +93,7 @@ const ChatComponent = React.memo(() => {
           },
         },
       },
-      webPush: {
+      pushNotifications: {
         enabled: true,
         vapidPublicKey:
           'BIZdmCnHiDRMrBBRzW79Dm1i7hMFRQM9CS1QfbalxjNwY-yvLtkj3IuZQaZ0ChZtjzlRSowkXUCmJC_jVgbFqew',
@@ -171,7 +171,7 @@ const ChatComponent = React.memo(() => {
             },
           },
           ...config,
-          messageNotifications: {
+          inAppNotifications: {
             enabled: true,
             showInContext: true, // Show notifications in chat component
             position: {
