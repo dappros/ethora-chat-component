@@ -628,12 +628,16 @@ const onUserUpdate = async (stanza: Element) => {
 
   try {
     const attrs = userUpdateElement.attrs;
-
-    const fromRaw = stanza.attrs?.from || '';
-    const xmppUsername = fromRaw.split('@')[0];
+    const toLocalPart = (value?: string) => (value ? value.split('@')[0] : '');
+    const xmppUsername =
+      attrs.xmppUsername ||
+      attrs.userId ||
+      attrs._id ||
+      attrs.id ||
+      toLocalPart(stanza.attrs?.from);
 
     if (!xmppUsername) {
-      console.warn('[UserUpdate] No xmppUsername found in stanza from attribute');
+      console.warn('[UserUpdate] No xmppUsername found in stanza attributes');
       return;
     }
 
@@ -666,6 +670,29 @@ const onUserUpdate = async (stanza: Element) => {
       };
       store.dispatch(insertUsers({ newUsers: [newUser] }));
     }
+
+    (Object.values(state.rooms.rooms) as IRoom[]).forEach((room) => {
+      if (!room.members?.length) return;
+
+      const updatedMembers = room.members.map((member) => {
+        const memberLocal = member?.xmppUsername?.split('@')[0] ?? '';
+        if (memberLocal !== xmppUsername) return member;
+
+        return {
+          ...member,
+          ...userUpdates,
+          xmppUsername: member.xmppUsername || xmppUsername,
+        };
+      });
+
+      const hasChanges = updatedMembers.some(
+        (member, index) => member !== room.members?.[index]
+      );
+
+      if (hasChanges) {
+        store.dispatch(updateRoom({ jid: room.jid, updates: { members: updatedMembers } }));
+      }
+    });
 
     console.log(
       `[UserUpdate] xmppUsername=${xmppUsername} firstName=${attrs.firstName ?? '-'} lastName=${attrs.lastName ?? '-'} matched=${matchedUsers.length}`
@@ -703,19 +730,24 @@ const onChatUpdate = async (stanza: Element) => {
   try {
     const attrs = chatUpdateElement.attrs;
     const state = store.getState();
-    
-    // Extract room JID from 'to' attribute
-    const roomJID = stanza.attrs.to;
-    
-    if (!roomJID) {
-      console.warn('Chat update received but no room JID found');
-      return;
-    }
 
-    // Check if room exists
-    const existingRoom = state.rooms.rooms[roomJID];
-    if (!existingRoom) {
-      console.warn(`Chat update received for non-existent room: ${roomJID}`);
+    const roomCandidates = [
+      attrs.chatName,
+      stanza.attrs?.to,
+      stanza.attrs?.from,
+    ].filter(Boolean) as string[];
+
+    const existingRoom = (Object.values(state.rooms.rooms) as IRoom[]).find((room) => {
+      const roomLocal = room.jid?.split('@')[0];
+      return roomCandidates.some(
+        (candidate) => candidate === room.jid || candidate.split('@')[0] === roomLocal
+      );
+    });
+
+    if (!existingRoom?.jid) {
+      console.warn('[ChatUpdate] Chat update received but no matching room was found', {
+        roomCandidates,
+      });
       return;
     }
 
@@ -736,15 +768,16 @@ const onChatUpdate = async (stanza: Element) => {
     if (attrs.usersCnt !== undefined) {
       roomUpdates.usersCnt = getNumberFromString(attrs.usersCnt);
     }
-    if (attrs.chatName !== undefined) {
-    }
 
     // Update room if we have any updates
     if (Object.keys(roomUpdates).length > 0) {
-      store.dispatch(updateRoom({ jid: roomJID, updates: roomUpdates }));
+      store.dispatch(updateRoom({ jid: existingRoom.jid, updates: roomUpdates }));
+      console.log(
+        `[ChatUpdate] room=${existingRoom.jid} title=${attrs.title ?? '-'} description=${attrs.description ?? '-'}`
+      );
     }
   } catch (error) {
-    console.error('Error processing chat update:', error);
+    console.error('[ChatUpdate] Error processing stanza:', error);
   }
 };
 
