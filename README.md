@@ -1,4 +1,4 @@
-# Ethora Chat Component: a single npm for your React chat
+# Ethora Chat Component (`@ethora/chat-component`)
 
 ![GitHub watchers](https://img.shields.io/github/watchers/dappros/ethora-chat-component) ![GitHub forks](https://img.shields.io/github/forks/dappros/ethora-chat-component) ![GitHub Repo stars](https://img.shields.io/github/stars/dappros/ethora-chat-component) ![GitHub repo size](https://img.shields.io/github/repo-size/dappros/ethora-chat-component) ![GitHub language count](https://img.shields.io/github/languages/count/dappros/ethora-chat-component) ![GitHub top language](https://img.shields.io/github/languages/top/dappros/ethora-chat-component) <a href="https://codeclimate.com/github/dappros/ethora-chat-component/maintainability"><img src="https://api.codeclimate.com/v1/badges/715c6f3ffb08de5ca621/maintainability" /></a> ![GitHub commit activity (branch)](https://img.shields.io/github/commit-activity/m/dappros/ethora-chat-component/main) ![GitHub issues](https://img.shields.io/github/issues/dappros/ethora-chat-component) ![GitHub closed issues](https://img.shields.io/github/issues-closed-raw/dappros/ethora-chat-component) ![GitHub](https://img.shields.io/github/license/dappros/ethora-chat-component) ![GitHub contributors](https://img.shields.io/github/contributors/dappros/ethora-chat-component)
 
@@ -7,253 +7,663 @@
 
 [![Discord](https://img.shields.io/badge/%3Cethora%3E-%237289DA.svg?style=flat&logo=discord&logoColor=white)](https://discord.gg/Sm6bAHA3ZC) [![Twitter URL](https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2Fdappros%2Fethora)](https://twitter.com/intent/tweet?url=https%3A%2F%2Fgithub.com%2Fdappros%2Fethora%2F&via=tarasfilatov&text=check%20out%20Ethora%20%23web3%20%23social%20app%20engine&hashtags=lowcode%2Creactnative%2Copensource%2Cnocode) [![Website](https://img.shields.io/website?url=https%3A%2F%2Fethora.com%2F)](https://ethora.com/) [![YouTube Channel Subscribers](https://img.shields.io/youtube/channel/subscribers/UCRvrXwMOU0WBkRZyFlU7V_g)](https://www.youtube.com/channel/UCRvrXwMOU0WBkRZyFlU7V_g)
 
-## About Chat Component
+React + TypeScript chat UI component powered by Ethora backend APIs and XMPP.  
+Use it as a standalone chat page, as an embedded widget in your existing app, or as a customizable chat foundation with your own auth and UI.
 
-Ethora Chat Component allows you to build a functioning chat room super quickly.
-Sounds simple and is easy to build your app with.
-Uses XMPP chat protocol and ejabberd chat server to provide your users with a seamless instant messaging experience.
+## Table of Contents
 
-Once you need more functionality however you will be pleasantly surprised. Our Ethora platform behind the chat component offers a plethora of functionalities around chat/social, user profiles, digital wallets, business documents exchange, digital collectables, web3 and AI bots. The history behind Chat Component is following. First, we have built a low-code “super app” engine called Ethora: https://github.com/dappros/ethora/ which we used to drastically speed up app development for our clients. Afterwards, we have open-sourced it for the benefit of other developers. Later on, we realized that whilst developers love what Ethora can do, many of them don’t need such a complex engine with all bells and whistles but a steep learning curver. In most cases you’re after a certain functionality (like a simple chat room) and you need it quick.
+- [Overview](#overview)
+- [Why Ethora](#why-ethora)
+- [Quick Start](#quick-start)
+- [Integration Modes](#integration-modes)
+- [Behavior Notes and Legacy Quirks](#behavior-notes-and-legacy-quirks)
+- [Chat Props Reference](#chat-props-reference)
+- [Full Config Reference (`IConfig`)](#full-config-reference-iconfig)
+- [Custom Widgets and Overrides](#custom-widgets-and-overrides)
+- [Push Notifications](#push-notifications)
+- [Auth Strategies](#auth-strategies)
+- [Hooks and API Exports](#hooks-and-api-exports)
+- [Use Cases and Feature Coverage](#use-cases-and-feature-coverage)
+- [Hosted vs Self-Host Guidance](#hosted-vs-self-host-guidance)
+- [Security Notes](#security-notes)
+- [Reference Architectures](#reference-architectures)
+- [Use-Case Templates](#use-case-templates)
+- [Feature Roadmap Snapshot](#feature-roadmap-snapshot)
+- [Troubleshooting](#troubleshooting)
+- [Ethora Links and Support](#ethora-links-and-support)
 
-Enter Ethora Chat Component which allows you to quickly implement your chat room experience!
+## Overview
 
-If / once you need additional functionalities you will have options like: (a) build them yourself on top of chat component; (b) peek into or use code from Ethora open-source monorepo https://github.com/dappros/ethora/ or (c) seek help from Ethora team or other developers at our forum: https://forum.ethora.com/ or Discord server: https://discord.gg/Sm6bAHA3ZC
+`@ethora/chat-component` gives you a production-oriented chat interface with:
 
-Note: scroll below for use cases and functionality break down of this Chat Component.
+- Room list and room chat UI
+- Message history, replies, reactions, edits, deletes
+- Typing indicators
+- In-app notifications + Web Push integration
+- Configurable auth modes (default/login form/google/jwt/custom user)
+- Custom render components for message/input/scroll/day separator/new-message label
 
-## How to build your chat room in 5 minutes
+The package exports:
 
-1. npm create vite@latest
-2. specify a name for your project (e.g. "vite-project")
-3. select framework and variant (for example, React -> Typescript but may be different depending on your project requirements, it will work with plain Javascript too)
+- `Chat` (main component)
+- `XmppProvider`
+- `useUnread`
+- `logoutService`
+- `useQRCodeChat`, `handleQRChatId`
+- `useInAppNotifications`
+- `usePushNotifications`
+- `resendMessage`
 
-<img src="https://github.com/dappros/ethora-chat-component/blob/main/img/readme01.png" width="500" />
+## Why Ethora
 
-<img src="https://github.com/dappros/ethora-chat-component/blob/main/img/readme02.png" width="500" />
+Ethora provides hosted and customizable messaging infrastructure plus a wider product ecosystem.
 
-4. cd vite-project _(use your name instead of "vite-project")_
-5. npm i
-6. npm i @ethora/chat-component
-7. go to file src/App.tsx and replace it with the below code
+| Dimension | Ethora Chat Component | Full Ethora Platform |
+| --- | --- | --- |
+| Primary goal | Embed chat quickly in a React app | End-to-end product stack (chat, profiles, wallets, AI, admin) |
+| Time to first chat | Minutes | Higher initial setup, broader capabilities |
+| Frontend scope | Focused web chat UI package | Multi-product ecosystem and broader SDK/tooling |
+| Custom UI control | High via props + custom components | High, with additional platform-specific tooling |
+| Best fit | Support chat, portal messaging, embedded chat widget | Full social/messaging app platforms with extended modules |
 
-```
-import { Chat } from "@ethora/chat-component";
-import "./App.css";
+## Quick Start
 
-function App() {
- return (
-   <Chat />
- );
+### 1. Install
+
+| Tool | Command |
+| --- | --- |
+| npm | `npm i @ethora/chat-component` |
+| yarn | `yarn add @ethora/chat-component` |
+| pnpm | `pnpm add @ethora/chat-component` |
+| bun | `bun add @ethora/chat-component` |
+
+### 2. Render the chat
+
+```tsx
+import { Chat, XmppProvider } from '@ethora/chat-component';
+import './App.css';
+
+export default function App() {
+  return (
+    <XmppProvider>
+      <Chat />
+    </XmppProvider>
+  );
 }
-
-export default App;
 ```
 
-7. run like this
+### Required wrapper (`XmppProvider`)
 
+`Chat` relies on internals that use `useXmppClient()`. In real integrations, wrap `Chat` (or your entire app shell) with `XmppProvider`:
+
+```tsx
+import { Chat, XmppProvider } from '@ethora/chat-component';
+
+export default function App() {
+  return (
+    <XmppProvider>
+      <Chat config={{ baseUrl: 'https://api.ethoradev.com/v1' }} />
+    </XmppProvider>
+  );
+}
 ```
+
+### 3. Run
+
+```bash
 npm run dev
 ```
 
-you should see something like this:
-<br /><img src="https://github.com/dappros/ethora-chat-component/blob/main/img/readme03.png" width="350" />
+Open `http://localhost:5173`.
 
-8. Open http://localhost:5173/ in your browser
+Static reference screenshots:
 
-Voilà - your chat app should work like so:
+![Quick setup step 1](./img/readme01.png)
+![Quick setup step 2](./img/readme02.png)
+![Chat initial view](./img/readme03.png)
 
-<img src="https://github.com/dappros/ethora-chat-component/blob/main/img/readme_animation.gif" width="860" />
+### GIF placeholders (manual replacement)
 
-ℹ️ Note: your Ethora App, User and Chat credentials are hard-coded and login screen is bypassed. This is done so that you can scaffold and test the functionality quickly.
-Leave this as is if you only need to demo or validate the chat functionality as part of your project.
-If you need to have your own private chats, be able to login multiple users etc then go to https://www.ethora.com/, sign up in the top right which gives you a free account with Ethora backend where you can create your own App, manage your Users and Chats, view stats etc. Copy App ID & App Secret to your chat component code which will then switch to your own App context on the server side. The free tier is generous but should you need extra you can later build your own backend, upgrade to a paid tier from Ethora or use a self-hosted AWS marketplace image from Ethora.
+Replace each path with your recorded GIF file.
 
-## Extra options (styling etc)
+1. Install + first render  
+   Target file: `img/placeholder-01-install-first-render.gif`
+   ![GIF Placeholder: Install + first render](./img/placeholder-01-install-first-render.gif)
 
-To create custom chat room styles in **App.tsx**:
+2. Login/auth flow  
+   Target file: `img/placeholder-02-login-auth-flow.gif`
+   ![GIF Placeholder: Login/auth flow](./img/placeholder-02-login-auth-flow.gif)
 
-replace
+3. Room switching + messaging  
+   Target file: `img/placeholder-03-room-switching-messaging.gif`
+   ![GIF Placeholder: Room switching + messaging](./img/placeholder-03-room-switching-messaging.gif)
 
+4. Push prompt + receive flow  
+   Target file: `img/placeholder-04-push-flow.gif`
+   ![GIF Placeholder: Push notification flow](./img/placeholder-04-push-flow.gif)
+
+5. Widget customization before/after  
+   Target file: `img/placeholder-05-widget-customization.gif`
+   ![GIF Placeholder: Widget customization](./img/placeholder-05-widget-customization.gif)
+
+6. Mobile responsive behavior  
+   Target file: `img/placeholder-06-mobile-responsive.gif`
+   ![GIF Placeholder: Mobile responsive behavior](./img/placeholder-06-mobile-responsive.gif)
+
+## Integration Modes
+
+All modes below assume `XmppProvider` wraps `Chat`.
+
+### A) Minimal demo mode (provider + chat)
+
+```tsx
+<XmppProvider>
+  <Chat />
+</XmppProvider>
 ```
-<Chat />
+
+Useful for local proof-of-concept and quick UI validation.
+
+### B) Auto default credential fallback (legacy behavior)
+
+If no `googleLogin`, no `jwtLogin`, no `userLogin`, and no `defaultLogin`, `LoginWrapper` currently triggers internal email/password fallback logic.
+
+```tsx
+<XmppProvider>
+  <Chat config={{ colors: { primary: '#2563eb', secondary: '#dbeafe' } }} />
+</XmppProvider>
 ```
 
-with:
+### C) Explicit email/password via `user` prop
 
-```
-<Chat
-    config={{
-    disableHeader: true,
-    disableMedia: true,
-    colors: { primary: "#4287f5", secondary: "#42f5e9" },
-    defaultLogin=true
-    googleLogin: {
-      firebaseConfig: config, //Ethora app config
-      enabled: true,
-    },
+```tsx
+<XmppProvider>
+  <Chat
+    user={{
+      email: 'user@example.com',
+      password: 'PLACEHOLDER_PASSWORD',
     }}
-    MainComponentStyles={{
-      width: "100%",
-      height: "500px",
-      borderRadius: "16px",
-      border: "1px solid #42f5e9",
-    }}
-    roomJID=""
-    user={{ email: "", password: "" }}
-      disableHeader?: boolean;
-
-    disableRooms: boolean;
-    defaultLogin: boolean;
-    disableInteractions: boolean; //disable interactions
-    chatHeaderBurgerMenu: boolean; // disable burger menu in room header
-    roomListStyles: React.CSSProperties; // used to change room List styles (left)
-    chatRoomStyles: React.CSSProperties; // used to change room styles (right)
-    setRoomJidInPath: boolean; // used to set RoomId to url
   />
+</XmppProvider>
 ```
 
-### Push Notifications Setup
+### D) Injected logged-in user (`userLogin`)
 
-To enable push notifications in your project:
+```tsx
+<XmppProvider>
+  <Chat
+    config={{
+      userLogin: {
+        enabled: true,
+        user: {
+          _id: 'PLACEHOLDER_USER_ID',
+          appId: 'PLACEHOLDER_APP_ID',
+          walletAddress: 'PLACEHOLDER_WALLET_ADDRESS',
+          defaultWallet: { walletAddress: 'PLACEHOLDER_WALLET_ADDRESS' },
+          firstName: 'Jane',
+          lastName: 'Doe',
+          xmppPassword: 'PLACEHOLDER_XMPP_PASSWORD',
+          token: 'PLACEHOLDER_ACCESS_TOKEN',
+          refreshToken: 'PLACEHOLDER_REFRESH_TOKEN',
+          username: 'PLACEHOLDER_USERNAME',
+        },
+      },
+    }}
+  />
+</XmppProvider>
+```
 
-1. **Automatic Setup**: Run the following command in your project root to automatically copy the required service worker to your `public` folder:
+### E) JWT login
+
+```tsx
+<XmppProvider>
+  <Chat
+    config={{
+      jwtLogin: {
+        enabled: true,
+        token: 'PLACEHOLDER_JWT_TOKEN',
+      },
+    }}
+  />
+</XmppProvider>
+```
+
+### F) Google login
+
+```tsx
+<XmppProvider>
+  <Chat
+    config={{
+      googleLogin: {
+        enabled: true,
+        firebaseConfig: {
+          apiKey: 'PLACEHOLDER_API_KEY',
+          authDomain: 'PLACEHOLDER_AUTH_DOMAIN',
+          projectId: 'PLACEHOLDER_PROJECT_ID',
+          storageBucket: 'PLACEHOLDER_STORAGE_BUCKET',
+          messagingSenderId: 'PLACEHOLDER_MESSAGING_SENDER_ID',
+          appId: 'PLACEHOLDER_APP_ID',
+        },
+      },
+    }}
+  />
+</XmppProvider>
+```
+
+### G) Single-room entry + URL/QR behavior
+
+```tsx
+<XmppProvider>
+  <Chat
+    roomJID="ROOM_JID@conference.xmpp.ethoradev.com"
+    config={{
+      setRoomJidInPath: true,
+      qrUrl: 'https://your-app.example/chat/?qrChatId=',
+    }}
+  />
+</XmppProvider>
+```
+
+`roomJID` forces entry room.  
+`setRoomJidInPath` syncs room identity to URL path.  
+`useQRCodeChat` / `handleQRChatId` support QR/deep-link room opening.
+
+## Behavior Notes and Legacy Quirks
+
+- `newArch` is now default-on. If omitted, runtime uses new architecture paths.
+- Old architecture is used only when you explicitly set `config.newArch = false`.
+- `defaultLogin` currently has legacy inverted behavior in `LoginWrapper`:
+  - internal fallback login runs when login modes are not configured and `defaultLogin` is not set.
+  - keep this in mind when migrating; prefer explicit `userLogin` / `jwtLogin` / `googleLogin`.
+
+## Chat Props Reference
+
+These are the top-level props accepted by `Chat` (exported from `ReduxWrapper`).
+
+| Prop | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `config` | `IConfig` | No | Main behavior/configuration object. |
+| `roomJID` | `string` | No | Force specific room JID on load. |
+| `user` | `{ email: string; password: string }` | No | Credentials for email/password login helper path. |
+| `loginData` | `{ email: string; password: string }` | No | Optional login payload. |
+| `MainComponentStyles` | `React.CSSProperties` | No | Outer container style override. |
+| `token` | `string` | No | Optional token input (legacy/integration-specific usage). |
+| `CustomMessageComponent` | `React.ComponentType<MessageProps>` | No | Replace message bubble rendering. |
+| `CustomInputComponent` | `React.ComponentType<SendInputProps & { onSendMessage?; onSendMedia?; placeholderText?; }>` | No | Replace chat input area. |
+| `CustomScrollableArea` | `React.ComponentType<CustomScrollableAreaProps>` | No | Replace list/scroll wrapper behavior. |
+| `CustomDaySeparator` | `React.ComponentType<DaySeparatorProps>` | No | Replace day separator node. |
+| `CustomNewMessageLabel` | `React.ComponentType<NewMessageLabelProps>` | No | Replace "new message" marker. |
+
+## Full Config Reference (`IConfig`)
+
+Below is a grouped reference for all `config` options.
+
+### Core
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `appId` | `string` | App identifier for backend context. |
+| `baseUrl` | `string` | API base URL (default project uses `https://api.ethoradev.com/v1`). |
+| `customAppToken` | `string` | Custom app token for API initialization. |
+| `xmppSettings` | `{ devServer; host; conference?; xmppPingOnSendEnabled? }` | XMPP connectivity settings. |
+| `initBeforeLoad` | `boolean` | Initialize XMPP before normal chat load flow. |
+| `clearStoreBeforeInit` | `boolean` | Clear local store before initialization. |
+| `newArch` | `boolean` | Defaults to `true`; set `false` to explicitly force legacy/old architecture paths. |
+| `useStoreConsoleEnabled` | `boolean` | Enable verbose internal logging in console. |
+
+### UI and Layout
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `disableHeader` | `boolean` | Hide chat header. |
+| `disableMedia` | `boolean` | Disable media sending/processing paths. |
+| `disableRooms` | `boolean` | Hide/disable room list area. |
+| `disableRoomMenu` | `boolean` | Disable room menu controls. |
+| `disableRoomConfig` | `boolean` | Disable room configuration actions. |
+| `disableNewChatButton` | `boolean` | Hide new chat/create room action. |
+| `disableUserCount` | `boolean` | Hide user count in header/UI. |
+| `disableChatInfo` | `{ disableHeader?; disableDescription?; disableType?; disableMembers?; hideMembers?; disableChatHeaderMenu? }` | Fine-grained chat info panel toggles. |
+| `chatHeaderBurgerMenu` | `boolean` | Toggle burger menu in chat header. |
+| `chatHeaderSettings` | `{ hide?; disableCreate?; disableMenu?; hideSearch? }` | Additional header-level controls. |
+| `chatHeaderAdditional` | `{ enabled: boolean; element: any }` | Inject custom element into header area. |
+| `headerLogo` | `string \| React.ReactElement` | Custom logo in header. |
+| `headerMenu` | `() => void` | Custom menu handler. |
+| `headerChatMenu` | `() => void` | Custom room header menu handler. |
+| `colors` | `{ primary: string; secondary: string }` | Theme colors for component UI. |
+| `roomListStyles` | `React.CSSProperties` | Styles for room list pane. |
+| `chatRoomStyles` | `React.CSSProperties` | Styles for chat pane. |
+| `backgroundChat` | `{ color?: string; image?: string \| File }` | Chat background customization. |
+| `bubleMessage` | `MessageBubble` | Bubble-level style overrides (as defined in types). |
+| `setRoomJidInPath` | `boolean` | Sync room JID to URL path. |
+| `qrUrl` | `string` | Base URL for QR deep link behavior. |
+
+### Auth and Identity
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `defaultLogin` | `boolean` | Legacy quirk: current runtime fallback behavior is inverted; see Behavior Notes section. |
+| `googleLogin` | `{ enabled: boolean; firebaseConfig: FBConfig }` | Google login support via Firebase config. |
+| `jwtLogin` | `{ token: string; enabled: boolean; handleBadlogin?: React.ReactElement }` | Log user in using JWT exchange flow. |
+| `userLogin` | `{ enabled: boolean; user: User \| null }` | Inject already-authenticated user directly. |
+| `customLogin` | `{ enabled: boolean; loginFunction: () => Promise<User \| null> }` | Provide your custom async login function. |
+| `refreshTokens` | `{ enabled: boolean; refreshFunction?: () => Promise<{ accessToken: string; refreshToken?: string } \| null> }` | Token refresh strategy. |
+
+### Rooms and Data
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `defaultRooms` | `ConfigRoom[]` | Seed/default rooms. |
+| `customRooms` | `{ rooms: PartialRoomWithMandatoryKeys[]; disableGetRooms?: boolean; singleRoom: boolean }` | Fully controlled room source. |
+| `forceSetRoom` | `boolean` | Force room setup path in init flow. |
+| `enableRoomsRetry` | `{ enabled: boolean; helperText: string }` | Enable retry UX when rooms fail to load. |
+
+### Messaging and Interactions
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `disableInteractions` | `boolean` | Disable message interaction menu/actions. |
+| `disableProfilesInteractions` | `boolean` | Disable profile interactions from chat UI. |
+| `disableSentLogic` | `boolean` | Disable default sent-state logic when needed. |
+| `secondarySendButton` | `{ enabled: boolean; messageEdit: string; label?: React.ReactNode; buttonStyles?: React.CSSProperties; hideInputSendButton?: boolean; overwriteEnterClick?: true }` | Extra send action/button config. |
+| `botMessageAutoScroll` | `boolean` | Force auto-scroll behavior on bot messages. |
+| `messageTextFilter` | `{ enabled: boolean; filterFunction: (text: string) => string }` | Transform/filter outgoing message text. |
+| `eventHandlers` | `{ onMessageSent?; onMessageFailed?; onMessageEdited? }` | Lifecycle callbacks for message operations. |
+| `translates` | `{ enabled: boolean; translations?: Iso639_1Codes }` | Message translation-related options. |
+| `whitelistSystemMessage` | `string[]` | Restrict/render only selected system message types. |
+| `customSystemMessage` | `React.ComponentType<MessageProps>` | Replace system message component renderer. |
+
+### Typing and Sending Control
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `disableTypingIndicator` | `boolean` | Disable typing indicator UI logic. |
+| `customTypingIndicator` | `{ enabled: boolean; text?: string \| ((usersTyping: string[]) => string); position?: 'bottom' \| 'top' \| 'overlay' \| 'floating'; styles?: React.CSSProperties; customComponent?: React.ComponentType<{ usersTyping: string[]; text: string; isVisible: boolean; }> }` | Customize typing indicator content and rendering. |
+| `blockMessageSendingWhenProcessing` | `boolean \| { enabled: boolean; timeout?: number; onTimeout?: (roomJID: string) => void }` | Gate sends while processing in-flight state. |
+
+### Notifications
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `inAppNotifications` | `{ enabled?; showInContext?; position?; maxNotifications?; duration?; onClick?; customComponent? }` | In-app toast notification behavior and custom rendering. |
+
+### Push
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `pushNotifications.enabled` | `boolean` | Enable browser push subscription flow. |
+| `pushNotifications.vapidPublicKey` | `string` | VAPID public key for push registration. |
+| `pushNotifications.firebaseConfig` | `FBConfig` | Firebase app config for push messaging. |
+| `pushNotifications.serviceWorkerPath` | `string` | Service worker path, default `/firebase-messaging-sw.js`. |
+| `pushNotifications.serviceWorkerScope` | `string` | Service worker scope, default `/`. |
+| `pushNotifications.softAsk` | `boolean` | Do not immediately trigger browser permission prompt. |
+
+## Custom Widgets and Overrides
+
+You can replace key UI parts without forking the package.
+
+| Override prop | Purpose |
+| --- | --- |
+| `CustomMessageComponent` | Fully custom message bubble/row rendering. |
+| `CustomInputComponent` | Custom composer and send controls. |
+| `CustomScrollableArea` | Custom scroll/list container (virtualized or custom behavior). |
+| `CustomDaySeparator` | Custom date separator component. |
+| `CustomNewMessageLabel` | Custom "new message" divider label. |
+
+Example:
+
+```tsx
+import { Chat } from '@ethora/chat-component';
+import CustomMessageBubble from './CustomMessageBubble';
+import CustomChatInput from './CustomChatInput';
+import CustomScrollableArea from './CustomScrollableArea';
+import CustomDaySeparator from './CustomDaySeparator';
+import CustomNewMessageLabel from './CustomNewMessageLabel';
+
+export default function App() {
+  return (
+    <Chat
+      CustomMessageComponent={CustomMessageBubble}
+      CustomInputComponent={CustomChatInput}
+      CustomScrollableArea={CustomScrollableArea}
+      CustomDaySeparator={CustomDaySeparator}
+      CustomNewMessageLabel={CustomNewMessageLabel}
+      config={{
+        colors: { primary: '#1d4ed8', secondary: '#dbeafe' },
+      }}
+    />
+  );
+}
+```
+
+Reference example components in repository:
+
+- `src/examples/customComponents/CustomMessageBubble.tsx`
+- `src/examples/customComponents/CustomChatInput.tsx`
+- `src/examples/customComponents/CustomScrollableArea.tsx`
+- `src/examples/customComponents/CustomDaySeparator.tsx`
+- `src/examples/customComponents/CustomNewMessageLabel.tsx`
+
+## Push Notifications
+
+### Prerequisites
+
+| Requirement | Why |
+| --- | --- |
+| HTTPS origin (or localhost) | Browser push APIs require secure contexts. |
+| Firebase project | FCM token + push transport setup. |
+| VAPID public key | Required for web push subscription. |
+| Service worker file | Required for background notification handling. |
+
+### Setup steps
+
+1. Copy service worker into your app's public assets:
+
 ```bash
 npx @ethora/chat-component ethora-chat
 ```
-_This handles the placement of `firebase-messaging-sw.js` for you._
 
-2. **Firebase Config**: Provide your Firebase configuration in the `config` prop of the `<Chat />` component:
+2. Configure push in `config`:
+
 ```tsx
 <Chat
   config={{
     pushNotifications: {
       enabled: true,
+      vapidPublicKey: 'PLACEHOLDER_VAPID_PUBLIC_KEY',
       firebaseConfig: {
-        apiKey: "...",
-        authDomain: "...",
-        projectId: "...",
-        messagingSenderId: "...",
-        appId: "...",
+        apiKey: 'PLACEHOLDER_API_KEY',
+        authDomain: 'PLACEHOLDER_AUTH_DOMAIN',
+        projectId: 'PLACEHOLDER_PROJECT_ID',
+        storageBucket: 'PLACEHOLDER_STORAGE_BUCKET',
+        messagingSenderId: 'PLACEHOLDER_MESSAGING_SENDER_ID',
+        appId: 'PLACEHOLDER_APP_ID',
       },
-      vapidPublicKey: "YOUR_VAPID_PUBLIC_KEY"
-    }
+      serviceWorkerPath: '/firebase-messaging-sw.js',
+      serviceWorkerScope: '/',
+      softAsk: false,
+    },
   }}
 />
 ```
-_The library automatically passes this configuration to the service worker — no manual editing of the file is required._
 
-3. **VAPID Key**: Ensure you provide a valid `vapidPublicKey` in the configuration.
+3. Optional: use hook directly for controlled permission flow:
 
-ℹ️ Note: Add room and user which are registered at Ethora. After these changes - the pre-written user & room will be changed to yours.
+```tsx
+import { usePushNotifications } from '@ethora/chat-component';
 
-ℹ️ Note:
-There is also a prop CustomMessageComponent: React.ComponentType<MessageProps>
-This prop is used to fully change styles of messageBubble.
-You can find an example here: https://github.com/dappros/ethora-chat-component/blob/main/src/components/ExampleComponents/CustomMessage.tsx
+function PushPermissionButton() {
+  const { requestPermission } = usePushNotifications({
+    enabled: true,
+    softAsk: true,
+    vapidPublicKey: 'PLACEHOLDER_VAPID_PUBLIC_KEY',
+  });
 
-For styling you can alter **App.css**:
-
-```
-#root {
- width: 100%;
- margin: 0 auto;
- text-align: center;
+  return <button onClick={() => requestPermission()}>Enable Push</button>;
 }
 ```
 
-and **index.css**:
+## Auth Strategies
 
+| Strategy | Config shape | Best for |
+| --- | --- | --- |
+| Default fallback (legacy quirk) | no auth block / `defaultLogin` | Legacy/demo flows; prefer explicit auth modes in production |
+| Injected user | `userLogin: { enabled: true, user }` | App already has authenticated user/session |
+| JWT login | `jwtLogin: { enabled: true, token }` | Token-based backend auth flow |
+| Google login | `googleLogin: { enabled: true, firebaseConfig }` | Google SSO using Firebase |
+| Custom login function | `customLogin: { enabled: true, loginFunction }` | Fully custom identity provider |
+
+### Example: injected user (bypass login screen)
+
+```tsx
+<Chat
+  config={{
+    userLogin: {
+      enabled: true,
+      user: {
+        _id: 'PLACEHOLDER_USER_ID',
+        appId: 'PLACEHOLDER_APP_ID',
+        walletAddress: 'PLACEHOLDER_WALLET_ADDRESS',
+        defaultWallet: { walletAddress: 'PLACEHOLDER_WALLET_ADDRESS' },
+        firstName: 'Jane',
+        lastName: 'Doe',
+        xmppPassword: 'PLACEHOLDER_XMPP_PASSWORD',
+        token: 'PLACEHOLDER_ACCESS_TOKEN',
+        refreshToken: 'PLACEHOLDER_REFRESH_TOKEN',
+        username: 'PLACEHOLDER_USERNAME',
+      },
+    },
+  }}
+/>
 ```
-body {
- margin: 0;
- display: flex;
- place-items: center;
- min-width: 320px;
- min-height: 100vh;
- width: 100%;
+
+### Example: JWT login
+
+```tsx
+<Chat
+  config={{
+    jwtLogin: {
+      enabled: true,
+      token: 'PLACEHOLDER_JWT_TOKEN',
+    },
+    refreshTokens: {
+      enabled: true,
+      refreshFunction: async () => {
+        return {
+          accessToken: 'PLACEHOLDER_NEW_ACCESS_TOKEN',
+          refreshToken: 'PLACEHOLDER_NEW_REFRESH_TOKEN',
+        };
+      },
+    },
+  }}
+/>
+```
+
+## Hooks and API Exports
+
+| Export | Type | Purpose |
+| --- | --- | --- |
+| `Chat` | React component | Main chat component. |
+| `XmppProvider` | React provider | Provides XMPP client context for internal hooks/state. |
+| `useUnread` | hook | Returns unread counters. |
+| `logoutService` | service | Programmatic logout utility. |
+| `useQRCodeChat` | hook | Handle QR-based room links. |
+| `handleQRChatId` | function | Parse/process QR chat ID from URL. |
+| `useInAppNotifications` | hook | Enables and handles in-app notifications. |
+| `usePushNotifications` | hook | Push subscription + foreground handling workflow. |
+| `resendMessage` | function | Retry sending failed/pending messages. |
+
+Basic hook usage:
+
+```tsx
+import { useUnread, logoutService } from '@ethora/chat-component';
+
+function HeaderActions() {
+  const { totalCount } = useUnread();
+
+  return (
+    <div>
+      <span>Unread: {totalCount}</span>
+      <button onClick={() => logoutService.performLogout()}>Logout</button>
+    </div>
+  );
 }
 ```
 
-After these changes you can modify **MainComponentStyles** for your chat.
+`logoutService.performLogout()` behavior:
 
-## Architecture Diagram
+- Dispatches `chatSettingStore/logout`
+- Dispatches `rooms/setLogoutState`
+- Dispatches `roomHeap/clearHeap`
+- Triggers logout middleware, which emits `ethora-xmpp-logout`
+- `XmppProvider` listens to that event and disconnects active XMPP client
 
-![CleanShot 2025-01-09 at 13 14 37@2x](https://github.com/user-attachments/assets/4d187bbb-6697-4e96-97d3-3a4a4b7e8adf)
+## Use Cases and Feature Coverage
 
-## Use cases and functionalities details
+| Area | Status in this package |
+| --- | --- |
+| One-room embedded chat | Available |
+| Multi-room chat UI | Available |
+| Message interactions (reply/copy/edit/delete/report/reactions) | Available |
+| Typing indicator | Available |
+| Profile interactions in chat | Available (can be disabled) |
+| File/media attachments | Available with ongoing enhancements |
+| In-app notifications | Available |
+| Web push notifications | Available |
+| Wallet/assets and extended social modules | Primarily in full Ethora platform |
 
-### LOGIN FUNCTIONALITY
+## Hosted vs Self-Host Guidance
 
-Chat component includes an optional Login / Sign-on screen that allows you to login existing users or sign up new users.
-In cases where chat component is embedded into your existing web or app experience, you would likely want to disable and bypass the login screen.
+| Model | Best for | Pros | Tradeoffs |
+| --- | --- | --- | --- |
+| Hosted Ethora backend | Fast time-to-market, smaller teams, MVPs | Fast setup, managed backend operations, easier push/auth onboarding | Less infrastructure-level control |
+| Self-hosted Ethora stack | Regulated environments, deep infra control | Full control over infrastructure, compliance customization, internal network deployment options | Higher DevOps/maintenance overhead |
+| Hybrid | Gradual migration or split workloads | Can start fast and migrate critical paths later | More architecture complexity |
 
-Supported out of the box:
 
-- **Login bypass** (user credentials are passed from your existing backend) ✅
-- **E-mail + password** ✅
-- **Google SSO** ✅
+## Feature Roadmap
 
-Supported by Ethora platform but not implemented into Chat Component yet:
+This is a practical planning snapshot for cross-platform consumers. It is not a release commitment.
 
-- **Custom set of credentials** ✅
-- **Apple SSO** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub>
-- **Facebook SSO** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub>
-- **Metamask SSO** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub>
+| Surface | Current state | Notes |
+| --- | --- | --- |
+| Web React (`@ethora/chat-component`) | Available now | This repository. |
+| React Native | Via broader Ethora stack | Track platform-specific implementation in Ethora repos/docs. |
+| Swift (iOS native) | Planned / ecosystem-level | Confirm status with Ethora team for production timelines. |
+| Kotlin (Android native) | Planned / ecosystem-level | Confirm status with Ethora team for production timelines. |
+| Flutter | Planned / ecosystem-level | Confirm status with Ethora team for production timelines. |
+| Additional roadmap items | Ongoing | Media improvements, richer profile/wallet experiences, broader integration guides. |
 
-### CHAT FUNCTIONALITY
+## Troubleshooting
 
-#### "One room at a time - chat session"
+| Issue | Likely cause | Fix |
+| --- | --- | --- |
+| `useXmppClient must be used within an XmppProvider` | Using internal XMPP-dependent logic without provider context | Wrap the app tree with `XmppProvider` where needed. |
+| Chat loads but no rooms appear | Auth/app context mismatch or room fetching restrictions | Verify `appId`, user credentials/tokens, `baseUrl`, and `customRooms` settings. |
+| Push permission never appears | `softAsk: true` without manual trigger, insecure origin, or missing VAPID key | Trigger `requestPermission()`, use HTTPS/localhost, set valid VAPID key. |
+| Service worker not found | `firebase-messaging-sw.js` missing in public dir | Run `npx @ethora/chat-component ethora-chat` or copy file manually. |
+| Login loop / auth failure | Wrong token/user object shape | Validate `jwtLogin`, `userLogin.user`, and refresh token flow. |
 
-- Use Case 1: **One global chat room for all users** ✅ - (e.g. chat lobby for all of your website / app users). Simply create a chat room manually and hardcode the UUID into your chat component code.
-- Use Case 2: **One chat room per case** ✅ - (e.g. customer support session, AI bot, a chat room for each location or department, web page specific chat etc). You have to create rooms as required by your business logic via Ethora API and then pass the corresponding chat UUID into chat component. Your end User will see the corresponding room.
+## Ethora Links and Support
+### Product
 
-#### "Multiple rooms - messenger / social app”
+- Website: https://ethora.com/
+- Try Ethora: https://app.ethora.com/register
 
-- Use Case 3: **Users can switch between Chats** ✅
-  Similar to Use Case 2, but also allows your User to switch to the **List of Chats** where they can see chat rooms, the count of new messages and a last message for -each room etc. Users can create new Chats and invite others into Chats (depending on your App settings). This functionality is available in full Ethora app but is currently "work in progress" for Chat Component.
+### Developer Docs
 
-#### Misc core chat functionalities
+- Chat component docs: https://docs.ethora.com/
+- Ethora GitHub hub: https://github.com/dappros/ethora
+- This package repo: https://github.com/dappros/ethora-chat-component
+- Ethora GitHub organization: https://github.com/dappros
+- API docs (public): https://app.dappros.com/api-docs/
+- API docs (environment used in this repo): https://api.ethoradev.com/api-docs
 
-- **Chat header** ✅ - Header with chat title and Users counter (this is optional and you can disable the header)
-- **Message bubbles** ✅ - Message bubbles next to user avatars with message content and timestamp
-- **Chat history caching and scrolling** ✅
-- **Chat history date divider** ✅
-- **Now typing** ✅ - when someone is typing, other room Users will see indication of who is typing
+### Community and Support
 
-#### Message interactions
-
-- **Message menu** ✅ - Long tap or right click opens message menu with "Reply", "Copy", "Edit", "Delete", "Report" options available as well as send Coin / Item options
-- **Emoji Reactions** ✅ - Users are able to long tap / click on the message and send Emoji reactions to the message. Reactions are displayed in the corner of the message bubble.
-
-#### Avatars (profile photos)
-
-- **Basic avatars** ✅ - in chat screen, users can see basic avatars next to chat bubbles. Simply default avatar icon for everyone.
-- **"Initials" avatars** ✅ - in Chat scree, users who don't have photos uploaded will show as "initials" avatars generated by taking the first letter of User's first name and last name
-- **Google SSO avatars** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub> - when using Google SSO, their Google profile photo will be automatically displayed as chat avatar
-- **Custom profile photos** ✅ - users are able to upload their custom photos when managing their Profile and the mini-photo will be displayed as a chat avatar
-
-#### Notifications
-
-- **Browser and mobile push notifications** ✅ - push notifications are useful to alert the User about new messages or transactions related to them when they are not actively using your app / chat in the browser.
-
-### FILE ATTACHMENTS
-
-- **File attachments** ✅ - file attachments, previews, media attachments, audio/video player etc currently are work in progress for chat component
-
-### USER PROFILES AND DIGITAL WALLET FUNCTIONALITY
-
-- **Profile screen** ✅ - users can see their own and other Users Profile screens by tapping their avatar in Chat. Profile includes Photo, name, description, direct message button and profile share link
-- **Profile Assets (Digital Wallet)** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub> - Users can view assets (Documents, art/collectables, Coins) within their own profile or profiles of other Users, depending on App-wide and User-specific visibility settings
-- **Profile Asset: Coins** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub> - Coins, Points, Stars (you can call this anything in your project) are a rewards system where Users and Bots can reward individual messages of other Users
-- **Profile Asset: Documents** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub> - Documents in Profiles support use cases where certain User (or bot / business page) need to display certain documents and their provenance history. E.g. business / educational / medical certificates, case-related documents, contracts etc.
-- **Profile Asset: Media (audio, video) files** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub> - Media files playable right from Profiles.
-- **Profile Asset: Digital Art (collectables / NFT)** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub> - For projects which support rewarding Users with unique digital collectables and/or allowing Users to upload/mint, distribute or trade digital art or collectables.
-
-## Contacts, Documentation and Technical Support
-
-- Community support forum: https://forum.ethora.com/
+- Forum: https://forum.ethora.com/
 - Discord: https://discord.gg/Sm6bAHA3ZC
-- Contact Ethora team: https://www.ethora.com/#contact
-- Documentation main: https://docs.ethora.com/
-- Documentation for Ethora API (Swagger): https://api.ethoradev.com/api-docs
-- Documentation on github including chat protocol and bots: https://github.com/dappros/ethora/tree/main/api
+- Contact: https://ethora.com/#contact
+
+## License
+
+AGPL. See [LICENSE.txt](./LICENSE.txt).

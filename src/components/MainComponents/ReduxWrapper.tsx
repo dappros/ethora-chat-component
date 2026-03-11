@@ -58,7 +58,12 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
     ...props
   }) => {
     const memoizedConfig = useMemo(() => {
-      return props.config;
+      if (!props.config) return props.config;
+
+      return {
+        ...props.config,
+        newArch: props.config.newArch ?? true,
+      };
     }, [props.config]);
 
     return (

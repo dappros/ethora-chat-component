@@ -138,7 +138,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
       duration: 3000,
     });
     let newRoomJid = '';
-    if (config?.newArch) {
+    if (config?.newArch !== false) {
       const newRoom = await postPrivateRoom(
         selectedUser?.userJID ?? selectedUser?.id
       );

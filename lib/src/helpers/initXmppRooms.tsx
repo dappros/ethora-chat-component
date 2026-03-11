@@ -28,7 +28,7 @@ const initXmppRooms = async (
       if (rooms && Object.keys(rooms).length > 0) {
         await initRoomsPresence(xmmpClient, rooms);
       } else {
-        if (config?.newArch) {
+        if (config?.newArch !== false) {
           // const rooms = await getRooms();
           //     rooms.items.map((room) => {
           //       dispatch(

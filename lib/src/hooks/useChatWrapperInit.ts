@@ -215,7 +215,11 @@ const useChatWrapperInit = ({
               if (roomsList && Object.keys(roomsList).length > 0) {
                 setInited(true);
               } else {
-                if (config?.newArch) {
+                if (config?.newArch === false) {
+                  mark('xmpp:getRoomsStanza:start');
+                  await newClient.getRoomsStanza();
+                  logDuration('xmpp:getRoomsStanza', 'xmpp:getRoomsStanza:start');
+                } else {
                   const loadedRooms = await loadRooms(newClient);
                   if (config?.enableRoomsRetry?.enabled) {
                     const isSelectedRoomPresent = isChatIdPresentInArray(
@@ -227,10 +231,6 @@ const useChatWrapperInit = ({
                     }
                   }
                   setInited(true);
-                } else {
-                  mark('xmpp:getRoomsStanza:start');
-                  await newClient.getRoomsStanza();
-                  logDuration('xmpp:getRoomsStanza', 'xmpp:getRoomsStanza:start');
                 }
               }
               // Background tasks to avoid blocking UI
@@ -250,7 +250,7 @@ const useChatWrapperInit = ({
               retryTimeout = setTimeout(initXmmpClient, 5000);
             }
           } else {
-            if (config?.newArch) {
+            if (config?.newArch !== false) {
               // const loadedRooms = await loadRooms(client, true);
               if (config?.enableRoomsRetry?.enabled) {
                 const isSelectedRoomPresent = isChatIdPresentInArray(

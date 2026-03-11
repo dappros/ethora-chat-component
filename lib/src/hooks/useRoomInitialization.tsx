@@ -52,10 +52,10 @@ export const useRoomInitialization = (
     const initialPresenceAndHistory = async () => {
       if (!roomsList[activeRoomJID] && activeRoomJID && client) {
         await client.presenceInRoomStanza(activeRoomJID);
-        if (config?.newArch) {
-          await syncRooms(client, config);
-        } else {
+        if (config?.newArch === false) {
           await client.getRoomsStanza();
+        } else {
+          await syncRooms(client, config);
         }
         await getDefaultHistory();
       } else {
@@ -93,10 +93,10 @@ export const useRoomInitialization = (
         config?.defaultRooms.map(async (room) => {
           client.presenceInRoomStanza(room.jid);
         });
-        if (config?.newArch) {
-          // syncRooms(client, config);
-        } else {
+        if (config?.newArch === false) {
           client.getRoomsStanza();
+        } else {
+          // syncRooms(client, config);
         }
       }
     }
