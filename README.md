@@ -112,6 +112,38 @@ with:
   />
 ```
 
+### Push Notifications Setup
+
+To enable push notifications in your project:
+
+1. **Automatic Setup**: Run the following command in your project root to automatically copy the required service worker to your `public` folder:
+```bash
+npx @ethora/chat-component ethora-chat
+```
+_This handles the placement of `firebase-messaging-sw.js` for you._
+
+2. **Firebase Config**: Provide your Firebase configuration in the `config` prop of the `<Chat />` component:
+```tsx
+<Chat
+  config={{
+    pushNotifications: {
+      enabled: true,
+      firebaseConfig: {
+        apiKey: "...",
+        authDomain: "...",
+        projectId: "...",
+        messagingSenderId: "...",
+        appId: "...",
+      },
+      vapidPublicKey: "YOUR_VAPID_PUBLIC_KEY"
+    }
+  }}
+/>
+```
+_The library automatically passes this configuration to the service worker — no manual editing of the file is required._
+
+3. **VAPID Key**: Ensure you provide a valid `vapidPublicKey` in the configuration.
+
 ℹ️ Note: Add room and user which are registered at Ethora. After these changes - the pre-written user & room will be changed to yours.
 
 ℹ️ Note:
@@ -202,7 +234,7 @@ Supported by Ethora platform but not implemented into Chat Component yet:
 
 #### Notifications
 
-- **Browser and mobile push notifications** 🚧 <sub><sup>(available in [Ethora git repo](https://github.com/dappros/ethora))</sup></sub> - push notifications are useful to alert the User about new messages or transactions related to them when they are not actively using your app / chat in the browser.
+- **Browser and mobile push notifications** ✅ - push notifications are useful to alert the User about new messages or transactions related to them when they are not actively using your app / chat in the browser.
 
 ### FILE ATTACHMENTS
 

@@ -9,14 +9,21 @@
 importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js');
 
-firebase.initializeApp({
-  apiKey: "AIzaSyAdX24nGQ9nQ0IEzVehIk06uxIb-8HeS04",
-  authDomain: "ethora-668e9.firebaseapp.com",
-  projectId: "ethora-668e9",
-  storageBucket: "ethora-668e9.appspot.com",
-  messagingSenderId: "972933470054",
-  appId: "1:972933470054:web:d4682e76ef02fd9b9cdaa7"
-});
+// ── Dynamic Configuration ─────────────────────────────────────
+const params = new URL(self.location).searchParams;
+const firebaseConfig = {
+  apiKey: params.get('apiKey'),
+  authDomain: params.get('authDomain'),
+  projectId: params.get('projectId'),
+  storageBucket: params.get('storageBucket'),
+  messagingSenderId: params.get('messagingSenderId'),
+  appId: params.get('appId'),
+};
+
+// Only initialize if we have at least apiKey and appId
+if (firebaseConfig.apiKey && firebaseConfig.appId) {
+  firebase.initializeApp(firebaseConfig);
+}
 
 const messaging = firebase.messaging();
 const APP_URL = self.location.origin;

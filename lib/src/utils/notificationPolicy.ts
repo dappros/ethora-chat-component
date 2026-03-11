@@ -47,6 +47,7 @@ export interface XmppToastDecisionInput {
   currentUserMessage: boolean;
   isSystem: boolean;
   isHistory?: boolean;
+  isCatchup?: boolean;
   xmppOnline?: boolean;
 }
 
@@ -62,9 +63,11 @@ export const shouldShowXmppToast = ({
   currentUserMessage,
   isSystem,
   isHistory,
+  isCatchup,
 }: XmppToastDecisionInput): DecisionResult => {
   const inAppEnabled = config?.inAppNotifications?.enabled === true;
   if (isHistory) return { show: false, reason: 'historical_message' };
+  if (isCatchup) return { show: false, reason: 'catchup_period' };
   if (!inAppEnabled) return { show: false, reason: 'in_app_disabled' };
   if (currentUserMessage && !isSystem) {
     return { show: false, reason: 'current_user_exact_match' };
@@ -80,6 +83,7 @@ export interface ForegroundPushToastInput {
   deduped: boolean;
   isSystem: boolean;
   isHistory?: boolean;
+  isCatchup?: boolean;
 }
 
 export const shouldShowForegroundPushToast = ({
@@ -89,12 +93,13 @@ export const shouldShowForegroundPushToast = ({
   deduped,
   isSystem,
   isHistory,
+  isCatchup,
 }: ForegroundPushToastInput): DecisionResult => {
   const inAppEnabled = config?.inAppNotifications?.enabled === true;
   if (isHistory) return { show: false, reason: 'historical_message' };
+  if (isCatchup) return { show: false, reason: 'catchup_period' };
   if (!inAppEnabled) return { show: false, reason: 'in_app_disabled' };
   if (isSystem && !deduped) return { show: true, reason: 'system_ok' };
-  if (alreadyInStore) return { show: false, reason: 'already_in_store' };
   if (deduped) return { show: false, reason: 'deduped' };
   return { show: true, reason: 'ok' };
 };
@@ -102,22 +107,27 @@ export const shouldShowForegroundPushToast = ({
 export interface ForegroundOsPushInput {
   config?: IConfig;
   tabVisible: boolean;
-  xmppOnline: boolean;
 }
 
 export const shouldShowForegroundOsPush = ({
   config,
   tabVisible,
-  xmppOnline,
 }: ForegroundOsPushInput): DecisionResult => {
   const pushEnabled = config?.pushNotifications?.enabled === true;
   const inAppEnabled = config?.inAppNotifications?.enabled === true;
-  if (!pushEnabled) return { show: false, reason: 'push_disabled' };
-  if (inAppEnabled && tabVisible) {
-    return { show: false, reason: 'tab_active_in_app_only' };
+
+  // We only show OS push if at least one notification system is enabled
+  if (!pushEnabled && !inAppEnabled) {
+    return { show: false, reason: 'notifications_disabled' };
   }
-  if (inAppEnabled) return { show: true, reason: 'combined_other_situations' };
-  return { show: true, reason: 'push_only_always' };
+
+  // If tab is visible, we usually show in-app toast instead of OS push
+  if (tabVisible) {
+    return { show: false, reason: 'tab_visible' };
+  }
+
+  // If tab is inactive and either push or in-app is enabled, show OS notification
+  return { show: true, reason: 'tab_inactive_notifications_enabled' };
 };
 
 export const hasMessageInRooms = (

@@ -1,5 +1,5 @@
 import { getFirebaseMessaging } from '../firebase-config';
-import { getToken, onMessage, MessagePayload } from 'firebase/messaging';
+import { getToken, onMessage, MessagePayload, Messaging } from 'firebase/messaging';
 
 /**
  * requestNotificationPermission()
@@ -7,8 +7,8 @@ import { getToken, onMessage, MessagePayload } from 'firebase/messaging';
  * @returns boolean indicating if permission was granted.
  */
 export async function requestNotificationPermission(): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
   if (!('Notification' in window)) {
-    console.warn('This browser does not support notifications.');
     return false;
   }
 
@@ -21,6 +21,7 @@ interface FcmRegistrationOptions {
   serviceWorkerPath?: string;
   serviceWorkerScope?: string;
   firebaseConfig?: any;
+  debug?: boolean;
 }
 
 /**
@@ -30,15 +31,32 @@ interface FcmRegistrationOptions {
  * @returns ServiceWorkerRegistration or null on failure.
  */
 async function registerFirebaseServiceWorker(
-  serviceWorkerPath = '/firebase-messaging-sw.js',
-  serviceWorkerScope = '/'
+  options: FcmRegistrationOptions = {}
 ): Promise<ServiceWorkerRegistration | null> {
-  if (!('serviceWorker' in navigator)) {
-    console.warn('[PushNotifications] Service workers not supported in this browser.');
+  let serviceWorkerPath = options.serviceWorkerPath || '/firebase-messaging-sw.js';
+  const serviceWorkerScope = options.serviceWorkerScope || '/';
+
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
     return null;
   }
+
+  // Append config as URL params so the SW doesn't need to be manually edited
+  const config = options.firebaseConfig;
+  if (config && config.apiKey && config.appId) {
+    const params = new URLSearchParams();
+    params.append('apiKey', config.apiKey || '');
+    params.append('authDomain', config.authDomain || '');
+    params.append('projectId', config.projectId || '');
+    params.append('storageBucket', config.storageBucket || '');
+    params.append('messagingSenderId', config.messagingSenderId || '');
+    params.append('appId', config.appId || '');
+    
+    const separator = serviceWorkerPath.includes('?') ? '&' : '?';
+    serviceWorkerPath = `${serviceWorkerPath}${separator}${params.toString()}`;
+  }
+
   try {
-    // Re-use an already active registration if available
+    // Re-use an already active registration if it matches the path (with params)
     const existing = await navigator.serviceWorker.getRegistrations();
     const alreadyRegistered = existing.find((r) =>
       r.active?.scriptURL?.includes(serviceWorkerPath)
@@ -50,10 +68,14 @@ async function registerFirebaseServiceWorker(
       serviceWorkerPath,
       { scope: serviceWorkerScope }
     );
-    console.log('[PushNotifications] Firebase service worker registered:', registration.scope);
+    if (options?.debug) {
+      console.log('[PushNotifications] Firebase service worker registered:', registration.scope);
+    }
     return registration;
   } catch (err) {
-    console.warn('[PushNotifications] Failed to register Firebase service worker:', err);
+    if (options?.debug) {
+      console.warn('[PushNotifications] Failed to register Firebase service worker:', err);
+    }
     return null;
   }
 }
@@ -69,10 +91,7 @@ export async function getFCMToken(options: FcmRegistrationOptions = {}): Promise
     const messaging = getFirebaseMessaging(options.firebaseConfig);
     if (!messaging) return null;
 
-    const swRegistration = await registerFirebaseServiceWorker(
-      options.serviceWorkerPath,
-      options.serviceWorkerScope
-    );
+    const swRegistration = await registerFirebaseServiceWorker(options);
 
     const token = await getToken(messaging, {
       vapidKey:
@@ -81,16 +100,22 @@ export async function getFCMToken(options: FcmRegistrationOptions = {}): Promise
     });
 
     if (token) {
-      console.log('[PushNotifications] FCM Token obtained:', token.substring(0, 15) + '...');
+      if (options?.debug) {
+        console.log('[PushNotifications] FCM Token obtained:', token.substring(0, 15) + '...');
+      }
       return token;
     } else {
-      console.warn(
-        '[PushNotifications] No registration token available. Request permission to generate one.'
-      );
+      if (options?.debug) {
+        console.warn(
+          '[PushNotifications] No registration token available. Request permission to generate one.'
+        );
+      }
       return null;
     }
   } catch (error) {
-    console.warn('[PushNotifications] An error occurred while retrieving FCM token:', error);
+    if (options?.debug) {
+      console.warn('[PushNotifications] An error occurred while retrieving FCM token:', error);
+    }
     return null;
   }
 }
@@ -106,7 +131,9 @@ export async function initPushNotifications(
   const hasPermission = await requestNotificationPermission();
 
   if (!hasPermission) {
-    console.warn('[PushNotifications] Push notification permission denied');
+    if (options?.debug) {
+      console.warn('[PushNotifications] Push notification permission denied');
+    }
     return null;
   }
 

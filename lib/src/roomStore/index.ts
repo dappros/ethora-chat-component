@@ -6,11 +6,11 @@ import {
 } from '@reduxjs/toolkit';
 import chatSettingsReducer from './chatSettingsSlice';
 import roomsSlice from './roomsSlice';
-import roomHeapSlice from './roomHeapSlice';
+import roomHeapSlice, { roomHeapSliceState } from './roomHeapSlice';
 import { IRoom } from '../types/types';
 import { unreadMiddleware } from './Middleware/unreadMidlleware';
 import { storage } from './storage';
-import { persistReducer, persistStore, Persistor } from 'redux-persist';
+import { persistReducer, persistStore } from 'redux-persist';
 import { createTransform } from 'redux-persist';
 import { newMessageMidlleware } from './Middleware/newMessageMidlleware';
 import { logoutMiddleware } from './Middleware/logoutMiddleware';
@@ -171,7 +171,7 @@ export const store = configureStore({
 
 export type AppDispatch = typeof store.dispatch;
 
-export const persistor: Persistor = persistStore(store);
+export const persistor = persistStore(store);
 
 try {
   console.log('[EthoraChatComponent] version:', ETHORA_CHAT_COMPONENT_VERSION);

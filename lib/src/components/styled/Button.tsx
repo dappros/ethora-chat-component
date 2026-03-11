@@ -68,7 +68,7 @@ const CustomButton = styled.button<{
   }
 `;
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   text?: string | ReactElement;
   EndIcon?: ReactElement;
   StartIcon?: ReactElement;

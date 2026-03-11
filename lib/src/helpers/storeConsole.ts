@@ -1,4 +1,5 @@
 import { RootState, store } from '../roomStore';
+import { roomHeapSliceState } from '../roomStore/roomHeapSlice';
 
 export const useStoreConsole = () => {
   const state: RootState = store.getState();

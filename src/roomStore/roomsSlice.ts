@@ -22,6 +22,8 @@ interface RoomMessagesState {
   reportRoom: {
     isOpen: boolean;
   };
+  subscribedRooms: string[];
+  pushSubscriptionStatus: Record<string, 'pending' | 'subscribed' | 'error' | 'blocked'>;
   loadingText?: string;
 }
 
@@ -39,6 +41,8 @@ const initialState: RoomMessagesState = {
   reportRoom: {
     isOpen: false,
   },
+  subscribedRooms: [],
+  pushSubscriptionStatus: {},
   loadingText: undefined,
 };
 
@@ -380,6 +384,24 @@ export const roomsStore = createSlice({
     setOpenReportModal: (state, action: PayloadAction<{ isOpen: boolean }>) => {
       state.reportRoom.isOpen = action.payload.isOpen;
     },
+    setPushSubscriptionStatus: (
+      state,
+      action: PayloadAction<{ jid: string; status: 'pending' | 'subscribed' | 'error' | 'blocked' }>
+    ) => {
+      const { jid, status } = action.payload;
+      state.pushSubscriptionStatus[jid] = status;
+      if (status === 'subscribed') {
+        if (!state.subscribedRooms.includes(jid)) {
+          state.subscribedRooms.push(jid);
+        }
+      } else if (status === 'blocked' || status === 'error') {
+        state.subscribedRooms = state.subscribedRooms.filter((id) => id !== jid);
+      }
+    },
+    clearPushSubscriptions: (state) => {
+      state.subscribedRooms = [];
+      state.pushSubscriptionStatus = {};
+    },
   },
 });
 
@@ -444,6 +466,8 @@ export const {
   updateUsersSet,
   setOpenReportModal,
   insertUsers,
+  setPushSubscriptionStatus,
+  clearPushSubscriptions,
 } = roomsStore.actions;
 
 export default roomsStore.reducer;

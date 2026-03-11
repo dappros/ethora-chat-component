@@ -1,7 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { IMessage } from '../types/types';
 
-interface roomHeapSliceState {
+export interface roomHeapSliceState {
   // FIFO queue of pending messages
   messageHeap: IMessage[];
 }

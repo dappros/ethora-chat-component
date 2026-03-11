@@ -6,8 +6,12 @@
   "types": "dist/main.d.ts",
   "files": [
     "dist",
-    "public/firebase-messaging-sw.js"
+    "public/firebase-messaging-sw.js",
+    "scripts/init-push.js"
   ],
+  "bin": {
+    "ethora-chat": "./scripts/init-push.js"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

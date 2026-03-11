@@ -12,8 +12,8 @@
  */
 
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { useSelector } from 'react-redux';
-import { RootState } from '../roomStore';
+import { useDispatch, useSelector } from 'react-redux';
+import { AppDispatch, RootState } from '../roomStore';
 import {
   initPushNotifications,
   listenForForegroundMessages,
@@ -23,6 +23,9 @@ import { messageNotificationManager } from '../utils/messageNotificationManager'
 import { IMessage } from '../types/models/message.model';
 import { pushSubscriptionService } from '../utils/pushSubscriptionService';
 import { getGlobalXmppClient } from '../utils/clientRegistry';
+import {
+  setPushSubscriptionStatus,
+} from '../roomStore/roomsSlice';
 import { IConfig } from '../types/types';
 import {
   buildNotificationUrl,
@@ -91,6 +94,10 @@ const usePushNotifications = (
   );
   const roomsMap = useSelector((state: RootState) => state.rooms.rooms);
   const config = useSelector((state: RootState) => state.chatSettingStore.config as IConfig | undefined);
+  const pushSubscriptionStatus = useSelector(
+    (state: RootState) => state.rooms.pushSubscriptionStatus
+  );
+  const dispatch = useDispatch<AppDispatch>();
 
   const hasRanRef = useRef(false);
   const fcmTokenRef = useRef<string | null>(null);
@@ -104,25 +111,34 @@ const usePushNotifications = (
     try {
       if (!enabled) return;
       if (_subscriptionRegistered) {
-        console.log('[PushNotifications] Already subscribed this session, skipping.');
+        if (config?.useStoreConsoleEnabled) {
+          console.log('[PushNotifications] Already subscribed this session, skipping.');
+        }
         return;
       }
 
-      console.log('[PushNotifications] Initializing FCM push notifications…');
+      if (config?.useStoreConsoleEnabled) {
+        console.log('[PushNotifications] Initializing FCM push notifications…');
+      }
       const fcmToken = await initPushNotifications({
         vapidPublicKey,
         serviceWorkerPath: options.serviceWorkerPath,
         serviceWorkerScope: options.serviceWorkerScope,
         firebaseConfig: options.firebaseConfig || config?.pushNotifications?.firebaseConfig,
+        debug: config?.useStoreConsoleEnabled,
       });
 
       if (!fcmToken) {
-        console.warn('[PushNotifications] Failed to obtain FCM token.');
+        if (config?.useStoreConsoleEnabled) {
+          console.warn('[PushNotifications] Failed to obtain FCM token.');
+        }
         return;
       }
 
       // Step 4 – Backend registration
-      console.log('[PushNotifications] Registering FCM token with Ethora backend (API)…');
+      if (config?.useStoreConsoleEnabled) {
+        console.log('[PushNotifications] Registering FCM token with Ethora backend (API)…');
+      }
       await registerPushToken(fcmToken);
 
       _subscriptionRegistered = true;
@@ -130,20 +146,26 @@ const usePushNotifications = (
       setFcmTokenReady(fcmToken); // signal room-subscription effect
 
       // Log: subscribed via API
-      console.log(
-        `%c[PushNotifications] ✅ User subscribed via API – Token: ${fcmToken.substring(0, 15)}...`,
-        'color: #22c55e; font-weight: bold'
-      );
+      if (config?.useStoreConsoleEnabled) {
+        console.log(
+          `%c[PushNotifications] ✅ User subscribed via API – Token: ${fcmToken.substring(0, 15)}...`,
+          'color: #22c55e; font-weight: bold'
+        );
+      }
 
       // Log: XMPP session linked (informational)
       if (userXmppUsername) {
-        console.log(
-          `%c[PushNotifications] ✅ Device linked to XMPP – JID: ${userXmppUsername}`,
-          'color: #3b82f6; font-weight: bold'
-        );
+        if (config?.useStoreConsoleEnabled) {
+          console.log(
+            `%c[PushNotifications] ✅ Device linked to XMPP – JID: ${userXmppUsername}`,
+            'color: #3b82f6; font-weight: bold'
+          );
+        }
       }
     } catch (error) {
-      console.error('[PushNotifications] Registration error:', error);
+      if (config?.useStoreConsoleEnabled) {
+        console.error('[PushNotifications] Registration error:', error);
+      }
     }
   }, [
     enabled,
@@ -153,27 +175,6 @@ const usePushNotifications = (
     vapidPublicKey,
   ]);
 
-  const showOsNotification = useCallback(
-    async (title: string, notifOptions: NotificationOptions) => {
-      if (typeof window === 'undefined') return;
-      if (!('Notification' in window)) return;
-      if (Notification.permission !== 'granted') return;
-
-      if ('serviceWorker' in navigator) {
-        const registration = await navigator.serviceWorker.getRegistration(
-          options.serviceWorkerScope || '/'
-        );
-        if (registration) {
-          await registration.showNotification(title, notifOptions);
-          return;
-        }
-      }
-
-      new Notification(title, notifOptions);
-    },
-    [options.serviceWorkerScope]
-  );
-
   // Foreground push handler: config-driven push/in-app behavior
   useEffect(() => {
     if (!enabled) return;
@@ -182,24 +183,18 @@ const usePushNotifications = (
     const handler = (payload: any) => {
       const data = payload.data ?? {};
       const title = payload.notification?.title || data.title || 'New message';
-      const body =
-        payload.notification?.body || data.body || 'You have a new message.';
+      const body = payload.notification?.body || data.body || 'You have a new message.';
       const roomJid = data.jid || '';
       const senderId = data.userJid || '';
       const messageId = payload.messageId || data.msgID || String(Date.now());
-      const url = buildNotificationUrl(payload, window.location.origin);
       const isSystemMessage = isSystemPayload(payload);
       const isTabVisible = document.visibilityState === 'visible';
 
       const now = Date.now();
-      const dedupeKey =
-        payload.messageId ||
-        data.msgID ||
-        `${roomJid}|${senderId}|${title}|${body}`;
+      const dedupeKey = payload.messageId || data.msgID || `${roomJid}|${senderId}|${title}|${body}`;
       const lastSeen = recentPushToastsRef.current.get(dedupeKey);
       const existingMessageId = payload.messageId || data.msgID;
       const alreadyInStore = hasMessageInRooms(roomsMap, existingMessageId);
-      const xmppOnline = !!getGlobalXmppClient()?.checkOnline?.();
       const deduped = !!(lastSeen && now - lastSeen < 30_000);
       const appLoadTime = (window as any)._ethoraAppLoadTime || Date.now();
       const isWithinCatchupPeriod = Date.now() - appLoadTime < 2000;
@@ -214,6 +209,7 @@ const usePushNotifications = (
         isHistory,
         isCatchup: isWithinCatchupPeriod,
       });
+
       const shouldForceSystemToast =
         isSystemMessage &&
         config?.inAppNotifications?.enabled === true &&
@@ -241,41 +237,14 @@ const usePushNotifications = (
           senderName,
           roomJid
         );
-        if (config?.useStoreConsoleEnabled) {
-          const reason = shouldForceSystemToast ? 'system_forced' : fgToastDecision.reason;
-          console.log(`[NotifyPolicy] source=push action=show reason=${reason} msgId=${messageId} history=${isHistory} catchup=${isWithinCatchupPeriod}`);
-        }
-      } else if (config?.useStoreConsoleEnabled) {
-        console.log(`[NotifyPolicy] source=push action=skip reason=${fgToastDecision.reason} msgId=${messageId} history=${isHistory} catchup=${isWithinCatchupPeriod}`);
       }
 
       recentPushToastsRef.current.set(dedupeKey, now);
 
-      const osPushDecision = shouldShowForegroundOsPush({
-        config,
-        tabVisible: isTabVisible,
-        xmppOnline,
-      });
-
-      if (osPushDecision.show) {
-        const osTitle = isSystemMessage ? 'System' : title;
-        void showOsNotification(osTitle, {
-          body,
-          icon: payload.notification?.image || '/favicon.ico',
-          badge: '/favicon.ico',
-          tag: 'ethora-notification',
-          data: {
-            url,
-            roomJid,
-            senderId,
-            messageId,
-          },
-        });
-        if (config?.useStoreConsoleEnabled) {
-          console.log(`[NotifyPolicy] source=push action=show_os reason=${osPushDecision.reason} msgId=${messageId}`);
-        }
-      } else if (config?.useStoreConsoleEnabled) {
-        console.log(`[NotifyPolicy] source=push action=skip_os reason=${osPushDecision.reason} msgId=${messageId}`);
+      // Browser notifications are now handled by MessageNotificationContext
+      if (config?.useStoreConsoleEnabled) {
+        const osPushDecision = shouldShowForegroundOsPush({ config, tabVisible: isTabVisible });
+        console.log(`[NotifyPolicy] source=push action=check_os_delegated show=${osPushDecision.show} reason=${osPushDecision.reason} msgId=${messageId}`);
       }
     };
 
@@ -293,12 +262,7 @@ const usePushNotifications = (
         _foregroundUnsubscribe = null;
       }
     };
-  }, [
-    config,
-    enabled,
-    roomsMap,
-    showOsNotification,
-  ]);
+  }, [config, enabled, roomsMap]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -335,16 +299,47 @@ const usePushNotifications = (
 
     const roomJIDs = Object.keys(roomsMap || {}).filter(Boolean);
     if (!roomJIDs.length) return;
-    const roomsHash = roomJIDs.sort().join('|');
-    if (roomsHash === lastRoomsHashRef.current) return;
-    lastRoomsHashRef.current = roomsHash;
 
     const client = getGlobalXmppClient();
     if (!client?.checkOnline?.()) return;
-    pushSubscriptionService.subscribeToRooms(roomJIDs, client).catch((error) => {
-      console.warn('[PushNotifications] Failed to subscribe to rooms:', error);
-    });
-  }, [enabled, roomsMap, fcmTokenReady]);
+
+    const processSubscriptions = async () => {
+      for (const roomJID of roomJIDs) {
+        const currentStatus = pushSubscriptionStatus[roomJID];
+        
+        if (currentStatus === 'subscribed' || currentStatus === 'pending' || currentStatus === 'blocked') {
+          continue;
+        }
+
+        dispatch(setPushSubscriptionStatus({ jid: roomJID, status: 'pending' }));
+        
+        try {
+          const result = await pushSubscriptionService.subscribeToRoom(roomJID, client);
+          if (result.ok === true) {
+            dispatch(setPushSubscriptionStatus({ jid: roomJID, status: 'subscribed' }));
+            if (config?.useStoreConsoleEnabled) {
+              console.log(`[PushNotifications] ✅ Subscribed to ${roomJID}`);
+            }
+          } else {
+            const status = result.reason === 'forbidden' ? 'blocked' : 'error';
+            dispatch(setPushSubscriptionStatus({ jid: roomJID, status }));
+            if (config?.useStoreConsoleEnabled) {
+              console.warn(`[PushNotifications] ❌ Failed to subscribe to ${roomJID}:`, result.message);
+            }
+          }
+        } catch (error) {
+          dispatch(setPushSubscriptionStatus({ jid: roomJID, status: 'error' }));
+          if (config?.useStoreConsoleEnabled) {
+            console.error(`[PushNotifications] Error subscribing to ${roomJID}:`, error);
+          }
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    };
+
+    void processSubscriptions();
+  }, [enabled, roomsMap, fcmTokenReady, pushSubscriptionStatus, dispatch]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Expose a manual trigger for soft-ask patterns

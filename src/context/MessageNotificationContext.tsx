@@ -16,6 +16,11 @@ import { useTabVisibility } from '../hooks/useTabVisibility';
 import { setCurrentRoom } from '../roomStore/roomsSlice';
 import { IConfig } from '../types/types';
 import { RootState } from '../roomStore';
+import {
+  shouldShowForegroundOsPush,
+  buildNotificationUrl,
+} from '../utils/notificationPolicy';
+import { showBrowserNotification } from '../utils/notificationUtils';
 
 interface MessageNotificationContextType {
   showMessageNotification: (
@@ -158,6 +163,15 @@ export const MessageNotificationProvider: React.FC<{
     clearNotificationsByRoom(activeRoomJID);
   }, [activeRoomJID, clearNotificationsByRoom]);
 
+  // Request browser notification permission if in-app notifications are enabled
+  useEffect(() => {
+    if (isEnabled && typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        void Notification.requestPermission();
+      }
+    }
+  }, [isEnabled]);
+
   const clearAllNotifications = useCallback(() => {
     setNotifications([]);
   }, []);
@@ -166,10 +180,8 @@ export const MessageNotificationProvider: React.FC<{
     (roomJID: string, messageId: string, message: IMessage, roomName: string, senderName: string) => {
       clearNotificationsByRoom(roomJID);
 
-      // Check if custom onClick handler is provided
       const customOnClick = notificationConfig?.onClick;
       if (customOnClick) {
-        // Use custom onClick handler
         Promise.resolve(customOnClick({
           roomJID,
           messageId,
@@ -182,59 +194,25 @@ export const MessageNotificationProvider: React.FC<{
         return;
       }
 
-      // System notifications can be shown in-app without chat navigation.
-      if (!roomJID) {
-        return;
-      }
+      if (!roomJID) return;
 
-      // Default behavior: Set the active room and scroll to message
       dispatch(setCurrentRoom({ roomJID }));
 
-      // Wait for the room to be set and messages to render, then scroll to message
       setTimeout(() => {
-        const messageElement = document.querySelector(
-          `[data-message-id="${messageId}"]`
-        );
+        const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
         if (messageElement) {
-          // Scroll to message
-          messageElement.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center',
-          });
-
-          // Add highlight effect for 2 seconds
+          messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
           messageElement.classList.add('message-highlight');
-          setTimeout(() => {
-            messageElement.classList.remove('message-highlight');
-          }, 2000);
-        } else {
-          // If message not found, try again after a short delay (messages might still be loading)
-          setTimeout(() => {
-            const retryElement = document.querySelector(
-              `[data-message-id="${messageId}"]`
-            );
-            if (retryElement) {
-              retryElement.scrollIntoView({
-                behavior: 'smooth',
-                block: 'center',
-              });
-              retryElement.classList.add('message-highlight');
-              setTimeout(() => {
-                retryElement.classList.remove('message-highlight');
-              }, 2000);
-            }
-          }, 500);
+          setTimeout(() => messageElement.classList.remove('message-highlight'), 2000);
         }
       }, 100);
     },
     [clearNotificationsByRoom, dispatch, notificationConfig]
   );
 
-  const showMessageNotification = useCallback(
+  const showToastNotification = useCallback(
     (message: IMessage, roomName: string, senderName: string, roomJID: string) => {
-      // Always create notification, regardless of tab visibility
       const notificationId = `msg-notification-${message.id}-${Date.now()}`;
-
       const newNotification: MessageNotificationData = {
         id: notificationId,
         message,
@@ -245,22 +223,52 @@ export const MessageNotificationProvider: React.FC<{
       };
 
       setNotifications((prev) => {
-        // Remove expired notifications first
         const now = Date.now();
-        const validNotifications = prev.filter(
-          (n) => now - n.timestamp < NOTIFICATION_DURATION
-        );
-
-        // Keep only the 3 newest notifications
+        const validNotifications = prev.filter((n) => now - n.timestamp < NOTIFICATION_DURATION);
         const updated = [...validNotifications, newNotification];
-        if (updated.length > MAX_NOTIFICATIONS) {
-          // Remove oldest notifications (keep only the newest 3)
-          return updated.slice(-MAX_NOTIFICATIONS);
-        }
-        return updated;
+        return updated.length > MAX_NOTIFICATIONS ? updated.slice(-MAX_NOTIFICATIONS) : updated;
       });
     },
     [MAX_NOTIFICATIONS, NOTIFICATION_DURATION]
+  );
+
+  const showMessageNotification = useCallback(
+    (message: IMessage, roomName: string, senderName: string, roomJID: string) => {
+      if (isEnabled && isTabVisible) {
+        showToastNotification(message, roomName, senderName, roomJID);
+      }
+
+      const osPushDecision = shouldShowForegroundOsPush({
+        config,
+        tabVisible: isTabVisible,
+      });
+
+      if (osPushDecision.show) {
+        const title = roomName || 'New message';
+        const body = message.body || 'You have a new message.';
+        const url = buildNotificationUrl(
+          { data: { jid: roomJID, msgID: message.id } },
+          window.location.origin
+        );
+
+        void showBrowserNotification(
+          title,
+          {
+            body: `${senderName}: ${body}`,
+            icon: '/favicon.ico',
+            badge: '/favicon.ico',
+            tag: 'ethora-notification',
+            data: { url, roomJID, messageId: message.id },
+          },
+          config?.pushNotifications?.serviceWorkerScope || '/',
+          () => {
+            window.focus();
+            navigateToMessage(roomJID, message.id, message, roomName, senderName);
+          }
+        );
+      }
+    },
+    [config, isEnabled, isTabVisible, showToastNotification, navigateToMessage]
   );
 
   // Register the callback with the global manager
@@ -291,18 +299,21 @@ export const MessageNotificationProvider: React.FC<{
       {children}
       {shouldRender && (
         <div style={containerStyles} {...containerProps}>
-          {notifications.map((notification) => (
-            <div key={notification.id} style={{ pointerEvents: 'auto' }}>
-              <MessageNotificationToast
-                {...notification}
-                onClose={() => removeNotification(notification.id)}
-                onNavigateToMessage={(roomJID, messageId, message, roomName, senderName) =>
-                  navigateToMessage(roomJID, messageId, message, roomName, senderName)
-                }
-                duration={NOTIFICATION_DURATION}
-              />
-            </div>
-          ))}
+          {notifications.map((notification) => {
+            const NotificationComponent = notificationConfig?.customComponent || MessageNotificationToast;
+            return (
+              <div key={notification.id} style={{ pointerEvents: 'auto' }}>
+                <NotificationComponent
+                  {...notification}
+                  onClose={() => removeNotification(notification.id)}
+                  onNavigateToMessage={(roomJID, messageId, message, roomName, senderName) =>
+                    navigateToMessage(roomJID, messageId, message, roomName, senderName)
+                  }
+                  duration={NOTIFICATION_DURATION}
+                />
+              </div>
+            );
+          })}
           {notifications.length > 2 && (
             <div style={{ pointerEvents: 'auto', width: '100%' }}>
               <button

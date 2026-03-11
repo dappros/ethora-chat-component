@@ -63,7 +63,7 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
 
     return (
       <Provider store={store}>
-        <PersistGate loading={<Loader />} persistor={persistor as any}>
+        <PersistGate loading={<Loader />} persistor={persistor}>
           <ToastProvider>
             <MessageNotificationProvider config={memoizedConfig}>
               <NotificationEnabler />

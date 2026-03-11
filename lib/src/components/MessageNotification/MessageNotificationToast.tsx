@@ -12,7 +12,7 @@ export interface MessageNotificationData {
   timestamp: number;
 }
 
-interface MessageNotificationToastProps extends MessageNotificationData {
+export interface MessageNotificationToastProps extends MessageNotificationData {
   onClose: () => void;
   onNavigateToMessage: (roomJID: string, messageId: string, message: IMessage, roomName: string, senderName: string) => void;
   duration: number;

@@ -7,6 +7,7 @@ import { XmppProvider } from './context/xmppProvider';
 import { useUnreadMessagesCounter } from './hooks/useUnreadMessagesCounter';
 import { IConfig } from './types/types';
 import { logoutService, handleQRChatId, useInAppNotifications } from './main';
+import { handleCopyClick } from './helpers/handleCopyClick';
 import CustomChatInput from './examples/customComponents/CustomChatInput';
 import CustomScrollableArea from './examples/customComponents/CustomScrollableArea';
 import CustomDaySeparator from './examples/customComponents/CustomDaySeparator';
@@ -72,7 +73,7 @@ const NotificationEnabler: React.FC = () => {
 const ChatComponent = React.memo(() => {
   const config: IConfig = useMemo(
     () => ({
-      appId: '66f5edf81b762117e1bfa26a', //default app id
+      appId: '646cc8dc96d4a4dc8f7b2f2d', //default app id
       colors: { primary: '#5E3FDE', secondary: '#E1E4FE' },
       userLogin: {
         enabled: true,
@@ -95,10 +96,8 @@ const ChatComponent = React.memo(() => {
       },
       pushNotifications: {
         enabled: true,
-        vapidPublicKey:
-          'BIZdmCnHiDRMrBBRzW79Dm1i7hMFRQM9CS1QfbalxjNwY-yvLtkj3IuZQaZ0ChZtjzlRSowkXUCmJC_jVgbFqew',
         softAsk: false,
-      },
+      },  
       useStoreConsoleEnabled: true,
     }),
     []
@@ -146,7 +145,7 @@ const ChatComponent = React.memo(() => {
             devServer: 'wss://xmpp.ethoradev.com:5443/ws',
             host: 'xmpp.ethoradev.com',
             conference: 'conference.xmpp.ethoradev.com',
-            // xmppPingOnSendEnabled: true,
+            xmppPingOnSendEnabled: true,
           },
           baseUrl: 'https://api.ethoradev.com/v1',
           newArch: true,
@@ -171,17 +170,21 @@ const ChatComponent = React.memo(() => {
             },
           },
           ...config,
-          inAppNotifications: {
+          // inAppNotifications: {
+          //   enabled: true,
+          //   showInContext: true, // Show notifications in chat component
+          //   position: {
+          //     horizontal: 'left',
+          //     vertical: 'bottom',
+          //     offset: {
+          //       left: 20,
+          //       bottom: 20,
+          //     },
+          //   },
+          // },
+          pushNotifications: {
             enabled: true,
-            showInContext: true, // Show notifications in chat component
-            position: {
-              horizontal: 'left',
-              vertical: 'bottom',
-              offset: {
-                left: 20,
-                bottom: 20,
-              },
-            },
+            softAsk: false,
           },
         }}
         MainComponentStyles={mainStyles}

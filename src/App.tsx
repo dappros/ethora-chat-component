@@ -73,7 +73,7 @@ const NotificationEnabler: React.FC = () => {
 const ChatComponent = React.memo(() => {
   const config: IConfig = useMemo(
     () => ({
-      appId: '66f5edf81b762117e1bfa26a', //default app id
+      appId: '646cc8dc96d4a4dc8f7b2f2d', //default app id
       colors: { primary: '#5E3FDE', secondary: '#E1E4FE' },
       userLogin: {
         enabled: true,
@@ -82,24 +82,22 @@ const ChatComponent = React.memo(() => {
       chatRoomStyles: { borderRadius: '16px' },
       roomListStyles: { borderRadius: '16px' },
       setRoomJidInPath: true,
-      // inAppNotifications: {
-      //   enabled: true,
-      //   showInContext: true,
-      //   position: {
-      //     horizontal: 'left',
-      //     vertical: 'bottom',
-      //     offset: {
-      //       left: 20,
-      //       bottom: 20,
-      //     },
-      //   },
-      // },
+      inAppNotifications: {
+        enabled: true,
+        showInContext: true,
+        position: {
+          horizontal: 'left',
+          vertical: 'bottom',
+          offset: {
+            left: 20,
+            bottom: 20,
+          },
+        },
+      },
       pushNotifications: {
         enabled: true,
-        vapidPublicKey:
-          'BIZdmCnHiDRMrBBRzW79Dm1i7hMFRQM9CS1QfbalxjNwY-yvLtkj3IuZQaZ0ChZtjzlRSowkXUCmJC_jVgbFqew',
         softAsk: false,
-      },
+      },  
       useStoreConsoleEnabled: true,
     }),
     []
@@ -186,8 +184,6 @@ const ChatComponent = React.memo(() => {
           // },
           pushNotifications: {
             enabled: true,
-            vapidPublicKey:
-              'BIZdmCnHiDRMrBBRzW79Dm1i7hMFRQM9CS1QfbalxjNwY-yvLtkj3IuZQaZ0ChZtjzlRSowkXUCmJC_jVgbFqew',
             softAsk: false,
           },
         }}

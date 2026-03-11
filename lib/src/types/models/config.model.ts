@@ -5,6 +5,8 @@ import { MessageBubble, MessageProps, IMessage } from './message.model';
 import { Iso639_1Codes } from './language.model';
 import React from 'react'; // Assuming React types are globally available or managed by the project's tsconfig
 
+import { MessageNotificationToastProps } from '../../components/MessageNotification/MessageNotificationToast';
+
 export interface FBConfig {
   apiKey: string;
   authDomain: string;
@@ -174,6 +176,7 @@ export interface IConfig {
       roomName: string;
       senderName: string;
     }) => void | Promise<void>;
+    customComponent?: React.ComponentType<MessageNotificationToastProps>;
   };
 
   pushNotifications?: {

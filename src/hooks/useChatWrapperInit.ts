@@ -16,7 +16,6 @@ import { useChatSettingState } from './useChatSettingState';
 import { isChatIdPresentInArray } from '../helpers/isChatIdPresentInArray';
 import useGetNewArchRoom from './useGetNewArchRoom';
 import { getRoomsWithRetry } from '../helpers/getRoomsWithRetry';
-import { pushSubscriptionService } from '../utils/pushSubscriptionService';
 
 interface useChatWrapperInitProps {
   roomJID: string | null | undefined;
@@ -56,9 +55,6 @@ const useChatWrapperInit = ({
   const { roomsList } = useRoomState();
   const { user } = useChatSettingState();
   const timingsRef = useRef<{ [k: string]: number }>({});
-  const lastSubscribedClientRef = useRef<string>('');
-  const lastSubscribedRoomsHashRef = useRef<string>('');
-  const hasForcedSubscribeRef = useRef<boolean>(false);
 
   const mark = (label: string) => {
     timingsRef.current[label] = Date.now();
@@ -150,36 +146,6 @@ const useChatWrapperInit = ({
     };
   }, [user.xmppPassword]);
 
-  useEffect(() => {
-    if (!inited || !client) return;
-    if (!roomsList || Object.keys(roomsList).length === 0) return;
-
-    const roomJIDs = Object.keys(roomsList).filter(Boolean);
-    if (!roomJIDs.length) return;
-
-    const clientKey = client.client?.jid?.toString() || client.username || '';
-    if (clientKey && clientKey !== lastSubscribedClientRef.current) {
-      lastSubscribedClientRef.current = clientKey;
-      lastSubscribedRoomsHashRef.current = '';
-      hasForcedSubscribeRef.current = false;
-    }
-
-    const roomsHash = roomJIDs.slice().sort().join('|');
-    if (!hasForcedSubscribeRef.current) {
-      hasForcedSubscribeRef.current = true;
-      lastSubscribedRoomsHashRef.current = roomsHash;
-      pushSubscriptionService.subscribeToRooms(roomJIDs, client, true).catch((error) => {
-        console.warn('[PushService] Forced subscribe on startup failed:', error);
-      });
-      return;
-    }
-
-    if (roomsHash === lastSubscribedRoomsHashRef.current) return;
-    lastSubscribedRoomsHashRef.current = roomsHash;
-    pushSubscriptionService.subscribeToRooms(roomJIDs, client).catch((error) => {
-      console.warn('[PushService] Subscribe on room list change failed:', error);
-    });
-  }, [inited, client, roomsList]);
 
   const getRoomsWithRertyRequest = async () => {
     setIsRetrying(true);
