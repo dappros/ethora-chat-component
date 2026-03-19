@@ -168,7 +168,9 @@ export class XmppClient implements XmppClientInterface {
           window.removeEventListener('online', this.onBrowserOnline);
           window.removeEventListener('offline', this.onBrowserOffline);
         }
-      } catch {}
+      } catch {
+        // Ignore browser listener cleanup failures during disconnect.
+      }
       if (this.client.removeAllListeners) {
         this.client.removeAllListeners();
         ['stanza', 'online', 'disconnect', 'error', 'connecting'].forEach(
@@ -300,7 +302,9 @@ export class XmppClient implements XmppClientInterface {
         if (this.lastPingId && isPong(stanza, this.lastPingId)) {
           this.handlePong();
         }
-      } catch {}
+      } catch {
+        // Ignore malformed pong checks and continue stanza handling.
+      }
       handleStanza.bind(this, stanza, this)();
     });
 
@@ -311,7 +315,9 @@ export class XmppClient implements XmppClientInterface {
         window.addEventListener('online', this.onBrowserOnline);
         window.addEventListener('offline', this.onBrowserOffline);
       }
-    } catch {}
+    } catch {
+      // Ignore browser event binding failures in non-browser runtimes.
+    }
   }
 
   private scheduleAdaptivePing() {
@@ -1006,7 +1012,9 @@ export class XmppClient implements XmppClientInterface {
           timestamp,
           chats
         );
-      } catch (error) {}
+      } catch (error) {
+        // Best-effort private store sync should not break the caller.
+      }
     });
   }
 
@@ -1140,7 +1148,9 @@ export class XmppClient implements XmppClientInterface {
       }
       store.dispatch({ type: 'roomHeapStore/clearHeap' });
       console.log(`[InitTiming] xmpp:drainHeap ${Date.now() - start}ms`);
-    } catch {}
+    } catch {
+      // Ignore heap drain failures; pending messages stay queued for retry.
+    }
   }
 
   private isBrowserOnline(): boolean {
@@ -1148,7 +1158,9 @@ export class XmppClient implements XmppClientInterface {
       if (typeof navigator !== 'undefined' && 'onLine' in navigator) {
         return (navigator as any).onLine !== false;
       }
-    } catch {}
+    } catch {
+      // Fall back to optimistic online mode if navigator is unavailable.
+    }
     return true;
   }
 

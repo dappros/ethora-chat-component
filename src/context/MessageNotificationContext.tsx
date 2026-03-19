@@ -48,15 +48,9 @@ export const MessageNotificationProvider: React.FC<{
   const isTabVisible = useTabVisibility();
   const dispatch = useDispatch();
   const activeRoomJID = useSelector((state: RootState) => state.rooms.activeRoomJID);
-  
-  // Try to get config from Redux, handle case where Provider might not be available yet
-  let contextConfig: IConfig | undefined;
-  try {
-    contextConfig = useSelector((state: RootState) => state.chatSettingStore?.config);
-  } catch {
-    // Context not available, that's okay
-    contextConfig = undefined;
-  }
+  const contextConfig = useSelector(
+    (state: RootState) => state.chatSettingStore?.config
+  );
   
   // Use config from props, context, or defaults
   const config = propConfig || contextConfig;

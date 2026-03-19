@@ -105,6 +105,8 @@ const usePushNotifications = (
   const [fcmTokenReady, setFcmTokenReady] = useState<string | null>(null);
   const recentPushToastsRef = useRef<Map<string, number>>(new Map());
   const lastRoomsHashRef = useRef<string>('');
+  const isSyncingRef = useRef(false);
+  const lastXmppUsernameRef = useRef<string>('');
 
   // ─────────────────────────────────────────────────────────────────────────────
   const runPushFlow = useCallback(async () => {
@@ -148,7 +150,7 @@ const usePushNotifications = (
       // Log: subscribed via API
       if (config?.useStoreConsoleEnabled) {
         console.log(
-          `%c[PushNotifications] ✅ User subscribed via API – Token: ${fcmToken.substring(0, 15)}...`,
+          '%c[PushNotifications] ✅ User subscribed via API',
           'color: #22c55e; font-weight: bold'
         );
       }
@@ -284,6 +286,19 @@ const usePushNotifications = (
   // ─────────────────────────────────────────────────────────────────────────────
   // Auto-run after the user logs in (unless softAsk is enabled)
   useEffect(() => {
+    if (!userToken || lastXmppUsernameRef.current !== userXmppUsername) {
+      hasRanRef.current = false;
+      fcmTokenRef.current = null;
+      setFcmTokenReady(null);
+      lastRoomsHashRef.current = '';
+      isSyncingRef.current = false;
+      _subscriptionRegistered = false;
+    }
+
+    lastXmppUsernameRef.current = userXmppUsername || '';
+  }, [userToken, userXmppUsername]);
+
+  useEffect(() => {
     if (!userToken) return;             // not logged in yet
     if (softAsk) return;               // consumer controls timing
     if (hasRanRef.current) return;     // already ran for this session
@@ -297,49 +312,71 @@ const usePushNotifications = (
     if (!enabled) return;
     if (!fcmTokenReady) return;
 
-    const roomJIDs = Object.keys(roomsMap || {}).filter(Boolean);
-    if (!roomJIDs.length) return;
-
+    const roomJIDs = Object.keys(roomsMap || {}).filter(Boolean).sort();
+    const roomJIDsHash = roomJIDs
+      .map((jid) => `${jid}:${pushSubscriptionStatus[jid] || 'idle'}`)
+      .join(',');
+    
+    // Only proceed if the set of rooms has changed or we haven't run yet
+    if (roomJIDsHash === lastRoomsHashRef.current) {
+      return;
+    }
+    
     const client = getGlobalXmppClient();
-    if (!client?.checkOnline?.()) return;
+    if (!client?.checkOnline?.()) {
+      return;
+    }
+
+    if (isSyncingRef.current) return;
+    isSyncingRef.current = true;
+    lastRoomsHashRef.current = roomJIDsHash;
 
     const processSubscriptions = async () => {
-      for (const roomJID of roomJIDs) {
-        const currentStatus = pushSubscriptionStatus[roomJID];
-        
-        if (currentStatus === 'subscribed' || currentStatus === 'pending' || currentStatus === 'blocked') {
-          continue;
-        }
+      try {
+        for (const roomJID of roomJIDs) {
+          const currentStatus = pushSubscriptionStatus[roomJID];
+          
+          if (
+            currentStatus === 'subscribed' ||
+            currentStatus === 'pending' ||
+            currentStatus === 'blocked' ||
+            currentStatus === 'error'
+          ) {
+            continue;
+          }
 
-        dispatch(setPushSubscriptionStatus({ jid: roomJID, status: 'pending' }));
-        
-        try {
-          const result = await pushSubscriptionService.subscribeToRoom(roomJID, client);
-          if (result.ok === true) {
-            dispatch(setPushSubscriptionStatus({ jid: roomJID, status: 'subscribed' }));
-            if (config?.useStoreConsoleEnabled) {
-              console.log(`[PushNotifications] ✅ Subscribed to ${roomJID}`);
+          dispatch(setPushSubscriptionStatus({ jid: roomJID, status: 'pending' }));
+          
+          try {
+            const result = await pushSubscriptionService.subscribeToRoom(roomJID, client);
+            if (result.ok === true) {
+              dispatch(setPushSubscriptionStatus({ jid: roomJID, status: 'subscribed' }));
+              if (config?.useStoreConsoleEnabled) {
+                console.log(`[PushNotifications] ✅ Subscribed to ${roomJID}`);
+              }
+            } else {
+              const status = result.reason === 'forbidden' ? 'blocked' : 'error';
+              dispatch(setPushSubscriptionStatus({ jid: roomJID, status }));
+              if (config?.useStoreConsoleEnabled) {
+                console.warn(`[PushNotifications] ❌ Failed to subscribe to ${roomJID}:`, result.message);
+              }
             }
-          } else {
-            const status = result.reason === 'forbidden' ? 'blocked' : 'error';
-            dispatch(setPushSubscriptionStatus({ jid: roomJID, status }));
+          } catch (error) {
+            dispatch(setPushSubscriptionStatus({ jid: roomJID, status: 'error' }));
             if (config?.useStoreConsoleEnabled) {
-              console.warn(`[PushNotifications] ❌ Failed to subscribe to ${roomJID}:`, result.message);
+              console.error(`[PushNotifications] Error subscribing to ${roomJID}:`, error);
             }
           }
-        } catch (error) {
-          dispatch(setPushSubscriptionStatus({ jid: roomJID, status: 'error' }));
-          if (config?.useStoreConsoleEnabled) {
-            console.error(`[PushNotifications] Error subscribing to ${roomJID}:`, error);
-          }
-        }
 
-        await new Promise((resolve) => setTimeout(resolve, 100));
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+      } finally {
+        isSyncingRef.current = false;
       }
     };
 
     void processSubscriptions();
-  }, [enabled, roomsMap, fcmTokenReady, pushSubscriptionStatus, dispatch]);
+  }, [enabled, roomsMap, fcmTokenReady, dispatch, pushSubscriptionStatus]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Expose a manual trigger for soft-ask patterns

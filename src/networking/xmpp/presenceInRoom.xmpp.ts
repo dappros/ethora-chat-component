@@ -11,7 +11,7 @@ export const presenceInRoom = async (
 
   const unsubscribe = () => client.off('stanza', stanzaHandler);
 
-  return new Promise(async (resolve, reject) => {
+  return new Promise((resolve, reject) => {
     let settled = false;
 
     const finish = (cb: (value?: any) => void, value?: any) => {
@@ -58,7 +58,7 @@ export const presenceInRoom = async (
       return;
     }
 
-    await createTimeoutPromise(timeoutMs, unsubscribe).catch(() => {
+    void createTimeoutPromise(timeoutMs, unsubscribe).catch(() => {
       reject(new Error(`presence_timeout:${roomJID}`));
     });
   });

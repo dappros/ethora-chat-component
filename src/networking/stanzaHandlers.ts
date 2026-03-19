@@ -335,9 +335,11 @@ const handleComposing = async (stanza: Element, currentUser: string) => {
 
       let composingList = [];
 
-      !!stanza?.getChild('composing')
-        ? composingList.push(stanza.getChild('data').attrs?.fullName || 'User')
-        : composingList.pop();
+      if (stanza?.getChild('composing')) {
+        composingList.push(stanza.getChild('data').attrs?.fullName || 'User');
+      } else {
+        composingList.pop();
+      }
 
       store.dispatch(
         setComposing({
@@ -413,6 +415,7 @@ const onGetMembers = (stanza: Element) => {
 
 const onGetRoomInfo = (stanza: Element) => {
   if (stanza.attrs.id === 'roomInfo' && !stanza.getChild('error')) {
+    // Room info stanza is consumed by feature-specific flows.
   }
 };
 
@@ -499,7 +502,9 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
           if (roomData.jid) {
             xmpp.presenceInRoomStanza(roomData.jid);
           }
-        } catch (error) {}
+        } catch (error) {
+          // Ignore malformed room payloads and continue processing remaining rooms.
+        }
       }
     });
   }

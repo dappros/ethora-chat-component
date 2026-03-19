@@ -17,6 +17,7 @@ import { logoutMiddleware } from './Middleware/logoutMiddleware';
 import { encryptTransform } from 'redux-persist-transform-encrypt';
 import { reactionsMiddleware } from './Middleware/reactionsMiddleware';
 import { ETHORA_CHAT_COMPONENT_VERSION } from '../version';
+import { sanitizeUserForPersistentStorage } from '../helpers/authStorage';
 
 const debugMiddleware = (storeAPI) => (next) => (action) => {
   if (typeof action !== 'object' || action === null) {
@@ -76,6 +77,21 @@ const encryptor = encryptTransform({
   },
 });
 
+const scrubSensitiveChatStateTransform = createTransform(
+  (inboundState: Record<string, any>) => {
+    if (!inboundState?.user) {
+      return inboundState;
+    }
+
+    return {
+      ...inboundState,
+      user:
+        sanitizeUserForPersistentStorage(inboundState.user) ?? inboundState.user,
+    };
+  },
+  (outboundState: Record<string, any>) => outboundState
+);
+
 const chatSettingPersistConfig = {
   key: 'chatSettingStore',
   storage,
@@ -89,7 +105,7 @@ const chatSettingPersistConfig = {
     'client',
     'config',
   ],
-  transforms: [encryptor],
+  transforms: [scrubSensitiveChatStateTransform, encryptor],
 };
 
 const roomsPersistConfig = {
@@ -175,4 +191,6 @@ export const persistor = persistStore(store);
 
 try {
   console.log('[EthoraChatComponent] version:', ETHORA_CHAT_COMPONENT_VERSION);
-} catch (e) {}
+} catch (e) {
+  // Ignore console access issues in restricted runtimes.
+}

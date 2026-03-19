@@ -101,7 +101,7 @@ export async function getFCMToken(options: FcmRegistrationOptions = {}): Promise
 
     if (token) {
       if (options?.debug) {
-        console.log('[PushNotifications] FCM Token obtained:', token.substring(0, 15) + '...');
+        console.log('[PushNotifications] FCM token obtained successfully');
       }
       return token;
     } else {

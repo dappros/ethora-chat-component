@@ -8,8 +8,10 @@ import {
   ModalType,
   User,
 } from '../types/types';
-import { localStorageConstants } from '../helpers/constants/LOCAL_STORAGE';
-import { useLocalStorage } from '../hooks/useLocalStorage';
+import {
+  clearStoredUser,
+  persistUserSession,
+} from '../helpers/authStorage';
 import { walletToUsername } from '../helpers/walletUsername';
 import XmppClient from '../networking/xmppClient';
 
@@ -107,11 +109,7 @@ export const chatSlice = createSlice({
     setUser: (state, action: PayloadAction<User>) => {
       state.user = unpackAndTransform(action.payload);
       state.appId = action.payload.appId || state.appId;
-      if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
-        useLocalStorage(localStorageConstants.ETHORA_USER).set(
-          unpackAndTransform(action.payload)
-        );
-      }
+      persistUserSession(state.user);
     },
     updateUser(state, action: PayloadAction<{ updates: Partial<User> }>) {
       const { updates } = action.payload;
@@ -121,6 +119,7 @@ export const chatSlice = createSlice({
           ...user,
           ...updates,
         };
+        persistUserSession(state.user);
       }
     },
     setConfig: (state, action: PayloadAction<IConfig | undefined>) => {
@@ -153,21 +152,12 @@ export const chatSlice = createSlice({
     ) => {
       state.user.refreshToken = action.payload.refreshToken;
       state.user.token = action.payload.token;
-
-      if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
-        localStorage.setItem(
-          localStorageConstants.ETHORA_USER,
-          JSON.stringify(state.user)
-        );
-      }
+      persistUserSession(state.user);
     },
     logout: (state) => {
       state.user = unpackAndTransform();
       state.config = undefined;
-
-      if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
-        localStorage.removeItem(localStorageConstants.ETHORA_USER);
-      }
+      clearStoredUser();
     },
   },
 });

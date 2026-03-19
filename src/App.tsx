@@ -71,6 +71,13 @@ const NotificationEnabler: React.FC = () => {
 };
 
 const ChatComponent = React.memo(() => {
+  const demoJwtToken =
+    (typeof import.meta !== 'undefined' &&
+      (import.meta as ImportMeta & {
+        env?: Record<string, string | undefined>;
+      }).env?.VITE_ETHORA_DEMO_JWT) ||
+    '';
+
   const config: IConfig = useMemo(
     () => ({
       appId: '646cc8dc96d4a4dc8f7b2f2d', //default app id
@@ -140,17 +147,24 @@ const ChatComponent = React.memo(() => {
         // CustomScrollableArea={CustomScrollableArea}
         // CustomDaySeparator={CustomDaySeparator}
         // roomJID="646cc8dc96d4a4dc8f7b2f2d_6824685682d635dba7522423@conference.xmpp.ethoradev.com"
+        roomJID="6998429ba125477a74a7dcef_69b96235545b8217d39dc1ac@conference.xmpp-dev.preshent.com"
         config={{
           xmppSettings: {
-            devServer: 'wss://xmpp.ethoradev.com:5443/ws',
-            host: 'xmpp.ethoradev.com',
-            conference: 'conference.xmpp.ethoradev.com',
+            devServer: 'wss://xmpp-dev.preshent.com/ws',
+            host: 'xmpp-dev.preshent.com',
+            conference: 'conference.xmpp-dev.preshent.com',
             xmppPingOnSendEnabled: true,
           },
-          baseUrl: 'https://api.ethoradev.com/v1',
-          newArch: true,
+          baseUrl: 'https://api-dev.preshent.com/v1',
+          ...(demoJwtToken
+            ? {
+                jwtLogin: {
+                  enabled: true,
+                  token: demoJwtToken,
+                },
+              }
+            : {}),
           setRoomJidInPath: true,
-          qrUrl: 'https://beta.ethora.com/app/chat/?qrChatId=',
           refreshTokens: { enabled: true },
           // secondarySendButton: {
           //   enabled: true,
@@ -182,10 +196,10 @@ const ChatComponent = React.memo(() => {
           //     },
           //   },
           // },
-          pushNotifications: {
-            enabled: true,
-            softAsk: false,
-          },
+          // pushNotifications: {
+          //   enabled: true,
+          //   softAsk: false,
+          // },
         }}
         MainComponentStyles={mainStyles}
       />

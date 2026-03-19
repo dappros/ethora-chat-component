@@ -34,10 +34,9 @@ import { DoubleTick } from '../../assets/icons';
 import { parseMessageBody } from '../../helpers/parseMessageBody';
 import URLPreviewCard from './URLPreviewCard';
 import { useMessageHeapState } from '../../hooks/useMessageHeapState';
-import { resendMessage } from '../../main';
 
 const firstUrlRegex =
-  /(https?:\/\/[\w.-]+(?:\.[\w.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+)/;
+  /(https?:\/\/[\w.-]+(?:\.[\w.-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=.]+)/;
 
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
@@ -58,14 +57,19 @@ const Message: React.FC<MessageProps> = forwardRef<
 
 
   const dispatch = useDispatch();
-
-  const [contextMenu, setContextMenu] = !config?.disableInteractions
-    ? useState<{ visible: boolean; x: number; y: number }>({
-        visible: false,
-        x: 0,
-        y: 0,
-      })
-    : [null, null];
+  const [contextMenu, setContextMenu] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+  } | null>(
+    config?.disableInteractions
+      ? null
+      : {
+          visible: false,
+          x: 0,
+          y: 0,
+        }
+  );
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 

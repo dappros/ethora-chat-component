@@ -144,7 +144,7 @@ const useChatWrapperInit = ({
         setClient(null);
       }
     };
-  }, [user.xmppPassword]);
+  }, [client, setClient, user.xmppPassword]);
 
 
   const getRoomsWithRertyRequest = async () => {

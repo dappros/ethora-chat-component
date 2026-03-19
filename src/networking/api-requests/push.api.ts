@@ -29,7 +29,7 @@ export async function registerPushToken(registrationToken: string): Promise<any>
 
   console.log('[PushNotifications] Registering FCM token with backend:', {
     appId,
-    token: registrationToken.substring(0, 10) + '...',
+    tokenLength: registrationToken.length,
   });
 
   try {
@@ -57,7 +57,9 @@ export async function registerPushToken(registrationToken: string): Promise<any>
 export async function unregisterPushToken(registrationToken: string): Promise<any> {
   const token = store.getState().chatSettingStore.user.token || '';
 
-  console.log('[PushNotifications] Unregistering FCM token from backend:', registrationToken.substring(0, 10) + '...');
+  console.log('[PushNotifications] Unregistering FCM token from backend', {
+    tokenLength: registrationToken.length,
+  });
 
   try {
     const response = await http.delete('/users/endpoints', {

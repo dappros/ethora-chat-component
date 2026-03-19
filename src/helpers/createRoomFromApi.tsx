@@ -8,7 +8,7 @@ export const createRoomFromApi = (
   try {
     const roomData: IRoom = {
       ...room,
-      jid: `${room?.name}@${service}` || '',
+      jid: room?.name ? `${room.name}@${service}` : '',
       name: room?.title || '',
       title: room?.title || '',
       usersCnt: Number(room?.members?.length || usersArrayLength + 1),
