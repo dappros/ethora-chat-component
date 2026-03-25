@@ -161,6 +161,12 @@ Supported out of the box:
 - **E-mail + password** ✅
 - **Google SSO** ✅
 
+Recommended for new embedded integrations:
+
+- **`userLogin`**: pass the final Ethora user/session object directly when your app already authenticated the user.
+- **`customLogin`**: provide an async login function that returns the final Ethora user/session object from your backend.
+- **`jwtLogin`**: legacy compatibility mode that exchanges a client JWT via `/v1/users/client`. Keep this only for older integrations while migrating.
+
 Supported by Ethora platform but not implemented into Chat Component yet:
 
 - **Custom set of credentials** ✅

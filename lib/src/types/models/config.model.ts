@@ -22,6 +22,8 @@ export interface IConfig {
     enabled: boolean;
     firebaseConfig: FBConfig;
   };
+  // Legacy compatibility path. This exchanges a client JWT via /v1/users/client.
+  // Prefer userLogin or customLogin for new integrations.
   jwtLogin?: {
     token: string;
     enabled: boolean;
@@ -31,6 +33,8 @@ export interface IConfig {
     enabled: boolean;
     user: User | null;
   };
+  // Preferred embedded integration path: provide the final Ethora user/session
+  // from your own backend or app auth flow.
   customLogin?: {
     enabled: boolean;
     loginFunction: () => Promise<User | null>;

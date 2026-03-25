@@ -68,6 +68,24 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
       return;
     }
 
+    if (config?.customLogin?.enabled && config?.customLogin?.loginFunction) {
+      const customLogin = async () => {
+        try {
+          const loginData = await config.customLogin!.loginFunction();
+          if (loginData) {
+            dispatch(setUser(loginData));
+          } else {
+            setShowModal(true);
+          }
+        } catch (error) {
+          console.log('error with custom login', error);
+          setShowModal(true);
+        }
+      };
+      customLogin();
+      return;
+    }
+
     //use localStorage, to check for user was already logged
 
     const storedUser: User = useLocalStorage(
@@ -100,6 +118,7 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
     if (
       !config?.googleLogin &&
       !config?.defaultLogin &&
+      !config?.customLogin &&
       !config?.jwtLogin &&
       !config?.userLogin &&
       user.xmppUsername === ''
