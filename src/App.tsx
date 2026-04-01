@@ -71,8 +71,6 @@ const NotificationEnabler: React.FC = () => {
 };
 
 const ChatComponent = React.memo(() => {
-  // const demoJwtToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7InR5cGUiOiJjbGllbnQiLCJ1c2VySWQiOiJwbGF5Z3JvdW5kLXVzZXItMSIsImFwcElkIjoiNjlhODNiNzM5NGM3OGJjMWVkMzJhYzc1In0sImlhdCI6MTc3NTAwMTQ3MCwiZXhwIjoxNzc1MDA1MDcwfQ.DhGBheY4NBYyAUKHmZ2nmTSjP8knn6rB6W3dk2krZWo'
-
   const config: IConfig = useMemo(
     () => ({
       appId: '646cc8dc96d4a4dc8f7b2f2d', //default app id

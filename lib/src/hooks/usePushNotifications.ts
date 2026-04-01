@@ -169,6 +169,16 @@ const usePushNotifications = (
         data.msgID || data.messageId || payload?.messageId || payload?.msgID;
       const url = data.url || payload?.url;
 
+      try {
+        if (typeof window !== 'undefined' && window.sessionStorage) {
+          const dedupeKey = `@ethora/chat-component:pushClick:${roomJid || ''}:${messageId || ''}:${url || ''}`;
+          const lastTs = Number(window.sessionStorage.getItem(dedupeKey) || '0');
+          const now = Date.now();
+          if (lastTs && now - lastTs < 5_000) return;
+          window.sessionStorage.setItem(dedupeKey, String(now));
+        }
+      } catch (_) {}
+
       const customOnClick = config?.pushNotifications?.onClick;
       if (customOnClick) {
         try {
@@ -385,6 +395,38 @@ const usePushNotifications = (
     return () => {
       navigator.serviceWorker.removeEventListener('message', onServiceWorkerMessage);
     };
+  }, [enabled, handlePushClick]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    if (typeof window === 'undefined') return;
+
+    const currentUrl = new URL(window.location.href);
+    if (currentUrl.searchParams.get('fromPush') !== '1') return;
+
+    const chatId = currentUrl.searchParams.get('chatId') || '';
+    const messageId =
+      currentUrl.searchParams.get('messageId') ||
+      currentUrl.searchParams.get('msgId') ||
+      '';
+
+    handlePushClick(
+      {
+        data: {
+          jid: chatId,
+          msgID: messageId,
+          messageId,
+          url: currentUrl.toString(),
+        },
+        notification: {},
+      },
+      'service_worker'
+    );
+
+    try {
+      currentUrl.searchParams.delete('fromPush');
+      window.history.replaceState({}, document.title, currentUrl.toString());
+    } catch (_) {}
   }, [enabled, handlePushClick]);
 
   // ─────────────────────────────────────────────────────────────────────────────

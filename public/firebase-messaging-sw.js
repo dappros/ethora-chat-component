@@ -27,7 +27,7 @@ if (
   }
   messaging = firebase.messaging();
 } else {
-  console.warn('[SW] Firebase config is missing. FCM background messaging is disabled.');
+//   console.warn('[SW] Firebase config missing → FCM disabled');
 }
 
 const APP_URL = self.location.origin;
@@ -39,7 +39,7 @@ const DEDUP_TTL_MS = 60_000;
 function markHandledByFcm(id) {
   if (!id) return;
   _handledByFcm.add(id);
-  console.log('[SW] FCM message marked as handled:', id);
+//   console.log('[SW] FCM handled:', id);
   setTimeout(() => _handledByFcm.delete(id), DEDUP_TTL_MS);
 }
 
@@ -47,7 +47,7 @@ function wasHandledByFcm(id) {
   return id ? _handledByFcm.has(id) : false;
 }
 
-// ── Shared Helpers ────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────
 function isSystemPayload(data) {
   return !data?.msgID && !data?.jid && !!data?.userJid;
 }
@@ -58,35 +58,93 @@ function buildTargetUrl(data, notification, fallbackUrl) {
   const title = notification?.title || data?.title || '';
   if (title.startsWith('http')) return title;
 
-  if (isSystemPayload(data)) return APP_URL;
-  if (!data?.jid) return APP_URL;
+  if (isSystemPayload(data)) return `${APP_URL}/?fromPush=1`;
+  if (!data?.jid) return `${APP_URL}/?fromPush=1`;
 
   const chatId = String(data.jid).split('@')[0];
   const messageId = data.msgID || data.messageId || data.message_id || '';
-  const params = new URLSearchParams({ chatId });
-  if (messageId) {
-    params.set('messageId', String(messageId));
-  }
-  return `${APP_URL}/chat?${params.toString()}`;
-}
 
-function postBridgeToClients(windowClients, bridgePayload) {
-  windowClients.forEach((client) => {
-    client.postMessage({
-      type: 'PUSH_FOREGROUND_BRIDGE',
-      payload: bridgePayload,
-    });
-  });
+  const params = new URLSearchParams({ chatId });
+  if (messageId) params.set('messageId', messageId);
+  params.set('fromPush', '1');
+
+  return `${APP_URL}/chat?${params.toString()}`;
 }
 
 function isAnyClientVisible(windowClients) {
   return windowClients.some((c) => c.visibilityState === 'visible');
 }
 
-// ── 1. FCM Background Messages ───────────────────────────────
+function postBridgeToClients(windowClients, payload) {
+  windowClients.forEach((client) => {
+    client.postMessage({
+      type: 'PUSH_FOREGROUND_BRIDGE',
+      payload,
+    });
+  });
+}
+
+function normalizeRawPushPayload(event) {
+  if (!event.data) {
+//     console.warn('[SW][EMPTY_PUSH] Push without payload');
+    return {
+      sourceType: 'empty',
+      raw: {
+        title: 'New message',
+        body: '',
+        data: {},
+      },
+    };
+  }
+
+  let textPayload = '';
+
+  try {
+    textPayload = event.data.text();
+  } catch (err) {
+//     console.warn('[SW][PUSH_TEXT_READ_FAILED]', err);
+  }
+
+  if (!textPayload) {
+//     console.warn('[SW][EMPTY_PUSH_TEXT] Push payload text is empty');
+    return {
+      sourceType: 'empty',
+      raw: {
+        title: 'New message',
+        body: '',
+        data: {},
+      },
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(textPayload);
+//     console.log('[SW][JSON_PUSH]', parsed);
+    return {
+      sourceType: 'json',
+      raw: parsed,
+    };
+  } catch (err) {
+/*    console.warn('[SW][TEXT_PUSH] Non-JSON push received, processing as plain text', {
+      error: err,
+      rawText: textPayload,
+    });*/
+
+    return {
+      sourceType: 'text',
+      raw: {
+        title: 'New message',
+        body: textPayload,
+        data: {},
+      },
+    };
+  }
+}
+
+// ── FCM ───────────────────────────────────────────────────────
 if (messaging) {
   messaging.onBackgroundMessage((payload) => {
-    console.log('[SW] FCM onBackgroundMessage received', payload);
+//     console.log('[SW][FCM_PUSH]', payload);
 
     const data = payload.data || {};
     const notification = payload.notification || {};
@@ -120,6 +178,9 @@ if (messaging) {
         msgID: data.msgID || '',
         workspaceId: data.workspaceId || data.workspace_id || '',
       },
+      meta: {
+        source: 'fcm',
+      },
     };
 
     const options = {
@@ -144,47 +205,57 @@ if (messaging) {
         postBridgeToClients(windowClients, bridgePayload);
 
         if (!isAnyClientVisible(windowClients)) {
-          console.log(
+/*          console.log(
             `[NotifyPolicy] source=fcm_bg action=show reason=${isSystem ? 'system' : 'background'} msgId=${messageId || ''}`
-          );
+          );*/
           return self.registration.showNotification(title, options);
         }
 
-        console.log(
+/*        console.log(
           `[NotifyPolicy] source=fcm_bg action=skip reason=tab_visible msgId=${messageId || ''}`
-        );
+        );*/
       });
   });
 }
 
-// ── 2. Generic Web Push API ───────────────────────────────────
+// ── PUSH (WebPush / text / fallback) ──────────────────────────
 self.addEventListener('push', (event) => {
-  console.log('[SW] Generic push event received');
+//   console.log('[SW] push event');
 
-  let raw = {};
+  const { sourceType, raw } = normalizeRawPushPayload(event);
 
-  try {
-    if (event.data) {
-      raw = event.data.json();
-    }
-  } catch (err) {
-    console.warn('[SW] Failed to parse push payload as JSON:', err);
-    raw = {
-      title: 'New message',
-      body: event.data ? event.data.text() : '',
-    };
+  if (!raw || typeof raw !== 'object') {
+    console.error('[SW][BROKEN_PUSH]', raw);
+    return;
   }
 
   const notification = raw.notification || {};
   const payloadData = raw.data || {};
-  const messageId = raw.messageId || payloadData.msgID || null;
+  const messageId =
+    raw.messageId ||
+    payloadData.msgID ||
+    payloadData.messageId ||
+    payloadData.message_id ||
+    null;
 
   if (wasHandledByFcm(messageId)) {
-    console.log(`[SW] push event skipped – already handled by FCM (msgId=${messageId})`);
+//     console.log(`[SW] push skipped – already handled by FCM (msgId=${messageId})`);
     return;
   }
 
+  if (sourceType !== 'json') {
+/*    console.log('[SW][NON_JSON_PUSH_PROCESSED]', {
+      sourceType,
+      raw,
+    });*/
+  }
+
+  if (!raw.from && !raw.fcmOptions) {
+//     console.log('[SW][NON_FCM_PUSH]', raw);
+  }
+
   const isSystem = isSystemPayload(payloadData);
+
   const title =
     (isSystem ? 'System' : undefined) ||
     notification.title ||
@@ -198,6 +269,12 @@ self.addEventListener('push', (event) => {
     payloadData.body ||
     'You have a new message.';
 
+  const icon =
+    raw.icon ||
+    notification.icon ||
+    notification.image ||
+    '/favicon.ico';
+
   const url = buildTargetUrl(
     payloadData,
     notification,
@@ -209,7 +286,7 @@ self.addEventListener('push', (event) => {
     notification: {
       title,
       body,
-      image: raw.icon || notification.icon || '/favicon.ico',
+      image: icon,
     },
     data: {
       ...payloadData,
@@ -222,11 +299,14 @@ self.addEventListener('push', (event) => {
         payloadData.workspace_id ||
         '',
     },
+    meta: {
+      source: sourceType === 'json' ? 'webpush' : 'text_push',
+    },
   };
 
   const options = {
     body,
-    icon: raw.icon || notification.icon || '/favicon.ico',
+    icon,
     badge: raw.badge || '/favicon.ico',
     tag: raw.tag || 'ethora-notification',
     data: {
@@ -239,6 +319,7 @@ self.addEventListener('push', (event) => {
         payloadData.workspaceId ||
         payloadData.workspace_id ||
         null,
+      sourceType,
     },
     requireInteraction: false,
     silent: false,
@@ -251,30 +332,30 @@ self.addEventListener('push', (event) => {
         postBridgeToClients(windowClients, bridgePayload);
 
         if (!isAnyClientVisible(windowClients)) {
-          console.log(
-            `[NotifyPolicy] source=push_bg action=show reason=${isSystem ? 'system' : 'background'} msgId=${messageId || ''}`
-          );
+/*          console.log(
+            `[NotifyPolicy] source=push_bg action=show type=${sourceType} msgId=${messageId || ''}`
+          );*/
           return self.registration.showNotification(title, options);
         }
 
-        console.log(
-          `[NotifyPolicy] source=push_bg action=skip reason=tab_visible msgId=${messageId || ''}`
-        );
+/*        console.log(
+          `[NotifyPolicy] source=push_bg action=skip reason=tab_visible type=${sourceType} msgId=${messageId || ''}`
+        );*/
       })
   );
 });
 
-// ── 3. Notification Click ─────────────────────────────────────
+// ── Notification Click ────────────────────────────────────────
 self.addEventListener('notificationclick', (event) => {
-  console.log('[NotifyPolicy] source=push_bg action=click_start');
+//   console.log('[NotifyPolicy] source=push_bg action=click_start');
   event.notification.close();
 
   const targetUrl =
     (event.notification.data && event.notification.data.url) || APP_URL;
 
-  console.log('[NotifyPolicy] source=push_bg action=click_url', {
+/*  console.log('[NotifyPolicy] source=push_bg action=click_url', {
     url: targetUrl,
-  });
+  });*/
 
   async function handleClick() {
     try {
@@ -283,9 +364,9 @@ self.addEventListener('notificationclick', (event) => {
         includeUncontrolled: true,
       });
 
-      console.log('[NotifyPolicy] source=push_bg action=clients_found', {
+/*      console.log('[NotifyPolicy] source=push_bg action=clients_found', {
         count: windowClients.length,
-      });
+      });*/
 
       const clickPayload = {
         type: 'PUSH_NOTIFICATION_CLICK',
@@ -302,9 +383,9 @@ self.addEventListener('notificationclick', (event) => {
 
       for (const client of windowClients) {
         if (client.url === targetUrl && 'focus' in client) {
-          console.log('[NotifyPolicy] source=push_bg action=focus_exact', {
+/*          console.log('[NotifyPolicy] source=push_bg action=focus_exact', {
             url: client.url,
-          });
+          });*/
           return client.focus();
         }
       }
@@ -315,10 +396,10 @@ self.addEventListener('notificationclick', (event) => {
           const swOrigin = self.location.origin;
 
           if (clientOrigin === swOrigin && 'focus' in client) {
-            console.log(
+/*            console.log(
               '[NotifyPolicy] source=push_bg action=focus_and_navigate',
               { from: client.url, to: targetUrl }
-            );
+            );*/
 
             const focusedClient = await client.focus();
 
@@ -332,9 +413,9 @@ self.addEventListener('notificationclick', (event) => {
       }
 
       if (clients.openWindow) {
-        console.log('[NotifyPolicy] source=push_bg action=open_new_window', {
+/*        console.log('[NotifyPolicy] source=push_bg action=open_new_window', {
           url: targetUrl,
-        });
+        });*/
         return clients.openWindow(targetUrl);
       }
     } catch (err) {
@@ -349,9 +430,9 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(handleClick());
 });
 
-// ── 4. Push Subscription Change ───────────────────────────────
+// ── Debug / Subscription ──────────────────────────────────────
 self.addEventListener('pushsubscriptionchange', (event) => {
-  console.log('[SW] Push subscription changed');
+//   console.warn('[SW][POSSIBLE_DROP] subscription changed');
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((allClients) => {
       allClients.forEach((client) => {
@@ -363,13 +444,13 @@ self.addEventListener('pushsubscriptionchange', (event) => {
   );
 });
 
-// ── 5. Lifecycle ──────────────────────────────────────────────
+// ── Lifecycle ─────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Service worker activated');
+//   console.warn('[SW] activated');
   event.waitUntil(clients.claim());
 });
 
 self.addEventListener('install', (event) => {
-  console.log('[SW] Service worker installed');
+//   console.log('[SW] installed');
   event.waitUntil(self.skipWaiting());
 });

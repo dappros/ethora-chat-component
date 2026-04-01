@@ -362,6 +362,7 @@ Below is a grouped reference for all `config` options.
 | `pushNotifications.serviceWorkerPath` | `string` | Service worker path, default `/firebase-messaging-sw.js`. |
 | `pushNotifications.serviceWorkerScope` | `string` | Service worker scope, default `/`. |
 | `pushNotifications.softAsk` | `boolean` | Do not immediately trigger browser permission prompt. |
+| `pushNotifications.onClick` | `(params) => void \| Promise<void>` | Callback invoked when the user clicks an OS push notification (including cold start via URL marker). |
 
 ## Custom Widgets and Overrides
 
@@ -447,6 +448,10 @@ npx @ethora/chat-component ethora-chat
       serviceWorkerPath: '/firebase-messaging-sw.js',
       serviceWorkerScope: '/',
       softAsk: false,
+      onClick: async ({ roomJID, messageId, url, data }) => {
+        // Your app-level routing/analytics can live here.
+        console.log('Push clicked:', { roomJID, messageId, url, data });
+      },
     },
   }}
 />
