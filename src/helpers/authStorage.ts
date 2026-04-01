@@ -90,9 +90,7 @@ export const persistUserSession = (user?: User | null) => {
     return;
   }
 
-  const local = getStorage('localStorage');
   const session = getStorage('sessionStorage');
-  const sanitizedUser = sanitizeUserForPersistentStorage(user);
   const payload: StoredUserPayload = {
     v: USER_PAYLOAD_VERSION,
     ts: Date.now(),
@@ -105,20 +103,9 @@ export const persistUserSession = (user?: User | null) => {
       localStorageConstants.ETHORA_USER_SESSION,
       JSON.stringify(payload)
     );
-    if (sanitizedUser) {
-      const safePayload: StoredUserPayload = {
-        ...payload,
-        user: sanitizedUser,
-      };
-      local?.setItem(
-        localStorageConstants.ETHORA_USER,
-        JSON.stringify(safePayload)
-      );
-    }
-    local?.setItem(
-      localStorageConstants.ETHORA_USER_PAYLOAD_VERSION,
-      String(USER_PAYLOAD_VERSION)
-    );
+    // Keep auth session in sessionStorage only.
+    // Remove any old localStorage payloads left from previous versions.
+    clearLegacyLocalUserCache();
   } catch (error) {
     console.warn('[AuthStorage] Failed to persist user session', error);
   }
@@ -134,16 +121,13 @@ const isExpiredPayload = (
 
 export const getStoredUser = (expectedAppId?: string): User | null => {
   const session = getStorage('sessionStorage');
-  const local = getStorage('localStorage');
   const sessionPayload = parseUserPayload(
     session?.getItem(localStorageConstants.ETHORA_USER_SESSION) ?? null
   );
-  const localPayload = parseUserPayload(
-    local?.getItem(localStorageConstants.ETHORA_USER) ?? null
-  );
 
-  const payload = sessionPayload ?? localPayload;
+  const payload = sessionPayload;
   if (!payload?.user) {
+    clearLegacyLocalUserCache();
     return null;
   }
 
@@ -152,7 +136,7 @@ export const getStoredUser = (expectedAppId?: string): User | null => {
     return null;
   }
 
-  if (!sessionPayload && localPayload && isExpiredPayload(localPayload, LOCAL_USER_MAX_AGE_MS)) {
+  if (isExpiredPayload(payload, LOCAL_USER_MAX_AGE_MS)) {
     clearStoredUser();
     return null;
   }
@@ -167,4 +151,10 @@ export const clearStoredUser = () => {
   local?.removeItem(localStorageConstants.ETHORA_USER);
   local?.removeItem(localStorageConstants.ETHORA_USER_PAYLOAD_VERSION);
   session?.removeItem(localStorageConstants.ETHORA_USER_SESSION);
+};
+
+const clearLegacyLocalUserCache = () => {
+  const local = getStorage('localStorage');
+  local?.removeItem(localStorageConstants.ETHORA_USER);
+  local?.removeItem(localStorageConstants.ETHORA_USER_PAYLOAD_VERSION);
 };

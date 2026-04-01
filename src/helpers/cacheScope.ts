@@ -1,4 +1,5 @@
 import { IConfig } from '../types/types';
+import { sha256 } from 'js-sha256';
 import { localStorageConstants } from './constants/LOCAL_STORAGE';
 
 const CACHE_SCOPE_VERSION = 'v2';
@@ -23,7 +24,7 @@ export const buildCacheScope = (config?: IConfig): string => {
     normalize(config?.xmppSettings?.conference),
   ];
 
-  return parts.join('|');
+  return sha256(parts.join('|'));
 };
 
 const removeFromStorage = (store: Storage | null, key: string): void => {
@@ -41,10 +42,16 @@ export const clearScopedChatCache = (): void => {
   const local = window.localStorage;
   const session = window.sessionStorage;
 
-  PERSIST_REDUX_KEYS.forEach((key) => removeFromStorage(local, key));
+  PERSIST_REDUX_KEYS.forEach((key) => {
+    removeFromStorage(local, key);
+    removeFromStorage(session, key);
+  });
 
   removeFromStorage(local, localStorageConstants.ETHORA_QR_CHAT_ID);
   removeFromStorage(local, localStorageConstants.ETHORA_USER);
+  removeFromStorage(local, localStorageConstants.ETHORA_USER_PAYLOAD_VERSION);
+  removeFromStorage(local, localStorageConstants.ETHORA_CACHE_SCOPE);
+  removeFromStorage(session, localStorageConstants.ETHORA_USER);
   removeFromStorage(session, localStorageConstants.ETHORA_USER_SESSION);
 };
 
