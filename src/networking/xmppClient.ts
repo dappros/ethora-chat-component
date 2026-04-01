@@ -323,8 +323,8 @@ export class XmppClient implements XmppClientInterface {
   private scheduleAdaptivePing() {
     if (this.idlePingTimeout) clearTimeout(this.idlePingTimeout);
 
-    const idleTime = 2000;
-    const pongWait = 2000;
+    const idleTime = this.idleThresholdMs;
+    const pongWait = Math.max(this.pongTimeoutMs, 4000);
 
     this.idlePingTimeout = setTimeout(() => {
       if (this.status !== 'online' || this.pingInFlight) return;
@@ -593,13 +593,9 @@ export class XmppClient implements XmppClientInterface {
 
   private async processQueue(): Promise<void> {
     if (this.processingQueue) return;
-    if (this.isRecoveringRoomPresence) return;
     this.processingQueue = true;
     try {
       while (this.messageQueue.length > 0) {
-        if (this.isRecoveringRoomPresence) {
-          break;
-        }
         if (this.status !== 'online') {
           if (!this.reconnectTimer) {
             this.scheduleReconnect('queue-not-online');
@@ -647,11 +643,8 @@ export class XmppClient implements XmppClientInterface {
       this.processingQueue = false;
     }
 
-    if (
-      this.messageQueue.length > 0 &&
-      !this.isRecoveringRoomPresence
-    ) {
-      setTimeout(() => this.processQueue().catch(() => {}), 200);
+    if (this.messageQueue.length > 0) {
+      setTimeout(() => this.processQueue().catch(() => {}), 60);
     }
   }
 
@@ -879,10 +872,18 @@ export class XmppClient implements XmppClientInterface {
     return this.enqueue(async () => {
       return this.withIdLock(customId, async () => {
         return this.sendMessageWithPingCheck(async () => {
-          // Optimistic send: start presence join in background, do not block first send.
-          this.prioritizeRoomPresence(roomJID).catch(() => {});
           if (this.status !== 'online') {
             throw new Error('not_online');
+          }
+          // Short join attempt; if it times out, continue with optimistic send and keep joining in background.
+          const joined = await this.ensureRoomPresence(roomJID, {
+            settleDelay: 0,
+            timeoutMs: 900,
+            waitForJoin: true,
+            source: 'send',
+          });
+          if (!joined) {
+            this.prioritizeRoomPresence(roomJID).catch(() => {});
           }
           return this.wrapWithConnectionCheck(async () => {
             return sendTextMessage(
@@ -923,10 +924,17 @@ export class XmppClient implements XmppClientInterface {
     return this.enqueue(async () => {
       return this.withIdLock(customId, async () => {
         return this.sendMessageWithPingCheck(async () => {
-          // Optimistic send: start presence join in background, do not block first send.
-          this.prioritizeRoomPresence(roomJID).catch(() => {});
           if (this.status !== 'online') {
             throw new Error('not_online');
+          }
+          const joined = await this.ensureRoomPresence(roomJID, {
+            settleDelay: 0,
+            timeoutMs: 900,
+            waitForJoin: true,
+            source: 'send',
+          });
+          if (!joined) {
+            this.prioritizeRoomPresence(roomJID).catch(() => {});
           }
           return this.wrapWithConnectionCheck(async () => {
             return sendTextMessageWithTranslateTag(

@@ -1,4 +1,4 @@
-import { getFirebaseMessaging } from '../firebase-config';
+import { getFirebaseMessaging, defaultConfig } from '../firebase-config';
 import { getToken, onMessage, MessagePayload, Messaging } from 'firebase/messaging';
 
 /**
@@ -33,7 +33,7 @@ interface FcmRegistrationOptions {
 async function registerFirebaseServiceWorker(
   options: FcmRegistrationOptions = {}
 ): Promise<ServiceWorkerRegistration | null> {
-  let serviceWorkerPath = options.serviceWorkerPath || '/firebase-messaging-sw.js';
+  const baseServiceWorkerPath = options.serviceWorkerPath || '/firebase-messaging-sw.js';
   const serviceWorkerScope = options.serviceWorkerScope || '/';
 
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
@@ -41,8 +41,15 @@ async function registerFirebaseServiceWorker(
   }
 
   // Append config as URL params so the SW doesn't need to be manually edited
-  const config = options.firebaseConfig;
-  if (config && config.apiKey && config.appId) {
+  const config = options.firebaseConfig || defaultConfig;
+  const hasRequiredConfig =
+    !!config?.apiKey &&
+    !!config?.appId &&
+    !!config?.messagingSenderId &&
+    !!config?.projectId;
+
+  let serviceWorkerPath = baseServiceWorkerPath;
+  if (hasRequiredConfig) {
     const params = new URLSearchParams();
     params.append('apiKey', config.apiKey || '');
     params.append('authDomain', config.authDomain || '');
@@ -56,22 +63,73 @@ async function registerFirebaseServiceWorker(
   }
 
   try {
-    // Re-use an already active registration if it matches the path (with params)
+    const waitForActive = async (
+      registration: ServiceWorkerRegistration | null
+    ): Promise<ServiceWorkerRegistration | null> => {
+      if (!registration) return null;
+      if (registration.active) return registration;
+      try {
+        const ready = await navigator.serviceWorker.ready;
+        if (ready?.active) return ready;
+      } catch {
+        // fall through
+      }
+      return registration.active ? registration : null;
+    };
+
+    const hasConfigParams = (scriptURL: string): boolean => {
+      try {
+        const url = new URL(scriptURL);
+        return (
+          !!url.searchParams.get('apiKey') &&
+          !!url.searchParams.get('appId') &&
+          !!url.searchParams.get('messagingSenderId') &&
+          !!url.searchParams.get('projectId')
+        );
+      } catch {
+        return false;
+      }
+    };
+
+    // Re-use an already registered SW for this path (ignore query params)
     const existing = await navigator.serviceWorker.getRegistrations();
-    const alreadyRegistered = existing.find((r) =>
-      r.active?.scriptURL?.includes(serviceWorkerPath)
-    );
+    const alreadyRegistered = existing.find((r) => {
+      const scriptURL = r.active?.scriptURL || r.waiting?.scriptURL || r.installing?.scriptURL;
+      if (!scriptURL) return false;
+      try {
+        return new URL(scriptURL).pathname === baseServiceWorkerPath;
+      } catch {
+        return scriptURL.includes(baseServiceWorkerPath);
+      }
+    });
+
     if (alreadyRegistered) {
-      return alreadyRegistered;
+      const scriptURL =
+        alreadyRegistered.active?.scriptURL ||
+        alreadyRegistered.waiting?.scriptURL ||
+        alreadyRegistered.installing?.scriptURL ||
+        '';
+      const shouldUpdate =
+        hasRequiredConfig && scriptURL && !hasConfigParams(scriptURL);
+
+      if (!shouldUpdate) {
+        return await waitForActive(alreadyRegistered);
+      }
     }
-    const registration = await navigator.serviceWorker.register(
-      serviceWorkerPath,
-      { scope: serviceWorkerScope }
-    );
+
+    const registration = await navigator.serviceWorker.register(serviceWorkerPath, {
+      scope: serviceWorkerScope,
+    });
+
+    const activeRegistration = await waitForActive(registration);
+
     if (options?.debug) {
-      console.log('[PushNotifications] Firebase service worker registered:', registration.scope);
+      console.log(
+        '[PushNotifications] Firebase service worker registered:',
+        activeRegistration?.scope || registration.scope
+      );
     }
-    return registration;
+    return activeRegistration || registration;
   } catch (err) {
     if (options?.debug) {
       console.warn('[PushNotifications] Failed to register Firebase service worker:', err);
@@ -92,11 +150,17 @@ export async function getFCMToken(options: FcmRegistrationOptions = {}): Promise
     if (!messaging) return null;
 
     const swRegistration = await registerFirebaseServiceWorker(options);
+    if (!swRegistration?.active) {
+      if (options?.debug) {
+        console.warn('[PushNotifications] No active service worker; cannot fetch FCM token yet.');
+      }
+      return null;
+    }
 
     const token = await getToken(messaging, {
       vapidKey:
         options.vapidPublicKey || (import.meta as any).env?.VITE_VAPID_PUBLIC_KEY,
-      ...(swRegistration ? { serviceWorkerRegistration: swRegistration } : {}),
+      serviceWorkerRegistration: swRegistration,
     });
 
     if (token) {

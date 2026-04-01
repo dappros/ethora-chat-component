@@ -40,6 +40,27 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
   const [reconnectAttempts, setReconnectAttempts] = useState<number>(0);
   const initializingRef = useRef<Promise<XmppClient> | null>(null);
 
+  const waitForOnline = (xmppClient: XmppClient, timeoutMs = 30000) =>
+    new Promise<void>((resolve, reject) => {
+      const startedAt = Date.now();
+      const checkStatus = () => {
+        if (xmppClient.status === 'online') {
+          resolve();
+          return;
+        }
+        if (xmppClient.status === 'error') {
+          reject(new Error('Failed to connect.'));
+          return;
+        }
+        if (Date.now() - startedAt > timeoutMs) {
+          reject(new Error('XMPP online timeout'));
+          return;
+        }
+        setTimeout(checkStatus, 200);
+      };
+      checkStatus();
+    });
+
   const initializeClient = async (
     username: string,
     password: string,
@@ -65,22 +86,14 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
         setClient(newClient);
         setGlobalXmppClient(newClient);
 
-        const waitOnlineStart = Date.now();
-        await new Promise<void>((resolve, reject) => {
-          const checkStatus = () => {
-            if (newClient.status === 'online') {
-              resolve();
-            } else if (newClient.status === 'error') {
-              reject(new Error('Failed to connect.'));
-            } else {
-              setTimeout(checkStatus, 300);
-            }
-          };
-          checkStatus();
-        });
-        console.log(
-          `[InitTiming] initClient:wait_online ${Date.now() - waitOnlineStart}ms`
-        );
+        waitForOnline(newClient)
+          .then(() => {})
+          .catch((error) => {
+            console.warn(
+              '[InitTiming] initClient:wait_online:error',
+              error instanceof Error ? error.message : String(error)
+            );
+          });
 
         setPassword(password);
         setEmail(username);

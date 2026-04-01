@@ -80,7 +80,7 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
         return;
       }
 
-      const storedUser = getStoredUser() as User | null;
+      const storedUser = getStoredUser(config?.appId) as User | null;
       if (storedUser && hasStoredSensitiveSession(storedUser)) {
         dispatch(setUser(storedUser));
         return;

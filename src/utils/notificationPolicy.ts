@@ -37,7 +37,12 @@ export const buildNotificationUrl = (
   if (data.url) return data.url;
   if (!data.jid) return origin;
   const chatId = toLocal(data.jid);
-  return `${origin}/chat?chatId=${encodeURIComponent(chatId)}`;
+  const messageId = data.msgID || payload.messageId || data.messageId || data.message_id;
+  const params = new URLSearchParams({ chatId });
+  if (messageId) {
+    params.set('messageId', String(messageId));
+  }
+  return `${origin}/chat?${params.toString()}`;
 };
 
 export interface XmppToastDecisionInput {

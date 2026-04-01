@@ -25,6 +25,11 @@ const getMessageTimestamp = (message: IMessage): number => {
 const isCountableMessage = (msg: IMessage): boolean =>
   !!msg && msg.id !== 'delimiter-new' && !msg.pending;
 
+const toLocal = (value?: string): string => {
+  if (!value) return '';
+  return String(value).split('@')[0];
+};
+
 export const unreadMiddleware: Middleware =
   (storeAPI) => (next) => (action: any) => {
     if (!action || !action.type) {
@@ -41,6 +46,7 @@ export const unreadMiddleware: Middleware =
     const state = storeAPI.getState();
     const rooms = state.rooms.rooms;
     const activeChatJID = state.rooms.activeRoomJID;
+    const currentXmppUsername = state.chatSettingStore?.user?.xmppUsername;
 
     if (!rooms || Object.keys(rooms).length === 0) return result;
 
@@ -53,6 +59,10 @@ export const unreadMiddleware: Middleware =
           ? 0
           : (room.messages || []).filter((msg: IMessage) => {
               if (!isCountableMessage(msg)) return false;
+              const isOwnMessage =
+                toLocal(msg?.user?.id) !== '' &&
+                toLocal(msg?.user?.id) === toLocal(currentXmppUsername);
+              if (isOwnMessage) return false;
               const ts = getMessageTimestamp(msg);
               if (ts <= 0) return false;
               const lastViewed = Number(room.lastViewedTimestamp || 0);

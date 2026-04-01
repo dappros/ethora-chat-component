@@ -278,13 +278,6 @@ export const MessageNotificationProvider: React.FC<{
     }
     return () => {
       unsubscribe();
-      if (
-        config?.useStoreConsoleEnabled &&
-        isEnabled &&
-        messageNotificationManager.getCallbackCount() === 0
-      ) {
-        console.warn('[NotifyPolicy] source=in_app action=callbacks_empty');
-      }
     };
   }, [config?.useStoreConsoleEnabled, isEnabled, showMessageNotification]);
 

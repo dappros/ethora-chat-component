@@ -11,7 +11,7 @@ export const presenceInRoom = async (
 
   const unsubscribe = () => client.off('stanza', stanzaHandler);
 
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     let settled = false;
 
     const finish = (cb: (value?: any) => void, value?: any) => {

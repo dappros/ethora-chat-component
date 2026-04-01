@@ -27,7 +27,6 @@ import Loader from '../styled/Loader';
 import { ModalReportChat } from '../Modals/ModalReportChat/ModalReportChat.tsx';
 import { useQRCodeChat } from '../../hooks/useQRCodeChatHandler';
 import useChatWrapperInit from '../../hooks/useChatWrapperInit.ts';
-import { useHeapSender } from '../../hooks/useHeapSender';
 import ErrorFallback from './ErrorFallback';
 import ConnectionBanner from './ConnectionBanner';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
@@ -91,7 +90,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   const rooms = useSelector((state: RootState) => state.rooms.rooms);
   const activeRoomJID = useSelector((state: RootState) => state.rooms.activeRoomJID);
   const reportRoom = useSelector((state: RootState) => state.rooms.reportRoom);
-  const {  loadingText } = useRoomState();
+  const { loadingText } = useRoomState();
 
   const activeMessage = useMemo(() => {
     if (activeRoomJID) {
@@ -133,13 +132,9 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     wasAutoSelected,
     config,
   });
-  const { sendHeapMessages } = useHeapSender(client);
-
-  useEffect(() => {
-    if (inited && client) {
-      sendHeapMessages();
-    }
-  }, [inited, client]);
+  const hasRooms = Object.keys(rooms || {}).length > 0;
+  const clientReadyForUI = !!client && !isConnectionLost && hasRooms;
+  const showShell = inited || clientReadyForUI;
 
   //upd logic to use
   // const queueMessageLoader = useCallback(
@@ -183,7 +178,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           ...MainComponentStyles,
         }}
       >
-        <ConnectionBanner />
+        <ConnectionBanner message="Connection lost. Retrying..." />
         <StyledLoaderWrapper
           style={{ alignItems: 'center', flexDirection: 'column', gap: '10px' }}
         >
@@ -221,7 +216,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
   return (
     <>
-      {inited ? (
+      {showShell ? (
         <ChatWrapperBox
           style={{
             ...MainComponentStyles,
@@ -290,7 +285,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           style={{ alignItems: 'center', flexDirection: 'column', gap: '10px' }}
         >
           <Loader color={config?.colors?.primary} style={{ margin: '0px' }} />
-          {loadingText && <div>{loadingText}</div>}
+          <div>{loadingText || 'Loading chat...'}</div>
         </StyledLoaderWrapper>
       )}
       {deleteModal?.isDeleteModal && (

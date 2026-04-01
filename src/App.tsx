@@ -71,12 +71,7 @@ const NotificationEnabler: React.FC = () => {
 };
 
 const ChatComponent = React.memo(() => {
-  const demoJwtToken =
-    (typeof import.meta !== 'undefined' &&
-      (import.meta as ImportMeta & {
-        env?: Record<string, string | undefined>;
-      }).env?.VITE_ETHORA_DEMO_JWT) ||
-    '';
+  // const demoJwtToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7InR5cGUiOiJjbGllbnQiLCJ1c2VySWQiOiJwbGF5Z3JvdW5kLXVzZXItMSIsImFwcElkIjoiNjlhODNiNzM5NGM3OGJjMWVkMzJhYzc1In0sImlhdCI6MTc3NTAwMTQ3MCwiZXhwIjoxNzc1MDA1MDcwfQ.DhGBheY4NBYyAUKHmZ2nmTSjP8knn6rB6W3dk2krZWo'
 
   const config: IConfig = useMemo(
     () => ({
@@ -147,23 +142,23 @@ const ChatComponent = React.memo(() => {
         // CustomScrollableArea={CustomScrollableArea}
         // CustomDaySeparator={CustomDaySeparator}
         // roomJID="646cc8dc96d4a4dc8f7b2f2d_6824685682d635dba7522423@conference.xmpp.ethoradev.com"
-        roomJID="6998429ba125477a74a7dcef_69b96235545b8217d39dc1ac@conference.xmpp-dev.preshent.com"
+        // roomJID="6998429ba125477a74a7dcef_69b96235545b8217d39dc1ac@conference.xmpp-dev.preshent.com"
         config={{
           xmppSettings: {
-            devServer: 'wss://xmpp-dev.preshent.com/ws',
-            host: 'xmpp-dev.preshent.com',
-            conference: 'conference.xmpp-dev.preshent.com',
+            devServer: 'wss://xmpp.ethoradev.com:5443/ws',
+            host: 'xmpp.ethoradev.com',
+            conference: 'conference.xmpp.ethoradev.com',
             xmppPingOnSendEnabled: true,
           },
-          baseUrl: 'https://api-dev.preshent.com/v1',
-          ...(demoJwtToken
-            ? {
-                jwtLogin: {
-                  enabled: true,
-                  token: demoJwtToken,
-                },
-              }
-            : {}),
+          baseUrl: 'https://api.ethoradev.com/v1',
+          // ...(demoJwtToken
+          //   ? {
+          //       jwtLogin: {
+          //         enabled: true,
+          //         token: demoJwtToken,
+          //       },
+          //     }
+          //   : {}),
           setRoomJidInPath: true,
           refreshTokens: { enabled: true },
           // secondarySendButton: {
@@ -184,18 +179,18 @@ const ChatComponent = React.memo(() => {
             },
           },
           ...config,
-          // inAppNotifications: {
-          //   enabled: true,
-          //   showInContext: true, // Show notifications in chat component
-          //   position: {
-          //     horizontal: 'left',
-          //     vertical: 'bottom',
-          //     offset: {
-          //       left: 20,
-          //       bottom: 20,
-          //     },
-          //   },
-          // },
+          inAppNotifications: {
+            enabled: true,
+            showInContext: true, // Show notifications in chat component
+            position: {
+              horizontal: 'left',
+              vertical: 'bottom',
+              offset: {
+                left: 20,
+                bottom: 20,
+              },
+            },
+          },
           // pushNotifications: {
           //   enabled: true,
           //   softAsk: false,

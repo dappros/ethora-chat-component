@@ -186,5 +186,13 @@ export interface IConfig {
     serviceWorkerPath?: string;
     serviceWorkerScope?: string;
     softAsk?: boolean;
+    onClick?: (params: {
+      roomJID?: string;
+      messageId?: string;
+      url?: string;
+      data?: Record<string, any>;
+      notification?: { title?: string; body?: string };
+      source?: 'service_worker' | 'foreground';
+    }) => void | Promise<void>;
   };
 }

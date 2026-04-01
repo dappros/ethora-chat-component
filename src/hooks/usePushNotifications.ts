@@ -24,6 +24,7 @@ import { IMessage } from '../types/models/message.model';
 import { pushSubscriptionService } from '../utils/pushSubscriptionService';
 import { getGlobalXmppClient } from '../utils/clientRegistry';
 import {
+  setCurrentRoom,
   setPushSubscriptionStatus,
 } from '../roomStore/roomsSlice';
 import { IConfig } from '../types/types';
@@ -105,8 +106,93 @@ const usePushNotifications = (
   const [fcmTokenReady, setFcmTokenReady] = useState<string | null>(null);
   const recentPushToastsRef = useRef<Map<string, number>>(new Map());
   const lastRoomsHashRef = useRef<string>('');
+  const roomSubscribeInFlightRef = useRef<Set<string>>(new Set());
+  const roomRetryAtRef = useRef<Map<string, number>>(new Map());
+  const roomProcessRunningRef = useRef(false);
   const isSyncingRef = useRef(false);
   const lastXmppUsernameRef = useRef<string>('');
+  const recentHistoryFetchRef = useRef<Map<string, number>>(new Map());
+
+  const normalizeRoomJid = useCallback(
+    (jid?: string): string => {
+      if (!jid) return '';
+      if (jid.includes('@')) return jid;
+      const conference =
+        config?.xmppSettings?.conference || 'conference.xmpp.ethoradev.com';
+      return `${jid}@${conference}`;
+    },
+    [config?.xmppSettings?.conference]
+  );
+
+  const scrollToMessage = useCallback((messageId?: string) => {
+    if (!messageId || typeof document === 'undefined') return;
+    const messageElement = document.querySelector(
+      `[data-message-id="${messageId}"]`
+    );
+    if (messageElement) {
+      messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      messageElement.classList.add('message-highlight');
+      setTimeout(() => messageElement.classList.remove('message-highlight'), 2000);
+    }
+  }, []);
+
+  const fetchRecentHistory = useCallback(
+    (roomJid: string, messageId?: string) => {
+      if (!roomJid) return;
+      const now = Date.now();
+      const lastFetch = recentHistoryFetchRef.current.get(roomJid) || 0;
+      if (now - lastFetch < 1500) return;
+      recentHistoryFetchRef.current.set(roomJid, now);
+
+      const client = getGlobalXmppClient();
+      if (!client?.checkOnline?.()) return;
+
+      client.prioritizeRoomPresence(roomJid).catch(() => {});
+      client
+        .getHistoryStanza(roomJid, 30)
+        .catch(() => {})
+        .finally(() => {
+          if (messageId) {
+            setTimeout(() => scrollToMessage(messageId), 200);
+          }
+        });
+    },
+    [scrollToMessage]
+  );
+
+  const handlePushClick = useCallback(
+    async (payload: any, source: 'service_worker' | 'foreground') => {
+      const data = payload?.data ?? payload?.payload?.data ?? {};
+      const roomJidRaw = data.jid || data.roomJid || payload?.roomJid || '';
+      const roomJid = normalizeRoomJid(roomJidRaw);
+      const messageId =
+        data.msgID || data.messageId || payload?.messageId || payload?.msgID;
+      const url = data.url || payload?.url;
+
+      const customOnClick = config?.pushNotifications?.onClick;
+      if (customOnClick) {
+        try {
+          await customOnClick({
+            roomJID: roomJid,
+            messageId: messageId ? String(messageId) : undefined,
+            url,
+            data,
+            notification: payload?.notification,
+            source,
+          });
+        } catch (error) {
+          console.error('[PushNotifications] Error in onClick handler:', error);
+        }
+        return;
+      }
+
+      if (roomJid) {
+        dispatch(setCurrentRoom({ roomJID: roomJid }));
+        fetchRecentHistory(roomJid, messageId ? String(messageId) : undefined);
+      }
+    },
+    [config?.pushNotifications?.onClick, dispatch, fetchRecentHistory, normalizeRoomJid]
+  );
 
   // ─────────────────────────────────────────────────────────────────────────────
   const runPushFlow = useCallback(async () => {
@@ -186,7 +272,7 @@ const usePushNotifications = (
       const data = payload.data ?? {};
       const title = payload.notification?.title || data.title || 'New message';
       const body = payload.notification?.body || data.body || 'You have a new message.';
-      const roomJid = data.jid || '';
+      const roomJid = normalizeRoomJid(data.jid || '');
       const senderId = data.userJid || '';
       const messageId = payload.messageId || data.msgID || String(Date.now());
       const isSystemMessage = isSystemPayload(payload);
@@ -221,7 +307,7 @@ const usePushNotifications = (
         id: messageId,
         user: {
           id: senderId || 'unknown',
-          name: senderId || 'Unknown sender',
+          name: senderId || 'Ethora',
           userJID: senderId || null,
         },
         date: new Date().toISOString(),
@@ -230,7 +316,7 @@ const usePushNotifications = (
       };
 
       const roomName = isSystemMessage ? 'System' : roomJid || title;
-      const senderName = isSystemMessage ? 'System' : senderId || 'Unknown sender';
+      const senderName = isSystemMessage ? 'System' : senderId || 'Ethora';
 
       if (shouldForceSystemToast || fgToastDecision.show) {
         messageNotificationManager.showNotification(
@@ -242,6 +328,10 @@ const usePushNotifications = (
       }
 
       recentPushToastsRef.current.set(dedupeKey, now);
+
+      if (roomJid && !alreadyInStore) {
+        fetchRecentHistory(roomJid, existingMessageId);
+      }
 
       // Browser notifications are now handled by MessageNotificationContext
       if (config?.useStoreConsoleEnabled) {
@@ -264,7 +354,7 @@ const usePushNotifications = (
         _foregroundUnsubscribe = null;
       }
     };
-  }, [config, enabled, roomsMap]);
+  }, [config, enabled, roomsMap, normalizeRoomJid, fetchRecentHistory]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -273,15 +363,29 @@ const usePushNotifications = (
 
     const onServiceWorkerMessage = (event: MessageEvent<any>) => {
       const data = event?.data;
-      if (!data || data.type !== 'PUSH_FOREGROUND_BRIDGE' || !data.payload) return;
-      _foregroundHandlers.forEach((cb) => cb(data.payload));
+      if (!data) return;
+      if (data.type === 'PUSH_FOREGROUND_BRIDGE' && data.payload) {
+        _foregroundHandlers.forEach((cb) => cb(data.payload));
+        return;
+      }
+      if (data.type === 'PUSH_NOTIFICATION_CLICK') {
+        handlePushClick(
+          {
+            data: data.data || {},
+            notification: data.notification || {},
+            messageId: data?.data?.messageId || data?.data?.msgID,
+            url: data?.data?.url,
+          },
+          'service_worker'
+        );
+      }
     };
 
     navigator.serviceWorker.addEventListener('message', onServiceWorkerMessage);
     return () => {
       navigator.serviceWorker.removeEventListener('message', onServiceWorkerMessage);
     };
-  }, [enabled]);
+  }, [enabled, handlePushClick]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Auto-run after the user logs in (unless softAsk is enabled)
@@ -333,7 +437,10 @@ const usePushNotifications = (
 
     const processSubscriptions = async () => {
       try {
-        for (const roomJID of roomJIDs) {
+        if (roomProcessRunningRef.current) return;
+      roomProcessRunningRef.current = true;
+      try {
+      for (const roomJID of roomJIDs) {
           const currentStatus = pushSubscriptionStatus[roomJID];
           
           if (
@@ -345,33 +452,45 @@ const usePushNotifications = (
             continue;
           }
 
-          dispatch(setPushSubscriptionStatus({ jid: roomJID, status: 'pending' }));
-          
-          try {
-            const result = await pushSubscriptionService.subscribeToRoom(roomJID, client);
-            if (result.ok === true) {
-              dispatch(setPushSubscriptionStatus({ jid: roomJID, status: 'subscribed' }));
-              if (config?.useStoreConsoleEnabled) {
-                console.log(`[PushNotifications] ✅ Subscribed to ${roomJID}`);
-              }
-            } else {
-              const status = result.reason === 'forbidden' ? 'blocked' : 'error';
-              dispatch(setPushSubscriptionStatus({ jid: roomJID, status }));
-              if (config?.useStoreConsoleEnabled) {
-                console.warn(`[PushNotifications] ❌ Failed to subscribe to ${roomJID}:`, result.message);
-              }
-            }
-          } catch (error) {
-            dispatch(setPushSubscriptionStatus({ jid: roomJID, status: 'error' }));
+        const retryAt = roomRetryAtRef.current.get(roomJID);
+        if (retryAt && retryAt > Date.now()) {
+          continue;
+        }
+
+        if (roomSubscribeInFlightRef.current.has(roomJID)) {
+          continue;
+        }
+
+        dispatch(setPushSubscriptionStatus({ jid: roomJID, status: 'pending' }));
+        
+        try {
+          const result = await pushSubscriptionService.subscribeToRoom(roomJID, client);
+          if (result.ok === true) {
+            dispatch(setPushSubscriptionStatus({ jid: roomJID, status: 'subscribed' }));
             if (config?.useStoreConsoleEnabled) {
-              console.error(`[PushNotifications] Error subscribing to ${roomJID}:`, error);
+              console.log(`[PushNotifications] ✅ Subscribed to ${roomJID}`);
+            }
+          } else {
+            const status = result.reason === 'forbidden' ? 'blocked' : 'error';
+            dispatch(setPushSubscriptionStatus({ jid: roomJID, status }));
+            if (config?.useStoreConsoleEnabled) {
+              console.warn(`[PushNotifications] ❌ Failed to subscribe to ${roomJID}:`, result.message);
             }
           }
+        } catch (error) {
+          dispatch(setPushSubscriptionStatus({ jid: roomJID, status: 'error' }));
+          if (config?.useStoreConsoleEnabled) {
+            console.error(`[PushNotifications] Error subscribing to ${roomJID}:`, error);
+          }
+        }
 
           await new Promise((resolve) => setTimeout(resolve, 100));
         }
       } finally {
         isSyncingRef.current = false;
+      }
+      } finally {
+        roomProcessRunningRef.current = false;
       }
     };
 
