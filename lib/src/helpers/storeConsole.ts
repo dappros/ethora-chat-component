@@ -22,7 +22,9 @@ const initializeStoreConsole = () => {
         delete (window as any).useStoreConsole;
       }
     }
-  } catch (error) {}
+  } catch (error) {
+    // Ignore runtime access issues when store state is not ready yet.
+  }
 };
 
 const patchConsoleForEnvironment = () => {

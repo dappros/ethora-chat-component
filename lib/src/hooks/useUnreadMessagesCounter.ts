@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { IRoom } from '../types/types';
-import { RootState, store } from '../roomStore';
+import { store } from '../roomStore';
 
 interface UnreadMessagesMap {
   [roomJid: string]: number;
@@ -13,25 +13,13 @@ interface UnreadMessagesStats {
 }
 
 export const useUnreadMessagesCounter = (): UnreadMessagesStats => {
-  const subscribe = (callback: () => void) => {
-    const unsubscribe = store.subscribe(() => {
-      const state: RootState = store.getState();
-      const rooms = state.rooms?.rooms;
-
-      if (rooms) {
-        Object.entries(rooms).forEach(([roomJid, room]: [string, IRoom]) => {
-          if (room.unreadMessages !== undefined) {
-            callback();
-          }
-        });
-      }
-    });
-    return unsubscribe;
-  };
+  const subscribe = (callback: () => void) => store.subscribe(callback);
+  const getSnapshot = () => store.getState().rooms.rooms;
 
   const rooms = useSyncExternalStore(
     subscribe,
-    () => store.getState().rooms.rooms
+    getSnapshot,
+    getSnapshot
   );
 
   const unreadByRoom: UnreadMessagesMap = {};

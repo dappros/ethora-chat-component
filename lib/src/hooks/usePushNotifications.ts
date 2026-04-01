@@ -24,6 +24,7 @@ import { IMessage } from '../types/models/message.model';
 import { pushSubscriptionService } from '../utils/pushSubscriptionService';
 import { getGlobalXmppClient } from '../utils/clientRegistry';
 import {
+  setCurrentRoom,
   setPushSubscriptionStatus,
 } from '../roomStore/roomsSlice';
 import { IConfig } from '../types/types';
@@ -105,6 +106,93 @@ const usePushNotifications = (
   const [fcmTokenReady, setFcmTokenReady] = useState<string | null>(null);
   const recentPushToastsRef = useRef<Map<string, number>>(new Map());
   const lastRoomsHashRef = useRef<string>('');
+  const roomSubscribeInFlightRef = useRef<Set<string>>(new Set());
+  const roomRetryAtRef = useRef<Map<string, number>>(new Map());
+  const roomProcessRunningRef = useRef(false);
+  const isSyncingRef = useRef(false);
+  const lastXmppUsernameRef = useRef<string>('');
+  const recentHistoryFetchRef = useRef<Map<string, number>>(new Map());
+
+  const normalizeRoomJid = useCallback(
+    (jid?: string): string => {
+      if (!jid) return '';
+      if (jid.includes('@')) return jid;
+      const conference =
+        config?.xmppSettings?.conference || 'conference.xmpp.ethoradev.com';
+      return `${jid}@${conference}`;
+    },
+    [config?.xmppSettings?.conference]
+  );
+
+  const scrollToMessage = useCallback((messageId?: string) => {
+    if (!messageId || typeof document === 'undefined') return;
+    const messageElement = document.querySelector(
+      `[data-message-id="${messageId}"]`
+    );
+    if (messageElement) {
+      messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      messageElement.classList.add('message-highlight');
+      setTimeout(() => messageElement.classList.remove('message-highlight'), 2000);
+    }
+  }, []);
+
+  const fetchRecentHistory = useCallback(
+    (roomJid: string, messageId?: string) => {
+      if (!roomJid) return;
+      const now = Date.now();
+      const lastFetch = recentHistoryFetchRef.current.get(roomJid) || 0;
+      if (now - lastFetch < 1500) return;
+      recentHistoryFetchRef.current.set(roomJid, now);
+
+      const client = getGlobalXmppClient();
+      if (!client?.checkOnline?.()) return;
+
+      client.prioritizeRoomPresence(roomJid).catch(() => {});
+      client
+        .getHistoryStanza(roomJid, 30)
+        .catch(() => {})
+        .finally(() => {
+          if (messageId) {
+            setTimeout(() => scrollToMessage(messageId), 200);
+          }
+        });
+    },
+    [scrollToMessage]
+  );
+
+  const handlePushClick = useCallback(
+    async (payload: any, source: 'service_worker' | 'foreground') => {
+      const data = payload?.data ?? payload?.payload?.data ?? {};
+      const roomJidRaw = data.jid || data.roomJid || payload?.roomJid || '';
+      const roomJid = normalizeRoomJid(roomJidRaw);
+      const messageId =
+        data.msgID || data.messageId || payload?.messageId || payload?.msgID;
+      const url = data.url || payload?.url;
+
+      const customOnClick = config?.pushNotifications?.onClick;
+      if (customOnClick) {
+        try {
+          await customOnClick({
+            roomJID: roomJid,
+            messageId: messageId ? String(messageId) : undefined,
+            url,
+            data,
+            notification: payload?.notification,
+            source,
+          });
+        } catch (error) {
+          console.error('[PushNotifications] Error in onClick handler:', error);
+        }
+        return;
+      }
+
+      if (roomJid) {
+        dispatch(setCurrentRoom({ roomJID: roomJid }));
+        fetchRecentHistory(roomJid, messageId ? String(messageId) : undefined);
+      }
+    },
+    [config?.pushNotifications?.onClick, dispatch, fetchRecentHistory, normalizeRoomJid]
+  );
 
   // ─────────────────────────────────────────────────────────────────────────────
   const runPushFlow = useCallback(async () => {
@@ -148,7 +236,7 @@ const usePushNotifications = (
       // Log: subscribed via API
       if (config?.useStoreConsoleEnabled) {
         console.log(
-          `%c[PushNotifications] ✅ User subscribed via API – Token: ${fcmToken.substring(0, 15)}...`,
+          '%c[PushNotifications] ✅ User subscribed via API',
           'color: #22c55e; font-weight: bold'
         );
       }
@@ -184,7 +272,7 @@ const usePushNotifications = (
       const data = payload.data ?? {};
       const title = payload.notification?.title || data.title || 'New message';
       const body = payload.notification?.body || data.body || 'You have a new message.';
-      const roomJid = data.jid || '';
+      const roomJid = normalizeRoomJid(data.jid || '');
       const senderId = data.userJid || '';
       const messageId = payload.messageId || data.msgID || String(Date.now());
       const isSystemMessage = isSystemPayload(payload);
@@ -219,7 +307,7 @@ const usePushNotifications = (
         id: messageId,
         user: {
           id: senderId || 'unknown',
-          name: senderId || 'Unknown sender',
+          name: senderId || 'Ethora',
           userJID: senderId || null,
         },
         date: new Date().toISOString(),
@@ -228,7 +316,7 @@ const usePushNotifications = (
       };
 
       const roomName = isSystemMessage ? 'System' : roomJid || title;
-      const senderName = isSystemMessage ? 'System' : senderId || 'Unknown sender';
+      const senderName = isSystemMessage ? 'System' : senderId || 'Ethora';
 
       if (shouldForceSystemToast || fgToastDecision.show) {
         messageNotificationManager.showNotification(
@@ -240,6 +328,10 @@ const usePushNotifications = (
       }
 
       recentPushToastsRef.current.set(dedupeKey, now);
+
+      if (roomJid && !alreadyInStore) {
+        fetchRecentHistory(roomJid, existingMessageId);
+      }
 
       // Browser notifications are now handled by MessageNotificationContext
       if (config?.useStoreConsoleEnabled) {
@@ -262,7 +354,7 @@ const usePushNotifications = (
         _foregroundUnsubscribe = null;
       }
     };
-  }, [config, enabled, roomsMap]);
+  }, [config, enabled, roomsMap, normalizeRoomJid, fetchRecentHistory]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -271,18 +363,45 @@ const usePushNotifications = (
 
     const onServiceWorkerMessage = (event: MessageEvent<any>) => {
       const data = event?.data;
-      if (!data || data.type !== 'PUSH_FOREGROUND_BRIDGE' || !data.payload) return;
-      _foregroundHandlers.forEach((cb) => cb(data.payload));
+      if (!data) return;
+      if (data.type === 'PUSH_FOREGROUND_BRIDGE' && data.payload) {
+        _foregroundHandlers.forEach((cb) => cb(data.payload));
+        return;
+      }
+      if (data.type === 'PUSH_NOTIFICATION_CLICK') {
+        handlePushClick(
+          {
+            data: data.data || {},
+            notification: data.notification || {},
+            messageId: data?.data?.messageId || data?.data?.msgID,
+            url: data?.data?.url,
+          },
+          'service_worker'
+        );
+      }
     };
 
     navigator.serviceWorker.addEventListener('message', onServiceWorkerMessage);
     return () => {
       navigator.serviceWorker.removeEventListener('message', onServiceWorkerMessage);
     };
-  }, [enabled]);
+  }, [enabled, handlePushClick]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Auto-run after the user logs in (unless softAsk is enabled)
+  useEffect(() => {
+    if (!userToken || lastXmppUsernameRef.current !== userXmppUsername) {
+      hasRanRef.current = false;
+      fcmTokenRef.current = null;
+      setFcmTokenReady(null);
+      lastRoomsHashRef.current = '';
+      isSyncingRef.current = false;
+      _subscriptionRegistered = false;
+    }
+
+    lastXmppUsernameRef.current = userXmppUsername || '';
+  }, [userToken, userXmppUsername]);
+
   useEffect(() => {
     if (!userToken) return;             // not logged in yet
     if (softAsk) return;               // consumer controls timing
@@ -297,17 +416,48 @@ const usePushNotifications = (
     if (!enabled) return;
     if (!fcmTokenReady) return;
 
-    const roomJIDs = Object.keys(roomsMap || {}).filter(Boolean);
-    if (!roomJIDs.length) return;
-
+    const roomJIDs = Object.keys(roomsMap || {}).filter(Boolean).sort();
+    const roomJIDsHash = roomJIDs
+      .map((jid) => `${jid}:${pushSubscriptionStatus[jid] || 'idle'}`)
+      .join(',');
+    
+    // Only proceed if the set of rooms has changed or we haven't run yet
+    if (roomJIDsHash === lastRoomsHashRef.current) {
+      return;
+    }
+    
     const client = getGlobalXmppClient();
-    if (!client?.checkOnline?.()) return;
+    if (!client?.checkOnline?.()) {
+      return;
+    }
+
+    if (isSyncingRef.current) return;
+    isSyncingRef.current = true;
+    lastRoomsHashRef.current = roomJIDsHash;
 
     const processSubscriptions = async () => {
+      try {
+        if (roomProcessRunningRef.current) return;
+      roomProcessRunningRef.current = true;
+      try {
       for (const roomJID of roomJIDs) {
-        const currentStatus = pushSubscriptionStatus[roomJID];
-        
-        if (currentStatus === 'subscribed' || currentStatus === 'pending' || currentStatus === 'blocked') {
+          const currentStatus = pushSubscriptionStatus[roomJID];
+          
+          if (
+            currentStatus === 'subscribed' ||
+            currentStatus === 'pending' ||
+            currentStatus === 'blocked' ||
+            currentStatus === 'error'
+          ) {
+            continue;
+          }
+
+        const retryAt = roomRetryAtRef.current.get(roomJID);
+        if (retryAt && retryAt > Date.now()) {
+          continue;
+        }
+
+        if (roomSubscribeInFlightRef.current.has(roomJID)) {
           continue;
         }
 
@@ -334,12 +484,18 @@ const usePushNotifications = (
           }
         }
 
-        await new Promise((resolve) => setTimeout(resolve, 100));
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+      } finally {
+        isSyncingRef.current = false;
+      }
+      } finally {
+        roomProcessRunningRef.current = false;
       }
     };
 
     void processSubscriptions();
-  }, [enabled, roomsMap, fcmTokenReady, pushSubscriptionStatus, dispatch]);
+  }, [enabled, roomsMap, fcmTokenReady, dispatch, pushSubscriptionStatus]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Expose a manual trigger for soft-ask patterns

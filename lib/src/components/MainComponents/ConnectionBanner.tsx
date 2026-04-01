@@ -17,12 +17,14 @@ const BannerContainer = styled.div`
   left: 0;
 `;
 
-const ConnectionBanner: React.FC = () => {
-  return (
-    <BannerContainer>
-      Connection lost. Retrying...
-    </BannerContainer>
-  );
+interface ConnectionBannerProps {
+  message?: string;
+}
+
+const ConnectionBanner: React.FC<ConnectionBannerProps> = ({
+  message = 'Connection lost. Retrying...',
+}) => {
+  return <BannerContainer>{message}</BannerContainer>;
 };
 
 export default ConnectionBanner;

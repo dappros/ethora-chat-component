@@ -48,7 +48,25 @@ export const updateMessagesTillLast = async (
             let currentJidNewMessages: IMessage[] = [];
 
             const lastCachedMessagesTimeStamp = lastTimestampsByJid[jid];
-            if (!lastCachedMessagesTimeStamp) return;
+            if (!lastCachedMessagesTimeStamp) {
+              const initialMessages = await client.getHistoryStanza(
+                jid,
+                Math.max(messagesPerFetch * 4, 20)
+              );
+              if (initialMessages && initialMessages.length > 0) {
+                const fixedUsers = await checkUniqueUsers(initialMessages);
+                if (fixedUsers && fixedUsers.length > 0) {
+                  store.dispatch(insertUsers({ newUsers: fixedUsers }));
+                }
+                store.dispatch(
+                  setRoomMessages({
+                    roomJID: jid,
+                    messages: initialMessages,
+                  })
+                );
+              }
+              return;
+            }
 
             while (!isMessageFound && counter < maxFetchAttempts) {
               const lastMessageId =

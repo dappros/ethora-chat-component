@@ -22,11 +22,11 @@ export const initRoomsPresence = async (
   const run = (async () => {
     for (const jid of jids) {
       try {
-        await client.presenceInRoomStanza(jid, 0, 3000, true);
+        await client.presenceInRoomStanza(jid, 0, 5000, true);
       } catch (e) {
         // ignore individual failures
       }
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 35));
     }
   })();
   inFlightByClient.set(clientKey, run);

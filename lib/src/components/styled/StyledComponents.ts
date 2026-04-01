@@ -341,8 +341,8 @@ export const Wrapper = styled.div.withConfig({
   size?: number;
   isClickable: boolean;
 }>`
-  width: ${({ size }) => `${size}px` || '64px'};
-  height: ${({ size }) => `${size}px` || '64px'};
+  width: ${({ size }) => (size ? `${size}px` : '64px')};
+  height: ${({ size }) => (size ? `${size}px` : '64px')};
   border-radius: 50%;
   background-color: ${({ bgColor }) => bgColor};
   display: flex;
@@ -361,8 +361,8 @@ export const AvatarCircle = styled.div.withConfig({
   size?: number;
   isClickable: boolean;
 }>`
-  width: ${({ size }) => `${size}px` || '64px'};
-  height: ${({ size }) => `${size}px` || '64px'};
+  width: ${({ size }) => (size ? `${size}px` : '64px')};
+  height: ${({ size }) => (size ? `${size}px` : '64px')};
   border-radius: 50%;
   background-color: ${({ bgColor }) => bgColor};
   display: flex;

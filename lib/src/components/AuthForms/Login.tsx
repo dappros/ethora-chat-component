@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import styled from 'styled-components';
 import { MessageInput } from '../styled/StyledComponents';
 import Button from '../styled/Button';
@@ -12,9 +12,7 @@ import {
   signInWithGoogle,
 } from '../../networking/api-requests/auth.api';
 import { useDispatch } from 'react-redux';
-import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { setUser } from '../../roomStore/chatSettingsSlice';
-import { localStorageConstants } from '../../helpers/constants/LOCAL_STORAGE';
 import { useToast } from '../../context/ToastContext';
 
 interface LoginFormProps {
@@ -71,7 +69,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
         refreshToken: authData.data.refreshToken,
       };
       dispatch(setUser(user));
-      useLocalStorage(localStorageConstants.ETHORA_USER).set(user);
       showToast({
         id: 'success',
         title: 'Login Successful',
@@ -124,7 +121,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
             refreshToken: loginRes.data.refreshToken,
           };
           dispatch(setUser(user));
-          useLocalStorage(localStorageConstants.ETHORA_USER).set(user);
         } catch (error) {
           console.log('error registering user viag google');
         }
@@ -142,7 +138,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
           refreshToken: loginRes.data.refreshToken,
         };
         dispatch(setUser(user));
-        useLocalStorage(localStorageConstants.ETHORA_USER).set(user);
       }
     } catch (error) {
       console.log(error);

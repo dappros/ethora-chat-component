@@ -35,8 +35,10 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
         switch (true) {
           case activeFile.mimetype.startsWith('image/'):
             downloadFilenameExtesion = 'png';
+            break;
           case activeFile.mimetype.startsWith('video/'):
             downloadFilenameExtesion = 'mp4';
+            break;
           default:
             downloadFilenameExtesion = activeFile.fileName;
         }

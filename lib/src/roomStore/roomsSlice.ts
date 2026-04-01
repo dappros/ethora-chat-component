@@ -49,7 +49,7 @@ const initialState: RoomMessagesState = {
 export const addRoomViaApi = createAsyncThunk(
   'roomMessages/addRoomViaApi',
   async (
-    { room, xmpp }: { room: IRoom; xmpp: XmppClient },
+    { room, xmpp: _xmpp }: { room: IRoom; xmpp: XmppClient },
     { dispatch, getState }
   ) => {
     const state = getState() as { rooms: RoomMessagesState };
@@ -58,10 +58,8 @@ export const addRoomViaApi = createAsyncThunk(
     );
 
     if (!isRoomAlreadyAdded) {
-      if (room.jid) {
-        xmpp.presenceInRoomStanza(room.jid);
-        xmpp?.getHistoryStanza(room.jid, 10);
-      }
+      // Room bootstrap is handled by dedicated initialization flows.
+      // Avoid per-room blocking network calls during initial room list sync.
       dispatch(roomsStore.actions.addRoomFromApi({ room }));
     }
   }
@@ -424,11 +422,26 @@ const countNewerMessages = (
   messages: IMessage[],
   timestamp: number
 ): number => {
-  if (timestamp !== 0) {
-    return messages.filter((message) => {
-      return Number(message.id) < timestamp;
-    }).length;
-  } else return 0;
+  if (timestamp <= 0) return 0;
+  const getMessageTimestamp = (message: IMessage): number => {
+    const dateTs = new Date(message?.date as string).getTime();
+    if (Number.isFinite(dateTs) && dateTs > 0) return dateTs;
+
+    const numericId = Number(message?.id);
+    if (Number.isFinite(numericId) && numericId > 0) return numericId;
+
+    const inlineTimestamp = Number((message as any)?.timestamp);
+    if (Number.isFinite(inlineTimestamp) && inlineTimestamp > 0) {
+      return inlineTimestamp;
+    }
+    return 0;
+  };
+
+  return messages.filter((message) => {
+    if (!message || message.id === 'delimiter-new' || message.pending) return false;
+    const ts = getMessageTimestamp(message);
+    return ts > timestamp;
+  }).length;
 };
 
 export const getLastMessageTimestamp = (

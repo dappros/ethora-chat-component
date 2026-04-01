@@ -8,6 +8,20 @@ import useGetNewArchRoom from './useGetNewArchRoom';
 const countUndefinedText = (arr: IMessage[]) =>
   arr.filter((item) => item?.body === undefined)?.length;
 
+const PUSH_MESSAGE_ID_KEY = '@ethora/chat-component-pushMessageId';
+const PUSH_ROOM_JID_KEY = '@ethora/chat-component-pushRoomJid';
+
+const scrollToMessage = (messageId: string) => {
+  const messageElement = document.querySelector(
+    `[data-message-id="${messageId}"]`
+  );
+  if (messageElement) {
+    messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    messageElement.classList.add('message-highlight');
+    setTimeout(() => messageElement.classList.remove('message-highlight'), 2000);
+  }
+};
+
 export const useRoomInitialization = (
   activeRoomJID: string,
   roomsList: Record<string, IRoom>,
@@ -21,14 +35,20 @@ export const useRoomInitialization = (
 
   useEffect(() => {
     if (client && activeRoomJID) {
-      // Prioritize active room join without blocking UI.
-      client.prioritizeRoomPresence(activeRoomJID).catch(() => {});
+      // Try fast explicit join for active room right after selection/login.
+      client
+        .presenceInRoomStanza(activeRoomJID, 0, 1200, true)
+        .catch(() => {
+          client.prioritizeRoomPresence(activeRoomJID).catch(() => {});
+        });
     }
   }, [client, activeRoomJID]);
 
   useEffect(() => {
     const getDefaultHistory = async () => {
       if (!client) return;
+      if (!activeRoomJID) return;
+      await client.presenceInRoomStanza(activeRoomJID, 0, 1500, true).catch(() => {});
       dispatch(setIsLoading({ loading: true, chatJID: activeRoomJID }));
       const res = await client.getHistoryStanza(activeRoomJID, 30);
       if (res && countUndefinedText(res) > 0) {
@@ -73,8 +93,7 @@ export const useRoomInitialization = (
         initialPresenceAndHistory();
       } else if (
         activeRoomJID &&
-        messageLength < 1 &&
-        !roomsList?.[activeRoomJID].historyComplete
+        messageLength < 1
       ) {
         dispatch(setIsLoading({ loading: true, chatJID: activeRoomJID }));
         getDefaultHistory();
@@ -83,6 +102,30 @@ export const useRoomInitialization = (
       }
     } else if (!roomsList?.[activeRoomJID]) {
       initialPresenceAndHistory();
+    }
+
+    if (client && activeRoomJID && typeof window !== 'undefined') {
+      const pendingMessageId =
+        typeof localStorage !== 'undefined'
+          ? localStorage.getItem(PUSH_MESSAGE_ID_KEY)
+          : null;
+      const pendingRoomJID =
+        typeof localStorage !== 'undefined'
+          ? localStorage.getItem(PUSH_ROOM_JID_KEY)
+          : null;
+
+      if (pendingMessageId && (!pendingRoomJID || pendingRoomJID === activeRoomJID)) {
+        client
+          .getHistoryStanza(activeRoomJID, 30)
+          .catch(() => {})
+          .finally(() => {
+            setTimeout(() => scrollToMessage(pendingMessageId), 200);
+            if (typeof localStorage !== 'undefined') {
+              localStorage.removeItem(PUSH_MESSAGE_ID_KEY);
+              localStorage.removeItem(PUSH_ROOM_JID_KEY);
+            }
+          });
+      }
     }
 
     if (client && config?.defaultRooms) {
@@ -100,5 +143,5 @@ export const useRoomInitialization = (
         }
       }
     }
-  }, [activeRoomJID, Object.keys(roomsList).length]);
+  }, [activeRoomJID, Object.keys(roomsList).length, messageLength]);
 };

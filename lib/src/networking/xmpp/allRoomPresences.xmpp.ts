@@ -19,8 +19,26 @@ export async function allRoomPresences(
     return { total: 0, success: 0, failed: 0, failedRooms: [], failures: [] };
   }
 
-  const settled = await Promise.allSettled(
-    roomJids.map((roomJid) => presenceInRoom(client, roomJid))
+  const settled: PromiseSettledResult<any>[] = new Array(roomJids.length);
+  const concurrency = 3;
+  const queue = roomJids.map((roomJid, index) => ({ roomJid, index }));
+
+  const worker = async () => {
+    while (queue.length > 0) {
+      const next = queue.shift();
+      if (!next) return;
+      const { roomJid, index } = next;
+      // Critical: delay must be lower than timeout to avoid deterministic timeout.
+      const result = await Promise.allSettled([
+        presenceInRoom(client, roomJid, 0, 5000),
+      ]);
+      settled[index] = result[0];
+      await new Promise((resolve) => setTimeout(resolve, 30));
+    }
+  };
+
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, roomJids.length) }, () => worker())
   );
   const failedRooms: string[] = [];
   const failures: Array<{ roomJid: string; reason: string }> = [];

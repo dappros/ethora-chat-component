@@ -58,7 +58,7 @@ export const presenceInRoom = async (
       return;
     }
 
-    await createTimeoutPromise(timeoutMs, unsubscribe).catch(() => {
+    void createTimeoutPromise(timeoutMs, unsubscribe).catch(() => {
       reject(new Error(`presence_timeout:${roomJID}`));
     });
   });

@@ -17,9 +17,10 @@ function getUniqueUsers(messages: IMessage[]): Set<IUser> {
 export const getUnnamedUsers = (messages: IMessage[]): IUser[] => {
   const uniqueUsers = getUniqueUsers(messages);
 
-  return [...uniqueUsers].filter((user) =>
-    user?.name.toLowerCase().includes('deleted')
-  );
+  return [...uniqueUsers].filter((user) => {
+    const name = typeof user?.name === 'string' ? user.name.toLowerCase() : '';
+    return name.includes('deleted');
+  });
 };
 
 export const fixUnnamedArrayFromApi = async (

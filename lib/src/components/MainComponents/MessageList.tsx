@@ -23,6 +23,20 @@ import NewMessageLabel from '../styled/NewMessageLabel';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
 import { DecoratedMessage } from '../../types/models/customComponents.model';
 
+const getMainMessageId = (mainMessage?: string): string | null => {
+  if (!mainMessage) {
+    return null;
+  }
+
+  try {
+    const parsedMessage = JSON.parse(mainMessage);
+    return parsedMessage?.id ?? null;
+  } catch (error) {
+    console.warn('[MessageList] Failed to parse mainMessage payload', error);
+    return null;
+  }
+};
+
 interface MessageListProps<TMessage extends IMessage> {
   CustomMessage?: React.ComponentType<{
     message: IMessage;
@@ -56,25 +70,35 @@ const MessageList = <TMessage extends IMessage>({
   const { user } = useChatSettingState();
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [newMessagesCount, setNewMessagesCount] = useState(0);
-  const [lastMessageDate, setLastMessageDate] = useState<number | null>(null);
   const lastMessageCount = useRef(messages.length);
   const lastUserMessageId = useRef<string | null>(null);
-  const scrollPositions = useRef<{ [key: string]: number }>({});
   const isFirstLoad = useRef<boolean>(true);
+  const lastSeenMessageDateRef = useRef<number>(0);
+
+  const repliesByMainMessageId = useMemo(() => {
+    const replyMap = new Map<string, IMessage[]>();
+
+    messages.forEach((message) => {
+      const mainMessageId = getMainMessageId(message.mainMessage);
+
+      if (!mainMessageId) {
+        return;
+      }
+
+      const replies = replyMap.get(mainMessageId) || [];
+      replies.push(message);
+      replyMap.set(mainMessageId, replies);
+    });
+
+    return replyMap;
+  }, [messages]);
 
   const addReplyMessages = useMemo(() => {
-    return messages.map((message) => {
-      const newMessage = {
-        ...message,
-        reply: messages.filter(
-          (mess) =>
-            !!mess.mainMessage && JSON.parse(mess.mainMessage).id === message.id
-        ),
-      };
-
-      return newMessage;
-    });
-  }, [messages, messages.length]);
+    return messages.map((message) => ({
+      ...message,
+      reply: repliesByMainMessageId.get(message.id) || [],
+    }));
+  }, [messages, repliesByMainMessageId]);
 
   const memoizedMessages = useMemo(() => {
     if (isReply) {
@@ -84,7 +108,7 @@ const MessageList = <TMessage extends IMessage>({
           item.isReply &&
           item.isReply === 'true' &&
           item.mainMessage &&
-          JSON.parse(item.mainMessage).id === activeMessage.id
+          getMainMessageId(item.mainMessage) === activeMessage?.id
       );
     } else {
       return addReplyMessages.filter(
@@ -92,25 +116,21 @@ const MessageList = <TMessage extends IMessage>({
           item.isSystemMessage === 'true' ||
           item.showInChannel === 'true' ||
           ((!item.isReply || item.isReply === 'false') && !item.mainMessage)
-      );
+        );
     }
-  }, [messages, messages.length]);
+  }, [activeMessage?.id, addReplyMessages, isReply, roomJID]);
 
   const isUserMessage = useMemo(
     () =>
-      messages.length &&
-      messages[messages.length - 1].user.id === user.xmppUsername,
-    [messages.length, user.xmppUsername]
+      memoizedMessages.length > 0 &&
+      memoizedMessages[memoizedMessages.length - 1].user.id === user.xmppUsername,
+    [memoizedMessages, user.xmppUsername]
   );
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const outerRef = useRef<HTMLDivElement>(null);
-  const lastMessageRef = useRef<IMessage>(
-    memoizedMessages[memoizedMessages.length - 1]
-  );
   const isLoadingMore = useRef<boolean>(false);
 
-  const timeoutRef = useRef<number>(0);
+  const timeoutRef = useRef<number | undefined>(undefined);
   const scrollParams = useRef<{ top: number; height: number } | null>(null);
   const atBottom = useRef<boolean>(true);
   const isUserScrolledUp = useRef<boolean>(false);
@@ -137,8 +157,9 @@ const MessageList = <TMessage extends IMessage>({
     const promises = Array.from(images).map((img) => {
       if (img.complete) return Promise.resolve();
       return new Promise((resolve) => {
-        img.onload = resolve;
-        img.onerror = resolve;
+        const handleComplete = () => resolve(undefined);
+        img.addEventListener('load', handleComplete, { once: true });
+        img.addEventListener('error', handleComplete, { once: true });
       });
     });
 
@@ -177,37 +198,35 @@ const MessageList = <TMessage extends IMessage>({
       }
       isFirstLoad.current = false;
     } else {
-      const savedPosition = scrollPositions.current[roomJID];
-      if (savedPosition !== undefined) {
-        content.scrollTop = savedPosition;
-      } else {
-        content.scrollTop = content.scrollHeight;
-      }
+      content.scrollTop = content.scrollHeight;
     }
   }, [roomJID, memoizedMessages, waitForImagesLoaded]);
 
   useEffect(() => {
-    if (memoizedMessages.length > 0) {
-      setLastMessageDate(
-        new Date(memoizedMessages[memoizedMessages.length - 1].date).getTime()
-      );
+    const lastMessage = memoizedMessages[memoizedMessages.length - 1];
+    if (!lastMessage) {
+      return;
     }
-  }, []);
+
+    const newMessageDate = new Date(lastMessage.date).getTime();
+    if (!Number.isFinite(newMessageDate)) {
+      return;
+    }
+
+    if (
+      lastSeenMessageDateRef.current !== 0 &&
+      !isUserMessage &&
+      newMessageDate > lastSeenMessageDateRef.current
+    ) {
+      setNewMessagesCount((prev) => prev + 1);
+    }
+
+    lastSeenMessageDateRef.current = newMessageDate;
+  }, [isUserMessage, memoizedMessages]);
 
   useEffect(() => {
-    if (isUserMessage) return;
-
-    const newMessageDate = new Date(
-      memoizedMessages[memoizedMessages.length - 1]?.date
-    )?.getTime();
-    if (newMessageDate > lastMessageDate) {
-      setNewMessagesCount((prev) => (prev += 1));
-    }
-  }, [memoizedMessages.length]);
-
-  useEffect(() => {
-    restoreScrollPosition();
-  }, [roomJID]);
+    void restoreScrollPosition();
+  }, [restoreScrollPosition]);
 
   const checkIfLoadMoreMessages = useCallback(() => {
     const params = getScrollParams();
@@ -219,22 +238,22 @@ const MessageList = <TMessage extends IMessage>({
     scrollParams.current = getScrollParams();
 
     const [firstMessage, secondMessage] = memoizedMessages;
-    const firstMessageId =
+    const targetMessage =
       firstMessage?.id === 'delimiter-new'
-        ? secondMessage?.id
-        : firstMessage?.id;
+        ? secondMessage
+        : firstMessage;
+    const firstMessageId = targetMessage?.id;
 
     if (!firstMessageId) return;
 
     isLoadingMore.current = true;
 
-    loadMoreMessages(firstMessage.roomJid, 30, Number(firstMessageId)).finally(
+    loadMoreMessages(targetMessage.roomJid, 30, Number(firstMessageId)).finally(
       () => {
         isLoadingMore.current = false;
-        lastMessageRef.current = memoizedMessages[memoizedMessages.length - 1];
       }
     );
-  }, [loadMoreMessages, memoizedMessages.length]);
+  }, [loadMoreMessages, memoizedMessages]);
 
   const scrollToBottom = useCallback((): void => {
     const content = containerRef.current;
@@ -248,7 +267,7 @@ const MessageList = <TMessage extends IMessage>({
     }
   }, []);
 
-  const checkAtBottom = () => {
+  const checkAtBottom = useCallback(() => {
     const content = containerRef.current;
     if (content) {
       const scrollTop = content.scrollTop;
@@ -275,28 +294,24 @@ const MessageList = <TMessage extends IMessage>({
       lastMessageCount.current = messages.length;
       checkIfLoadMoreMessages();
     } else {
-      timeoutRef.current = null;
+      timeoutRef.current = undefined;
     }
-  };
+  }, [checkIfLoadMoreMessages, messages.length, scrollToBottom]);
 
-  const onScroll = () => {
+  const onScroll = useCallback(() => {
     if (typeof window !== "undefined") {
       window.clearTimeout(timeoutRef.current);
       timeoutRef.current = window.setTimeout(() => {
         checkAtBottom();
       }, 50);
     }
-  };
+  }, [checkAtBottom]);
 
   useEffect(() => {
-    const messagesOuter = outerRef.current;
-    if (messagesOuter) {
-      messagesOuter.addEventListener('scroll', onScroll, true);
-    }
-
     return () => {
-      messagesOuter &&
-        messagesOuter.removeEventListener('scroll', onScroll, true);
+      if (typeof window !== 'undefined') {
+        window.clearTimeout(timeoutRef.current);
+      }
     };
   }, []);
 
@@ -336,9 +351,6 @@ const MessageList = <TMessage extends IMessage>({
     const hasNewMessages = memoizedMessages.length > lastMessageCount.current;
     const isTypingStarted =
       composingList?.length > 0 && !lastComposingState.current;
-    const isTypingStopped =
-      composingList?.length === 0 && lastComposingState.current;
-
     lastComposingState.current = composingList?.length > 0;
 
     if (!isUserScrolledUp.current) {
@@ -351,8 +363,6 @@ const MessageList = <TMessage extends IMessage>({
       }
     }
 
-    if (isTypingStopped) {
-    }
   }, [
     memoizedMessages.length,
     composingList,
@@ -460,7 +470,7 @@ const MessageList = <TMessage extends IMessage>({
   }
 
   return (
-    <MessagesList ref={outerRef}>
+    <MessagesList>
       <MessagesScroll
         ref={containerRef}
         onScroll={onScroll}
