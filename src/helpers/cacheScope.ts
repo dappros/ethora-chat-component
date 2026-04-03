@@ -49,20 +49,23 @@ export const clearScopedChatCache = (): void => {
 
   removeFromStorage(local, localStorageConstants.ETHORA_QR_CHAT_ID);
   removeFromStorage(local, localStorageConstants.ETHORA_USER);
+  removeFromStorage(local, localStorageConstants.ETHORA_USER_SESSION);
   removeFromStorage(local, localStorageConstants.ETHORA_USER_PAYLOAD_VERSION);
   removeFromStorage(local, localStorageConstants.ETHORA_CACHE_SCOPE);
   removeFromStorage(session, localStorageConstants.ETHORA_USER);
   removeFromStorage(session, localStorageConstants.ETHORA_USER_SESSION);
 };
 
-const hasLegacyPersistedPayload = (): boolean => {
+const hasLegacyPersistedPayload = (previousScope: string | null): boolean => {
   if (typeof window === 'undefined') return false;
+  if (previousScope) return false;
 
   const local = window.localStorage;
+  const session = window.sessionStorage;
 
   return PERSIST_REDUX_KEYS.some((key) => {
     try {
-      return local.getItem(key) !== null;
+      return local.getItem(key) !== null || session.getItem(key) !== null;
     } catch {
       return false;
     }
@@ -86,7 +89,7 @@ export const ensureScopedChatCache = (
     console.warn('[CacheScope] Failed to read cache scope', error);
   }
 
-  const hasLegacy = hasLegacyPersistedPayload();
+  const hasLegacy = hasLegacyPersistedPayload(previousScope);
 
   if (previousScope === scope && !hasLegacy) {
     return { changed: false, scope, previousScope };

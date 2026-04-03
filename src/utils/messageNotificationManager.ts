@@ -18,6 +18,8 @@ class MessageNotificationManager {
   private pending: PendingNotification[] = [];
   private maxPending = 50;
   private pendingTtlMs = 30_000;
+  private dedupeWindowMs = 5000;
+  private recentlyDelivered = new Map<string, number>();
 
   addCallback(callback: MessageNotificationCallback) {
     this.callbacks.add(callback);
@@ -43,7 +45,49 @@ class MessageNotificationManager {
     });
   }
 
+  private buildDedupeKey(
+    message: IMessage,
+    roomJID: string
+  ): string | null {
+    const msgId = String((message as any)?.xmppId || message?.id || '').trim();
+    if (msgId) {
+      return `${roomJID}:${msgId}`;
+    }
+    return null;
+  }
+
+  private shouldSkipDuplicate(message: IMessage, roomJID: string): boolean {
+    const now = Date.now();
+    const key = this.buildDedupeKey(message, roomJID);
+    if (!key) {
+      return false;
+    }
+    const prev = this.recentlyDelivered.get(key) || 0;
+    if (prev && now - prev < this.dedupeWindowMs) {
+      return true;
+    }
+    this.recentlyDelivered.set(key, now);
+    if (this.recentlyDelivered.size > 500) {
+      const threshold = now - this.dedupeWindowMs;
+      this.recentlyDelivered.forEach((ts, k) => {
+        if (ts < threshold) {
+          this.recentlyDelivered.delete(k);
+        }
+      });
+    }
+    return false;
+  }
+
   showNotification(message: IMessage, roomName: string, senderName: string, roomJID: string) {
+    const body = typeof message?.body === 'string' ? message.body.trim() : '';
+    // Safety net: ignore typing/chat-state or malformed payloads without real text body.
+    if (!body) {
+      return;
+    }
+    if (this.shouldSkipDuplicate(message, roomJID)) {
+      return;
+    }
+
     if (this.callbacks.size > 0) {
       this.callbacks.forEach((cb) => cb(message, roomName, senderName, roomJID));
     } else {

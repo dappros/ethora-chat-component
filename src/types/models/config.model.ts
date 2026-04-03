@@ -157,6 +157,11 @@ export interface IConfig {
     hideSearch?: boolean;
   };
   useStoreConsoleEnabled?: boolean;
+  historyQoS?: {
+    maxInFlightHistory?: number;
+    softPauseAfterSendMs?: number;
+    activeRoomBoostTtlMs?: number;
+  };
   inAppNotifications?: {
     enabled?: boolean;
     showInContext?: boolean;

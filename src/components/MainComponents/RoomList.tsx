@@ -11,9 +11,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
 import { SearchIcon } from '../../assets/icons';
 import DropdownMenu from '../DropdownMenu/DropdownMenu';
-import { logout, setActiveModal } from '../../roomStore/chatSettingsSlice';
+import { setActiveModal } from '../../roomStore/chatSettingsSlice';
 import NewChatModal from '../Modals/NewChatModal/NewChatModal';
-import { setLogoutState } from '../../roomStore/roomsSlice';
 import {
   BurgerButton,
   Container,
@@ -25,6 +24,7 @@ import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 import { useXmppClient } from '../../context/xmppProvider';
 import ChatRoomItem from '../RoomComponents/ChatRoomItem';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { logoutService } from '../../hooks/useLogout';
 
 interface RoomListProps {
   chats: IRoom[];
@@ -144,9 +144,8 @@ const RoomList: React.FC<RoomListProps> = ({
       await client.close();
       setClient(null);
     }
-    dispatch(setLogoutState());
-    dispatch(logout());
-  }, []);
+    await logoutService.performLogout();
+  }, [client, setClient]);
 
   const menuOptions = useMemo(
     () => [

@@ -9,10 +9,15 @@ export interface XmppState {
 }
 
 export interface xmppSettingsInterface {
-  devServer: string;
-  host: string;
+  devServer?: string;
+  host?: string;
   conference?: string;
   xmppPingOnSendEnabled?: boolean;
+  historyQoS?: {
+    maxInFlightHistory?: number;
+    softPauseAfterSendMs?: number;
+    activeRoomBoostTtlMs?: number;
+  };
 }
 
 export interface MediaUploadData {
@@ -67,8 +72,18 @@ export interface XmppClientInterface {
     options?: {
       coalesceRoom?: boolean;
       skipIfPreloaded?: boolean;
+      source?: 'active' | 'send_ack' | 'background' | 'default';
     }
   ): Promise<IMessage[] | undefined>;
+  promoteRoomHistory(roomJID: string): void;
+  onCriticalSend(roomJID: string, messageId?: string): void;
+  enqueueHistoryTask(params: {
+    chatJID: string;
+    max: number;
+    before?: number;
+    id?: string;
+    source?: 'active' | 'send_ack' | 'background' | 'default';
+  }): Promise<IMessage[] | undefined>;
   getLastMessageArchiveStanza(roomJID: string): void;
   setRoomImageStanza(
     roomJid: string,

@@ -149,7 +149,9 @@ const usePushNotifications = (
 
       client.prioritizeRoomPresence(roomJid).catch(() => {});
       client
-        .getHistoryStanza(roomJid, 30)
+        .getHistoryStanza(roomJid, 30, undefined, undefined, {
+          source: 'active',
+        })
         .catch(() => {})
         .finally(() => {
           if (messageId) {

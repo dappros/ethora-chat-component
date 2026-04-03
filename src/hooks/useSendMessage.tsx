@@ -188,7 +188,11 @@ export const useSendMessage = () => {
         .presenceInRoomStanza(roomJID, 0, 1200, true)
         .catch(() => {})
         .finally(() => {
-          client.getHistoryStanza(roomJID, 10).catch(() => {});
+          client
+            .getHistoryStanza(roomJID, 10, undefined, undefined, {
+              source: 'send_ack',
+            })
+            .catch(() => {});
         });
     },
     [client]
@@ -211,7 +215,11 @@ export const useSendMessage = () => {
           .presenceInRoomStanza(roomJID, 0, 1200, true)
           .catch(() => {})
           .finally(() => {
-            client.getHistoryStanza(roomJID, 20).catch(() => {});
+            client
+              .getHistoryStanza(roomJID, 20, undefined, undefined, {
+                source: 'send_ack',
+              })
+              .catch(() => {});
           });
         if (Date.now() - startedAt < 5000) {
           setTimeout(retry, 700);

@@ -148,6 +148,7 @@ export const clearStoredUser = () => {
 
   local?.removeItem(localStorageConstants.ETHORA_USER);
   local?.removeItem(localStorageConstants.ETHORA_USER_PAYLOAD_VERSION);
+  local?.removeItem(localStorageConstants.ETHORA_USER_SESSION);
   session?.removeItem(localStorageConstants.ETHORA_USER_SESSION);
 };
 

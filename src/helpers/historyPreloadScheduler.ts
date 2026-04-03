@@ -191,6 +191,7 @@ export const runHistoryPreloadScheduler = async (
               {
                 coalesceRoom: true,
                 skipIfPreloaded: true,
+                source: 'background',
               }
             );
 

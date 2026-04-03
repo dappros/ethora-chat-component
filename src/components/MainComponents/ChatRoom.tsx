@@ -88,9 +88,13 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
                   ].id
                 );
           setIsLoadingMore(true);
-          client?.getHistoryStanza(chatJID, max, lastMsgId).then(() => {
-            setIsLoadingMore(false);
-          });
+          client
+            ?.getHistoryStanza(chatJID, max, lastMsgId, undefined, {
+              source: 'active',
+            })
+            .then(() => {
+              setIsLoadingMore(false);
+            });
         }
       },
       [client?.client?.jid]

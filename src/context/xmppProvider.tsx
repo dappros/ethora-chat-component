@@ -202,7 +202,10 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
       const targetClient = await initializeClient(
         resolvedUsername,
         resolvedPassword,
-        config?.xmppSettings
+        {
+          ...(config?.xmppSettings || {}),
+          historyQoS: config?.historyQoS,
+        } as xmppSettingsInterface
       );
 
       if (abortController.signal.aborted) return;
