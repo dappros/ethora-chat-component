@@ -90,7 +90,7 @@ export const persistUserSession = (user?: User | null) => {
     return;
   }
 
-  const session = getStorage('sessionStorage');
+  const session = getStorage('localStorage');
   const payload: StoredUserPayload = {
     v: USER_PAYLOAD_VERSION,
     ts: Date.now(),
@@ -120,7 +120,7 @@ const isExpiredPayload = (
 };
 
 export const getStoredUser = (expectedAppId?: string): User | null => {
-  const session = getStorage('sessionStorage');
+  const session = getStorage('localStorage');
   const sessionPayload = parseUserPayload(
     session?.getItem(localStorageConstants.ETHORA_USER_SESSION) ?? null
   );

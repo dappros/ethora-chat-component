@@ -78,7 +78,7 @@ export const updateMessagesTillLast = async (
                 Number(lastMessageId)
               );
 
-              if (!fetchedMessages.length) break;
+              if (!fetchedMessages || !fetchedMessages.length) break;
 
               counter++;
 

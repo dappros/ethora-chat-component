@@ -77,6 +77,9 @@ export class XmppClient implements XmppClientInterface {
   private recoveryRoomJid: string | null = null;
   private joinedRooms: Set<string> = new Set();
   private roomPresenceInFlight: Map<string, Promise<boolean>> = new Map();
+  private historyPreloadInFlight: Map<string, Promise<IMessage[] | undefined>> =
+    new Map();
+  private presenceTimeoutAutoLeaveInFlight: Set<string> = new Set();
 
   checkOnline() {
     return this.client && this.client.status === 'online';
@@ -200,6 +203,7 @@ export class XmppClient implements XmppClientInterface {
 
       await this.client.stop();
       this.client = null;
+      this.historyPreloadInFlight.clear();
       console.log('Client disconnected');
     } catch (error) {
       console.error('Error disconnecting client:', error);
@@ -213,6 +217,7 @@ export class XmppClient implements XmppClientInterface {
       this.presencesReady = false;
       this.joinedRooms.clear();
       this.roomPresenceInFlight.clear();
+      this.historyPreloadInFlight.clear();
       this.pendingSendById.clear();
       this.isRecoveringRoomPresence = false;
       this.recoveryRoomJid = null;
@@ -759,7 +764,7 @@ export class XmppClient implements XmppClientInterface {
       this.joinedRooms.add(roomJID);
       return true;
     })
-      .catch((error) => {
+      .catch(async (error) => {
         console.warn(
           `[XMPP] room_presence_failed room=${roomJID} source=${source} error=${formatError(error)}`
         );
@@ -803,9 +808,36 @@ export class XmppClient implements XmppClientInterface {
     chatJID: string,
     max: number,
     before?: number,
-    otherStanzaId?: string
+    otherStanzaId?: string,
+    options?: {
+      coalesceRoom?: boolean;
+      skipIfPreloaded?: boolean;
+    }
   ) => {
-    return await getHistory(this.client, chatJID, max, before, otherStanzaId);
+    if (options?.skipIfPreloaded) {
+      const currentRoom = store.getState().rooms.rooms?.[chatJID];
+      if (currentRoom?.historyPreloadState === 'done' && currentRoom?.messages?.length) {
+        return currentRoom.messages;
+      }
+    }
+
+    if (options?.coalesceRoom) {
+      const inFlight = this.historyPreloadInFlight.get(chatJID);
+      if (inFlight) {
+        return inFlight;
+      }
+    }
+
+    const requestPromise = getHistory(this.client, chatJID, max, before, otherStanzaId);
+
+    if (options?.coalesceRoom) {
+      this.historyPreloadInFlight.set(chatJID, requestPromise);
+      return requestPromise.finally(() => {
+        this.historyPreloadInFlight.delete(chatJID);
+      });
+    }
+
+    return await requestPromise;
   };
 
   getLastMessageArchiveStanza(roomJID: string) {

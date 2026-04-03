@@ -63,8 +63,12 @@ export interface XmppClientInterface {
     chatJID: string,
     max: number,
     before?: number,
-    otherStanzaId?: string
-  ): Promise<IMessage[]>;
+    otherStanzaId?: string,
+    options?: {
+      coalesceRoom?: boolean;
+      skipIfPreloaded?: boolean;
+    }
+  ): Promise<IMessage[] | undefined>;
   getLastMessageArchiveStanza(roomJID: string): void;
   setRoomImageStanza(
     roomJid: string,

@@ -90,7 +90,7 @@ export const persistUserSession = (user?: User | null) => {
     return;
   }
 
-  const session = getStorage('sessionStorage');
+  const session = getStorage('localStorage');
   const payload: StoredUserPayload = {
     v: USER_PAYLOAD_VERSION,
     ts: Date.now(),
@@ -103,8 +103,6 @@ export const persistUserSession = (user?: User | null) => {
       localStorageConstants.ETHORA_USER_SESSION,
       JSON.stringify(payload)
     );
-    // Keep auth session in sessionStorage only.
-    // Remove any old localStorage payloads left from previous versions.
     clearLegacyLocalUserCache();
   } catch (error) {
     console.warn('[AuthStorage] Failed to persist user session', error);
@@ -120,7 +118,7 @@ const isExpiredPayload = (
 };
 
 export const getStoredUser = (expectedAppId?: string): User | null => {
-  const session = getStorage('sessionStorage');
+  const session = getStorage('localStorage');
   const sessionPayload = parseUserPayload(
     session?.getItem(localStorageConstants.ETHORA_USER_SESSION) ?? null
   );

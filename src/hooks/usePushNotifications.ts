@@ -170,14 +170,14 @@ const usePushNotifications = (
       const url = data.url || payload?.url;
 
       try {
-        if (typeof window !== 'undefined' && window.sessionStorage) {
+        if (typeof window !== 'undefined' && window.localStorage) {
           const dedupeKey = `@ethora/chat-component:pushClick:${roomJid || ''}:${messageId || ''}:${url || ''}`;
-          const lastTs = Number(window.sessionStorage.getItem(dedupeKey) || '0');
+          const lastTs = Number(window.localStorage.getItem(dedupeKey) || '0');
           const now = Date.now();
           if (lastTs && now - lastTs < 5_000) return;
-          window.sessionStorage.setItem(dedupeKey, String(now));
+          window.localStorage.setItem(dedupeKey, String(now));
         }
-      } catch (_) {}
+      } catch (_) { /* empty */ }
 
       const customOnClick = config?.pushNotifications?.onClick;
       if (customOnClick) {
@@ -426,7 +426,7 @@ const usePushNotifications = (
     try {
       currentUrl.searchParams.delete('fromPush');
       window.history.replaceState({}, document.title, currentUrl.toString());
-    } catch (_) {}
+    } catch (_) { /* empty */ }
   }, [enabled, handlePushClick]);
 
   // ─────────────────────────────────────────────────────────────────────────────

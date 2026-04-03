@@ -9,8 +9,22 @@ import React, {
 import XmppClient from '../networking/xmppClient';
 import { setGlobalXmppClient } from '../utils/clientRegistry';
 import { IConfig, IRoom, xmppSettingsInterface } from '../types/types';
-import initXmppRooms from '../helpers/initXmppRooms';
-import { walletToUsername } from '../helpers/walletUsername';
+import { getRooms } from '../networking/api-requests/rooms.api';
+import { createRoomFromApi } from '../helpers/createRoomFromApi';
+import { store } from '../roomStore';
+import {
+  addRoomViaApi,
+  updateUsersSet,
+} from '../roomStore/roomsSlice';
+import { updatedChatLastTimestamps } from '../helpers/updatedChatLastTimestamps';
+import { runHistoryPreloadScheduler } from '../helpers/historyPreloadScheduler';
+import {
+  applyResolvedUserToStore,
+  resolveInitBeforeLoadUser,
+} from '../helpers/resolveInitBeforeLoadUser';
+import { setBaseURL } from '../networking/apiClient';
+
+let initBeforeLoadPromise: Promise<void> | null = null;
 // Declare XmppContext
 interface XmppContextType {
   client: XmppClient;
@@ -39,6 +53,25 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
   const [email, setEmail] = useState<string | null>(null);
   const [reconnectAttempts, setReconnectAttempts] = useState<number>(0);
   const initializingRef = useRef<Promise<XmppClient> | null>(null);
+
+  const syncRoomsForPreload = async (
+    targetClient: XmppClient,
+    signal?: AbortSignal
+  ) => {
+    const roomsResponse = await getRooms();
+    if (signal?.aborted || !roomsResponse?.items?.length) return;
+
+    roomsResponse.items.forEach((room) => {
+      if (signal?.aborted) return;
+      store.dispatch(
+        addRoomViaApi({
+          room: createRoomFromApi(room, config?.xmppSettings?.conference),
+          xmpp: targetClient,
+        })
+      );
+    });
+    store.dispatch(updateUsersSet({ rooms: roomsResponse.items }));
+  };
 
   const waitForOnline = (xmppClient: XmppClient, timeoutMs = 30000) =>
     new Promise<void>((resolve, reject) => {
@@ -143,26 +176,86 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
   }, [client?.status, reconnectAttempts]);
 
   useEffect(() => {
-    const initBeforeLoad = async () => {
-      initializeClient(
-        walletToUsername(config?.userLogin?.user?.defaultWallet?.walletAddress),
-        config?.userLogin?.user?.xmppPassword,
+    if (!config?.initBeforeLoad) return;
+    if (config?.baseUrl) {
+      setBaseURL(config.baseUrl, config.customAppToken);
+    }
+
+    const abortController = new AbortController();
+
+    const runInitBeforeLoad = async () => {
+      const resolvedUser = await resolveInitBeforeLoadUser({
+        config,
+        signal: abortController.signal,
+      });
+      if (abortController.signal.aborted || !resolvedUser) return;
+
+      applyResolvedUserToStore(resolvedUser);
+
+      const resolvedUsername =
+        resolvedUser.xmppUsername ||
+        resolvedUser.defaultWallet?.walletAddress;
+      const resolvedPassword = resolvedUser.xmppPassword;
+
+      if (!resolvedUsername || !resolvedPassword) return;
+
+      const targetClient = await initializeClient(
+        resolvedUsername,
+        resolvedPassword,
         config?.xmppSettings
-      ).then(async (client) => {
-        await initXmppRooms(
-          config?.userLogin?.user,
-          config,
-          client
-          // store?.getState()?.rooms?.rooms
-        );
+      );
+
+      if (abortController.signal.aborted) return;
+
+      await waitForOnline(targetClient).catch(() => {});
+
+      if (abortController.signal.aborted) return;
+
+      await syncRoomsForPreload(targetClient, abortController.signal);
+
+      if (abortController.signal.aborted) return;
+
+      const roomTimestampObject =
+        await targetClient.getChatsPrivateStoreRequestStanza();
+      if (abortController.signal.aborted) return;
+
+      updatedChatLastTimestamps(
+        roomTimestampObject as [jid: string, timestamp: string],
+        store.dispatch
+      );
+
+      void runHistoryPreloadScheduler({
+        client: targetClient,
+        signal: abortController.signal,
+        concurrency: 3,
+        pageSize: 10,
+        retryLimit: 2,
+        selectedRoomJid: store.getState().rooms.activeRoomJID || null,
+        defaultRoomJids: (config?.defaultRooms || []).map((room) => room.jid),
       });
     };
 
-    if (config?.initBeforeLoad) {
-      initBeforeLoad();
+    if (!initBeforeLoadPromise) {
+      initBeforeLoadPromise = runInitBeforeLoad()
+        .catch((error) => {
+          console.warn('[initBeforeLoad] bootstrap failed', error);
+        })
+        .finally(() => {
+          initBeforeLoadPromise = null;
+        });
     }
-    return () => {};
-  }, [config?.initBeforeLoad]);
+
+    return () => {
+      abortController.abort();
+    };
+  }, [
+    config?.initBeforeLoad,
+    config?.xmppSettings,
+    config?.defaultRooms,
+    config?.userLogin?.user?.xmppUsername,
+    config?.userLogin?.user?.xmppPassword,
+    config?.userLogin?.user?.defaultWallet?.walletAddress,
+  ]);
 
   useEffect(() => {
     // Only set up event listeners in browser

@@ -490,7 +490,9 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
                 ? result?.attrs?.room_thumbnail
                 : null,
             unreadMessages: 0,
+            unreadCapped: false,
             lastViewedTimestamp: 0,
+            historyPreloadState: 'idle',
           };
 
           store.dispatch(addRoom({ roomData: { ...roomData } }));

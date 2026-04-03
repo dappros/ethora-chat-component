@@ -27,6 +27,13 @@ interface RoomMessagesState {
   loadingText?: string;
 }
 
+interface PreloadRoomUpdate {
+  jid: string;
+  messages?: IMessage[];
+  unreadCapped?: boolean;
+  historyPreloadState?: 'idle' | 'loading' | 'done' | 'error';
+}
+
 const initialState: RoomMessagesState = {
   rooms: {},
   activeRoomJID: null,
@@ -44,6 +51,106 @@ const initialState: RoomMessagesState = {
   subscribedRooms: [],
   pushSubscriptionStatus: {},
   loadingText: undefined,
+};
+
+const getMessageTimestampValue = (message: IMessage): number => {
+  const dateTs = new Date(message?.date as string).getTime();
+  if (Number.isFinite(dateTs) && dateTs > 0) return dateTs;
+
+  const numericId = Number(message?.id);
+  if (Number.isFinite(numericId) && numericId > 0) return numericId;
+
+  const inlineTimestamp = Number((message as any)?.timestamp);
+  if (Number.isFinite(inlineTimestamp) && inlineTimestamp > 0) {
+    return inlineTimestamp;
+  }
+  return 0;
+};
+
+const getMessageKey = (message: IMessage): string =>
+  String(message?.xmppId || message?.id || '');
+
+const enrichMessageAuthor = (
+  message: IMessage,
+  usersSet: Record<string, RoomMember>
+): IMessage => {
+  const rawUserId = String(message?.user?.id || '');
+  const localUserId = rawUserId.split('@')[0];
+  const currentName = String(message?.user?.name || '').trim();
+  const resolvedName =
+    currentName ||
+    createUserNameFromSetUser(usersSet, localUserId) ||
+    createUserNameFromSetUser(usersSet, rawUserId) ||
+    localUserId ||
+    rawUserId;
+
+  return {
+    ...message,
+    user: {
+      ...message.user,
+      name: resolvedName,
+    },
+  };
+};
+
+const mergeRoomMessages = (
+  existing: IMessage[],
+  incoming: IMessage[],
+  usersSet: Record<string, RoomMember>
+): IMessage[] => {
+  if (!incoming?.length) return existing || [];
+  if (!existing?.length) {
+    return incoming.map((message) => enrichMessageAuthor(message, usersSet));
+  }
+
+  const byId = new Map<string, IMessage>();
+  [...existing, ...incoming].forEach((message) => {
+    const key = getMessageKey(message);
+    if (!key) return;
+    byId.set(key, enrichMessageAuthor(message, usersSet));
+  });
+
+  return [...byId.values()].sort(
+    (a, b) => getMessageTimestampValue(a) - getMessageTimestampValue(b)
+  );
+};
+
+const normalizeDelimiterPosition = (
+  messages: IMessage[],
+  lastViewedTimestamp?: number
+): IMessage[] => {
+  const list = (messages || []).filter((msg) => msg?.id !== 'delimiter-new');
+  const lastViewed = Number(lastViewedTimestamp || 0);
+
+  if (lastViewed <= 0 || list.length === 0) {
+    return list;
+  }
+
+  const firstUnreadIndex = list.findIndex((msg) => {
+    if (!msg || msg.pending) return false;
+    const ts = getMessageTimestampValue(msg);
+    return ts > lastViewed;
+  });
+
+  if (firstUnreadIndex === -1) {
+    return list;
+  }
+
+  const delimiter: IMessage = {
+    id: 'delimiter-new',
+    body: 'New Messages',
+    date: new Date(lastViewed).toISOString(),
+    roomJid: list[firstUnreadIndex]?.roomJid || '',
+    user: {
+      id: 'system',
+      name: 'system',
+      token: '',
+      refreshToken: '',
+    },
+  } as IMessage;
+
+  list.splice(firstUnreadIndex, 0, delimiter);
+  return list;
 };
 
 export const addRoomViaApi = createAsyncThunk(
@@ -71,7 +178,11 @@ export const roomsStore = createSlice({
   reducers: {
     addRoom(state, action: PayloadAction<{ roomData: IRoom }>) {
       const { roomData } = action.payload;
-      state.rooms[roomData.jid] = roomData;
+      state.rooms[roomData.jid] = {
+        ...roomData,
+        unreadCapped: roomData.unreadCapped ?? false,
+        historyPreloadState: roomData.historyPreloadState ?? 'idle',
+      };
     },
     deleteRoom(state, action: PayloadAction<{ jid: string }>) {
       const { jid } = action.payload;
@@ -99,7 +210,15 @@ export const roomsStore = createSlice({
     ) {
       const { roomJID, messages } = action.payload;
       if (state.rooms[roomJID]) {
-        state.rooms[roomJID].messages = messages;
+        const merged = mergeRoomMessages(
+          state.rooms[roomJID].messages || [],
+          messages || [],
+          state.usersSet
+        );
+        state.rooms[roomJID].messages = normalizeDelimiterPosition(
+          merged,
+          state.rooms[roomJID].lastViewedTimestamp
+        );
       }
     },
     deleteRoomMessage(
@@ -236,6 +355,11 @@ export const roomsStore = createSlice({
           lastViewedTimestamp
         );
       }
+
+      state.rooms[roomJID].messages = normalizeDelimiterPosition(
+        state.rooms[roomJID].messages,
+        state.rooms[roomJID].lastViewedTimestamp
+      );
     },
     deleteAllRooms(state) {
       state.rooms = {};
@@ -314,6 +438,11 @@ export const roomsStore = createSlice({
             timestamp
           );
         }
+        state.rooms[chatJID].messages = normalizeDelimiterPosition(
+          state.rooms[chatJID].messages,
+          timestamp
+        );
+        state.rooms[chatJID].unreadCapped = false;
       }
     },
     setRoomRole: (
@@ -373,7 +502,43 @@ export const roomsStore = createSlice({
     },
     addRoomFromApi: (state, action: PayloadAction<{ room: IRoom }>) => {
       const { room } = action.payload;
-      state.rooms[room.jid] = room;
+      state.rooms[room.jid] = {
+        ...room,
+        unreadCapped: room.unreadCapped ?? false,
+        historyPreloadState: room.historyPreloadState ?? 'idle',
+      };
+    },
+    applyRoomsPreloadBatch: (
+      state,
+      action: PayloadAction<{ rooms: PreloadRoomUpdate[] }>
+    ) => {
+      const { rooms } = action.payload;
+      if (!rooms?.length) return;
+
+      rooms.forEach((update) => {
+        const room = state.rooms[update.jid];
+        if (!room) return;
+
+        if (typeof update.historyPreloadState !== 'undefined') {
+          room.historyPreloadState = update.historyPreloadState;
+        }
+
+        if (typeof update.unreadCapped !== 'undefined') {
+          room.unreadCapped = update.unreadCapped;
+        }
+
+        if (update.messages) {
+          const merged = mergeRoomMessages(
+            room.messages || [],
+            update.messages,
+            state.usersSet
+          );
+          room.messages = normalizeDelimiterPosition(
+            merged,
+            room.lastViewedTimestamp
+          );
+        }
+      });
     },
     updateUsersSet: (state, action: PayloadAction<{ rooms: ApiRoom[] }>) => {
       const { rooms } = action.payload;
@@ -481,6 +646,7 @@ export const {
   insertUsers,
   setPushSubscriptionStatus,
   clearPushSubscriptions,
+  applyRoomsPreloadBatch,
 } = roomsStore.actions;
 
 export default roomsStore.reducer;
