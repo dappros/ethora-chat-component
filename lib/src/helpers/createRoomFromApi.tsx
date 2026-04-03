@@ -17,7 +17,9 @@ export const createRoomFromApi = (
       roomBg: null,
       icon: room?.picture !== 'none' ? room?.picture : null,
       unreadMessages: 0,
+      unreadCapped: false,
       lastViewedTimestamp: 0,
+      historyPreloadState: 'idle',
     };
     return roomData;
   } catch (error) {

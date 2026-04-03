@@ -78,6 +78,9 @@ export interface IConfig {
   clearStoreBeforeInit?: boolean;
   disableSentLogic?: boolean;
   initBeforeLoad?: boolean;
+  initBeforeLoadAuth?: {
+    myEndpoint?: string;
+  };
   newArch?: boolean;
   qrUrl?: string;
   secondarySendButton?: {
@@ -154,6 +157,11 @@ export interface IConfig {
     hideSearch?: boolean;
   };
   useStoreConsoleEnabled?: boolean;
+  historyQoS?: {
+    maxInFlightHistory?: number;
+    softPauseAfterSendMs?: number;
+    activeRoomBoostTtlMs?: number;
+  };
   inAppNotifications?: {
     enabled?: boolean;
     showInContext?: boolean;

@@ -149,7 +149,9 @@ const usePushNotifications = (
 
       client.prioritizeRoomPresence(roomJid).catch(() => {});
       client
-        .getHistoryStanza(roomJid, 30)
+        .getHistoryStanza(roomJid, 30, undefined, undefined, {
+          source: 'active',
+        })
         .catch(() => {})
         .finally(() => {
           if (messageId) {
@@ -177,7 +179,7 @@ const usePushNotifications = (
           if (lastTs && now - lastTs < 5_000) return;
           window.localStorage.setItem(dedupeKey, String(now));
         }
-      } catch (_) {}
+      } catch (_) { /* empty */ }
 
       const customOnClick = config?.pushNotifications?.onClick;
       if (customOnClick) {
@@ -426,7 +428,7 @@ const usePushNotifications = (
     try {
       currentUrl.searchParams.delete('fromPush');
       window.history.replaceState({}, document.title, currentUrl.toString());
-    } catch (_) {}
+    } catch (_) { /* empty */ }
   }, [enabled, handlePushClick]);
 
   // ─────────────────────────────────────────────────────────────────────────────

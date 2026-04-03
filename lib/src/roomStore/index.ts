@@ -112,12 +112,13 @@ const roomsPersistConfig = {
   key: 'roomMessages',
   storage,
   blacklist: ['editAction', 'activeRoomJID', 'loadingText'],
-  transforms: [limitMessagesTransform],
+  transforms: [limitMessagesTransform, encryptor],
 };
 
 const roomHeapSliceConfig = {
   key: 'roomHeapSlice',
   storage,
+  transforms: [encryptor],
 };
 
 const persistConfig = {
@@ -163,6 +164,10 @@ export const store = configureStore({
           'chat/addMessage',
           'persist/PERSIST',
           'persist/REHYDRATE',
+          'persist/FLUSH',
+          'persist/PAUSE',
+          'persist/PURGE',
+          'persist/REGISTER',
           'roomMessages/addRoomViaApi/pending',
           'roomMessages/addRoomViaApi/fulfilled',
           'roomMessages/addRoomViaApi/rejected',
@@ -174,6 +179,7 @@ export const store = configureStore({
           'chatSettingStore.client',
           'chatSettingStore.config',
         ],
+        ignoredActionPaths: ['result', 'register'],
       },
     })
       .concat(unreadMiddleware)

@@ -105,9 +105,12 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     dispatch(setIsLoading({ chatJID: chat.jid, loading: true }));
     dispatch(setCurrentRoom({ roomJID: chat.jid }));
     dispatch(setEditAction({ isEdit: false }));
+    client?.promoteRoomHistory(chat.jid);
     handleItemClick(true);
     if (!chat?.historyComplete && chat.messages?.length < 30) {
-      client?.getHistoryStanza(chat.jid, 30);
+      client?.getHistoryStanza(chat.jid, 30, undefined, undefined, {
+        source: 'active',
+      });
     }
   };
 

@@ -206,6 +206,7 @@ export const MessageNotificationProvider: React.FC<{
 
   const showToastNotification = useCallback(
     (message: IMessage, roomName: string, senderName: string, roomJID: string) => {
+      const dedupeKey = `${roomJID}:${String((message as any)?.xmppId || message?.id || '').trim()}`;
       const notificationId = `msg-notification-${message.id}-${Date.now()}`;
       const newNotification: MessageNotificationData = {
         id: notificationId,
@@ -219,6 +220,15 @@ export const MessageNotificationProvider: React.FC<{
       setNotifications((prev) => {
         const now = Date.now();
         const validNotifications = prev.filter((n) => now - n.timestamp < NOTIFICATION_DURATION);
+        if (dedupeKey !== `${roomJID}:` ) {
+          const hasDuplicate = validNotifications.some((item) => {
+            const itemKey = `${item.roomJID}:${String((item.message as any)?.xmppId || item.message?.id || '').trim()}`;
+            return itemKey === dedupeKey;
+          });
+          if (hasDuplicate) {
+            return validNotifications;
+          }
+        }
         const updated = [...validNotifications, newNotification];
         return updated.length > MAX_NOTIFICATIONS ? updated.slice(-MAX_NOTIFICATIONS) : updated;
       });

@@ -1,22 +1,29 @@
-import { useDispatch } from 'react-redux';
-import { store } from '../roomStore';
+import { persistor, store } from '../roomStore';
 import { logout } from '../roomStore/chatSettingsSlice';
 import { setLogoutState } from '../roomStore/roomsSlice';
 import { useCallback } from 'react';
 import { clearHeap } from '../roomStore/roomHeapSlice';
+import { clearScopedChatCache } from '../helpers/cacheScope';
+import { clearStoredUser } from '../helpers/authStorage';
 
 const logoutService = {
-  performLogout: () => {
+  performLogout: async () => {
     store.dispatch(logout());
     store.dispatch(setLogoutState());
     store.dispatch(clearHeap());
+    clearStoredUser();
+    clearScopedChatCache();
+    try {
+      await persistor.flush();
+      await persistor.purge();
+    } catch (error) {
+      console.warn('[Logout] Persist purge failed', error);
+    }
   },
 };
 export const useLogout = () => {
-  const dispatch = useDispatch();
-
   const handleLogout = useCallback(() => {
-    logoutService.performLogout();
+    void logoutService.performLogout();
   }, []);
 
   return handleLogout;

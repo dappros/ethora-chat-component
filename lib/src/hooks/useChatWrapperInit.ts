@@ -323,7 +323,10 @@ const useChatWrapperInit = ({
               const newClient = await initializeClient(
                 user.xmppUsername || user?.defaultWallet?.walletAddress,
                 user?.xmppPassword,
-                config?.xmppSettings,
+                {
+                  ...(config?.xmppSettings || {}),
+                  historyQoS: config?.historyQoS,
+                },
                 roomsList
               ).then((client) => {
                 return client;

@@ -61,6 +61,8 @@ export interface IRoom {
     firstMessageTimestamp?: number;
   };
   historyComplete?: boolean;
+  historyPreloadState?: 'idle' | 'loading' | 'done' | 'error';
+  unreadCapped?: boolean;
 }
 
 export interface ApiRoom {

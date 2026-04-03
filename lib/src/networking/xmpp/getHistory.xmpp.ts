@@ -113,14 +113,16 @@ export const getHistory = async (
   const timeoutPromise = createTimeoutPromise(10000);
 
   try {
-    // @ts-ignore
-    const res: IMessage[] | null = await Promise.race<[IMessage[] | null]>([
-      responsePromise as Promise<IMessage[] | null>,
-      timeoutPromise as Promise<null>,
-    ]);
-    return res;
+    const res = (await Promise.race([
+      responsePromise as Promise<IMessage[]>,
+      timeoutPromise as Promise<never>,
+    ])) as IMessage[];
+    return res || [];
   } catch (e) {
-    // console.log('=-> error in', fixedChatJid, e);
+    const message = e instanceof Error ? e.message : '';
+    if (message.startsWith('timeout:')) {
+      return undefined;
+    }
     return [];
   } finally {
     unsubscribe();

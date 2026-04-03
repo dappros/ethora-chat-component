@@ -7,6 +7,15 @@ import useGetNewArchRoom from './useGetNewArchRoom';
 
 const countUndefinedText = (arr: IMessage[]) =>
   arr.filter((item) => item?.body === undefined)?.length;
+const hasLoadedRoomHistory = (room?: IRoom): boolean => {
+  if (!room?.messages?.length) return false;
+  return room.messages.some(
+    (message) =>
+      message?.id !== 'delimiter-new' &&
+      message?.pending !== true &&
+      !!String(message?.body || '').trim()
+  );
+};
 
 const PUSH_MESSAGE_ID_KEY = '@ethora/chat-component-pushMessageId';
 const PUSH_ROOM_JID_KEY = '@ethora/chat-component-pushRoomJid';
@@ -35,6 +44,7 @@ export const useRoomInitialization = (
 
   useEffect(() => {
     if (client && activeRoomJID) {
+      client.promoteRoomHistory(activeRoomJID);
       // Try fast explicit join for active room right after selection/login.
       client
         .presenceInRoomStanza(activeRoomJID, 0, 1200, true)
@@ -45,19 +55,31 @@ export const useRoomInitialization = (
   }, [client, activeRoomJID]);
 
   useEffect(() => {
+    const activeRoom = roomsList?.[activeRoomJID];
+    const shouldLoadActiveHistory =
+      !!activeRoomJID && !hasLoadedRoomHistory(activeRoom);
+
     const getDefaultHistory = async () => {
       if (!client) return;
       if (!activeRoomJID) return;
       await client.presenceInRoomStanza(activeRoomJID, 0, 1500, true).catch(() => {});
       dispatch(setIsLoading({ loading: true, chatJID: activeRoomJID }));
-      const res = await client.getHistoryStanza(activeRoomJID, 30);
+      const res = await client.getHistoryStanza(
+        activeRoomJID,
+        30,
+        undefined,
+        undefined,
+        { source: 'active' }
+      );
       if (res && countUndefinedText(res) > 0) {
         dispatch(setIsLoading({ loading: false, chatJID: activeRoomJID }));
         // make it more optimized
         await client.getHistoryStanza(
           activeRoomJID,
           20 + countUndefinedText(res),
-          Number(res[0].id)
+          Number(res[0].id),
+          undefined,
+          { source: 'active' }
         );
       }
       dispatch(
@@ -93,7 +115,7 @@ export const useRoomInitialization = (
         initialPresenceAndHistory();
       } else if (
         activeRoomJID &&
-        messageLength < 1
+        shouldLoadActiveHistory
       ) {
         dispatch(setIsLoading({ loading: true, chatJID: activeRoomJID }));
         getDefaultHistory();
@@ -116,7 +138,9 @@ export const useRoomInitialization = (
 
       if (pendingMessageId && (!pendingRoomJID || pendingRoomJID === activeRoomJID)) {
         client
-          .getHistoryStanza(activeRoomJID, 30)
+          .getHistoryStanza(activeRoomJID, 30, undefined, undefined, {
+            source: 'active',
+          })
           .catch(() => {})
           .finally(() => {
             setTimeout(() => scrollToMessage(pendingMessageId), 200);
@@ -143,5 +167,10 @@ export const useRoomInitialization = (
         }
       }
     }
-  }, [activeRoomJID, Object.keys(roomsList).length, messageLength]);
+  }, [
+    activeRoomJID,
+    Object.keys(roomsList).length,
+    messageLength,
+    roomsList?.[activeRoomJID]?.messages?.length,
+  ]);
 };

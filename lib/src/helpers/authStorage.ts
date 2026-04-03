@@ -103,8 +103,6 @@ export const persistUserSession = (user?: User | null) => {
       localStorageConstants.ETHORA_USER_SESSION,
       JSON.stringify(payload)
     );
-    // Keep auth session in sessionStorage only.
-    // Remove any old localStorage payloads left from previous versions.
     clearLegacyLocalUserCache();
   } catch (error) {
     console.warn('[AuthStorage] Failed to persist user session', error);
@@ -150,6 +148,7 @@ export const clearStoredUser = () => {
 
   local?.removeItem(localStorageConstants.ETHORA_USER);
   local?.removeItem(localStorageConstants.ETHORA_USER_PAYLOAD_VERSION);
+  local?.removeItem(localStorageConstants.ETHORA_USER_SESSION);
   session?.removeItem(localStorageConstants.ETHORA_USER_SESSION);
 };
 

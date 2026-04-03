@@ -44,6 +44,11 @@ import { formatError } from '../utils/formatError';
 
 //core default
 const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
+  const hasChatState = stanza?.children?.some(
+      (child: any) =>
+        (child?.name === 'composing' || child?.name === 'paused') &&
+        child?.attrs?.xmlns === 'http://jabber.org/protocol/chatstates'
+    );
   const mucX = stanza
     ?.getChildren('x')
     ?.find(
@@ -58,6 +63,7 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
     !stanza?.getChild('result') &&
     !stanza.getChild('composing') &&
     !stanza.getChild('paused') &&
+    !hasChatState &&
     !stanza.getChild('subject') &&
     !stanza.is('iq') &&
     stanza?.attrs?.id !== 'deleteMessageStanza' &&
@@ -83,6 +89,11 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
       ...rest,
     });
 
+    // Ignore non-message stanzas (e.g. typing/chatstate with only <data .../>)
+    if (!message?.body || !String(message.body).trim()) {
+      return;
+    }
+
     const fixedUser = await checkSingleUser(
       store.getState().rooms.usersSet,
       message.user.id
@@ -97,6 +108,7 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
       })
     );
     const removeId = message?.xmppId || message?.id;
+    const roomJID = stanza.attrs.from.split('/')[0];
     const heapBeforeRemove = store.getState().roomHeapSlice.messageHeap as IMessage[];
     const matchedPendingMessage = !!(
       removeId &&
@@ -104,10 +116,10 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
     );
     if (removeId) {
       store.dispatch(removeMessageFromHeapById(removeId));
+      xmppClient?.acknowledgeSentMessage(roomJID, removeId);
     }
 
     const state = store.getState();
-    const roomJID = stanza.attrs.from.split('/')[0];
     const room = state.rooms.rooms[roomJID];
     const activeRoomJID = state.rooms.activeRoomJID;
     const isActiveChatMessage = isActiveRoom(activeRoomJID, roomJID);
@@ -490,7 +502,9 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
                 ? result?.attrs?.room_thumbnail
                 : null,
             unreadMessages: 0,
+            unreadCapped: false,
             lastViewedTimestamp: 0,
+            historyPreloadState: 'idle',
           };
 
           store.dispatch(addRoom({ roomData: { ...roomData } }));

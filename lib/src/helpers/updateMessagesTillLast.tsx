@@ -4,6 +4,7 @@ import {
   getLastMessageTimestamp,
   insertUsers,
   setRoomMessages,
+  updateRoom,
 } from '../roomStore/roomsSlice';
 import { IMessage, IRoom } from '../types/types';
 import { checkUniqueUsers } from './checkUniqueUsers';
@@ -51,7 +52,10 @@ export const updateMessagesTillLast = async (
             if (!lastCachedMessagesTimeStamp) {
               const initialMessages = await client.getHistoryStanza(
                 jid,
-                Math.max(messagesPerFetch * 4, 20)
+                Math.max(messagesPerFetch * 4, 20),
+                undefined,
+                undefined,
+                { source: 'background' }
               );
               if (initialMessages && initialMessages.length > 0) {
                 const fixedUsers = await checkUniqueUsers(initialMessages);
@@ -75,10 +79,12 @@ export const updateMessagesTillLast = async (
               const fetchedMessages = await client.getHistoryStanza(
                 jid,
                 messagesPerFetch,
-                Number(lastMessageId)
+                Number(lastMessageId),
+                undefined,
+                { source: 'background' }
               );
 
-              if (!fetchedMessages.length) break;
+              if (!fetchedMessages || !fetchedMessages.length) break;
 
               counter++;
 
@@ -91,22 +97,33 @@ export const updateMessagesTillLast = async (
                 (message: IMessage) =>
                   Number(message.id) === Number(lastCachedMessagesTimeStamp)
               );
+            }
 
-              if (!isMessageFound && !(counter <= maxFetchAttempts - 1)) {
-                const fixedUsers = await checkUniqueUsers(
-                  currentJidNewMessages
-                );
-                if (fixedUsers && fixedUsers.length > 0) {
-                  store.dispatch(insertUsers({ newUsers: fixedUsers }));
-                }
+            if (currentJidNewMessages.length > 0) {
+              const fixedUsers = await checkUniqueUsers(currentJidNewMessages);
+              if (fixedUsers && fixedUsers.length > 0) {
+                store.dispatch(insertUsers({ newUsers: fixedUsers }));
+              }
 
+              if (!isMessageFound) {
+                // Cached anchor was not found within the fetch window.
+                // Reset this room cache only, then hydrate with a fresh snapshot.
                 store.dispatch(
-                  setRoomMessages({
-                    roomJID: jid,
-                    messages: currentJidNewMessages,
+                  updateRoom({
+                    jid,
+                    updates: {
+                      messages: [],
+                    },
                   })
                 );
               }
+
+              store.dispatch(
+                setRoomMessages({
+                  roomJID: jid,
+                  messages: currentJidNewMessages,
+                })
+              );
             }
           } catch (error) {
             console.error(`Error processing room ${jid}:`, error);
