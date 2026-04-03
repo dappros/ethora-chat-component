@@ -5,9 +5,15 @@ import { useCallback } from 'react';
 import { clearHeap } from '../roomStore/roomHeapSlice';
 import { clearScopedChatCache } from '../helpers/cacheScope';
 import { clearStoredUser } from '../helpers/authStorage';
+import { disablePushNotifications } from '../utils/firebasePushNotifications';
 
 const logoutService = {
   performLogout: async () => {
+    try {
+      await disablePushNotifications();
+    } catch (error) {
+      console.warn('[Logout] Push service worker teardown failed', error);
+    }
     store.dispatch(logout());
     store.dispatch(setLogoutState());
     store.dispatch(clearHeap());

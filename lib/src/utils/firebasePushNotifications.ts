@@ -1,5 +1,11 @@
 import { getFirebaseMessaging, defaultConfig } from '../firebase-config';
-import { getToken, onMessage, MessagePayload, Messaging } from 'firebase/messaging';
+import {
+  deleteToken,
+  getToken,
+  onMessage,
+  MessagePayload,
+  Messaging,
+} from 'firebase/messaging';
 
 /**
  * requestNotificationPermission()
@@ -216,4 +222,64 @@ export function listenForForegroundMessages(
   const messaging = getFirebaseMessaging(firebaseConfig);
   if (!messaging) return () => {};
   return onMessage(messaging, handler);
+}
+
+/**
+ * disablePushNotifications()
+ */
+export async function disablePushNotifications(): Promise<void> {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
+    return;
+  }
+
+  const registrations = await navigator.serviceWorker.getRegistrations();
+  if (!registrations?.length) {
+    return;
+  }
+
+  const firebaseRegistrations = registrations.filter((registration) => {
+    const scriptURL =
+      registration.active?.scriptURL ||
+      registration.waiting?.scriptURL ||
+      registration.installing?.scriptURL ||
+      '';
+
+    try {
+      return new URL(scriptURL).pathname.includes('firebase-messaging-sw.js');
+    } catch {
+      return scriptURL.includes('firebase-messaging-sw.js');
+    }
+  });
+
+  if (!firebaseRegistrations.length) {
+    return;
+  }
+
+  const messaging = getFirebaseMessaging(defaultConfig);
+  if (messaging) {
+    try {
+      await deleteToken(messaging);
+    } catch {
+      // Ignore 
+    }
+  }
+
+  await Promise.all(
+    firebaseRegistrations.map(async (registration) => {
+      try {
+        const subscription = await registration.pushManager.getSubscription();
+        if (subscription) {
+          await subscription.unsubscribe();
+        }
+      } catch {
+        // Ignore 
+      }
+
+      try {
+        await registration.unregister();
+      } catch {
+        // Ignore 
+      }
+    })
+  );
 }
