@@ -141,6 +141,44 @@ export class XmppClient implements XmppClientInterface {
   private maxOfflineReconnectAttempts: number = 10;
   private reconnectBaseDelayMs: number = 1000;
   private pausedDueToOfflineCap: boolean = false;
+  private authFailureDetected: boolean = false;
+
+  private isTerminalAuthFailure(error: unknown): boolean {
+    const candidate = error as any;
+    const message = [
+      candidate?.message,
+      candidate?.condition,
+      candidate?.name,
+      candidate?.toString?.(),
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+    if (
+      message.includes('not-authorized') ||
+      message.includes('not authorized') ||
+      message.includes('authentication') ||
+      message.includes('invalid credentials') ||
+      message.includes('forbidden') ||
+      message.includes('sasl')
+    ) {
+      return true;
+    }
+
+    const stanza = candidate?.stanza || candidate?.element;
+    try {
+      if (!stanza?.getChild) return false;
+      return Boolean(
+        stanza.getChild('not-authorized') ||
+          stanza.getChild('forbidden') ||
+          stanza.getChild('policy-violation') ||
+          stanza.getChild('authentication-failed')
+      );
+    } catch {
+      return false;
+    }
+  }
 
   constructor(
     username: string,
@@ -266,7 +304,7 @@ export class XmppClient implements XmppClientInterface {
   attachEventListeners() {
     this.client.on('disconnect', () => {
       console.log('Disconnected from server.');
-      this.status = 'offline';
+      this.status = this.authFailureDetected ? 'auth_failed' : 'offline';
       this.presencesReady = false;
       this.joinedRooms.clear();
       this.roomPresenceInFlight.clear();
@@ -278,6 +316,10 @@ export class XmppClient implements XmppClientInterface {
       this.recoveryRoomJid = null;
       this.logStep('event:disconnect');
       if (this.pingInterval) clearInterval(this.pingInterval);
+      if (this.authFailureDetected) {
+        this.logStep('event:disconnect:auth-failed-no-reconnect');
+        return;
+      }
       this.scheduleReconnect('event:disconnect');
     });
 
@@ -286,6 +328,7 @@ export class XmppClient implements XmppClientInterface {
         this.resource = jid.resource || 'default';
         console.log('Client is online.', new Date());
         this.status = 'online';
+        this.authFailureDetected = false;
         this.reconnectAttempts = 0;
         this.offlineReconnectAttempts = 0;
         this.pausedDueToOfflineCap = false;
@@ -352,9 +395,21 @@ export class XmppClient implements XmppClientInterface {
     });
 
     this.client.on('error', (error) => {
+      const terminalAuthFailure = this.isTerminalAuthFailure(error);
       console.error('XMPP client error:', error);
-      this.status = 'error';
+      this.status = terminalAuthFailure ? 'auth_failed' : 'error';
+      if (terminalAuthFailure) {
+        this.authFailureDetected = true;
+        if (this.reconnectTimer) {
+          clearTimeout(this.reconnectTimer);
+          this.reconnectTimer = null;
+        }
+      }
       this.logStep('event:error');
+      if (terminalAuthFailure) {
+        this.logStep('event:error:auth-failed-no-reconnect');
+        return;
+      }
       this.scheduleReconnect('event:error');
     });
 
@@ -506,6 +561,10 @@ export class XmppClient implements XmppClientInterface {
     if (this.reconnecting) {
       return this.reconnectPromise;
     }
+    if (this.authFailureDetected || this.status === 'auth_failed') {
+      this.logStep('reconnect:skip-auth-failed');
+      return Promise.resolve();
+    }
     if (!this.isBrowserOnline()) {
       this.logStep('reconnect:skipped-offline');
       return Promise.resolve();
@@ -556,6 +615,10 @@ export class XmppClient implements XmppClientInterface {
       return;
     }
 
+    if (this.status === 'auth_failed') {
+      throw new Error('XMPP authentication failed');
+    }
+
     if (this.status === 'offline' || this.status === 'error') {
       this.logStep(`ensureConnected:trigger-reconnect:${this.status}`);
       this.scheduleReconnect('ensure-connected');
@@ -574,7 +637,11 @@ export class XmppClient implements XmppClientInterface {
           if (this.status === 'online') {
             clearTimeout(timeoutId);
             resolve();
-          } else if (this.status === 'error' || this.status === 'offline') {
+          } else if (
+            this.status === 'error' ||
+            this.status === 'offline' ||
+            this.status === 'auth_failed'
+          ) {
             clearTimeout(timeoutId);
             reject(new Error('Connection error while waiting'));
           } else {
@@ -1630,6 +1697,10 @@ export class XmppClient implements XmppClientInterface {
 
   private scheduleReconnect(reason: string) {
     if (this.status === 'online') return;
+    if (this.authFailureDetected || this.status === 'auth_failed') {
+      this.logStep(`scheduleReconnect:skip-auth-failed:${reason}`);
+      return;
+    }
     if (this.reconnectTimer) return;
     if (!this.isBrowserOnline()) {
       this.logStep(`scheduleReconnect:skip-offline:${reason}`);

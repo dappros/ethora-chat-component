@@ -81,6 +81,10 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
           resolve();
           return;
         }
+        if (xmppClient.status === 'auth_failed') {
+          reject(new Error('XMPP authentication failed'));
+          return;
+        }
         if (xmppClient.status === 'error') {
           reject(new Error('Failed to connect.'));
           return;
@@ -210,9 +214,16 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
 
       if (abortController.signal.aborted) return;
 
-      await waitForOnline(targetClient).catch(() => {});
-
-      if (abortController.signal.aborted) return;
+      const isOnline = await waitForOnline(targetClient)
+        .then(() => true)
+        .catch((error) => {
+          console.warn(
+            '[initBeforeLoad] ws auth/connect failed, bootstrap stopped',
+            error instanceof Error ? error.message : String(error)
+          );
+          return false;
+        });
+      if (!isOnline || abortController.signal.aborted) return;
 
       await syncRoomsForPreload(targetClient, abortController.signal);
 

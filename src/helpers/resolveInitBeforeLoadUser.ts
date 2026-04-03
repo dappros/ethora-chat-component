@@ -1,7 +1,11 @@
 import http, { setBaseURL } from '../networking/apiClient';
 import { loginViaJwt } from '../networking/api-requests/auth.api';
 import { getMyUser } from '../networking/api-requests/user.api';
-import { getStoredUser, hasStoredSensitiveSession } from './authStorage';
+import {
+  clearStoredUser,
+  getStoredUser,
+  hasStoredSensitiveSession,
+} from './authStorage';
 import { IConfig, User } from '../types/types';
 import { store } from '../roomStore';
 import { setUser } from '../roomStore/chatSettingsSlice';
@@ -11,6 +15,28 @@ interface ResolveInitBeforeLoadUserOptions {
   config?: IConfig;
   signal?: AbortSignal;
 }
+
+interface HttpLikeError {
+  response?: {
+    status?: number;
+  };
+  message?: string;
+}
+
+const getStatusCode = (error: unknown): number | null => {
+  const status = (error as HttpLikeError)?.response?.status;
+  return typeof status === 'number' ? status : null;
+};
+
+const isAuthError = (error: unknown): boolean => {
+  const statusCode = getStatusCode(error);
+  return statusCode === 401 || statusCode === 403;
+};
+
+const isAbortError = (error: unknown): boolean => {
+  const message = (error as HttpLikeError)?.message || '';
+  return typeof message === 'string' && message.toLowerCase().includes('abort');
+};
 
 const hasXmppCredentials = (user?: Partial<User> | null): boolean => {
   return Boolean(user?.xmppPassword && (user?.xmppUsername || user?.defaultWallet?.walletAddress));
@@ -91,17 +117,29 @@ const tryHydrateViaMy = async (
     return normalizeUserForXmpp(candidate);
   }
 
-  const refreshed = await refreshWithToken(workingRefresh);
-  workingToken = refreshed.token;
-  workingRefresh = refreshed.refreshToken;
+  try {
+    const refreshed = await refreshWithToken(workingRefresh);
+    workingToken = refreshed.token;
+    workingRefresh = refreshed.refreshToken;
 
-  const myUser = await getMyUser({ token: workingToken, endpoint: myEndpoint });
-  const merged = normalizeUserForXmpp(mergeUsers(candidate, myUser));
-  if (merged) {
-    merged.token = workingToken || merged.token;
-    merged.refreshToken = workingRefresh || merged.refreshToken;
+    const myUser = await getMyUser({ token: workingToken, endpoint: myEndpoint });
+    const merged = normalizeUserForXmpp(mergeUsers(candidate, myUser));
+    if (merged) {
+      merged.token = workingToken || merged.token;
+      merged.refreshToken = workingRefresh || merged.refreshToken;
+    }
+    return merged;
+  } catch (error) {
+    if (signal?.aborted || isAbortError(error)) {
+      return null;
+    }
+
+    if (isAuthError(error)) {
+      return null;
+    }
+
+    throw error;
   }
-  return merged;
 };
 
 export const resolveInitBeforeLoadUser = async (
@@ -126,10 +164,17 @@ export const resolveInitBeforeLoadUser = async (
   }
 
   if (config?.jwtLogin?.enabled && config?.jwtLogin?.token) {
-    const jwtUser = await loginViaJwt(config.jwtLogin.token);
-    const normalized = normalizeUserForXmpp(jwtUser);
-    if (normalized && hasXmppCredentials(normalized)) {
-      return normalized;
+    try {
+      const jwtUser = await loginViaJwt(config.jwtLogin.token);
+      const normalized = normalizeUserForXmpp(jwtUser);
+      if (normalized && hasXmppCredentials(normalized)) {
+        return normalized;
+      }
+    } catch (error) {
+      if (signal?.aborted || isAbortError(error) || isAuthError(error)) {
+        return null;
+      }
+      throw error;
     }
   }
 
@@ -147,6 +192,7 @@ export const resolveInitBeforeLoadUser = async (
     if (hydrated && hasXmppCredentials(hydrated)) {
       return hydrated;
     }
+    clearStoredUser();
   }
 
   return null;
