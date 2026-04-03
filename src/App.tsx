@@ -34,6 +34,8 @@ const APP_CHAT_BASE_CONFIG: IConfig = {
 
 const Apps = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const { hasUnread, totalCount, displayTotal, unreadByRoom, displayByRoom } =
+    useUnreadMessagesCounter();
 
   const appsNotificationConfig: IConfig = useMemo(
     () => ({
@@ -58,6 +60,32 @@ const Apps = () => {
       <MessageNotificationProvider config={appsNotificationConfig}>
         <NotificationEnabler />
         <div>
+          <div className="mb-3 p-3 rounded bg-white border border-gray-200 text-xs">
+            <div className="font-semibold mb-2">Unread Counter Demo (outside chat)</div>
+            <div>hasUnread: {hasUnread ? 'true' : 'false'}</div>
+            <div>totalCount: {totalCount}</div>
+            <div>displayTotal: {displayTotal}</div>
+            <div className="mt-2 font-medium">By room:</div>
+            {Object.keys(unreadByRoom).length === 0 ? (
+              <div className="text-gray-500">No unread rooms</div>
+            ) : (
+              <div className="max-h-48 overflow-auto space-y-1 mt-1">
+                {Object.entries(unreadByRoom).map(([jid, count]) => (
+                  <div
+                    key={jid}
+                    className="p-1 rounded bg-gray-50 border border-gray-100"
+                  >
+                    <div className="truncate" title={jid}>
+                      {jid}
+                    </div>
+                    <div>
+                      unread: {count} | display: {displayByRoom[jid] ?? String(count)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           <button onClick={() => setIsChatOpen(!isChatOpen)}>
             Toggle Chat
           </button>
@@ -246,7 +274,7 @@ export default function App() {
         </button>
       </nav>
     ),
-    [totalCount]
+    [totalCount, displayTotal]
   );
 
   return (

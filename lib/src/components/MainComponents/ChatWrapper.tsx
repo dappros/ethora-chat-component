@@ -51,6 +51,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
   const [isChatVisible, setIsChatVisible] = useState(false);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
+  const [isRouteActive, setIsRouteActive] = useState(true);
 
   const conferenceServer = config?.xmppSettings?.conference;
 
@@ -139,6 +140,31 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   const clientReadyForUI = !!client && !isConnectionLost && hasRooms;
   const showShell = inited || clientReadyForUI;
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const mountPathname = window.location.pathname;
+
+    const syncRouteState = () => {
+      const stillOnMountRoute = window.location.pathname === mountPathname;
+      setIsRouteActive(stillOnMountRoute);
+      if (!stillOnMountRoute && activeRoomJID) {
+        dispatch(setCurrentRoom({ roomJID: null }));
+      }
+    };
+
+    syncRouteState();
+    const interval = window.setInterval(syncRouteState, 250);
+    window.addEventListener('popstate', syncRouteState);
+    window.addEventListener('hashchange', syncRouteState);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('popstate', syncRouteState);
+      window.removeEventListener('hashchange', syncRouteState);
+    };
+  }, [activeRoomJID, dispatch]);
+
   //upd logic to use
   // const queueMessageLoader = useCallback(
   //   async (chatJID: string, max: number) => {
@@ -216,6 +242,10 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
   if (user.xmppPassword === '' && user.xmppUsername === '')
     return <LoginForm config={config} />;
+
+  if (!isRouteActive) {
+    return null;
+  }
 
   return (
     <>
