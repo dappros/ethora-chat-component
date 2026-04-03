@@ -99,6 +99,7 @@ export class XmppClient implements XmppClientInterface {
   > = new Map();
   private inFlightIds: Set<string> = new Set();
   private processingQueue: boolean = false;
+  private currentlyProcessingQueueId: string | null = null;
   private isRecoveringRoomPresence: boolean = false;
   private recoveryRoomJid: string | null = null;
   private joinedRooms: Set<string> = new Set();
