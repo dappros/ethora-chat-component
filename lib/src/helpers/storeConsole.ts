@@ -1,5 +1,4 @@
 import { RootState, store } from '../roomStore';
-import { roomHeapSliceState } from '../roomStore/roomHeapSlice';
 
 export const useStoreConsole = () => {
   const state: RootState = store.getState();
@@ -27,52 +26,7 @@ const initializeStoreConsole = () => {
   }
 };
 
-const patchConsoleForEnvironment = () => {
-  if (typeof window === 'undefined') return;
-  if ((window as any).__ethoraConsolePatched) return;
-
-  (window as any).__ethoraConsolePatched = true;
-
-  const originalLog = console.log.bind(console);
-  const originalInfo = console.info.bind(console);
-  const originalDebug = console.debug.bind(console);
-
-  const isDev = (import.meta as any)?.env?.DEV === true;
-  const shouldKeepMinimalProdLog = (args: unknown[]) => {
-    const first = typeof args[0] === 'string' ? args[0] : '';
-    return first.includes('[EthoraChatComponent] version:');
-  };
-
-  const isVerboseRuntime = () => {
-    if (isDev) return true;
-    try {
-      return store.getState().chatSettingStore?.config?.useStoreConsoleEnabled === true;
-    } catch {
-      return false;
-    }
-  };
-
-  console.log = (...args: unknown[]) => {
-    if (isVerboseRuntime() || shouldKeepMinimalProdLog(args)) {
-      originalLog(...args);
-    }
-  };
-
-  console.info = (...args: unknown[]) => {
-    if (isVerboseRuntime()) {
-      originalInfo(...args);
-    }
-  };
-
-  console.debug = (...args: unknown[]) => {
-    if (isVerboseRuntime()) {
-      originalDebug(...args);
-    }
-  };
-};
-
 if (typeof window !== 'undefined') {
-  patchConsoleForEnvironment();
   initializeStoreConsole();
 
   store.subscribe(() => {

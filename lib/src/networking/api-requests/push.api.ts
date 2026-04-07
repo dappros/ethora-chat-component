@@ -6,6 +6,7 @@
 
 import http from '../apiClient';
 import { store } from '../../roomStore';
+import { ethoraLogger } from '../../helpers/ethoraLogger';
 
 /**
  * Register a push notification/FCM registration token with the backend.
@@ -27,7 +28,7 @@ export async function registerPushToken(registrationToken: string): Promise<any>
     deviceType: 'web',
   };
 
-  console.log('[PushNotifications] Registering FCM token with backend:', {
+  ethoraLogger.log('[PushNotifications] Registering FCM token with backend:', {
     appId,
     tokenLength: registrationToken.length,
   });
@@ -57,7 +58,7 @@ export async function registerPushToken(registrationToken: string): Promise<any>
 export async function unregisterPushToken(registrationToken: string): Promise<any> {
   const token = store.getState().chatSettingStore.user.token || '';
 
-  console.log('[PushNotifications] Unregistering FCM token from backend', {
+  ethoraLogger.log('[PushNotifications] Unregistering FCM token from backend', {
     tokenLength: registrationToken.length,
   });
 

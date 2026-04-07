@@ -1,4 +1,5 @@
 import { ApiRoom, IRoom } from '../types/types';
+import { ethoraLogger } from './ethoraLogger';
 
 export const createRoomFromApi = (
   room: ApiRoom,
@@ -23,7 +24,7 @@ export const createRoomFromApi = (
     };
     return roomData;
   } catch (error) {
-    console.log(error);
+    ethoraLogger.log(error);
     return null;
   }
 };

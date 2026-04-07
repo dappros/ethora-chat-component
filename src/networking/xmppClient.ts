@@ -39,6 +39,7 @@ import { formatError } from '../utils/formatError';
 import { getDataFromXml } from '../helpers/getDataFromXml';
 import { createMessageFromXml } from '../helpers/createMessageFromXml';
 import { setRoomMessages } from '../roomStore/roomsSlice';
+import { ethoraLogger } from '../helpers/ethoraLogger';
 
 type HistoryPriority = 0 | 1 | 2;
 type HistorySource = 'active' | 'send_ack' | 'background' | 'default';
@@ -222,7 +223,7 @@ export class XmppClient implements XmppClientInterface {
 
       this.host = url.match(/wss:\/\/([^:/]+)/)?.[1] || '';
       this.conference = `conference.${this.host}`;
-      console.log('+-+-+-+-+-+-+-+-+ ', { username: this.username });
+      ethoraLogger.log('+-+-+-+-+-+-+-+-+ ', { username: this.username });
       this.devServer = url;
 
       this.client = xmpp.client({
@@ -274,7 +275,7 @@ export class XmppClient implements XmppClientInterface {
         // @ts-ignore: underlying transport/socket is not typed in xmpp.js
         this.client?.transport?.socket?.close?.();
       } catch (e) {
-        console.log('err', e);
+        ethoraLogger.log('err', e);
       }
 
       await new Promise<void>((resolve) => {
@@ -295,7 +296,7 @@ export class XmppClient implements XmppClientInterface {
       this.historyPreloadInFlight.clear();
       this.clearMamRegistry();
       this.clearHistoryQueue();
-      console.log('Client disconnected');
+      ethoraLogger.log('Client disconnected');
     } catch (error) {
       console.error('Error disconnecting client:', error);
     }
@@ -303,7 +304,7 @@ export class XmppClient implements XmppClientInterface {
 
   attachEventListeners() {
     this.client.on('disconnect', () => {
-      console.log('Disconnected from server.');
+      ethoraLogger.log('Disconnected from server.');
       this.status = this.authFailureDetected ? 'auth_failed' : 'offline';
       this.presencesReady = false;
       this.joinedRooms.clear();
@@ -326,7 +327,7 @@ export class XmppClient implements XmppClientInterface {
     this.client.on('online', async (jid) => {
       try {
         this.resource = jid.resource || 'default';
-        console.log('Client is online.', new Date());
+        ethoraLogger.log('Client is online.', new Date());
         this.status = 'online';
         this.authFailureDetected = false;
         this.reconnectAttempts = 0;
@@ -338,10 +339,10 @@ export class XmppClient implements XmppClientInterface {
         }
         try {
           const sendPresenceStart = Date.now();
-          console.log('[XMPP] online: sendPresence:start');
+          ethoraLogger.log('[XMPP] online: sendPresence:start');
           this.client.send(xml('presence'));
-          console.log('[XMPP] online: sendPresence:done');
-          console.log(
+          ethoraLogger.log('[XMPP] online: sendPresence:done');
+          ethoraLogger.log(
             `[InitTiming] online:send_presence ${Date.now() - sendPresenceStart}ms`
           );
         } catch (error) {
@@ -349,11 +350,11 @@ export class XmppClient implements XmppClientInterface {
         }
 
         const allPresenceStart = Date.now();
-        console.log('[XMPP] online: sendAllPresences:start');
+        ethoraLogger.log('[XMPP] online: sendAllPresences:start');
         this.sendAllPresencesAndMarkReady()
           .then(() => {
-            console.log('[XMPP] online: sendAllPresences:done');
-            console.log(
+            ethoraLogger.log('[XMPP] online: sendAllPresences:done');
+            ethoraLogger.log(
               `[InitTiming] online:all_room_presences ${Date.now() - allPresenceStart}ms`
             );
           })
@@ -367,17 +368,17 @@ export class XmppClient implements XmppClientInterface {
         this.logStep('event:online');
 
         try {
-          console.log('[XMPP] online: processQueue:start');
+          ethoraLogger.log('[XMPP] online: processQueue:start');
           await this.processQueue();
-          console.log('[XMPP] online: processQueue:done');
+          ethoraLogger.log('[XMPP] online: processQueue:done');
         } catch (error) {
           console.error('[XMPP] online: processQueue:error', formatError(error));
         }
 
         try {
-          console.log('[XMPP] online: drainHeap:start');
+          ethoraLogger.log('[XMPP] online: drainHeap:start');
           await this.drainHeap();
-          console.log('[XMPP] online: drainHeap:done');
+          ethoraLogger.log('[XMPP] online: drainHeap:done');
         } catch (error) {
           console.error('[XMPP] online: drainHeap:error', formatError(error));
         }
@@ -389,7 +390,7 @@ export class XmppClient implements XmppClientInterface {
     });
 
     this.client.on('connecting', () => {
-      console.log('Client is connecting...');
+      ethoraLogger.log('Client is connecting...');
       this.status = 'connecting';
       this.logStep('event:connecting');
     });
@@ -541,8 +542,8 @@ export class XmppClient implements XmppClientInterface {
         }
       });
     }
-    console.log(`[InitTiming] xmpp:allRoomPresences ${Date.now() - start}ms`);
-    console.log(
+    ethoraLogger.log(`[InitTiming] xmpp:allRoomPresences ${Date.now() - start}ms`);
+    ethoraLogger.log(
       `[XMPP] allRoomPresences summary total=${summary.total} success=${summary.success} failed=${summary.failed}`
     );
     if (summary.failed > 0 && summary.failures?.length) {
@@ -592,7 +593,7 @@ export class XmppClient implements XmppClientInterface {
     const start = Date.now();
     try {
       const summary = await allRoomPresences(this.client);
-      console.log(
+      ethoraLogger.log(
         `[InitTiming] xmpp:allRoomPresencesStanza ${Date.now() - start}ms`
       );
       return summary;
@@ -659,7 +660,7 @@ export class XmppClient implements XmppClientInterface {
       this.status = 'offline';
       try {
         await this.client.stop();
-        console.log('Client connection closed.');
+        ethoraLogger.log('Client connection closed.');
       } catch (error) {
         console.error('Error closing the client:', error);
       }
@@ -756,10 +757,10 @@ export class XmppClient implements XmppClientInterface {
         this.historyQueueInFlightHigh += 1;
       }
       const queueWaitMs = Date.now() - task.queuedAt;
-      console.log(
+      ethoraLogger.log(
         `[XMPP] queue_wait_ms_by_priority priority=${task.priority} room=${task.chatJID} wait=${queueWaitMs}`
       );
-      console.log(
+      ethoraLogger.log(
         `[XMPP] history_inflight_count count=${this.historyQueueInFlight}`
       );
 
@@ -773,7 +774,7 @@ export class XmppClient implements XmppClientInterface {
               this.historyQueueInFlightHigh - 1
             );
           }
-          console.log(
+          ethoraLogger.log(
             `[XMPP] history_inflight_count count=${this.historyQueueInFlight}`
           );
           this.scheduleHistoryQueue();
@@ -982,7 +983,7 @@ export class XmppClient implements XmppClientInterface {
     const startedAt = this.sendStartedAtById.get(messageId);
     if (startedAt) {
       const elapsed = Date.now() - startedAt;
-      console.log(
+      ethoraLogger.log(
         `[XMPP] send_click_to_echo_ms id=${messageId} room=${roomJID} ms=${elapsed}`
       );
       this.sendStartedAtById.delete(messageId);
@@ -1107,7 +1108,7 @@ export class XmppClient implements XmppClientInterface {
           }
           if (nextEntry.createdAt) {
             const waitMs = Date.now() - nextEntry.createdAt;
-            console.log(
+            ethoraLogger.log(
               `[XMPP] send_wait_ms id=${nextEntry.id || 'unknown'} room=${nextEntry.roomJid || 'unknown'} wait=${waitMs}`
             );
           }
@@ -1523,7 +1524,7 @@ export class XmppClient implements XmppClientInterface {
       try {
         return await getChatsPrivateStoreRequest(this.client);
       } catch (error) {
-        console.log('error getChatsPrivateStoreRequest', error);
+        ethoraLogger.log('error getChatsPrivateStoreRequest', error);
         return null;
       }
     });
@@ -1580,7 +1581,7 @@ export class XmppClient implements XmppClientInterface {
 
     this.isRecoveringRoomPresence = true;
     this.recoveryRoomJid = roomJID;
-    console.log(
+    ethoraLogger.log(
       `[XMPP] recover:start room=${roomJID}`
     );
 
@@ -1592,7 +1593,7 @@ export class XmppClient implements XmppClientInterface {
         source: 'send',
       });
       if (joined) {
-        console.log(`[XMPP] recover:presence_ok room=${roomJID}`);
+        ethoraLogger.log(`[XMPP] recover:presence_ok room=${roomJID}`);
       } else {
         console.warn(`[XMPP] recover:presence_failed room=${roomJID}`);
       }
@@ -1606,7 +1607,7 @@ export class XmppClient implements XmppClientInterface {
       this.isRecoveringRoomPresence = false;
       this.recoveryRoomJid = null;
       this.processQueue().catch(() => {});
-      console.log('[XMPP] recover:queue_resume');
+      ethoraLogger.log('[XMPP] recover:queue_resume');
     }
   }
 
@@ -1678,7 +1679,7 @@ export class XmppClient implements XmppClientInterface {
         }
       }
       store.dispatch({ type: 'roomHeapStore/clearHeap' });
-      console.log(`[InitTiming] xmpp:drainHeap ${Date.now() - start}ms`);
+      ethoraLogger.log(`[InitTiming] xmpp:drainHeap ${Date.now() - start}ms`);
     } catch {
       // Ignore heap drain failures; pending messages stay queued for retry.
     }

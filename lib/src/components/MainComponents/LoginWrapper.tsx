@@ -19,6 +19,7 @@ import {
 } from '../../helpers/authStorage';
 
 import { CustomComponentsContextValue } from '../../types/models/customComponents.model';
+import { ethoraLogger } from '../../helpers/ethoraLogger';
 
 interface LoginWrapperProps
   extends Partial<
@@ -93,11 +94,11 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
             dispatch(setUser(loginData));
           }
         } catch (error) {
-          console.log('error with jwt login', error);
+          ethoraLogger.log('error with jwt login', error);
           if (!cancelled) {
             setShowModal(true);
           }
-          console.log('Error, no user');
+          ethoraLogger.log('Error, no user');
         }
         return;
       }
@@ -109,7 +110,7 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
             dispatch(setUser(loginData));
           }
         } catch (error) {
-          console.log('error with default login', error);
+          ethoraLogger.log('error with default login', error);
           if (!cancelled) {
             setShowModal(true);
           }

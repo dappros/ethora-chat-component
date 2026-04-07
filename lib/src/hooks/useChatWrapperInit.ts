@@ -22,6 +22,7 @@ import useGetNewArchRoom from './useGetNewArchRoom';
 import { getRoomsWithRetry } from '../helpers/getRoomsWithRetry';
 import { clearHeap } from '../roomStore/roomHeapSlice';
 import { ensureScopedChatCache } from '../helpers/cacheScope';
+import { ethoraLogger } from '../helpers/ethoraLogger';
 
 interface useChatWrapperInitProps {
   roomJID: string | null | undefined;
@@ -72,7 +73,7 @@ const useChatWrapperInit = ({
     if (!start) return;
     const ms = Date.now() - start;
     durationsRef.current[label] = ms;
-    console.log(`[InitTiming] ${label} ${ms}ms`);
+    ethoraLogger.log(`[InitTiming] ${label} ${ms}ms`);
   };
 
   const scheduleStartupSummary = () => {
@@ -100,7 +101,7 @@ const useChatWrapperInit = ({
           }
         });
       }
-      console.log('[InitTiming] startup_summary', report);
+      ethoraLogger.log('[InitTiming] startup_summary', report);
     }, 10000);
   };
 
@@ -207,7 +208,7 @@ const useChatWrapperInit = ({
   useEffect(() => {
     return () => {
       if (client && user.xmppPassword === '') {
-        console.log('closing client');
+        ethoraLogger.log('closing client');
         client.close();
         setClient(null);
       }
@@ -305,7 +306,7 @@ const useChatWrapperInit = ({
       try {
         if (!user.xmppUsername) {
           setShowModal(true);
-          console.log('Error, no user');
+          ethoraLogger.log('Error, no user');
         } else {
           chatAutoEnterer({ roomJID, wasAutoSelected, config, dispatch });
           if (!client) {
@@ -316,7 +317,7 @@ const useChatWrapperInit = ({
                 setIsLoading({ loading: true, loadingText: 'Connecting...' })
               );
 
-              console.log('No client, so initing one');
+              ethoraLogger.log('No client, so initing one');
               mark('xmpp:initClient:start');
               mark('initClient:create_instance:start');
               mark('initClient:wait_online:start');
@@ -368,7 +369,7 @@ const useChatWrapperInit = ({
                 config?.refreshTokens?.enabled && refresh();
               }
             } catch (error) {
-              console.log('err', error);
+              ethoraLogger.log('err', error);
               setConnectionLost(true);
               retryTimeout = setTimeout(initXmmpClient, 5000);
             }
@@ -404,7 +405,7 @@ const useChatWrapperInit = ({
         setConnectionLost(true);
         setInited(false);
         dispatch(setIsLoading({ loading: false }));
-        console.log(error);
+        ethoraLogger.log(error);
         retryTimeout = setTimeout(initXmmpClient, 5000);
       }
     };

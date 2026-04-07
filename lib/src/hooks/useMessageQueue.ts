@@ -3,6 +3,7 @@ import { useDispatch } from 'react-redux';
 import { PriorityQueue } from '../utils/PriorityQueue';
 import { IMessage, IRoom } from '../types/types';
 import { setIsLoading } from '../roomStore/roomsSlice';
+import { ethoraLogger } from '../helpers/ethoraLogger';
 
 interface QueuedRoom {
   jid: string;
@@ -31,9 +32,9 @@ const addRoomToProcessed = (
     !processedRooms.current.has(queueRoom.jid)
   ) {
     processedRooms.current.add(queueRoom.jid);
-    console.log(`Marking room: ${queueRoom.jid} as processed`);
+    ethoraLogger.log(`Marking room: ${queueRoom.jid} as processed`);
     if (rooms[queueRoom.jid].messages.length >= 30) {
-      console.log(`Trimming messages for room: ${queueRoom.jid}`);
+      ethoraLogger.log(`Trimming messages for room: ${queueRoom.jid}`);
       rooms[queueRoom.jid].messages = rooms[queueRoom.jid].messages.slice(-30);
     }
   }
@@ -63,7 +64,7 @@ export const useMessageQueue = (
         queueRoom.messageCount < 30 &&
         !rooms[queueRoom.jid].historyComplete
       ) {
-        console.log(`Loading messages for room: ${queueRoom.jid}`);
+        ethoraLogger.log(`Loading messages for room: ${queueRoom.jid}`);
         dispatch(setIsLoading({ chatJID: queueRoom.jid, loading: true }));
 
         const newMessages = await loadMessages(
@@ -77,7 +78,7 @@ export const useMessageQueue = (
           queueRoom.messageCount + queueRoom.messages.length < 30 &&
           !rooms[queueRoom.jid].historyComplete
         ) {
-          console.log(`Re-queuing room: ${queueRoom.jid} for more messages`);
+          ethoraLogger.log(`Re-queuing room: ${queueRoom.jid} for more messages`);
           messageQueue.current.push({
             jid: queueRoom.jid,
             priority: queueRoom.priority,
@@ -95,7 +96,7 @@ export const useMessageQueue = (
     } finally {
       dispatch(setIsLoading({ chatJID: queueRoom.jid, loading: false }));
       dispatch(setIsLoading({ loading: false }));
-      console.log(`Finished processing queue: ${queueRoom.jid}`);
+      ethoraLogger.log(`Finished processing queue: ${queueRoom.jid}`);
     }
   };
 
@@ -112,7 +113,7 @@ export const useMessageQueue = (
         roomsToProcess.map(async (room) => {
           try {
             if (room.messageCount < 30 && !rooms[room.jid].historyComplete) {
-              console.log(`Loading messages for room: ${room.jid}`);
+              ethoraLogger.log(`Loading messages for room: ${room.jid}`);
               dispatch(setIsLoading({ chatJID: room.jid, loading: true }));
               await loadMessages(room.jid, 20, Number(room.lastMessageId));
 
@@ -120,7 +121,7 @@ export const useMessageQueue = (
                 room.messageCount + 20 < 30 &&
                 !rooms[room.jid].historyComplete
               ) {
-                console.log(`Re-queuing room: ${room.jid} for more messages`);
+                ethoraLogger.log(`Re-queuing room: ${room.jid} for more messages`);
                 queue.push({
                   ...room,
                   messageCount: room.messageCount + 6,
@@ -134,7 +135,7 @@ export const useMessageQueue = (
             queue.push({ ...room, priority: Math.max(room.priority - 1, 1) });
           } finally {
             dispatch(setIsLoading({ chatJID: room.jid, loading: false }));
-            console.log(`Finished processing room: ${room.jid}`);
+            ethoraLogger.log(`Finished processing room: ${room.jid}`);
           }
         })
       );

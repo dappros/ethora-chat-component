@@ -1,5 +1,6 @@
 import { Client } from '@xmpp/client';
 import { Element } from '@xmpp/xml';
+import { ethoraLogger } from '../../helpers/ethoraLogger';
 
 const activeListeners = new Map<
   string,
@@ -30,7 +31,7 @@ export class XmppListenerManager {
     client.on(eventType, handler);
 
     if (process.env.NODE_ENV === 'development') {
-      console.log(
+      ethoraLogger.log(
         `[XmppListenerManager] Added listener: ${listenerKey}, Total: ${activeListeners.size}`
       );
     }
@@ -43,7 +44,7 @@ export class XmppListenerManager {
       activeListeners.delete(listenerKey);
 
       if (process.env.NODE_ENV === 'development') {
-        console.log(
+        ethoraLogger.log(
           `[XmppListenerManager] Removed listener: ${listenerKey}, Total: ${activeListeners.size}`
         );
       }
@@ -63,7 +64,7 @@ export class XmppListenerManager {
     }
 
     if (process.env.NODE_ENV === 'development' && removedCount > 0) {
-      console.log(
+      ethoraLogger.log(
         `[XmppListenerManager] Removed ${removedCount} listeners for client, Total: ${activeListeners.size}`
       );
     }
@@ -81,7 +82,7 @@ export class XmppListenerManager {
     activeListeners.clear();
 
     if (process.env.NODE_ENV === 'development') {
-      console.log(`[XmppListenerManager] Cleared all ${count} listeners`);
+      ethoraLogger.log(`[XmppListenerManager] Cleared all ${count} listeners`);
     }
   }
 
@@ -107,7 +108,7 @@ export class XmppListenerManager {
   static logActiveListeners(): void {
     if (process.env.NODE_ENV === 'development') {
       const info = this.getActiveListenersInfo();
-      console.log(
+      ethoraLogger.log(
         `[XmppListenerManager] Active listeners (${info.length}):`,
         info
       );

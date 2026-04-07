@@ -34,6 +34,7 @@ import {
   shouldShowXmppToast,
 } from '../utils/notificationPolicy';
 import { formatError } from '../utils/formatError';
+import { ethoraLogger } from '../helpers/ethoraLogger';
 // TO DO: we are thinking to refactor this code in the following way:
 // each stanza will be parsed for 'type'
 // then it will be handled based on the type
@@ -78,7 +79,7 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
     const { data, id, body, ...rest } = await getDataFromXml(stanza);
 
     if (!data) {
-      console.log('No data in stanza');
+      ethoraLogger.log('No data in stanza');
       return;
     }
 
@@ -167,12 +168,12 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
         roomJID
       );
       if (state.chatSettingStore.config?.useStoreConsoleEnabled) {
-        console.log(
+        ethoraLogger.log(
           `[NotifyPolicy] source=xmpp action=show reason=${decision.reason} msgId=${message.id} room=${roomJID} sender=${message.user?.id} activeRoom=${isActiveChatMessage} history=${isHistory} catchup=${isWithinCatchupPeriod}`
         );
       }
     } else if (state.chatSettingStore.config?.useStoreConsoleEnabled) {
-      console.log(
+      ethoraLogger.log(
         `[NotifyPolicy] source=xmpp action=skip reason=${decision.reason} msgId=${message.id} room=${roomJID} sender=${message.user?.id} activeRoom=${isActiveChatMessage} currentUser=${currentUserMessage} system=${isSystemMessage} pendingEcho=${matchedPendingMessage} looksLikeCurrent=${senderLooksLikeCurrentUser} history=${isHistory} catchup=${isWithinCatchupPeriod}`
       );
     }
@@ -305,7 +306,7 @@ const onMessageHistory = async (stanza: any) => {
     const { data, id, body, ...rest } = await getDataFromXml(stanza);
 
     if (!data) {
-      console.log('No data in stanza');
+      ethoraLogger.log('No data in stanza');
       return;
     }
 
@@ -402,7 +403,7 @@ const onChatInvite = async (stanza: Element, client: XmppClient) => {
         }
       }
     } catch (error) {
-      console.log('err', error);
+      ethoraLogger.log('err', error);
     }
   }
 };
@@ -558,19 +559,19 @@ const onMessageError = async (stanza: Element, client: XmppClient) => {
         condition === 'not-authorized' ||
         messageText.includes('only occupants are allowed'));
 
-    console.log(
+    ethoraLogger.log(
       `[XMPP] message_error condition=${errorInfo?.condition || 'unknown'} text="${errorInfo?.message || ''}" id=${stanza.attrs.id || ''} from=${from} to=${stanza.attrs.to || ''}`
     );
 
     if (!isMucRoom) {
-      console.log(
+      ethoraLogger.log(
         `[XMPP] message_error skip_presence reason=non_muc from=${from}`
       );
       return;
     }
 
     if (!shouldRecoverPresence) {
-      console.log(
+      ethoraLogger.log(
         `[XMPP] message_error skip_presence reason=unsupported_condition condition=${errorInfo?.condition || 'unknown'} from=${from}`
       );
       return;
@@ -629,7 +630,7 @@ export const handleErrorMessageStanza = (
       message: textEl?.text() ?? '',
     };
 
-    console.log('Received XMPP error message:', {
+    ethoraLogger.log('Received XMPP error message:', {
       message: errorInfo?.message,
       errorInfo,
     });
@@ -713,7 +714,7 @@ const onUserUpdate = async (stanza: Element) => {
       }
     });
 
-    console.log(
+    ethoraLogger.log(
       `[UserUpdate] xmppUsername=${xmppUsername} firstName=${attrs.firstName ?? '-'} lastName=${attrs.lastName ?? '-'} matched=${matchedUsers.length}`
     );
 
@@ -791,7 +792,7 @@ const onChatUpdate = async (stanza: Element) => {
     // Update room if we have any updates
     if (Object.keys(roomUpdates).length > 0) {
       store.dispatch(updateRoom({ jid: existingRoom.jid, updates: roomUpdates }));
-      console.log(
+      ethoraLogger.log(
         `[ChatUpdate] room=${existingRoom.jid} title=${attrs.title ?? '-'} description=${attrs.description ?? '-'}`
       );
     }

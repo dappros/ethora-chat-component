@@ -21,6 +21,7 @@ import {
   buildNotificationUrl,
 } from '../utils/notificationPolicy';
 import { showBrowserNotification } from '../utils/notificationUtils';
+import { ethoraLogger } from '../helpers/ethoraLogger';
 
 interface MessageNotificationContextType {
   showMessageNotification: (
@@ -282,7 +283,7 @@ export const MessageNotificationProvider: React.FC<{
       showMessageNotification
     );
     if (config?.useStoreConsoleEnabled) {
-      console.log(
+      ethoraLogger.log(
         `[NotifyPolicy] source=in_app action=callback_registered count=${messageNotificationManager.getCallbackCount()}`
       );
     }

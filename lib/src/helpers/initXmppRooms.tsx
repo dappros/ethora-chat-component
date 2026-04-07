@@ -4,6 +4,7 @@ import { initRoomsPresence } from './initRoomsPresence';
 import XmppClient from '../networking/xmppClient';
 import { IConfig, IRoom, User } from '../types/types';
 import { store } from '../roomStore';
+import { ethoraLogger } from './ethoraLogger';
 
 const initXmppRooms = async (
   user: User,
@@ -18,12 +19,12 @@ const initXmppRooms = async (
 
   try {
     if (!user.defaultWallet || !user.defaultWallet.walletAddress) {
-      console.log('Error, no user');
+      ethoraLogger.log('Error, no user');
       return;
     }
 
     if (!xmmpClient) {
-      console.log('No xmmpClient, initializing one');
+      ethoraLogger.log('No xmmpClient, initializing one');
 
       if (rooms && Object.keys(rooms).length > 0) {
         await initRoomsPresence(xmmpClient, rooms);
@@ -44,7 +45,7 @@ const initXmppRooms = async (
           return;
         }
         const res = await xmmpClient.getRoomsStanza();
-        console.log(res);
+        ethoraLogger.log(res);
       }
 
       //@ts-ignore

@@ -1,4 +1,5 @@
 import { getFirebaseMessaging, defaultConfig } from '../firebase-config';
+import { ethoraLogger } from '../helpers/ethoraLogger';
 import {
   deleteToken,
   getToken,
@@ -130,7 +131,7 @@ async function registerFirebaseServiceWorker(
     const activeRegistration = await waitForActive(registration);
 
     if (options?.debug) {
-      console.log(
+      ethoraLogger.log(
         '[PushNotifications] Firebase service worker registered:',
         activeRegistration?.scope || registration.scope
       );
@@ -171,7 +172,7 @@ export async function getFCMToken(options: FcmRegistrationOptions = {}): Promise
 
     if (token) {
       if (options?.debug) {
-        console.log('[PushNotifications] FCM token obtained successfully');
+        ethoraLogger.log('[PushNotifications] FCM token obtained successfully');
       }
       return token;
     } else {

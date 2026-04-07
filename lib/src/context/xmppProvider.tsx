@@ -23,6 +23,7 @@ import {
   resolveInitBeforeLoadUser,
 } from '../helpers/resolveInitBeforeLoadUser';
 import { setBaseURL } from '../networking/apiClient';
+import { ethoraLogger } from '../helpers/ethoraLogger';
 
 let initBeforeLoadPromise: Promise<void> | null = null;
 // Declare XmppContext
@@ -105,7 +106,7 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
     roomsList?: { [jid: string]: IRoom }
   ): Promise<XmppClient> => {
     if (client) {
-      console.log('Returning existing client.');
+      ethoraLogger.log('Returning existing client.');
       setClient(client);
       return client;
     }
@@ -117,7 +118,7 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
       const initPromise = (async () => {
         const createInstanceStart = Date.now();
         const newClient = new XmppClient(username, password, xmppSettings);
-        console.log(
+        ethoraLogger.log(
           `[InitTiming] initClient:create_instance ${Date.now() - createInstanceStart}ms`
         );
         setClient(newClient);
@@ -157,11 +158,11 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
       (client.status === 'error' || client.status === 'offline') &&
       reconnectAttempts < 3
     ) {
-      console.log('Attempting to reconnect...');
+      ethoraLogger.log('Attempting to reconnect...');
       client.reconnect();
       setReconnectAttempts((prev) => prev + 1);
     } else if (reconnectAttempts >= 3 && password && email) {
-      console.log('Reinitializing XMPP client after failed reconnects...');
+      ethoraLogger.log('Reinitializing XMPP client after failed reconnects...');
       initializeClient(email, password).catch((error) => {
         console.error('Reconnection failed:', error);
       });
@@ -279,7 +280,7 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
 
     const handleLogout = () => {
       if (client) {
-        console.log("XmppProvider: Disconnecting client due to logout event");
+        ethoraLogger.log("XmppProvider: Disconnecting client due to logout event");
         client.disconnect();
         setClient(null);
       }

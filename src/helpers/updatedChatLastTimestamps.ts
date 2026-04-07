@@ -1,4 +1,5 @@
 import { setLastViewedTimestamp } from '../roomStore/roomsSlice';
+import { ethoraLogger } from './ethoraLogger';
 
 export const updatedChatLastTimestamps = (
   roomTimestampObject: [jid: string, timestamp: string],
@@ -13,7 +14,7 @@ export const updatedChatLastTimestamps = (
         timestamp,
       })
     );
-    console.log('getting roomTimestampArray', roomTimestampArray);
+    ethoraLogger.log('getting roomTimestampArray', roomTimestampArray);
 
     roomTimestampArray.forEach(({ jid, timestamp }) => {
       if (jid) {

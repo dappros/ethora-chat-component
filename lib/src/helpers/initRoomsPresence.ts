@@ -1,5 +1,6 @@
 import XmppClient from '../networking/xmppClient';
 import { IRoom } from '../types/types';
+import { ethoraLogger } from './ethoraLogger';
 
 const inFlightByClient = new Map<string, Promise<void>>();
 
@@ -7,7 +8,7 @@ export const initRoomsPresence = async (
   client: XmppClient,
   rooms: { [jid: string]: IRoom }
 ) => {
-  console.log('Persisted presence');
+  ethoraLogger.log('Persisted presence');
   if (!client) return null;
   const clientKey = client.client?.jid?.toString() || 'xmpp-client';
   const existing = inFlightByClient.get(clientKey);

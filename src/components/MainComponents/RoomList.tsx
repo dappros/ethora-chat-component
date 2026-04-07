@@ -25,6 +25,7 @@ import { useXmppClient } from '../../context/xmppProvider';
 import ChatRoomItem from '../RoomComponents/ChatRoomItem';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { logoutService } from '../../hooks/useLogout';
+import { ethoraLogger } from '../../helpers/ethoraLogger';
 
 interface RoomListProps {
   chats: IRoom[];
@@ -154,7 +155,7 @@ const RoomList: React.FC<RoomListProps> = ({
         icon: null,
         onClick: () => {
           dispatch(setActiveModal(MODAL_TYPES.PROFILE));
-          console.log('Profile clicked');
+          ethoraLogger.log('Profile clicked');
         },
       },
       {
@@ -162,7 +163,7 @@ const RoomList: React.FC<RoomListProps> = ({
         icon: null,
         onClick: () => {
           dispatch(setActiveModal(MODAL_TYPES.SETTINGS));
-          console.log('Settings clicked');
+          ethoraLogger.log('Settings clicked');
         },
       },
       {

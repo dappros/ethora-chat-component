@@ -30,6 +30,7 @@ import useChatWrapperInit from '../../hooks/useChatWrapperInit.ts';
 import ErrorFallback from './ErrorFallback';
 import ConnectionBanner from './ConnectionBanner';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
+import { ethoraLogger } from '../../helpers/ethoraLogger';
 
 interface ChatWrapperProps {
   token?: string;
@@ -169,10 +170,10 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   // const queueMessageLoader = useCallback(
   //   async (chatJID: string, max: number) => {
   //     try {
-  //       console.log('2'); //bad
+  //       ethoraLogger.log('2'); //bad
   //       return await client?.getHistoryStanza(chatJID, max);
   //     } catch (error) {
-  //       console.log('Error in loading queue messages', error);
+  //       ethoraLogger.log('Error in loading queue messages', error);
   //     }
   //   },
   //   [globalLoading, loading, !!client]

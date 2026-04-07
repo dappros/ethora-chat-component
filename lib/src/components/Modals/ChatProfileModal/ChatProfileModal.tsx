@@ -34,6 +34,7 @@ import DeleteChatModal from './DeleteChatModal';
 import { useChatSettingState } from '../../../hooks/useChatSettingState';
 import SelectUsersModal from '../SelectUsersModal/SelectUsersModal';
 import { useToast } from '../../../context/ToastContext';
+import { ethoraLogger } from '../../../helpers/ethoraLogger';
 
 interface ChatProfileModalProps {
   handleCloseModal: any;
@@ -148,7 +149,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         icon: null,
         onClick: () => {
           dispatch(setActiveModal(MODAL_TYPES.PROFILE));
-          console.log('Profile clicked');
+          ethoraLogger.log('Profile clicked');
         },
       },
       {
@@ -156,7 +157,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         icon: null,
         onClick: () => {
           dispatch(setActiveModal(MODAL_TYPES.SETTINGS));
-          console.log('Settings clicked');
+          ethoraLogger.log('Settings clicked');
         },
       },
       {
@@ -351,7 +352,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                               More Options
                             </Button>
                           }
-                          onClose={() => console.log('Dropdown closed')}
+                          onClose={() => ethoraLogger.log('Dropdown closed')}
                         />
                       )}
                   </div>

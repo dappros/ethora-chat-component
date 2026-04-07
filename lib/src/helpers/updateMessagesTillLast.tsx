@@ -8,6 +8,7 @@ import {
 } from '../roomStore/roomsSlice';
 import { IMessage, IRoom } from '../types/types';
 import { checkUniqueUsers } from './checkUniqueUsers';
+import { ethoraLogger } from './ethoraLogger';
 
 export const updateMessagesTillLast = async (
   rooms: {
@@ -135,5 +136,5 @@ export const updateMessagesTillLast = async (
     }
   }
 
-  console.log('All rooms processed');
+  ethoraLogger.log('All rooms processed');
 };

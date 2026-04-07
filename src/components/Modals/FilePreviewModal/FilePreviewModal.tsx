@@ -12,6 +12,7 @@ import { FullScreenImage } from '../../styled/StyledInputComponents/MediaCompone
 import { FullScreenVideo } from '../../styled/VideoMessage';
 import { setActiveFile } from '../../../roomStore/chatSettingsSlice';
 import PdfViewer from './PdfView';
+import { ethoraLogger } from '../../../helpers/ethoraLogger';
 
 interface FilePreviewModalProps {
   handleCloseModal: any;
@@ -58,7 +59,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
         });
       })
       .catch((err) => {
-        console.log(err);
+        ethoraLogger.log(err);
       });
   };
 

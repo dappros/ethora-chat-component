@@ -13,6 +13,7 @@ import CustomScrollableArea from './examples/customComponents/CustomScrollableAr
 import CustomDaySeparator from './examples/customComponents/CustomDaySeparator';
 import CustomMessageBubble from './examples/customComponents/CustomMessageBubble';
 import { MessageNotificationProvider } from './context/MessageNotificationContext';
+import { ethoraLogger } from './helpers/ethoraLogger';
 
 const APP_CHAT_BASE_CONFIG: IConfig = {
   appId: '646cc8dc96d4a4dc8f7b2f2d',
@@ -207,7 +208,7 @@ const ChatComponent = React.memo(() => {
           disableMedia: true,
           eventHandlers: {
             onMessageSent: async (event) => {
-              console.log('✅ Message sent successfully:', event.message);
+              ethoraLogger.log('✅ Message sent successfully:', event.message);
             },
           },
           ...config,

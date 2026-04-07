@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { IConfig } from '../types/models/config.model';
+import { ethoraLogger } from '../helpers/ethoraLogger';
 
 interface EventHandlersHook {
   handleMessageSent: (event: {
@@ -90,7 +91,7 @@ export const useEventHandlers = (config?: IConfig): EventHandlersHook => {
         }
 
         // Log edit details for debugging
-        console.log('Message edited:', {
+        ethoraLogger.log('Message edited:', {
           messageId: event.messageId,
           newMessage: event.newMessage,
           roomJID: event.roomJID,

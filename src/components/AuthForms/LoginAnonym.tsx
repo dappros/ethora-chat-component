@@ -4,6 +4,7 @@ import { MessageInput } from '../styled/StyledComponents';
 import Button from '../styled/Button';
 import { IConfig } from '../../types/types';
 import { useToast } from '../../context/ToastContext';
+import { ethoraLogger } from '../../helpers/ethoraLogger';
 
 interface LoginFormProps {
   config?: IConfig;
@@ -20,7 +21,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
       message: 'You are logged in anonymously!',
       type: 'success',
     });
-    console.log('Form submitted');
+    ethoraLogger.log('Form submitted');
   };
 
   return (

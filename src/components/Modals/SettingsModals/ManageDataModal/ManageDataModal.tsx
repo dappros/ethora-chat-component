@@ -9,6 +9,7 @@ import { RootState } from '../../../../roomStore';
 import styled from 'styled-components';
 import { InfoIcon } from '../../../../assets/icons';
 import { getExportMyData } from '../../../../networking/api-requests/user.api';
+import { ethoraLogger } from '../../../../helpers/ethoraLogger';
 import {
   SharedSettingsCenterContainer,
   SharedSettingsColumnContainer,
@@ -40,7 +41,7 @@ const ManageDataModal: React.FC<ManageDataModalProps> = ({
   const handleDownloadClick = async () => {
     const exportedData = await getExportMyData();
     const binaryData = exportedData.data;
-    console.log(binaryData);
+    ethoraLogger.log(binaryData);
     const blob = new Blob([binaryData], { type: 'text/plain' });
 
     const url = URL.createObjectURL(blob);

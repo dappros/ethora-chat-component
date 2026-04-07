@@ -4,6 +4,7 @@ import { Element } from 'ltx';
 import { IMessage } from '../../types/types';
 import { getDataFromXml } from '../../helpers/getDataFromXml';
 import { createMessageFromXml } from '../../helpers/createMessageFromXml';
+import { ethoraLogger } from '../../helpers/ethoraLogger';
 
 export const getHistory = async (
   client: Client,
@@ -60,7 +61,7 @@ export const getHistory = async (
             const { data, id, body, ...rest } = await getDataFromXml(msg);
 
             if (!data) {
-              console.log('No data in stanza');
+              ethoraLogger.log('No data in stanza');
               return;
             }
 
@@ -107,7 +108,7 @@ export const getHistory = async (
       )
     );
 
-    client?.send(message).catch((err) => console.log('err on load', err));
+    client?.send(message).catch((err) => ethoraLogger.log('err on load', err));
   });
 
   const timeoutPromise = createTimeoutPromise(10000);

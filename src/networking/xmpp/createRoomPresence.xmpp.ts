@@ -1,6 +1,7 @@
 import { Element } from 'ltx';
 import { Client, xml } from '@xmpp/client';
 import { createTimeoutPromise } from './createTimeoutPromise.xmpp';
+import { ethoraLogger } from '../../helpers/ethoraLogger';
 
 export function createRoomPresence(roomId: string, client: Client) {
   let stanzaHdlrPointer: {
@@ -37,11 +38,11 @@ export function createRoomPresence(roomId: string, client: Client) {
             const codes = statuses.map((el) => el.attrs['code']);
 
             if (codes.includes('201') && codes.includes('110')) {
-              console.log('createRoomPresence:resolve true');
+              ethoraLogger.log('createRoomPresence:resolve true');
               unsubscribe();
               resolve(true);
             } else {
-              console.log(
+              ethoraLogger.log(
                 'createRoomPresence:reject, such room already exists'
               );
               unsubscribe();

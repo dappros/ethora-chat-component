@@ -14,6 +14,7 @@ import {
 import { useDispatch } from 'react-redux';
 import { setUser } from '../../roomStore/chatSettingsSlice';
 import { useToast } from '../../context/ToastContext';
+import { ethoraLogger } from '../../helpers/ethoraLogger';
 
 interface LoginFormProps {
   config?: IConfig;
@@ -113,7 +114,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
             res.credential?.accessToken || '',
             loginType
           );
-          console.log('google log after register res', loginRes);
+          ethoraLogger.log('google log after register res', loginRes);
 
           const user = {
             ...loginRes.data.user,
@@ -122,7 +123,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
           };
           dispatch(setUser(user));
         } catch (error) {
-          console.log('error registering user viag google');
+          ethoraLogger.log('error registering user viag google');
         }
       }
       if (res.idToken && res.credential && res.credential.accessToken) {
@@ -131,7 +132,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
           res.credential.accessToken,
           loginType
         );
-        console.log('google log res', loginRes);
+        ethoraLogger.log('google log res', loginRes);
         const user = {
           ...loginRes.data.user,
           token: loginRes.data.token,
@@ -140,7 +141,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
         dispatch(setUser(user));
       }
     } catch (error) {
-      console.log(error);
+      ethoraLogger.log(error);
     }
     setIsLoading(false);
   };

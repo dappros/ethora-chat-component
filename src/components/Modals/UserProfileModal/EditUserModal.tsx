@@ -7,6 +7,7 @@ import { CenterContainer } from '../styledModalComponents';
 import { updateProfile } from '../../../networking/api-requests/user.api';
 import { useDispatch } from 'react-redux';
 import { updateUser } from '../../../roomStore/chatSettingsSlice';
+import { ethoraLogger } from '../../../helpers/ethoraLogger';
 // import { actionUpdateUser } from '../actions';
 
 const base64ToFile = (base64String: string, fileName: string) => {
@@ -73,7 +74,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
 
       setIsEditing(false);
     } catch (error) {
-      console.log('error', error);
+      ethoraLogger.log('error', error);
     }
   };
 

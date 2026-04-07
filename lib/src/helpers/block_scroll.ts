@@ -1,3 +1,4 @@
+import { ethoraLogger } from './ethoraLogger';
 type TouchEventCallback = (e: TouchEvent) => void;
 type WheelEventCallback = (e: WheelEvent) => void;
 
@@ -75,7 +76,7 @@ export function blockScrollEvent(elem: HTMLElement) {
 //  ---------------------------------------------------------------------------------------------------------------  //
 
 export function unblock_scroll(elem: HTMLElement) {
-  console.log('unblock_scroll');
+  ethoraLogger.log('unblock_scroll');
   const id = elem.getAttribute(ATTR_NAME);
   if (!id) {
     return;

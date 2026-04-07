@@ -1,4 +1,5 @@
 import { Middleware } from '@reduxjs/toolkit';
+import { ethoraLogger } from '../../helpers/ethoraLogger';
 
 export const logoutMiddleware: Middleware =
   (storeAPI) => (next) => (action: any) => {
@@ -19,7 +20,7 @@ export const logoutMiddleware: Middleware =
             if (xmppProviderElement) {
               const client = (xmppProviderElement as any).__xmppClient;
               if (client && typeof client.disconnect === 'function') {
-                console.log('Disconnecting XMPP client due to logout');
+                ethoraLogger.log('Disconnecting XMPP client due to logout');
                 client.disconnect();
               }
             }

@@ -8,6 +8,7 @@ import { useChatSettingState } from './useChatSettingState';
 import { addMessageToHeap } from '../roomStore/roomHeapSlice';
 import { v4 as uuidv4 } from 'uuid';
 import { useEventHandlers } from './useEventHandlers';
+import { ethoraLogger } from '../helpers/ethoraLogger';
 
 const DEFAULT_TIMEOUT_MS = 300000;
 
@@ -240,7 +241,7 @@ export const useSendMessage = () => {
       mainMessage?: string
     ) => {
       if (isLastMessageFromUserAndProcessing(activeRoomJID)) {
-        console.log(
+        ethoraLogger.log(
           'Cannot send message: Message sending is currently blocked'
         );
         return;
@@ -503,7 +504,7 @@ export const useSendMessage = () => {
       mainMessage = ''
     ) => {
       if (isLastMessageFromUserAndProcessing(activeRoomJID)) {
-        console.log('Cannot send media: Message sending is currently blocked');
+        ethoraLogger.log('Cannot send media: Message sending is currently blocked');
         return;
       }
 

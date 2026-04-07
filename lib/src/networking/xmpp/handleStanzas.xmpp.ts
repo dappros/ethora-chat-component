@@ -20,6 +20,7 @@ import {
   onChatUpdate,
 } from '../stanzaHandlers';
 import XmppClient from '../xmppClient';
+import { ethoraLogger } from '../../helpers/ethoraLogger';
 
 export function handleStanza(stanza: Element, xmppWs: XmppClient) {
   if (stanza?.attrs?.type === 'headline') {
@@ -56,6 +57,6 @@ export function handleStanza(stanza: Element, xmppWs: XmppClient) {
       onNewRoomCreated(stanza, xmppWs);
       break;
     default:
-      console.log('Unhandled stanza type:', stanza.name);
+      ethoraLogger.log('Unhandled stanza type:', stanza.name);
   }
 }

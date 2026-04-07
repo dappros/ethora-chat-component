@@ -28,6 +28,7 @@ import {
   setPushSubscriptionStatus,
 } from '../roomStore/roomsSlice';
 import { IConfig } from '../types/types';
+import { ethoraLogger } from '../helpers/ethoraLogger';
 import {
   buildNotificationUrl,
   hasMessageInRooms,
@@ -212,13 +213,13 @@ const usePushNotifications = (
       if (!enabled) return;
       if (_subscriptionRegistered) {
         if (config?.useStoreConsoleEnabled) {
-          console.log('[PushNotifications] Already subscribed this session, skipping.');
+          ethoraLogger.log('[PushNotifications] Already subscribed this session, skipping.');
         }
         return;
       }
 
       if (config?.useStoreConsoleEnabled) {
-        console.log('[PushNotifications] Initializing FCM push notifications…');
+        ethoraLogger.log('[PushNotifications] Initializing FCM push notifications…');
       }
       const fcmToken = await initPushNotifications({
         vapidPublicKey,
@@ -237,7 +238,7 @@ const usePushNotifications = (
 
       // Step 4 – Backend registration
       if (config?.useStoreConsoleEnabled) {
-        console.log('[PushNotifications] Registering FCM token with Ethora backend (API)…');
+        ethoraLogger.log('[PushNotifications] Registering FCM token with Ethora backend (API)…');
       }
       await registerPushToken(fcmToken);
 
@@ -247,7 +248,7 @@ const usePushNotifications = (
 
       // Log: subscribed via API
       if (config?.useStoreConsoleEnabled) {
-        console.log(
+        ethoraLogger.log(
           '%c[PushNotifications] ✅ User subscribed via API',
           'color: #22c55e; font-weight: bold'
         );
@@ -256,7 +257,7 @@ const usePushNotifications = (
       // Log: XMPP session linked (informational)
       if (userXmppUsername) {
         if (config?.useStoreConsoleEnabled) {
-          console.log(
+          ethoraLogger.log(
             `%c[PushNotifications] ✅ Device linked to XMPP – JID: ${userXmppUsername}`,
             'color: #3b82f6; font-weight: bold'
           );
@@ -348,7 +349,7 @@ const usePushNotifications = (
       // Browser notifications are now handled by MessageNotificationContext
       if (config?.useStoreConsoleEnabled) {
         const osPushDecision = shouldShowForegroundOsPush({ config, tabVisible: isTabVisible });
-        console.log(`[NotifyPolicy] source=push action=check_os_delegated show=${osPushDecision.show} reason=${osPushDecision.reason} msgId=${messageId}`);
+        ethoraLogger.log(`[NotifyPolicy] source=push action=check_os_delegated show=${osPushDecision.show} reason=${osPushDecision.reason} msgId=${messageId}`);
       }
     };
 
@@ -512,7 +513,7 @@ const usePushNotifications = (
           if (result.ok === true) {
             dispatch(setPushSubscriptionStatus({ jid: roomJID, status: 'subscribed' }));
             if (config?.useStoreConsoleEnabled) {
-              console.log(`[PushNotifications] ✅ Subscribed to ${roomJID}`);
+              ethoraLogger.log(`[PushNotifications] ✅ Subscribed to ${roomJID}`);
             }
           } else {
             const status = result.reason === 'forbidden' ? 'blocked' : 'error';

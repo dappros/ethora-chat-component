@@ -2,11 +2,12 @@ import { Element } from 'ltx';
 import { IUser } from '../types/types';
 import { transformArrayToObject } from './transformTranslatations';
 import { Iso639_1Codes } from '../types/types';
+import { ethoraLogger } from './ethoraLogger';
 
 const extractTimestamp = (str: string, stanza?: any): string | null => {
   if (!str) return;
   if (typeof str !== 'string') {
-    console.log(str, stanza.toString());
+    ethoraLogger.log(str, stanza.toString());
     return undefined;
   }
   const timestamp = str.slice(-16);
