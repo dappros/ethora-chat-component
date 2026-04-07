@@ -350,10 +350,10 @@ export class XmppClient implements XmppClientInterface {
         }
 
         const allPresenceStart = Date.now();
-        // ethoraLogger.log('[XMPP] online: sendAllPresences:start');
+        ethoraLogger.log('[XMPP] online: sendAllPresences:start');
         this.sendAllPresencesAndMarkReady()
           .then(() => {
-            // ethoraLogger.log('[XMPP] online: sendAllPresences:done');
+            ethoraLogger.log('[XMPP] online: sendAllPresences:done');
             ethoraLogger.log(
               `[InitTiming] online:all_room_presences ${Date.now() - allPresenceStart}ms`
             );
