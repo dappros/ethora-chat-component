@@ -6,9 +6,23 @@ import { clearHeap } from '../roomStore/roomHeapSlice';
 import { clearScopedChatCache } from '../helpers/cacheScope';
 import { clearStoredUser } from '../helpers/authStorage';
 import { disablePushNotifications } from '../utils/firebasePushNotifications';
+import { getGlobalXmppClient, setGlobalXmppClient } from '../utils/clientRegistry';
 
 const logoutService = {
   performLogout: async () => {
+    const xmppClient = getGlobalXmppClient();
+    if (xmppClient) {
+      try {
+        await xmppClient.disconnect();
+      } catch (error) {
+        console.warn('[Logout] XMPP disconnect failed', error);
+      } finally {
+        setGlobalXmppClient(null);
+      }
+    } else {
+      setGlobalXmppClient(null);
+    }
+
     try {
       await disablePushNotifications();
     } catch (error) {

@@ -375,7 +375,8 @@ const onPresenceInRoom = (stanza: Element | any) => {
 
 const onChatInvite = async (stanza: Element, client: XmppClient) => {
   if (stanza.is('message')) {
-    const chatId = stanza.attrs.from;
+    const chatId = (stanza.attrs.from || '').split('/')[0];
+    if (!chatId) return;
     const xEls = stanza.getChildren('x');
 
     try {
@@ -384,22 +385,59 @@ const onChatInvite = async (stanza: Element, client: XmppClient) => {
 
         if (child) {
           const chat = store.getState().rooms.rooms[chatId];
-          if (chat) {
-            return;
+          if (!chat) {
+            const roomName = chatId.split('@')[0] || 'New chat';
+            const roomData: IRoom = {
+              jid: chatId,
+              name: roomName,
+              title: roomName,
+              usersCnt: 0,
+              messages: [],
+              isLoading: false,
+              roomBg: null,
+              icon: null,
+              unreadMessages: 0,
+              unreadCapped: false,
+              lastViewedTimestamp: 0,
+              historyPreloadState: 'idle',
+            };
+
+            store.dispatch(addRoom({ roomData }));
+            if (!store.getState().rooms.activeRoomJID) {
+              store.dispatch(setCurrentRoom({ roomJID: chatId }));
+            }
           }
 
-          client.presenceInRoomStanza(chatId);
+          const joined = await client
+            .presenceInRoomStanza(chatId, 0, 1500, true)
+            .catch(() => false);
 
-          const rooms = await getRooms();
-          rooms.items.map((room) => {
-            store.dispatch(
-              addRoomViaApi({
-                room: createRoomFromApi(room, client.conference),
-                xmpp: client,
-              })
-            );
-          });
-          store.dispatch(updateUsersSet({ rooms: rooms.items }));
+          if (!joined) {
+            client.prioritizeRoomPresence(chatId).catch(() => {});
+          }
+
+          client
+            .getHistoryStanza(chatId, 20, undefined, undefined, {
+              source: 'active',
+            })
+            .catch(() => {});
+
+          client.getRoomInfoStanza(chatId);
+
+          void getRooms()
+            .then((rooms) => {
+              const items = rooms?.items || [];
+              items.forEach((room) => {
+                store.dispatch(
+                  addRoomViaApi({
+                    room: createRoomFromApi(room, client.conference),
+                    xmpp: client,
+                  })
+                );
+              });
+              store.dispatch(updateUsersSet({ rooms: items }));
+            })
+            .catch(() => {});
         }
       }
     } catch (error) {
@@ -694,7 +732,8 @@ const onUserUpdate = async (stanza: Element) => {
     (Object.values(state.rooms.rooms) as IRoom[]).forEach((room) => {
       if (!room.members?.length) return;
 
-      const updatedMembers = room.members.map((member) => {
+      const currentMembers = Array.isArray(room.members) ? room.members : [];
+      const updatedMembers = currentMembers.map((member) => {
         const memberLocal = member?.xmppUsername?.split('@')[0] ?? '';
         if (memberLocal !== xmppUsername) return member;
 
@@ -706,7 +745,7 @@ const onUserUpdate = async (stanza: Element) => {
       });
 
       const hasChanges = updatedMembers.some(
-        (member, index) => member !== room.members?.[index]
+        (member, index) => member !== currentMembers[index]
       );
 
       if (hasChanges) {

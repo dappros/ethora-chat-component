@@ -5,6 +5,7 @@ import React, {
   useState,
   useEffect,
   useRef,
+  useCallback,
 } from 'react';
 import XmppClient from '../networking/xmppClient';
 import { setGlobalXmppClient } from '../utils/clientRegistry';
@@ -55,14 +56,24 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
   const [reconnectAttempts, setReconnectAttempts] = useState<number>(0);
   const initializingRef = useRef<Promise<XmppClient> | null>(null);
 
+  const resetProviderState = useCallback(() => {
+    setClient(null);
+    setGlobalXmppClient(null);
+    setPassword(null);
+    setEmail(null);
+    setReconnectAttempts(0);
+    initializingRef.current = null;
+  }, []);
+
   const syncRoomsForPreload = async (
     targetClient: XmppClient,
     signal?: AbortSignal
   ) => {
     const roomsResponse = await getRooms();
-    if (signal?.aborted || !roomsResponse?.items?.length) return;
+    const items = roomsResponse?.items || [];
+    if (signal?.aborted || !items.length) return;
 
-    roomsResponse.items.forEach((room) => {
+    items.forEach((room) => {
       if (signal?.aborted) return;
       store.dispatch(
         addRoomViaApi({
@@ -71,7 +82,7 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
         })
       );
     });
-    store.dispatch(updateUsersSet({ rooms: roomsResponse.items }));
+    store.dispatch(updateUsersSet({ rooms: items }));
   };
 
   const waitForOnline = (xmppClient: XmppClient, timeoutMs = 30000) =>
@@ -145,9 +156,7 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
       return created;
     } catch (error) {
       console.error('Error initializing client:', error);
-      setClient(null);
-      setGlobalXmppClient(null);
-      initializingRef.current = null;
+      resetProviderState();
       throw error;
     }
   };
@@ -235,7 +244,7 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
       if (abortController.signal.aborted) return;
 
       updatedChatLastTimestamps(
-        roomTimestampObject as [jid: string, timestamp: string],
+        roomTimestampObject as Record<string, string | number>,
         store.dispatch
       );
 
@@ -279,11 +288,18 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
     }
 
     const handleLogout = () => {
-      if (client) {
-        ethoraLogger.log("XmppProvider: Disconnecting client due to logout event");
-        client.disconnect();
-        setClient(null);
-      }
+      const activeClient = client;
+      resetProviderState();
+      if (!activeClient) return;
+
+      void (async () => {
+        try {
+          ethoraLogger.log("XmppProvider: Disconnecting client due to logout event");
+          await activeClient.disconnect();
+        } catch (error) {
+          console.warn('XmppProvider: client disconnect failed on logout', error);
+        }
+      })();
     };
 
     window.addEventListener("ethora-xmpp-logout", handleLogout);
@@ -293,7 +309,7 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
         window.removeEventListener("ethora-xmpp-logout", handleLogout);
       }
     };
-  }, [client]);
+  }, [client, resetProviderState]);
 
   return (
     <XmppContext.Provider

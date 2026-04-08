@@ -2,7 +2,7 @@ import { setLastViewedTimestamp } from '../roomStore/roomsSlice';
 import { ethoraLogger } from './ethoraLogger';
 
 export const updatedChatLastTimestamps = (
-  roomTimestampObject: [jid: string, timestamp: string],
+  roomTimestampObject: Record<string, string | number> | null | undefined,
   dispatch: any
 ) => {
   if (!roomTimestampObject) return;

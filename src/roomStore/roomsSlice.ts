@@ -53,6 +53,11 @@ const initialState: RoomMessagesState = {
   loadingText: undefined,
 };
 
+const getNormalizedSubscribedRooms = (subscribedRooms: unknown): string[] =>
+  Array.isArray(subscribedRooms)
+    ? subscribedRooms.filter((room): room is string => typeof room === 'string')
+    : [];
+
 const getMessageTimestampValue = (message: IMessage): number => {
   const dateTs = new Date(message?.date as string).getTime();
   if (Number.isFinite(dateTs) && dateTs > 0) return dateTs;
@@ -69,6 +74,29 @@ const getMessageTimestampValue = (message: IMessage): number => {
 
 const getMessageKey = (message: IMessage): string =>
   String(message?.xmppId || message?.id || '');
+
+const compareMessageOrder = (a: IMessage, b: IMessage): number => {
+  const tsA = getMessageTimestampValue(a);
+  const tsB = getMessageTimestampValue(b);
+  if (tsA !== tsB) {
+    return tsA - tsB;
+  }
+
+  const idA = String(a?.id || a?.xmppId || '');
+  const idB = String(b?.id || b?.xmppId || '');
+  const numA = Number(idA);
+  const numB = Number(idB);
+
+  if (Number.isFinite(numA) && Number.isFinite(numB) && numA !== numB) {
+    return numA - numB;
+  }
+
+  if (idA !== idB) {
+    return idA.localeCompare(idB);
+  }
+
+  return 0;
+};
 
 const enrichMessageAuthor = (
   message: IMessage,
@@ -110,9 +138,7 @@ const mergeRoomMessages = (
     byId.set(key, enrichMessageAuthor(message, usersSet));
   });
 
-  return [...byId.values()].sort(
-    (a, b) => getMessageTimestampValue(a) - getMessageTimestampValue(b)
-  );
+  return [...byId.values()].sort(compareMessageOrder);
 };
 
 const normalizeDelimiterPosition = (
@@ -217,6 +243,22 @@ export const roomsStore = createSlice({
         );
         state.rooms[roomJID].messages = normalizeDelimiterPosition(
           merged,
+          state.rooms[roomJID].lastViewedTimestamp
+        );
+      }
+    },
+    replaceRoomMessages(
+      state,
+      action: PayloadAction<{ roomJID: string; messages: IMessage[] }>
+    ) {
+      const { roomJID, messages } = action.payload;
+      if (state.rooms[roomJID]) {
+        const enriched = (messages || []).map((message) =>
+          enrichMessageAuthor(message, state.usersSet)
+        );
+        const sorted = [...enriched].sort(compareMessageOrder);
+        state.rooms[roomJID].messages = normalizeDelimiterPosition(
+          sorted,
           state.rooms[roomJID].lastViewedTimestamp
         );
       }
@@ -552,13 +594,19 @@ export const roomsStore = createSlice({
       action: PayloadAction<{ jid: string; status: 'pending' | 'subscribed' | 'error' | 'blocked' }>
     ) => {
       const { jid, status } = action.payload;
+      const subscribedRooms = getNormalizedSubscribedRooms(state.subscribedRooms);
+
+      if (subscribedRooms !== state.subscribedRooms) {
+        state.subscribedRooms = subscribedRooms;
+      }
+
       state.pushSubscriptionStatus[jid] = status;
       if (status === 'subscribed') {
-        if (!state.subscribedRooms.includes(jid)) {
-          state.subscribedRooms.push(jid);
+        if (!subscribedRooms.includes(jid)) {
+          subscribedRooms.push(jid);
         }
       } else if (status === 'blocked' || status === 'error') {
-        state.subscribedRooms = state.subscribedRooms.filter((id) => id !== jid);
+        state.subscribedRooms = subscribedRooms.filter((id) => id !== jid);
       }
     },
     clearPushSubscriptions: (state) => {
@@ -625,6 +673,7 @@ export const {
   addRoom,
   deleteAllRooms,
   setRoomMessages,
+  replaceRoomMessages,
   addRoomMessage,
   deleteRoomMessage,
   setEditAction,

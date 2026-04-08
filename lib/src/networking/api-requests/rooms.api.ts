@@ -22,7 +22,7 @@ export async function getRooms(): Promise<{ items: ApiRoom[] }> {
     return response.data;
   } catch (error) {
     ethoraLogger.log('Error loading rooms');
-    return error;
+    return { items: [] };
   }
 }
 
@@ -114,7 +114,7 @@ export async function postAddRoomMember(
         },
       }
     );
-    return response.data.results;
+    return response?.data?.results || [];
   } catch (error) {
     throw new Error('Error updating profile');
   }

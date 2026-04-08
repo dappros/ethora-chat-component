@@ -22,6 +22,7 @@ import { DownArrowIcon } from '../../assets/icons';
 import NewMessageLabel from '../styled/NewMessageLabel';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
 import { DecoratedMessage } from '../../types/models/customComponents.model';
+import { parseMessageReference } from '../../helpers/parseMessageReference';
 
 interface MessageListProps<TMessage extends IMessage> {
   CustomMessage?: React.ComponentType<{
@@ -67,8 +68,7 @@ const MessageList = <TMessage extends IMessage>({
       const newMessage = {
         ...message,
         reply: messages.filter(
-          (mess) =>
-            !!mess.mainMessage && JSON.parse(mess.mainMessage).id === message.id
+          (mess) => parseMessageReference(mess.mainMessage)?.id === message.id
         ),
       };
 
@@ -83,8 +83,7 @@ const MessageList = <TMessage extends IMessage>({
           item.roomJid === roomJID &&
           item.isReply &&
           item.isReply === 'true' &&
-          item.mainMessage &&
-          JSON.parse(item.mainMessage).id === activeMessage.id
+          parseMessageReference(item.mainMessage)?.id === activeMessage.id
       );
     } else {
       return addReplyMessages.filter(

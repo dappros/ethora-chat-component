@@ -151,58 +151,49 @@ const useChatWrapperInit = ({
     const clientKey =
       targetClient.client?.jid?.toString() || targetClient.username || 'xmpp-client';
 
-    setTimeout(() => {
-      if (!(roomsList && Object.keys(roomsList).length > 0)) return;
-      if (presenceBootstrappedClientsRef.current.has(clientKey)) return;
-      presenceBootstrappedClientsRef.current.add(clientKey);
+    void (async () => {
+      const online = await waitForClientOnline(targetClient);
+      if (!online) return;
 
-      waitForClientOnline(targetClient).then(async (online) => {
-        if (!online) return;
-        // Avoid racing with online bootstrap in XmppClient.
-        await waitForPresencesReady(targetClient);
-        mark('bg:initRoomsPresence:start');
-        initRoomsPresence(targetClient, roomsList)
-          .then(() => {
+      await waitForPresencesReady(targetClient);
+
+      if (roomsList && Object.keys(roomsList).length > 0) {
+        if (!presenceBootstrappedClientsRef.current.has(clientKey)) {
+          presenceBootstrappedClientsRef.current.add(clientKey);
+          mark('bg:initRoomsPresence:start');
+          try {
+            await initRoomsPresence(targetClient, roomsList);
             logDuration('bg:initRoomsPresence', 'bg:initRoomsPresence:start');
-          })
-          .catch((error) => {
+          } catch (error) {
             console.warn('[InitTiming] bg:initRoomsPresence:error', error);
-          });
-      });
-    }, 0);
+          }
+        }
+      }
 
-    setTimeout(() => {
-      waitForClientOnline(targetClient).then((online) => {
-        if (!online) return;
-        mark('bg:getChatsPrivateStore:start');
-        targetClient
-          .getChatsPrivateStoreRequestStanza()
-          .then(async (roomTimestampObject: [jid: string, timestamp: string]) => {
-            updatedChatLastTimestamps(roomTimestampObject, dispatch);
-            logDuration('bg:getChatsPrivateStore', 'bg:getChatsPrivateStore:start');
-          })
-          .catch((error) => {
-            console.warn('[InitTiming] bg:getChatsPrivateStore:error', error);
-          });
-      });
-    }, 0);
+      mark('bg:getChatsPrivateStore:start');
+      try {
+        const roomTimestampObject =
+          await targetClient.getChatsPrivateStoreRequestStanza();
+        updatedChatLastTimestamps(
+          roomTimestampObject as Record<string, string | number>,
+          dispatch
+        );
+        logDuration('bg:getChatsPrivateStore', 'bg:getChatsPrivateStore:start');
+      } catch (error) {
+        console.warn('[InitTiming] bg:getChatsPrivateStore:error', error);
+      }
 
-    setTimeout(() => {
       if (hasSyncedHistoryRef.current) return;
-      waitForClientOnline(targetClient).then((online) => {
-        if (!online) return;
-        mark('bg:updateMessagesTillLast:start');
+      mark('bg:updateMessagesTillLast:start');
+      try {
         const latestRooms = store.getState().rooms.rooms || {};
-        updateMessagesTillLast(latestRooms, targetClient)
-          .then(() => {
-            hasSyncedHistoryRef.current = true;
-            logDuration('bg:updateMessagesTillLast', 'bg:updateMessagesTillLast:start');
-          })
-          .catch((error) => {
-            console.warn('[InitTiming] bg:updateMessagesTillLast:error', error);
-          });
-      });
-    }, 0);
+        await updateMessagesTillLast(latestRooms, targetClient);
+        hasSyncedHistoryRef.current = true;
+        logDuration('bg:updateMessagesTillLast', 'bg:updateMessagesTillLast:start');
+      } catch (error) {
+        console.warn('[InitTiming] bg:updateMessagesTillLast:error', error);
+      }
+    })();
   };
 
   useEffect(() => {

@@ -40,6 +40,7 @@ import { getDataFromXml } from '../helpers/getDataFromXml';
 import { createMessageFromXml } from '../helpers/createMessageFromXml';
 import { setRoomMessages } from '../roomStore/roomsSlice';
 import { ethoraLogger } from '../helpers/ethoraLogger';
+import { getRoomLastActivityScore } from '../helpers/roomActivityScore';
 
 type HistoryPriority = 0 | 1 | 2;
 type HistorySource = 'active' | 'send_ack' | 'background' | 'default';
@@ -730,6 +731,15 @@ export class XmppClient implements XmppClientInterface {
       .filter((task) => !(task.priority === 2 && now < backgroundPausedUntil))
       .sort((a, b) => {
         if (a.priority !== b.priority) return a.priority - b.priority;
+        if (a.priority === 2 && b.priority === 2) {
+          const scoreA = getRoomLastActivityScore(
+            store.getState().rooms.rooms?.[a.chatJID]
+          );
+          const scoreB = getRoomLastActivityScore(
+            store.getState().rooms.rooms?.[b.chatJID]
+          );
+          if (scoreA !== scoreB) return scoreB - scoreA;
+        }
         return a.queuedAt - b.queuedAt;
       });
 
@@ -1027,6 +1037,18 @@ export class XmppClient implements XmppClientInterface {
         queuedAt: Date.now(),
         resolve,
       });
+      if (source === 'background') {
+        const orderPreview = this.historyQueue
+          .filter((task) => task.source === 'background')
+          .map((task) => ({
+            jid: task.chatJID,
+            activityScore: getRoomLastActivityScore(
+              store.getState().rooms.rooms?.[task.chatJID]
+            ),
+          }))
+          .sort((a, b) => b.activityScore - a.activityScore);
+        ethoraLogger.log('[XMPP] history_queue_order', orderPreview);
+      }
       this.scheduleHistoryQueue();
     });
   }

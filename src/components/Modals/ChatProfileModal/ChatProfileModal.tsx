@@ -100,7 +100,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         updateRoom({
           jid: activeRoom.jid,
           updates: {
-            members: activeRoom.members.filter(
+            members: (Array.isArray(activeRoom.members) ? activeRoom.members : []).filter(
               (user) => user.xmppUsername !== userId
             ),
           },

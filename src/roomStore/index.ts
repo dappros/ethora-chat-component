@@ -51,24 +51,35 @@ const debugMiddleware = (storeAPI) => (next) => (action) => {
 };
 
 const limitMessagesTransform = createTransform(
-  (inboundState: { [jid: string]: IRoom }) => {
-    if (!inboundState || Object.keys(inboundState).length < 1) {
+  (inboundState: Record<string, any>) => {
+    if (!inboundState || typeof inboundState !== 'object') {
       return inboundState;
     }
 
-    const rooms = { ...inboundState };
-    for (const jid in rooms) {
-      if (rooms[jid]?.messages?.length > 50) {
-        rooms[jid] = {
-          ...rooms[jid],
-          messages: rooms[jid].messages.slice(-50),
-        };
-      }
-    }
-    return { ...rooms };
+    const roomsState =
+      inboundState.rooms && typeof inboundState.rooms === 'object'
+        ? inboundState.rooms
+        : {};
+
+    const limitedRooms = Object.fromEntries(
+      Object.entries(roomsState).map(([jid, room]: [string, IRoom]) => [
+        jid,
+        room?.messages?.length > 50
+          ? {
+              ...room,
+              messages: room.messages.slice(-50),
+            }
+          : room,
+      ])
+    );
+
+    return {
+      ...inboundState,
+      rooms: limitedRooms,
+    };
   },
 
-  (outboundState: { [jid: string]: IRoom }) => outboundState
+  (outboundState: Record<string, any>) => outboundState
 );
 
 const encryptor = encryptTransform({

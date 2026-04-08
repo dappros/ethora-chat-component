@@ -6,10 +6,12 @@ import { useDispatch } from 'react-redux';
 import useGetNewArchRoom from './useGetNewArchRoom';
 
 const countUndefinedText = (arr: IMessage[]) =>
-  arr.filter((item) => item?.body === undefined)?.length;
+  (Array.isArray(arr) ? arr : []).filter((item) => item?.body === undefined)
+    ?.length;
 const hasLoadedRoomHistory = (room?: IRoom): boolean => {
-  if (!room?.messages?.length) return false;
-  return room.messages.some(
+  const messages = Array.isArray(room?.messages) ? room.messages : [];
+  if (!messages.length) return false;
+  return messages.some(
     (message) =>
       message?.id !== 'delimiter-new' &&
       message?.pending !== true &&
@@ -152,12 +154,15 @@ export const useRoomInitialization = (
       }
     }
 
-    if (client && config?.defaultRooms) {
-      const allExist = config?.defaultRooms.every(
+    const defaultRooms = Array.isArray(config?.defaultRooms)
+      ? config.defaultRooms
+      : [];
+    if (client && defaultRooms.length) {
+      const allExist = defaultRooms.every(
         (room) => roomsList[room.jid] !== undefined
       );
       if (roomsList && !allExist) {
-        config?.defaultRooms.map(async (room) => {
+        defaultRooms.forEach((room) => {
           client.presenceInRoomStanza(room.jid);
         });
         if (config?.newArch === false) {

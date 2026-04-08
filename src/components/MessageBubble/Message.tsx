@@ -34,6 +34,7 @@ import { DoubleTick } from '../../assets/icons';
 import { parseMessageBody } from '../../helpers/parseMessageBody';
 import URLPreviewCard from './URLPreviewCard';
 import { useMessageHeapState } from '../../hooks/useMessageHeapState';
+import { parseMessageReference } from '../../helpers/parseMessageReference';
 
 const firstUrlRegex =
   /(https?:\/\/[\w.-]+(?:\.[\w.-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=.]+)/;
@@ -54,6 +55,7 @@ const Message: React.FC<MessageProps> = forwardRef<
   const senderDisplayName = senderEntry
     ? `${senderEntry.firstName ?? ''} ${senderEntry.lastName ?? ''}`.trim() || senderLocal
     : message.user?.name || senderLocal || 'Unknown';
+  const referencedMessage = parseMessageReference(message.mainMessage);
 
 
   const dispatch = useDispatch();
@@ -140,7 +142,10 @@ const Message: React.FC<MessageProps> = forwardRef<
     dispatch(setEditAction({ isEdit: false }));
 
     if (!isReply && message.mainMessage) {
-      const messageCore = JSON.parse(message.mainMessage);
+      const messageCore = parseMessageReference(message.mainMessage);
+      if (!messageCore?.id || !messageCore?.roomJid) {
+        return;
+      }
       return dispatch(
         setActiveMessage({ id: messageCore.id, chatJID: messageCore.roomJid })
       );
@@ -264,11 +269,11 @@ const Message: React.FC<MessageProps> = forwardRef<
               {senderDisplayName}
             </CustomUserName>
           )}
-          {!isReply && message.mainMessage && (
+          {!isReply && referencedMessage?.text && (
             <MessageReply
               handleReplyMessage={handleReplyMessage}
               isUser={isUser}
-              text={JSON.parse(message.mainMessage).text}
+              text={referencedMessage.text}
               color={config?.colors?.primary}
             />
           )}

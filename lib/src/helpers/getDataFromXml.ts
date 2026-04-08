@@ -3,6 +3,7 @@ import { IUser } from '../types/types';
 import { transformArrayToObject } from './transformTranslatations';
 import { Iso639_1Codes } from '../types/types';
 import { ethoraLogger } from './ethoraLogger';
+import { safeJsonParse } from './safeJson';
 
 const extractTimestamp = (str: string, stanza?: any): string | null => {
   if (!str) return;
@@ -13,6 +14,24 @@ const extractTimestamp = (str: string, stanza?: any): string | null => {
   const timestamp = str.slice(-16);
   return timestamp;
 };
+
+const normalizeTranslations = (value: unknown) =>
+  Array.isArray(value)
+    ? value.filter(
+        (
+          item
+        ): item is {
+          translatedText: string;
+          language: string;
+          languageName: string;
+        } =>
+          !!item &&
+          typeof item === 'object' &&
+          typeof (item as any).translatedText === 'string' &&
+          typeof (item as any).language === 'string' &&
+          typeof (item as any).languageName === 'string'
+      )
+    : [];
 
 interface DataXml {
   id: string;
@@ -44,11 +63,15 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
     id = xmppId || Date.now().toString();
   }
 
+  const translationPayload = safeJsonParse<{ translates?: unknown[] }>(
+    fullData?.getChild('translations')?.attrs?.value,
+    {}
+  );
   const body = fullData?.getChild('body')?.getText() || undefined;
   const deleted = !!fullData?.getChild('deleted');
   const translations = fullData?.getChild('translations')?.attrs?.value
-    ? transformArrayToObject(
-        JSON.parse(fullData.getChild('translations')!.attrs.value).translates
+      ? transformArrayToObject(
+          normalizeTranslations(translationPayload.translates)
       )
     : undefined;
   const langSource = fullData?.getChild('translate')?.attrs?.source as

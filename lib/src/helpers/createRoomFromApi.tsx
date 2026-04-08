@@ -7,12 +7,14 @@ export const createRoomFromApi = (
   usersArrayLength: number = 0
 ): IRoom => {
   try {
+    const members = Array.isArray(room?.members) ? room.members : [];
     const roomData: IRoom = {
       ...room,
       jid: room?.name ? `${room.name}@${service}` : '',
       name: room?.title || '',
       title: room?.title || '',
-      usersCnt: Number(room?.members?.length || usersArrayLength + 1),
+      members,
+      usersCnt: Number(members.length || usersArrayLength + 1),
       messages: [],
       isLoading: false,
       roomBg: null,

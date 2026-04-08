@@ -2,6 +2,8 @@ import XmppClient from '../networking/xmppClient';
 import { store } from '../roomStore';
 import { applyRoomsPreloadBatch } from '../roomStore/roomsSlice';
 import { IMessage, IRoom } from '../types/types';
+import { getMessageTimestamp, getRoomLastActivityScore } from './roomActivityScore';
+import { ethoraLogger } from './ethoraLogger';
 
 interface HistoryPreloadSchedulerOptions {
   client: XmppClient;
@@ -16,6 +18,7 @@ interface HistoryPreloadSchedulerOptions {
 interface QueueItem {
   jid: string;
   priority: number;
+  activityScore: number;
   attempts: number;
   readyAt: number;
 }
@@ -25,21 +28,6 @@ const DEFAULT_PAGE_SIZE = 10;
 const DEFAULT_RETRY_LIMIT = 2;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-const getMessageTimestamp = (message: IMessage): number => {
-  const dateTs = new Date(message?.date as string).getTime();
-  if (Number.isFinite(dateTs) && dateTs > 0) return dateTs;
-
-  const numericId = Number(message?.id);
-  if (Number.isFinite(numericId) && numericId > 0) return numericId;
-
-  const inlineTimestamp = Number((message as any)?.timestamp);
-  if (Number.isFinite(inlineTimestamp) && inlineTimestamp > 0) {
-    return inlineTimestamp;
-  }
-
-  return 0;
-};
 
 const computeUnreadCapped = (
   room: IRoom,
@@ -80,10 +68,9 @@ const getRoomPriority = (
   selectedRoomJid: string | null,
   defaultRoomJids: Set<string>
 ): number => {
-  if (selectedRoomJid && selectedRoomJid === jid) return 2;
-  if (defaultRoomJids.has(jid)) return 2;
-  if (Number(room?.lastMessageTimestamp || 0) > 0) return 1;
-  return 3;
+  if (selectedRoomJid && selectedRoomJid === jid) return 0;
+  if (defaultRoomJids.has(jid)) return 1;
+  return 2;
 };
 
 const shouldPauseForVisibility = (): boolean => {
@@ -114,10 +101,26 @@ export const runHistoryPreloadScheduler = async (
     .map(([jid, room]: [string, IRoom]) => ({
       jid,
       priority: getRoomPriority(jid, room, selectedRoomJid, defaultSet),
+      activityScore: getRoomLastActivityScore(room),
       attempts: 0,
       readyAt: Date.now(),
     }))
-    .sort((a, b) => a.priority - b.priority);
+    .sort((a, b) => {
+      if (a.priority !== b.priority) return a.priority - b.priority;
+      if (a.activityScore !== b.activityScore) {
+        return b.activityScore - a.activityScore;
+      }
+      return a.jid.localeCompare(b.jid);
+    });
+
+  ethoraLogger.log(
+    '[HistoryScheduler] history_queue_order',
+    queue.map((item) => ({
+      jid: item.jid,
+      priority: item.priority,
+      activityScore: item.activityScore,
+    }))
+  );
 
   const inFlightByRoom = new Map<string, Promise<void>>();
   let consecutiveErrorCount = 0;
@@ -132,15 +135,11 @@ export const runHistoryPreloadScheduler = async (
       continue;
     }
 
-    const runtimeState = store.getState();
-    const activeRoomJID = runtimeState.rooms.activeRoomJID;
-
     const now = Date.now();
     const readyItems = queue.filter(
       (item) =>
         item.readyAt <= now &&
-        !inFlightByRoom.has(item.jid) &&
-        item.jid !== activeRoomJID
+        !inFlightByRoom.has(item.jid)
     );
 
     if (readyItems.length === 0) {
@@ -232,6 +231,7 @@ export const runHistoryPreloadScheduler = async (
                 ...item,
                 attempts: retries,
                 readyAt: Date.now() + backoff,
+                activityScore: item.activityScore,
               });
             } else {
               store.dispatch(

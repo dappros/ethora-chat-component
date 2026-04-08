@@ -33,7 +33,10 @@ const SelectUsersModal: React.FC = () => {
 
   const handleAdd = async () => {
     setIsLoading(true);
-    const existingXmppUsernames = activeRoom.members.map(
+    const currentMembers = Array.isArray(activeRoom?.members)
+      ? activeRoom.members
+      : [];
+    const existingXmppUsernames = currentMembers.map(
       (member) => member.xmppUsername
     );
 
@@ -50,8 +53,8 @@ const SelectUsersModal: React.FC = () => {
         updateRoom({
           jid: activeRoom.jid,
           updates: {
-            members: [...newMembers, ...activeRoom.members],
-            usersCnt: activeRoom.members.length + newMembers.length,
+            members: [...newMembers, ...currentMembers],
+            usersCnt: currentMembers.length + newMembers.length,
           },
         })
       );
