@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { VITE_APP_XMPP_CONFERENCE } from '../config';
 
 const QR_CHAT_STORAGE_KEY = '@ethora/chat-component-qrChatId';
 
@@ -56,7 +57,7 @@ export const useQRCodeChat = (
       if (qrChatId) {
         const roomJID = conferenceServer
           ? `${qrChatId}@${conferenceServer}`
-          : `${qrChatId}@conference.xmpp.ethoradev.com`;
+          : `${qrChatId}@${VITE_APP_XMPP_CONFERENCE}`;
 
         setCurrentRoom({ roomJID });
 

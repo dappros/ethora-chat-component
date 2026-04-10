@@ -16,6 +16,7 @@ import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { setUser } from '../../roomStore/chatSettingsSlice';
 import { localStorageConstants } from '../../helpers/constants/LOCAL_STORAGE';
 import { useToast } from '../../context/ToastContext';
+import { VITE_APP_WEB_URL } from '../../config';
 
 interface LoginFormProps {
   config?: IConfig;
@@ -247,7 +248,10 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
             }}
             onClick={() => {
               if (typeof window !== "undefined") {
-                window.open("https://ethora.ethoradev.com/register", "_blank");
+                window.open(
+                  VITE_APP_WEB_URL ? `${VITE_APP_WEB_URL}/register` : `${window.location.origin}/register`,
+                  "_blank"
+                );
               }
             }}
           >
