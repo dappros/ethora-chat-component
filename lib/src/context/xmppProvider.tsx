@@ -7,6 +7,7 @@ import React, {
   useRef,
   useCallback,
 } from 'react';
+import { Provider } from 'react-redux';
 import XmppClient from '../networking/xmppClient';
 import { setGlobalXmppClient } from '../utils/clientRegistry';
 import { IConfig, IRoom, xmppSettingsInterface } from '../types/types';
@@ -17,6 +18,7 @@ import {
   addRoomViaApi,
   updateUsersSet,
 } from '../roomStore/roomsSlice';
+import usePushNotifications from '../hooks/usePushNotifications';
 import { updatedChatLastTimestamps } from '../helpers/updatedChatLastTimestamps';
 import { runHistoryPreloadScheduler } from '../helpers/historyPreloadScheduler';
 import {
@@ -44,11 +46,29 @@ const XmppContext = createContext<XmppContextType | null>(null);
 interface XmppProviderProps {
   children: ReactNode;
   config?: IConfig;
+  pushNotifications?: IConfig['pushNotifications'];
 }
+
+const XmppProviderPushNotificationsEnabler: React.FC<{
+  pushNotifications?: IConfig['pushNotifications'];
+}> = ({ pushNotifications }) => {
+  usePushNotifications({
+    enabled: pushNotifications?.enabled,
+    vapidPublicKey: pushNotifications?.vapidPublicKey,
+    firebaseConfig: pushNotifications?.firebaseConfig,
+    serviceWorkerPath: pushNotifications?.serviceWorkerPath,
+    serviceWorkerScope: pushNotifications?.serviceWorkerScope,
+    softAsk: pushNotifications?.softAsk,
+    onClick: pushNotifications?.onClick,
+  });
+
+  return null;
+};
 
 export const XmppProvider: React.FC<XmppProviderProps> = ({
   children,
   config,
+  pushNotifications,
 }) => {
   const [client, setClient] = useState<XmppClient | null>(null);
   const [password, setPassword] = useState<string | null>(null);
@@ -316,6 +336,11 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
       value={{ client: client as XmppClient, initializeClient, setClient }}
       data-xmpp-provider="true"
     >
+      <Provider store={store}>
+        <XmppProviderPushNotificationsEnabler
+          pushNotifications={pushNotifications}
+        />
+      </Provider>
       {children}
     </XmppContext.Provider>
   );

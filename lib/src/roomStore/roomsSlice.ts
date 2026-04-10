@@ -58,17 +58,39 @@ const getNormalizedSubscribedRooms = (subscribedRooms: unknown): string[] =>
     ? subscribedRooms.filter((room): room is string => typeof room === 'string')
     : [];
 
+const normalizeTimestampValue = (value: number): number => {
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  if (value < 1e11) return value * 1000; // seconds -> milliseconds
+  if (value > 1e14) return Math.floor(value / 1000); // microseconds-ish -> milliseconds
+  return value;
+};
+
 const getMessageTimestampValue = (message: IMessage): number => {
   const dateTs = new Date(message?.date as string).getTime();
   if (Number.isFinite(dateTs) && dateTs > 0) return dateTs;
 
-  const numericId = Number(message?.id);
-  if (Number.isFinite(numericId) && numericId > 0) return numericId;
-
   const inlineTimestamp = Number((message as any)?.timestamp);
-  if (Number.isFinite(inlineTimestamp) && inlineTimestamp > 0) {
-    return inlineTimestamp;
+  const normalizedInlineTimestamp = normalizeTimestampValue(inlineTimestamp);
+  if (normalizedInlineTimestamp > 0) {
+    return normalizedInlineTimestamp;
   }
+
+  const messageIds = [message?.id, (message as any)?.xmppId]
+    .map((id) => String(id || '').trim())
+    .filter(Boolean);
+
+  for (const id of messageIds) {
+    const numericId = Number(id);
+    const normalizedNumericId = normalizeTimestampValue(numericId);
+    if (normalizedNumericId > 0) return normalizedNumericId;
+
+    const numericChunk = id.match(/\d{10,}/)?.[0];
+    if (numericChunk) {
+      const normalizedChunk = normalizeTimestampValue(Number(numericChunk));
+      if (normalizedChunk > 0) return normalizedChunk;
+    }
+  }
+
   return 0;
 };
 
@@ -81,20 +103,7 @@ const compareMessageOrder = (a: IMessage, b: IMessage): number => {
   if (tsA !== tsB) {
     return tsA - tsB;
   }
-
-  const idA = String(a?.id || a?.xmppId || '');
-  const idB = String(b?.id || b?.xmppId || '');
-  const numA = Number(idA);
-  const numB = Number(idB);
-
-  if (Number.isFinite(numA) && Number.isFinite(numB) && numA !== numB) {
-    return numA - numB;
-  }
-
-  if (idA !== idB) {
-    return idA.localeCompare(idB);
-  }
-
+  // Keep existing relative order for equal timestamps.
   return 0;
 };
 
@@ -399,7 +408,7 @@ export const roomsStore = createSlice({
       }
 
       state.rooms[roomJID].messages = normalizeDelimiterPosition(
-        state.rooms[roomJID].messages,
+        [...state.rooms[roomJID].messages].sort(compareMessageOrder),
         state.rooms[roomJID].lastViewedTimestamp
       );
     },

@@ -33,6 +33,11 @@ export const ethoraLogger = {
       console.debug(...args);
     }
   },
+  error: (...args: unknown[]) => {
+  if (isVerboseConsoleEnabled()) {
+    console.error(...args);
+  }
+  },
   always: (...args: unknown[]) => {
     console.log(...args);
   },

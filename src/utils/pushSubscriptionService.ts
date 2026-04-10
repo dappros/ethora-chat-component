@@ -5,9 +5,6 @@ import {
 } from '../networking/xmpp/subscribeToRoomMessages.xmpp';
 import { getGlobalXmppClient } from './clientRegistry';
 
-const SUBSCRIBED_ROOMS_KEY = 'ethora_subscribed_rooms';
-const BLOCKED_ROOMS_KEY = 'ethora_blocked_rooms';
-
 class PushSubscriptionService {
   private failedRooms: Map<string, number> = new Map();
   private retryCooldownMs = 60_000;

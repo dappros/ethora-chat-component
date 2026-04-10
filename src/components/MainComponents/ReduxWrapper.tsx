@@ -44,6 +44,7 @@ const PushNotificationsEnabler: React.FC<{ config?: IConfig }> = ({ config }) =>
     serviceWorkerPath: config?.pushNotifications?.serviceWorkerPath,
     serviceWorkerScope: config?.pushNotifications?.serviceWorkerScope,
     softAsk: config?.pushNotifications?.softAsk,
+    onClick: config?.pushNotifications?.onClick,
   });
   return null;
 };

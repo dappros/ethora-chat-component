@@ -67,6 +67,19 @@ interface UsePushNotificationsOptions {
    * Default: false (immediate request after login).
    */
   softAsk?: boolean;
+
+  /**
+   * Optional push click handler. When provided, has priority over
+   * config.pushNotifications.onClick from Redux config.
+   */
+  onClick?: (params: {
+    roomJID?: string;
+    messageId?: string;
+    url?: string;
+    data?: Record<string, any>;
+    notification?: { title?: string; body?: string };
+    source?: 'service_worker' | 'foreground';
+  }) => void | Promise<void>;
 }
 
 interface UsePushNotificationsResult {
@@ -182,7 +195,7 @@ const usePushNotifications = (
         }
       } catch (_) { /* empty */ }
 
-      const customOnClick = config?.pushNotifications?.onClick;
+      const customOnClick = options.onClick || config?.pushNotifications?.onClick;
       if (customOnClick) {
         try {
           await customOnClick({
@@ -204,7 +217,7 @@ const usePushNotifications = (
         fetchRecentHistory(roomJid, messageId ? String(messageId) : undefined);
       }
     },
-    [config?.pushNotifications?.onClick, dispatch, fetchRecentHistory, normalizeRoomJid]
+    [config?.pushNotifications?.onClick, dispatch, fetchRecentHistory, normalizeRoomJid, options.onClick]
   );
 
   // ─────────────────────────────────────────────────────────────────────────────

@@ -108,6 +108,36 @@ export default function App() {
 }
 ```
 
+`XmppProvider` also accepts a `pushNotifications` prop for headless push setup (works even if `Chat` is not rendered yet):
+
+```tsx
+import { XmppProvider } from '@ethora/chat-component';
+
+export default function App() {
+  return (
+    <XmppProvider
+      config={{ baseUrl: 'https://api.ethoradev.com/v1', initBeforeLoad: true }}
+      pushNotifications={{
+        enabled: true,
+        softAsk: false,
+        vapidPublicKey: 'PLACEHOLDER_VAPID_PUBLIC_KEY',
+        firebaseConfig: {
+          apiKey: 'PLACEHOLDER_API_KEY',
+          authDomain: 'PLACEHOLDER_AUTH_DOMAIN',
+          projectId: 'PLACEHOLDER_PROJECT_ID',
+          storageBucket: 'PLACEHOLDER_STORAGE_BUCKET',
+          messagingSenderId: 'PLACEHOLDER_MESSAGING_SENDER_ID',
+          appId: 'PLACEHOLDER_APP_ID',
+        },
+      }}
+    >
+      {/* Chat can be mounted later or omitted */}
+      <div>App shell</div>
+    </XmppProvider>
+  );
+}
+```
+
 ### 3. Run
 
 ```bash

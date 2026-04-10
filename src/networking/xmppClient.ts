@@ -674,7 +674,7 @@ export class XmppClient implements XmppClientInterface {
       return await operation();
     } catch (error) {
       if (error) {
-        console.error('Operation failed due to connection issues:', error);
+        ethoraLogger.error('Operation failed due to connection issues:', error);
       }
       throw error;
     }
