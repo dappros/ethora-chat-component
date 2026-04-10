@@ -18,6 +18,7 @@ import {
   addRoomViaApi,
   updateUsersSet,
 } from '../roomStore/roomsSlice';
+import { setConfig as setChatConfig } from '../roomStore/chatSettingsSlice';
 import usePushNotifications from '../hooks/usePushNotifications';
 import { updatedChatLastTimestamps } from '../helpers/updatedChatLastTimestamps';
 import { runHistoryPreloadScheduler } from '../helpers/historyPreloadScheduler';
@@ -210,6 +211,10 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
   }, [client?.status, reconnectAttempts]);
 
   useEffect(() => {
+    store.dispatch(setChatConfig(config));
+  }, [config]);
+
+  useEffect(() => {
     if (!config?.initBeforeLoad) return;
     if (config?.baseUrl) {
       setBaseURL(config.baseUrl, config.customAppToken);
@@ -294,6 +299,14 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
     };
   }, [
     config?.initBeforeLoad,
+    config?.appId,
+    config?.baseUrl,
+    config?.customAppToken,
+    config?.jwtLogin?.enabled,
+    config?.jwtLogin?.token,
+    config?.refreshTokens?.enabled,
+    config?.refreshTokens?.refreshFunction,
+    config?.initBeforeLoadAuth?.myEndpoint,
     config?.xmppSettings,
     config?.defaultRooms,
     config?.userLogin?.user?.xmppUsername,

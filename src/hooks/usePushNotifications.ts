@@ -469,6 +469,28 @@ const usePushNotifications = (
     runPushFlow();
   }, [userToken, softAsk, runPushFlow]);
 
+  useEffect(() => {
+    if (!enabled) return;
+    if (!userToken) return;
+    if (softAsk) return;
+    if (typeof window === 'undefined') return;
+    if (typeof Notification === 'undefined') return;
+
+    const tryReRegister = () => {
+      if (_subscriptionRegistered) return;
+      if (Notification.permission !== 'granted') return;
+      void runPushFlow();
+    };
+
+    window.addEventListener('focus', tryReRegister);
+    document.addEventListener('visibilitychange', tryReRegister);
+
+    return () => {
+      window.removeEventListener('focus', tryReRegister);
+      document.removeEventListener('visibilitychange', tryReRegister);
+    };
+  }, [enabled, softAsk, userToken, runPushFlow]);
+
   // Subscribe to all known rooms for push delivery
   useEffect(() => {
     if (!enabled) return;
