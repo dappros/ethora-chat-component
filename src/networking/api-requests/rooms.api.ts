@@ -8,6 +8,7 @@ import {
   RoomMember,
 } from '../../types/types';
 import http from '../apiClient';
+import { ethoraLogger } from '../../helpers/ethoraLogger';
 
 export async function getRooms(): Promise<{ items: ApiRoom[] }> {
   const token = store.getState().chatSettingStore.user.token || '';
@@ -20,8 +21,8 @@ export async function getRooms(): Promise<{ items: ApiRoom[] }> {
     });
     return response.data;
   } catch (error) {
-    console.log('Error loading rooms');
-    return error;
+    ethoraLogger.log('Error loading rooms');
+    return { items: [] };
   }
 }
 
@@ -113,7 +114,7 @@ export async function postAddRoomMember(
         },
       }
     );
-    return response.data.results;
+    return response?.data?.results || [];
   } catch (error) {
     throw new Error('Error updating profile');
   }

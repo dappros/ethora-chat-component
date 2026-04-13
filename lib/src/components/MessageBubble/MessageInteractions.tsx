@@ -24,6 +24,7 @@ import '../../index.css';
 
 const fixedEmojiIds = ['joy', 'heart', 'fire', '+1', 'smile', 'scream'];
 import { useRoomState } from '../../hooks/useRoomState';
+import { ethoraLogger } from '../../helpers/ethoraLogger';
 
 interface MessageInteractionsProps {
   isReply?: boolean;
@@ -84,7 +85,7 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
 
   const handleEmojiSelect = (emoji, e: React.MouseEvent) => {
     if (e.target !== e.currentTarget) {
-      console.log('emoji', emoji);
+      ethoraLogger.log('emoji', emoji);
       handleReactionMessage(emoji.id);
       closeMenu();
     }
@@ -209,12 +210,12 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
             )}
 
             <ContextMenu onClick={closeContextMenu}>
-              {/* <MenuItem onClick={() => console.log(MESSAGE_INTERACTIONS.SEND_COINS)}>
+              {/* <MenuItem onClick={() => ethoraLogger.log(MESSAGE_INTERACTIONS.SEND_COINS)}>
             {MESSAGE_INTERACTIONS.SEND_COINS}
             <MESSAGE_INTERACTIONS_ICONS.SEND_COINS />{' '}
           </MenuItem>
           <Delimeter />
-          <MenuItem onClick={() => console.log(MESSAGE_INTERACTIONS.SEND_ITEM)}>
+          <MenuItem onClick={() => ethoraLogger.log(MESSAGE_INTERACTIONS.SEND_ITEM)}>
             {MESSAGE_INTERACTIONS.SEND_ITEM}
             <MESSAGE_INTERACTIONS_ICONS.SEND_ITEM />{' '}
           </MenuItem> */}
@@ -249,7 +250,7 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
                 </MenuItem>
               )}
               {/* <Delimeter />
-          <MenuItem onClick={() => console.log(MESSAGE_INTERACTIONS.REPORT)}>
+          <MenuItem onClick={() => ethoraLogger.log(MESSAGE_INTERACTIONS.REPORT)}>
             {MESSAGE_INTERACTIONS.REPORT}
             <MESSAGE_INTERACTIONS_ICONS.REPORT />{' '}
           </MenuItem> */}

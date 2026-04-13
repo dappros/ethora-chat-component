@@ -125,7 +125,9 @@ const URLPreviewCard: React.FC<URLPreviewCardProps> = ({ url }) => {
   let displayHostname = url;
   try {
     displayHostname = new URL(url).hostname;
-  } catch (_) {}
+  } catch (_) {
+    // Ignore malformed URLs and fall back to the raw string.
+  }
 
   return (
     <PreviewContainer>

@@ -6,7 +6,7 @@ import {
 } from '@reduxjs/toolkit';
 import chatSettingsReducer from './chatSettingsSlice';
 import roomsSlice from './roomsSlice';
-import roomHeapSlice from './roomHeapSlice';
+import roomHeapSlice, { roomHeapSliceState } from './roomHeapSlice';
 import { IRoom } from '../types/types';
 import { unreadMiddleware } from './Middleware/unreadMidlleware';
 import { storage } from './storage';
@@ -17,6 +17,8 @@ import { logoutMiddleware } from './Middleware/logoutMiddleware';
 import { encryptTransform } from 'redux-persist-transform-encrypt';
 import { reactionsMiddleware } from './Middleware/reactionsMiddleware';
 import { ETHORA_CHAT_COMPONENT_VERSION } from '../version';
+import { sanitizeUserForPersistentStorage } from '../helpers/authStorage';
+import { ethoraLogger } from '../helpers/ethoraLogger';
 
 const debugMiddleware = (storeAPI) => (next) => (action) => {
   if (typeof action !== 'object' || action === null) {
@@ -49,24 +51,35 @@ const debugMiddleware = (storeAPI) => (next) => (action) => {
 };
 
 const limitMessagesTransform = createTransform(
-  (inboundState: { [jid: string]: IRoom }) => {
-    if (!inboundState || Object.keys(inboundState).length < 1) {
+  (inboundState: Record<string, any>) => {
+    if (!inboundState || typeof inboundState !== 'object') {
       return inboundState;
     }
 
-    const rooms = { ...inboundState };
-    for (const jid in rooms) {
-      if (rooms[jid]?.messages?.length > 50) {
-        rooms[jid] = {
-          ...rooms[jid],
-          messages: rooms[jid].messages.slice(-50),
-        };
-      }
-    }
-    return { ...rooms };
+    const roomsState =
+      inboundState.rooms && typeof inboundState.rooms === 'object'
+        ? inboundState.rooms
+        : {};
+
+    const limitedRooms = Object.fromEntries(
+      Object.entries(roomsState).map(([jid, room]: [string, IRoom]) => [
+        jid,
+        room?.messages?.length > 50
+          ? {
+              ...room,
+              messages: room.messages.slice(-50),
+            }
+          : room,
+      ])
+    );
+
+    return {
+      ...inboundState,
+      rooms: limitedRooms,
+    };
   },
 
-  (outboundState: { [jid: string]: IRoom }) => outboundState
+  (outboundState: Record<string, any>) => outboundState
 );
 
 const encryptor = encryptTransform({
@@ -75,6 +88,21 @@ const encryptor = encryptTransform({
     console.error('Encryption error:', error);
   },
 });
+
+const scrubSensitiveChatStateTransform = createTransform(
+  (inboundState: Record<string, any>) => {
+    if (!inboundState?.user) {
+      return inboundState;
+    }
+
+    return {
+      ...inboundState,
+      user:
+        sanitizeUserForPersistentStorage(inboundState.user) ?? inboundState.user,
+    };
+  },
+  (outboundState: Record<string, any>) => outboundState
+);
 
 const chatSettingPersistConfig = {
   key: 'chatSettingStore',
@@ -87,20 +115,22 @@ const chatSettingPersistConfig = {
     'config.refreshTokens',
     'refreshTokens',
     'client',
+    'config',
   ],
-  transforms: [encryptor],
+  transforms: [scrubSensitiveChatStateTransform, encryptor],
 };
 
 const roomsPersistConfig = {
   key: 'roomMessages',
   storage,
   blacklist: ['editAction', 'activeRoomJID', 'loadingText'],
-  transforms: [limitMessagesTransform],
+  transforms: [limitMessagesTransform, encryptor],
 };
 
 const roomHeapSliceConfig = {
   key: 'roomHeapSlice',
   storage,
+  transforms: [encryptor],
 };
 
 const persistConfig = {
@@ -139,20 +169,29 @@ export const store = configureStore({
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       thunk: true,
+      immutableCheck: { warnAfter: 128 },
       serializableCheck: {
+        warnAfter: 128,
         ignoredActions: [
           'chat/addMessage',
           'persist/PERSIST',
           'persist/REHYDRATE',
+          'persist/FLUSH',
+          'persist/PAUSE',
+          'persist/PURGE',
+          'persist/REGISTER',
           'roomMessages/addRoomViaApi/pending',
           'roomMessages/addRoomViaApi/fulfilled',
           'roomMessages/addRoomViaApi/rejected',
+          // setConfig payload contains non-serializable callback functions (eventHandlers)
+          'chatSettingStore/setConfig',
         ],
         ignoredPaths: [
           'chat.messages.timestamp',
           'chatSettingStore.client',
           'chatSettingStore.config',
         ],
+        ignoredActionPaths: ['result', 'register'],
       },
     })
       .concat(unreadMiddleware)
@@ -169,5 +208,7 @@ export type AppDispatch = typeof store.dispatch;
 export const persistor = persistStore(store);
 
 try {
-  console.log('[EthoraChatComponent] version:', ETHORA_CHAT_COMPONENT_VERSION);
-} catch (e) {}
+  ethoraLogger.always('[EthoraChatComponent] version:', ETHORA_CHAT_COMPONENT_VERSION);
+} catch (e) {
+  // Ignore console access issues in restricted runtimes.
+}

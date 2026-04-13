@@ -17,7 +17,7 @@ export const getRoomsPaged = async (
     client.off('stanza', stanzaHdlrPointer);
   };
 
-  return new Promise(async (resolve, reject) => {
+  return new Promise((resolve, reject) => {
     stanzaHdlrPointer = (stanza) => {
       if (stanza.is('iq') && stanza.attrs.id === 'getUserRooms') {
         unsubscribe();
@@ -54,6 +54,6 @@ export const getRoomsPaged = async (
       reject(err);
     }
 
-    await createTimeoutPromise(2000, unsubscribe).catch(reject);
+    void createTimeoutPromise(2000, unsubscribe).catch(reject);
   });
 };

@@ -1,4 +1,8 @@
-export const config = {
+import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
+import { getMessaging, Messaging } from 'firebase/messaging';
+import { sha256 } from 'js-sha256';
+
+export const defaultConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
@@ -7,20 +11,81 @@ export const config = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Import the functions you need from the SDKs you need
-import { initializeApp } from 'firebase/app';
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+const firebaseAppsByName = new Map<string, FirebaseApp>();
+const messagingByAppName = new Map<string, Messaging>();
 
-// Your web app's Firebase configuration
-// export const firebaseConfig = {
-//   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-//   authDomain: "deepx-7e231.firebaseapp.com",
-//   projectId: "deepx-7e231",
-//   storageBucket: "deepx-7e231.appspot.com",
-//   messagingSenderId: "587754003300",
-//   appId: "1:587754003300:web:3d872072f88cbe41253871",
-// };
+const normalizeValue = (value?: string): string =>
+  (value || '').toString().trim().toLowerCase();
 
-// Initialize Firebase
-export const app = initializeApp(config);
+const getConfigSignature = (config: Record<string, any>): string => {
+  return sha256(
+    [
+      normalizeValue(config?.appId),
+      normalizeValue(config?.projectId),
+      normalizeValue(config?.messagingSenderId),
+      normalizeValue(config?.apiKey),
+      normalizeValue(config?.authDomain),
+      normalizeValue(config?.storageBucket),
+    ].join('|')
+  ).slice(0, 16);
+};
+
+const getFirebaseAppName = (config: Record<string, any>): string =>
+  `ethora-firebase-${getConfigSignature(config)}`;
+
+const getFirebaseConfig = (customConfig?: any): Record<string, any> => {
+  return customConfig || defaultConfig;
+};
+
+export const getFirebaseApp = (customConfig?: any): FirebaseApp | null => {
+  try {
+    const config = getFirebaseConfig(customConfig);
+    const appName = getFirebaseAppName(config);
+
+    const cached = firebaseAppsByName.get(appName);
+    if (cached) {
+      return cached;
+    }
+
+    const existing = getApps().find((candidate) => candidate.name === appName);
+    if (existing) {
+      firebaseAppsByName.set(appName, existing);
+      return existing;
+    }
+
+    const app = initializeApp(config, appName);
+    firebaseAppsByName.set(appName, app);
+    return app;
+  } catch (error) {
+    console.error('[FirebaseConfig] Failed to initialize Firebase app:', error);
+    return null;
+  }
+};
+
+export const getFirebaseMessaging = (customConfig?: any): Messaging | null => {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const app = getFirebaseApp(customConfig);
+    if (!app) return null;
+
+    const cached = messagingByAppName.get(app.name);
+    if (cached) {
+      return cached;
+    }
+
+    const messaging = getMessaging(app);
+    messagingByAppName.set(app.name, messaging);
+
+    return messaging;
+  } catch (error) {
+    console.error('[FirebaseConfig] Failed to initialize messaging:', error);
+    return null;
+  }
+};
+
+// Legacy exports for backward compatibility.
+// Important: avoid creating the Firebase [DEFAULT] app to prevent duplicate-app
+// when runtime push config differs from env defaults.
+export const app = getFirebaseApp(defaultConfig) || initializeApp(defaultConfig, 'ethora-firebase-fallback');
+export const messaging = getFirebaseMessaging(defaultConfig) || getMessaging(app);

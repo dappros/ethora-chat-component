@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import styled from 'styled-components';
 import { MessageInput } from '../styled/StyledComponents';
 import Button from '../styled/Button';
@@ -12,11 +12,10 @@ import {
   signInWithGoogle,
 } from '../../networking/api-requests/auth.api';
 import { useDispatch } from 'react-redux';
-import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { setUser } from '../../roomStore/chatSettingsSlice';
-import { localStorageConstants } from '../../helpers/constants/LOCAL_STORAGE';
 import { useToast } from '../../context/ToastContext';
 import { VITE_APP_WEB_URL } from '../../config';
+import { ethoraLogger } from '../../helpers/ethoraLogger';
 
 interface LoginFormProps {
   config?: IConfig;
@@ -72,7 +71,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
         refreshToken: authData.data.refreshToken,
       };
       dispatch(setUser(user));
-      useLocalStorage(localStorageConstants.ETHORA_USER).set(user);
       showToast({
         id: 'success',
         title: 'Login Successful',
@@ -117,7 +115,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
             res.credential?.accessToken || '',
             loginType
           );
-          console.log('google log after register res', loginRes);
+          ethoraLogger.log('google log after register res', loginRes);
 
           const user = {
             ...loginRes.data.user,
@@ -125,9 +123,8 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
             refreshToken: loginRes.data.refreshToken,
           };
           dispatch(setUser(user));
-          useLocalStorage(localStorageConstants.ETHORA_USER).set(user);
         } catch (error) {
-          console.log('error registering user viag google');
+          ethoraLogger.log('error registering user viag google');
         }
       }
       if (res.idToken && res.credential && res.credential.accessToken) {
@@ -136,17 +133,16 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
           res.credential.accessToken,
           loginType
         );
-        console.log('google log res', loginRes);
+        ethoraLogger.log('google log res', loginRes);
         const user = {
           ...loginRes.data.user,
           token: loginRes.data.token,
           refreshToken: loginRes.data.refreshToken,
         };
         dispatch(setUser(user));
-        useLocalStorage(localStorageConstants.ETHORA_USER).set(user);
       }
     } catch (error) {
-      console.log(error);
+      ethoraLogger.log(error);
     }
     setIsLoading(false);
   };
@@ -178,6 +174,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
             type="email"
             value={email}
             placeholder="Email"
+            autoComplete="email"
             onChange={(e) => setEmail(e.target.value)}
             style={{
               border: `1px solid ${
@@ -201,6 +198,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
             type="password"
             value={password}
             placeholder="Password"
+            autoComplete="current-password"
             onChange={(e) => setPassword(e.target.value)}
             style={{
               border: `1px solid ${

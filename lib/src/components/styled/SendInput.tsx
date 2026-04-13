@@ -279,9 +279,9 @@ const SendInput: React.FC<SendInputProps> = ({
             )}
             {multiline ? (
               <TextareaWrapper
-                dynamicHeight={textareaHeight}
-                color={config?.colors?.primary}
-                isFocused={isFocused}
+                $dynamicHeight={textareaHeight}
+                $color={config?.colors?.primary}
+                $isFocused={isFocused}
               >
                 <TextareaInput
                   ref={textareaRef}
@@ -292,13 +292,13 @@ const SendInput: React.FC<SendInputProps> = ({
                   onFocus={handleFocus}
                   onBlur={handleBlur}
                   disabled={isLoading || isMessageProcessing}
-                  dynamicHeight={textareaHeight}
-                  color={config?.colors?.primary}
+                  $dynamicHeight={textareaHeight}
+                  $color={config?.colors?.primary}
                 />
               </TextareaWrapper>
             ) : (
               <MessageInput
-                color={config?.colors?.primary}
+                $color={config?.colors?.primary}
                 placeholder={placeholderText || 'Type message'}
                 value={message}
                 onChange={handleInputChange}

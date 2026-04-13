@@ -103,13 +103,13 @@ export const MessageTimestamp = styled.div`
   margin-bottom: 5px;
 `;
 
-export const Message = styled.div<{ isUser: boolean }>`
-  background-color: ${(props) => (props.isUser ? '#dcf8c6' : '#f1f1f1')};
+export const Message = styled.div<{ $isUser: boolean }>`
+  background-color: ${(props) => (props.$isUser ? '#dcf8c6' : '#f1f1f1')};
   padding: 10px;
   margin: 10px 0;
   border-radius: 8px;
   max-width: 70%;
-  flex-direction: ${(props) => (!props.isUser ? 'row' : 'row-reverse')};
+  flex-direction: ${(props) => (!props.$isUser ? 'row' : 'row-reverse')};
   overflow: hidden;
   word-wrap: break-word;
 `;
@@ -153,50 +153,50 @@ export const SendButton = styled.button`
 `;
 
 export const CustomMessageContainer = styled.div<{
-  isUser: boolean;
-  reply: boolean;
-  reaction: boolean;
+  $isUser: boolean;
+  $reply: boolean;
+  $reaction: boolean;
 }>`
   display: flex;
-  flex-direction: ${(props) => (props.isUser ? 'row-reverse' : 'row')};
+  flex-direction: ${(props) => (props.$isUser ? 'row-reverse' : 'row')};
   align-items: flex-end;
   margin: 10px 0;
   gap: 5px;
   position: relative;
   margin-bottom: ${(props) =>
-    props.reply || props.reaction ? '40px' : '10px'};
+    props.$reply || props.$reaction ? '40px' : '10px'};
 `;
 
 export const CustomMessageBubble = styled.div<{
-  isUser: boolean;
-  deleted: boolean;
+  $isUser: boolean;
+  $deleted: boolean;
 }>`
   max-width: 70%;
   min-width: 15%;
   padding: 8px 16px;
   border-radius: ${(props) =>
-    props.isUser ? '15px 15px 0px 15px' : '15px 15px 15px 0px'};
+    props.$isUser ? '15px 15px 0px 15px' : '15px 15px 15px 0px'};
   background-color: #ffffff;
   color: #000000;
   text-align: left;
   display: flex;
   flex-direction: column;
   background-color: ${(props) =>
-    props.deleted ? '#dfdfdf' : props.isUser ? '#E7EDF9' : '#FFFFFF'};
+    props.$deleted ? '#dfdfdf' : props.$isUser ? '#E7EDF9' : '#FFFFFF'};
   position: relative;
 `;
 
-export const CustomMessageText = styled.p`
+export const CustomMessageText = styled.div`
   margin: 0px;
   word-wrap: break-word;
 `;
 
-export const CustomUserName = styled.span<{ isUser: boolean; color?: string }>`
+export const CustomUserName = styled.span<{ $isUser: boolean; $color?: string }>`
   font-family: 'Open Sans', sans-serif;
   font-weight: 600;
   font-size: 18px;
   color: ${(props) =>
-    props.isUser ? (props?.color ? props?.color : '#0052CD') : '#0052cd'};
+    props.$isUser ? (props?.$color ? props?.$color : '#0052CD') : '#0052cd'};
   margin-bottom: 8px;
 `;
 
@@ -260,14 +260,14 @@ export const IconButton = styled.button`
   pointer-events: auto;
 `;
 
-export const MessageFooter = styled.div<{ isUser: boolean }>`
+export const MessageFooter = styled.div<{ $isUser: boolean }>`
   display: flex;
   justify-content: flex-start;
   position: absolute;
   gap: 6px;
   bottom: -25px;
-  left: ${(props) => !props.isUser && '50px'};
-  right: ${(props) => props.isUser && '10px'};
+  left: ${(props) => !props.$isUser && '50px'};
+  right: ${(props) => props.$isUser && '10px'};
 
   @media (max-width: 675px) {
     font-size: 12px;
@@ -341,8 +341,8 @@ export const Wrapper = styled.div.withConfig({
   size?: number;
   isClickable: boolean;
 }>`
-  width: ${({ size }) => `${size}px` || '64px'};
-  height: ${({ size }) => `${size}px` || '64px'};
+  width: ${({ size }) => (size ? `${size}px` : '64px')};
+  height: ${({ size }) => (size ? `${size}px` : '64px')};
   border-radius: 50%;
   background-color: ${({ bgColor }) => bgColor};
   display: flex;
@@ -361,8 +361,8 @@ export const AvatarCircle = styled.div.withConfig({
   size?: number;
   isClickable: boolean;
 }>`
-  width: ${({ size }) => `${size}px` || '64px'};
-  height: ${({ size }) => `${size}px` || '64px'};
+  width: ${({ size }) => (size ? `${size}px` : '64px')};
+  height: ${({ size }) => (size ? `${size}px` : '64px')};
   border-radius: 50%;
   background-color: ${({ bgColor }) => bgColor};
   display: flex;

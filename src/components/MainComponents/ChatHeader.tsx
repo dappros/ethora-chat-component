@@ -63,9 +63,9 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       Object.keys(roomsList).length < 1 ||
       activeRoomJID === Object.keys(roomsList)[0]
     ) {
-      if (typeof window !== "undefined") {
+      if (typeof window !== 'undefined') {
         const newUrl = `${window.location.pathname}`;
-        window.history.pushState(null, "", newUrl);
+        window.history.pushState(null, '', newUrl);
       }
       dispatch(setCurrentRoom({ roomJID: null }));
       return;
@@ -95,7 +95,16 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
           />
         )}
         <ChatContainerHeaderBoxInfo
-          onClick={() => dispatch(setActiveModal(MODAL_TYPES.CHAT_PROFILE))}
+          onClick={
+            config?.disableChatInfo?.disableHeader
+              ? undefined
+              : () => dispatch(setActiveModal(MODAL_TYPES.CHAT_PROFILE))
+          }
+          style={
+            config?.disableChatInfo?.disableHeader
+              ? { cursor: 'default' }
+              : undefined
+          }
         >
           <div>
             <ProfileImagePlaceholder
@@ -122,13 +131,15 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         </ChatContainerHeaderBoxInfo>
       </div>
 
-      <div style={{ display: 'flex', gap: 16 }}>
-        {/* <SearchInput animated icon={<SearchIcon />} /> */}
-        <RoomMenu
-          handleLeaveClick={handleLeaveClick}
-          handleReportClick={handleReportClick}
-        />
-      </div>
+      {!config?.disableChatInfo?.disableChatHeaderMenu && (
+        <div style={{ display: 'flex', gap: 16 }}>
+          {/* <SearchInput animated icon={<SearchIcon />} /> */}
+          <RoomMenu
+            handleLeaveClick={handleLeaveClick}
+            handleReportClick={handleReportClick}
+          />
+        </div>
+      )}
     </ChatContainerHeader>
   );
 };

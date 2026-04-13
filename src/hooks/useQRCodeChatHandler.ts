@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { VITE_APP_XMPP_CONFERENCE } from '../config';
+import { localStorageConstants } from '../helpers/constants/LOCAL_STORAGE';
 
-const QR_CHAT_STORAGE_KEY = '@ethora/chat-component-qrChatId';
+const QR_CHAT_STORAGE_KEY = localStorageConstants.ETHORA_QR_CHAT_ID;
 
 export const handleQRChatId = (): void => {
   // Check if we're in browser environment

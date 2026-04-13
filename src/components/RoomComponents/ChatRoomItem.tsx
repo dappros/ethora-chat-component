@@ -29,9 +29,24 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
   performClick,
   config,
 }) => {
+  const withAuthorFallback = useCallback((message?: IMessage): IMessage | undefined => {
+    if (!message) return message;
+    const rawUserId = String(message?.user?.id || '');
+    const fallbackName = rawUserId.split('@')[0] || rawUserId || 'Unknown';
+    const safeName = String(message?.user?.name || '').trim() || fallbackName;
+
+    return {
+      ...message,
+      user: {
+        ...message.user,
+        name: safeName,
+      },
+    };
+  }, []);
+
   const lastMessage = useMemo(
-    () => chat?.messages?.[chat?.messages.length - 1],
-    [chat?.messages?.length]
+    () => withAuthorFallback(chat?.messages?.[chat?.messages.length - 1]),
+    [chat?.messages?.length, withAuthorFallback]
   );
 
   const formatTimeToHHMM = (

@@ -1,47 +1,146 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { Provider } from 'react-redux';
+import { store } from './roomStore';
 import { ReduxWrapper } from './components/MainComponents/ReduxWrapper';
 import { XmppProvider } from './context/xmppProvider';
 import { useUnreadMessagesCounter } from './hooks/useUnreadMessagesCounter';
 import { IConfig } from './types/types';
-import { logoutService, handleQRChatId } from './main';
+import { logoutService, handleQRChatId, useInAppNotifications } from './main';
 import { handleCopyClick } from './helpers/handleCopyClick';
 import CustomChatInput from './examples/customComponents/CustomChatInput';
 import CustomScrollableArea from './examples/customComponents/CustomScrollableArea';
 import CustomDaySeparator from './examples/customComponents/CustomDaySeparator';
 import CustomMessageBubble from './examples/customComponents/CustomMessageBubble';
+import { MessageNotificationProvider } from './context/MessageNotificationContext';
+import { ethoraLogger } from './helpers/ethoraLogger';
+
+const APP_CHAT_BASE_CONFIG: IConfig = {
+  appId: '646cc8dc96d4a4dc8f7b2f2d',
+  baseUrl: 'https://api.ethoradev.com/v1',
+  xmppSettings: {
+    devServer: 'wss://xmpp.ethoradev.com:5443/ws',
+    host: 'xmpp.ethoradev.com',
+    conference: 'conference.xmpp.ethoradev.com',
+    xmppPingOnSendEnabled: true,
+  },
+  userLogin: {
+    enabled: true,
+    user: null,
+  },
+  refreshTokens: { enabled: true },
+  setRoomJidInPath: true,
+  initBeforeLoad: true,
+};
 
 const Apps = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
-  return (
-    <div>
-      <button onClick={() => setIsChatOpen(!isChatOpen)}>Toggle Chat</button>
-      {isChatOpen && (
-        <ReduxWrapper
-          CustomMessageComponent={CustomMessageBubble}
-          CustomInputComponent={CustomChatInput}
-          CustomScrollableArea={CustomScrollableArea}
-          CustomDaySeparator={CustomDaySeparator}
-          config={{
-            baseUrl: 'https://api.ethoradev.com/v1',
-          }}
-        />
-      )}
-    </div>
+  const { hasUnread, totalCount, displayTotal, unreadByRoom, displayByRoom } =
+    useUnreadMessagesCounter();
+
+  const appsNotificationConfig: IConfig = useMemo(
+    () => ({
+      inAppNotifications: {
+        enabled: true,
+        showInContext: true,
+        position: {
+          horizontal: 'left',
+          vertical: 'bottom',
+          offset: {
+            left: 20,
+            bottom: 20,
+          },
+        },
+      },
+    }),
+    []
   );
+
+  return (
+    <Provider store={store}>
+      <MessageNotificationProvider config={appsNotificationConfig}>
+        <NotificationEnabler />
+        <div>
+          <div className="mb-3 p-3 rounded bg-white border border-gray-200 text-xs">
+            <div className="font-semibold mb-2">Unread Counter Demo (outside chat)</div>
+            <div>hasUnread: {hasUnread ? 'true' : 'false'}</div>
+            <div>totalCount: {totalCount}</div>
+            <div>displayTotal: {displayTotal}</div>
+            <div className="mt-2 font-medium">By room:</div>
+            {Object.keys(unreadByRoom).length === 0 ? (
+              <div className="text-gray-500">No unread rooms</div>
+            ) : (
+              <div className="max-h-48 overflow-auto space-y-1 mt-1">
+                {Object.entries(unreadByRoom).map(([jid, count]) => (
+                  <div
+                    key={jid}
+                    className="p-1 rounded bg-gray-50 border border-gray-100"
+                  >
+                    <div className="truncate" title={jid}>
+                      {jid}
+                    </div>
+                    <div>
+                      unread: {count} | display: {displayByRoom[jid] ?? String(count)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <button onClick={() => setIsChatOpen(!isChatOpen)}>
+            Toggle Chat
+          </button>
+          {isChatOpen && (
+            <ReduxWrapper
+              CustomMessageComponent={CustomMessageBubble}
+              CustomInputComponent={CustomChatInput}
+              CustomScrollableArea={CustomScrollableArea}
+              CustomDaySeparator={CustomDaySeparator}
+              config={{
+                baseUrl: 'https://api.ethoradev.com/v1',
+                inAppNotifications: {
+                  enabled: true,
+                  showInContext: true, // Show in chat component context as well
+                },
+              }}
+            />
+          )}
+        </div>
+      </MessageNotificationProvider>
+    </Provider>
+  );
+};
+
+// Component to enable notifications (needs Redux)
+const NotificationEnabler: React.FC = () => {
+  useInAppNotifications();
+  return null;
 };
 
 const ChatComponent = React.memo(() => {
   const config: IConfig = useMemo(
     () => ({
+      ...APP_CHAT_BASE_CONFIG,
       colors: { primary: '#5E3FDE', secondary: '#E1E4FE' },
-      userLogin: {
-        enabled: true,
-        user: null,
-      },
       chatRoomStyles: { borderRadius: '16px' },
       roomListStyles: { borderRadius: '16px' },
-      setRoomJidInPath: true,
+      inAppNotifications: {
+        enabled: true,
+        showInContext: true,
+        position: {
+          horizontal: 'left',
+          vertical: 'bottom',
+          offset: {
+            left: 20,
+            bottom: 20,
+          },
+        },
+      },
+      pushNotifications: {
+        enabled: true,
+        softAsk: false,
+      },
+      useStoreConsoleEnabled: true,
     }),
     []
   );
@@ -83,17 +182,17 @@ const ChatComponent = React.memo(() => {
         // CustomScrollableArea={CustomScrollableArea}
         // CustomDaySeparator={CustomDaySeparator}
         // roomJID="646cc8dc96d4a4dc8f7b2f2d_6824685682d635dba7522423@conference.xmpp.ethoradev.com"
+        // roomJID="6998429ba125477a74a7dcef_69b96235545b8217d39dc1ac@conference.xmpp-dev.preshent.com"
         config={{
-          xmppSettings: {
-            devServer: 'wss://xmpp.ethoradev.com:5443/ws',
-            host: 'xmpp.ethoradev.com',
-            conference: 'conference.xmpp.ethoradev.com',
-            xmppPingOnSendEnabled: true,
-          },
-          baseUrl: 'https://api.ethoradev.com/v1',
-          newArch: true,
+          // ...(demoJwtToken
+          //   ? {
+          //       jwtLogin: {
+          //         enabled: true,
+          //         token: demoJwtToken,
+          //       },
+          //     }
+          //   : {}),
           setRoomJidInPath: true,
-          qrUrl: 'https://beta.ethora.com/app/chat/?qrChatId=',
           refreshTokens: { enabled: true },
           // secondarySendButton: {
           //   enabled: true,
@@ -109,17 +208,26 @@ const ChatComponent = React.memo(() => {
           disableMedia: true,
           eventHandlers: {
             onMessageSent: async (event) => {
-              console.log('✅ Message sent successfully:', event.message);
-            },
-          },
-          blockMessageSendingWhenProcessing: {
-            enabled: true,
-            timeout: 10000,
-            onTimeout: () => {
-              console.log('asdasdasd');
+              ethoraLogger.log('✅ Message sent successfully:', event.message);
             },
           },
           ...config,
+          inAppNotifications: {
+            enabled: true,
+            showInContext: true, // Show notifications in chat component
+            position: {
+              horizontal: 'left',
+              vertical: 'bottom',
+              offset: {
+                left: 20,
+                bottom: 20,
+              },
+            },
+          }
+          // pushNotifications: {
+          //   enabled: true,
+          //   softAsk: false,
+          // },
         }}
         MainComponentStyles={mainStyles}
       />
@@ -130,7 +238,13 @@ const ChatComponent = React.memo(() => {
 ChatComponent.displayName = 'ChatComponent';
 
 export default function App() {
-  const { totalCount } = useUnreadMessagesCounter();
+  const { totalCount, displayTotal } = useUnreadMessagesCounter();
+
+  const globalXmppConfig = useMemo(
+    () => APP_CHAT_BASE_CONFIG,
+    []
+  );
+
   const handleLogoutClick = () => {
     logoutService.performLogout();
   };
@@ -143,7 +257,7 @@ export default function App() {
             Apps
             {totalCount > 0 && (
               <div className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full px-2">
-                {totalCount}
+                {displayTotal}
               </div>
             )}
           </button>
@@ -161,11 +275,11 @@ export default function App() {
         </button>
       </nav>
     ),
-    [totalCount]
+    [totalCount, displayTotal]
   );
 
   return (
-    <XmppProvider>
+    <XmppProvider config={globalXmppConfig}>
       <Router>
         <div className="flex">
           {navigation}

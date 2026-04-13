@@ -2,14 +2,13 @@ import http from '../apiClient';
 import { RoomMember } from '../../types/types';
 
 export async function getUserByXmppUsername(
-  xmppUsername: string,
+  xmppUsername: string | undefined,
   token: string
 ): Promise<RoomMember | null> {
   const normalizedXmppUsername = String(xmppUsername || '').trim();
   if (!normalizedXmppUsername || normalizedXmppUsername === 'undefined') {
     return null;
   }
-
   try {
     const res = await http.get<{ result: RoomMember }>(
       `/apps/users/${normalizedXmppUsername}`,

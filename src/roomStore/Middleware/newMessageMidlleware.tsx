@@ -26,7 +26,11 @@ export const newMessageMidlleware: Middleware =
       storeAPI.dispatch(
         updateRoom({
           jid: roomJID,
-          updates: { lastMessageTimestamp: Number(message.id) ?? 0 },
+          updates: {
+            lastMessageTimestamp: Number.isFinite(Number(message.id))
+              ? Number(message.id)
+              : 0,
+          },
         })
       );
     }

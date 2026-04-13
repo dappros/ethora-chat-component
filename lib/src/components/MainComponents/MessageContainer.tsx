@@ -15,6 +15,7 @@ interface MessageContainerProps {
   CustomMessage?: React.ComponentType<{
     message: IMessage;
     isUser: boolean;
+    $isUser?: boolean;
     isReply: boolean;
   }>;
   message: IMessage;
@@ -105,6 +106,7 @@ export const MessageContainer: FC<MessageContainerProps> = ({
       <MessageComponent
         message={message}
         isUser={isUser}
+        $isUser={isUser}
         isReply={isReply}
         className={className}
       >
@@ -120,6 +122,7 @@ export const MessageContainer: FC<MessageContainerProps> = ({
           <MessageComponent
             message={message}
             isUser={isUser}
+            $isUser={isUser}
             isReply={isReply}
           />
         )}

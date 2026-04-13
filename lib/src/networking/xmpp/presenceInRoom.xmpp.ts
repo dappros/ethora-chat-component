@@ -4,7 +4,8 @@ import { Element } from '@xmpp/xml';
 export const presenceInRoom = async (
   client: Client,
   roomJID: string,
-  delay = 2000
+  delay = 2000,
+  timeoutMs = 2000
 ): Promise<Element> => {
   let stanzaHandler: (stanza: Element) => void;
 
@@ -49,9 +50,16 @@ export const presenceInRoom = async (
       await client.send(presence);
     } catch (err) {
       unsubscribe();
-      return [];
+      reject(
+        new Error(
+          `presence_send_failed:${roomJID}:${err instanceof Error ? err.message : String(err)}`
+        )
+      );
+      return;
     }
 
-    await createTimeoutPromise(2000, unsubscribe).catch(reject);
+    void createTimeoutPromise(timeoutMs, unsubscribe).catch(() => {
+      reject(new Error(`presence_timeout:${roomJID}`));
+    });
   });
 };

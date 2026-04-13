@@ -4,6 +4,7 @@ import { initRoomsPresence } from './initRoomsPresence';
 import XmppClient from '../networking/xmppClient';
 import { IConfig, IRoom, User } from '../types/types';
 import { store } from '../roomStore';
+import { ethoraLogger } from './ethoraLogger';
 
 const initXmppRooms = async (
   user: User,
@@ -18,17 +19,17 @@ const initXmppRooms = async (
 
   try {
     if (!user.defaultWallet || !user.defaultWallet.walletAddress) {
-      console.log('Error, no user');
+      ethoraLogger.log('Error, no user');
       return;
     }
 
     if (!xmmpClient) {
-      console.log('No xmmpClient, initializing one');
+      ethoraLogger.log('No xmmpClient, initializing one');
 
       if (rooms && Object.keys(rooms).length > 0) {
         await initRoomsPresence(xmmpClient, rooms);
       } else {
-        if (config?.newArch) {
+        if (config?.newArch !== false) {
           // const rooms = await getRooms();
           //     rooms.items.map((room) => {
           //       dispatch(
@@ -44,17 +45,21 @@ const initXmppRooms = async (
           return;
         }
         const res = await xmmpClient.getRoomsStanza();
-        console.log(res);
+        ethoraLogger.log(res);
       }
 
-      //@ts-ignore
-      const roomTimestampObject: [jid: string, timestamp: string] =
-        await xmmpClient.getChatsPrivateStoreRequestStanza();
+      const roomTimestampObject =
+        (await xmmpClient.getChatsPrivateStoreRequestStanza()) as
+          | Record<string, string | number>
+          | null
+          | undefined;
       updatedChatLastTimestamps(roomTimestampObject, store.dispatch);
     } else {
-      //@ts-ignore
-      const roomTimestampObject: [jid: string, timestamp: string] =
-        await xmmpClient.getChatsPrivateStoreRequestStanza();
+      const roomTimestampObject =
+        (await xmmpClient.getChatsPrivateStoreRequestStanza()) as
+          | Record<string, string | number>
+          | null
+          | undefined;
       updatedChatLastTimestamps(roomTimestampObject, store.dispatch);
     }
 

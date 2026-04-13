@@ -1,9 +1,11 @@
 import { User } from './user.model';
 import { xmppSettingsInterface } from './xmpp.model';
 import { PartialRoomWithMandatoryKeys, ConfigRoom } from './room.model';
-import { MessageBubble, MessageProps } from './message.model';
+import { MessageBubble, MessageProps, IMessage } from './message.model';
 import { Iso639_1Codes } from './language.model';
 import React from 'react'; // Assuming React types are globally available or managed by the project's tsconfig
+
+import { MessageNotificationToastProps } from '../../components/MessageNotification/MessageNotificationToast';
 
 export interface FBConfig {
   apiKey: string;
@@ -15,6 +17,7 @@ export interface FBConfig {
 }
 
 export interface IConfig {
+  appId?: string;
   disableHeader?: boolean;
   disableMedia?: boolean;
   colors?: { primary: string; secondary: string };
@@ -79,6 +82,9 @@ export interface IConfig {
   clearStoreBeforeInit?: boolean;
   disableSentLogic?: boolean;
   initBeforeLoad?: boolean;
+  initBeforeLoadAuth?: {
+    myEndpoint?: string;
+  };
   newArch?: boolean;
   qrUrl?: string;
   secondarySendButton?: {
@@ -140,4 +146,65 @@ export interface IConfig {
   };
   whitelistSystemMessage?: string[];
   customSystemMessage?: React.ComponentType<MessageProps>;
+  disableChatInfo?: {
+    disableHeader?: boolean;
+    disableDescription?: boolean;
+    disableType?: boolean;
+    disableMembers?: boolean;
+    hideMembers?: boolean;
+    disableChatHeaderMenu?: boolean;
+  };
+  chatHeaderSettings?: {
+    hide?: boolean;
+    disableCreate?: boolean;
+    disableMenu?: boolean;
+    hideSearch?: boolean;
+  };
+  useStoreConsoleEnabled?: boolean;
+  historyQoS?: {
+    maxInFlightHistory?: number;
+    softPauseAfterSendMs?: number;
+    activeRoomBoostTtlMs?: number;
+  };
+  inAppNotifications?: {
+    enabled?: boolean;
+    showInContext?: boolean;
+    position?: {
+      horizontal?: 'left' | 'right' | 'center';
+      vertical?: 'top' | 'bottom';
+      offset?: {
+        top?: number | string;
+        bottom?: number | string;
+        left?: number | string;
+        right?: number | string;
+      };
+    };
+    maxNotifications?: number;
+    duration?: number;
+    onClick?: (params: {
+      roomJID: string;
+      messageId: string;
+      message: IMessage;
+      roomName: string;
+      senderName: string;
+    }) => void | Promise<void>;
+    customComponent?: React.ComponentType<MessageNotificationToastProps>;
+  };
+
+  pushNotifications?: {
+    enabled?: boolean;
+    vapidPublicKey?: string;
+    firebaseConfig?: FBConfig;
+    serviceWorkerPath?: string;
+    serviceWorkerScope?: string;
+    softAsk?: boolean;
+    onClick?: (params: {
+      roomJID?: string;
+      messageId?: string;
+      url?: string;
+      data?: Record<string, any>;
+      notification?: { title?: string; body?: string };
+      source?: 'service_worker' | 'foreground';
+    }) => void | Promise<void>;
+  };
 }

@@ -5,6 +5,7 @@ import { IMessage } from '../../types/types';
 import { getDataFromXml } from '../../helpers/getDataFromXml';
 import { createMessageFromXml } from '../../helpers/createMessageFromXml';
 import { VITE_APP_XMPP_CONFERENCE } from '../../config';
+import { ethoraLogger } from '../../helpers/ethoraLogger';
 
 export const getHistory = async (
   client: Client,
@@ -61,7 +62,7 @@ export const getHistory = async (
             const { data, id, body, ...rest } = await getDataFromXml(msg);
 
             if (!data) {
-              console.log('No data in stanza');
+              ethoraLogger.log('No data in stanza');
               return;
             }
 
@@ -108,20 +109,22 @@ export const getHistory = async (
       )
     );
 
-    client?.send(message).catch((err) => console.log('err on load', err));
+    client?.send(message).catch((err) => ethoraLogger.log('err on load', err));
   });
 
   const timeoutPromise = createTimeoutPromise(10000);
 
   try {
-    // @ts-ignore
-    const res: IMessage[] | null = await Promise.race<[IMessage[] | null]>([
-      responsePromise as Promise<IMessage[] | null>,
-      timeoutPromise as Promise<null>,
-    ]);
-    return res;
+    const res = (await Promise.race([
+      responsePromise as Promise<IMessage[]>,
+      timeoutPromise as Promise<never>,
+    ])) as IMessage[];
+    return res || [];
   } catch (e) {
-    // console.log('=-> error in', fixedChatJid, e);
+    const message = e instanceof Error ? e.message : '';
+    if (message.startsWith('timeout:')) {
+      return undefined;
+    }
     return [];
   } finally {
     unsubscribe();

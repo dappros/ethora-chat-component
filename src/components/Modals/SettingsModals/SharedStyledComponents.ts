@@ -1,6 +1,6 @@
 import styled from 'styled-components';
 import { CenterContainer, Label } from '../styledModalComponents';
-import Button from '../../styled/Button';
+import Button, { ButtonProps } from '../../styled/Button';
 
 export const SharedSettingsCenterContainer = styled(CenterContainer)`
   display: flex;

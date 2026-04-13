@@ -16,11 +16,18 @@ import {
   onReactionHistory,
   onRoomKicked,
   onMessageError,
+  onUserUpdate,
+  onChatUpdate,
 } from '../stanzaHandlers';
 import XmppClient from '../xmppClient';
+import { ethoraLogger } from '../../helpers/ethoraLogger';
 
 export function handleStanza(stanza: Element, xmppWs: XmppClient) {
-  if (stanza?.attrs?.type === 'headline') return;
+  if (stanza?.attrs?.type === 'headline') {
+    onUserUpdate(stanza);
+    onChatUpdate(stanza);
+    return;
+  }
   switch (stanza.name) {
     case 'message':
       onMessageError(stanza, xmppWs);
@@ -29,7 +36,7 @@ export function handleStanza(stanza: Element, xmppWs: XmppClient) {
       onDeleteMessage(stanza);
       onEditMessage(stanza);
       onChatInvite(stanza, xmppWs);
-      onRealtimeMessage(stanza);
+      onRealtimeMessage(stanza, xmppWs);
       onMessageHistory(stanza);
       handleComposing(stanza, xmppWs.username);
       onPresenceInRoom(stanza);
@@ -40,7 +47,7 @@ export function handleStanza(stanza: Element, xmppWs: XmppClient) {
       break;
     case 'iq':
       onGetChatRooms(stanza, xmppWs);
-      onRealtimeMessage(stanza);
+      onRealtimeMessage(stanza, xmppWs);
       onPresenceInRoom(stanza);
       // onGetMembers(stanza);
       onGetRoomInfo(stanza);
@@ -50,6 +57,6 @@ export function handleStanza(stanza: Element, xmppWs: XmppClient) {
       onNewRoomCreated(stanza, xmppWs);
       break;
     default:
-      console.log('Unhandled stanza type:', stanza.name);
+      ethoraLogger.log('Unhandled stanza type:', stanza.name);
   }
 }

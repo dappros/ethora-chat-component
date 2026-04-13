@@ -1,22 +1,49 @@
-import { useDispatch } from 'react-redux';
-import { store } from '../roomStore';
+import { persistor, store } from '../roomStore';
 import { logout } from '../roomStore/chatSettingsSlice';
 import { setLogoutState } from '../roomStore/roomsSlice';
 import { useCallback } from 'react';
 import { clearHeap } from '../roomStore/roomHeapSlice';
+import { clearScopedChatCache } from '../helpers/cacheScope';
+import { clearStoredUser } from '../helpers/authStorage';
+import { disablePushNotifications } from '../utils/firebasePushNotifications';
+import { getGlobalXmppClient, setGlobalXmppClient } from '../utils/clientRegistry';
 
 const logoutService = {
-  performLogout: () => {
+  performLogout: async () => {
+    const xmppClient = getGlobalXmppClient();
+    if (xmppClient) {
+      try {
+        await xmppClient.disconnect();
+      } catch (error) {
+        console.warn('[Logout] XMPP disconnect failed', error);
+      } finally {
+        setGlobalXmppClient(null);
+      }
+    } else {
+      setGlobalXmppClient(null);
+    }
+
+    try {
+      await disablePushNotifications();
+    } catch (error) {
+      console.warn('[Logout] Push service worker teardown failed', error);
+    }
     store.dispatch(logout());
     store.dispatch(setLogoutState());
     store.dispatch(clearHeap());
+    clearStoredUser();
+    clearScopedChatCache();
+    try {
+      await persistor.flush();
+      await persistor.purge();
+    } catch (error) {
+      console.warn('[Logout] Persist purge failed', error);
+    }
   },
 };
 export const useLogout = () => {
-  const dispatch = useDispatch();
-
   const handleLogout = useCallback(() => {
-    logoutService.performLogout();
+    void logoutService.performLogout();
   }, []);
 
   return handleLogout;

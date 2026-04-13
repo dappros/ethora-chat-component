@@ -41,11 +41,11 @@ const progress = (duration: number) => keyframes`
   }
 `;
 
-const ToastContainer = styled.div<{ type: string; duration: number }>`
-  ${({ duration }) => css`
+const ToastContainer = styled.div<{ type: string; $duration: number }>`
+  ${({ $duration }) => css`
     animation:
       ${fadeIn} 0.3s forwards,
-      ${fadeOut} 0.3s forwards ${duration - 300}ms;
+      ${fadeOut} 0.3s forwards ${$duration - 300}ms;
   `}
   background-color: ${({ type }) => {
     switch (type) {
@@ -69,14 +69,14 @@ const ToastContainer = styled.div<{ type: string; duration: number }>`
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
 `;
 
-const ProgressBar = styled.div<{ duration: number }>`
+const ProgressBar = styled.div<{ $duration: number }>`
   position: absolute;
   bottom: 0;
   left: 0;
   height: 3px;
   background: rgba(255, 255, 255, 0.6);
-  animation: ${({ duration }) => progress(duration)} linear
-    ${({ duration }) => duration}ms forwards;
+  animation: ${({ $duration }) => progress($duration)} linear
+    ${({ $duration }) => $duration}ms forwards;
 `;
 
 const Toast: React.FC<ToastType> = ({
@@ -86,10 +86,10 @@ const Toast: React.FC<ToastType> = ({
   duration = 3000,
 }) => {
   return (
-    <ToastContainer type={type} duration={duration}>
+    <ToastContainer type={type} $duration={duration}>
       <strong>{title}</strong>
       <p style={{ margin: '4px 0 0' }}>{message}</p>
-      <ProgressBar duration={duration} />
+      <ProgressBar $duration={duration} />
     </ToastContainer>
   );
 };

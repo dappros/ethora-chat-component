@@ -12,6 +12,8 @@ dist
 dist-ssr
 *.local
 
+/video-xmpp
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -24,3 +26,4 @@ dist-ssr
 *.sw?
 .env
 
+flutter
