@@ -1,4 +1,5 @@
 import { Client, xml } from '@xmpp/client';
+import { SERVICE } from '../../config';
 
 export const sendTextMessage = (
   client: Client,
@@ -30,7 +31,7 @@ export const sendTextMessage = (
         id: id,
       },
       xml('data', {
-        xmlns: devServer || `wss://xmpp.ethoradev.com:5443/ws`,
+        xmlns: devServer || SERVICE,
         senderFirstName: firstName,
         senderLastName: lastName,
         fullName: `${firstName} ${lastName}`,

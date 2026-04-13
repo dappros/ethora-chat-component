@@ -1,0 +1,281 @@
+flowchart TD
+    %% Main sections
+    subgraph MAIN["Ethora Chat Component Flow"]
+        subgraph LOGIN["Login Process"]
+            Start([Start]) --> LoginChoice{"Login\nChoice"}
+           
+            %% Email Login Path
+            LoginChoice -->|"Email"| EmailLoginForm["Enter Email & Password"]
+            EmailLoginForm --> ValidateInputs{"Validate\nInputs"}
+            ValidateInputs -->|"Invalid"| DisplayErrors["Display Specific Error Messages"]
+            DisplayErrors --> EmailLoginForm
+            ValidateInputs -->|"Valid"| CallLoginEmail["Call loginEmail() Function"]
+            CallLoginEmail --> LoginSuccess{"Login\nSuccessful?"}
+            LoginSuccess -->|"No"| DisplayLoginError["Display Incorrect Credentials Error"]
+            DisplayLoginError --> EmailLoginForm
+            LoginSuccess -->|"Yes"| StoreUserData["Store User Data & Tokens"]
+            StoreUserData --> ChatInterface
+
+            %% Login trough outer logic
+            LoginChoice -->|"Outer login"| CallLoginEmail["Call loginEmail() Function"]
+            
+            %% Google Login Path
+            LoginChoice -->|"Google"| GoogleLogin["Click 'Login with Google'"]
+            GoogleLogin --> CallSignInWithGoogle["Call signInWithGoogle() Function"]
+            CallSignInWithGoogle --> CheckEmailExists["Call checkEmailExist() Function"]
+            CheckEmailExists --> EmailExists{"Email\nExists?"}
+            EmailExists -->|"No"| RegisterSocial["Call registerSocial() Function"]
+            EmailExists -->|"Yes"| LoginSocial["Call loginSocial() Function"]
+            RegisterSocial --> SocialLoginSuccess{"Login\nSuccessful?"}
+            LoginSocial --> SocialLoginSuccess
+            SocialLoginSuccess -->|"No"| DisplaySocialLoginError["Display Error Message"]
+            DisplaySocialLoginError --> LoginChoice
+            SocialLoginSuccess -->|"Yes"| StoreSocialUserData["Store User Data & Tokens"]
+            StoreSocialUserData --> ChatInterface
+        end
+        
+        subgraph CONFIG["Configuration Settings"]
+            %% API Configuration
+            APIConfig["API Configuration"] --> BaseURL["baseUrl: 'https://dev.api.platform.atomwcapps.com/v1'"]
+            APIConfig --> ChatHostURL["chatHostUrl: 'https://dev.chat.platform.atomwcapps.com'"]
+            APIConfig --> UploadURL["uploadUrl: 'https://dev.upload.platform.atomwcapps.com'"]
+            
+            %% XMPP Configuration
+            XMPPConfig["XMPP Configuration"] --> DevServer["devServer: 'wss://dev.xmpp.platform.atomwcapps.com:5443/ws'"]
+            XMPPConfig --> Host["host: 'dev.xmpp.platform.atomwcapps.com'"]
+            XMPPConfig --> Conference["conference: 'conference.dev.xmpp.platform.atomwcapps.com'"]
+            XMPPConfig --> Domain["domain: 'dev.xmpp.platform.atomwcapps.com'"]
+            XMPPConfig --> Resource["resource: 'atomwcapps'"]
+            XMPPConfig --> XMPPPassword["password: XMPP auth password"]
+            XMPPConfig --> Port["port: 5222"]
+            XMPPConfig --> WebSocketEndpoint["websocketEndpoint: '/ws'"]
+            
+            %% UI Configuration
+            UIConfig["UI Configuration"] --> ThemeColors["Theme Colors"]
+            ThemeColors --> PrimaryColor["primary: '#4a75ba'"]
+            ThemeColors --> SecondaryColor["secondary: '#141414'"]
+            ThemeColors --> AccentColor["accent: '#f5f5f5'"]
+            ThemeColors --> ErrorColor["error: '#ff5252'"]
+            
+            UIConfig --> ChatRoomStyles["Chat Room Styles"]
+            ChatRoomStyles --> BorderRadius["borderRadius: '10px'"]
+            ChatRoomStyles --> MaxHeight["maxHeight: '80vh'"]
+            ChatRoomStyles --> MinHeight["minHeight: '50vh'"]
+            ChatRoomStyles --> Width["width: '100%'"]
+            ChatRoomStyles --> Padding["padding: '10px'"]
+            
+            %% Feature Toggles
+            FeatureToggles["Feature Toggles"] --> EnableUserLogin["enableUserLogin: Boolean"]
+            FeatureToggles --> EnableTokenRefresh["enableTokenRefresh: Boolean"]
+            FeatureToggles --> EnableTranslations["enableTranslations: Boolean"]
+            FeatureToggles --> EnableFileUploads["enableFileUploads: Boolean"]
+            FeatureToggles --> EnableEmojis["enableEmojis: Boolean"]
+            FeatureToggles --> EnableReadReceipts["enableReadReceipts: Boolean"]
+            FeatureToggles --> EnableTypingIndicators["enableTypingIndicators: Boolean"]
+            
+            %% Environment Variables
+            EnvVars["Environment Variables"] --> NODE_ENV["NODE_ENV: 'development'/'production'"]
+            EnvVars --> VITE_APP_TOKEN["VITE_APP_TOKEN: Application token"]
+            EnvVars --> VITE_APP_NAME["VITE_APP_NAME: Application name"]
+        end
+        
+        subgraph STANZA["Stanza Handlers"]
+            %% Connection Handlers
+            ConnectionHandlers["Connection Handlers"] --> OnConnect["onConnect():\n- Log connection success\n- Update connection status"]
+            ConnectionHandlers --> OnDisconnect["onDisconnect():\n- Log disconnection\n- Update status\n- Attempt reconnection"]
+            ConnectionHandlers --> OnError["onError():\n- Log error details\n- Update status\n- Display error message"]
+            
+            %% Message Handlers
+            MessageHandlers["Message Handlers"] --> OnMessage["onMessage():\n- Parse message content\n- Update chat history\n- Trigger notifications"]
+            MessageHandlers --> OnGroupMessage["onGroupMessage():\n- Parse group message\n- Update room history\n- Handle mentions"]
+            MessageHandlers --> SendMessage["sendMessage():\n- Format message\n- Append to local chat history\n- Send to XMPP server"]
+            MessageHandlers --> OnMessageRead["onMessageRead():\n- Update message status\n- Display read indicators"]
+            
+            %% Presence Handlers
+            PresenceHandlers["Presence Handlers"] --> OnPresence["onPresence():\n- Update online status\n- Handle availability changes"]
+            PresenceHandlers --> OnRosterPresence["onRosterPresence():\n- Update contact list with presence info"]
+            PresenceHandlers --> SendPresence["sendPresence():\n- Format presence stanza\n- Send to XMPP server"]
+            
+            %% Room Management Handlers
+            RoomHandlers["Room Management Handlers"] --> JoinRoom["joinRoom():\n- Send join request\n- Handle room history\n- Update room list"]
+            RoomHandlers --> LeaveRoom["leaveRoom():\n- Send leave request\n- Update room list"]
+            RoomHandlers --> OnRoomPresence["onRoomPresence():\n- Update participant list\n- Handle join/leave notifications"]
+            RoomHandlers --> OnRoomSubject["onRoomSubject():\n- Update room information\n- Display notifications"]
+            
+            %% Data Form Handlers
+            DataFormHandlers["Data Form Handlers"] --> OnDataForm["onDataForm():\n- Parse form data\n- Display form interface\n- Handle submissions"]
+            DataFormHandlers --> SubmitDataForm["submitDataForm():\n- Format form data\n- Send to XMPP server\n- Handle responses"]
+            
+            %% File Transfer Handlers
+            FileTransferHandlers["File Transfer Handlers"] --> OnFileTransferRequest["onFileTransferRequest():\n- Display accept/reject dialog\n- Prepare for file reception"]
+            FileTransferHandlers --> OnFileTransfer["onFileTransfer():\n- Receive file chunks\n- Assemble file\n- Store file information"]
+            FileTransferHandlers --> SendFileTransfer["sendFileTransfer():\n- Split file into chunks\n- Send chunks\n- Track progress"]
+        end
+        
+        subgraph STORE["Store Management"]
+            %% Room Store
+            RoomStore["Room Store"] --> RoomStoreStructure["Structure:\n- rooms: Array of room objects\n- currentRoom: Currently active room\n- roomParticipants: Map of room JIDs to participants\n- unreadMessages: Map of room JIDs to unread counts\n- draftMessages: Map of room JIDs to draft content\n- roomSearchQuery: String for searching rooms\n- roomFilter: Object for filtering rooms"]
+            
+            RoomStore --> RoomStoreActions["Actions"]
+            RoomStoreActions --> AddRoom["addRoom():\nAdds a new room to the store"]
+            RoomStoreActions --> RemoveRoom["removeRoom():\nRemoves a room from the store"]
+            RoomStoreActions --> SetCurrentRoom["setCurrentRoom():\nSets the active room"]
+            RoomStoreActions --> AddMessage["addMessage():\nAdds a message to room history"]
+            
+            RoomStore --> RoomStoreSelectors["Selectors"]
+            RoomStoreSelectors --> GetRooms["getRooms():\nReturns all rooms"]
+            RoomStoreSelectors --> GetCurrentRoom["getCurrentRoom():\nReturns the current room"]
+            RoomStoreSelectors --> GetRoomByJid["getRoomByJid():\nReturns a room by JID"]
+            
+            RoomStore --> RoomStorePersistence["Persistence:\n- Data persisted to local storage\n- Loaded on app startup"]
+            
+            %% User Store
+            UserStore["User Store"] --> UserStoreStructure["Structure:\n- currentUser: Logged-in user info\n- contacts: Array of contact objects\n- onlineStatus: Map of user JIDs to status\n- blockedUsers: Array of blocked JIDs\n- userPreferences: User settings"]
+            
+            UserStore --> UserStoreActions["Actions"]
+            UserStoreActions --> SetCurrentUser["setCurrentUser():\nSets current user info"]
+ 
+            UserStore --> UserStoreSelectors["Selectors"]
+            UserStoreSelectors --> GetCurrentUser["getCurrentUser():\nReturns current user"]
+            
+            UserStore --> UserStorePersistence["Persistence:\n- Data in secure storage\n- Sensitive data encrypted"]
+            
+            %% Message Store
+            MessageStore["Message Store"] --> MessageStoreStructure["Structure:\n- messages: Map of conversation JIDs to messages\n- pendingMessages: Messages waiting to send\n- failedMessages: Messages that failed\n- messageStatus: Map of message IDs to status"]
+            
+            MessageStore --> MessageStoreActions["Actions"]
+            MessageStoreActions --> AddMessageAction["addMessage():\nAdds message to conversation"]
+            MessageStoreActions --> RemoveMessage["removeMessage():\nRemoves a message"]
+            MessageStoreActions --> UpdateMessageStatus["updateMessageStatus():\nUpdates message status"]
+            MessageStoreActions --> AddPendingMessage["addPendingMessage():\nAdds to pending queue"]
+            MessageStoreActions --> RemovePendingMessage["removePendingMessage():\nRemoves from pending queue /todo"]
+            MessageStoreActions --> AddFailedMessage["addFailedMessage():\nAdds to failed queue /todo"]
+            MessageStoreActions --> RetryFailedMessage["retryFailedMessage():\nMoves from failed to pending /todo"]
+            
+            MessageStore --> MessageStoreSelectors["Selectors"]
+            MessageStoreSelectors --> GetMessages["getMessages():\nGets conversation messages"]
+            MessageStoreSelectors --> GetPendingMessages["getPendingMessages():\nGets pending messages"]
+            MessageStoreSelectors --> GetFailedMessages["getFailedMessages():\nGets failed messages"]
+            MessageStoreSelectors --> GetMessageStatus["getMessageStatus():\nGets message status"]
+        end
+        
+        subgraph HOOKS["Hooks Usage"]
+            %% Authentication Hooks
+            AuthHooks["Authentication Hooks"] --> UseAuth["useAuth():\nReturns { isAuthenticated, user, login, logout, register }"]
+            AuthHooks --> UseLogin["useLogin():\nReturns { login, loginWithGoogle, loginAnonymously, isLoading, error }"]
+            AuthHooks --> UseRegister["useRegister():\nReturns { register, isLoading, error }"]
+            
+            %% Chat Hooks
+            ChatHooks["Chat Hooks"] --> UseChat["useChat():\nReturns { sendMessage, isTyping, markAsRead }"]
+            ChatHooks --> UseRoom["useRoom():\nReturns { joinRoom, leaveRoom, currentRoom, rooms, createRoom }"]
+            ChatHooks --> UseMessages["useMessages():\nReturns { messages, loading, error, loadMore }"]
+            
+            %% User Hooks
+            UserHooks["User Hooks"] --> UseUser["useUser():\nReturns { user, updateUser, uploadAvatar }"]
+            UserHooks --> UseContacts["useContacts():\nReturns { contacts, addContact, removeContact, blockContact }"]
+            UserHooks --> UsePresence["usePresence():\nReturns { onlineUsers, updatePresence }"]
+            
+            %% UI Hooks
+            UIHooks["UI Hooks"] --> UseTheme["useTheme():\nReturns { theme, setTheme, colors }"]
+            UIHooks --> UseNotifications["useNotifications():\nReturns { showNotification, clearNotifications, notifications }"]
+            UIHooks --> UseModal["useModal():\nReturns { isOpen, openModal, closeModal, modalContent }"]
+            
+            %% XMPP Hooks
+            XMPPHooks["XMPP Hooks"] --> UseXmpp["useXmpp():\nReturns { xmppClient, connect, disconnect, isConnected }"]
+            XMPPHooks --> UseStanza["useStanza():\nReturns { sendStanza, addHandler, removeHandler }"]
+            XMPPHooks --> UseRoster["useRoster():\nReturns { roster, addToRoster, removeFromRoster }"]
+        end
+        
+        subgraph OTHER["Other Settings"]
+            %% App Token
+            AppToken["App Token"] --> TokenStructure["Structure: JWT token with user auth info"]
+            TokenStructure --> TokenComponents["Components:\n- Header: Token type and algorithm\n- Payload: User ID, permissions, expiration\n- Signature: Verification signature"]
+            TokenStructure --> TokenUsage["Usage:\n- Sent with API requests\n- Refreshed when expired\n- Stored securely"]
+            
+            %% Default User
+            DefaultUser["Default User"] --> UserStructure["Structure: Object with default user info"]
+            UserStructure --> UserProperties["Properties:\n- id: Unique identifier\n- name: Display name\n- email: Email address\n- avatar: Avatar image URL\n- role: User role\n- preferences: Default preferences"]
+            UserStructure --> UserUsage["Usage:\n- For anonymous login\n- Template for new accounts"]
+            
+            %% Default Room
+            DefaultRoom["Default Room"] --> RoomStructure["Structure: Object with default room settings"]
+            RoomStructure --> RoomProperties["Properties:\n- jid: Jabber ID\n- title: Display name\n- description: Purpose\n- type: Room type\n- avatar: Avatar image URL\n- maxParticipants: Max allowed\n- persistent: Persistence setting"]
+            RoomStructure --> RoomUsage["Usage:\n- Default room on login\n- Template for new rooms"]
+            
+            %% Session Management
+            SessionManagement["Session Management"] --> SessionStructure["Structure: System for managing sessions"]
+            SessionStructure --> SessionComponents["Components:\n- Session tokens with expiration\n- Refresh mechanism\n- Inactivity timeout"]
+            SessionStructure --> SessionUsage["Usage:\n- Maintain auth state\n- Handle multiple devices\n- Secure logout"]
+            
+            %% Localization
+            Localization["Localization Settings"] --> LocalizationStructure["Structure: System for multiple languages"]
+            LocalizationStructure --> LocalizationComponents["Components:\n- Language preference\n- Translation files\n- Date/time formatting"]
+            LocalizationStructure --> LocalizationUsage["Usage:\n- UI in preferred language\n- Format by locale\n- RTL language support"]
+        end
+        
+        %% Main Flow Connections
+        Start --> CONFIG
+        CONFIG --> STANZA
+        LOGIN --> STORE
+        ChatInterface --> STANZA
+        STORE --> HOOKS
+        STANZA --> STORE
+        HOOKS --> STANZA
+        HOOKS --> OTHER
+    end
+    
+    %% Connection between sections
+    ChatInterface --> MainChatFlow["Main Chat Flow"]
+    MainChatFlow --> MainChatProcess{"Process\nType"}
+    
+    MainChatProcess -->|"Send Message"| ComposeMessage["Compose Message"]
+    ComposeMessage --> ValidateMessage{"Message\nValid?"}
+    ValidateMessage -->|"No"| ShowMessageError["Show Error Message"]
+    ShowMessageError --> ComposeMessage
+    ValidateMessage -->|"Yes"| UseChatHook["Use useChat() hook"]
+    UseChatHook --> SendMessageAction["Call sendMessage() function"]
+    SendMessageAction --> UseStanzaHook["Use useStanza() hook"]
+    UseStanzaHook --> FormatMessageStanza["Format message stanza"]
+    FormatMessageStanza --> SendToXMPP["Send to XMPP server"]
+    SendToXMPP --> UpdateMessageStore["Update message store"]
+    UpdateMessageStore --> DisplayInChat["Display in chat interface"]
+    
+    MainChatProcess -->|"Join Room"| EnterRoomJID["Enter Room JID/Name"]
+    EnterRoomJID --> UseRoomHook["Use useRoom() hook"]
+    UseRoomHook --> JoinRoomAction["Call joinRoom() function"]
+    JoinRoomAction --> SendJoinStanza["Send join stanza to XMPP"]
+    SendJoinStanza --> HandleRoomHistory["Handle room history"]
+    HandleRoomHistory --> UpdateRoomStore["Update room store"]
+    UpdateRoomStore --> DisplayRoomMessages["Display room messages"]
+    
+    MainChatProcess -->|"Change Settings"| OpenSettings["Open settings panel"]
+    OpenSettings --> UpdateUserPreferences["Update user preferences"]
+    UpdateUserPreferences --> StorePreferences["Store in user store"]
+    StorePreferences --> ApplyNewSettings["Apply new settings"]
+    
+    %% Error Handling
+    subgraph ERRORS["Error Handling"]
+        ConnectionError["Connection Error"] --> AttemptReconnect["Attempt reconnect"]
+        AttemptReconnect --> ReconnectSuccess{"Reconnect\nSuccessful?"}
+        ReconnectSuccess -->|"Yes"| RestoreSession["Restore session"]
+        ReconnectSuccess -->|"No"| ShowConnectionError["Show connection error"]
+        ShowConnectionError --> OfferManualReconnect["Offer manual reconnect"]
+        
+        MessageError["Message Error"] --> MessageErrorType{"Error\nType"}
+        MessageErrorType -->|"Send Failure"| AddToFailedQueue["Add to failed queue"]
+        AddToFailedQueue --> OfferRetry["Offer retry option"]
+        MessageErrorType -->|"Format Error"| ShowFormatError["Show format error"]
+        MessageErrorType -->|"Permission Error"| ShowPermissionError["Show permission error"]
+        
+        AuthError["Authentication Error"] --> AuthErrorType{"Error\nType"}
+        AuthErrorType -->|"Invalid Credentials"| ShowInvalidCredentials["Show invalid credentials"]
+        AuthErrorType -->|"Token Expired"| RefreshToken["Refresh token"]
+        RefreshToken --> TokenRefreshSuccess{"Refresh\nSuccessful?"}
+        TokenRefreshSuccess -->|"Yes"| ContinueOperation["Continue operation"]
+        TokenRefreshSuccess -->|"No"| ForceRelogin["Force re-login"]
+    end
+    
+    %% Connect error handling to main flow
+    SendToXMPP -->|"Error"| ConnectionError
+    LoginSuccess -->|"Error"| AuthError
+    CallLoginEmail -->|"Error"| AuthError

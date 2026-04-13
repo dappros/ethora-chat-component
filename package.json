@@ -1,6 +1,6 @@
 {
   "name": "@ethora/chat-component",
-  "version": "26.02.08",
+  "version": "26.2.8",
   "type": "module",
   "main": "dist/main.js",
   "types": "dist/main.d.ts",
@@ -16,6 +16,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "build:lib": "tsc --p ./tsconfig-build.json && vite build",
+    "prepare": "npm run build",
     "lint": "eslint . --quiet --report-unused-disable-directives",
     "lint:full": "eslint . --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
@@ -39,6 +40,7 @@
     "react-qr-code": "^2.0.16",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.6.2",
+    "react-use-measure": "^2.1.7",
     "redux": "^5.0.1",
     "redux-persist": "^6.0.0",
     "redux-persist-transform-encrypt": "^5.1.1",

@@ -66,13 +66,29 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
 
   useEffect(() => {
     let cancelled = false;
-
     const initUser = async () => {
       if (config?.baseUrl) {
         setBaseURL(config.baseUrl, config.customAppToken);
       }
 
       if (user.xmppUsername) {
+        return;
+      }
+
+      if (config?.customLogin?.enabled && config?.customLogin?.loginFunction) {
+        try {
+          const loginData = await config.customLogin.loginFunction();
+          if (!cancelled && loginData) {
+            dispatch(setUser(loginData));
+          } else if (!cancelled) {
+            setShowModal(true);
+          }
+        } catch (error) {
+          ethoraLogger.log('error with custom login', error);
+          if (!cancelled) {
+            setShowModal(true);
+          }
+        }
         return;
       }
 
@@ -103,7 +119,14 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
         return;
       }
 
-      if (config?.defaultLogin && user.xmppUsername === '') {
+      const hasExplicitLoginMode =
+        !!config?.googleLogin ||
+        !!config?.defaultLogin ||
+        !!config?.customLogin ||
+        !!config?.jwtLogin ||
+        !!config?.userLogin;
+
+      if (user.xmppUsername === '' && (!hasExplicitLoginMode || config?.defaultLogin)) {
         try {
           const loginData = await loginUserFunction();
           if (!cancelled && loginData) {

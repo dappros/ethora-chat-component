@@ -4,6 +4,7 @@ import { Element } from 'ltx';
 import { IMessage } from '../../types/types';
 import { getDataFromXml } from '../../helpers/getDataFromXml';
 import { createMessageFromXml } from '../../helpers/createMessageFromXml';
+import { VITE_APP_XMPP_CONFERENCE } from '../../config';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
 
 export const getHistory = async (
@@ -16,7 +17,7 @@ export const getHistory = async (
   if (typeof chatJID !== 'string') return;
   const fixedChatJid = chatJID.includes('@')
     ? chatJID
-    : `${chatJID}@conference.dev.xmpp.ethoradev.com`;
+    : `${chatJID}@${VITE_APP_XMPP_CONFERENCE}`;
 
   const id = otherId ?? `get-history:${Date.now().toString()}`;
 

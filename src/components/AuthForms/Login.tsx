@@ -14,6 +14,7 @@ import {
 import { useDispatch } from 'react-redux';
 import { setUser } from '../../roomStore/chatSettingsSlice';
 import { useToast } from '../../context/ToastContext';
+import { VITE_APP_WEB_URL } from '../../config';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
 
 interface LoginFormProps {
@@ -245,7 +246,10 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
             }}
             onClick={() => {
               if (typeof window !== "undefined") {
-                window.open("https://ethora.ethoradev.com/register", "_blank");
+                window.open(
+                  VITE_APP_WEB_URL ? `${VITE_APP_WEB_URL}/register` : `${window.location.origin}/register`,
+                  "_blank"
+                );
               }
             }}
           >
