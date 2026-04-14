@@ -88,6 +88,7 @@ interface UsePushNotificationsResult {
 }
 
 let _subscriptionRegistered = false; // module-level guard to prevent duplicate subscriptions
+let _subscriptionRegistrationPromise: Promise<void> | null = null;
 let _foregroundHandlers = new Set<(payload: any) => void>();
 let _foregroundUnsubscribe: (() => void) | null = null;
 
@@ -222,65 +223,76 @@ const usePushNotifications = (
 
   // ─────────────────────────────────────────────────────────────────────────────
   const runPushFlow = useCallback(async () => {
-    try {
-      if (!enabled) return;
-      if (_subscriptionRegistered) {
+    if (!enabled) return;
+    if (_subscriptionRegistered) {
+      if (config?.useStoreConsoleEnabled) {
+        ethoraLogger.log('[PushNotifications] Already subscribed this session, skipping.');
+      }
+      return;
+    }
+
+    if (_subscriptionRegistrationPromise) {
+      await _subscriptionRegistrationPromise;
+      return;
+    }
+
+    _subscriptionRegistrationPromise = (async () => {
+      try {
         if (config?.useStoreConsoleEnabled) {
-          ethoraLogger.log('[PushNotifications] Already subscribed this session, skipping.');
+          ethoraLogger.log('[PushNotifications] Initializing FCM push notifications…');
         }
-        return;
-      }
+        const fcmToken = await initPushNotifications({
+          vapidPublicKey,
+          serviceWorkerPath: options.serviceWorkerPath,
+          serviceWorkerScope: options.serviceWorkerScope,
+          firebaseConfig: options.firebaseConfig || config?.pushNotifications?.firebaseConfig,
+          debug: config?.useStoreConsoleEnabled,
+        });
 
-      if (config?.useStoreConsoleEnabled) {
-        ethoraLogger.log('[PushNotifications] Initializing FCM push notifications…');
-      }
-      const fcmToken = await initPushNotifications({
-        vapidPublicKey,
-        serviceWorkerPath: options.serviceWorkerPath,
-        serviceWorkerScope: options.serviceWorkerScope,
-        firebaseConfig: options.firebaseConfig || config?.pushNotifications?.firebaseConfig,
-        debug: config?.useStoreConsoleEnabled,
-      });
+        if (!fcmToken) {
+          if (config?.useStoreConsoleEnabled) {
+            console.warn('[PushNotifications] Failed to obtain FCM token.');
+          }
+          return;
+        }
 
-      if (!fcmToken) {
+        // Step 4 – Backend registration
         if (config?.useStoreConsoleEnabled) {
-          console.warn('[PushNotifications] Failed to obtain FCM token.');
+          ethoraLogger.log('[PushNotifications] Registering FCM token with Ethora backend (API)…');
         }
-        return;
-      }
+        await registerPushToken(fcmToken);
 
-      // Step 4 – Backend registration
-      if (config?.useStoreConsoleEnabled) {
-        ethoraLogger.log('[PushNotifications] Registering FCM token with Ethora backend (API)…');
-      }
-      await registerPushToken(fcmToken);
+        _subscriptionRegistered = true;
+        fcmTokenRef.current = fcmToken;
+        setFcmTokenReady(fcmToken); // signal room-subscription effect
 
-      _subscriptionRegistered = true;
-      fcmTokenRef.current = fcmToken;
-      setFcmTokenReady(fcmToken); // signal room-subscription effect
-
-      // Log: subscribed via API
-      if (config?.useStoreConsoleEnabled) {
-        ethoraLogger.log(
-          '%c[PushNotifications] ✅ User subscribed via API',
-          'color: #22c55e; font-weight: bold'
-        );
-      }
-
-      // Log: XMPP session linked (informational)
-      if (userXmppUsername) {
+        // Log: subscribed via API
         if (config?.useStoreConsoleEnabled) {
           ethoraLogger.log(
-            `%c[PushNotifications] ✅ Device linked to XMPP – JID: ${userXmppUsername}`,
-            'color: #3b82f6; font-weight: bold'
+            '%c[PushNotifications] ✅ User subscribed via API',
+            'color: #22c55e; font-weight: bold'
           );
         }
+
+        // Log: XMPP session linked (informational)
+        if (userXmppUsername) {
+          if (config?.useStoreConsoleEnabled) {
+            ethoraLogger.log(
+              `%c[PushNotifications] ✅ Device linked to XMPP – JID: ${userXmppUsername}`,
+              'color: #3b82f6; font-weight: bold'
+            );
+          }
+        }
+      } catch (error) {
+        if (config?.useStoreConsoleEnabled) {
+          console.error('[PushNotifications] Registration error:', error);
+        }
+      } finally {
+        _subscriptionRegistrationPromise = null;
       }
-    } catch (error) {
-      if (config?.useStoreConsoleEnabled) {
-        console.error('[PushNotifications] Registration error:', error);
-      }
-    }
+    })();
+
+    await _subscriptionRegistrationPromise;
   }, [
     enabled,
     options.serviceWorkerPath,
@@ -455,6 +467,7 @@ const usePushNotifications = (
       lastRoomsHashRef.current = '';
       isSyncingRef.current = false;
       _subscriptionRegistered = false;
+      _subscriptionRegistrationPromise = null;
     }
 
     lastXmppUsernameRef.current = userXmppUsername || '';

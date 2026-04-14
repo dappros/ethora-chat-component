@@ -138,6 +138,34 @@ export default function App() {
 }
 ```
 
+### Single XMPP Initialization Contract
+
+To avoid duplicated `wss://.../ws` connections, keep a single XMPP init source:
+
+- `initBeforeLoad: true` -> `XmppProvider` is the only place that initializes XMPP.
+- `initBeforeLoad: false` -> `Chat` (`useChatWrapperInit`) initializes XMPP.
+
+If your app also has external `client.login(...)` logic, guard it:
+
+```ts
+if (chatConfig.initBeforeLoad) {
+  console.warn('[XMPP] initBeforeLoad=true, skip external client.login()');
+  return;
+}
+
+await client.login(...);
+```
+
+Also pass a memoized config object to both `XmppProvider` and `Chat`:
+
+```tsx
+const chatConfig = useMemo(() => ({ ...baseConfig }), [baseConfig]);
+
+<XmppProvider config={chatConfig}>
+  <Chat config={chatConfig} />
+</XmppProvider>;
+```
+
 ### 3. Run
 
 ```bash

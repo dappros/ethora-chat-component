@@ -55,6 +55,24 @@ function wasHandledByFcm(id) {
   return id ? _handledByFcm.has(id) : false;
 }
 
+function buildDedupeKey(payload = {}) {
+  const data = payload.data || {};
+  const notification = payload.notification || {};
+  const explicitMessageId =
+    payload.messageId ||
+    data.msgID ||
+    data.messageId ||
+    data.message_id ||
+    '';
+
+  const roomJid = data.jid || payload.roomJid || '';
+  const senderId = data.userJid || payload.senderId || '';
+  const title = notification.title || payload.title || '';
+  const body = notification.body || payload.body || payload.message || '';
+
+  return explicitMessageId || `${roomJid}|${senderId}|${title}|${body}`;
+}
+
 // ── Helpers ───────────────────────────────────────────────────
 function isSystemPayload(data) {
   return !data?.msgID && !data?.jid && !!data?.userJid;
@@ -157,8 +175,14 @@ if (messaging) {
     const data = payload.data || {};
     const notification = payload.notification || {};
     const messageId = payload.messageId || data.msgID || null;
+    const dedupeKey = buildDedupeKey({
+      messageId,
+      data,
+      notification,
+    });
 
     markHandledByFcm(messageId);
+    markHandledByFcm(dedupeKey);
 
     const isSystem = isSystemPayload(data);
     const title =
@@ -244,11 +268,23 @@ self.addEventListener('push', (event) => {
     payloadData.messageId ||
     payloadData.message_id ||
     null;
+  const dedupeKey = buildDedupeKey({
+    messageId,
+    data: payloadData,
+    notification,
+    title: raw.title,
+    body: raw.body || raw.message,
+    roomJid: raw.roomJid,
+    senderId: raw.senderId,
+  });
 
-  if (wasHandledByFcm(messageId)) {
+  if (wasHandledByFcm(messageId) || wasHandledByFcm(dedupeKey)) {
     //     console.log(`[SW] push skipped – already handled by FCM (msgId=${messageId})`);
     return;
   }
+
+  markHandledByFcm(messageId);
+  markHandledByFcm(dedupeKey);
 
   if (sourceType !== 'json') {
     /*    console.log('[SW][NON_JSON_PUSH_PROCESSED]', {
