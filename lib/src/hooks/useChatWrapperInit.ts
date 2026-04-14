@@ -301,6 +301,16 @@ const useChatWrapperInit = ({
         } else {
           chatAutoEnterer({ roomJID, wasAutoSelected, config, dispatch });
           if (!client) {
+            if (config?.initBeforeLoad) {
+              dispatch(
+                setIsLoading({ loading: true, loadingText: 'Connecting...' })
+              );
+              ethoraLogger.log(
+                '[InitPolicy] initBeforeLoad=true, skip ChatWrapper init and wait for XmppProvider client'
+              );
+              retryTimeout = setTimeout(initXmmpClient, 500);
+              return;
+            }
             try {
               setInited(false);
               setShowModal(false);
@@ -410,7 +420,7 @@ const useChatWrapperInit = ({
         startupSummaryTimeoutRef.current = null;
       }
     };
-  }, [user.xmppPassword, user.xmppUsername]);
+  }, [user.xmppPassword, user.xmppUsername, client, config?.initBeforeLoad]);
 
   useEffect(() => {
     if (!client) return;
