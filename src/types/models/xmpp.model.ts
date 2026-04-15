@@ -150,5 +150,5 @@ export interface XmppClientInterface {
     mainMessage?: string,
     langSource?: Iso639_1Codes
   ): void;
-  disconnect?(options?: { suppressReconnect?: boolean }): Promise<void>;
+  disconnect?(): Promise<void>;
 }

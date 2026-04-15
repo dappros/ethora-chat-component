@@ -55,12 +55,7 @@ const useChatWrapperInit = ({
   const presenceBootstrappedClientsRef = useRef<Set<string>>(new Set());
   const startupSummaryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const {
-    client,
-    initializeClient,
-    setClient,
-    providerBootstrapStatus,
-  } = useXmppClient();
+  const { client, initializeClient, setClient } = useXmppClient();
   const syncRooms = useGetNewArchRoom();
 
   const rooms = useSelector((state: RootState) => state.rooms.rooms);
@@ -306,32 +301,7 @@ const useChatWrapperInit = ({
         } else {
           chatAutoEnterer({ roomJID, wasAutoSelected, config, dispatch });
           if (!client) {
-            if (config?.initBeforeLoad) {
-              if (providerBootstrapStatus === 'failed') {
-                dispatch(setIsLoading({ loading: false, loadingText: undefined }));
-                setConnectionLost(true);
-                setInited(false);
-                ethoraLogger.log(
-                  '[InitPolicy] initBeforeLoad=true and provider bootstrap failed. ChatWrapper init is locked.'
-                );
-                retryTimeout = setTimeout(initXmmpClient, 2000);
-                return;
-              }
-
-              dispatch(
-                setIsLoading({ loading: true, loadingText: 'Connecting...' })
-              );
-              setConnectionLost(false);
-              ethoraLogger.log(
-                `[InitPolicy] initBeforeLoad=true, waiting provider client (status=${providerBootstrapStatus})`
-              );
-              retryTimeout = setTimeout(initXmmpClient, 400);
-              return;
-            }
             try {
-              dispatch(
-                setIsLoading({ loading: true, loadingText: 'Connecting...' })
-              );
               setInited(false);
               setShowModal(false);
               dispatch(
@@ -440,13 +410,7 @@ const useChatWrapperInit = ({
         startupSummaryTimeoutRef.current = null;
       }
     };
-  }, [
-    user.xmppPassword,
-    user.xmppUsername,
-    client,
-    config?.initBeforeLoad,
-    providerBootstrapStatus,
-  ]);
+  }, [user.xmppPassword, user.xmppUsername]);
 
   useEffect(() => {
     if (!client) return;
