@@ -1,12 +1,13 @@
 import axios from 'axios';
 import { store } from '../roomStore';
 import { appToken as betaAppToken } from '../api.config';
+import { VITE_APP_API_URL } from '../config';
 
 import { logout, refreshTokens } from '../roomStore/chatSettingsSlice';
 
 let baseURL =
   store.getState().chatSettingStore?.config?.baseUrl ||
-  'https://api.ethoradev.com/v1';
+  VITE_APP_API_URL;
 
 const http = axios.create({
   baseURL,

@@ -35,12 +35,15 @@ import { sendPing } from './xmpp/sendPing.xmpp';
 import { isPong } from './xmpp/handlePong.xmpp';
 import { store } from '../roomStore';
 import { IMessage } from '../types/types';
+import { SERVICE, VITE_APP_XMPP_BASEDOMAIN, VITE_APP_XMPP_CONFERENCE } from '../config';
 import { formatError } from '../utils/formatError';
 import { getDataFromXml } from '../helpers/getDataFromXml';
 import { createMessageFromXml } from '../helpers/createMessageFromXml';
-import { setRoomMessages } from '../roomStore/roomsSlice';
+import { setRoomMessages, updateRoom } from '../roomStore/roomsSlice';
 import { ethoraLogger } from '../helpers/ethoraLogger';
 import { getRoomLastActivityScore } from '../helpers/roomActivityScore';
+import { getBooleanFromString } from '../helpers/getBooleanFromString';
+import { getNumberFromString } from '../helpers/getNumberFromString';
 
 type HistoryPriority = 0 | 1 | 2;
 type HistorySource = 'active' | 'send_ack' | 'background' | 'default';
@@ -187,11 +190,9 @@ export class XmppClient implements XmppClientInterface {
     password: string,
     xmppSettings?: xmppSettingsInterface
   ) {
-    this.devServer =
-      xmppSettings?.devServer || `wss://dev.xmpp.ethoradev.com:5443/ws`;
-    this.host = xmppSettings?.host || 'dev.xmpp.ethoradev.com';
-    this.service =
-      xmppSettings?.conference || 'conference.dev.xmpp.ethoradev.com';
+    this.devServer = xmppSettings?.devServer || SERVICE;
+    this.host = xmppSettings?.host || VITE_APP_XMPP_BASEDOMAIN;
+    this.service = xmppSettings?.conference || VITE_APP_XMPP_CONFERENCE;
 
     this.conference = `conference.${this.host}`;
     this.username = username;
@@ -220,7 +221,7 @@ export class XmppClient implements XmppClientInterface {
         this.logStep('initializeClient:disconnect-previous');
         await this.disconnect();
       }
-      const url = this.devServer || `wss://xmpp.ethoradev.com:5443/ws`;
+      const url = this.devServer || SERVICE;
 
       this.host = url.match(/wss:\/\/([^:/]+)/)?.[1] || '';
       this.conference = `conference.${this.host}`;
@@ -884,6 +885,34 @@ export class XmppClient implements XmppClientInterface {
       if (!request) return false;
 
       if (stanza.attrs.type === 'result') {
+        const roomJid = String(stanza?.attrs?.from || request.chatJID || '').split('/')[0];
+        const fin = stanza.getChild('fin');
+        if (roomJid && fin) {
+          const historyComplete = getBooleanFromString(fin?.attrs?.complete);
+          const set = fin.getChild('set');
+          const first = set?.getChildText('first');
+          const last = set?.getChildText('last');
+          const firstMessageTimestamp = getNumberFromString(first);
+          const lastMessageTimestamp = getNumberFromString(last);
+
+          store.dispatch(
+            updateRoom({
+              jid: roomJid,
+              updates: {
+                historyComplete,
+                ...(set
+                  ? {
+                      messageStats: {
+                        firstMessageTimestamp,
+                        lastMessageTimestamp,
+                      },
+                    }
+                  : {}),
+              },
+            })
+          );
+        }
+
         clearTimeout(request.timeout);
         this.mamRequestRegistry.delete(requestId);
         this.parseMamMessages(request.messages)
@@ -916,7 +945,7 @@ export class XmppClient implements XmppClientInterface {
     if (!chatJID) return Promise.resolve(undefined);
     const fixedChatJid = chatJID.includes('@')
       ? chatJID
-      : `${chatJID}@conference.dev.xmpp.ethoradev.com`;
+      : `${chatJID}@${this.service || VITE_APP_XMPP_CONFERENCE}`;
 
     return new Promise<IMessage[] | undefined>((resolve) => {
       const timeout = setTimeout(() => {
@@ -1443,7 +1472,7 @@ export class XmppClient implements XmppClientInterface {
               isReply,
               showInChannel,
               mainMessage,
-              this.devServer || `wss://'xmpp.ethoradev.com:5443'/ws`,
+              this.devServer || SERVICE,
               customId
             );
           });
@@ -1496,7 +1525,7 @@ export class XmppClient implements XmppClientInterface {
                 isReply,
                 showInChannel,
                 mainMessage,
-                devServer: this.devServer || 'xmpp.ethoradev.com:5443',
+                devServer: this.devServer || SERVICE,
               },
               langSource,
               customId
