@@ -1,9 +1,10 @@
 import { ApiRoom, IRoom } from '../types/types';
+import { VITE_APP_XMPP_CONFERENCE } from '../config';
 import { ethoraLogger } from './ethoraLogger';
 
 export const createRoomFromApi = (
   room: ApiRoom,
-  service: string = 'conference.dev.xmpp.ethoradev.com',
+  service: string = VITE_APP_XMPP_CONFERENCE,
   usersArrayLength: number = 0
 ): IRoom => {
   try {

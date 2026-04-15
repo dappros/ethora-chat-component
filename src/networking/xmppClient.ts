@@ -39,9 +39,11 @@ import { SERVICE, VITE_APP_XMPP_BASEDOMAIN, VITE_APP_XMPP_CONFERENCE } from '../
 import { formatError } from '../utils/formatError';
 import { getDataFromXml } from '../helpers/getDataFromXml';
 import { createMessageFromXml } from '../helpers/createMessageFromXml';
-import { setRoomMessages } from '../roomStore/roomsSlice';
+import { setRoomMessages, updateRoom } from '../roomStore/roomsSlice';
 import { ethoraLogger } from '../helpers/ethoraLogger';
 import { getRoomLastActivityScore } from '../helpers/roomActivityScore';
+import { getBooleanFromString } from '../helpers/getBooleanFromString';
+import { getNumberFromString } from '../helpers/getNumberFromString';
 
 type HistoryPriority = 0 | 1 | 2;
 type HistorySource = 'active' | 'send_ack' | 'background' | 'default';
@@ -883,6 +885,34 @@ export class XmppClient implements XmppClientInterface {
       if (!request) return false;
 
       if (stanza.attrs.type === 'result') {
+        const roomJid = String(stanza?.attrs?.from || request.chatJID || '').split('/')[0];
+        const fin = stanza.getChild('fin');
+        if (roomJid && fin) {
+          const historyComplete = getBooleanFromString(fin?.attrs?.complete);
+          const set = fin.getChild('set');
+          const first = set?.getChildText('first');
+          const last = set?.getChildText('last');
+          const firstMessageTimestamp = getNumberFromString(first);
+          const lastMessageTimestamp = getNumberFromString(last);
+
+          store.dispatch(
+            updateRoom({
+              jid: roomJid,
+              updates: {
+                historyComplete,
+                ...(set
+                  ? {
+                      messageStats: {
+                        firstMessageTimestamp,
+                        lastMessageTimestamp,
+                      },
+                    }
+                  : {}),
+              },
+            })
+          );
+        }
+
         clearTimeout(request.timeout);
         this.mamRequestRegistry.delete(requestId);
         this.parseMamMessages(request.messages)
