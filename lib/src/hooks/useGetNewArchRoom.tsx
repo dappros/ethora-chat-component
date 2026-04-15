@@ -17,7 +17,9 @@ const useGetNewArchRoom = () => {
   const syncRooms = useCallback(
     async (client: any, config: any): Promise<ApiRoom[]> => {
       const rooms = await getRooms();
-      rooms?.items?.forEach((room) => {
+      const items = rooms?.items || [];
+
+      items.forEach((room) => {
         dispatch(
           addRoomViaApi({
             room: createRoomFromApi(room, config?.xmppSettings?.conference),
@@ -26,8 +28,8 @@ const useGetNewArchRoom = () => {
         );
       });
       dispatch(setIsLoading({ loading: false, loadingText: undefined }));
-      dispatch(updateUsersSet({ rooms: rooms.items }));
-      return rooms?.items || [];
+      dispatch(updateUsersSet({ rooms: items }));
+      return items;
     },
     [dispatch]
   );

@@ -11,7 +11,8 @@ import {
   MessageFooter,
 } from '../styled/StyledComponents';
 import MediaMessage from '../MainComponents/MediaMessage';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '../../roomStore';
 
 import { Avatar } from './Avatar';
 import MessageInteractions from './MessageInteractions';
@@ -33,10 +34,10 @@ import { DoubleTick } from '../../assets/icons';
 import { parseMessageBody } from '../../helpers/parseMessageBody';
 import URLPreviewCard from './URLPreviewCard';
 import { useMessageHeapState } from '../../hooks/useMessageHeapState';
-import { resendMessage } from '../../main';
+import { parseMessageReference } from '../../helpers/parseMessageReference';
 
 const firstUrlRegex =
-  /(https?:\/\/[\w.-]+(?:\.[\w.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+)/;
+  /(https?:\/\/[\w.-]+(?:\.[\w.-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=.]+)/;
 
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
@@ -46,15 +47,31 @@ const Message: React.FC<MessageProps> = forwardRef<
   const { user, config, langSource } = useChatSettingState();
   const { idSet } = useMessageHeapState();
 
-  const dispatch = useDispatch();
+  // Read sender name live from usersSet so user-update stanzas trigger immediate re-render.
+  const usersSet = useSelector((state: RootState) => state.rooms.usersSet);
+  const senderUserId = message.user?.id ?? '';
+  const senderLocal = senderUserId.split('@')[0];
+  const senderEntry = usersSet[senderLocal] ?? usersSet[senderUserId];
+  const senderDisplayName = senderEntry
+    ? `${senderEntry.firstName ?? ''} ${senderEntry.lastName ?? ''}`.trim() || senderLocal
+    : message.user?.name || senderLocal || 'Unknown';
+  const referencedMessage = parseMessageReference(message.mainMessage);
 
-  const [contextMenu, setContextMenu] = !config?.disableInteractions
-    ? useState<{ visible: boolean; x: number; y: number }>({
-        visible: false,
-        x: 0,
-        y: 0,
-      })
-    : [null, null];
+
+  const dispatch = useDispatch();
+  const [contextMenu, setContextMenu] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+  } | null>(
+    config?.disableInteractions
+      ? null
+      : {
+          visible: false,
+          x: 0,
+          y: 0,
+        }
+  );
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
@@ -125,7 +142,10 @@ const Message: React.FC<MessageProps> = forwardRef<
     dispatch(setEditAction({ isEdit: false }));
 
     if (!isReply && message.mainMessage) {
-      const messageCore = JSON.parse(message.mainMessage);
+      const messageCore = parseMessageReference(message.mainMessage);
+      if (!messageCore?.id || !messageCore?.roomJid) {
+        return;
+      }
       return dispatch(
         setActiveMessage({ id: messageCore.id, chatJID: messageCore.roomJid })
       );
@@ -204,15 +224,15 @@ const Message: React.FC<MessageProps> = forwardRef<
     <>
       <CustomMessageContainer
         key={message.id}
-        isUser={isUser}
-        reply={!!message?.reply?.length}
-        reaction={message?.reaction && !!Object.keys(message?.reaction)?.length}
+        $isUser={isUser}
+        $reply={!!message?.reply?.length}
+        $reaction={message?.reaction && !!Object.keys(message?.reaction)?.length}
         ref={ref}
       >
         {!isUser && (
           <CustomMessagePhotoContainer
             onClick={() =>
-              message.user.name !== 'Deleted User'
+              senderDisplayName !== 'Deleted User'
                 ? handleUserAvatarClick(message.user)
                 : null
             }
@@ -220,17 +240,16 @@ const Message: React.FC<MessageProps> = forwardRef<
             {message.user?.profileImage && message.user.profileImage !== '' ? (
               <CustomMessagePhoto
                 src={
-                  message.user.profileImage ||
-                  'https://soccerpointeclaire.com/wp-content/uploads/2021/06/default-profile-pic-e1513291410505.jpg'
+                  message.user.profileImage 
                 }
                 alt="userIcon"
               />
             ) : (
               <Avatar
-                username={message.user.name}
+                username={senderDisplayName}
                 style={{
                   cursor:
-                    message.user.name !== 'Deleted User'
+                    senderDisplayName !== 'Deleted User'
                       ? 'pointer'
                       : 'default',
                 }}
@@ -239,22 +258,22 @@ const Message: React.FC<MessageProps> = forwardRef<
           </CustomMessagePhotoContainer>
         )}
         <CustomMessageBubble
-          deleted={message.isDeleted}
-          isUser={isUser}
+          $deleted={message.isDeleted}
+          $isUser={isUser}
           onContextMenu={handleContextMenu}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
           {!isUser && (
-            <CustomUserName isUser={isUser} color={config?.colors?.primary}>
-              {message.user.name}
+            <CustomUserName $isUser={isUser} $color={config?.colors?.primary}>
+              {senderDisplayName}
             </CustomUserName>
           )}
-          {!isReply && message.mainMessage && (
+          {!isReply && referencedMessage?.text && (
             <MessageReply
               handleReplyMessage={handleReplyMessage}
               isUser={isUser}
-              text={JSON.parse(message.mainMessage).text}
+              text={referencedMessage.text}
               color={config?.colors?.primary}
             />
           )}
@@ -303,7 +322,7 @@ const Message: React.FC<MessageProps> = forwardRef<
             <URLPreviewCard url={previewUrl} isUserMessage={isUser} />
           )}
         </CustomMessageBubble>
-        <MessageFooter isUser={isUser}>
+        <MessageFooter $isUser={isUser}>
           {message?.reply?.length && message?.reply?.length > 0 ? (
             <BottomReplyContainer
               isUser={isUser}

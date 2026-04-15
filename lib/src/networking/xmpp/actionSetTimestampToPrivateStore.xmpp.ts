@@ -1,37 +1,33 @@
 import { getChatsPrivateStoreRequest } from './getChatsPrivateStoreRequest.xmpp';
 import { setChatsPrivateStoreRequest } from './setChatsPrivateStoreRequest.xmpp';
 
-const populateChats = (chats: string[], timestamp: string): string => {
-  const populatedData = chats.reduce(
-    (acc, chat) => {
-      acc[chat] = timestamp;
-      return acc;
-    },
-    {} as Record<string, string>
-  );
-
-  return JSON.stringify(populatedData);
-};
-
 export async function actionSetTimestampToPrivateStore(
   client: any,
   chatId: string,
   timestamp: number,
   chats?: string[]
 ) {
+  if (!chatId) return false;
+
   let storeObj: any = await getChatsPrivateStoreRequest(client);
+  const ts = String(timestamp);
 
   if (storeObj && typeof storeObj === 'object') {
-    storeObj[chatId] = timestamp;
+    storeObj[chatId] = ts;
 
     const str = JSON.stringify(storeObj);
     await setChatsPrivateStoreRequest(client, str);
     return true;
   } else {
-    await setChatsPrivateStoreRequest(
-      client,
-      populateChats(chats, timestamp.toString())
-    );
+    const bootstrapPayload: Record<string, string> = { [chatId]: ts };
+    if (Array.isArray(chats)) {
+      chats.forEach((jid) => {
+        if (!jid || jid === chatId || bootstrapPayload[jid]) return;
+        bootstrapPayload[jid] = '0';
+      });
+    }
+
+    await setChatsPrivateStoreRequest(client, JSON.stringify(bootstrapPayload));
     return true;
   }
 }

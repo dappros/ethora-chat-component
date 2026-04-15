@@ -9,10 +9,15 @@ export interface XmppState {
 }
 
 export interface xmppSettingsInterface {
-  devServer: string;
-  host: string;
+  devServer?: string;
+  host?: string;
   conference?: string;
   xmppPingOnSendEnabled?: boolean;
+  historyQoS?: {
+    maxInFlightHistory?: number;
+    softPauseAfterSendMs?: number;
+    activeRoomBoostTtlMs?: number;
+  };
 }
 
 export interface MediaUploadData {
@@ -51,13 +56,34 @@ export interface XmppClientInterface {
   ): Promise<string | object>;
   inviteRoomRequestStanza(to: string, roomJid: string): Promise<void>;
   leaveTheRoomStanza(roomJID: string): void;
-  presenceInRoomStanza(roomJID: string): void;
+  presenceInRoomStanza(
+    roomJID: string,
+    settleDelay?: number,
+    timeoutMs?: number,
+    waitForJoin?: boolean
+  ): Promise<boolean>;
+  prioritizeRoomPresence(roomJID: string): Promise<boolean>;
+  recoverRoomPresenceOnly(roomJID: string): Promise<boolean>;
   getHistoryStanza(
     chatJID: string,
     max: number,
     before?: number,
-    otherStanzaId?: string
-  ): Promise<IMessage[]>;
+    otherStanzaId?: string,
+    options?: {
+      coalesceRoom?: boolean;
+      skipIfPreloaded?: boolean;
+      source?: 'active' | 'send_ack' | 'background' | 'default';
+    }
+  ): Promise<IMessage[] | undefined>;
+  promoteRoomHistory(roomJID: string): void;
+  onCriticalSend(roomJID: string, messageId?: string): void;
+  enqueueHistoryTask(params: {
+    chatJID: string;
+    max: number;
+    before?: number;
+    id?: string;
+    source?: 'active' | 'send_ack' | 'background' | 'default';
+  }): Promise<IMessage[] | undefined>;
   getLastMessageArchiveStanza(roomJID: string): void;
   setRoomImageStanza(
     roomJid: string,
@@ -124,5 +150,5 @@ export interface XmppClientInterface {
     mainMessage?: string,
     langSource?: Iso639_1Codes
   ): void;
-  disconnect?(): Promise<void>;
+  disconnect?(options?: { suppressReconnect?: boolean }): Promise<void>;
 }

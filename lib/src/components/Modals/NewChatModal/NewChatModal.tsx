@@ -152,7 +152,7 @@ const NewChatModal: React.FC = () => {
 
       const location = uploadResult?.data?.results?.[0]?.location;
 
-      if (config?.newArch) {
+      if (config?.newArch !== false) {
         const namesArray = selectedUsers.map((user) => user.xmppUsername);
         const newChat: ApiRoom = await postRoom({
           title: roomName,

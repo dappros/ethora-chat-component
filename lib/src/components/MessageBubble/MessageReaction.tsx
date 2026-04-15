@@ -67,9 +67,11 @@ export const MessageReaction: FC<MessageReactionProps> = ({
     return emoji ? emoji.skins[0].native : '';
   };
 
-  if (!reaction) return null;
-
   const reactionDetails = useMemo(() => {
+    if (!reaction) {
+      return {};
+    }
+
     const result: Record<string, { count: number; users: string[] }> = {};
 
     Object.values(reaction).forEach(({ emoji, data }) => {
@@ -87,6 +89,8 @@ export const MessageReaction: FC<MessageReactionProps> = ({
 
     return result;
   }, [reaction]);
+
+  if (!reaction) return null;
 
   return (
     <ReactionContainer>

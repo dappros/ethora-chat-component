@@ -35,10 +35,14 @@ export async function resendMessage(
     store.dispatch(
       deleteRoomMessage({ roomJID: activeRoomJID, messageId: originalId })
     );
-  } catch {}
+  } catch {
+    // Local delete may fail if the message is already gone from the store.
+  }
   try {
     store.dispatch(removeMessageFromHeapById(originalId));
-  } catch {}
+  } catch {
+    // Heap cleanup is best-effort only.
+  }
 
   const id = `resend-text-message-${uuidv4()}`;
 

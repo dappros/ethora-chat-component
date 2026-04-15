@@ -5,7 +5,6 @@ import LoginForm from '../AuthForms/Login';
 import { RootState } from '../../roomStore';
 import { useDispatch, useSelector } from 'react-redux';
 import { setUser } from '../../roomStore/chatSettingsSlice';
-import { useLocalStorage } from '../../hooks/useLocalStorage';
 import {
   loginEmail,
   loginViaJwt,
@@ -14,8 +13,13 @@ import { StyledLoaderWrapper } from '../styled/StyledComponents';
 import { setBaseURL } from '../../networking/apiClient';
 import Loader from '../styled/Loader';
 import ErrorFallback from './ErrorFallback';
+import {
+  getStoredUser,
+  hasStoredSensitiveSession,
+} from '../../helpers/authStorage';
 
 import { CustomComponentsContextValue } from '../../types/models/customComponents.model';
+import { ethoraLogger } from '../../helpers/ethoraLogger';
 
 interface LoginWrapperProps
   extends Partial<
@@ -40,11 +44,12 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
   const { user } = useSelector((state: RootState) => state.chatSettingStore);
 
   const loginUserFunction = useCallback(async () => {
+    if (!props?.user?.email || !props?.user?.password) {
+      return null;
+    }
+
     try {
-      const authData = await loginEmail(
-        props?.user?.email || 'yukiraze9@gmail.com',
-        props?.user?.password || 'Qwerty123'
-      );
+      const authData = await loginEmail(props.user.email, props.user.password);
 
       return {
         ...authData.data.user,
@@ -55,74 +60,70 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
       console.error('Login failed:', error);
       return null;
     }
-  }, []);
+  }, [props?.user?.email, props?.user?.password]);
 
   const dispatch = useDispatch();
 
   useEffect(() => {
-    if (config?.baseUrl) {
-      setBaseURL(config?.baseUrl, config?.customAppToken);
-    }
-    if (props?.config?.userLogin?.enabled && props?.config?.userLogin?.user) {
-      dispatch(setUser(config.userLogin.user));
-      return;
-    }
+    let cancelled = false;
 
-    //use localStorage, to check for user was already logged
+    const initUser = async () => {
+      if (config?.baseUrl) {
+        setBaseURL(config.baseUrl, config.customAppToken);
+      }
 
-    const storedUser: User = useLocalStorage(
-      '@ethora/chat-component-user'
-    ).get() as User;
-    if (storedUser) {
-      dispatch(setUser(storedUser));
-    }
+      if (user.xmppUsername) {
+        return;
+      }
 
-    //if jwt send api req with jwt and get user data
+      if (config?.userLogin?.enabled && config.userLogin.user) {
+        dispatch(setUser(config.userLogin.user));
+        return;
+      }
 
-    if (config?.jwtLogin?.enabled) {
-      const jwtLogin = async () => {
+      const storedUser = getStoredUser(config?.appId) as User | null;
+      if (storedUser && hasStoredSensitiveSession(storedUser)) {
+        dispatch(setUser(storedUser));
+        return;
+      }
+
+      if (config?.jwtLogin?.enabled && config.jwtLogin.token) {
         try {
           const loginData = await loginViaJwt(config.jwtLogin.token);
-          if (loginData) {
+          if (!cancelled && loginData) {
             dispatch(setUser(loginData));
           }
         } catch (error) {
-          console.log('error with jwt login', error);
-          setShowModal(true);
-          console.log('Error, no user');
+          ethoraLogger.log('error with jwt login', error);
+          if (!cancelled) {
+            setShowModal(true);
+          }
+          ethoraLogger.log('Error, no user');
         }
-      };
-      jwtLogin();
-    }
+        return;
+      }
 
-    //if no login config - default user login
-
-    if (
-      !config?.googleLogin &&
-      !config?.defaultLogin &&
-      !config?.jwtLogin &&
-      !config?.userLogin &&
-      user.xmppUsername === ''
-    ) {
-      const defaultLogin = async () => {
+      if (config?.defaultLogin && user.xmppUsername === '') {
         try {
           const loginData = await loginUserFunction();
-          if (loginData) {
+          if (!cancelled && loginData) {
             dispatch(setUser(loginData));
           }
         } catch (error) {
-          console.log('error with default login', error);
-          setShowModal(true);
+          ethoraLogger.log('error with default login', error);
+          if (!cancelled) {
+            setShowModal(true);
+          }
         }
-      };
-      defaultLogin();
-    }
-    //if google - show login.tsx and process user there (there will be dispatch, set user)
-    //if only ethora - show login with only ethora
-    return () => {
-      //clear
+      }
     };
-  }, []);
+
+    void initUser();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [config, dispatch, loginUserFunction, user.xmppUsername]);
 
   return (
     <>

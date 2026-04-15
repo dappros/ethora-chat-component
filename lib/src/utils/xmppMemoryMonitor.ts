@@ -1,4 +1,5 @@
 import { XmppListenerManager } from '../networking/xmpp/listenerManager';
+import { ethoraLogger } from '../helpers/ethoraLogger';
 
 export class XmppMemoryMonitor {
   private static monitoringInterval: NodeJS.Timeout | null = null;
@@ -23,18 +24,18 @@ export class XmppMemoryMonitor {
           `[XmppMemoryMonitor] WARNING: ${count} active XMPP listeners detected`
         );
       } else if (process.env.NODE_ENV === 'development') {
-        console.log(`[XmppMemoryMonitor] Active XMPP listeners: ${count}`);
+        ethoraLogger.log(`[XmppMemoryMonitor] Active XMPP listeners: ${count}`);
       }
     }, intervalMs);
 
-    console.log('[XmppMemoryMonitor] Started monitoring XMPP listeners');
+    ethoraLogger.log('[XmppMemoryMonitor] Started monitoring XMPP listeners');
   }
 
   static stopMonitoring(): void {
     if (this.monitoringInterval) {
       clearInterval(this.monitoringInterval);
       this.monitoringInterval = null;
-      console.log('[XmppMemoryMonitor] Stopped monitoring XMPP listeners');
+      ethoraLogger.log('[XmppMemoryMonitor] Stopped monitoring XMPP listeners');
     }
   }
 

@@ -14,7 +14,7 @@ export const sendTextMessage = (
   mainMessage?: string,
   devServer?: string,
   customId?: string
-) => {
+): boolean => {
   const id = customId
     ? customId
     : isReply
@@ -50,7 +50,9 @@ export const sendTextMessage = (
       xml('body', {}, userMessage)
     );
     client.send(message);
+    return true;
   } catch (error) {
     console.error('An error occurred while sending message:', error);
+    return false;
   }
 };

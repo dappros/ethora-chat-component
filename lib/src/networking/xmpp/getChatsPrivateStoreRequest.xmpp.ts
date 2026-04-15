@@ -1,5 +1,6 @@
 import { Client, xml } from '@xmpp/client';
 import { Element } from 'ltx';
+import { safeJsonParse } from '../../helpers/safeJson';
 
 export async function getChatsPrivateStoreRequest(client: Client) {
   const id = `get-chats-private-req:${Date.now().toString()}`;
@@ -24,12 +25,8 @@ export async function getChatsPrivateStoreRequest(client: Client) {
 
         const chatjson = stanza.getChild('query')?.getChild('chatjson');
         if (chatjson && chatjson.attrs.value) {
-          try {
-            const roomTimestampObject = JSON.parse(chatjson.attrs.value);
-            resolve(roomTimestampObject);
-          } catch (e) {
-            reject(e);
-          }
+          const roomTimestampObject = safeJsonParse(chatjson.attrs.value, null);
+          resolve(roomTimestampObject);
         } else {
           resolve(null);
         }

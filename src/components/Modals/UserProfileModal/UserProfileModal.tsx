@@ -18,7 +18,6 @@ import { ProfileImagePlaceholder } from '../../MainComponents/ProfileImagePlaceh
 import Button from '../../styled/Button';
 import DropdownMenu from '../../DropdownMenu/DropdownMenu';
 import {
-  logout,
   setActiveModal,
   setLangSource,
   setSelectedUser,
@@ -27,7 +26,6 @@ import {
   addRoom,
   addRoomViaApi,
   setCurrentRoom,
-  setLogoutState,
 } from '../../../roomStore/roomsSlice';
 import EditUserModal from './EditUserModal';
 import { walletToUsername } from '../../../helpers/walletUsername';
@@ -45,6 +43,7 @@ import { useToast } from '../../../context/ToastContext';
 import { createRoomFromApi } from '../../../helpers/createRoomFromApi';
 import { useRoomState } from '../../../hooks/useRoomState';
 import { useAppDispatch } from '../../../hooks/hooks';
+import { logoutService } from '../../../hooks/useLogout';
 
 interface UserProfileModalProps {
   handleCloseModal: any;
@@ -71,8 +70,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   }, []);
 
   const handleLogout = useCallback(() => {
-    dispatch(logout());
-    dispatch(setLogoutState());
+    void logoutService.performLogout();
   }, []);
 
   const menuOptions = useMemo(
@@ -138,7 +136,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
       duration: 3000,
     });
     let newRoomJid = '';
-    if (config?.newArch) {
+    if (config?.newArch !== false) {
       const newRoom = await postPrivateRoom(
         selectedUser?.userJID ?? selectedUser?.id
       );
@@ -238,7 +236,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 : 'No description'}
             </LabelData>
           </BorderedContainer>
-          {selectedUser && (
+          {selectedUser && selectedUser.xmppUsername !== user.xmppUsername && (
             <>
               <ActionButton
                 StartIcon={<ChatIcon />}

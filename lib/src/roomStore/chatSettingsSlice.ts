@@ -8,14 +8,17 @@ import {
   ModalType,
   User,
 } from '../types/types';
-import { localStorageConstants } from '../helpers/constants/LOCAL_STORAGE';
-import { useLocalStorage } from '../hooks/useLocalStorage';
+import {
+  clearStoredUser,
+  persistUserSession,
+} from '../helpers/authStorage';
 import { walletToUsername } from '../helpers/walletUsername';
 import XmppClient from '../networking/xmppClient';
 
 interface ChatState {
   user: User;
   config?: IConfig;
+  appId?: string;
   activeModal?: ModalType;
   deleteModal?: DeleteModal;
   selectedUser?: IUser;
@@ -96,6 +99,7 @@ const initialState: ChatState = {
     messageId: '',
   },
   config: { colors: { primary: '#0052CD', secondary: '#F3F6FC' } },
+  appId: '',
 };
 
 export const chatSlice = createSlice({
@@ -104,11 +108,8 @@ export const chatSlice = createSlice({
   reducers: {
     setUser: (state, action: PayloadAction<User>) => {
       state.user = unpackAndTransform(action.payload);
-      if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
-        useLocalStorage(localStorageConstants.ETHORA_USER).set(
-          unpackAndTransform(action.payload)
-        );
-      }
+      state.appId = action.payload.appId || state.appId;
+      persistUserSession(state.user);
     },
     updateUser(state, action: PayloadAction<{ updates: Partial<User> }>) {
       const { updates } = action.payload;
@@ -118,10 +119,14 @@ export const chatSlice = createSlice({
           ...user,
           ...updates,
         };
+        persistUserSession(state.user);
       }
     },
     setConfig: (state, action: PayloadAction<IConfig | undefined>) => {
       state.config = action.payload;
+      if (action.payload?.appId) {
+        state.appId = action.payload.appId;
+      }
     },
     setActiveModal: (state, action: PayloadAction<ModalType | undefined>) => {
       state.activeModal = action.payload;
@@ -147,21 +152,12 @@ export const chatSlice = createSlice({
     ) => {
       state.user.refreshToken = action.payload.refreshToken;
       state.user.token = action.payload.token;
-
-      if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
-        localStorage.setItem(
-          localStorageConstants.ETHORA_USER,
-          JSON.stringify(state.user)
-        );
-      }
+      persistUserSession(state.user);
     },
     logout: (state) => {
       state.user = unpackAndTransform();
       state.config = undefined;
-
-      if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
-        localStorage.removeItem(localStorageConstants.ETHORA_USER);
-      }
+      clearStoredUser();
     },
   },
 });

@@ -15,9 +15,9 @@ import {
   deleteRoom,
   insertUsers,
 } from '../roomStore/roomsSlice';
-import { IMessage, IRoom } from '../types/types';
+import { IMessage, IRoom, RoomMember, User } from '../types/types';
 import { createMessageFromXml } from '../helpers/createMessageFromXml';
-import { setDeleteModal } from '../roomStore/chatSettingsSlice';
+import { setDeleteModal, updateUser } from '../roomStore/chatSettingsSlice';
 import { getDataFromXml } from '../helpers/getDataFromXml';
 import { getBooleanFromString } from '../helpers/getBooleanFromString';
 import { getNumberFromString } from '../helpers/getNumberFromString';
@@ -25,9 +25,16 @@ import { getRooms } from '../networking/api-requests/rooms.api';
 import { createRoomFromApi } from '../helpers/createRoomFromApi';
 import XmppClient from './xmppClient';
 import { checkSingleUser } from '../helpers/checkUniqueUsers';
-import { presenceInRoom } from './xmpp/presenceInRoom.xmpp';
 import { removeMessageFromHeapById } from '../roomStore/roomHeapSlice';
-import { xml } from '@xmpp/client';
+import { messageNotificationManager } from '../utils/messageNotificationManager';
+import { createUserNameFromSetUser } from '../helpers/createUserNameFromSetUser';
+import {
+  isActiveRoom,
+  isCurrentUserMessage,
+  shouldShowXmppToast,
+} from '../utils/notificationPolicy';
+import { formatError } from '../utils/formatError';
+import { ethoraLogger } from '../helpers/ethoraLogger';
 // TO DO: we are thinking to refactor this code in the following way:
 // each stanza will be parsed for 'type'
 // then it will be handled based on the type
@@ -37,7 +44,12 @@ import { xml } from '@xmpp/client';
 // types can be added into our chat protocol (XMPP stanza add field type="") to make it easier to parse here
 
 //core default
-const onRealtimeMessage = async (stanza: Element) => {
+const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
+  const hasChatState = stanza?.children?.some(
+      (child: any) =>
+        (child?.name === 'composing' || child?.name === 'paused') &&
+        child?.attrs?.xmlns === 'http://jabber.org/protocol/chatstates'
+    );
   const mucX = stanza
     ?.getChildren('x')
     ?.find(
@@ -52,6 +64,7 @@ const onRealtimeMessage = async (stanza: Element) => {
     !stanza?.getChild('result') &&
     !stanza.getChild('composing') &&
     !stanza.getChild('paused') &&
+    !hasChatState &&
     !stanza.getChild('subject') &&
     !stanza.is('iq') &&
     stanza?.attrs?.id !== 'deleteMessageStanza' &&
@@ -66,7 +79,7 @@ const onRealtimeMessage = async (stanza: Element) => {
     const { data, id, body, ...rest } = await getDataFromXml(stanza);
 
     if (!data) {
-      console.log('No data in stanza');
+      ethoraLogger.log('No data in stanza');
       return;
     }
 
@@ -76,6 +89,11 @@ const onRealtimeMessage = async (stanza: Element) => {
       body,
       ...rest,
     });
+
+    // Ignore non-message stanzas (e.g. typing/chatstate with only <data .../>)
+    if (!message?.body || !String(message.body).trim()) {
+      return;
+    }
 
     const fixedUser = await checkSingleUser(
       store.getState().rooms.usersSet,
@@ -91,9 +109,75 @@ const onRealtimeMessage = async (stanza: Element) => {
       })
     );
     const removeId = message?.xmppId || message?.id;
+    const roomJID = stanza.attrs.from.split('/')[0];
+    const heapBeforeRemove = store.getState().roomHeapSlice.messageHeap as IMessage[];
+    const matchedPendingMessage = !!(
+      removeId &&
+      heapBeforeRemove?.some((m) => (m.xmppId || m.id) === removeId)
+    );
     if (removeId) {
       store.dispatch(removeMessageFromHeapById(removeId));
+      xmppClient?.acknowledgeSentMessage(roomJID, removeId);
     }
+
+    const state = store.getState();
+    const room = state.rooms.rooms[roomJID];
+    const activeRoomJID = state.rooms.activeRoomJID;
+    const isActiveChatMessage = isActiveRoom(activeRoomJID, roomJID);
+    const currentXmppUsername = state.chatSettingStore.user?.xmppUsername;
+    const senderFromStanza = stanza.attrs.from?.split('/')[1] || '';
+    const senderIsExactCurrentUser =
+      !!currentXmppUsername && senderFromStanza === currentXmppUsername;
+    const senderLooksLikeCurrentUser = isCurrentUserMessage(
+      message.user?.id,
+      currentXmppUsername
+    );
+    // Suppress only exact sender match from stanza resource.
+    const currentUserMessage = senderIsExactCurrentUser;
+    const isSystemMessage = message.isSystemMessage === 'true';
+
+    const isHistory = (message as any).isHistory;
+    // Suppress notifications for some time after app load to avoid login flood
+    const appLoadTime = (window as any)._ethoraAppLoadTime || Date.now();
+    const isWithinCatchupPeriod = Date.now() - appLoadTime < 2000;
+
+    const decision = shouldShowXmppToast({
+      config: state.chatSettingStore.config,
+      tabVisible: document.visibilityState === 'visible',
+      activeRoom: isActiveChatMessage,
+      currentUserMessage,
+      isSystem: isSystemMessage,
+      isHistory: isHistory,
+      isCatchup: isWithinCatchupPeriod,
+    });
+
+    if (decision.show) {
+      const roomName = room?.name || room?.title || roomJID.split('@')[0];
+      
+      // Get sender name from usersSet using createUserNameFromSetUser helper
+      const senderName = createUserNameFromSetUser(
+        state.rooms.usersSet,
+        message.user.id
+      );
+
+      // Trigger notification via global manager
+      messageNotificationManager.showNotification(
+        message,
+        roomName,
+        senderName,
+        roomJID
+      );
+      if (state.chatSettingStore.config?.useStoreConsoleEnabled) {
+        ethoraLogger.log(
+          `[NotifyPolicy] source=xmpp action=show reason=${decision.reason} msgId=${message.id} room=${roomJID} sender=${message.user?.id} activeRoom=${isActiveChatMessage} history=${isHistory} catchup=${isWithinCatchupPeriod}`
+        );
+      }
+    } else if (state.chatSettingStore.config?.useStoreConsoleEnabled) {
+      ethoraLogger.log(
+        `[NotifyPolicy] source=xmpp action=skip reason=${decision.reason} msgId=${message.id} room=${roomJID} sender=${message.user?.id} activeRoom=${isActiveChatMessage} currentUser=${currentUserMessage} system=${isSystemMessage} pendingEcho=${matchedPendingMessage} looksLikeCurrent=${senderLooksLikeCurrentUser} history=${isHistory} catchup=${isWithinCatchupPeriod}`
+      );
+    }
+
     return message;
   }
 };
@@ -222,7 +306,7 @@ const onMessageHistory = async (stanza: any) => {
     const { data, id, body, ...rest } = await getDataFromXml(stanza);
 
     if (!data) {
-      console.log('No data in stanza');
+      ethoraLogger.log('No data in stanza');
       return;
     }
 
@@ -264,9 +348,11 @@ const handleComposing = async (stanza: Element, currentUser: string) => {
 
       let composingList = [];
 
-      !!stanza?.getChild('composing')
-        ? composingList.push(stanza.getChild('data').attrs?.fullName || 'User')
-        : composingList.pop();
+      if (stanza?.getChild('composing')) {
+        composingList.push(stanza.getChild('data').attrs?.fullName || 'User');
+      } else {
+        composingList.pop();
+      }
 
       store.dispatch(
         setComposing({
@@ -289,7 +375,8 @@ const onPresenceInRoom = (stanza: Element | any) => {
 
 const onChatInvite = async (stanza: Element, client: XmppClient) => {
   if (stanza.is('message')) {
-    const chatId = stanza.attrs.from;
+    const chatId = (stanza.attrs.from || '').split('/')[0];
+    if (!chatId) return;
     const xEls = stanza.getChildren('x');
 
     try {
@@ -298,26 +385,63 @@ const onChatInvite = async (stanza: Element, client: XmppClient) => {
 
         if (child) {
           const chat = store.getState().rooms.rooms[chatId];
-          if (chat) {
-            return;
+          if (!chat) {
+            const roomName = chatId.split('@')[0] || 'New chat';
+            const roomData: IRoom = {
+              jid: chatId,
+              name: roomName,
+              title: roomName,
+              usersCnt: 0,
+              messages: [],
+              isLoading: false,
+              roomBg: null,
+              icon: null,
+              unreadMessages: 0,
+              unreadCapped: false,
+              lastViewedTimestamp: 0,
+              historyPreloadState: 'idle',
+            };
+
+            store.dispatch(addRoom({ roomData }));
+            if (!store.getState().rooms.activeRoomJID) {
+              store.dispatch(setCurrentRoom({ roomJID: chatId }));
+            }
           }
 
-          client.presenceInRoomStanza(chatId);
+          const joined = await client
+            .presenceInRoomStanza(chatId, 0, 1500, true)
+            .catch(() => false);
 
-          const rooms = await getRooms();
-          rooms.items.map((room) => {
-            store.dispatch(
-              addRoomViaApi({
-                room: createRoomFromApi(room, client.conference),
-                xmpp: client,
-              })
-            );
-          });
-          store.dispatch(updateUsersSet({ rooms: rooms.items }));
+          if (!joined) {
+            client.prioritizeRoomPresence(chatId).catch(() => {});
+          }
+
+          client
+            .getHistoryStanza(chatId, 20, undefined, undefined, {
+              source: 'active',
+            })
+            .catch(() => {});
+
+          client.getRoomInfoStanza(chatId);
+
+          void getRooms()
+            .then((rooms) => {
+              const items = rooms?.items || [];
+              items.forEach((room) => {
+                store.dispatch(
+                  addRoomViaApi({
+                    room: createRoomFromApi(room, client.conference),
+                    xmpp: client,
+                  })
+                );
+              });
+              store.dispatch(updateUsersSet({ rooms: items }));
+            })
+            .catch(() => {});
         }
       }
     } catch (error) {
-      console.log('err', error);
+      ethoraLogger.log('err', error);
     }
   }
 };
@@ -342,6 +466,7 @@ const onGetMembers = (stanza: Element) => {
 
 const onGetRoomInfo = (stanza: Element) => {
   if (stanza.attrs.id === 'roomInfo' && !stanza.getChild('error')) {
+    // Room info stanza is consumed by feature-specific flows.
   }
 };
 
@@ -416,7 +541,9 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
                 ? result?.attrs?.room_thumbnail
                 : null,
             unreadMessages: 0,
+            unreadCapped: false,
             lastViewedTimestamp: 0,
+            historyPreloadState: 'idle',
           };
 
           store.dispatch(addRoom({ roomData: { ...roomData } }));
@@ -428,7 +555,9 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
           if (roomData.jid) {
             xmpp.presenceInRoomStanza(roomData.jid);
           }
-        } catch (error) {}
+        } catch (error) {
+          // Ignore malformed room payloads and continue processing remaining rooms.
+        }
       }
     });
   }
@@ -456,34 +585,43 @@ const onRoomKicked = async (stanza: Element) => {
 
 const onMessageError = async (stanza: Element, client: XmppClient) => {
   if (stanza.name === 'message' && stanza.attrs.type === 'error') {
-    const roomJID = stanza.attrs.from?.split('/')[0];
+    const errorInfo = handleErrorMessageStanza(stanza);
+    const from = stanza.attrs.from || '';
+    const roomJID = from.split('/')[0];
+    const isMucRoom = roomJID.includes('@conference.');
+    const condition = errorInfo?.condition?.toLowerCase() || '';
+    const messageText = errorInfo?.message?.toLowerCase() || '';
+    const shouldRecoverPresence =
+      isMucRoom &&
+      (condition === 'forbidden' ||
+        condition === 'not-authorized' ||
+        messageText.includes('only occupants are allowed'));
+
+    ethoraLogger.log(
+      `[XMPP] message_error condition=${errorInfo?.condition || 'unknown'} text="${errorInfo?.message || ''}" id=${stanza.attrs.id || ''} from=${from} to=${stanza.attrs.to || ''}`
+    );
+
+    if (!isMucRoom) {
+      ethoraLogger.log(
+        `[XMPP] message_error skip_presence reason=non_muc from=${from}`
+      );
+      return;
+    }
+
+    if (!shouldRecoverPresence) {
+      ethoraLogger.log(
+        `[XMPP] message_error skip_presence reason=unsupported_condition condition=${errorInfo?.condition || 'unknown'} from=${from}`
+      );
+      return;
+    }
+
     if (roomJID && client) {
       try {
-        client?.client?.send(xml('presence'));
-        await presenceInRoom(client.client, roomJID);
-        console.log(
-          `Sent presence to room ${roomJID} due to error: Only occupants are allowed to send messages to the conference.`
-        );
-        const queue = store.getState().roomHeapSlice.messageHeap as IMessage[];
-        await Promise.all(
-          queue.map((msg: IMessage) =>
-            client.sendMessage(
-              msg.roomJid,
-              msg.user.firstName,
-              msg.user.lastName,
-              '',
-              msg.user.walletAddress,
-              msg.body,
-              '',
-              !!msg.isReply,
-              !!msg.showInChannel,
-              msg.mainMessage,
-              msg.id
-            )
-          )
-        );
+        await client.recoverRoomPresenceOnly(roomJID);
       } catch (e) {
-        console.warn('Failed to send presence in response to error:', e);
+        console.warn(
+          `[XMPP] message_error presence_recovery_failed room=${roomJID || 'unknown'} error=${formatError(e)}`
+        );
       }
     }
   }
@@ -530,7 +668,7 @@ export const handleErrorMessageStanza = (
       message: textEl?.text() ?? '',
     };
 
-    console.log('Received XMPP error message:', {
+    ethoraLogger.log('Received XMPP error message:', {
       message: errorInfo?.message,
       errorInfo,
     });
@@ -538,6 +676,168 @@ export const handleErrorMessageStanza = (
   }
 
   return null;
+};
+
+const onUserUpdate = async (stanza: Element) => {
+  if (stanza.attrs?.type !== 'headline') return;
+
+  const userUpdateElement = stanza.getChild('user-update');
+  if (!userUpdateElement || userUpdateElement.attrs?.xmlns !== 'your:custom:ns') return;
+
+  try {
+    const attrs = userUpdateElement.attrs;
+    const toLocalPart = (value?: string) => (value ? value.split('@')[0] : '');
+    const xmppUsername =
+      attrs.xmppUsername ||
+      attrs.userId ||
+      attrs._id ||
+      attrs.id ||
+      toLocalPart(stanza.attrs?.from);
+
+    if (!xmppUsername) {
+      console.warn('[UserUpdate] No xmppUsername found in stanza attributes');
+      return;
+    }
+
+    // Build the partial update from all fields present in the stanza.
+    const userUpdates: Partial<RoomMember> = {};
+    if (attrs.firstName !== undefined) userUpdates.firstName = attrs.firstName;
+    if (attrs.lastName !== undefined) userUpdates.lastName = attrs.lastName;
+    if (attrs.photoURL !== undefined) userUpdates.profileImage = attrs.photoURL;
+    if (attrs.description !== undefined) userUpdates.description = attrs.description;
+
+    const state = store.getState();
+    const usersSet = state.rooms.usersSet;
+
+    // Patch every entry in usersSet whose key matches this xmppUsername.
+    // Keys may be stored as a full bare JID or just the local part.
+    const matchedUsers: RoomMember[] = Object.entries(usersSet)
+      .filter(([key]) => key === xmppUsername || key.split('@')[0] === xmppUsername)
+      .map(([, user]) => ({ ...(user as RoomMember), ...userUpdates }));
+
+    if (matchedUsers.length > 0) {
+      store.dispatch(insertUsers({ newUsers: matchedUsers }));
+    } else {
+      // User not yet in the set — create a minimal entry so future renders pick up the name.
+      const newUser: RoomMember = {
+        firstName: attrs.firstName || '',
+        lastName: attrs.lastName || '',
+        xmppUsername,
+        _id: xmppUsername,
+        ...userUpdates,
+      };
+      store.dispatch(insertUsers({ newUsers: [newUser] }));
+    }
+
+    (Object.values(state.rooms.rooms) as IRoom[]).forEach((room) => {
+      if (!room.members?.length) return;
+
+      const currentMembers = Array.isArray(room.members) ? room.members : [];
+      const updatedMembers = currentMembers.map((member) => {
+        const memberLocal = member?.xmppUsername?.split('@')[0] ?? '';
+        if (memberLocal !== xmppUsername) return member;
+
+        return {
+          ...member,
+          ...userUpdates,
+          xmppUsername: member.xmppUsername || xmppUsername,
+        };
+      });
+
+      const hasChanges = updatedMembers.some(
+        (member, index) => member !== currentMembers[index]
+      );
+
+      if (hasChanges) {
+        store.dispatch(updateRoom({ jid: room.jid, updates: { members: updatedMembers } }));
+      }
+    });
+
+    ethoraLogger.log(
+      `[UserUpdate] xmppUsername=${xmppUsername} firstName=${attrs.firstName ?? '-'} lastName=${attrs.lastName ?? '-'} matched=${matchedUsers.length}`
+    );
+
+    // Also update the current logged-in user's own state if it's them.
+    const currentUser = state.chatSettingStore.user;
+    const currentLocal = currentUser?.xmppUsername?.split('@')[0] ?? '';
+    if (currentLocal && currentLocal === xmppUsername) {
+      const userStateUpdates: Partial<User> = {};
+      if (attrs.firstName !== undefined) userStateUpdates.firstName = attrs.firstName;
+      if (attrs.lastName !== undefined) userStateUpdates.lastName = attrs.lastName;
+      if (attrs.photoURL !== undefined) userStateUpdates.profileImage = attrs.photoURL;
+      if (attrs.description !== undefined) userStateUpdates.description = attrs.description;
+      if (Object.keys(userStateUpdates).length > 0) {
+        store.dispatch(updateUser({ updates: userStateUpdates }));
+      }
+    }
+  } catch (error) {
+    console.error('[UserUpdate] Error processing stanza:', error);
+  }
+};
+
+
+const onChatUpdate = async (stanza: Element) => {
+  if (stanza.attrs?.type !== 'headline') {
+    return;
+  }
+
+  const chatUpdateElement = stanza.getChild('chat-update');
+  if (!chatUpdateElement || chatUpdateElement.attrs?.xmlns !== 'your:custom:ns') {
+    return;
+  }
+
+  try {
+    const attrs = chatUpdateElement.attrs;
+    const state = store.getState();
+
+    const roomCandidates = [
+      attrs.chatName,
+      stanza.attrs?.to,
+      stanza.attrs?.from,
+    ].filter(Boolean) as string[];
+
+    const existingRoom = (Object.values(state.rooms.rooms) as IRoom[]).find((room) => {
+      const roomLocal = room.jid?.split('@')[0];
+      return roomCandidates.some(
+        (candidate) => candidate === room.jid || candidate.split('@')[0] === roomLocal
+      );
+    });
+
+    if (!existingRoom?.jid) {
+      console.warn('[ChatUpdate] Chat update received but no matching room was found', {
+        roomCandidates,
+      });
+      return;
+    }
+
+    // Build room update object with available attributes
+    const roomUpdates: Partial<IRoom> = {};
+    
+    if (attrs.title !== undefined) {
+      roomUpdates.title = attrs.title;
+      roomUpdates.name = attrs.title; // Also update name field
+    }
+    if (attrs.description !== undefined) {
+      roomUpdates.description = attrs.description;
+    }
+    if (attrs.picture !== undefined) {
+      roomUpdates.icon = attrs.picture;
+      roomUpdates.picture = attrs.picture;
+    }
+    if (attrs.usersCnt !== undefined) {
+      roomUpdates.usersCnt = getNumberFromString(attrs.usersCnt);
+    }
+
+    // Update room if we have any updates
+    if (Object.keys(roomUpdates).length > 0) {
+      store.dispatch(updateRoom({ jid: existingRoom.jid, updates: roomUpdates }));
+      ethoraLogger.log(
+        `[ChatUpdate] room=${existingRoom.jid} title=${attrs.title ?? '-'} description=${attrs.description ?? '-'}`
+      );
+    }
+  } catch (error) {
+    console.error('[ChatUpdate] Error processing stanza:', error);
+  }
 };
 
 export {
@@ -557,4 +857,6 @@ export {
   onChatInvite,
   onRoomKicked,
   onMessageError,
+  onUserUpdate,
+  onChatUpdate,
 };

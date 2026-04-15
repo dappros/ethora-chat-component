@@ -3,6 +3,7 @@ import { createRoomPresence } from './createRoomPresence.xmpp';
 import { setMeAsOwner } from './setMeAsOwner.xmpp';
 import { roomConfig } from './roomConfig.xmpp';
 import { CONFERENCE_DOMAIN } from '../../helpers/constants/PLATFORM_CONSTANTS';
+import { ethoraLogger } from '../../helpers/ethoraLogger';
 
 export async function createPrivateRoom(
   title: string,
@@ -10,7 +11,7 @@ export async function createPrivateRoom(
   to: string,
   client: Client
 ) {
-  console.log(title, description, to);
+  ethoraLogger.log(title, description, to);
 
   const roomHash = to;
   const roomId = `${roomHash}${CONFERENCE_DOMAIN}`;
@@ -20,7 +21,7 @@ export async function createPrivateRoom(
     await setMeAsOwner(roomId, client);
     await roomConfig(roomId, title, description, client);
   } catch (error) {
-    console.log(error);
+    ethoraLogger.log(error);
   }
   return roomId;
 }

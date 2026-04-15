@@ -1,4 +1,5 @@
 import { ApiRoom, IRoom } from '../types/types';
+import { ethoraLogger } from './ethoraLogger';
 
 export function isChatIdPresentInArray(
   chatIdToFind: string,
@@ -22,7 +23,7 @@ export function isChatIdPresentInArray(
 
   if (Array.isArray(chatList)) {
     for (const chatObject of chatList) {
-      console.log('check', trimmedId === chatObject.name);
+      ethoraLogger.log('check', trimmedId === chatObject.name);
 
       if (
         chatObject &&

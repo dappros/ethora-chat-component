@@ -8,8 +8,10 @@ export function createTimeoutPromise(
         if (unsubscribe) {
           unsubscribe();
         }
-      } catch (e) {}
-      reject();
+      } catch (e) {
+        // Ignore unsubscribe failures during timeout cleanup.
+      }
+      reject(new Error(`timeout:${ms ?? 0}`));
     }, ms);
   });
 }

@@ -2,16 +2,36 @@ import { Element } from 'ltx';
 import { IUser } from '../types/types';
 import { transformArrayToObject } from './transformTranslatations';
 import { Iso639_1Codes } from '../types/types';
+import { ethoraLogger } from './ethoraLogger';
+import { safeJsonParse } from './safeJson';
 
 const extractTimestamp = (str: string, stanza?: any): string | null => {
   if (!str) return;
   if (typeof str !== 'string') {
-    console.log(str, stanza.toString());
+    ethoraLogger.log(str, stanza.toString());
     return undefined;
   }
   const timestamp = str.slice(-16);
   return timestamp;
 };
+
+const normalizeTranslations = (value: unknown) =>
+  Array.isArray(value)
+    ? value.filter(
+        (
+          item
+        ): item is {
+          translatedText: string;
+          language: string;
+          languageName: string;
+        } =>
+          !!item &&
+          typeof item === 'object' &&
+          typeof (item as any).translatedText === 'string' &&
+          typeof (item as any).language === 'string' &&
+          typeof (item as any).languageName === 'string'
+      )
+    : [];
 
 interface DataXml {
   id: string;
@@ -24,6 +44,7 @@ interface DataXml {
   langSource?: Iso639_1Codes;
   xmppId?: string;
   xmppFrom?: string;
+  isHistory?: boolean;
   data: { [x: string]: any };
 }
 export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
@@ -42,11 +63,15 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
     id = xmppId || Date.now().toString();
   }
 
+  const translationPayload = safeJsonParse<{ translates?: unknown[] }>(
+    fullData?.getChild('translations')?.attrs?.value,
+    {}
+  );
   const body = fullData?.getChild('body')?.getText() || undefined;
   const deleted = !!fullData?.getChild('deleted');
   const translations = fullData?.getChild('translations')?.attrs?.value
-    ? transformArrayToObject(
-        JSON.parse(fullData.getChild('translations')!.attrs.value).translates
+      ? transformArrayToObject(
+          normalizeTranslations(translationPayload.translates)
       )
     : undefined;
   const langSource = fullData?.getChild('translate')?.attrs?.source as
@@ -66,6 +91,10 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
   };
 
   const dataAttrs = data?.attrs || {};
+  const delay =
+    fullData?.getChild('delay', 'urn:xmpp:delay') ||
+    fullData?.getChild('x', 'jabber:x:delay');
+  const isHistory = !!delay;
 
   return {
     data: dataAttrs,
@@ -79,5 +108,6 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
     langSource,
     xmppId,
     xmppFrom,
+    isHistory,
   };
 };

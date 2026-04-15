@@ -11,9 +11,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
 import { SearchIcon } from '../../assets/icons';
 import DropdownMenu from '../DropdownMenu/DropdownMenu';
-import { logout, setActiveModal } from '../../roomStore/chatSettingsSlice';
+import { setActiveModal } from '../../roomStore/chatSettingsSlice';
 import NewChatModal from '../Modals/NewChatModal/NewChatModal';
-import { setLogoutState } from '../../roomStore/roomsSlice';
 import {
   BurgerButton,
   Container,
@@ -25,6 +24,8 @@ import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 import { useXmppClient } from '../../context/xmppProvider';
 import ChatRoomItem from '../RoomComponents/ChatRoomItem';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { logoutService } from '../../hooks/useLogout';
+import { ethoraLogger } from '../../helpers/ethoraLogger';
 
 interface RoomListProps {
   chats: IRoom[];
@@ -68,7 +69,6 @@ const RoomList: React.FC<RoomListProps> = ({
 
       onRoomClick?.(chat);
       setOpen(false);
-      
     },
     [onRoomClick]
   );
@@ -145,9 +145,8 @@ const RoomList: React.FC<RoomListProps> = ({
       await client.close();
       setClient(null);
     }
-    dispatch(setLogoutState());
-    dispatch(logout());
-  }, []);
+    await logoutService.performLogout();
+  }, [client, setClient]);
 
   const menuOptions = useMemo(
     () => [
@@ -156,7 +155,7 @@ const RoomList: React.FC<RoomListProps> = ({
         icon: null,
         onClick: () => {
           dispatch(setActiveModal(MODAL_TYPES.PROFILE));
-          console.log('Profile clicked');
+          ethoraLogger.log('Profile clicked');
         },
       },
       {
@@ -164,7 +163,7 @@ const RoomList: React.FC<RoomListProps> = ({
         icon: null,
         onClick: () => {
           dispatch(setActiveModal(MODAL_TYPES.SETTINGS));
-          console.log('Settings clicked');
+          ethoraLogger.log('Settings clicked');
         },
       },
       {
@@ -193,23 +192,28 @@ const RoomList: React.FC<RoomListProps> = ({
       >
         {(open || !burgerMenu) && (
           <ScollableContainer>
-            <SearchContainer>
-              {!config?.disableRoomMenu && (
-                <DropdownMenu
-                  options={menuOptions}
-                  // onClose={dispatch(setActiveModal())}
-                />
-              )}
-              <SearchInput
-                icon={<SearchIcon height={'20px'} />}
-                value={searchTerm}
-                onChange={handleSearchChange}
-                placeholder="Search..."
-                // animated={true}
-              />
+            {!config?.chatHeaderSettings?.hide && (
+              <SearchContainer>
+                {!config?.disableRoomMenu &&
+                  !config?.chatHeaderSettings?.disableMenu && (
+                    <DropdownMenu
+                      options={menuOptions}
+                      // onClose={dispatch(setActiveModal())}
+                    />
+                  )}
+                {!config?.chatHeaderSettings?.hideSearch && (
+                  <SearchInput
+                    icon={<SearchIcon height={'20px'} />}
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                    placeholder="Search..."
+                    // animated={true}
+                  />
+                )}
 
-              <NewChatModal />
-            </SearchContainer>
+                {!config?.chatHeaderSettings?.disableCreate && <NewChatModal />}
+              </SearchContainer>
+            )}
             <div
               style={{ flexGrow: 1, overflowY: 'auto', padding: '16px 0px' }}
             >

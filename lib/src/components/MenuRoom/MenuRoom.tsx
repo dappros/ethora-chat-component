@@ -2,6 +2,7 @@ import { FC, useMemo } from 'react';
 import DropdownMenu from '../DropdownMenu/DropdownMenu';
 import Button from '../styled/Button';
 import { LeaveIcon, MoreIcon, ReportIcon } from '../../assets/icons';
+import { ethoraLogger } from '../../helpers/ethoraLogger';
 
 interface RoomMenuProps {
   handleLeaveClick: () => void;
@@ -16,7 +17,7 @@ export const RoomMenu: FC<RoomMenuProps> = ({ handleLeaveClick, handleReportClic
         icon: <ReportIcon />,
         onClick: () => {
           handleReportClick();
-          console.log('Report clicked');
+          ethoraLogger.log('Report clicked');
         },
         styles: { color: 'red' },
       },

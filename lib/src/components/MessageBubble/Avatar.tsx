@@ -9,11 +9,11 @@ interface AvatarProps {
   style?: CSSProperties;
 }
 
-const AvatarCircle = styled.div<{ bgColor: string; textColor?: string }>`
+const AvatarCircle = styled.div<{ $bgColor: string; textColor?: string }>`
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background-color: ${({ bgColor }) => bgColor};
+  background-color: ${({ $bgColor }) => $bgColor};
   display: flex;
   align-items: center;
   justify-content: center;
@@ -68,7 +68,7 @@ export const Avatar: React.FC<AvatarProps> = ({
   };
 
   return (
-    <AvatarCircle style={style} bgColor={backgroundColor}>
+    <AvatarCircle style={style} $bgColor={backgroundColor}>
       {getInitials()}
     </AvatarCircle>
   );

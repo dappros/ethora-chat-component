@@ -20,6 +20,9 @@ export const checkSingleUser = async (
   usersSet: Record<string, RoomMember>,
   xmppUsername: string
 ) => {
+  if (!xmppUsername) {
+    return null;
+  }
   if (usersSet[xmppUsername]) return;
 
   const fixedUser = await getUserByXmppUsername(

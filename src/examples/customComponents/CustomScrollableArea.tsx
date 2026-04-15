@@ -103,7 +103,6 @@ export const CustomScrollableArea: FC<CustomScrollableAreaProps> = ({
       ref={(el) => {
         scrollRef.current = el;
         // connect react-use-measure to the same DOM node
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         measureRef(el);
       }}

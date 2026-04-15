@@ -6,7 +6,32 @@ import { useDispatch } from 'react-redux';
 import useGetNewArchRoom from './useGetNewArchRoom';
 
 const countUndefinedText = (arr: IMessage[]) =>
-  arr.filter((item) => item?.body === undefined)?.length;
+  (Array.isArray(arr) ? arr : []).filter((item) => item?.body === undefined)
+    ?.length;
+const hasLoadedRoomHistory = (room?: IRoom): boolean => {
+  const messages = Array.isArray(room?.messages) ? room.messages : [];
+  if (!messages.length) return false;
+  return messages.some(
+    (message) =>
+      message?.id !== 'delimiter-new' &&
+      message?.pending !== true &&
+      !!String(message?.body || '').trim()
+  );
+};
+
+const PUSH_MESSAGE_ID_KEY = '@ethora/chat-component-pushMessageId';
+const PUSH_ROOM_JID_KEY = '@ethora/chat-component-pushRoomJid';
+
+const scrollToMessage = (messageId: string) => {
+  const messageElement = document.querySelector(
+    `[data-message-id="${messageId}"]`
+  );
+  if (messageElement) {
+    messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    messageElement.classList.add('message-highlight');
+    setTimeout(() => messageElement.classList.remove('message-highlight'), 2000);
+  }
+};
 
 export const useRoomInitialization = (
   activeRoomJID: string,
@@ -20,17 +45,43 @@ export const useRoomInitialization = (
   const syncRooms = useGetNewArchRoom();
 
   useEffect(() => {
+    if (client && activeRoomJID) {
+      client.promoteRoomHistory(activeRoomJID);
+      // Try fast explicit join for active room right after selection/login.
+      client
+        .presenceInRoomStanza(activeRoomJID, 0, 1200, true)
+        .catch(() => {
+          client.prioritizeRoomPresence(activeRoomJID).catch(() => {});
+        });
+    }
+  }, [client, activeRoomJID]);
+
+  useEffect(() => {
+    const activeRoom = roomsList?.[activeRoomJID];
+    const shouldLoadActiveHistory =
+      !!activeRoomJID && !hasLoadedRoomHistory(activeRoom);
+
     const getDefaultHistory = async () => {
       if (!client) return;
+      if (!activeRoomJID) return;
+      await client.presenceInRoomStanza(activeRoomJID, 0, 1500, true).catch(() => {});
       dispatch(setIsLoading({ loading: true, chatJID: activeRoomJID }));
-      const res = await client.getHistoryStanza(activeRoomJID, 30);
+      const res = await client.getHistoryStanza(
+        activeRoomJID,
+        30,
+        undefined,
+        undefined,
+        { source: 'active' }
+      );
       if (res && countUndefinedText(res) > 0) {
         dispatch(setIsLoading({ loading: false, chatJID: activeRoomJID }));
         // make it more optimized
         await client.getHistoryStanza(
           activeRoomJID,
           20 + countUndefinedText(res),
-          Number(res[0].id)
+          Number(res[0].id),
+          undefined,
+          { source: 'active' }
         );
       }
       dispatch(
@@ -45,10 +96,10 @@ export const useRoomInitialization = (
     const initialPresenceAndHistory = async () => {
       if (!roomsList[activeRoomJID] && activeRoomJID && client) {
         await client.presenceInRoomStanza(activeRoomJID);
-        if (config?.newArch) {
-          await syncRooms(client, config);
-        } else {
+        if (config?.newArch === false) {
           await client.getRoomsStanza();
+        } else {
+          await syncRooms(client, config);
         }
         await getDefaultHistory();
       } else {
@@ -66,8 +117,7 @@ export const useRoomInitialization = (
         initialPresenceAndHistory();
       } else if (
         activeRoomJID &&
-        messageLength < 1 &&
-        !roomsList?.[activeRoomJID].historyComplete
+        shouldLoadActiveHistory
       ) {
         dispatch(setIsLoading({ loading: true, chatJID: activeRoomJID }));
         getDefaultHistory();
@@ -78,20 +128,54 @@ export const useRoomInitialization = (
       initialPresenceAndHistory();
     }
 
-    if (client && config?.defaultRooms) {
-      const allExist = config?.defaultRooms.every(
+    if (client && activeRoomJID && typeof window !== 'undefined') {
+      const pendingMessageId =
+        typeof localStorage !== 'undefined'
+          ? localStorage.getItem(PUSH_MESSAGE_ID_KEY)
+          : null;
+      const pendingRoomJID =
+        typeof localStorage !== 'undefined'
+          ? localStorage.getItem(PUSH_ROOM_JID_KEY)
+          : null;
+
+      if (pendingMessageId && (!pendingRoomJID || pendingRoomJID === activeRoomJID)) {
+        client
+          .getHistoryStanza(activeRoomJID, 30, undefined, undefined, {
+            source: 'active',
+          })
+          .catch(() => {})
+          .finally(() => {
+            setTimeout(() => scrollToMessage(pendingMessageId), 200);
+            if (typeof localStorage !== 'undefined') {
+              localStorage.removeItem(PUSH_MESSAGE_ID_KEY);
+              localStorage.removeItem(PUSH_ROOM_JID_KEY);
+            }
+          });
+      }
+    }
+
+    const defaultRooms = Array.isArray(config?.defaultRooms)
+      ? config.defaultRooms
+      : [];
+    if (client && defaultRooms.length) {
+      const allExist = defaultRooms.every(
         (room) => roomsList[room.jid] !== undefined
       );
       if (roomsList && !allExist) {
-        config?.defaultRooms.map(async (room) => {
+        defaultRooms.forEach((room) => {
           client.presenceInRoomStanza(room.jid);
         });
-        if (config?.newArch) {
-          // syncRooms(client, config);
-        } else {
+        if (config?.newArch === false) {
           client.getRoomsStanza();
+        } else {
+          // syncRooms(client, config);
         }
       }
     }
-  }, [activeRoomJID, Object.keys(roomsList).length]);
+  }, [
+    activeRoomJID,
+    Object.keys(roomsList).length,
+    messageLength,
+    roomsList?.[activeRoomJID]?.messages?.length,
+  ]);
 };

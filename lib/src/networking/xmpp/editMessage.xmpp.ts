@@ -1,5 +1,6 @@
 import { Client, xml } from '@xmpp/client';
 import { createTimeoutPromise } from './createTimeoutPromise.xmpp';
+import { ethoraLogger } from '../../helpers/ethoraLogger';
 
 export async function editMessage(client: Client, chatId: string, messageId: string, text: string) {
   const id = `edit-message-${Date.now().toString()}`
@@ -25,7 +26,7 @@ export async function editMessage(client: Client, chatId: string, messageId: str
   // const responsePromise = new Promise((resolve, _) => {
   //   stanzaHdlrPointer = (stanza) => {
   //     if (stanza.is("message") && stanza.attrs["id"] === id) {
-  //         console.log("edit message response ", stanza.toString())
+  //         ethoraLogger.log("edit message response ", stanza.toString())
   //         resolve(true)
   //     //   const msg = stanza
   //     //   const text = msg.getChild('body')?.getText()
@@ -38,7 +39,7 @@ export async function editMessage(client: Client, chatId: string, messageId: str
   //     }
   //   }
   //   client.on("stanza", stanzaHdlrPointer)
-  //   console.log("editMessage:send:stanza ", xmlMessage.toString())
+  //   ethoraLogger.log("editMessage:send:stanza ", xmlMessage.toString())
     client.send(xmlMessage)
   // })
   // const timeoutPromise = createTimeoutPromise(10000, unsubscribe)

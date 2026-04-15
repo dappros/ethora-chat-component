@@ -1,5 +1,5 @@
 import styled from 'styled-components';
-import Button from '../styled/Button';
+import Button, { ButtonProps } from '../styled/Button';
 
 export const ModalBackground = styled.div`
   position: fixed;

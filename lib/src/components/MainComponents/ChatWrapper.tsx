@@ -27,10 +27,10 @@ import Loader from '../styled/Loader';
 import { ModalReportChat } from '../Modals/ModalReportChat/ModalReportChat.tsx';
 import { useQRCodeChat } from '../../hooks/useQRCodeChatHandler';
 import useChatWrapperInit from '../../hooks/useChatWrapperInit.ts';
-import { useHeapSender } from '../../hooks/useHeapSender';
 import ErrorFallback from './ErrorFallback';
 import ConnectionBanner from './ConnectionBanner';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
+import { ethoraLogger } from '../../helpers/ethoraLogger';
 
 interface ChatWrapperProps {
   token?: string;
@@ -52,6 +52,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
   const [isChatVisible, setIsChatVisible] = useState(false);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
+  const [isRouteActive, setIsRouteActive] = useState(true);
 
   const conferenceServer = config?.xmppSettings?.conference;
 
@@ -88,15 +89,17 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     setIsChatVisible(value);
   };
 
-  const { rooms, activeRoomJID, reportRoom } = useSelector(
-    (state: RootState) => state.rooms
+  const rooms = useSelector((state: RootState) => state.rooms.rooms);
+  const activeRoomJID = useSelector((state: RootState) => state.rooms.activeRoomJID);
+  const reportRoomIsOpen = useSelector((state: RootState) =>
+    Boolean(state.rooms?.reportRoom?.isOpen)
   );
-  const { roomsList, loading, globalLoading, loadingText } = useRoomState();
+  const { loadingText } = useRoomState();
 
   const activeMessage = useMemo(() => {
     if (activeRoomJID) {
       return rooms[activeRoomJID]?.messages?.find(
-        (message) => message?.activeMessage
+        (message: { activeMessage: any; }) => message?.activeMessage
       );
     }
   }, [rooms, activeRoomJID]);
@@ -106,9 +109,12 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     dispatch(setIsLoading({ chatJID: chat.jid, loading: true }));
     dispatch(setCurrentRoom({ roomJID: chat.jid }));
     dispatch(setEditAction({ isEdit: false }));
+    client?.promoteRoomHistory(chat.jid);
     handleItemClick(true);
     if (!chat?.historyComplete && chat.messages?.length < 30) {
-      client?.getHistoryStanza(chat.jid, 30);
+      client?.getHistoryStanza(chat.jid, 30, undefined, undefined, {
+        source: 'active',
+      });
     }
   };
 
@@ -133,22 +139,43 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     wasAutoSelected,
     config,
   });
-  const { sendHeapMessages } = useHeapSender(client);
+  const hasRooms = Object.keys(rooms || {}).length > 0;
+  const clientReadyForUI = !!client && !isConnectionLost && hasRooms;
+  const showShell = inited || clientReadyForUI;
 
   useEffect(() => {
-    if (inited && client) {
-      sendHeapMessages();
-    }
-  }, [inited, client]);
+    if (typeof window === 'undefined') return;
+
+    const mountPathname = window.location.pathname;
+
+    const syncRouteState = () => {
+      const stillOnMountRoute = window.location.pathname === mountPathname;
+      setIsRouteActive(stillOnMountRoute);
+      if (!stillOnMountRoute && activeRoomJID) {
+        dispatch(setCurrentRoom({ roomJID: null }));
+      }
+    };
+
+    syncRouteState();
+    const interval = window.setInterval(syncRouteState, 250);
+    window.addEventListener('popstate', syncRouteState);
+    window.addEventListener('hashchange', syncRouteState);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('popstate', syncRouteState);
+      window.removeEventListener('hashchange', syncRouteState);
+    };
+  }, [activeRoomJID, dispatch]);
 
   //upd logic to use
   // const queueMessageLoader = useCallback(
   //   async (chatJID: string, max: number) => {
   //     try {
-  //       console.log('2'); //bad
+  //       ethoraLogger.log('2'); //bad
   //       return await client?.getHistoryStanza(chatJID, max);
   //     } catch (error) {
-  //       console.log('Error in loading queue messages', error);
+  //       ethoraLogger.log('Error in loading queue messages', error);
   //     }
   //   },
   //   [globalLoading, loading, !!client]
@@ -183,7 +210,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           ...MainComponentStyles,
         }}
       >
-        <ConnectionBanner />
+        <ConnectionBanner message="Connection lost. Retrying..." />
         <StyledLoaderWrapper
           style={{ alignItems: 'center', flexDirection: 'column', gap: '10px' }}
         >
@@ -219,9 +246,13 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   if (user.xmppPassword === '' && user.xmppUsername === '')
     return <LoginForm config={config} />;
 
+  if (!isRouteActive) {
+    return null;
+  }
+
   return (
     <>
-      {inited ? (
+      {showShell ? (
         <ChatWrapperBox
           style={{
             ...MainComponentStyles,
@@ -290,7 +321,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           style={{ alignItems: 'center', flexDirection: 'column', gap: '10px' }}
         >
           <Loader color={config?.colors?.primary} style={{ margin: '0px' }} />
-          {loadingText && <div>{loadingText}</div>}
+          <div>{loadingText || 'Loading chat...'}</div>
         </StyledLoaderWrapper>
       )}
       {deleteModal?.isDeleteModal && (
@@ -303,7 +334,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           handleCloseModal={handleCloseDeleteModal}
         />
       )}
-      {reportRoom.isOpen && <ModalReportChat />}
+      {reportRoomIsOpen && <ModalReportChat />}
     </>
   );
 };

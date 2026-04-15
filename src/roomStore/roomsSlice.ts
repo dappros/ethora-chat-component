@@ -22,7 +22,16 @@ interface RoomMessagesState {
   reportRoom: {
     isOpen: boolean;
   };
+  subscribedRooms: string[];
+  pushSubscriptionStatus: Record<string, 'pending' | 'subscribed' | 'error' | 'blocked'>;
   loadingText?: string;
+}
+
+interface PreloadRoomUpdate {
+  jid: string;
+  messages?: IMessage[];
+  unreadCapped?: boolean;
+  historyPreloadState?: 'idle' | 'loading' | 'done' | 'error';
 }
 
 const initialState: RoomMessagesState = {
@@ -39,13 +48,150 @@ const initialState: RoomMessagesState = {
   reportRoom: {
     isOpen: false,
   },
+  subscribedRooms: [],
+  pushSubscriptionStatus: {},
   loadingText: undefined,
+};
+
+const getNormalizedSubscribedRooms = (subscribedRooms: unknown): string[] =>
+  Array.isArray(subscribedRooms)
+    ? subscribedRooms.filter((room): room is string => typeof room === 'string')
+    : [];
+
+const normalizeTimestampValue = (value: number): number => {
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  if (value < 1e11) return value * 1000; // seconds -> milliseconds
+  if (value > 1e14) return Math.floor(value / 1000); // microseconds-ish -> milliseconds
+  return value;
+};
+
+const getMessageTimestampValue = (message: IMessage): number => {
+  const dateTs = new Date(message?.date as string).getTime();
+  if (Number.isFinite(dateTs) && dateTs > 0) return dateTs;
+
+  const inlineTimestamp = Number((message as any)?.timestamp);
+  const normalizedInlineTimestamp = normalizeTimestampValue(inlineTimestamp);
+  if (normalizedInlineTimestamp > 0) {
+    return normalizedInlineTimestamp;
+  }
+
+  const messageIds = [message?.id, (message as any)?.xmppId]
+    .map((id) => String(id || '').trim())
+    .filter(Boolean);
+
+  for (const id of messageIds) {
+    const numericId = Number(id);
+    const normalizedNumericId = normalizeTimestampValue(numericId);
+    if (normalizedNumericId > 0) return normalizedNumericId;
+
+    const numericChunk = id.match(/\d{10,}/)?.[0];
+    if (numericChunk) {
+      const normalizedChunk = normalizeTimestampValue(Number(numericChunk));
+      if (normalizedChunk > 0) return normalizedChunk;
+    }
+  }
+
+  return 0;
+};
+
+const getMessageKey = (message: IMessage): string =>
+  String(message?.xmppId || message?.id || '');
+
+const compareMessageOrder = (a: IMessage, b: IMessage): number => {
+  const tsA = getMessageTimestampValue(a);
+  const tsB = getMessageTimestampValue(b);
+  if (tsA !== tsB) {
+    return tsA - tsB;
+  }
+  // Keep existing relative order for equal timestamps.
+  return 0;
+};
+
+const enrichMessageAuthor = (
+  message: IMessage,
+  usersSet: Record<string, RoomMember>
+): IMessage => {
+  const rawUserId = String(message?.user?.id || '');
+  const localUserId = rawUserId.split('@')[0];
+  const currentName = String(message?.user?.name || '').trim();
+  const resolvedName =
+    currentName ||
+    createUserNameFromSetUser(usersSet, localUserId) ||
+    createUserNameFromSetUser(usersSet, rawUserId) ||
+    localUserId ||
+    rawUserId;
+
+  return {
+    ...message,
+    user: {
+      ...message.user,
+      name: resolvedName,
+    },
+  };
+};
+
+const mergeRoomMessages = (
+  existing: IMessage[],
+  incoming: IMessage[],
+  usersSet: Record<string, RoomMember>
+): IMessage[] => {
+  if (!incoming?.length) return existing || [];
+  if (!existing?.length) {
+    return incoming.map((message) => enrichMessageAuthor(message, usersSet));
+  }
+
+  const byId = new Map<string, IMessage>();
+  [...existing, ...incoming].forEach((message) => {
+    const key = getMessageKey(message);
+    if (!key) return;
+    byId.set(key, enrichMessageAuthor(message, usersSet));
+  });
+
+  return [...byId.values()].sort(compareMessageOrder);
+};
+
+const normalizeDelimiterPosition = (
+  messages: IMessage[],
+  lastViewedTimestamp?: number
+): IMessage[] => {
+  const list = (messages || []).filter((msg) => msg?.id !== 'delimiter-new');
+  const lastViewed = Number(lastViewedTimestamp || 0);
+
+  if (lastViewed <= 0 || list.length === 0) {
+    return list;
+  }
+
+  const firstUnreadIndex = list.findIndex((msg) => {
+    if (!msg || msg.pending) return false;
+    const ts = getMessageTimestampValue(msg);
+    return ts > lastViewed;
+  });
+
+  if (firstUnreadIndex === -1) {
+    return list;
+  }
+
+  const delimiter: IMessage = {
+    id: 'delimiter-new',
+    body: 'New Messages',
+    date: new Date(lastViewed).toISOString(),
+    roomJid: list[firstUnreadIndex]?.roomJid || '',
+    user: {
+      id: 'system',
+      name: 'system',
+      token: '',
+      refreshToken: '',
+    },
+  } as IMessage;
+
+  list.splice(firstUnreadIndex, 0, delimiter);
+  return list;
 };
 
 export const addRoomViaApi = createAsyncThunk(
   'roomMessages/addRoomViaApi',
   async (
-    { room, xmpp }: { room: IRoom; xmpp: XmppClient },
+    { room, xmpp: _xmpp }: { room: IRoom; xmpp: XmppClient },
     { dispatch, getState }
   ) => {
     const state = getState() as { rooms: RoomMessagesState };
@@ -54,10 +200,8 @@ export const addRoomViaApi = createAsyncThunk(
     );
 
     if (!isRoomAlreadyAdded) {
-      if (room.jid) {
-        xmpp.presenceInRoomStanza(room.jid);
-        xmpp?.getHistoryStanza(room.jid, 10);
-      }
+      // Room bootstrap is handled by dedicated initialization flows.
+      // Avoid per-room blocking network calls during initial room list sync.
       dispatch(roomsStore.actions.addRoomFromApi({ room }));
     }
   }
@@ -69,7 +213,11 @@ export const roomsStore = createSlice({
   reducers: {
     addRoom(state, action: PayloadAction<{ roomData: IRoom }>) {
       const { roomData } = action.payload;
-      state.rooms[roomData.jid] = roomData;
+      state.rooms[roomData.jid] = {
+        ...roomData,
+        unreadCapped: roomData.unreadCapped ?? false,
+        historyPreloadState: roomData.historyPreloadState ?? 'idle',
+      };
     },
     deleteRoom(state, action: PayloadAction<{ jid: string }>) {
       const { jid } = action.payload;
@@ -97,7 +245,31 @@ export const roomsStore = createSlice({
     ) {
       const { roomJID, messages } = action.payload;
       if (state.rooms[roomJID]) {
-        state.rooms[roomJID].messages = messages;
+        const merged = mergeRoomMessages(
+          state.rooms[roomJID].messages || [],
+          messages || [],
+          state.usersSet
+        );
+        state.rooms[roomJID].messages = normalizeDelimiterPosition(
+          merged,
+          state.rooms[roomJID].lastViewedTimestamp
+        );
+      }
+    },
+    replaceRoomMessages(
+      state,
+      action: PayloadAction<{ roomJID: string; messages: IMessage[] }>
+    ) {
+      const { roomJID, messages } = action.payload;
+      if (state.rooms[roomJID]) {
+        const enriched = (messages || []).map((message) =>
+          enrichMessageAuthor(message, state.usersSet)
+        );
+        const sorted = [...enriched].sort(compareMessageOrder);
+        state.rooms[roomJID].messages = normalizeDelimiterPosition(
+          sorted,
+          state.rooms[roomJID].lastViewedTimestamp
+        );
       }
     },
     deleteRoomMessage(
@@ -234,6 +406,11 @@ export const roomsStore = createSlice({
           lastViewedTimestamp
         );
       }
+
+      state.rooms[roomJID].messages = normalizeDelimiterPosition(
+        [...state.rooms[roomJID].messages].sort(compareMessageOrder),
+        state.rooms[roomJID].lastViewedTimestamp
+      );
     },
     deleteAllRooms(state) {
       state.rooms = {};
@@ -244,6 +421,25 @@ export const roomsStore = createSlice({
 
       newUsers.forEach((user) => {
         state.usersSet[user.xmppUsername] = user;
+      });
+
+      const updatedUsernames = new Set(newUsers.map((u) => u.xmppUsername));
+      Object.values(state.rooms).forEach((room) => {
+        room.messages.forEach((message) => {
+          const msgUserLocal = message.user?.id?.split('@')[0] ?? '';
+          if (updatedUsernames.has(msgUserLocal) || updatedUsernames.has(message.user?.id)) {
+            const matched =
+              state.usersSet[msgUserLocal] ||
+              state.usersSet[message.user?.id];
+            if (matched) {
+              message.user = {
+                ...message.user,
+                name: createUserNameFromSetUser(state.usersSet, msgUserLocal) ||
+                      createUserNameFromSetUser(state.usersSet, message.user?.id),
+              };
+            }
+          }
+        });
       });
     },
     setComposing(
@@ -293,6 +489,11 @@ export const roomsStore = createSlice({
             timestamp
           );
         }
+        state.rooms[chatJID].messages = normalizeDelimiterPosition(
+          state.rooms[chatJID].messages,
+          timestamp
+        );
+        state.rooms[chatJID].unreadCapped = false;
       }
     },
     setRoomRole: (
@@ -352,14 +553,77 @@ export const roomsStore = createSlice({
     },
     addRoomFromApi: (state, action: PayloadAction<{ room: IRoom }>) => {
       const { room } = action.payload;
-      state.rooms[room.jid] = room;
+      state.rooms[room.jid] = {
+        ...room,
+        unreadCapped: room.unreadCapped ?? false,
+        historyPreloadState: room.historyPreloadState ?? 'idle',
+      };
+    },
+    applyRoomsPreloadBatch: (
+      state,
+      action: PayloadAction<{ rooms: PreloadRoomUpdate[] }>
+    ) => {
+      const { rooms } = action.payload;
+      if (!rooms?.length) return;
+
+      rooms.forEach((update) => {
+        const room = state.rooms[update.jid];
+        if (!room) return;
+
+        if (typeof update.historyPreloadState !== 'undefined') {
+          room.historyPreloadState = update.historyPreloadState;
+        }
+
+        if (typeof update.unreadCapped !== 'undefined') {
+          room.unreadCapped = update.unreadCapped;
+        }
+
+        if (update.messages) {
+          const merged = mergeRoomMessages(
+            room.messages || [],
+            update.messages,
+            state.usersSet
+          );
+          room.messages = normalizeDelimiterPosition(
+            merged,
+            room.lastViewedTimestamp
+          );
+        }
+      });
     },
     updateUsersSet: (state, action: PayloadAction<{ rooms: ApiRoom[] }>) => {
       const { rooms } = action.payload;
       state.usersSet = extractUniqueMembersFromRooms(rooms).object;
     },
     setOpenReportModal: (state, action: PayloadAction<{ isOpen: boolean }>) => {
+      if (!state.reportRoom) {
+        state.reportRoom = { isOpen: false };
+      }
       state.reportRoom.isOpen = action.payload.isOpen;
+    },
+    setPushSubscriptionStatus: (
+      state,
+      action: PayloadAction<{ jid: string; status: 'pending' | 'subscribed' | 'error' | 'blocked' }>
+    ) => {
+      const { jid, status } = action.payload;
+      const subscribedRooms = getNormalizedSubscribedRooms(state.subscribedRooms);
+
+      if (subscribedRooms !== state.subscribedRooms) {
+        state.subscribedRooms = subscribedRooms;
+      }
+
+      state.pushSubscriptionStatus[jid] = status;
+      if (status === 'subscribed') {
+        if (!subscribedRooms.includes(jid)) {
+          subscribedRooms.push(jid);
+        }
+      } else if (status === 'blocked' || status === 'error') {
+        state.subscribedRooms = subscribedRooms.filter((id) => id !== jid);
+      }
+    },
+    clearPushSubscriptions: (state) => {
+      state.subscribedRooms = [];
+      state.pushSubscriptionStatus = {};
     },
   },
 });
@@ -383,11 +647,26 @@ const countNewerMessages = (
   messages: IMessage[],
   timestamp: number
 ): number => {
-  if (timestamp !== 0) {
-    return messages.filter((message) => {
-      return Number(message.id) < timestamp;
-    }).length;
-  } else return 0;
+  if (timestamp <= 0) return 0;
+  const getMessageTimestamp = (message: IMessage): number => {
+    const dateTs = new Date(message?.date as string).getTime();
+    if (Number.isFinite(dateTs) && dateTs > 0) return dateTs;
+
+    const numericId = Number(message?.id);
+    if (Number.isFinite(numericId) && numericId > 0) return numericId;
+
+    const inlineTimestamp = Number((message as any)?.timestamp);
+    if (Number.isFinite(inlineTimestamp) && inlineTimestamp > 0) {
+      return inlineTimestamp;
+    }
+    return 0;
+  };
+
+  return messages.filter((message) => {
+    if (!message || message.id === 'delimiter-new' || message.pending) return false;
+    const ts = getMessageTimestamp(message);
+    return ts > timestamp;
+  }).length;
 };
 
 export const getLastMessageTimestamp = (
@@ -406,6 +685,7 @@ export const {
   addRoom,
   deleteAllRooms,
   setRoomMessages,
+  replaceRoomMessages,
   addRoomMessage,
   deleteRoomMessage,
   setEditAction,
@@ -425,6 +705,9 @@ export const {
   updateUsersSet,
   setOpenReportModal,
   insertUsers,
+  setPushSubscriptionStatus,
+  clearPushSubscriptions,
+  applyRoomsPreloadBatch,
 } = roomsStore.actions;
 
 export default roomsStore.reducer;

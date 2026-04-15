@@ -3,11 +3,12 @@ import { useXmppClient } from '../context/xmppProvider';
 import { useDispatch, useSelector } from 'react-redux';
 import { addRoomMessage, setEditAction } from '../roomStore/roomsSlice';
 import { uploadFile } from '../networking/api-requests/auth.api';
-import { RootState } from '../roomStore';
+import { RootState, store } from '../roomStore';
 import { useChatSettingState } from './useChatSettingState';
 import { addMessageToHeap } from '../roomStore/roomHeapSlice';
 import { v4 as uuidv4 } from 'uuid';
 import { useEventHandlers } from './useEventHandlers';
+import { ethoraLogger } from '../helpers/ethoraLogger';
 
 const DEFAULT_TIMEOUT_MS = 300000;
 
@@ -22,19 +23,20 @@ export const useSendMessage = () => {
   const { client } = useXmppClient();
   const dispatch = useDispatch();
   const { handleMessageSent, handleMessageFailed } = useEventHandlers(config);
+  const emitMessageSent = useCallback((payload: Parameters<typeof handleMessageSent>[0]) => {
+    Promise.resolve(handleMessageSent(payload)).catch((error) => {
+      console.error('Error in async message sent hook:', error);
+    });
+  }, [handleMessageSent]);
 
-  const { user, editAction, activeRoomJID, rooms } = useSelector(
-    (state: RootState) => ({
-      activeRoomJID: state.rooms.activeRoomJID,
-      user: state.chatSettingStore.user,
-      editAction: state.rooms.editAction,
-      config: state.chatSettingStore.config,
-      rooms: state.rooms.rooms,
-    })
-  );
+  const activeRoomJID = useSelector((state: RootState) => state.rooms.activeRoomJID);
+  const user = useSelector((state: RootState) => state.chatSettingStore.user);
+  const editAction = useSelector((state: RootState) => state.rooms.editAction);
+  const rooms = useSelector((state: RootState) => state.rooms.rooms);
 
   const timeoutTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const sendingMessagesRef = useRef<Set<string>>(new Set());
+  const fastAckFetchByRoomRef = useRef<Map<string, number>>(new Map());
 
   const [blockedRooms, setBlockedRooms] = useState<Set<string>>(new Set());
 
@@ -176,6 +178,60 @@ export const useSendMessage = () => {
     []
   );
 
+  const triggerFastAckFetch = useCallback(
+    (roomJID: string) => {
+      if (!client || !roomJID) return;
+      const now = Date.now();
+      const last = fastAckFetchByRoomRef.current.get(roomJID) || 0;
+      if (now - last < 600) return;
+      fastAckFetchByRoomRef.current.set(roomJID, now);
+      client
+        .presenceInRoomStanza(roomJID, 0, 1200, true)
+        .catch(() => {})
+        .finally(() => {
+          client
+            .getHistoryStanza(roomJID, 10, undefined, undefined, {
+              source: 'send_ack',
+            })
+            .catch(() => {});
+        });
+    },
+    [client]
+  );
+
+  const scheduleAckCatchup = useCallback(
+    (roomJID: string, messageId: string) => {
+      if (!client || !roomJID || !messageId) return;
+      const startedAt = Date.now();
+
+      const retry = () => {
+        const state = store.getState();
+        const msg = state.rooms.rooms?.[roomJID]?.messages?.find(
+          (m) => m.id === messageId || m.xmppId === messageId
+        );
+        if (msg && msg.pending === false) {
+          return;
+        }
+        client
+          .presenceInRoomStanza(roomJID, 0, 1200, true)
+          .catch(() => {})
+          .finally(() => {
+            client
+              .getHistoryStanza(roomJID, 20, undefined, undefined, {
+                source: 'send_ack',
+              })
+              .catch(() => {});
+          });
+        if (Date.now() - startedAt < 5000) {
+          setTimeout(retry, 700);
+        }
+      };
+
+      setTimeout(retry, 150);
+    },
+    [client]
+  );
+
   const sendMessage = useCallback(
     async (
       message: string,
@@ -185,7 +241,7 @@ export const useSendMessage = () => {
       mainMessage?: string
     ) => {
       if (isLastMessageFromUserAndProcessing(activeRoomJID)) {
-        console.log(
+        ethoraLogger.log(
           'Cannot send message: Message sending is currently blocked'
         );
         return;
@@ -205,7 +261,7 @@ export const useSendMessage = () => {
           );
           dispatch(setEditAction({ isEdit: false }));
 
-          await handleMessageSent({
+          emitMessageSent({
             message,
             roomJID: activeRoomJID,
             user,
@@ -269,7 +325,7 @@ export const useSendMessage = () => {
               })
             );
 
-            client?.sendTextMessageWithTranslateTagStanza(
+            const sendOk = await client?.sendTextMessageWithTranslateTagStanza(
               activeRoomJID,
               user.firstName,
               user.lastName,
@@ -283,8 +339,12 @@ export const useSendMessage = () => {
               (langSource as any) || 'en',
               id
             );
+            if (sendOk) {
+              triggerFastAckFetch(activeRoomJID);
+              scheduleAckCatchup(activeRoomJID, id);
+            }
 
-            await handleMessageSent({
+            emitMessageSent({
               message,
               roomJID: activeRoomJID,
               user,
@@ -336,7 +396,7 @@ export const useSendMessage = () => {
               })
             );
 
-            client?.sendMessage(
+            const sendOk = await client?.sendMessage(
               activeRoomJID,
               user.firstName,
               user.lastName,
@@ -349,8 +409,12 @@ export const useSendMessage = () => {
               mainMessage || '',
               id
             );
+            if (sendOk) {
+              triggerFastAckFetch(activeRoomJID);
+              scheduleAckCatchup(activeRoomJID, id);
+            }
 
-            await handleMessageSent({
+            emitMessageSent({
               message,
               roomJID: activeRoomJID,
               user,
@@ -390,6 +454,8 @@ export const useSendMessage = () => {
       isLastMessageFromUserAndProcessing,
       setupRoomTimeout,
       markMessageSending,
+      triggerFastAckFetch,
+      scheduleAckCatchup,
     ]
   );
 
@@ -404,7 +470,7 @@ export const useSendMessage = () => {
 
         dispatch(setEditAction({ isEdit: false }));
 
-        await handleMessageSent({
+        emitMessageSent({
           message,
           roomJID: editAction.roomJid,
           user,
@@ -438,7 +504,7 @@ export const useSendMessage = () => {
       mainMessage = ''
     ) => {
       if (isLastMessageFromUserAndProcessing(activeRoomJID)) {
-        console.log('Cannot send media: Message sending is currently blocked');
+        ethoraLogger.log('Cannot send media: Message sending is currently blocked');
         return;
       }
 
@@ -517,7 +583,7 @@ export const useSendMessage = () => {
           client?.sendMediaMessageStanza(activeRoomJID, messagePayload, id);
         }
 
-        await handleMessageSent({
+        emitMessageSent({
           message: 'media',
           roomJID: activeRoomJID,
           user,
@@ -553,6 +619,7 @@ export const useSendMessage = () => {
       handleMessageFailed,
       setupRoomTimeout,
       markMessageSending,
+      emitMessageSent,
     ]
   );
 

@@ -1,9 +1,5 @@
-import { User } from '../types/types';
-import { localStorageConstants } from './constants/LOCAL_STORAGE';
+import { getStoredUser } from './authStorage';
 
 export const getLocalStorageUser = () => {
-  const user: User = JSON.parse(
-    localStorage.getItem(localStorageConstants.ETHORA_USER)
-  );
-  return user;
+  return getStoredUser();
 };

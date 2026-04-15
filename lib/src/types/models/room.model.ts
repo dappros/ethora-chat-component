@@ -1,10 +1,13 @@
 import { IMessage, LastMessage } from './message.model';
 
 export interface RoomMember {
+  _id: string;
   firstName: string;
   lastName: string;
   xmppUsername: string;
-  _id: string;
+  profileImage?: string;
+  description?: string;
+  email?: string;
 
   ban_status?: string;
   jid?: string;
@@ -58,6 +61,8 @@ export interface IRoom {
     firstMessageTimestamp?: number;
   };
   historyComplete?: boolean;
+  historyPreloadState?: 'idle' | 'loading' | 'done' | 'error';
+  unreadCapped?: boolean;
 }
 
 export interface ApiRoom {

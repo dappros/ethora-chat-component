@@ -12,14 +12,13 @@ export function extractUniqueMembersFromRooms(
 ): MemberExtractionResult {
   const uniqueMembersMap = new Map<string, RoomMember>();
 
-  rooms.forEach((room) => {
-    if (room.members) {
-      room.members.forEach((member) => {
-        if (member && member?.xmppUsername) {
-          uniqueMembersMap.set(member.xmppUsername, member);
-        }
-      });
-    }
+  (rooms || []).forEach((room) => {
+    const members = Array.isArray(room?.members) ? room.members : [];
+    members.forEach((member) => {
+      if (member?.xmppUsername) {
+        uniqueMembersMap.set(member.xmppUsername, member);
+      }
+    });
   });
 
   const uniqueMembersArray = Array.from(uniqueMembersMap.values());

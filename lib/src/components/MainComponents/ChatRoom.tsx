@@ -66,7 +66,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         );
         sendMs(message, activeRoomJID);
       },
-      [activeRoomJID]
+      [activeRoomJID, sendMs]
     );
 
     const sendMedia = useCallback(
@@ -88,9 +88,13 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
                   ].id
                 );
           setIsLoadingMore(true);
-          client?.getHistoryStanza(chatJID, max, lastMsgId).then(() => {
-            setIsLoadingMore(false);
-          });
+          client
+            ?.getHistoryStanza(chatJID, max, lastMsgId, undefined, {
+              source: 'active',
+            })
+            .then(() => {
+              setIsLoadingMore(false);
+            });
         }
       },
       [client?.client?.jid]
@@ -109,17 +113,17 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       );
       setIsLoadingMore(false);
       return () => {
+        const exitTs = Date.now();
         if (client) {
           client.actionSetTimestampToPrivateStoreStanza(
             activeRoomJID,
-            new Date().getTime(),
-            Object.keys(roomsList)
+            exitTs
           );
         }
         dispatch(
           setLastViewedTimestamp({
             chatJID: activeRoomJID,
-            timestamp: new Date().getTime(),
+            timestamp: exitTs,
           })
         );
         dispatch(
@@ -130,7 +134,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         );
         setIsLoadingMore(false);
       };
-    }, [activeRoomJID]);
+    }, [activeRoomJID, client, dispatch]);
 
     // hooks useEffects
     useRoomUrl(activeRoomJID, roomsList, config);

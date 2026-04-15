@@ -5,6 +5,7 @@ import { createRoomPresence } from './createRoomPresence.xmpp';
 import { setMeAsOwner } from './setMeAsOwner.xmpp';
 import { roomConfig } from './roomConfig.xmpp';
 import { CONFERENCE_DOMAIN } from '../../helpers/constants/PLATFORM_CONSTANTS';
+import { ethoraLogger } from '../../helpers/ethoraLogger';
 
 export async function createRoom(
   title: string,
@@ -21,7 +22,7 @@ export async function createRoom(
     await setMeAsOwner(roomId, client);
     await roomConfig(roomId, title, description, client);
   } catch (error) {
-    console.log(error);
+    ethoraLogger.log(error);
   }
   return roomId;
 }

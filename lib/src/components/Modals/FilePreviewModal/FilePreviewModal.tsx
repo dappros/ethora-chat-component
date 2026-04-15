@@ -12,6 +12,7 @@ import { FullScreenImage } from '../../styled/StyledInputComponents/MediaCompone
 import { FullScreenVideo } from '../../styled/VideoMessage';
 import { setActiveFile } from '../../../roomStore/chatSettingsSlice';
 import PdfViewer from './PdfView';
+import { ethoraLogger } from '../../../helpers/ethoraLogger';
 
 interface FilePreviewModalProps {
   handleCloseModal: any;
@@ -35,8 +36,10 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
         switch (true) {
           case activeFile.mimetype.startsWith('image/'):
             downloadFilenameExtesion = 'png';
+            break;
           case activeFile.mimetype.startsWith('video/'):
             downloadFilenameExtesion = 'mp4';
+            break;
           default:
             downloadFilenameExtesion = activeFile.fileName;
         }
@@ -56,7 +59,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
         });
       })
       .catch((err) => {
-        console.log(err);
+        ethoraLogger.log(err);
       });
   };
 
