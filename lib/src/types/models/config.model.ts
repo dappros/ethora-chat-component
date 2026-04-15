@@ -52,6 +52,7 @@ export interface IConfig {
   forceSetRoom?: boolean;
   roomListStyles?: React.CSSProperties;
   chatRoomStyles?: React.CSSProperties;
+  noMessagesPlaceholder?: React.ComponentType;
   setRoomJidInPath?: boolean;
   disableRoomMenu?: boolean;
   defaultRooms?: ConfigRoom[];
@@ -165,6 +166,13 @@ export interface IConfig {
     maxInFlightHistory?: number;
     softPauseAfterSendMs?: number;
     activeRoomBoostTtlMs?: number;
+    presenceFailureBackoffMs?: number;
+    startupPrivateStoreTimeoutMs?: number;
+    startupPrivateStoreTtlMs?: number;
+    stagedPreloadEnabled?: boolean;
+    stagedPreloadFirstPassSize?: number;
+    stagedPreloadSecondPassSize?: number;
+    stagedPreloadConcurrency?: number;
   };
   inAppNotifications?: {
     enabled?: boolean;

@@ -25,6 +25,7 @@ import { useChatSettingState } from '../../hooks/useChatSettingState.tsx';
 import useComposing from '../../hooks/useComposing.tsx';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
 import { MessageProps } from '../../types/types';
+import { useLoaderDebug } from '../../hooks/useLoaderDebug';
 
 interface ChatRoomProps {
   CustomMessageComponent?: React.ComponentType<MessageProps>;
@@ -146,6 +147,41 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       roomMessages.length
     );
 
+    const activeRoom = activeRoomJID ? roomsList?.[activeRoomJID] : undefined;
+    const CustomNoMessagesPlaceholder = config?.noMessagesPlaceholder;
+    const hasMessages = (activeRoom?.messages?.length || 0) > 0;
+    const loaderByGlobalLoading = Boolean(globalLoading);
+    const loaderByLoading = Boolean(loading);
+    const loaderByActiveRoomLoading = Boolean(activeRoom?.isLoading);
+    const loaderByHistoryPreloadLoading = Boolean(
+      !hasMessages && activeRoom?.historyPreloadState === 'loading'
+    );
+
+    const isHistoryLoading =
+      loaderByGlobalLoading ||
+      loaderByLoading ||
+      loaderByActiveRoomLoading ||
+      loaderByHistoryPreloadLoading;
+
+    const activeRoomLoading =
+      !hasMessages &&
+      (loaderByLoading || loaderByActiveRoomLoading || loaderByHistoryPreloadLoading);
+
+    useLoaderDebug('chat-room-history-loader', isHistoryLoading);
+    useLoaderDebug(
+      'chat-room-history-loader:globalLoading',
+      loaderByGlobalLoading
+    );
+    useLoaderDebug('chat-room-history-loader:loading', loaderByLoading);
+    useLoaderDebug(
+      'chat-room-history-loader:activeRoom.isLoading',
+      loaderByActiveRoomLoading
+    );
+    useLoaderDebug(
+      "chat-room-history-loader:(!hasMessages&&historyPreloadState==='loading')",
+      loaderByHistoryPreloadLoading
+    );
+
     if (Object.keys(roomsList)?.length < 1 && !loading && !globalLoading) {
       return (
         <NonRoomChat>
@@ -158,14 +194,6 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     if (!activeRoomJID || !roomsList?.[activeRoomJID]) {
       return <ChooseChatMessage />;
     }
-
-    const activeRoom = roomsList[activeRoomJID];
-    const hasMessages = (activeRoom?.messages?.length || 0) > 0;
-    const isHistoryLoading =
-      globalLoading ||
-      loading ||
-      activeRoom?.isLoading ||
-      (!hasMessages && activeRoom?.historyPreloadState === 'loading');
 
     return (
       <ChatContainer
@@ -182,12 +210,16 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         )}
         {config?.chatHeaderAdditional?.enabled &&
           config.chatHeaderAdditional.element()}
-        {isHistoryLoading ? (
+        {activeRoomLoading ? (
           <Loader color={config?.colors?.primary} />
         ) : Object.keys(roomsList).length < 1 || !activeRoomJID ? (
           <NoSelectedChatIcon />
         ) : !hasMessages ? (
-          <NoMessagesPlaceholder />
+          CustomNoMessagesPlaceholder ? (
+            <CustomNoMessagesPlaceholder />
+          ) : (
+            <NoMessagesPlaceholder />
+          )
         ) : (
           <MessageList
             loadMoreMessages={loadMoreMessages}

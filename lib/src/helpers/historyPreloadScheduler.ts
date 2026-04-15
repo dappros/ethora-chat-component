@@ -13,6 +13,7 @@ interface HistoryPreloadSchedulerOptions {
   retryLimit?: number;
   selectedRoomJid?: string | null;
   defaultRoomJids?: string[];
+  forceReload?: boolean;
 }
 
 interface QueueItem {
@@ -89,6 +90,7 @@ export const runHistoryPreloadScheduler = async (
     retryLimit = DEFAULT_RETRY_LIMIT,
     selectedRoomJid = null,
     defaultRoomJids = [],
+    forceReload = false,
   } = options;
 
   if (signal?.aborted) return;
@@ -167,7 +169,10 @@ export const runHistoryPreloadScheduler = async (
 
         const task = (async () => {
           const currentRoom = store.getState().rooms.rooms[item.jid];
-          if (!currentRoom || currentRoom.historyPreloadState === 'done') {
+          if (
+            !currentRoom ||
+            (!forceReload && currentRoom.historyPreloadState === 'done')
+          ) {
             store.dispatch(
               applyRoomsPreloadBatch({
                 rooms: [
@@ -189,7 +194,7 @@ export const runHistoryPreloadScheduler = async (
               undefined,
               {
                 coalesceRoom: true,
-                skipIfPreloaded: true,
+                skipIfPreloaded: !forceReload,
                 source: 'background',
               }
             );

@@ -23,6 +23,7 @@ import { getRoomsWithRetry } from '../helpers/getRoomsWithRetry';
 import { clearHeap } from '../roomStore/roomHeapSlice';
 import { ensureScopedChatCache } from '../helpers/cacheScope';
 import { ethoraLogger } from '../helpers/ethoraLogger';
+import { runHistoryPreloadScheduler } from '../helpers/historyPreloadScheduler';
 
 interface useChatWrapperInitProps {
   roomJID: string | null | undefined;
@@ -53,6 +54,8 @@ const useChatWrapperInit = ({
   const [isRetrying, setIsRetrying] = useState<boolean | 'norooms'>(false);
   const hasSyncedHistoryRef = useRef<boolean>(false);
   const presenceBootstrappedClientsRef = useRef<Set<string>>(new Set());
+  const privateStoreBootstrappedClientsRef = useRef<Set<string>>(new Set());
+  const catchupBootstrappedClientsRef = useRef<Set<string>>(new Set());
   const startupSummaryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const { client, initializeClient, setClient } = useXmppClient();
@@ -94,6 +97,7 @@ const useChatWrapperInit = ({
           'online:all_room_presences:start',
           'bg:initRoomsPresence:start',
           'bg:getChatsPrivateStore:start',
+          'bg:stagedPreload:start',
           'bg:updateMessagesTillLast:start',
         ].forEach((key) => {
           if (points[key]) {
@@ -147,6 +151,36 @@ const useChatWrapperInit = ({
     });
   };
 
+  const waitForActiveRoomReady = async (
+    timeoutMs = 6000
+  ): Promise<boolean> => {
+    const startedAt = Date.now();
+    return new Promise<boolean>((resolve) => {
+      const check = () => {
+        const state = store.getState().rooms;
+        const jid = state.activeRoomJID;
+        const room = jid ? state.rooms?.[jid] : null;
+        if (!jid || !room) {
+          resolve(true);
+          return;
+        }
+        const hasMessages = (room.messages?.length || 0) > 0;
+        const preloadFinished =
+          room.historyPreloadState === 'done' || room.historyPreloadState === 'error';
+        if (!room.isLoading || hasMessages || preloadFinished) {
+          resolve(true);
+          return;
+        }
+        if (Date.now() - startedAt > timeoutMs) {
+          resolve(false);
+          return;
+        }
+        setTimeout(check, 120);
+      };
+      check();
+    });
+  };
+
   const runBackgroundTasks = (targetClient: XmppClient) => {
     const clientKey =
       targetClient.client?.jid?.toString() || targetClient.username || 'xmpp-client';
@@ -170,28 +204,94 @@ const useChatWrapperInit = ({
         }
       }
 
-      mark('bg:getChatsPrivateStore:start');
-      try {
-        const roomTimestampObject =
-          await targetClient.getChatsPrivateStoreRequestStanza();
-        updatedChatLastTimestamps(
-          roomTimestampObject as Record<string, string | number>,
-          dispatch
-        );
-        logDuration('bg:getChatsPrivateStore', 'bg:getChatsPrivateStore:start');
-      } catch (error) {
-        console.warn('[InitTiming] bg:getChatsPrivateStore:error', error);
+      if (!privateStoreBootstrappedClientsRef.current.has(clientKey)) {
+        privateStoreBootstrappedClientsRef.current.add(clientKey);
+        mark('bg:getChatsPrivateStore:start');
+        try {
+          const roomTimestampObject = await targetClient.getChatsPrivateStoreRequestStanza();
+          updatedChatLastTimestamps(
+            roomTimestampObject as Record<string, string | number>,
+            dispatch
+          );
+          logDuration('bg:getChatsPrivateStore', 'bg:getChatsPrivateStore:start');
+        } catch (error) {
+          privateStoreBootstrappedClientsRef.current.delete(clientKey);
+          console.warn('[InitTiming] bg:getChatsPrivateStore:error', error);
+        }
       }
 
       if (hasSyncedHistoryRef.current) return;
-      mark('bg:updateMessagesTillLast:start');
+      if (catchupBootstrappedClientsRef.current.has(clientKey)) return;
+      catchupBootstrappedClientsRef.current.add(clientKey);
+      const stagedPreloadEnabled = Boolean(
+        config?.historyQoS?.stagedPreloadEnabled
+      );
+
+      const stagedFirstPassSize = Math.max(
+        1,
+        Number(config?.historyQoS?.stagedPreloadFirstPassSize || 1)
+      );
+      const stagedSecondPassSize = Math.max(
+        1,
+        Number(config?.historyQoS?.stagedPreloadSecondPassSize || 15)
+      );
+      const stagedConcurrency = Math.max(
+        1,
+        Number(config?.historyQoS?.stagedPreloadConcurrency || 3)
+      );
+
+      mark(
+        stagedPreloadEnabled
+          ? 'bg:stagedPreload:start'
+          : 'bg:updateMessagesTillLast:start'
+      );
       try {
-        const latestRooms = store.getState().rooms.rooms || {};
-        await updateMessagesTillLast(latestRooms, targetClient);
+        await waitForActiveRoomReady();
+
+        if (stagedPreloadEnabled) {
+          const defaultRoomJids = (config?.defaultRooms || []).map(
+            (room) => room.jid
+          );
+
+          await runHistoryPreloadScheduler({
+            client: targetClient,
+            concurrency: stagedConcurrency,
+            pageSize: stagedFirstPassSize,
+            retryLimit: 2,
+            selectedRoomJid: store.getState().rooms.activeRoomJID || null,
+            defaultRoomJids,
+          });
+
+          await runHistoryPreloadScheduler({
+            client: targetClient,
+            concurrency: stagedConcurrency,
+            pageSize: stagedSecondPassSize,
+            retryLimit: 2,
+            selectedRoomJid: store.getState().rooms.activeRoomJID || null,
+            defaultRoomJids,
+            forceReload: true,
+          });
+        } else {
+          // Keep legacy catch-up path for cached rooms.
+          const latestRooms = store.getState().rooms.rooms || {};
+          const catchupBatchSize = store.getState().rooms.activeRoomJID ? 1 : 2;
+          await updateMessagesTillLast(latestRooms, targetClient, catchupBatchSize);
+        }
+
         hasSyncedHistoryRef.current = true;
-        logDuration('bg:updateMessagesTillLast', 'bg:updateMessagesTillLast:start');
+        if (stagedPreloadEnabled) {
+          logDuration('bg:stagedPreload', 'bg:stagedPreload:start');
+        } else {
+          logDuration('bg:updateMessagesTillLast', 'bg:updateMessagesTillLast:start');
+        }
       } catch (error) {
-        console.warn('[InitTiming] bg:updateMessagesTillLast:error', error);
+        catchupBootstrappedClientsRef.current.delete(clientKey);
+        console.warn(
+          stagedPreloadEnabled
+            ? '[InitTiming] bg:stagedPreload:error'
+            : '[InitTiming] bg:updateMessagesTillLast:error',
+          error
+        );
       }
     })();
   };
@@ -215,6 +315,8 @@ const useChatWrapperInit = ({
 
     hasSyncedHistoryRef.current = false;
     presenceBootstrappedClientsRef.current.clear();
+    privateStoreBootstrappedClientsRef.current.clear();
+    catchupBootstrappedClientsRef.current.clear();
 
     dispatch(setLogoutState());
     dispatch(clearHeap());

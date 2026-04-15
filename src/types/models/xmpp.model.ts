@@ -17,6 +17,13 @@ export interface xmppSettingsInterface {
     maxInFlightHistory?: number;
     softPauseAfterSendMs?: number;
     activeRoomBoostTtlMs?: number;
+    presenceFailureBackoffMs?: number;
+    startupPrivateStoreTimeoutMs?: number;
+    startupPrivateStoreTtlMs?: number;
+    stagedPreloadEnabled?: boolean;
+    stagedPreloadFirstPassSize?: number;
+    stagedPreloadSecondPassSize?: number;
+    stagedPreloadConcurrency?: number;
   };
 }
 

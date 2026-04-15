@@ -16,7 +16,7 @@ export const updateMessagesTillLast = async (
     [jid: string]: IRoom;
   },
   client: XmppClient,
-  batchSize = 3
+  batchSize = 2
 ) => {
   const startupStartedAt = Date.now();
   const activeRoomJID = store.getState().rooms.activeRoomJID;
@@ -91,6 +91,7 @@ export const updateMessagesTillLast = async (
 
   const roomEntries = Object.keys(rooms);
   if (roomEntries.length > 0) {
+    const normalizedBatchSize = Math.max(1, batchSize);
     const sortedRoomEntries = roomEntries.sort((a, b) => {
       if (activeRoomJID && a === activeRoomJID) return -1;
       if (activeRoomJID && b === activeRoomJID) return 1;
@@ -113,7 +114,7 @@ export const updateMessagesTillLast = async (
     while (processedIndex < sortedRoomEntries.length) {
       const currentBatch = sortedRoomEntries.slice(
         processedIndex,
-        processedIndex + batchSize
+        processedIndex + normalizedBatchSize
       );
 
       await Promise.all(
@@ -181,7 +182,7 @@ export const updateMessagesTillLast = async (
         })
       );
 
-      processedIndex += batchSize;
+      processedIndex += normalizedBatchSize;
     }
   }
 
