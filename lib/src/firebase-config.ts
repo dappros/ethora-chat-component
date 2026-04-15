@@ -37,9 +37,23 @@ const getFirebaseConfig = (customConfig?: any): Record<string, any> => {
   return customConfig || defaultConfig;
 };
 
+const hasRequiredFirebaseConfig = (config: Record<string, any> | undefined): boolean => {
+  if (!config) return false;
+
+  return (
+    normalizeValue(config.apiKey) !== '' &&
+    normalizeValue(config.appId) !== '' &&
+    normalizeValue(config.projectId) !== '' &&
+    normalizeValue(config.messagingSenderId) !== ''
+  );
+};
+
 export const getFirebaseApp = (customConfig?: any): FirebaseApp | null => {
   try {
     const config = getFirebaseConfig(customConfig);
+    if (!hasRequiredFirebaseConfig(config)) {
+      return null;
+    }
     const appName = getFirebaseAppName(config);
 
     const cached = firebaseAppsByName.get(appName);
@@ -87,5 +101,5 @@ export const getFirebaseMessaging = (customConfig?: any): Messaging | null => {
 // Legacy exports for backward compatibility.
 // Important: avoid creating the Firebase [DEFAULT] app to prevent duplicate-app
 // when runtime push config differs from env defaults.
-export const app = getFirebaseApp(defaultConfig) || initializeApp(defaultConfig, 'ethora-firebase-fallback');
-export const messaging = getFirebaseMessaging(defaultConfig) || getMessaging(app);
+export const app = getFirebaseApp(defaultConfig);
+export const messaging = getFirebaseMessaging(defaultConfig);

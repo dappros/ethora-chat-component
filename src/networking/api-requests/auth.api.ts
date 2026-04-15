@@ -90,6 +90,10 @@ export async function loginViaJwt(clientToken: string): Promise<User> {
 }
 
 export const signInWithGoogle = async () => {
+  if (!app) {
+    console.warn('Firebase app is not configured for Google sign-in');
+    return {};
+  }
   const auth = getAuth(app);
   const googleProvider = new GoogleAuthProvider();
   googleProvider.addScope('https://www.googleapis.com/auth/userinfo.email');
