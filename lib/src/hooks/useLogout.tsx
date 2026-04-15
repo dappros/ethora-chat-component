@@ -13,7 +13,7 @@ const logoutService = {
     const xmppClient = getGlobalXmppClient();
     if (xmppClient) {
       try {
-        await xmppClient.disconnect();
+        await xmppClient.disconnect?.({ suppressReconnect: true });
       } catch (error) {
         console.warn('[Logout] XMPP disconnect failed', error);
       } finally {
