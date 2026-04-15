@@ -802,11 +802,12 @@ export class XmppClient implements XmppClientInterface {
       }
 
       if (task.priority <= 1) {
-        this.ensureRoomPresence(task.chatJID, {
+        const isActiveRoomTask = task.priority === 0;
+        await this.ensureRoomPresence(task.chatJID, {
           settleDelay: 0,
-          timeoutMs: 900,
-          waitForJoin: false,
-          source: task.priority === 0 ? 'active_room' : 'send',
+          timeoutMs: isActiveRoomTask ? 5000 : 1200,
+          waitForJoin: isActiveRoomTask,
+          source: isActiveRoomTask ? 'active_room' : 'send',
         }).catch(() => {});
       }
 
