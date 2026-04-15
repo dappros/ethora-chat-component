@@ -21,6 +21,8 @@ const hasLoadedRoomHistory = (room?: IRoom): boolean => {
 
 const PUSH_MESSAGE_ID_KEY = '@ethora/chat-component-pushMessageId';
 const PUSH_ROOM_JID_KEY = '@ethora/chat-component-pushRoomJid';
+const ACTIVE_ROOM_PRESENCE_TIMEOUT_MS = 5000;
+const ACTIVE_ROOM_FAST_PRESENCE_TIMEOUT_MS = 3000;
 
 const scrollToMessage = (messageId: string) => {
   const messageElement = document.querySelector(
@@ -49,7 +51,12 @@ export const useRoomInitialization = (
       client.promoteRoomHistory(activeRoomJID);
       // Try fast explicit join for active room right after selection/login.
       client
-        .presenceInRoomStanza(activeRoomJID, 0, 1200, true)
+        .presenceInRoomStanza(
+          activeRoomJID,
+          0,
+          ACTIVE_ROOM_FAST_PRESENCE_TIMEOUT_MS,
+          true
+        )
         .catch(() => {
           client.prioritizeRoomPresence(activeRoomJID).catch(() => {});
         });
@@ -64,15 +71,34 @@ export const useRoomInitialization = (
     const getDefaultHistory = async () => {
       if (!client) return;
       if (!activeRoomJID) return;
-      await client.presenceInRoomStanza(activeRoomJID, 0, 1500, true).catch(() => {});
+      await client
+        .presenceInRoomStanza(activeRoomJID, 0, ACTIVE_ROOM_PRESENCE_TIMEOUT_MS, true)
+        .catch(() => {});
       dispatch(setIsLoading({ loading: true, chatJID: activeRoomJID }));
-      const res = await client.getHistoryStanza(
+      let res = await client.getHistoryStanza(
         activeRoomJID,
         30,
         undefined,
         undefined,
         { source: 'active' }
       );
+      if (!res?.length) {
+        await client
+          .presenceInRoomStanza(
+            activeRoomJID,
+            0,
+            ACTIVE_ROOM_PRESENCE_TIMEOUT_MS,
+            true
+          )
+          .catch(() => {});
+        res = await client.getHistoryStanza(
+          activeRoomJID,
+          30,
+          undefined,
+          undefined,
+          { source: 'active' }
+        );
+      }
       if (res && countUndefinedText(res) > 0) {
         dispatch(setIsLoading({ loading: false, chatJID: activeRoomJID }));
         // make it more optimized

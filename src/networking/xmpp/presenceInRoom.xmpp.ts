@@ -11,7 +11,7 @@ export const presenceInRoom = async (
 
   const unsubscribe = () => client.off('stanza', stanzaHandler);
 
-  return new Promise(async (resolve, reject) => {
+  return new Promise((resolve, reject) => {
     let settled = false;
 
     const finish = (cb: (value?: any) => void, value?: any) => {
@@ -46,20 +46,20 @@ export const presenceInRoom = async (
       xml('x', { xmlns: 'http://jabber.org/protocol/muc' })
     );
 
-    try {
-      await client.send(presence);
-    } catch (err) {
-      unsubscribe();
-      reject(
-        new Error(
-          `presence_send_failed:${roomJID}:${err instanceof Error ? err.message : String(err)}`
-        )
-      );
-      return;
-    }
-
-    void createTimeoutPromise(timeoutMs, unsubscribe).catch(() => {
-      reject(new Error(`presence_timeout:${roomJID}`));
-    });
+    client
+      .send(presence)
+      .then(() => {
+        void createTimeoutPromise(timeoutMs, unsubscribe).catch(() => {
+          reject(new Error(`presence_timeout:${roomJID}`));
+        });
+      })
+      .catch((err) => {
+        unsubscribe();
+        reject(
+          new Error(
+            `presence_send_failed:${roomJID}:${err instanceof Error ? err.message : String(err)}`
+          )
+        );
+      });
   });
 };

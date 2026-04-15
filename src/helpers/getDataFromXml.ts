@@ -5,6 +5,12 @@ import { Iso639_1Codes } from '../types/types';
 import { ethoraLogger } from './ethoraLogger';
 import { safeJsonParse } from './safeJson';
 
+const getLocalpartFromJid = (jid?: string): string | undefined => {
+  const value = String(jid || '').trim();
+  if (!value) return undefined;
+  return value.split('@')[0] || undefined;
+};
+
 const extractTimestamp = (str: string, stanza?: any): string | null => {
   if (!str) return;
   if (typeof str !== 'string') {
@@ -53,8 +59,8 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
     stanza;
 
   const xmppId = fullData?.attrs.id;
-  const xmppFrom = fullData?.attrs?.from;
-  const [roomJid, userWallet] = xmppFrom.split('/');
+  const xmppFrom = String(fullData?.attrs?.from || '');
+  const [roomJid = '', userWalletFromResource] = xmppFrom.split('/');
   let id =
     stanza.getChild('result')?.attrs.id ||
     extractTimestamp(stanza?.getChild('stanza-id')?.attrs?.id, stanza);
@@ -84,6 +90,10 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
 
   const data = fullData?.getChild('data') || stanza?.getChild('data');
   const photoURL = data?.attrs?.['photo'];
+  const userWallet =
+    userWalletFromResource ||
+    getLocalpartFromJid(data?.attrs?.senderJID) ||
+    undefined;
 
   const user = {
     id: userWallet,
