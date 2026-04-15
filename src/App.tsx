@@ -117,10 +117,10 @@ const NotificationEnabler: React.FC = () => {
   return null;
 };
 
-const ChatComponent = React.memo(({ baseConfig }: { baseConfig: IConfig }) => {
+const ChatComponent = React.memo(() => {
   const config: IConfig = useMemo(
     () => ({
-      ...baseConfig,
+      ...APP_CHAT_BASE_CONFIG,
       colors: { primary: '#5E3FDE', secondary: '#E1E4FE' },
       chatRoomStyles: { borderRadius: '16px' },
       roomListStyles: { borderRadius: '16px' },
@@ -142,34 +142,7 @@ const ChatComponent = React.memo(({ baseConfig }: { baseConfig: IConfig }) => {
       },
       useStoreConsoleEnabled: true,
     }),
-    [baseConfig]
-  );
-
-  const chatConfig = useMemo<IConfig>(
-    () => ({
-      setRoomJidInPath: true,
-      refreshTokens: { enabled: true },
-      disableMedia: true,
-      eventHandlers: {
-        onMessageSent: async (event: any) => {
-          ethoraLogger.log('✅ Message sent successfully:', event.message);
-        },
-      },
-      ...config,
-      inAppNotifications: {
-        enabled: true,
-        showInContext: true,
-        position: {
-          horizontal: 'left' as const,
-          vertical: 'bottom' as const,
-          offset: {
-            left: 20,
-            bottom: 20,
-          },
-        },
-      },
-    }),
-    [config]
+    []
   );
 
   const mainStyles = useMemo(
@@ -210,7 +183,52 @@ const ChatComponent = React.memo(({ baseConfig }: { baseConfig: IConfig }) => {
         // CustomDaySeparator={CustomDaySeparator}
         // roomJID="646cc8dc96d4a4dc8f7b2f2d_6824685682d635dba7522423@conference.xmpp.ethoradev.com"
         // roomJID="6998429ba125477a74a7dcef_69b96235545b8217d39dc1ac@conference.xmpp-dev.preshent.com"
-        config={chatConfig}
+        config={{
+          // ...(demoJwtToken
+          //   ? {
+          //       jwtLogin: {
+          //         enabled: true,
+          //         token: demoJwtToken,
+          //       },
+          //     }
+          //   : {}),
+          setRoomJidInPath: true,
+          refreshTokens: { enabled: true },
+          // secondarySendButton: {
+          //   enabled: true,
+          //   messageEdit: 'asdasd',
+          //   label: <div>'Send'</div>,
+          //   buttonStyles: {
+          //     whiteSpace: 'nowrap',
+          //     width: '60px',
+          //   },
+          //   hideInputSendButton: true,
+          //   overwriteEnterClick: true,
+          // },
+          disableMedia: true,
+          eventHandlers: {
+            onMessageSent: async (event) => {
+              ethoraLogger.log('✅ Message sent successfully:', event.message);
+            },
+          },
+          ...config,
+          inAppNotifications: {
+            enabled: true,
+            showInContext: true, // Show notifications in chat component
+            position: {
+              horizontal: 'left',
+              vertical: 'bottom',
+              offset: {
+                left: 20,
+                bottom: 20,
+              },
+            },
+          }
+          // pushNotifications: {
+          //   enabled: true,
+          //   softAsk: false,
+          // },
+        }}
         MainComponentStyles={mainStyles}
       />
     </div>
@@ -261,14 +279,15 @@ export default function App() {
   );
 
   return (
-    <XmppProvider config={globalXmppConfig}>
+    <XmppProvider>
+    {/* <XmppProvider config={globalXmppConfig}> */}
       <Router>
         <div className="flex">
           {navigation}
           <div className="flex-1 p-4">
             <Routes>
               <Route path="/apps" element={<Apps />} />
-              <Route path="/chat" element={<ChatComponent baseConfig={globalXmppConfig} />} />
+              <Route path="/chat" element={<ChatComponent />} />
             </Routes>
           </div>
         </div>

@@ -21,7 +21,7 @@ export const logoutMiddleware: Middleware =
               const client = (xmppProviderElement as any).__xmppClient;
               if (client && typeof client.disconnect === 'function') {
                 ethoraLogger.log('Disconnecting XMPP client due to logout');
-                client.disconnect({ suppressReconnect: true });
+                client.disconnect();
               }
             }
 
