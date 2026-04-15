@@ -596,6 +596,9 @@ export const roomsStore = createSlice({
       state.usersSet = extractUniqueMembersFromRooms(rooms).object;
     },
     setOpenReportModal: (state, action: PayloadAction<{ isOpen: boolean }>) => {
+      if (!state.reportRoom) {
+        state.reportRoom = { isOpen: false };
+      }
       state.reportRoom.isOpen = action.payload.isOpen;
     },
     setPushSubscriptionStatus: (

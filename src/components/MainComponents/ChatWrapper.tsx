@@ -91,7 +91,9 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
   const rooms = useSelector((state: RootState) => state.rooms.rooms);
   const activeRoomJID = useSelector((state: RootState) => state.rooms.activeRoomJID);
-  const reportRoom = useSelector((state: RootState) => state.rooms.reportRoom);
+  const reportRoomIsOpen = useSelector((state: RootState) =>
+    Boolean(state.rooms?.reportRoom?.isOpen)
+  );
   const { loadingText } = useRoomState();
 
   const activeMessage = useMemo(() => {
@@ -332,7 +334,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           handleCloseModal={handleCloseDeleteModal}
         />
       )}
-      {reportRoom.isOpen && <ModalReportChat />}
+      {reportRoomIsOpen && <ModalReportChat />}
     </>
   );
 };
