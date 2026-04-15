@@ -159,6 +159,14 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       return <ChooseChatMessage />;
     }
 
+    const activeRoom = roomsList[activeRoomJID];
+    const hasMessages = (activeRoom?.messages?.length || 0) > 0;
+    const isHistoryLoading =
+      globalLoading ||
+      loading ||
+      activeRoom?.isLoading ||
+      (!hasMessages && activeRoom?.historyPreloadState === 'loading');
+
     return (
       <ChatContainer
         style={{
@@ -174,14 +182,11 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         )}
         {config?.chatHeaderAdditional?.enabled &&
           config.chatHeaderAdditional.element()}
-        {globalLoading ||
-        (!roomsList[activeRoomJID].historyComplete &&
-          roomsList[activeRoomJID].messages.length < 1) ? (
+        {isHistoryLoading ? (
           <Loader color={config?.colors?.primary} />
         ) : Object.keys(roomsList).length < 1 || !activeRoomJID ? (
           <NoSelectedChatIcon />
-        ) : roomsList[activeRoomJID]?.messages &&
-          roomsList[activeRoomJID]?.messages.length < 1 ? (
+        ) : !hasMessages ? (
           <NoMessagesPlaceholder />
         ) : (
           <MessageList

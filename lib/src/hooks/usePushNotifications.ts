@@ -53,6 +53,10 @@ interface UsePushNotificationsOptions {
    */
   serviceWorkerPath?: string;
   serviceWorkerScope?: string;
+  /** Custom icon URL/path for browser OS notifications. */
+  iconPath?: string;
+  /** Custom badge URL/path for browser OS notifications. */
+  badgePath?: string;
 
   /**
    * Custom Firebase configuration object.
@@ -245,6 +249,8 @@ const usePushNotifications = (
           vapidPublicKey,
           serviceWorkerPath: options.serviceWorkerPath,
           serviceWorkerScope: options.serviceWorkerScope,
+          iconPath: options.iconPath || config?.pushNotifications?.iconPath,
+          badgePath: options.badgePath || config?.pushNotifications?.badgePath,
           firebaseConfig: options.firebaseConfig || config?.pushNotifications?.firebaseConfig,
           debug: config?.useStoreConsoleEnabled,
         });
@@ -297,6 +303,12 @@ const usePushNotifications = (
     enabled,
     options.serviceWorkerPath,
     options.serviceWorkerScope,
+    options.iconPath,
+    options.badgePath,
+    config?.pushNotifications?.iconPath,
+    config?.pushNotifications?.badgePath,
+    config?.pushNotifications?.firebaseConfig,
+    config?.useStoreConsoleEnabled,
     userXmppUsername,
     vapidPublicKey,
   ]);

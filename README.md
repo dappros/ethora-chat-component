@@ -121,6 +121,8 @@ export default function App() {
         enabled: true,
         softAsk: false,
         vapidPublicKey: 'PLACEHOLDER_VAPID_PUBLIC_KEY',
+        iconPath: '/icons/push-icon-192.png',
+        badgePath: '/icons/push-badge-72.png',
         firebaseConfig: {
           apiKey: 'PLACEHOLDER_API_KEY',
           authDomain: 'PLACEHOLDER_AUTH_DOMAIN',
@@ -419,6 +421,8 @@ Below is a grouped reference for all `config` options.
 | `pushNotifications.firebaseConfig` | `FBConfig` | Firebase app config for push messaging. |
 | `pushNotifications.serviceWorkerPath` | `string` | Service worker path, default `/firebase-messaging-sw.js`. |
 | `pushNotifications.serviceWorkerScope` | `string` | Service worker scope, default `/`. |
+| `pushNotifications.iconPath` | `string` | Custom icon URL/path for OS push notifications. |
+| `pushNotifications.badgePath` | `string` | Custom badge URL/path for OS push notifications. Falls back to `iconPath`. |
 | `pushNotifications.softAsk` | `boolean` | Do not immediately trigger browser permission prompt. |
 | `pushNotifications.onClick` | `(params) => void \| Promise<void>` | Callback invoked when the user clicks an OS push notification (including cold start via URL marker). |
 
@@ -505,6 +509,8 @@ npx @ethora/chat-component ethora-chat
       },
       serviceWorkerPath: '/firebase-messaging-sw.js',
       serviceWorkerScope: '/',
+      iconPath: '/icons/push-icon-192.png',
+      badgePath: '/icons/push-badge-72.png',
       softAsk: false,
       onClick: async ({ roomJID, messageId, url, data }) => {
         // Your app-level routing/analytics can live here.
@@ -530,6 +536,8 @@ function PushPermissionButton() {
   return <button onClick={() => requestPermission()}>Enable Push</button>;
 }
 ```
+
+`iconPath` and `badgePath` should point to public, reachable assets (for example, files from your app `public/` directory).
 
 ## Auth Strategies
 

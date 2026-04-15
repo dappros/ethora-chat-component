@@ -197,6 +197,8 @@ export interface IConfig {
     firebaseConfig?: FBConfig;
     serviceWorkerPath?: string;
     serviceWorkerScope?: string;
+    iconPath?: string;
+    badgePath?: string;
     softAsk?: boolean;
     onClick?: (params: {
       roomJID?: string;

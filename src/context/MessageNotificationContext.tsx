@@ -251,6 +251,11 @@ export const MessageNotificationProvider: React.FC<{
       if (osPushDecision.show) {
         const title = roomName || 'New message';
         const body = message.body || 'You have a new message.';
+        const notificationIcon = config?.pushNotifications?.iconPath || '/favicon.ico';
+        const notificationBadge =
+          config?.pushNotifications?.badgePath ||
+          config?.pushNotifications?.iconPath ||
+          '/favicon.ico';
         const url = buildNotificationUrl(
           { data: { jid: roomJID, msgID: message.id } },
           window.location.origin
@@ -260,8 +265,8 @@ export const MessageNotificationProvider: React.FC<{
           title,
           {
             body: `${senderName}: ${body}`,
-            icon: '/favicon.ico',
-            badge: '/favicon.ico',
+            icon: notificationIcon,
+            badge: notificationBadge,
             tag: 'ethora-notification',
             data: { url, roomJID, messageId: message.id },
           },

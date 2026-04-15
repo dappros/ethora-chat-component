@@ -28,6 +28,8 @@ interface FcmRegistrationOptions {
   serviceWorkerPath?: string;
   serviceWorkerScope?: string;
   firebaseConfig?: any;
+  iconPath?: string;
+  badgePath?: string;
   debug?: boolean;
 }
 
@@ -42,6 +44,8 @@ async function registerFirebaseServiceWorker(
 ): Promise<ServiceWorkerRegistration | null> {
   const baseServiceWorkerPath = options.serviceWorkerPath || '/firebase-messaging-sw.js';
   const serviceWorkerScope = options.serviceWorkerScope || '/';
+  const customIconPath = options.iconPath?.trim() || '';
+  const customBadgePath = options.badgePath?.trim() || '';
 
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
     return null;
@@ -55,19 +59,26 @@ async function registerFirebaseServiceWorker(
     !!config?.messagingSenderId &&
     !!config?.projectId;
 
-  let serviceWorkerPath = baseServiceWorkerPath;
+  const baseServiceWorkerUrl = new URL(baseServiceWorkerPath, window.location.origin);
+  const serviceWorkerUrl = new URL(baseServiceWorkerPath, window.location.origin);
   if (hasRequiredConfig) {
-    const params = new URLSearchParams();
-    params.append('apiKey', config.apiKey || '');
-    params.append('authDomain', config.authDomain || '');
-    params.append('projectId', config.projectId || '');
-    params.append('storageBucket', config.storageBucket || '');
-    params.append('messagingSenderId', config.messagingSenderId || '');
-    params.append('appId', config.appId || '');
-    
-    const separator = serviceWorkerPath.includes('?') ? '&' : '?';
-    serviceWorkerPath = `${serviceWorkerPath}${separator}${params.toString()}`;
+    serviceWorkerUrl.searchParams.set('apiKey', config.apiKey || '');
+    serviceWorkerUrl.searchParams.set('authDomain', config.authDomain || '');
+    serviceWorkerUrl.searchParams.set('projectId', config.projectId || '');
+    serviceWorkerUrl.searchParams.set('storageBucket', config.storageBucket || '');
+    serviceWorkerUrl.searchParams.set('messagingSenderId', config.messagingSenderId || '');
+    serviceWorkerUrl.searchParams.set('appId', config.appId || '');
   }
+
+  if (customIconPath) {
+    serviceWorkerUrl.searchParams.set('iconPath', customIconPath);
+  }
+
+  if (customBadgePath) {
+    serviceWorkerUrl.searchParams.set('badgePath', customBadgePath);
+  }
+
+  const serviceWorkerPath = serviceWorkerUrl.toString();
 
   try {
     const waitForActive = async (
@@ -84,15 +95,32 @@ async function registerFirebaseServiceWorker(
       return registration.active ? registration : null;
     };
 
-    const hasConfigParams = (scriptURL: string): boolean => {
+    const expectedManagedParams = new Map<string, string>();
+    if (hasRequiredConfig) {
+      expectedManagedParams.set('apiKey', config.apiKey || '');
+      expectedManagedParams.set('authDomain', config.authDomain || '');
+      expectedManagedParams.set('projectId', config.projectId || '');
+      expectedManagedParams.set('storageBucket', config.storageBucket || '');
+      expectedManagedParams.set('messagingSenderId', config.messagingSenderId || '');
+      expectedManagedParams.set('appId', config.appId || '');
+    }
+    if (customIconPath) {
+      expectedManagedParams.set('iconPath', customIconPath);
+    }
+    if (customBadgePath) {
+      expectedManagedParams.set('badgePath', customBadgePath);
+    }
+
+    const hasMatchingManagedParams = (scriptURL: string): boolean => {
+      if (!expectedManagedParams.size) return true;
       try {
-        const url = new URL(scriptURL);
-        return (
-          !!url.searchParams.get('apiKey') &&
-          !!url.searchParams.get('appId') &&
-          !!url.searchParams.get('messagingSenderId') &&
-          !!url.searchParams.get('projectId')
-        );
+        const url = new URL(scriptURL, window.location.origin);
+        for (const [key, expectedValue] of expectedManagedParams.entries()) {
+          if ((url.searchParams.get(key) || '') !== expectedValue) {
+            return false;
+          }
+        }
+        return true;
       } catch {
         return false;
       }
@@ -104,7 +132,10 @@ async function registerFirebaseServiceWorker(
       const scriptURL = r.active?.scriptURL || r.waiting?.scriptURL || r.installing?.scriptURL;
       if (!scriptURL) return false;
       try {
-        return new URL(scriptURL).pathname === baseServiceWorkerPath;
+        return (
+          new URL(scriptURL, window.location.origin).pathname ===
+          baseServiceWorkerUrl.pathname
+        );
       } catch {
         return scriptURL.includes(baseServiceWorkerPath);
       }
@@ -117,7 +148,7 @@ async function registerFirebaseServiceWorker(
         alreadyRegistered.installing?.scriptURL ||
         '';
       const shouldUpdate =
-        hasRequiredConfig && scriptURL && !hasConfigParams(scriptURL);
+        !!scriptURL && !hasMatchingManagedParams(scriptURL);
 
       if (!shouldUpdate) {
         return await waitForActive(alreadyRegistered);

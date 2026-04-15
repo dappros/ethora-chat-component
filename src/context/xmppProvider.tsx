@@ -58,6 +58,8 @@ const XmppProviderPushNotificationsEnabler: React.FC<{
     firebaseConfig: pushNotifications?.firebaseConfig,
     serviceWorkerPath: pushNotifications?.serviceWorkerPath,
     serviceWorkerScope: pushNotifications?.serviceWorkerScope,
+    iconPath: pushNotifications?.iconPath,
+    badgePath: pushNotifications?.badgePath,
     softAsk: pushNotifications?.softAsk,
     onClick: pushNotifications?.onClick,
   });
