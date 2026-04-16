@@ -110,7 +110,12 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
     );
     const removeId = message?.xmppId || message?.id;
     const roomJID = stanza.attrs.from.split('/')[0];
-    const heapBeforeRemove = store.getState().roomHeapSlice.messageHeap as IMessage[];
+    const rawHeapBeforeRemove = store.getState().roomHeapSlice.messageHeap as
+      | IMessage[]
+      | undefined;
+    const heapBeforeRemove = Array.isArray(rawHeapBeforeRemove)
+      ? rawHeapBeforeRemove
+      : [];
     const matchedPendingMessage = !!(
       removeId &&
       heapBeforeRemove?.some((m) => (m.xmppId || m.id) === removeId)

@@ -1753,7 +1753,12 @@ export class XmppClient implements XmppClientInterface {
   private async drainHeap(): Promise<void> {
     try {
       const state = store.getState();
-      const heap = (state as any)?.roomHeapSlice?.messageHeap as IMessage[];
+      const heap = Array.isArray((state as any)?.roomHeapSlice?.messageHeap)
+        ? ((state as any).roomHeapSlice.messageHeap as IMessage[]).filter(
+            (message): message is IMessage =>
+              Boolean(message) && typeof message === 'object'
+          )
+        : [];
       if (!heap || heap.length === 0) return;
 
       const start = Date.now();
