@@ -15,6 +15,10 @@ import CustomMessageBubble from './examples/customComponents/CustomMessageBubble
 import { MessageNotificationProvider } from './context/MessageNotificationContext';
 import { ethoraLogger } from './helpers/ethoraLogger';
 
+const LIVEKIT_URL =
+  (((import.meta as unknown as { env?: Record<string, string | undefined> }).env) || {})
+    .VITE_LIVEKIT_URL || 'https://livekit.ethora-qa.com';
+
 const APP_CHAT_BASE_CONFIG: IConfig = {
   appId: '646cc8dc96d4a4dc8f7b2f2d',
   baseUrl: 'https://api.ethoradev.com/v1',
@@ -31,6 +35,11 @@ const APP_CHAT_BASE_CONFIG: IConfig = {
   refreshTokens: { enabled: true },
   setRoomJidInPath: true,
   initBeforeLoad: true,
+  videoCalls: {
+    enabled: true,
+    livekitUrl: LIVEKIT_URL,
+    allowedRoomTypes: ['private'],
+  },
 };
 
 const Apps = () => {

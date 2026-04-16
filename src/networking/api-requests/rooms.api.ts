@@ -155,3 +155,21 @@ export async function deleteRoom(name: string) {
     throw new Error('Error deleting room');
   }
 }
+
+export async function createChatCall(chatName: string): Promise<void> {
+  const token = store.getState().chatSettingStore.user.token || '';
+
+  try {
+    await http.post(
+      `/chats/call/create/${chatName}`,
+      {},
+      {
+        headers: {
+          Authorization: token,
+        },
+      }
+    );
+  } catch (error) {
+    throw new Error('Error creating chat call');
+  }
+}

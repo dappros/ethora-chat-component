@@ -236,6 +236,22 @@ export const SearchIcon = ({ color = '#8C8C8C', ...props }) => (
   </svg>
 );
 
+export const VideoCallIcon = ({ color = '#FFFFFF', ...props }) => (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <path
+      d="M16 10.5V6.5C16 5.67 15.33 5 14.5 5H4.5C3.67 5 3 5.67 3 6.5V17.5C3 18.33 3.67 19 4.5 19H14.5C15.33 19 16 18.33 16 17.5V13.5L21 17V7L16 10.5Z"
+      fill={color}
+    />
+  </svg>
+);
+
 export const NoSelectedChatIcon = ({ color = '#8C8C8C', ...props }) => (
   <svg
     width="241"

@@ -6,7 +6,8 @@ import {
 } from '@reduxjs/toolkit';
 import chatSettingsReducer from './chatSettingsSlice';
 import roomsSlice from './roomsSlice';
-import roomHeapSlice, { roomHeapSliceState } from './roomHeapSlice';
+import roomHeapSlice from './roomHeapSlice';
+import callSlice from './callSlice';
 import { IRoom } from '../types/types';
 import { unreadMiddleware } from './Middleware/unreadMidlleware';
 import { storage } from './storage';
@@ -148,6 +149,7 @@ const rootReducer = combineReducers({
   ),
   rooms: persistReducer(roomsPersistConfig, roomsSlice),
   roomHeapSlice: persistReducer(roomHeapSliceConfig, roomHeapSlice),
+  call: callSlice,
 });
 
 export type RootState = ReturnType<typeof rootReducer>;

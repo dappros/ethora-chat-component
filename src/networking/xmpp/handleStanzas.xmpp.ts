@@ -21,6 +21,7 @@ import {
 } from '../stanzaHandlers';
 import XmppClient from '../xmppClient';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
+import { onCallTokenMessage } from '../callTokenStanza';
 
 export function handleStanza(stanza: Element, xmppWs: XmppClient) {
   if (stanza?.attrs?.type === 'headline') {
@@ -28,6 +29,11 @@ export function handleStanza(stanza: Element, xmppWs: XmppClient) {
     onChatUpdate(stanza);
     return;
   }
+
+  if (stanza?.name === 'message' && onCallTokenMessage(stanza)) {
+    return;
+  }
+
   switch (stanza.name) {
     case 'message':
       onMessageError(stanza, xmppWs);
