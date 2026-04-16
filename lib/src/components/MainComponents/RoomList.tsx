@@ -34,6 +34,52 @@ interface RoomListProps {
   isSmallScreen?: boolean;
 }
 
+const normalizeTimestampValue = (value: number): number => {
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  if (value < 1e11) return value * 1000; // seconds -> milliseconds
+  if (value > 1e14) return Math.floor(value / 1000); // microseconds-ish -> milliseconds
+  return value;
+};
+
+const getRoomActivityTimestamp = (chat: IRoom): number => {
+  const latestMessage = chat?.messages?.[chat.messages.length - 1];
+  const latestMessageDate = new Date(latestMessage?.date as string).getTime();
+
+  if (Number.isFinite(latestMessageDate) && latestMessageDate > 0) {
+    return latestMessageDate;
+  }
+
+  const lastMessageTimestamp = normalizeTimestampValue(
+    Number(chat?.lastMessageTimestamp)
+  );
+  if (lastMessageTimestamp > 0) {
+    return lastMessageTimestamp;
+  }
+
+  const latestMessageId = String(latestMessage?.id || '').trim();
+  if (latestMessageId) {
+    const normalizedId = normalizeTimestampValue(Number(latestMessageId));
+    if (normalizedId > 0) {
+      return normalizedId;
+    }
+
+    const numericChunk = latestMessageId.match(/\d{10,}/)?.[0];
+    if (numericChunk) {
+      const normalizedChunk = normalizeTimestampValue(Number(numericChunk));
+      if (normalizedChunk > 0) {
+        return normalizedChunk;
+      }
+    }
+  }
+
+  const createdAt = new Date(chat?.createdAt as string).getTime();
+  if (Number.isFinite(createdAt) && createdAt > 0) {
+    return createdAt;
+  }
+
+  return 0;
+};
+
 const RoomList: React.FC<RoomListProps> = ({
   chats,
   burgerMenu = false,
@@ -80,13 +126,6 @@ const RoomList: React.FC<RoomListProps> = ({
     []
   );
 
-  const getLastMessageId = useCallback((chat: IRoom) => {
-    const rawId = chat?.messages?.[chat?.messages.length - 1]?.id ?? '';
-    const numericId = rawId.replace(/\D+/g, '');
-    const paddedId = numericId.padEnd(16, '0');
-    return paddedId;
-  }, []);
-
   const filteredChats = useMemo(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
     const chatsMap = new Map<string, IRoom[]>();
@@ -97,26 +136,8 @@ const RoomList: React.FC<RoomListProps> = ({
           chat.name?.toLowerCase().includes(lowerCaseSearchTerm)
         )
         .sort((a, b) => {
-          const aLastId = getLastMessageId(a)
-            ? Number(getLastMessageId(a))
-            : null;
-          const bLastId = getLastMessageId(b)
-            ? Number(getLastMessageId(b))
-            : null;
-          const aCreated = a.createdAt
-            ? new Date(a.createdAt).getTime() * 1000
-            : null;
-          const bCreated = b.createdAt
-            ? new Date(b.createdAt).getTime() * 1000
-            : null;
-
-          const aCompare = aLastId !== null ? aLastId : aCreated;
-          const bCompare = bLastId !== null ? bLastId : bCreated;
-
-          if (aCompare === null && bCompare === null) return 0;
-          if (aCompare === null) return 1;
-          if (bCompare === null) return -1;
-
+          const aCompare = getRoomActivityTimestamp(a);
+          const bCompare = getRoomActivityTimestamp(b);
           return bCompare - aCompare;
         });
 
