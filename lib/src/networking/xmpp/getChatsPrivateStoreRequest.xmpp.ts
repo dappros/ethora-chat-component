@@ -7,16 +7,26 @@ export async function getChatsPrivateStoreRequest(client: Client) {
 
   return new Promise((resolve, reject) => {
     let stanzaHdlrPointer: (stanza: Element) => void;
+    let finished = false;
+
+    const unsubscribe = () => {
+      if (finished) return;
+      finished = true;
+      try {
+        (client as any)?.off?.('stanza', stanzaHdlrPointer);
+      } catch {
+      }
+    };
 
     const timeout = setTimeout(() => {
-      client.off('stanza', stanzaHdlrPointer);
+      unsubscribe();
       reject(new Error('get-chats-private timed out'));
     }, 10000);
 
     stanzaHdlrPointer = (stanza: Element) => {
       if (stanza.is('iq') && stanza.attrs.id === id) {
         clearTimeout(timeout);
-        client.off('stanza', stanzaHdlrPointer);
+        unsubscribe();
 
         if (stanza.attrs.type === 'error') {
           reject(new Error('Error response from server'));
@@ -33,7 +43,7 @@ export async function getChatsPrivateStoreRequest(client: Client) {
       }
     };
 
-    client.on('stanza', stanzaHdlrPointer);
+    (client as any)?.on?.('stanza', stanzaHdlrPointer);
 
     const message = xml(
       'iq',
@@ -45,9 +55,17 @@ export async function getChatsPrivateStoreRequest(client: Client) {
       )
     );
 
-    client.send(message).catch((err) => {
+    const sendResult = (client as any)?.send?.(message);
+    if (!sendResult || typeof sendResult.catch !== 'function') {
       clearTimeout(timeout);
-      client.off('stanza', stanzaHdlrPointer);
+      unsubscribe();
+      reject(new Error('XMPP client is unavailable'));
+      return;
+    }
+
+    sendResult.catch((err: unknown) => {
+      clearTimeout(timeout);
+      unsubscribe();
       reject(err);
     });
   });
