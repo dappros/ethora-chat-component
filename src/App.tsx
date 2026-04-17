@@ -17,11 +17,11 @@ import { ethoraLogger } from './helpers/ethoraLogger';
 
 const APP_CHAT_BASE_CONFIG: IConfig = {
   appId: '646cc8dc96d4a4dc8f7b2f2d',
-  baseUrl: 'https://api.ethoradev.com/v1',
+  baseUrl: 'https://api.chat.ethora.com/v1',
   xmppSettings: {
-    devServer: 'wss://xmpp.ethoradev.com:5443/ws',
-    host: 'xmpp.ethoradev.com',
-    conference: 'conference.xmpp.ethoradev.com',
+    devServer: 'wss://xmpp.chat.ethora.com:5443/ws',
+    host: 'xmpp.chat.ethora.com',
+    conference: 'conference.xmpp.chat.ethora.com',
     xmppPingOnSendEnabled: true,
   },
   userLogin: {
@@ -97,7 +97,7 @@ const Apps = () => {
               CustomScrollableArea={CustomScrollableArea}
               CustomDaySeparator={CustomDaySeparator}
               config={{
-                baseUrl: 'https://api.ethoradev.com/v1',
+                baseUrl: 'https://api.chat.ethora.com/v1',
                 inAppNotifications: {
                   enabled: true,
                   showInContext: true, // Show in chat component context as well
@@ -181,7 +181,7 @@ const ChatComponent = React.memo(() => {
         // CustomInputComponent={CustomChatInput}
         // CustomScrollableArea={CustomScrollableArea}
         // CustomDaySeparator={CustomDaySeparator}
-        // roomJID="646cc8dc96d4a4dc8f7b2f2d_6824685682d635dba7522423@conference.xmpp.ethoradev.com"
+        // roomJID="646cc8dc96d4a4dc8f7b2f2d_6824685682d635dba7522423@conference.xmpp.chat.ethora.com"
         // roomJID="6998429ba125477a74a7dcef_69b96235545b8217d39dc1ac@conference.xmpp-dev.preshent.com"
         config={{
           // ...(demoJwtToken
