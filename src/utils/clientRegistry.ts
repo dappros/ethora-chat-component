@@ -23,7 +23,7 @@ export function buildXmppClientKey(
   const hostCandidate =
     xmppSettings?.host ||
     parseHostFromDevServer(xmppSettings?.devServer) ||
-    'dev.xmpp.ethoradev.com';
+    'xmpp.chat.ethora.com';
   const normalizedHost = hostCandidate.trim().toLowerCase();
   return `${normalizedUsername}@${normalizedHost}`;
 }

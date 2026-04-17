@@ -119,7 +119,7 @@ const usePushNotifications = (
       if (!jid) return '';
       if (jid.includes('@')) return jid;
       const conference =
-        config?.xmppSettings?.conference || 'conference.xmpp.ethoradev.com';
+        config?.xmppSettings?.conference || 'conference.xmpp.chat.ethora.com';
       return `${jid}@${conference}`;
     },
     [config?.xmppSettings?.conference]
