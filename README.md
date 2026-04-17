@@ -102,7 +102,7 @@ import { Chat, XmppProvider } from '@ethora/chat-component';
 export default function App() {
   return (
     <XmppProvider>
-      <Chat config={{ baseUrl: 'https://api.ethoradev.com/v1' }} />
+      <Chat config={{ baseUrl: 'https://api.chat.ethora.com/v1' }} />
     </XmppProvider>
   );
 }
@@ -116,7 +116,7 @@ import { XmppProvider } from '@ethora/chat-component';
 export default function App() {
   return (
     <XmppProvider
-      config={{ baseUrl: 'https://api.ethoradev.com/v1', initBeforeLoad: true }}
+      config={{ baseUrl: 'https://api.chat.ethora.com/v1', initBeforeLoad: true }}
       pushNotifications={{
         enabled: true,
         softAsk: false,
@@ -281,7 +281,7 @@ If no `googleLogin`, no `jwtLogin`, no `userLogin`, and no `defaultLogin`, `Logi
 ```tsx
 <XmppProvider>
   <Chat
-    roomJID="ROOM_JID@conference.xmpp.ethoradev.com"
+    roomJID="ROOM_JID@conference.xmpp.chat.ethora.com"
     config={{
       setRoomJidInPath: true,
       qrUrl: 'https://your-app.example/chat/?qrChatId=',
@@ -329,7 +329,7 @@ Below is a grouped reference for all `config` options.
 | Option | Type | Description |
 | --- | --- | --- |
 | `appId` | `string` | App identifier for backend context. |
-| `baseUrl` | `string` | API base URL (default project uses `https://api.ethoradev.com/v1`). |
+| `baseUrl` | `string` | API base URL (defaults to `https://api.chat.ethora.com/v1`, the Ethora Cloud production endpoint). |
 | `customAppToken` | `string` | Custom app token for API initialization. |
 | `xmppSettings` | `{ devServer; host; conference?; xmppPingOnSendEnabled? }` | XMPP connectivity settings. |
 | `initBeforeLoad` | `boolean` | Initialize XMPP before normal chat load flow. |
@@ -684,16 +684,17 @@ This is a practical planning snapshot for cross-platform consumers. It is not a 
 ### Product
 
 - Website: https://ethora.com/
-- Try Ethora: https://app.ethora.com/register
+- Try Ethora: https://app.chat.ethora.com/register
+- SDK Playground (live): https://playground.chat.ethora.com
+- Platform status / uptime: https://uptime.chat.ethora.com
 
 ### Developer Docs
 
 - Chat component docs: https://docs.ethora.com/
+- API docs (Swagger, live): https://api.chat.ethora.com/api-docs/#/
 - Ethora GitHub hub: https://github.com/dappros/ethora
 - This package repo: https://github.com/dappros/ethora-chat-component
 - Ethora GitHub organization: https://github.com/dappros
-- API docs (public): https://app.dappros.com/api-docs/
-- API docs (environment used in this repo): https://api.ethoradev.com/api-docs
 
 ### Community and Support
 
