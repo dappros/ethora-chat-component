@@ -1,5 +1,6 @@
 import { getFirebaseMessaging, defaultConfig } from '../firebase-config';
 import { ethoraLogger } from '../helpers/ethoraLogger';
+import { getStoredFcmToken, setStoredFcmToken } from './pushStorage';
 import {
   deleteToken,
   getToken,
@@ -259,10 +260,14 @@ export function listenForForegroundMessages(
 /**
  * disablePushNotifications()
  */
-export async function disablePushNotifications(): Promise<void> {
+export async function disablePushNotifications(_authToken?: string): Promise<void> {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
     return;
   }
+
+  const storedFcmToken = getStoredFcmToken();
+  // TODO: Re-enable backend unregister call when API endpoint for unsubscribe is available.
+  void storedFcmToken;
 
   const registrations = await navigator.serviceWorker.getRegistrations();
   if (!registrations?.length) {
@@ -314,4 +319,7 @@ export async function disablePushNotifications(): Promise<void> {
       }
     })
   );
+
+  // Always clear local token snapshot after teardown.
+  setStoredFcmToken('');
 }

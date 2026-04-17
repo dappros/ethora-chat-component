@@ -16,7 +16,7 @@ export async function subscribeToRoomMessages(
 
   const unsubscribe = () => {
     if (stanzaHandler) {
-      client.off('stanza', stanzaHandler);
+      client?.off?.('stanza', stanzaHandler);
     }
   };
 

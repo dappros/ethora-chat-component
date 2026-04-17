@@ -162,6 +162,7 @@ export class XmppClient implements XmppClientInterface {
   private reconnectBaseDelayMs: number = 1000;
   private pausedDueToOfflineCap: boolean = false;
   private authFailureDetected: boolean = false;
+  private intentionalLogout: boolean = false;
 
   private isTerminalAuthFailure(error: unknown): boolean {
     const candidate = error as any;
@@ -242,6 +243,7 @@ export class XmppClient implements XmppClientInterface {
 
   async initializeClient() {
     try {
+      this.intentionalLogout = false;
       this.logStep('initializeClient:start');
 
       if (this.client) {
@@ -333,6 +335,24 @@ export class XmppClient implements XmppClientInterface {
     }
   }
 
+  markIntentionalLogout = () => {
+    this.intentionalLogout = true;
+    this.status = 'offline';
+
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    if (this.idlePingTimeout) {
+      clearTimeout(this.idlePingTimeout);
+      this.idlePingTimeout = null;
+    }
+    if (this.pingTimeout) {
+      clearTimeout(this.pingTimeout);
+      this.pingTimeout = null;
+    }
+  };
+
   attachEventListeners() {
     this.client.on('disconnect', () => {
       ethoraLogger.log('Disconnected from server.');
@@ -352,6 +372,10 @@ export class XmppClient implements XmppClientInterface {
       if (this.pingInterval) clearInterval(this.pingInterval);
       if (this.authFailureDetected) {
         this.logStep('event:disconnect:auth-failed-no-reconnect');
+        return;
+      }
+      if (this.intentionalLogout) {
+        this.logStep('event:disconnect:intentional-no-reconnect');
         return;
       }
       this.scheduleReconnect('event:disconnect');
@@ -429,6 +453,10 @@ export class XmppClient implements XmppClientInterface {
     });
 
     this.client.on('error', (error) => {
+      if (this.intentionalLogout) {
+        this.logStep('event:error:intentional-ignore');
+        return;
+      }
       const terminalAuthFailure = this.isTerminalAuthFailure(error);
       console.error('XMPP client error:', error);
       this.status = terminalAuthFailure ? 'auth_failed' : 'error';
@@ -597,6 +625,10 @@ export class XmppClient implements XmppClientInterface {
     }
     if (this.authFailureDetected || this.status === 'auth_failed') {
       this.logStep('reconnect:skip-auth-failed');
+      return Promise.resolve();
+    }
+    if (this.intentionalLogout) {
+      this.logStep('reconnect:skip-intentional-logout');
       return Promise.resolve();
     }
     if (!this.isBrowserOnline()) {
@@ -1251,6 +1283,7 @@ export class XmppClient implements XmppClientInterface {
   }
 
   private onBrowserOnline = () => {
+    if (this.intentionalLogout) return;
     this.logStep('browser:online');
     this.offlineReconnectAttempts = 0;
     this.pausedDueToOfflineCap = false;
@@ -1841,6 +1874,10 @@ export class XmppClient implements XmppClientInterface {
 
   private scheduleReconnect(reason: string) {
     if (this.status === 'online') return;
+    if (this.intentionalLogout) {
+      this.logStep(`scheduleReconnect:skip-intentional:${reason}`);
+      return;
+    }
     if (this.authFailureDetected || this.status === 'auth_failed') {
       this.logStep(`scheduleReconnect:skip-auth-failed:${reason}`);
       return;

@@ -11,7 +11,7 @@ export function createRoomPresence(roomId: string, client: Client) {
   };
 
   const unsubscribe = () => {
-    client.off('stanza', stanzaHdlrPointer);
+    client?.off?.('stanza', stanzaHdlrPointer);
   };
 
   const responsePromise = new Promise((resolve, reject) => {

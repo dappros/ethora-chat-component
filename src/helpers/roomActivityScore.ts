@@ -1,20 +1,14 @@
 import { IMessage, IRoom } from '../types/types';
+import { getTimestampFromUnknown } from './timestamp';
 
 export const getMessageTimestamp = (message?: IMessage): number => {
   if (!message) return 0;
 
-  const dateTs = new Date(message?.date as string).getTime();
-  if (Number.isFinite(dateTs) && dateTs > 0) return dateTs;
-
-  const numericId = Number(message?.id);
-  if (Number.isFinite(numericId) && numericId > 0) return numericId;
-
-  const inlineTimestamp = Number((message as any)?.timestamp);
-  if (Number.isFinite(inlineTimestamp) && inlineTimestamp > 0) {
-    return inlineTimestamp;
-  }
-
-  return 0;
+  return (
+    getTimestampFromUnknown(message?.date) ||
+    getTimestampFromUnknown((message as any)?.timestamp) ||
+    getTimestampFromUnknown(message?.id)
+  );
 };
 
 export const getLastLocalMessageTimestamp = (room?: IRoom): number => {

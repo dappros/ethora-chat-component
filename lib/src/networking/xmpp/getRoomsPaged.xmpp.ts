@@ -14,7 +14,7 @@ export const getRoomsPaged = async (
   };
 
   const unsubscribe = () => {
-    client.off('stanza', stanzaHdlrPointer);
+    client?.off?.('stanza', stanzaHdlrPointer);
   };
 
   return new Promise((resolve, reject) => {

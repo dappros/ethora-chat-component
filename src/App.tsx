@@ -279,8 +279,8 @@ export default function App() {
   );
 
   return (
-    <XmppProvider>
-    {/* <XmppProvider config={globalXmppConfig}> */}
+    // <XmppProvider>
+    <XmppProvider config={globalXmppConfig}>
       <Router>
         <div className="flex">
           {navigation}

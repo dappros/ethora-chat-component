@@ -8,37 +8,50 @@ import { clearStoredUser } from '../helpers/authStorage';
 import { disablePushNotifications } from '../utils/firebasePushNotifications';
 import { getGlobalXmppClient, setGlobalXmppClient } from '../utils/clientRegistry';
 
+const withTimeout = async (
+  task: Promise<unknown>,
+  timeoutMs: number
+): Promise<void> => {
+  await Promise.race([
+    task.then(() => undefined).catch(() => undefined),
+    new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+  ]);
+};
+
 const logoutService = {
   performLogout: async () => {
+    const authToken = store.getState().chatSettingStore.user.token || '';
     const xmppClient = getGlobalXmppClient();
-    if (xmppClient) {
-      try {
-        await xmppClient.disconnect();
-      } catch (error) {
-        console.warn('[Logout] XMPP disconnect failed', error);
-      } finally {
-        setGlobalXmppClient(null);
-      }
-    } else {
-      setGlobalXmppClient(null);
-    }
-
     try {
-      await disablePushNotifications();
-    } catch (error) {
-      console.warn('[Logout] Push service worker teardown failed', error);
+      (xmppClient as any)?.markIntentionalLogout?.();
+    } catch {
+      // Ignore optional method errors.
     }
+    setGlobalXmppClient(null);
+
+    // Clear app state immediately so UI doesn't wait on network/teardown latency.
     store.dispatch(logout());
     store.dispatch(setLogoutState());
     store.dispatch(clearHeap());
     clearStoredUser();
     clearScopedChatCache();
-    try {
-      await persistor.flush();
-      await persistor.purge();
-    } catch (error) {
-      console.warn('[Logout] Persist purge failed', error);
-    }
+
+    const disconnectPromise = xmppClient
+      ? withTimeout(xmppClient.disconnect(), 1500)
+      : Promise.resolve();
+    const pushTeardownPromise = withTimeout(
+      disablePushNotifications(authToken),
+      2500
+    );
+    const persistPromise = withTimeout(
+      (async () => {
+        await persistor.flush();
+        await persistor.purge();
+      })(),
+      2000
+    );
+
+    await Promise.all([disconnectPromise, pushTeardownPromise, persistPromise]);
   },
 };
 export const useLogout = () => {

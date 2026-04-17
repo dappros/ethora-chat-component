@@ -59,12 +59,6 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
 
     const sendMessage = useCallback(
       (message: string) => {
-        dispatch(
-          setLastViewedTimestamp({
-            chatJID: activeRoomJID,
-            timestamp: 0,
-          })
-        );
         sendMs(message, activeRoomJID);
       },
       [activeRoomJID, sendMs]
@@ -106,10 +100,11 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     };
 
     useEffect(() => {
+      const enterTs = Date.now();
       dispatch(
         setLastViewedTimestamp({
           chatJID: activeRoomJID,
-          timestamp: 0,
+          timestamp: enterTs,
         })
       );
       setIsLoadingMore(false);

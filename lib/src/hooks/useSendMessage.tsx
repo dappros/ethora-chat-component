@@ -240,6 +240,11 @@ export const useSendMessage = () => {
       isChecked?: boolean,
       mainMessage?: string
     ) => {
+      if (!/\S/.test(String(message || ''))) {
+        ethoraLogger.log('Cannot send empty message');
+        return;
+      }
+
       if (isLastMessageFromUserAndProcessing(activeRoomJID)) {
         ethoraLogger.log(
           'Cannot send message: Message sending is currently blocked'
@@ -461,6 +466,11 @@ export const useSendMessage = () => {
 
   const sendEditMessage = useCallback(
     async (message: string) => {
+      if (!/\S/.test(String(message || ''))) {
+        ethoraLogger.log('Cannot edit message to empty text');
+        return;
+      }
+
       try {
         client?.editMessageStanza(
           editAction.roomJid,

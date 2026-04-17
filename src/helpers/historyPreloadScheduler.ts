@@ -4,6 +4,7 @@ import { applyRoomsPreloadBatch } from '../roomStore/roomsSlice';
 import { IMessage, IRoom } from '../types/types';
 import { getMessageTimestamp, getRoomLastActivityScore } from './roomActivityScore';
 import { ethoraLogger } from './ethoraLogger';
+import { getTimestampFromUnknown } from './timestamp';
 
 interface HistoryPreloadSchedulerOptions {
   client: XmppClient;
@@ -45,7 +46,7 @@ const computeUnreadCapped = (
 
   if (countable.length < pageSize) return false;
 
-  const lastViewed = Number(room.lastViewedTimestamp || 0);
+  const lastViewed = getTimestampFromUnknown(room.lastViewedTimestamp);
   if (lastViewed <= 0) {
     return true;
   }

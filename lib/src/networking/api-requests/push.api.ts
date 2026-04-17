@@ -55,8 +55,11 @@ export async function registerPushToken(registrationToken: string): Promise<any>
  *
  * @param registrationToken – The token to unregister.
  */
-export async function unregisterPushToken(registrationToken: string): Promise<any> {
-  const token = store.getState().chatSettingStore.user.token || '';
+export async function unregisterPushToken(
+  registrationToken: string,
+  authToken?: string
+): Promise<any> {
+  const token = authToken || store.getState().chatSettingStore.user.token || '';
 
   ethoraLogger.log('[PushNotifications] Unregistering FCM token from backend', {
     tokenLength: registrationToken.length,

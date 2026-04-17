@@ -36,8 +36,8 @@ interface RoomListProps {
 
 const normalizeTimestampValue = (value: number): number => {
   if (!Number.isFinite(value) || value <= 0) return 0;
-  if (value < 1e11) return value * 1000; // seconds -> milliseconds
-  if (value > 1e14) return Math.floor(value / 1000); // microseconds-ish -> milliseconds
+  if (value < 1e11) return value * 1000;
+  if (value > 1e14) return Math.floor(value / 1000);
   return value;
 };
 

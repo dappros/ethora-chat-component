@@ -83,13 +83,21 @@ export function insertMessageWithDelimiter(
   ) {
     roomMessages.unshift(message);
   } else {
+    let inserted = false;
     for (let i = 0; i < roomMessages.length; i++) {
       if (
         isDateBefore(newMessageDate.toString(), roomMessages[i].date.toString())
       ) {
         roomMessages.splice(i, 0, message);
+        inserted = true;
         break;
       }
+    }
+
+    // Equal-date messages (very fast local sends) should keep append order
+    // instead of being dropped when no strictly "before" slot is found.
+    if (!inserted) {
+      roomMessages.push(message);
     }
   }
 }
