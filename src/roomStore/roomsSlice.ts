@@ -60,6 +60,14 @@ const getNormalizedSubscribedRooms = (subscribedRooms: unknown): string[] =>
     : [];
 
 const getMessageTimestampValue = (message: IMessage): number => {
+  const hasExplicitTimestamp = Object.prototype.hasOwnProperty.call(
+    message || {},
+    'messageTimestampMs'
+  );
+  if (hasExplicitTimestamp) {
+    return getTimestampFromUnknown((message as any)?.messageTimestampMs);
+  }
+
   return (
     getTimestampFromUnknown(message?.date) ||
     getTimestampFromUnknown((message as any)?.timestamp) ||
@@ -71,14 +79,28 @@ const getMessageTimestampValue = (message: IMessage): number => {
 const getMessageKey = (message: IMessage): string =>
   String(message?.xmppId || message?.id || '');
 
+const getMessageStableTieBreaker = (message: IMessage): string =>
+  String(message?.xmppId || message?.id || '');
+
 const compareMessageOrder = (a: IMessage, b: IMessage): number => {
   const tsA = getMessageTimestampValue(a);
   const tsB = getMessageTimestampValue(b);
   if (tsA !== tsB) {
     return tsA - tsB;
   }
-  // Keep existing relative order for equal timestamps.
-  return 0;
+
+  const pendingDelta = Number(Boolean(a?.pending)) - Number(Boolean(b?.pending));
+  if (pendingDelta !== 0) {
+    return pendingDelta;
+  }
+
+  const keyA = getMessageStableTieBreaker(a);
+  const keyB = getMessageStableTieBreaker(b);
+  if (keyA !== keyB) {
+    return keyA.localeCompare(keyB);
+  }
+
+  return String(a?.body || '').localeCompare(String(b?.body || ''));
 };
 
 const enrichMessageAuthor = (

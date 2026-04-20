@@ -4,6 +4,14 @@ import { getTimestampFromUnknown } from './timestamp';
 export const getMessageTimestamp = (message?: IMessage): number => {
   if (!message) return 0;
 
+  const hasExplicitTimestamp = Object.prototype.hasOwnProperty.call(
+    message || {},
+    'messageTimestampMs'
+  );
+  if (hasExplicitTimestamp) {
+    return getTimestampFromUnknown((message as any)?.messageTimestampMs);
+  }
+
   return (
     getTimestampFromUnknown(message?.date) ||
     getTimestampFromUnknown((message as any)?.timestamp) ||

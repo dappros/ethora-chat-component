@@ -4,21 +4,12 @@ import { transformArrayToObject } from './transformTranslatations';
 import { Iso639_1Codes } from '../types/types';
 import { ethoraLogger } from './ethoraLogger';
 import { safeJsonParse } from './safeJson';
+import { getTimestampFromUnknown } from './timestamp';
 
 const getLocalpartFromJid = (jid?: string): string | undefined => {
   const value = String(jid || '').trim();
   if (!value) return undefined;
   return value.split('@')[0] || undefined;
-};
-
-const extractTimestamp = (str: string, stanza?: any): string | null => {
-  if (!str) return;
-  if (typeof str !== 'string') {
-    ethoraLogger.log(str, stanza.toString());
-    return undefined;
-  }
-  const timestamp = str.slice(-16);
-  return timestamp;
 };
 
 const normalizeTranslations = (value: unknown) =>
@@ -44,6 +35,7 @@ interface DataXml {
   body: string;
   roomJid: string;
   date: string;
+  messageTimestampMs: number;
   user: IUser;
   deleted?: boolean;
   translations?: any;
@@ -61,9 +53,11 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
   const xmppId = fullData?.attrs.id;
   const xmppFrom = String(fullData?.attrs?.from || '');
   const [roomJid = '', userWalletFromResource] = xmppFrom.split('/');
-  let id =
-    stanza.getChild('result')?.attrs.id ||
-    extractTimestamp(stanza?.getChild('stanza-id')?.attrs?.id, stanza);
+  const resultId = stanza.getChild('result')?.attrs.id;
+  const stanzaIdValue =
+    fullData?.getChild('stanza-id')?.attrs?.id ||
+    stanza?.getChild('stanza-id')?.attrs?.id;
+  let id = resultId || stanzaIdValue || xmppId;
 
   if (!id) {
     id = xmppId || Date.now().toString();
@@ -83,10 +77,19 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
   const langSource = fullData?.getChild('translate')?.attrs?.source as
     | Iso639_1Codes
     | undefined;
-  const numericPart = /\d{13,}/.exec(id || '')?.[0];
-  const date = numericPart
-    ? new Date(+numericPart.slice(0, 13)).toISOString()
-    : new Date().toISOString();
+  const delay =
+    fullData?.getChild('delay', 'urn:xmpp:delay') ||
+    fullData?.getChild('x', 'jabber:x:delay');
+  const isHistory = !!delay;
+  const delayStamp = delay?.attrs?.stamp;
+  const messageTimestampMs =
+    getTimestampFromUnknown(delayStamp) ||
+    getTimestampFromUnknown(stanzaIdValue) ||
+    getTimestampFromUnknown(xmppId) ||
+    getTimestampFromUnknown(id);
+  const date = new Date(
+    messageTimestampMs > 0 ? messageTimestampMs : Date.now()
+  ).toISOString();
 
   const data = fullData?.getChild('data') || stanza?.getChild('data');
   const photoURL = data?.attrs?.['photo'];
@@ -101,10 +104,6 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
   };
 
   const dataAttrs = data?.attrs || {};
-  const delay =
-    fullData?.getChild('delay', 'urn:xmpp:delay') ||
-    fullData?.getChild('x', 'jabber:x:delay');
-  const isHistory = !!delay;
 
   return {
     data: dataAttrs,
@@ -112,6 +111,7 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
     body,
     roomJid,
     date,
+    messageTimestampMs,
     user,
     deleted,
     translations,

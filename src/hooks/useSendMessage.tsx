@@ -292,6 +292,8 @@ export const useSendMessage = () => {
         try {
           if (config?.translates?.enabled) {
             const id = `send-translate-message-${uuidv4()}`;
+            const optimisticTimestamp = Date.now();
+            const optimisticDate = new Date(optimisticTimestamp).toISOString();
             dispatch(
               addRoomMessage({
                 roomJID: activeRoomJID,
@@ -301,7 +303,8 @@ export const useSendMessage = () => {
                     id: user.xmppUsername,
                     name: user.firstName + ' ' + user.lastName,
                   },
-                  date: new Date().toISOString(),
+                  date: optimisticDate,
+                  messageTimestampMs: optimisticTimestamp,
                   body: message,
                   roomJid: activeRoomJID,
                   pending: true,
@@ -319,7 +322,8 @@ export const useSendMessage = () => {
                   id: user.xmppUsername,
                   name: user.firstName + ' ' + user.lastName,
                 },
-                date: new Date().toISOString(),
+                date: optimisticDate,
+                messageTimestampMs: optimisticTimestamp,
                 body: message,
                 roomJid: activeRoomJID,
                 xmppFrom: `${activeRoomJID}/${user.xmppUsername}`,
@@ -365,6 +369,8 @@ export const useSendMessage = () => {
             });
           } else {
             const id = `send-text-message-${uuidv4()}`;
+            const optimisticTimestamp = Date.now();
+            const optimisticDate = new Date(optimisticTimestamp).toISOString();
             dispatch(
               addRoomMessage({
                 roomJID: activeRoomJID,
@@ -375,7 +381,8 @@ export const useSendMessage = () => {
                     id: user.xmppUsername,
                     name: user.firstName + ' ' + user.lastName,
                   },
-                  date: new Date().toISOString(),
+                  date: optimisticDate,
+                  messageTimestampMs: optimisticTimestamp,
                   body: message,
                   roomJid: activeRoomJID,
                   xmppFrom: `${activeRoomJID}/${user.xmppUsername}`,
@@ -391,7 +398,8 @@ export const useSendMessage = () => {
                   id: user.xmppUsername,
                   name: user.firstName + ' ' + user.lastName,
                 },
-                date: new Date().toISOString(),
+                date: optimisticDate,
+                messageTimestampMs: optimisticTimestamp,
                 body: message,
                 roomJid: activeRoomJID,
                 xmppFrom: `${activeRoomJID}/${user.xmppUsername}`,
@@ -522,6 +530,8 @@ export const useSendMessage = () => {
       setupRoomTimeout(activeRoomJID);
 
       const id = `send-media-message:${uuidv4()}`;
+      const optimisticTimestamp = Date.now();
+      const optimisticDate = new Date(optimisticTimestamp).toISOString();
       if (!config?.disableSentLogic) {
         dispatch(
           addRoomMessage({
@@ -530,7 +540,8 @@ export const useSendMessage = () => {
               id: id,
               body: 'media',
               roomJid: activeRoomJID,
-              date: new Date().toISOString(),
+              date: optimisticDate,
+              messageTimestampMs: optimisticTimestamp,
               user: {
                 ...user,
                 id: user.xmppUsername,
