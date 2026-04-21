@@ -105,10 +105,31 @@ const enrichMessageAuthor = (
   const rawUserId = String(message?.user?.id || '');
   const localUserId = rawUserId.split('@')[0];
   const currentName = String(message?.user?.name || '').trim();
+
+  // Identity carried in the message <data> stanza by the sending client (regular users
+  // and now AI Agent bots). Spread by createMessageFromXml onto the top-level message
+  // object, so available here as message.fullName / senderFirstName / senderLastName.
+  // Honor that BEFORE falling through to createUserNameFromSetUser, which returns the
+  // literal "Deleted User" string when usersSet has no entry for the sender. Without
+  // this the chat shows "Deleted User" for any sender (e.g. fresh bot, batch broadcast)
+  // not yet in the locally cached usersSet.
+  const dataFullName = String((message as any)?.fullName || '').trim();
+  const dataFirst = String((message as any)?.senderFirstName || '').trim();
+  const dataLast = String((message as any)?.senderLastName || '').trim();
+  const composedFromData =
+    dataFullName ||
+    `${dataFirst} ${dataLast}`.trim() ||
+    '';
+
+  const usersSetName = createUserNameFromSetUser(usersSet, localUserId);
+  const usersSetNameAlt = createUserNameFromSetUser(usersSet, rawUserId);
+  const isUsersSetUseful = (n: string) => n && n !== 'Deleted User';
+
   const resolvedName =
     currentName ||
-    createUserNameFromSetUser(usersSet, localUserId) ||
-    createUserNameFromSetUser(usersSet, rawUserId) ||
+    (isUsersSetUseful(usersSetName) && usersSetName) ||
+    (isUsersSetUseful(usersSetNameAlt) && usersSetNameAlt) ||
+    composedFromData ||
     localUserId ||
     rawUserId;
 
