@@ -81,8 +81,10 @@ const RoomList: React.FC<RoomListProps> = ({
   );
 
   const getLastMessageId = useCallback((chat: IRoom) => {
-    const rawId = chat?.messages?.[chat?.messages.length - 1]?.id ?? '';
-    const numericId = rawId.replace(/\D+/g, '');
+    // chat may be null/undefined when called from the sort fallback below.
+    const messages = chat?.messages;
+    const rawId = messages && messages.length > 0 ? messages[messages.length - 1]?.id ?? '' : '';
+    const numericId = (rawId || '').replace(/\D+/g, '');
     const paddedId = numericId.padEnd(16, '0');
     return paddedId;
   }, []);
@@ -92,9 +94,17 @@ const RoomList: React.FC<RoomListProps> = ({
     const chatsMap = new Map<string, IRoom[]>();
 
     if (!chatsMap.has(lowerCaseSearchTerm)) {
-      const result = chats
+      // Defensive: persisted Redux state can occasionally rehydrate a chats array that
+      // contains null/undefined entries (stale shape, partially-applied migration, etc.).
+      // Without the explicit Boolean filter, the next `chat.name?.toLowerCase()` throws
+      // "Cannot read properties of null (reading 'name')" from inside Array.filter and
+      // unwinds the whole router subtree.
+      const safeChats = (chats || []).filter(
+        (chat): chat is IRoom => !!chat && typeof chat === 'object'
+      );
+      const result = safeChats
         .filter((chat) =>
-          chat.name?.toLowerCase().includes(lowerCaseSearchTerm)
+          (chat.name || '').toLowerCase().includes(lowerCaseSearchTerm)
         )
         .sort((a, b) => {
           const aLastId = getLastMessageId(a)
@@ -103,10 +113,10 @@ const RoomList: React.FC<RoomListProps> = ({
           const bLastId = getLastMessageId(b)
             ? Number(getLastMessageId(b))
             : null;
-          const aCreated = a.createdAt
+          const aCreated = a?.createdAt
             ? new Date(a.createdAt).getTime() * 1000
             : null;
-          const bCreated = b.createdAt
+          const bCreated = b?.createdAt
             ? new Date(b.createdAt).getTime() * 1000
             : null;
 
