@@ -139,6 +139,11 @@ export const runHistoryPreloadScheduler = async (
       return;
     }
 
+    if (!client.isActiveRoomGateOpen()) {
+      await sleep(80);
+      continue;
+    }
+
     if (shouldPauseForVisibility()) {
       await sleep(250);
       continue;

@@ -19,6 +19,7 @@ export interface xmppSettingsInterface {
     softPauseAfterSendMs?: number;
     activeRoomBoostTtlMs?: number;
     activeSendBoostMs?: number;
+    alwaysPrioritizeActiveRoom?: boolean;
     backgroundWhileCriticalSend?: boolean;
     preloadTopKRooms?: number;
     presenceFailureBackoffMs?: number;
@@ -88,6 +89,7 @@ export interface XmppClientInterface {
   ): Promise<IMessage[] | undefined>;
   promoteRoomHistory(roomJID: string): void;
   setActiveRoomJid(roomJID: string | null): void;
+  isActiveRoomGateOpen(): boolean;
   onCriticalSend(roomJID: string, messageId?: string): void;
   enqueueHistoryTask(params: {
     chatJID: string;

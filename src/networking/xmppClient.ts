@@ -139,6 +139,7 @@ export class XmppClient implements XmppClientInterface {
   private softPauseAfterSendMs = 0;
   private activeRoomBoostTtlMs = 2000;
   private activeSendBoostMs = 2000;
+  private alwaysPrioritizeActiveRoom = true;
   private backgroundWhileCriticalSend = false;
   private disableLastRead = false;
   private presenceFailureBackoffMs = 10000;
@@ -250,6 +251,8 @@ export class XmppClient implements XmppClientInterface {
       0,
       Number(xmppSettings?.historyQoS?.activeSendBoostMs || 2000)
     );
+    this.alwaysPrioritizeActiveRoom =
+      xmppSettings?.historyQoS?.alwaysPrioritizeActiveRoom !== false;
     this.backgroundWhileCriticalSend =
       xmppSettings?.historyQoS?.backgroundWhileCriticalSend === true;
     this.disableLastRead = xmppSettings?.disableLastRead === true;
@@ -796,14 +799,86 @@ export class XmppClient implements XmppClientInterface {
   }
 
   setActiveRoomJid(roomJID: string | null): void {
-    this.activeRoomJid = roomJID || null;
-    if (roomJID) {
-      this.promoteRoomHistory(roomJID);
+    const nextRoomJid = roomJID || null;
+    const previousRoomJid = this.activeRoomJid;
+
+    if (previousRoomJid === nextRoomJid) {
+      if (nextRoomJid) {
+        this.promoteRoomHistory(nextRoomJid);
+      }
+      return;
     }
+
+    if (previousRoomJid) {
+      const prevEpoch = this.getRoomEpoch(previousRoomJid);
+      this.roomHistoryEpoch.set(previousRoomJid, prevEpoch + 1);
+
+      const staleTasks = this.historyQueue.filter(
+        (task) => task.chatJID === previousRoomJid
+      );
+      if (staleTasks.length > 0) {
+        const currentMessages =
+          store.getState().rooms.rooms?.[previousRoomJid]?.messages || [];
+        staleTasks.forEach((task) => task.resolve(currentMessages));
+        this.historyQueue = this.historyQueue.filter(
+          (task) => task.chatJID !== previousRoomJid
+        );
+      }
+    }
+
+    this.activeRoomJid = nextRoomJid;
+
+    if (!nextRoomJid) {
+      this.scheduleHistoryQueue();
+      return;
+    }
+
+    this.promoteRoomHistory(nextRoomJid);
+    this.prioritizeRoomPresence(nextRoomJid).catch(() => {});
+    this.getHistoryStanza(nextRoomJid, 30, undefined, undefined, {
+      source: 'active',
+      coalesceRoom: true,
+      skipIfPreloaded: true,
+    }).catch(() => {});
+    this.scheduleHistoryQueue();
   }
 
   private getTotalSendQueueLength(): number {
     return this.messageQueue.high.length + this.messageQueue.normal.length;
+  }
+
+  private hasPendingActiveRoomPresenceRequest(): boolean {
+    if (!this.activeRoomJid) return false;
+    return this.roomPresenceInFlight.has(this.activeRoomJid);
+  }
+
+  private hasPendingActiveRoomHistoryRequest(): boolean {
+    const activeRoomJid = this.activeRoomJid;
+    if (!activeRoomJid) return false;
+
+    const hasQueuedHighPriority = this.historyQueue.some(
+      (task) => task.chatJID === activeRoomJid && task.priority <= 1
+    );
+    if (hasQueuedHighPriority) return true;
+
+    const hasMamInFlight = Array.from(this.mamRequestRegistry.values()).some(
+      (entry) => String(entry.chatJID || '').split('/')[0] === activeRoomJid
+    );
+    if (hasMamInFlight) return true;
+
+    const activeHistoryPrefix = `${activeRoomJid}:`;
+    return Array.from(this.activeHistoryInFlight.keys()).some((key) =>
+      key.startsWith(activeHistoryPrefix)
+    );
+  }
+
+  isActiveRoomGateOpen(): boolean {
+    if (!this.alwaysPrioritizeActiveRoom) return true;
+    if (!this.activeRoomJid) return true;
+    return !(
+      this.hasPendingActiveRoomPresenceRequest() ||
+      this.hasPendingActiveRoomHistoryRequest()
+    );
   }
 
   private hasPendingSendsForActiveRoom(): boolean {
@@ -813,6 +888,9 @@ export class XmppClient implements XmppClientInterface {
   }
 
   private shouldSuppressBackgroundHistory(): boolean {
+    if (this.alwaysPrioritizeActiveRoom && !this.isActiveRoomGateOpen()) {
+      return true;
+    }
     if (this.backgroundWhileCriticalSend) {
       return false;
     }

@@ -538,11 +538,6 @@ const useChatWrapperInit = ({
     ensureActiveRoomSelected(Object.values(roomsList) as any);
   }, [roomsList, activeRoomJID, ensureActiveRoomSelected]);
 
-  useEffect(() => {
-    if (!client) return;
-    client.setActiveRoomJid(activeRoomJID || null);
-  }, [client, activeRoomJID]);
-
   return {
     client,
     inited,

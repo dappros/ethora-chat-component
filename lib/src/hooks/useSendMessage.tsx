@@ -95,6 +95,9 @@ export const useSendMessage = () => {
 
       const timer = setTimeout(() => {
         blockingConfig.onTimeout(roomJID);
+        if (client && activeRoomJID && roomJID === activeRoomJID) {
+          client.recoverRoomPresenceOnly(roomJID).catch(() => {});
+        }
         timeoutTimersRef.current.delete(roomJID);
         updateBlockedRooms(roomJID, false);
       }, blockingConfig.timeout);
@@ -102,7 +105,7 @@ export const useSendMessage = () => {
       updateBlockedRooms(roomJID, true);
       timeoutTimersRef.current.set(roomJID, timer);
     },
-    [getBlockingConfig, clearRoomTimeout, updateBlockedRooms]
+    [getBlockingConfig, clearRoomTimeout, updateBlockedRooms, client, activeRoomJID]
   );
 
   useEffect(() => {
@@ -232,6 +235,34 @@ export const useSendMessage = () => {
     [client]
   );
 
+  const sendWithActiveRoomRetry = useCallback(
+    async (
+      roomJID: string,
+      messageId: string,
+      sendFn: () => Promise<boolean | undefined>
+    ): Promise<boolean> => {
+      const firstAttempt = await sendFn();
+      if (firstAttempt) {
+        return true;
+      }
+
+      const isActive = Boolean(activeRoomJID && roomJID === activeRoomJID);
+      if (!isActive || !client) {
+        return false;
+      }
+
+      await client.recoverRoomPresenceOnly(roomJID).catch(() => false);
+      const secondAttempt = await sendFn();
+      if (!secondAttempt) {
+        console.warn(
+          `[SendRetry] active_room_retry_failed room=${roomJID} id=${messageId}`
+        );
+      }
+      return Boolean(secondAttempt);
+    },
+    [activeRoomJID, client]
+  );
+
   const sendMessage = useCallback(
     async (
       message: string,
@@ -334,19 +365,21 @@ export const useSendMessage = () => {
               })
             );
 
-            const sendOk = await client?.sendTextMessageWithTranslateTagStanza(
-              activeRoomJID,
-              user.firstName,
-              user.lastName,
-              '',
-              user.walletAddress,
-              message,
-              '',
-              isReply || false,
-              isChecked || false,
-              mainMessage || '',
-              (langSource as any) || 'en',
-              id
+            const sendOk = await sendWithActiveRoomRetry(activeRoomJID, id, () =>
+              client?.sendTextMessageWithTranslateTagStanza(
+                activeRoomJID,
+                user.firstName,
+                user.lastName,
+                '',
+                user.walletAddress,
+                message,
+                '',
+                isReply || false,
+                isChecked || false,
+                mainMessage || '',
+                (langSource as any) || 'en',
+                id
+              )
             );
             if (sendOk) {
               triggerFastAckFetch(activeRoomJID);
@@ -409,18 +442,20 @@ export const useSendMessage = () => {
               })
             );
 
-            const sendOk = await client?.sendMessage(
-              activeRoomJID,
-              user.firstName,
-              user.lastName,
-              '',
-              user.walletAddress,
-              message,
-              '',
-              isReply || false,
-              isChecked || false,
-              mainMessage || '',
-              id
+            const sendOk = await sendWithActiveRoomRetry(activeRoomJID, id, () =>
+              client?.sendMessage(
+                activeRoomJID,
+                user.firstName,
+                user.lastName,
+                '',
+                user.walletAddress,
+                message,
+                '',
+                isReply || false,
+                isChecked || false,
+                mainMessage || '',
+                id
+              )
             );
             if (sendOk) {
               triggerFastAckFetch(activeRoomJID);
@@ -469,6 +504,7 @@ export const useSendMessage = () => {
       markMessageSending,
       triggerFastAckFetch,
       scheduleAckCatchup,
+      sendWithActiveRoomRetry,
     ]
   );
 
@@ -601,7 +637,14 @@ export const useSendMessage = () => {
             __v: item.__v,
           };
 
-          client?.sendMediaMessageStanza(activeRoomJID, messagePayload, id);
+          const mediaSent = await sendWithActiveRoomRetry(
+            activeRoomJID,
+            id,
+            () => client?.sendMediaMessageStanza(activeRoomJID, messagePayload, id)
+          );
+          if (!mediaSent) {
+            throw new Error('media_send_failed');
+          }
         }
 
         emitMessageSent({
@@ -641,6 +684,7 @@ export const useSendMessage = () => {
       setupRoomTimeout,
       markMessageSending,
       emitMessageSent,
+      sendWithActiveRoomRetry,
     ]
   );
 

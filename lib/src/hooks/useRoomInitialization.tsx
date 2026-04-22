@@ -49,6 +49,7 @@ export const useRoomInitialization = (
 
   useEffect(() => {
     if (client && activeRoomJID) {
+      client.setActiveRoomJid(activeRoomJID);
       client.promoteRoomHistory(activeRoomJID);
       // Try fast explicit join for active room right after selection/login.
       client
@@ -61,6 +62,9 @@ export const useRoomInitialization = (
         .catch(() => {
           client.prioritizeRoomPresence(activeRoomJID).catch(() => {});
         });
+    }
+    if (client && !activeRoomJID) {
+      client.setActiveRoomJid(null);
     }
   }, [client, activeRoomJID]);
 

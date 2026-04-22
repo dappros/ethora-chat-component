@@ -168,6 +168,7 @@ export interface IConfig {
     softPauseAfterSendMs?: number;
     activeRoomBoostTtlMs?: number;
     activeSendBoostMs?: number;
+    alwaysPrioritizeActiveRoom?: boolean;
     backgroundWhileCriticalSend?: boolean;
     preloadTopKRooms?: number;
     presenceFailureBackoffMs?: number;

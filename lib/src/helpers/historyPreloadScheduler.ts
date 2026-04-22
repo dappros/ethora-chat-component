@@ -12,6 +12,7 @@ interface HistoryPreloadSchedulerOptions {
   concurrency?: number;
   pageSize?: number;
   retryLimit?: number;
+  roomLimit?: number;
   selectedRoomJid?: string | null;
   defaultRoomJids?: string[];
   forceReload?: boolean;
@@ -89,6 +90,7 @@ export const runHistoryPreloadScheduler = async (
     concurrency = DEFAULT_CONCURRENCY,
     pageSize = DEFAULT_PAGE_SIZE,
     retryLimit = DEFAULT_RETRY_LIMIT,
+    roomLimit,
     selectedRoomJid = null,
     defaultRoomJids = [],
     forceReload = false,
@@ -100,7 +102,7 @@ export const runHistoryPreloadScheduler = async (
   const rooms = (state.rooms.rooms || {}) as Record<string, IRoom>;
   const defaultSet = new Set(defaultRoomJids);
 
-  const queue: QueueItem[] = Object.entries(rooms)
+  const sortedQueue: QueueItem[] = Object.entries(rooms)
     .map(([jid, room]: [string, IRoom]) => ({
       jid,
       priority: getRoomPriority(jid, room, selectedRoomJid, defaultSet),
@@ -115,6 +117,10 @@ export const runHistoryPreloadScheduler = async (
       }
       return a.jid.localeCompare(b.jid);
     });
+  const queue: QueueItem[] =
+    roomLimit && roomLimit > 0
+      ? sortedQueue.slice(0, roomLimit)
+      : sortedQueue;
 
   ethoraLogger.log(
     '[HistoryScheduler] history_queue_order',
@@ -131,6 +137,11 @@ export const runHistoryPreloadScheduler = async (
   while (queue.length > 0) {
     if (signal?.aborted) {
       return;
+    }
+
+    if (!client.isActiveRoomGateOpen()) {
+      await sleep(80);
+      continue;
     }
 
     if (shouldPauseForVisibility()) {
