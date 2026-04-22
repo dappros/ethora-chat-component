@@ -6,6 +6,7 @@ import { RootState } from '../../roomStore';
 import { useDispatch, useSelector } from 'react-redux';
 import { setUser } from '../../roomStore/chatSettingsSlice';
 import {
+  ensureUserFromMy,
   loginEmail,
   loginViaJwt,
 } from '../../networking/api-requests/auth.api';
@@ -78,8 +79,9 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
       if (config?.customLogin?.enabled && config?.customLogin?.loginFunction) {
         try {
           const loginData = await config.customLogin.loginFunction();
-          if (!cancelled && loginData) {
-            dispatch(setUser(loginData));
+          const normalizedUser = await ensureUserFromMy(loginData);
+          if (!cancelled && normalizedUser) {
+            dispatch(setUser(normalizedUser));
           } else if (!cancelled) {
             setShowModal(true);
           }
@@ -93,13 +95,19 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
       }
 
       if (config?.userLogin?.enabled && config.userLogin.user) {
-        dispatch(setUser(config.userLogin.user));
+        const normalizedUser = await ensureUserFromMy(config.userLogin.user);
+        if (!cancelled && normalizedUser) {
+          dispatch(setUser(normalizedUser));
+        }
         return;
       }
 
       const storedUser = getStoredUser(config?.appId) as User | null;
       if (storedUser && hasStoredSensitiveSession(storedUser)) {
-        dispatch(setUser(storedUser));
+        const normalizedUser = await ensureUserFromMy(storedUser);
+        if (!cancelled && normalizedUser) {
+          dispatch(setUser(normalizedUser));
+        }
         return;
       }
 
@@ -107,7 +115,10 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
         try {
           const loginData = await loginViaJwt(config.jwtLogin.token);
           if (!cancelled && loginData) {
-            dispatch(setUser(loginData));
+            const normalizedUser = await ensureUserFromMy(loginData);
+            if (normalizedUser) {
+              dispatch(setUser(normalizedUser));
+            }
           }
         } catch (error) {
           ethoraLogger.log('error with jwt login', error);
@@ -130,7 +141,10 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
         try {
           const loginData = await loginUserFunction();
           if (!cancelled && loginData) {
-            dispatch(setUser(loginData));
+            const normalizedUser = await ensureUserFromMy(loginData);
+            if (normalizedUser) {
+              dispatch(setUser(normalizedUser));
+            }
           }
         } catch (error) {
           ethoraLogger.log('error with default login', error);

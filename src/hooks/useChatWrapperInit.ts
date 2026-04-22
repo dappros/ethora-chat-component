@@ -205,18 +205,22 @@ const useChatWrapperInit = ({
       }
 
       if (!privateStoreBootstrappedClientsRef.current.has(clientKey)) {
-        privateStoreBootstrappedClientsRef.current.add(clientKey);
-        mark('bg:getChatsPrivateStore:start');
-        try {
-          const roomTimestampObject = await targetClient.getChatsPrivateStoreRequestStanza();
-          updatedChatLastTimestamps(
-            roomTimestampObject as Record<string, string | number>,
-            dispatch
-          );
-          logDuration('bg:getChatsPrivateStore', 'bg:getChatsPrivateStore:start');
-        } catch (error) {
-          privateStoreBootstrappedClientsRef.current.delete(clientKey);
-          console.warn('[InitTiming] bg:getChatsPrivateStore:error', error);
+        if (!config?.disableLastRead) {
+          privateStoreBootstrappedClientsRef.current.add(clientKey);
+          mark('bg:getChatsPrivateStore:start');
+          try {
+            const roomTimestampObject = await targetClient.getChatsPrivateStoreRequestStanza();
+            updatedChatLastTimestamps(
+              roomTimestampObject as Record<string, string | number>,
+              dispatch
+            );
+            logDuration('bg:getChatsPrivateStore', 'bg:getChatsPrivateStore:start');
+          } catch (error) {
+            privateStoreBootstrappedClientsRef.current.delete(clientKey);
+            console.warn('[InitTiming] bg:getChatsPrivateStore:error', error);
+          }
+        } else {
+          privateStoreBootstrappedClientsRef.current.add(clientKey);
         }
       }
 
@@ -239,6 +243,10 @@ const useChatWrapperInit = ({
         1,
         Number(config?.historyQoS?.stagedPreloadConcurrency || 3)
       );
+      const preloadTopKRooms = Math.max(
+        1,
+        Number(config?.historyQoS?.preloadTopKRooms || 20)
+      );
 
       mark(
         stagedPreloadEnabled
@@ -252,12 +260,15 @@ const useChatWrapperInit = ({
           const defaultRoomJids = (config?.defaultRooms || []).map(
             (room) => room.jid
           );
+          const hasActiveRoom = Boolean(store.getState().rooms.activeRoomJID);
+          const firstPassConcurrency = hasActiveRoom ? 1 : stagedConcurrency;
 
           await runHistoryPreloadScheduler({
             client: targetClient,
-            concurrency: stagedConcurrency,
+            concurrency: firstPassConcurrency,
             pageSize: stagedFirstPassSize,
             retryLimit: 2,
+            roomLimit: preloadTopKRooms,
             selectedRoomJid: store.getState().rooms.activeRoomJID || null,
             defaultRoomJids,
           });
@@ -419,6 +430,7 @@ const useChatWrapperInit = ({
                 user?.xmppPassword,
                 {
                   ...(config?.xmppSettings || {}),
+                  disableLastRead: Boolean(config?.disableLastRead),
                   historyQoS: config?.historyQoS,
                 },
                 roomsList
@@ -525,6 +537,11 @@ const useChatWrapperInit = ({
   useEffect(() => {
     ensureActiveRoomSelected(Object.values(roomsList) as any);
   }, [roomsList, activeRoomJID, ensureActiveRoomSelected]);
+
+  useEffect(() => {
+    if (!client) return;
+    client.setActiveRoomJid(activeRoomJID || null);
+  }, [client, activeRoomJID]);
 
   return {
     client,

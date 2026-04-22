@@ -48,19 +48,23 @@ const initXmppRooms = async (
         ethoraLogger.log(res);
       }
 
-      const roomTimestampObject =
-        (await xmmpClient.getChatsPrivateStoreRequestStanza()) as
-          | Record<string, string | number>
-          | null
-          | undefined;
-      updatedChatLastTimestamps(roomTimestampObject, store.dispatch);
+      if (!config?.disableLastRead) {
+        const roomTimestampObject =
+          (await xmmpClient.getChatsPrivateStoreRequestStanza()) as
+            | Record<string, string | number>
+            | null
+            | undefined;
+        updatedChatLastTimestamps(roomTimestampObject, store.dispatch);
+      }
     } else {
-      const roomTimestampObject =
-        (await xmmpClient.getChatsPrivateStoreRequestStanza()) as
-          | Record<string, string | number>
-          | null
-          | undefined;
-      updatedChatLastTimestamps(roomTimestampObject, store.dispatch);
+      if (!config?.disableLastRead) {
+        const roomTimestampObject =
+          (await xmmpClient.getChatsPrivateStoreRequestStanza()) as
+            | Record<string, string | number>
+            | null
+            | undefined;
+        updatedChatLastTimestamps(roomTimestampObject, store.dispatch);
+      }
     }
 
     if (config?.refreshTokens?.enabled) {

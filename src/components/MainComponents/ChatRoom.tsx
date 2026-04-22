@@ -110,7 +110,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       setIsLoadingMore(false);
       return () => {
         const exitTs = Date.now();
-        if (client) {
+        if (client && !config?.disableLastRead) {
           client.actionSetTimestampToPrivateStoreStanza(
             activeRoomJID,
             exitTs
