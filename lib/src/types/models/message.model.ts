@@ -6,6 +6,7 @@ export interface IMessage {
   id: string;
   user: IUser;
   date: Date | string;
+  messageTimestampMs?: number;
   body: string;
   roomJid: string;
   key?: string;

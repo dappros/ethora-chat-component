@@ -23,6 +23,7 @@ import NewMessageLabel from '../styled/NewMessageLabel';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
 import { DecoratedMessage } from '../../types/models/customComponents.model';
 import { parseMessageReference } from '../../helpers/parseMessageReference';
+import { useLoaderDebug } from '../../hooks/useLoaderDebug';
 
 interface MessageListProps<TMessage extends IMessage> {
   CustomMessage?: React.ComponentType<{
@@ -55,6 +56,7 @@ const MessageList = <TMessage extends IMessage>({
   const { CustomScrollableArea, CustomNewMessageLabel } = useCustomComponents();
   const { composing, messages, composingList } = useRoomState(roomJID).room;
   const { user } = useChatSettingState();
+  useLoaderDebug('chat-room-load-more-loader', loading);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [newMessagesCount, setNewMessagesCount] = useState(0);
   const [lastMessageDate, setLastMessageDate] = useState<number | null>(null);

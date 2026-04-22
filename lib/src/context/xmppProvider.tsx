@@ -77,6 +77,8 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
   const [email, setEmail] = useState<string | null>(null);
   const [reconnectAttempts, setReconnectAttempts] = useState<number>(0);
   const initializingRef = useRef<Promise<XmppClient> | null>(null);
+  const completedInitBeforeLoadKeyRef = useRef<string | null>(null);
+  const inFlightInitBeforeLoadKeyRef = useRef<string | null>(null);
 
   const resetProviderState = useCallback(() => {
     setClient(null);
@@ -217,9 +219,30 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
       setBaseURL(config.baseUrl, config.customAppToken);
     }
 
+    const bootstrapKey = JSON.stringify({
+      appId: config?.appId || '',
+      baseUrl: config?.baseUrl || '',
+      customAppToken: config?.customAppToken || '',
+      xmppUsername: config?.userLogin?.user?.xmppUsername || '',
+      xmppPassword: config?.userLogin?.user?.xmppPassword || '',
+      walletAddress: config?.userLogin?.user?.defaultWallet?.walletAddress || '',
+      jwtToken: config?.jwtLogin?.token || '',
+      myEndpoint: config?.initBeforeLoadAuth?.myEndpoint || '',
+    });
+
+    if (completedInitBeforeLoadKeyRef.current === bootstrapKey) {
+      ethoraLogger.log('[initBeforeLoad] skipped:bootstrap_key_completed');
+      return;
+    }
+    if (inFlightInitBeforeLoadKeyRef.current === bootstrapKey) {
+      ethoraLogger.log('[initBeforeLoad] skipped:bootstrap_key_inflight');
+      return;
+    }
+
     const abortController = new AbortController();
 
     const runInitBeforeLoad = async () => {
+      let completedSuccessfully = false;
       const resolvedUser = await resolveInitBeforeLoadUser({
         config,
         signal: abortController.signal,
@@ -279,16 +302,27 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
         selectedRoomJid: store.getState().rooms.activeRoomJID || null,
         defaultRoomJids: (config?.defaultRooms || []).map((room) => room.jid),
       });
+
+      completedSuccessfully = true;
+      if (completedSuccessfully) {
+        completedInitBeforeLoadKeyRef.current = bootstrapKey;
+      }
     };
 
     if (!initBeforeLoadPromise) {
+      inFlightInitBeforeLoadKeyRef.current = bootstrapKey;
       initBeforeLoadPromise = runInitBeforeLoad()
         .catch((error) => {
           console.warn('[initBeforeLoad] bootstrap failed', error);
         })
         .finally(() => {
+          if (inFlightInitBeforeLoadKeyRef.current === bootstrapKey) {
+            inFlightInitBeforeLoadKeyRef.current = null;
+          }
           initBeforeLoadPromise = null;
         });
+    } else {
+      ethoraLogger.log('[initBeforeLoad] skipped:bootstrap_promise_busy');
     }
 
     return () => {
@@ -301,6 +335,11 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
     config?.userLogin?.user?.xmppUsername,
     config?.userLogin?.user?.xmppPassword,
     config?.userLogin?.user?.defaultWallet?.walletAddress,
+    config?.jwtLogin?.token,
+    config?.initBeforeLoadAuth?.myEndpoint,
+    config?.baseUrl,
+    config?.customAppToken,
+    config?.appId,
   ]);
 
   useEffect(() => {

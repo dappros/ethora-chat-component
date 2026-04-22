@@ -4,6 +4,7 @@ import { applyRoomsPreloadBatch } from '../roomStore/roomsSlice';
 import { IMessage, IRoom } from '../types/types';
 import { getMessageTimestamp, getRoomLastActivityScore } from './roomActivityScore';
 import { ethoraLogger } from './ethoraLogger';
+import { getTimestampFromUnknown } from './timestamp';
 
 interface HistoryPreloadSchedulerOptions {
   client: XmppClient;
@@ -11,8 +12,10 @@ interface HistoryPreloadSchedulerOptions {
   concurrency?: number;
   pageSize?: number;
   retryLimit?: number;
+  roomLimit?: number;
   selectedRoomJid?: string | null;
   defaultRoomJids?: string[];
+  forceReload?: boolean;
 }
 
 interface QueueItem {
@@ -44,7 +47,7 @@ const computeUnreadCapped = (
 
   if (countable.length < pageSize) return false;
 
-  const lastViewed = Number(room.lastViewedTimestamp || 0);
+  const lastViewed = getTimestampFromUnknown(room.lastViewedTimestamp);
   if (lastViewed <= 0) {
     return true;
   }
@@ -87,8 +90,10 @@ export const runHistoryPreloadScheduler = async (
     concurrency = DEFAULT_CONCURRENCY,
     pageSize = DEFAULT_PAGE_SIZE,
     retryLimit = DEFAULT_RETRY_LIMIT,
+    roomLimit,
     selectedRoomJid = null,
     defaultRoomJids = [],
+    forceReload = false,
   } = options;
 
   if (signal?.aborted) return;
@@ -97,7 +102,7 @@ export const runHistoryPreloadScheduler = async (
   const rooms = (state.rooms.rooms || {}) as Record<string, IRoom>;
   const defaultSet = new Set(defaultRoomJids);
 
-  const queue: QueueItem[] = Object.entries(rooms)
+  const sortedQueue: QueueItem[] = Object.entries(rooms)
     .map(([jid, room]: [string, IRoom]) => ({
       jid,
       priority: getRoomPriority(jid, room, selectedRoomJid, defaultSet),
@@ -112,6 +117,10 @@ export const runHistoryPreloadScheduler = async (
       }
       return a.jid.localeCompare(b.jid);
     });
+  const queue: QueueItem[] =
+    roomLimit && roomLimit > 0
+      ? sortedQueue.slice(0, roomLimit)
+      : sortedQueue;
 
   ethoraLogger.log(
     '[HistoryScheduler] history_queue_order',
@@ -128,6 +137,11 @@ export const runHistoryPreloadScheduler = async (
   while (queue.length > 0) {
     if (signal?.aborted) {
       return;
+    }
+
+    if (!client.isActiveRoomGateOpen()) {
+      await sleep(80);
+      continue;
     }
 
     if (shouldPauseForVisibility()) {
@@ -167,7 +181,10 @@ export const runHistoryPreloadScheduler = async (
 
         const task = (async () => {
           const currentRoom = store.getState().rooms.rooms[item.jid];
-          if (!currentRoom || currentRoom.historyPreloadState === 'done') {
+          if (
+            !currentRoom ||
+            (!forceReload && currentRoom.historyPreloadState === 'done')
+          ) {
             store.dispatch(
               applyRoomsPreloadBatch({
                 rooms: [
@@ -189,7 +206,7 @@ export const runHistoryPreloadScheduler = async (
               undefined,
               {
                 coalesceRoom: true,
-                skipIfPreloaded: true,
+                skipIfPreloaded: !forceReload,
                 source: 'background',
               }
             );

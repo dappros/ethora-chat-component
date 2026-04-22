@@ -9,7 +9,7 @@ export const presenceInRoom = async (
 ): Promise<Element> => {
   let stanzaHandler: (stanza: Element) => void;
 
-  const unsubscribe = () => client.off('stanza', stanzaHandler);
+  const unsubscribe = () => client?.off?.('stanza', stanzaHandler);
 
   return new Promise((resolve, reject) => {
     let settled = false;

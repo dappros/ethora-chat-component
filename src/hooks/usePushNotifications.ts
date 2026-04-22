@@ -29,6 +29,7 @@ import {
 } from '../roomStore/roomsSlice';
 import { IConfig } from '../types/types';
 import { ethoraLogger } from '../helpers/ethoraLogger';
+import { setStoredFcmToken } from '../utils/pushStorage';
 import {
   buildNotificationUrl,
   hasMessageInRooms,
@@ -137,7 +138,7 @@ const usePushNotifications = (
       if (!jid) return '';
       if (jid.includes('@')) return jid;
       const conference =
-        config?.xmppSettings?.conference || 'conference.xmpp.ethoradev.com';
+        config?.xmppSettings?.conference || 'conference.xmpp.chat.ethora.com';
       return `${jid}@${conference}`;
     },
     [config?.xmppSettings?.conference]
@@ -271,6 +272,7 @@ const usePushNotifications = (
         _subscriptionRegistered = true;
         fcmTokenRef.current = fcmToken;
         setFcmTokenReady(fcmToken); // signal room-subscription effect
+        setStoredFcmToken(fcmToken);
 
         // Log: subscribed via API
         if (config?.useStoreConsoleEnabled) {
@@ -476,6 +478,7 @@ const usePushNotifications = (
       hasRanRef.current = false;
       fcmTokenRef.current = null;
       setFcmTokenReady(null);
+      setStoredFcmToken('');
       lastRoomsHashRef.current = '';
       isSyncingRef.current = false;
       _subscriptionRegistered = false;

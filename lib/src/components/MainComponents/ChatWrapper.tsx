@@ -31,6 +31,7 @@ import ErrorFallback from './ErrorFallback';
 import ConnectionBanner from './ConnectionBanner';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
+import { useLoaderDebug } from '../../hooks/useLoaderDebug';
 
 interface ChatWrapperProps {
   token?: string;
@@ -142,6 +143,22 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   const hasRooms = Object.keys(rooms || {}).length > 0;
   const clientReadyForUI = !!client && !isConnectionLost && hasRooms;
   const showShell = inited || clientReadyForUI;
+  const isConnectingLoaderVisible = isConnectionLost && !inited;
+  const isRoomsRetryLoaderVisible = Boolean(
+    config?.enableRoomsRetry?.enabled && isRetrying && isRetrying !== 'norooms'
+  );
+  const isStartupLoaderVisible =
+    !showModal &&
+    !isConnectingLoaderVisible &&
+    !isRoomsRetryLoaderVisible &&
+    user.xmppPassword !== '' &&
+    user.xmppUsername !== '' &&
+    isRouteActive &&
+    !showShell;
+
+  useLoaderDebug('chat-wrapper-connecting-loader', isConnectingLoaderVisible);
+  useLoaderDebug('chat-wrapper-retry-loader', isRoomsRetryLoaderVisible);
+  useLoaderDebug('chat-wrapper-startup-loader', isStartupLoaderVisible);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

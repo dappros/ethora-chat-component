@@ -12,11 +12,23 @@ export interface xmppSettingsInterface {
   devServer?: string;
   host?: string;
   conference?: string;
+  disableLastRead?: boolean;
   xmppPingOnSendEnabled?: boolean;
   historyQoS?: {
     maxInFlightHistory?: number;
     softPauseAfterSendMs?: number;
     activeRoomBoostTtlMs?: number;
+    activeSendBoostMs?: number;
+    alwaysPrioritizeActiveRoom?: boolean;
+    backgroundWhileCriticalSend?: boolean;
+    preloadTopKRooms?: number;
+    presenceFailureBackoffMs?: number;
+    startupPrivateStoreTimeoutMs?: number;
+    startupPrivateStoreTtlMs?: number;
+    stagedPreloadEnabled?: boolean;
+    stagedPreloadFirstPassSize?: number;
+    stagedPreloadSecondPassSize?: number;
+    stagedPreloadConcurrency?: number;
   };
 }
 
@@ -76,6 +88,8 @@ export interface XmppClientInterface {
     }
   ): Promise<IMessage[] | undefined>;
   promoteRoomHistory(roomJID: string): void;
+  setActiveRoomJid(roomJID: string | null): void;
+  isActiveRoomGateOpen(): boolean;
   onCriticalSend(roomJID: string, messageId?: string): void;
   enqueueHistoryTask(params: {
     chatJID: string;
@@ -125,7 +139,7 @@ export interface XmppClientInterface {
     roomJID: string,
     data: MediaUploadData,
     id: string
-  ): void;
+  ): Promise<boolean>;
   createPrivateRoomStanza(
     title: string,
     description: string,

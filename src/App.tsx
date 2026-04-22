@@ -17,11 +17,11 @@ import { ethoraLogger } from './helpers/ethoraLogger';
 
 const APP_CHAT_BASE_CONFIG: IConfig = {
   appId: '646cc8dc96d4a4dc8f7b2f2d',
-  baseUrl: 'https://api.ethoradev.com/v1',
+  baseUrl: 'https://api.chat.ethora.com/v1',
   xmppSettings: {
-    devServer: 'wss://xmpp.ethoradev.com:5443/ws',
-    host: 'xmpp.ethoradev.com',
-    conference: 'conference.xmpp.ethoradev.com',
+    devServer: 'wss://xmpp.chat.ethora.com/ws',
+    host: 'xmpp.chat.ethora.com',
+    conference: 'conference.xmpp.chat.ethora.com',
     xmppPingOnSendEnabled: true,
   },
   userLogin: {
@@ -97,7 +97,7 @@ const Apps = () => {
               CustomScrollableArea={CustomScrollableArea}
               CustomDaySeparator={CustomDaySeparator}
               config={{
-                baseUrl: 'https://api.ethoradev.com/v1',
+                baseUrl: 'https://api.chat.ethora.com/v1',
                 inAppNotifications: {
                   enabled: true,
                   showInContext: true, // Show in chat component context as well
@@ -279,8 +279,8 @@ export default function App() {
   );
 
   return (
-    <XmppProvider>
-    {/* <XmppProvider config={globalXmppConfig}> */}
+    // <XmppProvider>
+    <XmppProvider config={globalXmppConfig}>
       <Router>
         <div className="flex">
           {navigation}

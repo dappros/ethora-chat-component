@@ -47,6 +47,17 @@ import { getNumberFromString } from '../helpers/getNumberFromString';
 
 type HistoryPriority = 0 | 1 | 2;
 type HistorySource = 'active' | 'send_ack' | 'background' | 'default';
+type SendLane = 'high' | 'normal';
+
+interface SendQueueEntry {
+  id?: string;
+  roomJid?: string;
+  lane: SendLane;
+  createdAt: number;
+  attempts: number;
+  state: 'queued' | 'sending' | 'sent_echoed' | 'failed';
+  task: () => Promise<boolean>;
+}
 
 interface MamRequestState {
   id: string;
@@ -67,6 +78,11 @@ interface HistoryQueueTask {
   epoch: number;
   queuedAt: number;
   resolve: (messages: IMessage[] | undefined) => void;
+}
+
+interface PrivateStoreCache {
+  fetchedAt: number;
+  data: Record<string, string | number> | null;
 }
 
 export class XmppClient implements XmppClientInterface {
@@ -90,14 +106,12 @@ export class XmppClient implements XmppClientInterface {
 
   private connectionSteps: Array<{ ts: number; step: string }> = [];
 
-  private messageQueue: Array<{
-    id?: string;
-    roomJid?: string;
-    createdAt: number;
-    attempts: number;
-    state: 'queued' | 'sending' | 'sent_echoed' | 'failed';
-    task: () => Promise<boolean>;
-  }> = [];
+  private messageQueue: Record<SendLane, SendQueueEntry[]> = {
+    high: [],
+    normal: [],
+  };
+  private highLaneBurstLimit = 5;
+  private highLaneStreak = 0;
   private pendingSendById: Map<
     string,
     { state: 'queued' | 'sending' | 'sent_echoed' | 'failed'; roomJid?: string }
@@ -123,7 +137,29 @@ export class XmppClient implements XmppClientInterface {
   private pendingSendIdsByRoom: Map<string, Set<string>> = new Map();
   private maxInFlightHistory = 1;
   private softPauseAfterSendMs = 0;
-  private activeRoomBoostTtlMs = 600;
+  private activeRoomBoostTtlMs = 2000;
+  private activeSendBoostMs = 2000;
+  private alwaysPrioritizeActiveRoom = true;
+  private backgroundWhileCriticalSend = false;
+  private disableLastRead = false;
+  private presenceFailureBackoffMs = 10000;
+  private startupPrivateStoreTimeoutMs = 2000;
+  private startupPrivateStoreTtlMs = 60000;
+  private roomPresenceBlockedUntil: Map<string, number> = new Map();
+  private activeHistoryInFlight: Map<string, Promise<IMessage[] | undefined>> =
+    new Map();
+  private chatsPrivateStoreCache: PrivateStoreCache = {
+    fetchedAt: 0,
+    data: null,
+  };
+  private activeRoomJid: string | null = null;
+  private sendIsActiveById: Map<string, boolean> = new Map();
+  private sendClickToEchoByScope: Record<'active' | 'nonactive', number[]> = {
+    active: [],
+    nonactive: [],
+  };
+  private sendSlaWarningThresholdMs = 1500;
+  private backgroundSuppressedStartedAt: number | null = null;
 
   checkOnline() {
     return this.client && this.client.status === 'online';
@@ -147,6 +183,7 @@ export class XmppClient implements XmppClientInterface {
   private reconnectBaseDelayMs: number = 1000;
   private pausedDueToOfflineCap: boolean = false;
   private authFailureDetected: boolean = false;
+  private intentionalLogout: boolean = false;
 
   private isTerminalAuthFailure(error: unknown): boolean {
     const candidate = error as any;
@@ -200,7 +237,7 @@ export class XmppClient implements XmppClientInterface {
     this.pingOnSendEnabled = xmppSettings?.xmppPingOnSendEnabled === true;
     this.maxInFlightHistory = Math.max(
       1,
-      Number(xmppSettings?.historyQoS?.maxInFlightHistory || 1)
+      Number(xmppSettings?.historyQoS?.maxInFlightHistory || 2)
     );
     this.softPauseAfterSendMs = Math.max(
       0,
@@ -208,13 +245,35 @@ export class XmppClient implements XmppClientInterface {
     );
     this.activeRoomBoostTtlMs = Math.max(
       0,
-      Number(xmppSettings?.historyQoS?.activeRoomBoostTtlMs || 600)
+      Number(xmppSettings?.historyQoS?.activeRoomBoostTtlMs || 2000)
+    );
+    this.activeSendBoostMs = Math.max(
+      0,
+      Number(xmppSettings?.historyQoS?.activeSendBoostMs || 2000)
+    );
+    this.alwaysPrioritizeActiveRoom =
+      xmppSettings?.historyQoS?.alwaysPrioritizeActiveRoom !== false;
+    this.backgroundWhileCriticalSend =
+      xmppSettings?.historyQoS?.backgroundWhileCriticalSend === true;
+    this.disableLastRead = xmppSettings?.disableLastRead === true;
+    this.presenceFailureBackoffMs = Math.max(
+      0,
+      Number(xmppSettings?.historyQoS?.presenceFailureBackoffMs || 10000)
+    );
+    this.startupPrivateStoreTimeoutMs = Math.max(
+      200,
+      Number(xmppSettings?.historyQoS?.startupPrivateStoreTimeoutMs || 2000)
+    );
+    this.startupPrivateStoreTtlMs = Math.max(
+      0,
+      Number(xmppSettings?.historyQoS?.startupPrivateStoreTtlMs || 60000)
     );
     this.initializeClient();
   }
 
   async initializeClient() {
     try {
+      this.intentionalLogout = false;
       this.logStep('initializeClient:start');
 
       if (this.client) {
@@ -296,6 +355,8 @@ export class XmppClient implements XmppClientInterface {
       await this.client.stop();
       this.client = null;
       this.historyPreloadInFlight.clear();
+      this.activeHistoryInFlight.clear();
+      this.roomPresenceBlockedUntil.clear();
       this.clearMamRegistry();
       this.clearHistoryQueue();
       ethoraLogger.log('Client disconnected');
@@ -303,6 +364,24 @@ export class XmppClient implements XmppClientInterface {
       console.error('Error disconnecting client:', error);
     }
   }
+
+  markIntentionalLogout = () => {
+    this.intentionalLogout = true;
+    this.status = 'offline';
+
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    if (this.idlePingTimeout) {
+      clearTimeout(this.idlePingTimeout);
+      this.idlePingTimeout = null;
+    }
+    if (this.pingTimeout) {
+      clearTimeout(this.pingTimeout);
+      this.pingTimeout = null;
+    }
+  };
 
   attachEventListeners() {
     this.client.on('disconnect', () => {
@@ -312,15 +391,22 @@ export class XmppClient implements XmppClientInterface {
       this.joinedRooms.clear();
       this.roomPresenceInFlight.clear();
       this.historyPreloadInFlight.clear();
+      this.activeHistoryInFlight.clear();
+      this.roomPresenceBlockedUntil.clear();
       this.clearMamRegistry();
       this.clearHistoryQueue();
       this.pendingSendById.clear();
+      this.sendIsActiveById.clear();
       this.isRecoveringRoomPresence = false;
       this.recoveryRoomJid = null;
       this.logStep('event:disconnect');
       if (this.pingInterval) clearInterval(this.pingInterval);
       if (this.authFailureDetected) {
         this.logStep('event:disconnect:auth-failed-no-reconnect');
+        return;
+      }
+      if (this.intentionalLogout) {
+        this.logStep('event:disconnect:intentional-no-reconnect');
         return;
       }
       this.scheduleReconnect('event:disconnect');
@@ -398,6 +484,10 @@ export class XmppClient implements XmppClientInterface {
     });
 
     this.client.on('error', (error) => {
+      if (this.intentionalLogout) {
+        this.logStep('event:error:intentional-ignore');
+        return;
+      }
       const terminalAuthFailure = this.isTerminalAuthFailure(error);
       console.error('XMPP client error:', error);
       this.status = terminalAuthFailure ? 'auth_failed' : 'error';
@@ -568,6 +658,10 @@ export class XmppClient implements XmppClientInterface {
       this.logStep('reconnect:skip-auth-failed');
       return Promise.resolve();
     }
+    if (this.intentionalLogout) {
+      this.logStep('reconnect:skip-intentional-logout');
+      return Promise.resolve();
+    }
     if (!this.isBrowserOnline()) {
       this.logStep('reconnect:skipped-offline');
       return Promise.resolve();
@@ -697,6 +791,166 @@ export class XmppClient implements XmppClientInterface {
     this.historyQueueWorkerScheduled = false;
   }
 
+  private getSendLane(roomJid?: string): SendLane {
+    if (roomJid && this.activeRoomJid && roomJid === this.activeRoomJid) {
+      return 'high';
+    }
+    return 'normal';
+  }
+
+  setActiveRoomJid(roomJID: string | null): void {
+    const nextRoomJid = roomJID || null;
+    const previousRoomJid = this.activeRoomJid;
+
+    if (previousRoomJid === nextRoomJid) {
+      if (nextRoomJid) {
+        this.promoteRoomHistory(nextRoomJid);
+      }
+      return;
+    }
+
+    if (previousRoomJid) {
+      const prevEpoch = this.getRoomEpoch(previousRoomJid);
+      this.roomHistoryEpoch.set(previousRoomJid, prevEpoch + 1);
+
+      const staleTasks = this.historyQueue.filter(
+        (task) => task.chatJID === previousRoomJid
+      );
+      if (staleTasks.length > 0) {
+        const currentMessages =
+          store.getState().rooms.rooms?.[previousRoomJid]?.messages || [];
+        staleTasks.forEach((task) => task.resolve(currentMessages));
+        this.historyQueue = this.historyQueue.filter(
+          (task) => task.chatJID !== previousRoomJid
+        );
+      }
+    }
+
+    this.activeRoomJid = nextRoomJid;
+
+    if (!nextRoomJid) {
+      this.scheduleHistoryQueue();
+      return;
+    }
+
+    this.promoteRoomHistory(nextRoomJid);
+    this.prioritizeRoomPresence(nextRoomJid).catch(() => {});
+    this.getHistoryStanza(nextRoomJid, 30, undefined, undefined, {
+      source: 'active',
+      coalesceRoom: true,
+      skipIfPreloaded: true,
+    }).catch(() => {});
+    this.scheduleHistoryQueue();
+  }
+
+  private getTotalSendQueueLength(): number {
+    return this.messageQueue.high.length + this.messageQueue.normal.length;
+  }
+
+  private hasPendingActiveRoomPresenceRequest(): boolean {
+    if (!this.activeRoomJid) return false;
+    return this.roomPresenceInFlight.has(this.activeRoomJid);
+  }
+
+  private hasPendingActiveRoomHistoryRequest(): boolean {
+    const activeRoomJid = this.activeRoomJid;
+    if (!activeRoomJid) return false;
+
+    const hasQueuedHighPriority = this.historyQueue.some(
+      (task) => task.chatJID === activeRoomJid && task.priority <= 1
+    );
+    if (hasQueuedHighPriority) return true;
+
+    const hasMamInFlight = Array.from(this.mamRequestRegistry.values()).some(
+      (entry) => String(entry.chatJID || '').split('/')[0] === activeRoomJid
+    );
+    if (hasMamInFlight) return true;
+
+    const activeHistoryPrefix = `${activeRoomJid}:`;
+    return Array.from(this.activeHistoryInFlight.keys()).some((key) =>
+      key.startsWith(activeHistoryPrefix)
+    );
+  }
+
+  isActiveRoomGateOpen(): boolean {
+    if (!this.alwaysPrioritizeActiveRoom) return true;
+    if (!this.activeRoomJid) return true;
+    return !(
+      this.hasPendingActiveRoomPresenceRequest() ||
+      this.hasPendingActiveRoomHistoryRequest()
+    );
+  }
+
+  private hasPendingSendsForActiveRoom(): boolean {
+    if (!this.activeRoomJid) return false;
+    const activePending = this.pendingSendIdsByRoom.get(this.activeRoomJid);
+    return Boolean(activePending && activePending.size > 0);
+  }
+
+  private shouldSuppressBackgroundHistory(): boolean {
+    if (this.alwaysPrioritizeActiveRoom && !this.isActiveRoomGateOpen()) {
+      return true;
+    }
+    if (this.backgroundWhileCriticalSend) {
+      return false;
+    }
+    const now = Date.now();
+    return now < this.criticalSendUntil || this.hasPendingSendsForActiveRoom();
+  }
+
+  private updateBackgroundSuppressionMetrics(hasBlockedBackground: boolean): void {
+    if (hasBlockedBackground) {
+      if (this.backgroundSuppressedStartedAt === null) {
+        this.backgroundSuppressedStartedAt = Date.now();
+      }
+      return;
+    }
+    if (this.backgroundSuppressedStartedAt !== null) {
+      const duration = Date.now() - this.backgroundSuppressedStartedAt;
+      ethoraLogger.log(`[XMPP] background_suppression_ms duration=${duration}`);
+      this.backgroundSuppressedStartedAt = null;
+    }
+  }
+
+  private pickNextSendEntry(): SendQueueEntry | undefined {
+    const highQueue = this.messageQueue.high;
+    const normalQueue = this.messageQueue.normal;
+
+    if (highQueue.length > 0) {
+      if (normalQueue.length > 0 && this.highLaneStreak >= this.highLaneBurstLimit) {
+        this.highLaneStreak = 0;
+        return normalQueue.shift();
+      }
+      this.highLaneStreak += 1;
+      return highQueue.shift();
+    }
+
+    this.highLaneStreak = 0;
+    return normalQueue.shift();
+  }
+
+  private recordSendClickToEchoMetric(isActiveSend: boolean, elapsedMs: number): void {
+    const scope: 'active' | 'nonactive' = isActiveSend ? 'active' : 'nonactive';
+    const bucket = this.sendClickToEchoByScope[scope];
+    bucket.push(elapsedMs);
+    if (bucket.length > 200) {
+      bucket.shift();
+    }
+
+    const sorted = [...bucket].sort((a, b) => a - b);
+    const p50 = sorted[Math.floor((sorted.length - 1) * 0.5)] || elapsedMs;
+    const p95 = sorted[Math.floor((sorted.length - 1) * 0.95)] || elapsedMs;
+    ethoraLogger.log(
+      `[XMPP] send_click_to_echo_stats scope=${scope} n=${sorted.length} p50=${p50} p95=${p95}`
+    );
+
+    if (scope === 'active' && p95 > this.sendSlaWarningThresholdMs) {
+      console.warn(
+        `[XMPP] active_send_sla_warning p95=${p95} threshold=${this.sendSlaWarningThresholdMs}`
+      );
+    }
+  }
+
   private getRoomEpoch(roomJID: string): number {
     return this.roomHistoryEpoch.get(roomJID) || 0;
   }
@@ -724,12 +978,23 @@ export class XmppClient implements XmppClientInterface {
   private pickNextHistoryTask(): HistoryQueueTask | null {
     if (this.historyQueue.length === 0) return null;
     const now = Date.now();
+    const suppressBackground = this.shouldSuppressBackgroundHistory();
     const backgroundPausedUntil = Math.max(
       this.criticalSendUntil,
       this.activeRoomBoostUntil
     );
+    const hasBlockedBackgroundTasks = this.historyQueue.some(
+      (task) => task.priority === 2
+    ) && (suppressBackground || now < backgroundPausedUntil);
+    this.updateBackgroundSuppressionMetrics(hasBlockedBackgroundTasks);
     const runnable = this.historyQueue
-      .filter((task) => !(task.priority === 2 && now < backgroundPausedUntil))
+      .filter(
+        (task) =>
+          !(
+            task.priority === 2 &&
+            (now < backgroundPausedUntil || suppressBackground)
+          )
+      )
       .sort((a, b) => {
         if (a.priority !== b.priority) return a.priority - b.priority;
         if (a.priority === 2 && b.priority === 2) {
@@ -752,6 +1017,9 @@ export class XmppClient implements XmppClientInterface {
 
   private async processHistoryQueue(): Promise<void> {
     if (this.status !== 'online') return;
+    if (this.historyQueue.length === 0) {
+      this.updateBackgroundSuppressionMetrics(false);
+    }
 
     while (true) {
       const hasHighPending = this.historyQueue.some((task) => task.priority <= 1);
@@ -806,8 +1074,8 @@ export class XmppClient implements XmppClientInterface {
         const isActiveRoomTask = task.priority === 0;
         await this.ensureRoomPresence(task.chatJID, {
           settleDelay: 0,
-          timeoutMs: isActiveRoomTask ? 5000 : 1200,
-          waitForJoin: isActiveRoomTask,
+          timeoutMs: isActiveRoomTask ? 1200 : 1200,
+          waitForJoin: false,
           source: isActiveRoomTask ? 'active_room' : 'send',
         }).catch(() => {});
       }
@@ -816,7 +1084,8 @@ export class XmppClient implements XmppClientInterface {
         task.chatJID,
         task.max,
         task.before,
-        task.id
+        task.id,
+        task.priority === 0 ? 2800 : 10000
       );
 
       const currentEpoch = this.getRoomEpoch(task.chatJID);
@@ -940,7 +1209,8 @@ export class XmppClient implements XmppClientInterface {
     chatJID: string,
     max: number,
     before: number | undefined,
-    requestId: string
+    requestId: string,
+    timeoutMs = 10000
   ): Promise<IMessage[] | undefined> {
     if (!chatJID) return Promise.resolve(undefined);
     const fixedChatJid = chatJID.includes('@')
@@ -951,7 +1221,7 @@ export class XmppClient implements XmppClientInterface {
       const timeout = setTimeout(() => {
         this.mamRequestRegistry.delete(requestId);
         resolve(undefined);
-      }, 10000);
+      }, timeoutMs);
 
       this.mamRequestRegistry.set(requestId, {
         id: requestId,
@@ -1008,9 +1278,14 @@ export class XmppClient implements XmppClientInterface {
 
   onCriticalSend(roomJID: string, messageId?: string): void {
     this.criticalSendUntil = Date.now() + this.softPauseAfterSendMs;
+    this.activeRoomBoostUntil = Date.now() + this.activeSendBoostMs;
     this.promoteRoomHistory(roomJID);
     if (messageId) {
       this.sendStartedAtById.set(messageId, Date.now());
+      this.sendIsActiveById.set(
+        messageId,
+        Boolean(this.activeRoomJid && roomJID === this.activeRoomJid)
+      );
       const pending = this.pendingSendIdsByRoom.get(roomJID) || new Set<string>();
       pending.add(messageId);
       this.pendingSendIdsByRoom.set(roomJID, pending);
@@ -1026,8 +1301,12 @@ export class XmppClient implements XmppClientInterface {
       ethoraLogger.log(
         `[XMPP] send_click_to_echo_ms id=${messageId} room=${roomJID} ms=${elapsed}`
       );
+      const isActiveSend = this.sendIsActiveById.get(messageId) === true;
+      this.recordSendClickToEchoMetric(isActiveSend, elapsed);
       this.sendStartedAtById.delete(messageId);
+      this.sendIsActiveById.delete(messageId);
     }
+    this.sendIsActiveById.delete(messageId);
 
     const pending = this.pendingSendIdsByRoom.get(roomJID);
     if (!pending) return;
@@ -1056,6 +1335,20 @@ export class XmppClient implements XmppClientInterface {
     const epoch = this.getRoomEpoch(params.chatJID);
 
     return new Promise<IMessage[] | undefined>((resolve) => {
+      if (source === 'background') {
+        const stale = this.historyQueue.filter(
+          (task) => task.source === 'background' && task.chatJID === params.chatJID
+        );
+        if (stale.length) {
+          const currentMessages =
+            store.getState().rooms.rooms?.[params.chatJID]?.messages || [];
+          stale.forEach((task) => task.resolve(currentMessages));
+          this.historyQueue = this.historyQueue.filter(
+            (task) => !(task.source === 'background' && task.chatJID === params.chatJID)
+          );
+        }
+      }
+
       this.historyQueue.push({
         id: taskId,
         chatJID: params.chatJID,
@@ -1086,7 +1379,8 @@ export class XmppClient implements XmppClientInterface {
   private enqueue(
     task: () => Promise<boolean>,
     id?: string,
-    roomJid?: string
+    roomJid?: string,
+    lane?: SendLane
   ): Promise<boolean> {
     return new Promise<boolean>((resolve) => {
       if (id) {
@@ -1098,9 +1392,12 @@ export class XmppClient implements XmppClientInterface {
         this.pendingSendById.set(id, { state: 'queued', roomJid });
       }
 
-      this.messageQueue.push({
+      const targetLane = lane || this.getSendLane(roomJid);
+
+      this.messageQueue[targetLane].push({
         id,
         roomJid,
+        lane: targetLane,
         createdAt: Date.now(),
         attempts: 0,
         state: 'queued',
@@ -1133,14 +1430,14 @@ export class XmppClient implements XmppClientInterface {
     if (this.processingQueue) return;
     this.processingQueue = true;
     try {
-      while (this.messageQueue.length > 0) {
+      while (this.getTotalSendQueueLength() > 0) {
         if (this.status !== 'online') {
           if (!this.reconnectTimer) {
             this.scheduleReconnect('queue-not-online');
           }
           break;
         }
-        const nextEntry = this.messageQueue[0];
+        const nextEntry = this.pickNextSendEntry();
         if (!nextEntry) break;
         nextEntry.state = 'sending';
         nextEntry.attempts += 1;
@@ -1161,10 +1458,9 @@ export class XmppClient implements XmppClientInterface {
           if (nextEntry.createdAt) {
             const waitMs = Date.now() - nextEntry.createdAt;
             ethoraLogger.log(
-              `[XMPP] send_wait_ms id=${nextEntry.id || 'unknown'} room=${nextEntry.roomJid || 'unknown'} wait=${waitMs}`
+              `[XMPP] send_wait_ms lane=${nextEntry.lane} id=${nextEntry.id || 'unknown'} room=${nextEntry.roomJid || 'unknown'} wait=${waitMs}`
             );
           }
-          this.messageQueue.shift();
         } else {
           nextEntry.state = 'failed';
           if (nextEntry.id) {
@@ -1173,6 +1469,7 @@ export class XmppClient implements XmppClientInterface {
               roomJid: nextEntry.roomJid,
             });
           }
+          this.messageQueue[nextEntry.lane].unshift(nextEntry);
           break;
         }
       }
@@ -1181,7 +1478,7 @@ export class XmppClient implements XmppClientInterface {
       this.processingQueue = false;
     }
 
-    if (this.messageQueue.length > 0) {
+    if (this.getTotalSendQueueLength() > 0) {
       setTimeout(() => this.processQueue().catch(() => {}), 60);
     }
   }
@@ -1204,6 +1501,7 @@ export class XmppClient implements XmppClientInterface {
   }
 
   private onBrowserOnline = () => {
+    if (this.intentionalLogout) return;
     this.logStep('browser:online');
     this.offlineReconnectAttempts = 0;
     this.pausedDueToOfflineCap = false;
@@ -1279,6 +1577,10 @@ export class XmppClient implements XmppClientInterface {
   ): Promise<boolean> => {
     if (!roomJID) return true;
     if (this.joinedRooms.has(roomJID)) return true;
+    const blockedUntil = this.roomPresenceBlockedUntil.get(roomJID) || 0;
+    if (Date.now() < blockedUntil) {
+      return false;
+    }
 
     const settleDelay = options?.settleDelay ?? 0;
     const timeoutMs = options?.timeoutMs ?? 2000;
@@ -1296,9 +1598,20 @@ export class XmppClient implements XmppClientInterface {
     const promise = this.wrapWithConnectionCheck(async () => {
       await presenceInRoom(this.client, roomJID, settleDelay, timeoutMs);
       this.joinedRooms.add(roomJID);
+      this.roomPresenceBlockedUntil.delete(roomJID);
       return true;
     })
       .catch(async (error) => {
+        const normalizedError = String(formatError(error));
+        if (
+          normalizedError.includes('presence_timeout') ||
+          normalizedError.includes('presence_send_failed')
+        ) {
+          this.roomPresenceBlockedUntil.set(
+            roomJID,
+            Date.now() + this.presenceFailureBackoffMs
+          );
+        }
         console.warn(
           `[XMPP] room_presence_failed room=${roomJID} source=${source} error=${formatError(error)}`
         );
@@ -1349,6 +1662,10 @@ export class XmppClient implements XmppClientInterface {
       source?: HistorySource;
     }
   ) => {
+    const source = options?.source || 'default';
+    const shouldCoalesceActive =
+      source === 'active' || source === 'send_ack' || options?.coalesceRoom;
+
     if (options?.skipIfPreloaded) {
       const currentRoom = store.getState().rooms.rooms?.[chatJID];
       if (currentRoom?.historyPreloadState === 'done' && currentRoom?.messages?.length) {
@@ -1356,8 +1673,10 @@ export class XmppClient implements XmppClientInterface {
       }
     }
 
-    if (options?.coalesceRoom) {
-      const inFlight = this.historyPreloadInFlight.get(chatJID);
+    if (shouldCoalesceActive) {
+      const inFlight = this.activeHistoryInFlight.get(
+        `${chatJID}:${String(before || '')}:${source}`
+      );
       if (inFlight) {
         return inFlight;
       }
@@ -1368,13 +1687,14 @@ export class XmppClient implements XmppClientInterface {
       max,
       before,
       id: otherStanzaId,
-      source: options?.source || 'default',
+      source,
     });
 
-    if (options?.coalesceRoom) {
-      this.historyPreloadInFlight.set(chatJID, requestPromise);
+    if (shouldCoalesceActive) {
+      const inFlightKey = `${chatJID}:${String(before || '')}:${source}`;
+      this.activeHistoryInFlight.set(inFlightKey, requestPromise);
       return requestPromise.finally(() => {
-        this.historyPreloadInFlight.delete(chatJID);
+        this.activeHistoryInFlight.delete(inFlightKey);
       });
     }
 
@@ -1443,6 +1763,7 @@ export class XmppClient implements XmppClientInterface {
     customId?: string
   ): Promise<boolean> => {
     this.onCriticalSend(roomJID, customId);
+    const lane = this.getSendLane(roomJID);
     return this.enqueue(async () => {
       return this.withIdLock(customId, async () => {
         return this.sendMessageWithPingCheck(async () => {
@@ -1478,7 +1799,7 @@ export class XmppClient implements XmppClientInterface {
           });
         });
       });
-    }, customId, roomJID);
+    }, customId, roomJID, lane);
   };
 
   sendTextMessageWithTranslateTagStanza = (
@@ -1496,6 +1817,7 @@ export class XmppClient implements XmppClientInterface {
     customId?: string
   ): Promise<boolean> => {
     this.onCriticalSend(roomJID, customId);
+    const lane = this.getSendLane(roomJID);
     return this.enqueue(async () => {
       return this.withIdLock(customId, async () => {
         return this.sendMessageWithPingCheck(async () => {
@@ -1533,7 +1855,7 @@ export class XmppClient implements XmppClientInterface {
           });
         });
       });
-    }, customId, roomJID);
+    }, customId, roomJID, lane);
   };
 
   deleteMessageStanza(room: string, msgId: string) {
@@ -1572,12 +1894,37 @@ export class XmppClient implements XmppClientInterface {
   }
 
   getChatsPrivateStoreRequestStanza = async () => {
+    if (this.disableLastRead) {
+      return null;
+    }
+    const now = Date.now();
+    if (
+      this.chatsPrivateStoreCache.data &&
+      now - this.chatsPrivateStoreCache.fetchedAt < this.startupPrivateStoreTtlMs
+    ) {
+      return this.chatsPrivateStoreCache.data;
+    }
+
     return this.wrapWithConnectionCheck(async () => {
       try {
-        return await getChatsPrivateStoreRequest(this.client);
+        const timeoutPromise = new Promise<null>((resolve) =>
+          setTimeout(resolve, this.startupPrivateStoreTimeoutMs)
+        );
+        const result = await Promise.race([
+          getChatsPrivateStoreRequest(this.client),
+          timeoutPromise,
+        ]);
+        if (result) {
+          this.chatsPrivateStoreCache = {
+            fetchedAt: Date.now(),
+            data: result as Record<string, string | number>,
+          };
+          return result;
+        }
+        return this.chatsPrivateStoreCache.data;
       } catch (error) {
         ethoraLogger.log('error getChatsPrivateStoreRequest', error);
-        return null;
+        return this.chatsPrivateStoreCache.data;
       }
     });
   };
@@ -1587,6 +1934,9 @@ export class XmppClient implements XmppClientInterface {
     timestamp: number,
     chats?: string[]
   ) {
+    if (this.disableLastRead) {
+      return;
+    }
     return this.wrapWithConnectionCheck(async () => {
       try {
         await actionSetTimestampToPrivateStore(
@@ -1611,9 +1961,10 @@ export class XmppClient implements XmppClientInterface {
     });
   }
 
-  sendMediaMessageStanza(roomJID: string, data: any, id: string) {
+  sendMediaMessageStanza(roomJID: string, data: any, id: string): Promise<boolean> {
     this.onCriticalSend(roomJID, id);
-    this.enqueue(async () => {
+    const lane = this.getSendLane(roomJID);
+    return this.enqueue(async () => {
       return this.withIdLock(id, async () => {
         if (this.status !== 'online') {
           return true;
@@ -1622,7 +1973,7 @@ export class XmppClient implements XmppClientInterface {
           sendMediaMessage(this.client, roomJID, data, id);
         }).then(() => true);
       });
-    }, id, roomJID);
+    }, id, roomJID, lane);
   }
 
   async recoverRoomPresenceOnly(roomJID: string): Promise<boolean> {
@@ -1750,6 +2101,10 @@ export class XmppClient implements XmppClientInterface {
 
   private scheduleReconnect(reason: string) {
     if (this.status === 'online') return;
+    if (this.intentionalLogout) {
+      this.logStep(`scheduleReconnect:skip-intentional:${reason}`);
+      return;
+    }
     if (this.authFailureDetected || this.status === 'auth_failed') {
       this.logStep(`scheduleReconnect:skip-auth-failed:${reason}`);
       return;

@@ -358,6 +358,7 @@ Below is a grouped reference for all `config` options.
 | `colors` | `{ primary: string; secondary: string }` | Theme colors for component UI. |
 | `roomListStyles` | `React.CSSProperties` | Styles for room list pane. |
 | `chatRoomStyles` | `React.CSSProperties` | Styles for chat pane. |
+| `noMessagesPlaceholder` | `React.ComponentType` | Replace empty-chat placeholder component (same render position as default placeholder). |
 | `backgroundChat` | `{ color?: string; image?: string \| File }` | Chat background customization. |
 | `bubleMessage` | `MessageBubble` | Bubble-level style overrides (as defined in types). |
 | `setRoomJidInPath` | `boolean` | Sync room JID to URL path. |

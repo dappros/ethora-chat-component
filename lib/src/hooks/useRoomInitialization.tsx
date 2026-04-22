@@ -21,8 +21,9 @@ const hasLoadedRoomHistory = (room?: IRoom): boolean => {
 
 const PUSH_MESSAGE_ID_KEY = '@ethora/chat-component-pushMessageId';
 const PUSH_ROOM_JID_KEY = '@ethora/chat-component-pushRoomJid';
-const ACTIVE_ROOM_PRESENCE_TIMEOUT_MS = 5000;
+const ACTIVE_ROOM_PRESENCE_TIMEOUT_MS = 1200;
 const ACTIVE_ROOM_FAST_PRESENCE_TIMEOUT_MS = 3000;
+const ACTIVE_ROOM_LOADER_HARD_CAP_MS = 3000;
 
 const scrollToMessage = (messageId: string) => {
   const messageElement = document.querySelector(
@@ -48,6 +49,7 @@ export const useRoomInitialization = (
 
   useEffect(() => {
     if (client && activeRoomJID) {
+      client.setActiveRoomJid(activeRoomJID);
       client.promoteRoomHistory(activeRoomJID);
       // Try fast explicit join for active room right after selection/login.
       client
@@ -61,6 +63,9 @@ export const useRoomInitialization = (
           client.prioritizeRoomPresence(activeRoomJID).catch(() => {});
         });
     }
+    if (client && !activeRoomJID) {
+      client.setActiveRoomJid(null);
+    }
   }, [client, activeRoomJID]);
 
   useEffect(() => {
@@ -71,57 +76,59 @@ export const useRoomInitialization = (
     const getDefaultHistory = async () => {
       if (!client) return;
       if (!activeRoomJID) return;
-      await client
+      const joined = await client
         .presenceInRoomStanza(activeRoomJID, 0, ACTIVE_ROOM_PRESENCE_TIMEOUT_MS, true)
-        .catch(() => {});
+        .catch(() => false);
+      if (!joined) {
+        client.prioritizeRoomPresence(activeRoomJID).catch(() => {});
+      }
       dispatch(setIsLoading({ loading: true, chatJID: activeRoomJID }));
-      let res = await client.getHistoryStanza(
-        activeRoomJID,
-        30,
-        undefined,
-        undefined,
-        { source: 'active' }
-      );
-      if (!res?.length) {
-        await client
-          .presenceInRoomStanza(
-            activeRoomJID,
-            0,
-            ACTIVE_ROOM_PRESENCE_TIMEOUT_MS,
-            true
-          )
-          .catch(() => {});
-        res = await client.getHistoryStanza(
+      let forceHidden = false;
+      const hardCapTimer = setTimeout(() => {
+        forceHidden = true;
+        dispatch(setIsLoading({ loading: false, chatJID: activeRoomJID }));
+      }, ACTIVE_ROOM_LOADER_HARD_CAP_MS);
+
+      try {
+        const res = await client.getHistoryStanza(
           activeRoomJID,
           30,
           undefined,
           undefined,
           { source: 'active' }
         );
+        if (!res?.length) {
+          client.prioritizeRoomPresence(activeRoomJID).catch(() => {});
+        }
+        if (res && countUndefinedText(res) > 0) {
+          dispatch(setIsLoading({ loading: false, chatJID: activeRoomJID }));
+          await client.getHistoryStanza(
+            activeRoomJID,
+            20 + countUndefinedText(res),
+            Number(res[0].id),
+            undefined,
+            { source: 'active' }
+          );
+        }
+      } finally {
+        clearTimeout(hardCapTimer);
+        if (!forceHidden) {
+          dispatch(
+            setIsLoading({
+              loading: false,
+              chatJID: activeRoomJID,
+              loadingText: undefined,
+            })
+          );
+        }
       }
-      if (res && countUndefinedText(res) > 0) {
-        dispatch(setIsLoading({ loading: false, chatJID: activeRoomJID }));
-        // make it more optimized
-        await client.getHistoryStanza(
-          activeRoomJID,
-          20 + countUndefinedText(res),
-          Number(res[0].id),
-          undefined,
-          { source: 'active' }
-        );
-      }
-      dispatch(
-        setIsLoading({
-          loading: false,
-          chatJID: activeRoomJID,
-          loadingText: undefined,
-        })
-      );
     };
 
     const initialPresenceAndHistory = async () => {
       if (!roomsList[activeRoomJID] && activeRoomJID && client) {
-        await client.presenceInRoomStanza(activeRoomJID);
+        client
+          .presenceInRoomStanza(activeRoomJID, 0, ACTIVE_ROOM_PRESENCE_TIMEOUT_MS, false)
+          .catch(() => {});
         if (config?.newArch === false) {
           await client.getRoomsStanza();
         } else {
@@ -189,7 +196,7 @@ export const useRoomInitialization = (
       );
       if (roomsList && !allExist) {
         defaultRooms.forEach((room) => {
-          client.presenceInRoomStanza(room.jid);
+          client.presenceInRoomStanza(room.jid, 0, 1200, false);
         });
         if (config?.newArch === false) {
           client.getRoomsStanza();

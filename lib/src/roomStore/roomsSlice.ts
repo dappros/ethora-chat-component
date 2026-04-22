@@ -12,6 +12,7 @@ import { insertMessageWithDelimiter } from '../helpers/insertMessageWithDelimite
 import XmppClient from '../networking/xmppClient';
 import { createUserNameFromSetUser } from '../helpers/createUserNameFromSetUser';
 import { extractUniqueMembersFromRooms } from '../helpers/extractUniqueMembersFromRooms';
+import { getTimestampFromUnknown } from '../helpers/timestamp';
 
 interface RoomMessagesState {
   rooms: { [jid: string]: IRoom };
@@ -58,43 +59,27 @@ const getNormalizedSubscribedRooms = (subscribedRooms: unknown): string[] =>
     ? subscribedRooms.filter((room): room is string => typeof room === 'string')
     : [];
 
-const normalizeTimestampValue = (value: number): number => {
-  if (!Number.isFinite(value) || value <= 0) return 0;
-  if (value < 1e11) return value * 1000; // seconds -> milliseconds
-  if (value > 1e14) return Math.floor(value / 1000); // microseconds-ish -> milliseconds
-  return value;
-};
-
 const getMessageTimestampValue = (message: IMessage): number => {
-  const dateTs = new Date(message?.date as string).getTime();
-  if (Number.isFinite(dateTs) && dateTs > 0) return dateTs;
-
-  const inlineTimestamp = Number((message as any)?.timestamp);
-  const normalizedInlineTimestamp = normalizeTimestampValue(inlineTimestamp);
-  if (normalizedInlineTimestamp > 0) {
-    return normalizedInlineTimestamp;
+  const hasExplicitTimestamp = Object.prototype.hasOwnProperty.call(
+    message || {},
+    'messageTimestampMs'
+  );
+  if (hasExplicitTimestamp) {
+    return getTimestampFromUnknown((message as any)?.messageTimestampMs);
   }
 
-  const messageIds = [message?.id, (message as any)?.xmppId]
-    .map((id) => String(id || '').trim())
-    .filter(Boolean);
-
-  for (const id of messageIds) {
-    const numericId = Number(id);
-    const normalizedNumericId = normalizeTimestampValue(numericId);
-    if (normalizedNumericId > 0) return normalizedNumericId;
-
-    const numericChunk = id.match(/\d{10,}/)?.[0];
-    if (numericChunk) {
-      const normalizedChunk = normalizeTimestampValue(Number(numericChunk));
-      if (normalizedChunk > 0) return normalizedChunk;
-    }
-  }
-
-  return 0;
+  return (
+    getTimestampFromUnknown(message?.date) ||
+    getTimestampFromUnknown((message as any)?.timestamp) ||
+    getTimestampFromUnknown((message as any)?.xmppId) ||
+    getTimestampFromUnknown(message?.id)
+  );
 };
 
 const getMessageKey = (message: IMessage): string =>
+  String(message?.xmppId || message?.id || '');
+
+const getMessageStableTieBreaker = (message: IMessage): string =>
   String(message?.xmppId || message?.id || '');
 
 const compareMessageOrder = (a: IMessage, b: IMessage): number => {
@@ -103,8 +88,19 @@ const compareMessageOrder = (a: IMessage, b: IMessage): number => {
   if (tsA !== tsB) {
     return tsA - tsB;
   }
-  // Keep existing relative order for equal timestamps.
-  return 0;
+
+  const pendingDelta = Number(Boolean(a?.pending)) - Number(Boolean(b?.pending));
+  if (pendingDelta !== 0) {
+    return pendingDelta;
+  }
+
+  const keyA = getMessageStableTieBreaker(a);
+  const keyB = getMessageStableTieBreaker(b);
+  if (keyA !== keyB) {
+    return keyA.localeCompare(keyB);
+  }
+
+  return String(a?.body || '').localeCompare(String(b?.body || ''));
 };
 
 const enrichMessageAuthor = (
@@ -155,7 +151,7 @@ const normalizeDelimiterPosition = (
   lastViewedTimestamp?: number
 ): IMessage[] => {
   const list = (messages || []).filter((msg) => msg?.id !== 'delimiter-new');
-  const lastViewed = Number(lastViewedTimestamp || 0);
+  const lastViewed = getTimestampFromUnknown(lastViewedTimestamp);
 
   if (lastViewed <= 0 || list.length === 0) {
     return list;
@@ -250,9 +246,13 @@ export const roomsStore = createSlice({
           messages || [],
           state.usersSet
         );
+        const effectiveLastViewed =
+          state.activeRoomJID === roomJID
+            ? 0
+            : state.rooms[roomJID].lastViewedTimestamp;
         state.rooms[roomJID].messages = normalizeDelimiterPosition(
           merged,
-          state.rooms[roomJID].lastViewedTimestamp
+          effectiveLastViewed
         );
       }
     },
@@ -266,9 +266,13 @@ export const roomsStore = createSlice({
           enrichMessageAuthor(message, state.usersSet)
         );
         const sorted = [...enriched].sort(compareMessageOrder);
+        const effectiveLastViewed =
+          state.activeRoomJID === roomJID
+            ? 0
+            : state.rooms[roomJID].lastViewedTimestamp;
         state.rooms[roomJID].messages = normalizeDelimiterPosition(
           sorted,
-          state.rooms[roomJID].lastViewedTimestamp
+          effectiveLastViewed
         );
       }
     },
@@ -409,7 +413,9 @@ export const roomsStore = createSlice({
 
       state.rooms[roomJID].messages = normalizeDelimiterPosition(
         [...state.rooms[roomJID].messages].sort(compareMessageOrder),
-        state.rooms[roomJID].lastViewedTimestamp
+        state.activeRoomJID === roomJID
+          ? 0
+          : state.rooms[roomJID].lastViewedTimestamp
       );
     },
     deleteAllRooms(state) {
@@ -482,16 +488,14 @@ export const roomsStore = createSlice({
     ) => {
       const { chatJID, timestamp } = action.payload;
       if (state.rooms[chatJID]) {
-        state.rooms[chatJID].lastViewedTimestamp = timestamp;
-        if (timestamp) {
-          state.rooms[chatJID].unreadMessages = countNewerMessages(
-            state.rooms[chatJID].messages,
-            timestamp
-          );
+        const normalizedTimestamp = getTimestampFromUnknown(timestamp);
+        state.rooms[chatJID].lastViewedTimestamp = normalizedTimestamp;
+        if (state.activeRoomJID === chatJID) {
+          state.rooms[chatJID].unreadMessages = 0;
         }
         state.rooms[chatJID].messages = normalizeDelimiterPosition(
           state.rooms[chatJID].messages,
-          timestamp
+          state.activeRoomJID === chatJID ? 0 : normalizedTimestamp
         );
         state.rooms[chatJID].unreadCapped = false;
       }
@@ -586,7 +590,7 @@ export const roomsStore = createSlice({
           );
           room.messages = normalizeDelimiterPosition(
             merged,
-            room.lastViewedTimestamp
+            state.activeRoomJID === update.jid ? 0 : room.lastViewedTimestamp
           );
         }
       });
@@ -647,25 +651,20 @@ const countNewerMessages = (
   messages: IMessage[],
   timestamp: number
 ): number => {
-  if (timestamp <= 0) return 0;
-  const getMessageTimestamp = (message: IMessage): number => {
-    const dateTs = new Date(message?.date as string).getTime();
-    if (Number.isFinite(dateTs) && dateTs > 0) return dateTs;
-
-    const numericId = Number(message?.id);
-    if (Number.isFinite(numericId) && numericId > 0) return numericId;
-
-    const inlineTimestamp = Number((message as any)?.timestamp);
-    if (Number.isFinite(inlineTimestamp) && inlineTimestamp > 0) {
-      return inlineTimestamp;
-    }
-    return 0;
-  };
+  const normalizedTimestamp = getTimestampFromUnknown(timestamp);
+  if (normalizedTimestamp <= 0) return 0;
 
   return messages.filter((message) => {
-    if (!message || message.id === 'delimiter-new' || message.pending) return false;
-    const ts = getMessageTimestamp(message);
-    return ts > timestamp;
+    if (
+      !message ||
+      message.id === 'delimiter-new' ||
+      message.pending ||
+      String((message as any)?.isSystemMessage || '') === 'true'
+    ) {
+      return false;
+    }
+    const ts = getMessageTimestampValue(message);
+    return ts > normalizedTimestamp;
   }).length;
 };
 

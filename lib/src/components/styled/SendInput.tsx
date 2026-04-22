@@ -161,28 +161,44 @@ const SendInput: React.FC<SendInputProps> = ({
 
   const effectiveSendMessage = onSendMessage || sendMessage;
   const effectiveSendMedia = onSendMedia || sendMedia;
+  const hasTextContent = useCallback(
+    (value: string) => /\S/.test(String(value || '')),
+    []
+  );
 
   const handleSendClick = useCallback(
     (audioUrl?: string) => {
+      let wasSent = false;
+
       if (filePreviews.length > 0) {
         effectiveSendMedia(filePreviews[0], 'media');
         setIsRecording(false);
+        wasSent = true;
       } else if (audioUrl) {
         effectiveSendMedia(audioUrl, 'audio/');
         setIsRecording(false);
+        wasSent = true;
       } else {
         const outgoing = formatMessage ? formatMessage(message) : message;
+        if (!hasTextContent(outgoing)) {
+          return;
+        }
         effectiveSendMessage(outgoing);
+        wasSent = true;
       }
-      setMessage('');
-      setFilePreviews([]);
-      setTextareaHeight(40); // Reset height to default
+
+      if (wasSent) {
+        setMessage('');
+        setFilePreviews([]);
+        setTextareaHeight(40); // Reset height to default
+      }
     },
     [
       effectiveSendMedia,
       effectiveSendMessage,
       filePreviews,
       formatMessage,
+      hasTextContent,
       message,
     ]
   );
@@ -190,6 +206,9 @@ const SendInput: React.FC<SendInputProps> = ({
   const handleSecondaryClick = useCallback(() => {
     const outgoingBase = config.secondarySendButton.messageEdit + message;
     const outgoing = formatMessage ? formatMessage(outgoingBase) : outgoingBase;
+    if (!hasTextContent(outgoing)) {
+      return;
+    }
     effectiveSendMessage(outgoing);
     setMessage('');
     setFilePreviews([]);
@@ -199,13 +218,14 @@ const SendInput: React.FC<SendInputProps> = ({
     message,
     config?.secondarySendButton?.messageEdit,
     formatMessage,
+    hasTextContent,
   ]);
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       if (event.key !== 'Enter') return;
 
-      const hasContent = filePreviews.length > 0 || !!message;
+      const hasContent = filePreviews.length > 0 || hasTextContent(message);
       if (!hasContent) return;
 
       if (multiline) {
@@ -224,6 +244,7 @@ const SendInput: React.FC<SendInputProps> = ({
       handleSendClick,
       handleSecondaryClick,
       filePreviews.length,
+      hasTextContent,
       message,
       multiline,
     ]

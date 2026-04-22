@@ -32,7 +32,7 @@ const TextInput: React.FC<TextInputProps> = ({
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
-      if (event.key === 'Enter' && message) {
+      if (event.key === 'Enter' && /\S/.test(String(message || ''))) {
         handleSendClick();
       }
     },
@@ -53,10 +53,12 @@ const TextInput: React.FC<TextInputProps> = ({
       />
       <Button
         onClick={handleSendClick}
-        EndIcon={<SendIcon color={!message ? '#D4D4D8' : '#fff'} />}
+        EndIcon={<SendIcon color={!/\S/.test(String(message || '')) ? '#D4D4D8' : '#fff'} />}
         style={{
           borderRadius: '100px',
-          backgroundColor: !message ? 'transparent' : config?.colors?.primary,
+          backgroundColor: !/\S/.test(String(message || ''))
+            ? 'transparent'
+            : config?.colors?.primary,
         }}
       />
     </>

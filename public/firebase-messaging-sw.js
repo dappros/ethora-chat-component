@@ -1,13 +1,6 @@
-/* eslint-disable no-empty */
+/* eslint-disable no-empty, no-restricted-globals */
 /* eslint-env worker */
-/* global firebase, clients, importScripts */
-
-importScripts(
-  'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js'
-);
-importScripts(
-  'https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js'
-);
+/* global clients */
 
 // ── DEBUG ─────────────────────────────────────────────────────
 const DEBUG = false;
@@ -16,8 +9,15 @@ const DEDUP_TTL = 60 * 1000;
 const params = new URL(self.location.href).searchParams;
 const CUSTOM_ICON = (params.get('iconPath') || '').trim();
 const CUSTOM_BADGE = (params.get('badgePath') || '').trim();
-const DEFAULT_ICON = CUSTOM_ICON || '/favicon.ico';
-const DEFAULT_BADGE = CUSTOM_BADGE || CUSTOM_ICON || '/favicon.ico';
+const DEFAULT_ICON = `${self.location.origin}/favicon-192.png`;
+const DEFAULT_BADGE = `${self.location.origin}/favicon-192.png`;
+
+log('SW icon config', {
+  customIcon: CUSTOM_ICON || null,
+  customBadge: CUSTOM_BADGE || null,
+  defaultIcon: DEFAULT_ICON,
+  defaultBadge: DEFAULT_BADGE,
+});
 
 // ── LOGGING ───────────────────────────────────────────────────
 function log(...args) {
@@ -32,41 +32,7 @@ function error(...args) {
   console.error('[SW]', ...args);
 }
 
-// ── CONFIG ────────────────────────────────────────────────────
-const firebaseConfig = {
-  apiKey: params.get('apiKey'),
-  authDomain: params.get('authDomain'),
-  projectId: params.get('projectId'),
-  storageBucket: params.get('storageBucket'),
-  messagingSenderId: params.get('messagingSenderId'),
-  appId: params.get('appId'),
-};
-
 const APP_URL = self.location.origin;
-
-// ── INIT FIREBASE ─────────────────────────────────────────────
-try {
-  if (
-    firebaseConfig.apiKey &&
-    firebaseConfig.appId &&
-    firebaseConfig.messagingSenderId &&
-    firebaseConfig.projectId
-  ) {
-    if (!firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
-      log('Firebase initialized');
-    } else {
-      log('Firebase already initialized');
-    }
-
-    firebase.messaging();
-    log('Firebase messaging ready (without onBackgroundMessage)');
-  } else {
-    warn('Firebase config missing', firebaseConfig);
-  }
-} catch (e) {
-  error('Firebase init error', e);
-}
 
 // ── DEDUP ─────────────────────────────────────────────────────
 const handledPushes = new Map();
@@ -110,6 +76,7 @@ function isVisibleClients(clientsList) {
 }
 
 function dumpClients(clientsList) {
+  if (!DEBUG) return [];
   return clientsList.map((c) => ({
     url: c.url,
     visibility: c.visibilityState,
@@ -164,6 +131,26 @@ function normalizeUrl(url) {
   }
 }
 
+async function checkAssetAvailability(url) {
+  if (!DEBUG) return undefined;
+  if (!url) return { ok: false, status: null, error: 'empty_url' };
+
+  try {
+    const response = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+    return {
+      ok: response.ok,
+      status: response.status,
+      resolvedUrl: response.url || url,
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      status: null,
+      error: String(e?.message || e || 'fetch_failed'),
+    };
+  }
+}
+
 function pickTitle(raw = {}, data = {}, notification = {}) {
   return notification.title || raw.title || data.title || 'New Message';
 }
@@ -185,12 +172,12 @@ function pickUrl(raw = {}, data = {}, notification = {}) {
   );
 }
 
-function pickIcon(raw = {}, data = {}, notification = {}) {
-  return data.icon || notification.icon || raw.icon || DEFAULT_ICON;
+function pickIcon() {
+  return CUSTOM_ICON || DEFAULT_ICON;
 }
 
-function pickBadge(raw = {}, data = {}, notification = {}) {
-  return data.badge || notification.badge || raw.badge || DEFAULT_BADGE;
+function pickBadge() {
+  return CUSTOM_BADGE || DEFAULT_BADGE;
 }
 
 function pickImage(raw = {}, data = {}, notification = {}) {
@@ -211,13 +198,6 @@ function extractMessageId(raw = {}, data = {}) {
     data['google.message_id'] ||
     data['google.c.a.c_id'] ||
     null
-  );
-}
-
-function hasNotificationPayload(raw = {}, notification = {}) {
-  return Boolean(
-    (notification && (notification.title || notification.body)) ||
-      (raw.notification && (raw.notification.title || raw.notification.body))
   );
 }
 
@@ -276,6 +256,7 @@ function normalizePush(event) {
 }
 
 async function broadcastDebugMessage(payload) {
+  if (!DEBUG) return;
   try {
     const windowClients = await clients.matchAll({
       type: 'window',
@@ -303,13 +284,33 @@ async function handlePush(raw = {}, source = 'push') {
   const title = pickTitle(raw, data, notification);
   const body = pickBody(raw, data, notification);
   const url = pickUrl(raw, data, notification);
-  const icon = pickIcon(raw, data, notification);
-  const badge = pickBadge(raw, data, notification);
+  const icon = pickIcon();
+  const badge = pickBadge();
   const image = pickImage(raw, data, notification);
 
   const messageId = extractMessageId(raw, data);
   const dedupKey = makeDedupKey(raw, data, notification);
-  const browserWillAutoShow = hasNotificationPayload(raw, notification);
+  const iconAvailability = DEBUG
+    ? await checkAssetAvailability(icon)
+    : undefined;
+  const badgeAvailability = DEBUG
+    ? await checkAssetAvailability(badge)
+    : undefined;
+  const iconDebug = DEBUG
+    ? {
+        selectedIcon: icon,
+        selectedBadge: badge,
+        selectedImage: image || null,
+        customIcon: CUSTOM_ICON || null,
+        customBadge: CUSTOM_BADGE || null,
+        defaultIcon: DEFAULT_ICON,
+        defaultBadge: DEFAULT_BADGE,
+        payloadIcon: data.icon || notification.icon || raw.icon || null,
+        payloadBadge: data.badge || notification.badge || raw.badge || null,
+        iconAvailability,
+        badgeAvailability,
+      }
+    : undefined;
 
   log('--- PUSH DECISION ---');
   log('source:', source);
@@ -320,7 +321,7 @@ async function handlePush(raw = {}, source = 'push') {
   log('url:', url);
   log('icon:', icon);
   log('badge:', badge);
-  log('browserWillAutoShow:', browserWillAutoShow);
+  if (iconDebug) log('iconDebug:', iconDebug);
 
   if (wasHandled(dedupKey)) {
     log('SKIP DEDUP');
@@ -336,7 +337,7 @@ async function handlePush(raw = {}, source = 'push') {
 
   const visible = isVisibleClients(windowClients);
 
-  log('clients:', dumpClients(windowClients));
+  if (DEBUG) log('clients:', dumpClients(windowClients));
   log('visibleClientExists:', visible);
 
   await broadcastDebugMessage({
@@ -350,17 +351,11 @@ async function handlePush(raw = {}, source = 'push') {
     icon,
     badge,
     image,
+    iconDebug,
     messageId,
     dedupKey,
-    browserWillAutoShow,
   });
 
-  if (browserWillAutoShow) {
-    log('SKIP MANUAL SHOW: browser/FCM should auto-display notification');
-    return;
-  }
-
-  // Data-only push: показуємо вручну
   const options = {
     body,
     icon,
@@ -393,6 +388,7 @@ async function handlePush(raw = {}, source = 'push') {
 // ── RAW PUSH ONLY ─────────────────────────────────────────────
 self.addEventListener('push', (event) => {
   log('RAW PUSH EVENT');
+  event.stopImmediatePropagation?.();
 
   event.waitUntil(
     (async () => {
@@ -427,26 +423,69 @@ self.addEventListener('notificationclick', (event) => {
         type: 'window',
         includeUncontrolled: true,
       });
+      const targetUrl = normalizeUrl(url);
 
-      for (const client of allClients) {
-        try {
-          if ('focus' in client) {
-            await client.focus();
+      const payload = {
+        data: event.notification?.data || {},
+        notification: {
+          title: event.notification?.title || '',
+          body: event.notification?.body || '',
+        },
+      };
 
-            try {
-              client.postMessage({
-                type: 'OPEN_FROM_PUSH',
-                url,
-                notificationData: event.notification?.data || {},
-              });
-            } catch {}
-
-            return;
+      const preferredClient =
+        allClients.find((client) => {
+          try {
+            return client.url.startsWith(self.location.origin);
+          } catch {
+            return false;
           }
+        }) || allClients[0];
+
+      if (preferredClient) {
+        try {
+          if ('navigate' in preferredClient) {
+            await preferredClient.navigate(targetUrl);
+          }
+
+          if ('focus' in preferredClient) {
+            await preferredClient.focus();
+          }
+
+          try {
+            preferredClient.postMessage({
+              type: 'PUSH_NOTIFICATION_CLICK',
+              ...payload,
+            });
+          } catch {}
+
+          // Backward compatibility for any legacy listeners in app code
+          try {
+            preferredClient.postMessage({
+              type: 'OPEN_FROM_PUSH',
+              url: targetUrl,
+              notificationData: event.notification?.data || {},
+            });
+          } catch {}
+
+          return;
+        } catch (e) {
+          warn('notificationclick client handling failed', e);
+        }
+      }
+
+      const opened = await clients.openWindow(targetUrl);
+
+      if (opened) {
+        try {
+          opened.postMessage({
+            type: 'PUSH_NOTIFICATION_CLICK',
+            ...payload,
+          });
         } catch {}
       }
 
-      return clients.openWindow(url);
+      return opened;
     })()
   );
 });
