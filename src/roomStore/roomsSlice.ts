@@ -393,11 +393,22 @@ export const roomsStore = createSlice({
         return;
       }
 
+      // Run the full author-resolution pipeline so newly-arrived messages honor
+      // the sender's <data fullName>/senderFirstName/senderLastName attrs from the
+      // stanza (bots + regular users both emit those). Previously we only used
+      // createUserNameFromSetUser here, which returns the literal "Deleted User"
+      // string the instant usersSet doesn't yet know the sender - precisely the
+      // case for live bot messages that arrive before usersSet is hydrated.
+      const enriched = enrichMessageAuthor(
+        message as IMessage,
+        state.usersSet
+      );
       const updMessage = {
-        ...message,
+        ...enriched,
         user: {
-          name: createUserNameFromSetUser(state.usersSet, message.user.id),
+          // Keep photoURL etc. from the incoming message, but use enriched `name`.
           ...message.user,
+          ...enriched.user,
         },
       };
 
