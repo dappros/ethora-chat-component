@@ -90,11 +90,6 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
   const [email, setEmail] = useState<string | null>(null);
   const [reconnectAttempts, setReconnectAttempts] = useState<number>(0);
   const initializingRef = useRef<Promise<XmppClient> | null>(null);
-  // Took main's bootstrap-key tracking (completed/inFlight refs) over tf-dev's
-  // simpler initBeforeLoadPromiseRef + clientRef pattern. Main's per-key
-  // tracking prevents reentrant init for the same config, which is the more
-  // robust approach. The clientRef tf-dev added isn't needed here because main
-  // refactored to read `client` directly inside the bootstrap closure.
   const completedInitBeforeLoadKeyRef = useRef<string | null>(null);
   const inFlightInitBeforeLoadKeyRef = useRef<string | null>(null);
 
@@ -386,9 +381,9 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
       }
     };
 
-    if (!initBeforeLoadPromise) {
+    if (!inFlightInitBeforeLoadKeyRef.current) {
       inFlightInitBeforeLoadKeyRef.current = bootstrapKey;
-      initBeforeLoadPromise = runInitBeforeLoad()
+      runInitBeforeLoad()
         .catch((error) => {
           console.warn('[initBeforeLoad] bootstrap failed', error);
           setProviderBootstrapStatus('failed');
@@ -397,7 +392,6 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
           if (inFlightInitBeforeLoadKeyRef.current === bootstrapKey) {
             inFlightInitBeforeLoadKeyRef.current = null;
           }
-          initBeforeLoadPromise = null;
         });
     } else {
       ethoraLogger.log('[initBeforeLoad] skipped:bootstrap_promise_busy');
@@ -405,7 +399,6 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
 
     return () => {
       abortController.abort();
-      initBeforeLoadPromiseRef.current = null;
     };
   }, [
     config?.initBeforeLoad,
@@ -457,22 +450,6 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
       }
     };
   }, [client, resetProviderState]);
-
-  useEffect(() => {
-    return () => {
-      const ownClient = clientRef.current;
-      const globalClient = getGlobalXmppClient();
-      initBeforeLoadPromiseRef.current = null;
-      initializingRef.current = null;
-      if (globalClient && ownClient && globalClient === ownClient) {
-        setGlobalXmppClient(null);
-      }
-      if (!ownClient) return;
-      void ownClient.disconnect?.({ suppressReconnect: true }).catch((error) => {
-        console.warn('XmppProvider: client disconnect failed on unmount', error);
-      });
-    };
-  }, []);
 
   return (
     <XmppContext.Provider

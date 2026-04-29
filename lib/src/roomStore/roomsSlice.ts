@@ -109,11 +109,39 @@ const enrichMessageAuthor = (
 ): IMessage => {
   const rawUserId = String(message?.user?.id || '');
   const localUserId = rawUserId.split('@')[0];
-  const currentName = String(message?.user?.name || '').trim();
+  const currentNameRaw = String(message?.user?.name || '').trim();
+  // Treat a previously-set "Deleted User" as unresolved. Without this, a message
+  // that got "Deleted User" on first render (because usersSet + <data> metadata
+  // weren't available yet) would KEEP that name forever even after insertUsers
+  // populates usersSet - `currentName || ...` short-circuits on the truthy
+  // "Deleted User" string. Now we skip past it and let downstream sources
+  // (in-message identity, usersSet) produce the real name.
+  const currentName = currentNameRaw === 'Deleted User' ? '' : currentNameRaw;
+
+  // Identity carried in the message <data> stanza by the sending client (regular users
+  // and now AI Agent bots). Spread by createMessageFromXml onto the top-level message
+  // object, so available here as message.fullName / senderFirstName / senderLastName.
+  // Honor that BEFORE falling through to createUserNameFromSetUser, which returns the
+  // literal "Deleted User" string when usersSet has no entry for the sender. Without
+  // this the chat shows "Deleted User" for any sender (e.g. fresh bot, batch broadcast)
+  // not yet in the locally cached usersSet.
+  const dataFullName = String((message as any)?.fullName || '').trim();
+  const dataFirst = String((message as any)?.senderFirstName || '').trim();
+  const dataLast = String((message as any)?.senderLastName || '').trim();
+  const composedFromData =
+    dataFullName ||
+    `${dataFirst} ${dataLast}`.trim() ||
+    '';
+
+  const usersSetName = createUserNameFromSetUser(usersSet, localUserId);
+  const usersSetNameAlt = createUserNameFromSetUser(usersSet, rawUserId);
+  const isUsersSetUseful = (n: string) => n && n !== 'Deleted User';
+
   const resolvedName =
     currentName ||
-    createUserNameFromSetUser(usersSet, localUserId) ||
-    createUserNameFromSetUser(usersSet, rawUserId) ||
+    (isUsersSetUseful(usersSetName) && usersSetName) ||
+    (isUsersSetUseful(usersSetNameAlt) && usersSetNameAlt) ||
+    composedFromData ||
     localUserId ||
     rawUserId;
 
@@ -378,11 +406,22 @@ export const roomsStore = createSlice({
         return;
       }
 
+      // Run the full author-resolution pipeline so newly-arrived messages honor
+      // the sender's <data fullName>/senderFirstName/senderLastName attrs from the
+      // stanza (bots + regular users both emit those). Previously we only used
+      // createUserNameFromSetUser here, which returns the literal "Deleted User"
+      // string the instant usersSet doesn't yet know the sender - precisely the
+      // case for live bot messages that arrive before usersSet is hydrated.
+      const enriched = enrichMessageAuthor(
+        message as IMessage,
+        state.usersSet
+      );
       const updMessage = {
-        ...message,
+        ...enriched,
         user: {
-          name: createUserNameFromSetUser(state.usersSet, message.user.id),
+          // Keep photoURL etc. from the incoming message, but use enriched `name`.
           ...message.user,
+          ...enriched.user,
         },
       };
 
@@ -433,16 +472,42 @@ export const roomsStore = createSlice({
       Object.values(state.rooms).forEach((room) => {
         room.messages.forEach((message) => {
           const msgUserLocal = message.user?.id?.split('@')[0] ?? '';
-          if (updatedUsernames.has(msgUserLocal) || updatedUsernames.has(message.user?.id)) {
-            const matched =
-              state.usersSet[msgUserLocal] ||
-              state.usersSet[message.user?.id];
-            if (matched) {
-              message.user = {
-                ...message.user,
-                name: createUserNameFromSetUser(state.usersSet, msgUserLocal) ||
-                      createUserNameFromSetUser(state.usersSet, message.user?.id),
-              };
+          const rawId = message.user?.id ?? '';
+          const matched =
+            (msgUserLocal && state.usersSet[msgUserLocal]) ||
+            (rawId && state.usersSet[rawId]) ||
+            null;
+
+          // Upgrade the rendered name when:
+          //  (a) this is one of the newly-inserted users, OR
+          //  (b) the message was previously stamped with "Deleted User" and we now
+          //      have an identity we can use (either from usersSet or from in-message
+          //      <data> fullName fields) - fixes the sticky-"Deleted User" bug users
+          //      hit after an ai-service bot restart.
+          const stale = String(message.user?.name || '') === 'Deleted User';
+          const isTargetedUpdate =
+            updatedUsernames.has(msgUserLocal) || updatedUsernames.has(rawId);
+          if (!isTargetedUpdate && !stale) return;
+
+          if (matched) {
+            const upgraded =
+              createUserNameFromSetUser(state.usersSet, msgUserLocal) ||
+              createUserNameFromSetUser(state.usersSet, rawId);
+            if (upgraded && upgraded !== 'Deleted User') {
+              message.user = { ...message.user, name: upgraded };
+              return;
+            }
+          }
+          if (stale) {
+            // Try the in-message <data> fullName fields as a last resort so old
+            // messages that landed before usersSet hydrated stop displaying
+            // "Deleted User" even when no API lookup ever succeeds.
+            const dataFull = String((message as any)?.fullName || '').trim();
+            const dataFirst = String((message as any)?.senderFirstName || '').trim();
+            const dataLast = String((message as any)?.senderLastName || '').trim();
+            const fromData = dataFull || `${dataFirst} ${dataLast}`.trim();
+            if (fromData) {
+              message.user = { ...message.user, name: fromData };
             }
           }
         });

@@ -86,7 +86,6 @@ interface PrivateStoreCache {
 }
 
 export class XmppClient implements XmppClientInterface {
-  private static activeByEndpoint = new Map<string, XmppClient>();
   client!: Client;
   devServer: string | undefined;
   host: string;
@@ -184,13 +183,6 @@ export class XmppClient implements XmppClientInterface {
   private reconnectBaseDelayMs: number = 1000;
   private pausedDueToOfflineCap: boolean = false;
   private authFailureDetected: boolean = false;
-  // Took main's `intentionalLogout` over tf-dev's `reconnectSuppressed`
-  // (semantically identical; main's name is more descriptive and
-  // useLogout.tsx already calls `markIntentionalLogout`).
-  // TODO(merge from tf-dev): tf-dev also added `endpointKey` for per-endpoint
-  // session tracking (commit 611bd82). Roman intentionally removed registry-
-  // based reuse in commit 34eaf98 in favour of a simpler model. If the
-  // duplicate-instance problem ever resurfaces, restore endpointKey here.
   private intentionalLogout: boolean = false;
 
   private isTerminalAuthFailure(error: unknown): boolean {
@@ -289,40 +281,11 @@ export class XmppClient implements XmppClientInterface {
         await this.disconnect();
       }
       const url = this.devServer || SERVICE;
-      // (tf-dev set this.endpointKey here for per-endpoint session tracking;
-      // dropped per the architectural decision noted on the field declaration above.)
 
       this.host = url.match(/wss:\/\/([^:/]+)/)?.[1] || '';
       this.conference = `conference.${this.host}`;
       ethoraLogger.log('+-+-+-+-+-+-+-+-+ ', { username: this.username });
       this.devServer = url;
-
-      const existing = XmppClient.activeByEndpoint.get(endpointKey);
-      if (existing && existing !== this) {
-        if (existing.status === 'online' || existing.status === 'connecting') {
-          ethoraLogger.log(
-            '[InitPolicy] Duplicate init skipped: active XMPP endpoint session already exists',
-            { endpointKey }
-          );
-          this.client = existing.client;
-          this.status = existing.status;
-          this.resource = existing.resource;
-          this.reconnectSuppressed = true;
-          return;
-        }
-        ethoraLogger.log('[InitPolicy] Replacing stale XMPP endpoint session', {
-          endpointKey,
-        });
-        try {
-          await existing.disconnect({ suppressReconnect: true });
-        } catch (error) {
-          console.warn(
-            '[InitPolicy] Failed to disconnect stale endpoint session',
-            error
-          );
-        }
-      }
-      XmppClient.activeByEndpoint.set(endpointKey, this);
 
       this.client = xmpp.client({
         service: url,
@@ -348,7 +311,7 @@ export class XmppClient implements XmppClientInterface {
     if (!this.client) return;
     try {
       if (options?.suppressReconnect) {
-        this.reconnectSuppressed = true;
+        this.intentionalLogout = true;
       }
       if (this.pingInterval) clearInterval(this.pingInterval);
       if (this.pingTimeout) clearTimeout(this.pingTimeout);
@@ -394,12 +357,6 @@ export class XmppClient implements XmppClientInterface {
 
       await this.client.stop();
       this.client = null;
-      if (
-        this.endpointKey &&
-        XmppClient.activeByEndpoint.get(this.endpointKey) === this
-      ) {
-        XmppClient.activeByEndpoint.delete(this.endpointKey);
-      }
       this.historyPreloadInFlight.clear();
       this.activeHistoryInFlight.clear();
       this.roomPresenceBlockedUntil.clear();
@@ -547,10 +504,6 @@ export class XmppClient implements XmppClientInterface {
       this.logStep('event:error');
       if (terminalAuthFailure) {
         this.logStep('event:error:auth-failed-no-reconnect');
-        return;
-      }
-      if (this.reconnectSuppressed) {
-        this.logStep('event:error:reconnect-suppressed');
         return;
       }
       this.scheduleReconnect('event:error');
@@ -806,12 +759,6 @@ export class XmppClient implements XmppClientInterface {
       this.status = 'offline';
       try {
         await this.client.stop();
-        if (
-          this.endpointKey &&
-          XmppClient.activeByEndpoint.get(this.endpointKey) === this
-        ) {
-          XmppClient.activeByEndpoint.delete(this.endpointKey);
-        }
         this.client = null;
         ethoraLogger.log('Client connection closed.');
       } catch (error) {
@@ -1569,9 +1516,6 @@ export class XmppClient implements XmppClientInterface {
     this.pausedDueToOfflineCap = false;
     this.processQueue().catch(() => {});
     this.scheduleHistoryQueue();
-    if (this.reconnectSuppressed) {
-      return;
-    }
     if (this.status !== 'online') {
       this.scheduleReconnect('browser:online');
     }

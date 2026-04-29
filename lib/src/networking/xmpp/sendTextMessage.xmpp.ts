@@ -35,6 +35,14 @@ export const sendTextMessage = (
         senderFirstName: firstName,
         senderLastName: lastName,
         fullName: `${firstName} ${lastName}`,
+        // IMPORTANT: getDataFromXml.ts reads the avatar from the `photo`
+        // attribute, not `photoURL`. Stamping `photoURL` here is a legacy
+        // mismatch (regular user messages historically rendered without an
+        // avatar). Emit BOTH keys for now so we don't break anything still
+        // reading `photoURL` on the receiving side, while modern receivers
+        // (chat-component getDataFromXml + ai-service xmpp.ts identity)
+        // pick up the correct `photo` field.
+        photo: photo,
         photoURL: photo,
         senderJID: client.jid?.toString(),
         senderWalletAddress: walletAddress,
