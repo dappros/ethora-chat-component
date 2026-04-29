@@ -1,4 +1,4 @@
-/* eslint-disable no-empty, no-restricted-globals */
+/* eslint-disable no-empty */
 /* eslint-env worker */
 /* global clients */
 

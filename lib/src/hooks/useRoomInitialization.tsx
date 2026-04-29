@@ -21,6 +21,12 @@ const hasLoadedRoomHistory = (room?: IRoom): boolean => {
 
 const PUSH_MESSAGE_ID_KEY = '@ethora/chat-component-pushMessageId';
 const PUSH_ROOM_JID_KEY = '@ethora/chat-component-pushRoomJid';
+// Took main's tighter timeouts + the new ACTIVE_ROOM_LOADER_HARD_CAP_MS over
+// tf-dev's 5000ms presence wait. Main's flow uses prioritizeRoomPresence + a
+// hard-cap timer instead of tf-dev's retry-on-empty pattern (commit 62b0b6d
+// fix(chat): wait longer for migrated room history joins). Worth confirming
+// with Roman that 1200ms is sufficient for the migrated-rooms case tf-dev's
+// 5000ms was tuned for.
 const ACTIVE_ROOM_PRESENCE_TIMEOUT_MS = 1200;
 const ACTIVE_ROOM_FAST_PRESENCE_TIMEOUT_MS = 3000;
 const ACTIVE_ROOM_LOADER_HARD_CAP_MS = 3000;
@@ -76,6 +82,11 @@ export const useRoomInitialization = (
     const getDefaultHistory = async () => {
       if (!client) return;
       if (!activeRoomJID) return;
+      // Took main's prioritizeRoomPresence + hardCapTimer flow over tf-dev's
+      // double-presence + double-history retry (commit 62b0b6d). Main's
+      // approach is functionally equivalent for the migrated-rooms case
+      // (the empty-result branch below also calls prioritizeRoomPresence)
+      // but cleaner. Verify behaviour with a slow-joining room before merge.
       const joined = await client
         .presenceInRoomStanza(activeRoomJID, 0, ACTIVE_ROOM_PRESENCE_TIMEOUT_MS, true)
         .catch(() => false);

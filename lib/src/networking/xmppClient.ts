@@ -307,9 +307,12 @@ export class XmppClient implements XmppClientInterface {
     }
   }
 
-  async disconnect() {
+  async disconnect(options?: { suppressReconnect?: boolean }) {
     if (!this.client) return;
     try {
+      if (options?.suppressReconnect) {
+        this.intentionalLogout = true;
+      }
       if (this.pingInterval) clearInterval(this.pingInterval);
       if (this.pingTimeout) clearTimeout(this.pingTimeout);
       if (this.idlePingTimeout) clearTimeout(this.idlePingTimeout as any);
@@ -756,6 +759,7 @@ export class XmppClient implements XmppClientInterface {
       this.status = 'offline';
       try {
         await this.client.stop();
+        this.client = null;
         ethoraLogger.log('Client connection closed.');
       } catch (error) {
         console.error('Error closing the client:', error);
@@ -1074,6 +1078,11 @@ export class XmppClient implements XmppClientInterface {
         const isActiveRoomTask = task.priority === 0;
         await this.ensureRoomPresence(task.chatJID, {
           settleDelay: 0,
+          // Took main's tighter timeouts + waitForJoin: false (matches main's
+          // useRoomInitialization refactor that uses prioritizeRoomPresence
+          // separately instead of waiting in-call). tf-dev's 5000ms+wait was
+          // tuned for the migrated-rooms case (commit 62b0b6d) - if Roman's
+          // refactor regresses migrated-room joins, these are the knobs to revert.
           timeoutMs: isActiveRoomTask ? 1200 : 1200,
           waitForJoin: false,
           source: isActiveRoomTask ? 'active_room' : 'send',
@@ -2038,7 +2047,12 @@ export class XmppClient implements XmppClientInterface {
   private async drainHeap(): Promise<void> {
     try {
       const state = store.getState();
-      const heap = (state as any)?.roomHeapSlice?.messageHeap as IMessage[];
+      const heap = Array.isArray((state as any)?.roomHeapSlice?.messageHeap)
+        ? ((state as any).roomHeapSlice.messageHeap as IMessage[]).filter(
+            (message): message is IMessage =>
+              Boolean(message) && typeof message === 'object'
+          )
+        : [];
       if (!heap || heap.length === 0) return;
 
       const start = Date.now();

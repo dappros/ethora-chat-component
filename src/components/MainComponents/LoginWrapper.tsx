@@ -79,6 +79,10 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
       if (config?.customLogin?.enabled && config?.customLogin?.loginFunction) {
         try {
           const loginData = await config.customLogin.loginFunction();
+          // Took main's ensureUserFromMy(loginData) over tf-dev's direct
+          // dispatch(loginData). Main's /my-endpoint normalization is exactly
+          // the fix Roman mentioned for the "/user returning undefined ->
+          // Deleted User" issue we discussed in Slack.
           const normalizedUser = await ensureUserFromMy(loginData);
           if (!cancelled && normalizedUser) {
             dispatch(setUser(normalizedUser));
