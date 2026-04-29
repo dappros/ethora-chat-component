@@ -22,6 +22,10 @@ const logoutService = {
   performLogout: async () => {
     const authToken = store.getState().chatSettingStore.user.token || '';
     const xmppClient = getGlobalXmppClient();
+    // Took main's `markIntentionalLogout` flow over tf-dev's explicit
+    // `disconnect({ suppressReconnect: true })`. Roman's intentional-logout
+    // pattern (commit 11ed82a) is the more robust approach - the explicit
+    // tf-dev block became redundant once markIntentionalLogout landed.
     try {
       (xmppClient as any)?.markIntentionalLogout?.();
     } catch {

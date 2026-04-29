@@ -100,11 +100,28 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     usersArrayLength: number
   ) => {
     try {
+      // Guard against the createRoomFromApi try/catch returning null for malformed
+      // payloads. Without this we'd dispatch a null into the store and crash on
+      // setCurrentRoom trying to read .jid.
       const normalizedChat = createRoomFromApi(
         newChat,
         config?.xmppSettings?.conference,
         usersArrayLength
       );
+      if (!normalizedChat || !normalizedChat.jid) {
+        console.error(
+          'handleRoomCreation: failed to normalize new private room',
+          newChat
+        );
+        showToast({
+          id: Date.now().toString(),
+          title: 'Error',
+          message: 'Could not open the new private chat',
+          type: 'error',
+          duration: 4000,
+        });
+        return;
+      }
 
       dispatch(
         addRoomViaApi({
@@ -112,6 +129,29 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
           xmpp: client,
         })
       );
+
+      // Explicit MUC join + history pull. The addRoomViaApi thunk used to do this
+      // itself but was stripped in commit 55e9758 ("optimize message synchronization")
+      // on the assumption that room bootstrap is always handled by initialization
+      // flows - true for startup room-list sync, but NOT for a room created live from
+      // this modal. Without these calls the new private chat lands in the Redux
+      // store but the XMPP server never sees a presence from us, so sending
+      // messages / receiving the "Room created" placeholder state doesn't work and
+      // users report the sidebar not settling / the chat not opening.
+      if (client && normalizedChat.jid) {
+        try {
+          await client.presenceInRoomStanza(normalizedChat.jid);
+        } catch (e) {
+          console.warn('presenceInRoomStanza failed (non-fatal):', e);
+        }
+        try {
+          // Small history window - the chat is fresh, but we still want to pull
+          // any welcome/system messages the backend may have pushed into it.
+          client.getHistoryStanza(normalizedChat.jid, 10);
+        } catch (e) {
+          console.warn('getHistoryStanza failed (non-fatal):', e);
+        }
+      }
 
       dispatch(setCurrentRoom({ roomJID: normalizedChat.jid }));
 
@@ -137,11 +177,41 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     });
     let newRoomJid = '';
     if (config?.newArch !== false) {
-      const newRoom = await postPrivateRoom(
-        selectedUser?.userJID ?? selectedUser?.id
-      );
-      handleRoomCreation(newRoom, 2);
-      newRoomJid = newRoom.name;
+      // Resolve the xmppUsername for postPrivateRoom. The backend accepts the local
+      // part only (must startsWith(appId)). Historically `selectedUser.userJID` was
+      // the xmppUsername but modern IUser shape doesn't carry that field; the chat
+      // modal receives users via setSelectedUser from a message (where `.id` IS the
+      // xmppUsername / MUC local-part) OR from the room-members fetch (where
+      // `.xmppUsername` IS present). Prefer xmppUsername first, then userJID, then
+      // id, to be forward-compatible with both shapes.
+      const targetUsername = (selectedUser as any)?.xmppUsername
+        || (selectedUser as any)?.userJID
+        || selectedUser?.id;
+      if (!targetUsername) {
+        showToast({
+          id: Date.now().toString(),
+          title: 'Error',
+          message: 'Could not resolve recipient',
+          type: 'error',
+          duration: 4000,
+        });
+        return;
+      }
+      try {
+        const newRoom = await postPrivateRoom(targetUsername);
+        await handleRoomCreation(newRoom, 2);
+        newRoomJid = newRoom?.name || '';
+      } catch (e: any) {
+        console.error('postPrivateRoom failed:', e);
+        showToast({
+          id: Date.now().toString(),
+          title: 'Error',
+          message: e?.message || 'Failed to create private chat',
+          type: 'error',
+          duration: 4000,
+        });
+        return;
+      }
     } else {
       const selectedUserUsername = walletToUsername(selectedUser.id);
       const myUsername = walletToUsername(user.defaultWallet.walletAddress);

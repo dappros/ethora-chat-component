@@ -131,11 +131,22 @@ const RoomList: React.FC<RoomListProps> = ({
     const chatsMap = new Map<string, IRoom[]>();
 
     if (!chatsMap.has(lowerCaseSearchTerm)) {
-      const result = chats
+      // Defensive: persisted Redux state can occasionally rehydrate a chats array that
+      // contains null/undefined entries (stale shape, partially-applied migration, etc.).
+      // Without the explicit Boolean filter, the next `chat.name?.toLowerCase()` throws
+      // "Cannot read properties of null (reading 'name')" from inside Array.filter and
+      // unwinds the whole router subtree.
+      const safeChats = (chats || []).filter(
+        (chat): chat is IRoom => !!chat && typeof chat === 'object'
+      );
+      const result = safeChats
         .filter((chat) =>
-          chat.name?.toLowerCase().includes(lowerCaseSearchTerm)
+          (chat.name || '').toLowerCase().includes(lowerCaseSearchTerm)
         )
         .sort((a, b) => {
+          // Took main's getRoomActivityTimestamp helper (helpers/roomActivityScore.ts)
+          // over tf-dev's inline getLastMessageId/createdAt fallback chain - main's
+          // helper is the cleaner extraction and accounts for more activity signals.
           const aCompare = getRoomActivityTimestamp(a);
           const bCompare = getRoomActivityTimestamp(b);
           return bCompare - aCompare;

@@ -86,6 +86,7 @@ interface PrivateStoreCache {
 }
 
 export class XmppClient implements XmppClientInterface {
+  private static activeByEndpoint = new Map<string, XmppClient>();
   client!: Client;
   devServer: string | undefined;
   host: string;
@@ -183,6 +184,13 @@ export class XmppClient implements XmppClientInterface {
   private reconnectBaseDelayMs: number = 1000;
   private pausedDueToOfflineCap: boolean = false;
   private authFailureDetected: boolean = false;
+  // Took main's `intentionalLogout` over tf-dev's `reconnectSuppressed`
+  // (semantically identical; main's name is more descriptive and
+  // useLogout.tsx already calls `markIntentionalLogout`).
+  // TODO(merge from tf-dev): tf-dev also added `endpointKey` for per-endpoint
+  // session tracking (commit 611bd82). Roman intentionally removed registry-
+  // based reuse in commit 34eaf98 in favour of a simpler model. If the
+  // duplicate-instance problem ever resurfaces, restore endpointKey here.
   private intentionalLogout: boolean = false;
 
   private isTerminalAuthFailure(error: unknown): boolean {
@@ -281,11 +289,40 @@ export class XmppClient implements XmppClientInterface {
         await this.disconnect();
       }
       const url = this.devServer || SERVICE;
+      // (tf-dev set this.endpointKey here for per-endpoint session tracking;
+      // dropped per the architectural decision noted on the field declaration above.)
 
       this.host = url.match(/wss:\/\/([^:/]+)/)?.[1] || '';
       this.conference = `conference.${this.host}`;
       ethoraLogger.log('+-+-+-+-+-+-+-+-+ ', { username: this.username });
       this.devServer = url;
+
+      const existing = XmppClient.activeByEndpoint.get(endpointKey);
+      if (existing && existing !== this) {
+        if (existing.status === 'online' || existing.status === 'connecting') {
+          ethoraLogger.log(
+            '[InitPolicy] Duplicate init skipped: active XMPP endpoint session already exists',
+            { endpointKey }
+          );
+          this.client = existing.client;
+          this.status = existing.status;
+          this.resource = existing.resource;
+          this.reconnectSuppressed = true;
+          return;
+        }
+        ethoraLogger.log('[InitPolicy] Replacing stale XMPP endpoint session', {
+          endpointKey,
+        });
+        try {
+          await existing.disconnect({ suppressReconnect: true });
+        } catch (error) {
+          console.warn(
+            '[InitPolicy] Failed to disconnect stale endpoint session',
+            error
+          );
+        }
+      }
+      XmppClient.activeByEndpoint.set(endpointKey, this);
 
       this.client = xmpp.client({
         service: url,
@@ -307,9 +344,12 @@ export class XmppClient implements XmppClientInterface {
     }
   }
 
-  async disconnect() {
+  async disconnect(options?: { suppressReconnect?: boolean }) {
     if (!this.client) return;
     try {
+      if (options?.suppressReconnect) {
+        this.reconnectSuppressed = true;
+      }
       if (this.pingInterval) clearInterval(this.pingInterval);
       if (this.pingTimeout) clearTimeout(this.pingTimeout);
       if (this.idlePingTimeout) clearTimeout(this.idlePingTimeout as any);
@@ -354,6 +394,12 @@ export class XmppClient implements XmppClientInterface {
 
       await this.client.stop();
       this.client = null;
+      if (
+        this.endpointKey &&
+        XmppClient.activeByEndpoint.get(this.endpointKey) === this
+      ) {
+        XmppClient.activeByEndpoint.delete(this.endpointKey);
+      }
       this.historyPreloadInFlight.clear();
       this.activeHistoryInFlight.clear();
       this.roomPresenceBlockedUntil.clear();
@@ -501,6 +547,10 @@ export class XmppClient implements XmppClientInterface {
       this.logStep('event:error');
       if (terminalAuthFailure) {
         this.logStep('event:error:auth-failed-no-reconnect');
+        return;
+      }
+      if (this.reconnectSuppressed) {
+        this.logStep('event:error:reconnect-suppressed');
         return;
       }
       this.scheduleReconnect('event:error');
@@ -756,6 +806,13 @@ export class XmppClient implements XmppClientInterface {
       this.status = 'offline';
       try {
         await this.client.stop();
+        if (
+          this.endpointKey &&
+          XmppClient.activeByEndpoint.get(this.endpointKey) === this
+        ) {
+          XmppClient.activeByEndpoint.delete(this.endpointKey);
+        }
+        this.client = null;
         ethoraLogger.log('Client connection closed.');
       } catch (error) {
         console.error('Error closing the client:', error);
@@ -1074,6 +1131,11 @@ export class XmppClient implements XmppClientInterface {
         const isActiveRoomTask = task.priority === 0;
         await this.ensureRoomPresence(task.chatJID, {
           settleDelay: 0,
+          // Took main's tighter timeouts + waitForJoin: false (matches main's
+          // useRoomInitialization refactor that uses prioritizeRoomPresence
+          // separately instead of waiting in-call). tf-dev's 5000ms+wait was
+          // tuned for the migrated-rooms case (commit 62b0b6d) - if Roman's
+          // refactor regresses migrated-room joins, these are the knobs to revert.
           timeoutMs: isActiveRoomTask ? 1200 : 1200,
           waitForJoin: false,
           source: isActiveRoomTask ? 'active_room' : 'send',
@@ -1507,6 +1569,9 @@ export class XmppClient implements XmppClientInterface {
     this.pausedDueToOfflineCap = false;
     this.processQueue().catch(() => {});
     this.scheduleHistoryQueue();
+    if (this.reconnectSuppressed) {
+      return;
+    }
     if (this.status !== 'online') {
       this.scheduleReconnect('browser:online');
     }
@@ -2038,7 +2103,12 @@ export class XmppClient implements XmppClientInterface {
   private async drainHeap(): Promise<void> {
     try {
       const state = store.getState();
-      const heap = (state as any)?.roomHeapSlice?.messageHeap as IMessage[];
+      const heap = Array.isArray((state as any)?.roomHeapSlice?.messageHeap)
+        ? ((state as any).roomHeapSlice.messageHeap as IMessage[]).filter(
+            (message): message is IMessage =>
+              Boolean(message) && typeof message === 'object'
+          )
+        : [];
       if (!heap || heap.length === 0) return;
 
       const start = Date.now();

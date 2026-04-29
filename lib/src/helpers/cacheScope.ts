@@ -2,7 +2,7 @@ import { IConfig } from '../types/types';
 import { sha256 } from 'js-sha256';
 import { localStorageConstants } from './constants/LOCAL_STORAGE';
 
-const CACHE_SCOPE_VERSION = 'v2';
+const CACHE_SCOPE_VERSION = 'v3';
 
 const PERSIST_REDUX_KEYS = [
   'persist:root',

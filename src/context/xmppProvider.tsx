@@ -9,7 +9,15 @@ import React, {
 } from 'react';
 import { Provider } from 'react-redux';
 import XmppClient from '../networking/xmppClient';
-import { setGlobalXmppClient } from '../utils/clientRegistry';
+import {
+  buildXmppClientKey,
+  getGlobalXmppClient,
+  getGlobalXmppClientKey,
+  getReusableXmppClientByKey,
+  isXmppClientReusable,
+  setGlobalXmppClient,
+  withXmppClientInitLock,
+} from '../utils/clientRegistry';
 import { IConfig, IRoom, xmppSettingsInterface } from '../types/types';
 import { getRooms } from '../networking/api-requests/rooms.api';
 import { createRoomFromApi } from '../helpers/createRoomFromApi';
@@ -19,6 +27,7 @@ import {
   updateUsersSet,
 } from '../roomStore/roomsSlice';
 import usePushNotifications from '../hooks/usePushNotifications';
+import { setConfig as setChatConfig } from '../roomStore/chatSettingsSlice';
 import { updatedChatLastTimestamps } from '../helpers/updatedChatLastTimestamps';
 import { runHistoryPreloadScheduler } from '../helpers/historyPreloadScheduler';
 import {
@@ -28,10 +37,11 @@ import {
 import { setBaseURL } from '../networking/apiClient';
 import { ethoraLogger } from '../helpers/ethoraLogger';
 
-let initBeforeLoadPromise: Promise<void> | null = null;
 // Declare XmppContext
 interface XmppContextType {
-  client: XmppClient;
+  client: XmppClient | null;
+  providerBootstrapStatus: 'idle' | 'running' | 'ready' | 'failed';
+  initMode: 'provider' | 'chat';
   setClient: (client: XmppClient | null) => void;
   initializeClient: (
     username: string,
@@ -73,10 +83,18 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
   pushNotifications,
 }) => {
   const [client, setClient] = useState<XmppClient | null>(null);
+  const [providerBootstrapStatus, setProviderBootstrapStatus] = useState<
+    'idle' | 'running' | 'ready' | 'failed'
+  >('idle');
   const [password, setPassword] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [reconnectAttempts, setReconnectAttempts] = useState<number>(0);
   const initializingRef = useRef<Promise<XmppClient> | null>(null);
+  // Took main's bootstrap-key tracking (completed/inFlight refs) over tf-dev's
+  // simpler initBeforeLoadPromiseRef + clientRef pattern. Main's per-key
+  // tracking prevents reentrant init for the same config, which is the more
+  // robust approach. The clientRef tf-dev added isn't needed here because main
+  // refactored to read `client` directly inside the bootstrap closure.
   const completedInitBeforeLoadKeyRef = useRef<string | null>(null);
   const inFlightInitBeforeLoadKeyRef = useRef<string | null>(null);
 
@@ -140,9 +158,24 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
     xmppSettings?: xmppSettingsInterface,
     roomsList?: { [jid: string]: IRoom }
   ): Promise<XmppClient> => {
-    if (client) {
-      ethoraLogger.log('Returning existing client.');
-      setClient(client);
+    const clientKey = buildXmppClientKey(username, xmppSettings);
+    const reusableGlobalClient = getReusableXmppClientByKey(clientKey);
+    if (reusableGlobalClient) {
+      ethoraLogger.log('[InitPolicy] Reusing global XMPP client by key', {
+        clientKey,
+      });
+      setClient(reusableGlobalClient);
+      return reusableGlobalClient;
+    }
+
+    if (
+      client &&
+      isXmppClientReusable(client) &&
+      getGlobalXmppClientKey() === clientKey
+    ) {
+      ethoraLogger.log('[InitPolicy] Reusing provider state XMPP client', {
+        clientKey,
+      });
       return client;
     }
     if (initializingRef.current) {
@@ -150,14 +183,36 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
     }
 
     try {
-      const initPromise = (async () => {
+      const initPromise = withXmppClientInitLock(clientKey, async () => {
+        const latestReusableClient = getReusableXmppClientByKey(clientKey);
+        if (latestReusableClient) {
+          setClient(latestReusableClient);
+          return latestReusableClient;
+        }
+
+        const staleGlobalClient = getGlobalXmppClient();
+        if (
+          staleGlobalClient &&
+          staleGlobalClient !== client &&
+          !isXmppClientReusable(staleGlobalClient)
+        ) {
+          try {
+            await staleGlobalClient.disconnect?.({ suppressReconnect: true });
+          } catch (error) {
+            console.warn(
+              '[InitPolicy] Failed to disconnect stale global client',
+              error
+            );
+          }
+        }
+
         const createInstanceStart = Date.now();
         const newClient = new XmppClient(username, password, xmppSettings);
         ethoraLogger.log(
           `[InitTiming] initClient:create_instance ${Date.now() - createInstanceStart}ms`
         );
         setClient(newClient);
-        setGlobalXmppClient(newClient);
+        setGlobalXmppClient(newClient, clientKey);
 
         waitForOnline(newClient)
           .then(() => {})
@@ -170,10 +225,9 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
 
         setPassword(password);
         setEmail(username);
-        setClient(newClient);
         setReconnectAttempts(0);
         return newClient;
-      })();
+      });
       initializingRef.current = initPromise;
       const created = await initPromise;
       initializingRef.current = null;
@@ -214,7 +268,14 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
   }, [client?.status, reconnectAttempts]);
 
   useEffect(() => {
-    if (!config?.initBeforeLoad) return;
+    store.dispatch(setChatConfig(config));
+  }, [config]);
+
+  useEffect(() => {
+    if (!config?.initBeforeLoad) {
+      setProviderBootstrapStatus('idle');
+      return;
+    }
     if (config?.baseUrl) {
       setBaseURL(config.baseUrl, config.customAppToken);
     }
@@ -242,12 +303,21 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
     const abortController = new AbortController();
 
     const runInitBeforeLoad = async () => {
+      // TODO(merge from tf-dev): tf-dev introduced a `setProviderBootstrapStatus`
+      // status enum (running / ready) that's a useful UX signal. Took main's
+      // `completedSuccessfully` flag here for now because the tf-dev status
+      // setter requires a new state field that doesn't exist in main yet.
+      // Worth re-adding the status enum on top of the bootstrap-key tracking.
       let completedSuccessfully = false;
       const resolvedUser = await resolveInitBeforeLoadUser({
         config,
         signal: abortController.signal,
       });
-      if (abortController.signal.aborted || !resolvedUser) return;
+      if (abortController.signal.aborted) return;
+      if (!resolvedUser) {
+        setProviderBootstrapStatus('failed');
+        return;
+      }
 
       applyResolvedUserToStore(resolvedUser);
 
@@ -256,7 +326,10 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
         resolvedUser.defaultWallet?.walletAddress;
       const resolvedPassword = resolvedUser.xmppPassword;
 
-      if (!resolvedUsername || !resolvedPassword) return;
+      if (!resolvedUsername || !resolvedPassword) {
+        setProviderBootstrapStatus('failed');
+        return;
+      }
 
       const targetClient = await initializeClient(
         resolvedUsername,
@@ -278,7 +351,11 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
           );
           return false;
         });
-      if (!isOnline || abortController.signal.aborted) return;
+      if (abortController.signal.aborted) return;
+      if (!isOnline) {
+        setProviderBootstrapStatus('failed');
+        return;
+      }
 
       await syncRoomsForPreload(targetClient, abortController.signal);
 
@@ -314,6 +391,7 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
       initBeforeLoadPromise = runInitBeforeLoad()
         .catch((error) => {
           console.warn('[initBeforeLoad] bootstrap failed', error);
+          setProviderBootstrapStatus('failed');
         })
         .finally(() => {
           if (inFlightInitBeforeLoadKeyRef.current === bootstrapKey) {
@@ -327,6 +405,7 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
 
     return () => {
       abortController.abort();
+      initBeforeLoadPromiseRef.current = null;
     };
   }, [
     config?.initBeforeLoad,
@@ -343,6 +422,13 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
   ]);
 
   useEffect(() => {
+    if (!config?.initBeforeLoad) return;
+    if (client && (client.status === 'online' || client.status === 'connecting')) {
+      setProviderBootstrapStatus('ready');
+    }
+  }, [client, client?.status, config?.initBeforeLoad]);
+
+  useEffect(() => {
     // Only set up event listeners in browser
     if (typeof window === "undefined") {
       return;
@@ -356,7 +442,7 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
       void (async () => {
         try {
           ethoraLogger.log("XmppProvider: Disconnecting client due to logout event");
-          await activeClient.disconnect();
+          await activeClient.disconnect({ suppressReconnect: true });
         } catch (error) {
           console.warn('XmppProvider: client disconnect failed on logout', error);
         }
@@ -372,9 +458,31 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
     };
   }, [client, resetProviderState]);
 
+  useEffect(() => {
+    return () => {
+      const ownClient = clientRef.current;
+      const globalClient = getGlobalXmppClient();
+      initBeforeLoadPromiseRef.current = null;
+      initializingRef.current = null;
+      if (globalClient && ownClient && globalClient === ownClient) {
+        setGlobalXmppClient(null);
+      }
+      if (!ownClient) return;
+      void ownClient.disconnect?.({ suppressReconnect: true }).catch((error) => {
+        console.warn('XmppProvider: client disconnect failed on unmount', error);
+      });
+    };
+  }, []);
+
   return (
     <XmppContext.Provider
-      value={{ client: client as XmppClient, initializeClient, setClient }}
+      value={{
+        client,
+        providerBootstrapStatus,
+        initMode: config?.initBeforeLoad ? 'provider' : 'chat',
+        initializeClient,
+        setClient,
+      }}
       data-xmpp-provider="true"
     >
       <Provider store={store}>
