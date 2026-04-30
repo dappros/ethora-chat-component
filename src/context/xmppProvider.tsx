@@ -120,6 +120,7 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
       );
     });
     store.dispatch(updateUsersSet({ rooms: items }));
+    await targetClient.sendAllPresencesAndMarkReady();
   };
 
   const waitForOnline = (xmppClient: XmppClient, timeoutMs = 30000) =>
@@ -298,6 +299,7 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
     const abortController = new AbortController();
 
     const runInitBeforeLoad = async () => {
+      setProviderBootstrapStatus('running');
       // TODO(merge from tf-dev): tf-dev introduced a `setProviderBootstrapStatus`
       // status enum (running / ready) that's a useful UX signal. Took main's
       // `completedSuccessfully` flag here for now because the tf-dev status
@@ -310,7 +312,7 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
       });
       if (abortController.signal.aborted) return;
       if (!resolvedUser) {
-        setProviderBootstrapStatus('failed');
+        setProviderBootstrapStatus('idle');
         return;
       }
 

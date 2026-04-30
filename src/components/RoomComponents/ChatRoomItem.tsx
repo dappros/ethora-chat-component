@@ -29,10 +29,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
   performClick,
   config,
 }) => {
-  // Defensive: if a null/undefined room slipped through (shouldn't happen now that
-  // RoomList filters first, but persisted state can rehydrate weird shapes), bail
-  // out cleanly instead of throwing inside the component tree and unwinding the router.
-  if (!chat) return null;
+  const displayName = String(chat?.title || chat?.name || '').trim();
 
   const withAuthorFallback = useCallback((message?: IMessage): IMessage | undefined => {
     if (!message) return message;
@@ -115,7 +112,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
       onClick={() => performClick(chat)}
       bg={config?.colors?.primary}
     >
-      <ProfileImagePlaceholder name={chat?.name} icon={chat?.icon} />
+      <ProfileImagePlaceholder name={displayName} icon={chat?.icon} />
       <div
         style={{
           display: 'flex',
@@ -134,7 +131,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
           }}
         >
           <ChatInfo>
-            <ChatName>{chat?.name}</ChatName>
+            <ChatName>{displayName}</ChatName>
           </ChatInfo>
 
           <UserCount

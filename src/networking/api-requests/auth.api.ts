@@ -16,13 +16,9 @@ async function resolveUserViaMyEndpoint(token?: string): Promise<User | null> {
   if (!token) return null;
 
   try {
-    return await getMyUser({ token, endpoint: '/my' });
+    return await getMyUser({ token });
   } catch {
-    try {
-      return await getMyUser({ token, endpoint: '/users/my' });
-    } catch {
-      return null;
-    }
+    return null;
   }
 }
 

@@ -26,6 +26,7 @@ import ChatRoomItem from '../RoomComponents/ChatRoomItem';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { logoutService } from '../../hooks/useLogout';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
+import { deleteRoom, setCurrentRoom } from '../../roomStore/roomsSlice';
 
 interface RoomListProps {
   chats: IRoom[];
@@ -80,6 +81,23 @@ const getRoomActivityTimestamp = (chat: IRoom): number => {
   return 0;
 };
 
+const getRoomLabel = (chat: IRoom): string =>
+  String(chat?.title || chat?.name || '').trim();
+
+const isValidRoomRecord = (chat: unknown): chat is IRoom => {
+  if (!chat || typeof chat !== 'object') return false;
+
+  const room = chat as Partial<IRoom>;
+  const jid = String(room.jid || '').trim();
+
+  return Boolean(jid && getRoomLabel(room as IRoom));
+};
+
+const getRoomJid = (chat: unknown): string => {
+  if (!chat || typeof chat !== 'object') return '';
+  return String((chat as Partial<IRoom>).jid || '').trim();
+};
+
 const RoomList: React.FC<RoomListProps> = ({
   chats,
   burgerMenu = false,
@@ -97,6 +115,28 @@ const RoomList: React.FC<RoomListProps> = ({
   const { activeRoomJID } = useSelector((state: RootState) => state.rooms);
 
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const invalidRoomJids = (chats || [])
+      .filter((chat) => !isValidRoomRecord(chat))
+      .map(getRoomJid)
+      .filter(Boolean);
+
+    if (!invalidRoomJids.length) return;
+
+    invalidRoomJids.forEach((jid) => {
+      dispatch(deleteRoom({ jid }));
+    });
+
+    if (activeRoomJID && invalidRoomJids.includes(activeRoomJID)) {
+      const nextRoomJID =
+        (chats || []).find(
+          (chat) => isValidRoomRecord(chat) && chat.jid !== activeRoomJID
+        )?.jid || null;
+
+      dispatch(setCurrentRoom({ roomJID: nextRoomJID }));
+    }
+  }, [activeRoomJID, chats, dispatch]);
 
   const handleClickOutside = useCallback((event: MouseEvent) => {
     if (
@@ -136,12 +176,10 @@ const RoomList: React.FC<RoomListProps> = ({
       // Without the explicit Boolean filter, the next `chat.name?.toLowerCase()` throws
       // "Cannot read properties of null (reading 'name')" from inside Array.filter and
       // unwinds the whole router subtree.
-      const safeChats = (chats || []).filter(
-        (chat): chat is IRoom => !!chat && typeof chat === 'object'
-      );
+      const safeChats = (chats || []).filter(isValidRoomRecord);
       const result = safeChats
         .filter((chat) =>
-          (chat.name || '').toLowerCase().includes(lowerCaseSearchTerm)
+          getRoomLabel(chat).toLowerCase().includes(lowerCaseSearchTerm)
         )
         .sort((a, b) => {
           // Took main's getRoomActivityTimestamp helper (helpers/roomActivityScore.ts)

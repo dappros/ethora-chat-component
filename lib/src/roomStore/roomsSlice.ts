@@ -543,7 +543,7 @@ export const roomsStore = createSlice({
       if (!chatJID) {
         state.isLoading = loading;
       }
-      if (loadingText) {
+      if (Object.prototype.hasOwnProperty.call(action.payload, 'loadingText')) {
         state.loadingText = loadingText;
       }
     },

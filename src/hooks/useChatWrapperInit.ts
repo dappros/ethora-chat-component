@@ -63,6 +63,7 @@ const useChatWrapperInit = ({
     initializeClient,
     setClient,
     providerBootstrapStatus,
+    initMode,
   } = useXmppClient();
   const syncRooms = useGetNewArchRoom();
 
@@ -370,11 +371,12 @@ const useChatWrapperInit = ({
   ) => {
     !disableLoad &&
       dispatch(
-        setIsLoading({ loading: true, loadingText: 'Loading rooms...' })
+        setIsLoading({ loading: true, loadingText: 'Loading chats...' })
       );
     mark('loadRooms:start');
     const rooms = await syncRooms(client, config);
     logDuration('loadRooms', 'loadRooms:start');
+    await client.sendAllPresencesAndMarkReady();
     dispatch(setIsLoading({ loading: false, loadingText: undefined }));
     return rooms;
   };
@@ -414,12 +416,18 @@ const useChatWrapperInit = ({
       }
       try {
         if (!user.xmppUsername) {
-          setShowModal(true);
-          ethoraLogger.log('Error, no user');
+          setShowModal(false);
+          dispatch(setIsLoading({ loading: false, loadingText: undefined }));
+          ethoraLogger.log('No user yet, waiting for login');
+          return;
         } else {
           chatAutoEnterer({ roomJID, wasAutoSelected, config, dispatch });
           if (!client) {
-            if (config?.initBeforeLoad) {
+            if (
+              config?.initBeforeLoad &&
+              initMode === 'provider' &&
+              providerBootstrapStatus !== 'idle'
+            ) {
               if (providerBootstrapStatus === 'failed') {
                 dispatch(setIsLoading({ loading: false, loadingText: undefined }));
                 setConnectionLost(true);
@@ -510,8 +518,13 @@ const useChatWrapperInit = ({
             }
           } else {
             if (config?.newArch !== false) {
-              // const loadedRooms = await loadRooms(client, true);
-              ensureActiveRoomSelected(Object.values(roomsList) as any);
+              if (!roomsList || Object.keys(roomsList).length === 0) {
+                setInited(false);
+                const loadedRooms = await loadRooms(client);
+                ensureActiveRoomSelected(loadedRooms as any);
+              } else {
+                ensureActiveRoomSelected(Object.values(roomsList) as any);
+              }
               if (config?.enableRoomsRetry?.enabled) {
                 const isSelectedRoomPresent = isChatIdPresentInArray(
                   roomJID,
@@ -559,6 +572,7 @@ const useChatWrapperInit = ({
     user.xmppUsername,
     client,
     config?.initBeforeLoad,
+    initMode,
     providerBootstrapStatus,
   ]);
 

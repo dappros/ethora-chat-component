@@ -10,19 +10,50 @@ import {
 import http from '../apiClient';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
 
+const GET_ROOMS_CACHE_MS = 1500;
+let getRoomsInFlight: Promise<{ items: ApiRoom[] }> | null = null;
+let getRoomsInFlightToken = '';
+let lastGetRoomsResponse: { items: ApiRoom[] } | null = null;
+let lastGetRoomsResponseAt = 0;
+let lastGetRoomsResponseToken = '';
+
 export async function getRooms(): Promise<{ items: ApiRoom[] }> {
   const token = store.getState().chatSettingStore.user.token || '';
+  const now = Date.now();
 
-  try {
+  if (
+    lastGetRoomsResponse &&
+    lastGetRoomsResponseToken === token &&
+    now - lastGetRoomsResponseAt < GET_ROOMS_CACHE_MS
+  ) {
+    return lastGetRoomsResponse;
+  }
+
+  if (getRoomsInFlight && getRoomsInFlightToken === token) {
+    return getRoomsInFlight;
+  }
+
+  getRoomsInFlightToken = token;
+  getRoomsInFlight = (async () => {
     const response = await http.get('/chats/my', {
       headers: {
         Authorization: token,
       },
     });
+    lastGetRoomsResponse = response.data;
+    lastGetRoomsResponseAt = Date.now();
+    lastGetRoomsResponseToken = token;
     return response.data;
+  })();
+
+  try {
+    return await getRoomsInFlight;
   } catch (error) {
     ethoraLogger.log('Error loading rooms');
     return { items: [] };
+  } finally {
+    getRoomsInFlight = null;
+    getRoomsInFlightToken = '';
   }
 }
 
