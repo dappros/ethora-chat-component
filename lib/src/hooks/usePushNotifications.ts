@@ -30,6 +30,7 @@ import {
 import { IConfig } from '../types/types';
 import { ethoraLogger } from '../helpers/ethoraLogger';
 import { setStoredFcmToken } from '../utils/pushStorage';
+import { normalizeRoomJidWithConference } from '../utils/runtimeHostConfig';
 import {
   buildNotificationUrl,
   hasMessageInRooms,
@@ -134,13 +135,8 @@ const usePushNotifications = (
   const recentHistoryFetchRef = useRef<Map<string, number>>(new Map());
 
   const normalizeRoomJid = useCallback(
-    (jid?: string): string => {
-      if (!jid) return '';
-      if (jid.includes('@')) return jid;
-      const conference =
-        config?.xmppSettings?.conference || 'conference.xmpp.chat.ethora.com';
-      return `${jid}@${conference}`;
-    },
+    (jid?: string): string =>
+      normalizeRoomJidWithConference(jid, config?.xmppSettings?.conference),
     [config?.xmppSettings?.conference]
   );
 

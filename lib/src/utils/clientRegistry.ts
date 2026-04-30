@@ -1,31 +1,16 @@
 import XmppClient from '../networking/xmppClient';
 import { xmppSettingsInterface } from '../types/types';
+import { buildXmppClientKeyValue } from './runtimeHostConfig';
 
 let currentClient: XmppClient | null = null;
 let currentClientKey = '';
 const initLocks = new Map<string, Promise<XmppClient>>();
 
-const parseHostFromDevServer = (devServer?: string): string => {
-  if (!devServer) return '';
-  try {
-    return new URL(devServer).hostname || '';
-  } catch {
-    const match = devServer.match(/wss?:\/\/([^:/]+)/i);
-    return match?.[1] || '';
-  }
-};
-
 export function buildXmppClientKey(
   username: string,
   xmppSettings?: xmppSettingsInterface
 ): string {
-  const normalizedUsername = (username || '').trim().toLowerCase();
-  const hostCandidate =
-    xmppSettings?.host ||
-    parseHostFromDevServer(xmppSettings?.devServer) ||
-    'xmpp.chat.ethora.com';
-  const normalizedHost = hostCandidate.trim().toLowerCase();
-  return `${normalizedUsername}@${normalizedHost}`;
+  return buildXmppClientKeyValue(username, xmppSettings);
 }
 
 export function isXmppClientReusable(client: XmppClient | null): boolean {
