@@ -32,6 +32,27 @@ interface ChatHeaderProps {
   handleBackClick?: (value: boolean) => void;
 }
 
+const UUID_LIKE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
+const looksLikeRawJidLocalPart = (
+  value: string | undefined,
+  jid: string | undefined
+): boolean => {
+  if (!value) return true;
+  const localPart = (jid || '').split('@')[0];
+  if (localPart && value === localPart) return true;
+  if (UUID_LIKE.test(value)) return true;
+  return false;
+};
+
+const getDisplayTitle = (room: IRoom | undefined): string => {
+  const title = room?.title?.trim();
+  if (looksLikeRawJidLocalPart(title, room?.jid)) {
+    return 'Loading…';
+  }
+  return title as string;
+};
+
 const ChatHeader: React.FC<ChatHeaderProps> = ({
   currentRoom,
   handleBackClick,
@@ -116,15 +137,18 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
           </div>
           <ChatContainerHeaderInfo>
             <ChatContainerHeaderLabel>
-              {currentRoom?.title}
+              {getDisplayTitle(currentRoom)}
             </ChatContainerHeaderLabel>
             <ChatContainerHeaderLabel
               style={{ color: '#8C8C8C', fontSize: '14px' }}
             >
               {composing ? (
                 <Composing usersTyping={currentRoom?.composingList} />
+              ) : typeof currentRoom?.usersCnt === 'number' &&
+                currentRoom.usersCnt > 0 ? (
+                `${formatNumberWithCommas(currentRoom.usersCnt)} ${currentRoom.usersCnt === 1 ? 'user' : 'users'}`
               ) : (
-                `${formatNumberWithCommas(currentRoom?.usersCnt)} ${currentRoom?.usersCnt === 1 ? 'user' : 'users'}`
+                ''
               )}
             </ChatContainerHeaderLabel>
           </ChatContainerHeaderInfo>

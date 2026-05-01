@@ -237,10 +237,38 @@ export const roomsStore = createSlice({
   reducers: {
     addRoom(state, action: PayloadAction<{ roomData: IRoom }>) {
       const { roomData } = action.payload;
+      const existing = state.rooms[roomData.jid];
+      const incomingMessages = Array.isArray(roomData.messages)
+        ? roomData.messages
+        : [];
+      const existingMessages = Array.isArray(existing?.messages)
+        ? existing!.messages
+        : [];
       state.rooms[roomData.jid] = {
+        ...existing,
         ...roomData,
-        unreadCapped: roomData.unreadCapped ?? false,
-        historyPreloadState: roomData.historyPreloadState ?? 'idle',
+        title: roomData.title || existing?.title || roomData.title,
+        usersCnt:
+          typeof roomData.usersCnt === 'number' && roomData.usersCnt > 0
+            ? roomData.usersCnt
+            : existing?.usersCnt ?? roomData.usersCnt,
+        icon: roomData.icon ?? existing?.icon,
+        messages:
+          existingMessages.length > 0 ? existingMessages : incomingMessages,
+        unreadMessages: existing?.unreadMessages ?? roomData.unreadMessages ?? 0,
+        lastViewedTimestamp:
+          existing?.lastViewedTimestamp ?? roomData.lastViewedTimestamp ?? 0,
+        composingList: existing?.composingList ?? roomData.composingList,
+        composing: existing?.composing ?? roomData.composing,
+        unreadCapped:
+          existing?.unreadCapped ?? roomData.unreadCapped ?? false,
+        historyPreloadState:
+          existing?.historyPreloadState ??
+          roomData.historyPreloadState ??
+          'idle',
+        messageStats: existing?.messageStats ?? roomData.messageStats,
+        historyComplete:
+          existing?.historyComplete ?? roomData.historyComplete,
       };
     },
     deleteRoom(state, action: PayloadAction<{ jid: string }>) {
@@ -622,10 +650,34 @@ export const roomsStore = createSlice({
     },
     addRoomFromApi: (state, action: PayloadAction<{ room: IRoom }>) => {
       const { room } = action.payload;
+      const existing = state.rooms[room.jid];
+      const incomingMessages = Array.isArray(room.messages)
+        ? room.messages
+        : [];
+      const existingMessages = Array.isArray(existing?.messages)
+        ? existing!.messages
+        : [];
       state.rooms[room.jid] = {
+        ...existing,
         ...room,
-        unreadCapped: room.unreadCapped ?? false,
-        historyPreloadState: room.historyPreloadState ?? 'idle',
+        title: room.title || existing?.title || room.title,
+        usersCnt:
+          typeof room.usersCnt === 'number' && room.usersCnt > 0
+            ? room.usersCnt
+            : existing?.usersCnt ?? room.usersCnt,
+        icon: room.icon ?? existing?.icon,
+        messages:
+          existingMessages.length > 0 ? existingMessages : incomingMessages,
+        unreadMessages: existing?.unreadMessages ?? room.unreadMessages ?? 0,
+        lastViewedTimestamp:
+          existing?.lastViewedTimestamp ?? room.lastViewedTimestamp ?? 0,
+        composingList: existing?.composingList ?? room.composingList,
+        composing: existing?.composing ?? room.composing,
+        unreadCapped: existing?.unreadCapped ?? room.unreadCapped ?? false,
+        historyPreloadState:
+          existing?.historyPreloadState ?? room.historyPreloadState ?? 'idle',
+        messageStats: existing?.messageStats ?? room.messageStats,
+        historyComplete: existing?.historyComplete ?? room.historyComplete,
       };
     },
     applyRoomsPreloadBatch: (

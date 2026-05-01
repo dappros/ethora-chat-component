@@ -391,11 +391,10 @@ const onChatInvite = async (stanza: Element, client: XmppClient) => {
         if (child) {
           const chat = store.getState().rooms.rooms[chatId];
           if (!chat) {
-            const roomName = chatId.split('@')[0] || 'New chat';
             const roomData: IRoom = {
               jid: chatId,
-              name: roomName,
-              title: roomName,
+              name: '',
+              title: '',
               usersCnt: 0,
               messages: [],
               isLoading: false,
@@ -470,8 +469,44 @@ const onGetMembers = (stanza: Element) => {
 };
 
 const onGetRoomInfo = (stanza: Element) => {
-  if (stanza.attrs.id === 'roomInfo' && !stanza.getChild('error')) {
-    // Room info stanza is consumed by feature-specific flows.
+  if (stanza.attrs.id !== 'roomInfo' || stanza.getChild('error')) return;
+
+  const roomJid = String(stanza?.attrs?.from || '').split('/')[0];
+  if (!roomJid) return;
+
+  const query = stanza.getChild('query');
+  if (!query) return;
+
+  const updates: Partial<IRoom> = {};
+
+  const identity = query.getChild('identity');
+  const identityName = identity?.attrs?.name;
+  if (identityName && typeof identityName === 'string') {
+    updates.title = identityName;
+    updates.name = identityName;
+  }
+
+  const xForms = query.getChildren('x') || [];
+  for (const x of xForms) {
+    if (x.attrs?.xmlns !== 'jabber:x:data') continue;
+    const fields = x.getChildren('field') || [];
+    for (const field of fields) {
+      const varName = field.attrs?.var;
+      const value = field.getChildText('value');
+      if (varName === 'muc#roominfo_occupants' && value) {
+        const parsed = getNumberFromString(value);
+        if (typeof parsed === 'number' && parsed > 0) {
+          updates.usersCnt = parsed;
+        }
+      }
+      if (varName === 'muc#roominfo_description' && value) {
+        updates.description = value;
+      }
+    }
+  }
+
+  if (Object.keys(updates).length > 0) {
+    store.dispatch(updateRoom({ jid: roomJid, updates }));
   }
 };
 
