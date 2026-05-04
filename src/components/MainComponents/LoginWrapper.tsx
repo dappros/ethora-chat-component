@@ -71,7 +71,22 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
         setBaseURL(config.baseUrl, config.customAppToken);
       }
 
-      if (user.xmppUsername) {
+      // Short-circuit ONLY when the current redux user already matches what
+      // config asks for (or config doesn't ask for anything specific).
+      // The previous "any user wins" behavior broke multi-tenant scenarios
+      // like the Ethora App Switcher: when an admin switches from base-app
+      // to a child-app context, the parent component remounts the chat
+      // tree with a new userLogin.user (the per-app gateway user), but
+      // the redux store still holds the previous user from the previous
+      // context. Without this check we'd skip the dispatch and the
+      // chat-component would keep using the old user's JID against the
+      // new app's rooms, which mod_ethora rejects with "wrong app name"
+      // (because the JID prefix doesn't match the room JID prefix).
+      const wantedUsername = config?.userLogin?.user?.xmppUsername || '';
+      if (
+        user.xmppUsername &&
+        (!wantedUsername || user.xmppUsername === wantedUsername)
+      ) {
         return;
       }
 
@@ -155,7 +170,17 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
           MainComponentStyles={MainComponentStyles}
           onButtonClick={() => setShowModal(false)}
         />
-      ) : user && user.xmppPassword !== '' ? (
+      ) : user &&
+        user.xmppPassword !== '' &&
+        // When config asks for a specific user (multi-tenant App
+        // Switcher use case), wait for the redux user to match before
+        // mounting ChatWrapper. Without this gate, ChatWrapper would
+        // render once with the previous user, useChatWrapperInit would
+        // fire with stale credentials, XmppClient would SASL-bind as
+        // the wrong JID, and by the time the useEffect above dispatches
+        // the new user the connection is already wedged.
+        (!config?.userLogin?.user?.xmppUsername ||
+          user.xmppUsername === config.userLogin.user.xmppUsername) ? (
         <ChatWrapper {...props} />
       ) : config?.jwtLogin?.enabled ? (
         <StyledLoaderWrapper
