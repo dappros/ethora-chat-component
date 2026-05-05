@@ -23,6 +23,7 @@ import { createRoomFromApi } from '../helpers/createRoomFromApi';
 import { store } from '../roomStore';
 import {
   addRoomViaApi,
+  setLogoutState as resetRoomsState,
   updateUsersSet,
 } from '../roomStore/roomsSlice';
 import { setConfig as setChatConfig } from '../roomStore/chatSettingsSlice';
@@ -374,6 +375,18 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
     const handleLogout = () => {
       const activeClient = client;
       resetProviderState();
+      // Wipe per-session rooms data so the next consumer (full re-login
+      // OR a multi-tenant App Switcher in the same browser tab) doesn't
+      // see leftover rooms from the previous user's context. Without
+      // this, room JIDs persisted from the previous app stay visible
+      // after the new XmppClient connects, mod_ethora rejects presence
+      // attempts on those rooms ("wrong app name"), and the room list
+      // shows a mix of stale + new entries.
+      try {
+        store.dispatch(resetRoomsState());
+      } catch (e) {
+        console.warn('XmppProvider: rooms state reset failed', e);
+      }
       if (!activeClient) return;
 
       void (async () => {
