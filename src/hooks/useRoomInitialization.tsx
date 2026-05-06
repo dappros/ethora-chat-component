@@ -67,6 +67,16 @@ export const useRoomInitialization = (
         )
         .catch(() => {
           client.prioritizeRoomPresence(activeRoomJID).catch(() => {});
+        })
+        .finally(() => {
+          // Pull authoritative room metadata (name, occupant count) via
+          // disco#info — this guards against the API/disco#items race that
+          // leaves the header showing a raw JID and "0 users".
+          try {
+            client.getRoomInfoStanza(activeRoomJID);
+          } catch {
+            /* non-fatal */
+          }
         });
     }
     if (client && !activeRoomJID) {
