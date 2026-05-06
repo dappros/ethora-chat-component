@@ -250,6 +250,12 @@ export const roomsStore = createSlice({
         unreadMessages: existing?.unreadMessages ?? roomData.unreadMessages ?? 0,
         lastViewedTimestamp:
           existing?.lastViewedTimestamp ?? roomData.lastViewedTimestamp ?? 0,
+        unreadBaselineTimestamp:
+          existing?.unreadBaselineTimestamp ??
+          existing?.lastViewedTimestamp ??
+          roomData.unreadBaselineTimestamp ??
+          roomData.lastViewedTimestamp ??
+          0,
         composingList: existing?.composingList ?? roomData.composingList,
         composing: existing?.composing ?? roomData.composing,
         unreadCapped:
@@ -663,6 +669,12 @@ export const roomsStore = createSlice({
         unreadMessages: existing?.unreadMessages ?? room.unreadMessages ?? 0,
         lastViewedTimestamp:
           existing?.lastViewedTimestamp ?? room.lastViewedTimestamp ?? 0,
+        unreadBaselineTimestamp:
+          existing?.unreadBaselineTimestamp ??
+          existing?.lastViewedTimestamp ??
+          room.unreadBaselineTimestamp ??
+          room.lastViewedTimestamp ??
+          0,
         composingList: existing?.composingList ?? room.composingList,
         composing: existing?.composing ?? room.composing,
         unreadCapped: existing?.unreadCapped ?? room.unreadCapped ?? false,

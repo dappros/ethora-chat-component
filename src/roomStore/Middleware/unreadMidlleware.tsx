@@ -40,6 +40,8 @@ const computeUnreadForRoom = (
   }
 
   const lastViewed = getTimestampFromUnknown(room.lastViewedTimestamp);
+  const baseline = getTimestampFromUnknown(room.unreadBaselineTimestamp);
+  const cutoff = lastViewed > 0 ? lastViewed : baseline;
 
   const countableMessages = (room.messages || []).filter((msg: IMessage) => {
     if (!isCountableMessage(msg)) return false;
@@ -53,8 +55,8 @@ const computeUnreadForRoom = (
     const ts = getMessageTimestamp(msg);
     if (ts <= 0) return false;
 
-    if (lastViewed <= 0) return true;
-    return ts > lastViewed;
+    if (cutoff <= 0) return false;
+    return ts > cutoff;
   });
 
   let unreadCapped = false;
@@ -70,8 +72,9 @@ const computeUnreadForRoom = (
 
     if (
       countableMessages.length >= 10 &&
-      (lastViewed <= 0 ||
-        (Number.isFinite(oldestLoadedTs) && oldestLoadedTs > lastViewed))
+      cutoff > 0 &&
+      Number.isFinite(oldestLoadedTs) &&
+      oldestLoadedTs > cutoff
     ) {
       unreadCapped = true;
     }
