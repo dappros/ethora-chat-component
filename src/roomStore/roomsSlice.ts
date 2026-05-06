@@ -216,18 +216,10 @@ export const addRoomViaApi = createAsyncThunk(
   'roomMessages/addRoomViaApi',
   async (
     { room, xmpp: _xmpp }: { room: IRoom; xmpp: XmppClient },
-    { dispatch, getState }
+    { dispatch }
   ) => {
-    const state = getState() as { rooms: RoomMessagesState };
-    const isRoomAlreadyAdded = Object.values(state.rooms.rooms).some(
-      (element) => element.jid === room?.jid
-    );
-
-    if (!isRoomAlreadyAdded) {
-      // Room bootstrap is handled by dedicated initialization flows.
-      // Avoid per-room blocking network calls during initial room list sync.
-      dispatch(roomsStore.actions.addRoomFromApi({ room }));
-    }
+    if (!room || !room.jid) return;
+    dispatch(roomsStore.actions.addRoomFromApi({ room }));
   }
 );
 
