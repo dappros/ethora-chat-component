@@ -391,11 +391,10 @@ const onChatInvite = async (stanza: Element, client: XmppClient) => {
         if (child) {
           const chat = store.getState().rooms.rooms[chatId];
           if (!chat) {
-            const roomName = chatId.split('@')[0] || 'New chat';
             const roomData: IRoom = {
               jid: chatId,
-              name: roomName,
-              title: roomName,
+              name: '',
+              title: '',
               usersCnt: 0,
               messages: [],
               isLoading: false,
@@ -470,8 +469,44 @@ const onGetMembers = (stanza: Element) => {
 };
 
 const onGetRoomInfo = (stanza: Element) => {
-  if (stanza.attrs.id === 'roomInfo' && !stanza.getChild('error')) {
-    // Room info stanza is consumed by feature-specific flows.
+  if (stanza.attrs.id !== 'roomInfo' || stanza.getChild('error')) return;
+
+  const roomJid = String(stanza?.attrs?.from || '').split('/')[0];
+  if (!roomJid) return;
+
+  const query = stanza.getChild('query');
+  if (!query) return;
+
+  const updates: Partial<IRoom> = {};
+
+  const identity = query.getChild('identity');
+  const identityName = identity?.attrs?.name;
+  if (identityName && typeof identityName === 'string') {
+    updates.title = identityName;
+    updates.name = identityName;
+  }
+
+  const xForms = query.getChildren('x') || [];
+  for (const x of xForms) {
+    if (x.attrs?.xmlns !== 'jabber:x:data') continue;
+    const fields = x.getChildren('field') || [];
+    for (const field of fields) {
+      const varName = field.attrs?.var;
+      const value = field.getChildText('value');
+      if (varName === 'muc#roominfo_occupants' && value) {
+        const parsed = getNumberFromString(value);
+        if (typeof parsed === 'number' && parsed > 0) {
+          updates.usersCnt = parsed;
+        }
+      }
+      if (varName === 'muc#roominfo_description' && value) {
+        updates.description = value;
+      }
+    }
+  }
+
+  if (Object.keys(updates).length > 0) {
+    store.dispatch(updateRoom({ jid: roomJid, updates }));
   }
 };
 
@@ -562,6 +597,49 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
       }
     });
   }
+};
+
+// Server-driven membership change: when someone is added/removed from a MUC,
+// the room broadcasts <message><x xmlns="muc#user"><item jid="..."
+// affiliation="member|none|..."/></x></message> to existing occupants. Use it
+// to update members[] / usersCnt live, so the header doesn't wait for reload.
+const onRoomMembershipChange = (stanza: Element) => {
+  if (!stanza.is('message')) return;
+  const roomJid = String(stanza.attrs.from || '').split('/')[0];
+  if (!roomJid || !store.getState().rooms.rooms[roomJid]) return;
+
+  const x = (stanza.getChildren('x') || []).find(
+    (e: Element) => e.attrs?.xmlns === 'http://jabber.org/protocol/muc#user'
+  );
+  if (!x || x.getChild('invite')) return;
+  const item = x.getChild('item');
+  const memberJid = String(item?.attrs?.jid || '');
+  if (!memberJid) return;
+
+  const xmppUsername = memberJid.split('@')[0];
+  const affiliation = String(item?.attrs?.affiliation || '');
+  const room = store.getState().rooms.rooms[roomJid];
+  const members = Array.isArray(room.members) ? room.members : [];
+  const idx = members.findIndex((m) => m.xmppUsername === xmppUsername);
+
+  let next: RoomMember[];
+  if (affiliation === 'none' || affiliation === 'outcast') {
+    if (idx < 0) return;
+    next = members.filter((_, i) => i !== idx);
+  } else {
+    if (idx >= 0) return;
+    next = [
+      ...members,
+      { _id: '', firstName: '', lastName: '', xmppUsername, jid: memberJid },
+    ];
+  }
+
+  store.dispatch(
+    updateRoom({
+      jid: roomJid,
+      updates: { members: next, usersCnt: next.length },
+    })
+  );
 };
 
 const onRoomKicked = async (stanza: Element) => {
@@ -857,6 +935,7 @@ export {
   onReactionMessage,
   onChatInvite,
   onRoomKicked,
+  onRoomMembershipChange,
   onMessageError,
   onUserUpdate,
   onChatUpdate,

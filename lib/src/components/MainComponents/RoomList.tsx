@@ -176,7 +176,13 @@ const RoomList: React.FC<RoomListProps> = ({
       // Without the explicit Boolean filter, the next `chat.name?.toLowerCase()` throws
       // "Cannot read properties of null (reading 'name')" from inside Array.filter and
       // unwinds the whole router subtree.
-      const safeChats = (chats || []).filter(isValidRoomRecord);
+      const safeChats = (chats || []).filter(
+        (chat): chat is IRoom =>
+          !!chat &&
+          typeof chat === 'object' &&
+          typeof chat.jid === 'string' &&
+          chat.jid.length > 0
+      );
       const result = safeChats
         .filter((chat) =>
           getRoomLabel(chat).toLowerCase().includes(lowerCaseSearchTerm)
@@ -206,8 +212,12 @@ const RoomList: React.FC<RoomListProps> = ({
   }, [burgerMenu, handleClickOutside]);
 
   const isChatActive = useCallback(
-    (room: IRoom) => !isSmallScreen && activeRoomJID === room.jid,
-    [activeRoomJID]
+    (room: IRoom) =>
+      !isSmallScreen &&
+      !!activeRoomJID &&
+      !!room?.jid &&
+      activeRoomJID === room.jid,
+    [activeRoomJID, isSmallScreen]
   );
 
   const handleLogout = useCallback(async () => {
