@@ -26,8 +26,8 @@ import { AttachIcon, FileIcon, RemoveIcon, SendIcon } from '../../assets/icons';
 import { parseMessageBody } from '../../helpers/parseMessageBody';
 
 export interface SendInputProps {
-  sendMessage: (message: string) => void;
-  sendMedia: (data: any, type: string) => void;
+  sendMessage: (message: string) => void | Promise<void>;
+  sendMedia: (data: any, type: string) => void | Promise<void>;
   isLoading: boolean;
   editMessage?: string;
   config?: IConfig;
@@ -39,8 +39,8 @@ export interface SendInputProps {
   inputHeight?: number;
   showPreview?: boolean;
   previewParser?: (text: string) => (string | JSX.Element)[];
-  onSendMessage?: (message: string) => void;
-  onSendMedia?: (data: any, type: string) => void;
+  onSendMessage?: (message: string) => void | Promise<void>;
+  onSendMedia?: (data: any, type: string) => void | Promise<void>;
   placeholderText?: string;
 }
 
@@ -167,30 +167,42 @@ const SendInput: React.FC<SendInputProps> = ({
   );
 
   const handleSendClick = useCallback(
-    (audioUrl?: string) => {
-      let wasSent = false;
+    async (audioUrl?: string) => {
+      const outgoing = formatMessage ? formatMessage(message) : message;
+      const trailingText = hasTextContent(outgoing) ? outgoing : null;
+
+      let mediaPromise: void | Promise<void> = undefined;
 
       if (filePreviews.length > 0) {
-        effectiveSendMedia(filePreviews[0], 'media');
+        mediaPromise = effectiveSendMedia(filePreviews[0], 'media');
         setIsRecording(false);
-        wasSent = true;
       } else if (audioUrl) {
-        effectiveSendMedia(audioUrl, 'audio/');
+        mediaPromise = effectiveSendMedia(audioUrl, 'audio/');
         setIsRecording(false);
-        wasSent = true;
       } else {
-        const outgoing = formatMessage ? formatMessage(message) : message;
-        if (!hasTextContent(outgoing)) {
+        if (!trailingText) {
           return;
         }
-        effectiveSendMessage(outgoing);
-        wasSent = true;
-      }
-
-      if (wasSent) {
+        effectiveSendMessage(trailingText);
         setMessage('');
         setFilePreviews([]);
-        setTextareaHeight(40); // Reset height to default
+        setTextareaHeight(40);
+        return;
+      }
+
+      setMessage('');
+      setFilePreviews([]);
+      setTextareaHeight(40);
+
+      if (trailingText) {
+        // Wait for the media stanza to land before sending the caption so
+        // recipients see media-then-text order on the wire.
+        try {
+          await mediaPromise;
+        } catch {
+          // Media sender owns its own error reporting; still emit the caption.
+        }
+        effectiveSendMessage(trailingText);
       }
     },
     [

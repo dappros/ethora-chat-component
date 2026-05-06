@@ -92,7 +92,7 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
 
   const sendMedia = useCallback(
     (data: any, type: string) => {
-      sendMessageMedia(
+      return sendMessageMedia(
         data,
         type,
         activeMessage.roomJid,
