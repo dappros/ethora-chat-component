@@ -1575,6 +1575,15 @@ export class XmppClient implements XmppClientInterface {
     });
   };
 
+  private isValidMucRoomJid = (roomJID: unknown): roomJID is string => {
+    if (typeof roomJID !== 'string' || !roomJID) return false;
+    const at = roomJID.indexOf('@');
+    if (at <= 0) return false;
+    const domain = roomJID.slice(at + 1).split('/')[0];
+    if (!domain || !domain.includes('.')) return false;
+    return domain.startsWith('conference.');
+  };
+
   private ensureRoomPresence = async (
     roomJID: string,
     options?: {
@@ -1585,6 +1594,16 @@ export class XmppClient implements XmppClientInterface {
     }
   ): Promise<boolean> => {
     if (!roomJID) return true;
+    if (!this.isValidMucRoomJid(roomJID)) {
+      console.warn(
+        `[XMPP] room_presence_skipped_invalid_jid jid=${String(roomJID)} source=${
+          options?.source || 'other'
+        }`
+      );
+      // Block for a long time so repeated callers don't keep retrying.
+      this.roomPresenceBlockedUntil.set(roomJID, Date.now() + 24 * 60 * 60 * 1000);
+      return false;
+    }
     if (this.joinedRooms.has(roomJID)) return true;
     const blockedUntil = this.roomPresenceBlockedUntil.get(roomJID) || 0;
     if (Date.now() < blockedUntil) {
@@ -1612,9 +1631,23 @@ export class XmppClient implements XmppClientInterface {
     })
       .catch(async (error) => {
         const normalizedError = String(formatError(error));
-        if (
+        // Permanent / long-lived failures: server says "you are not a member"
+        // or "this room/domain doesn't exist". No point retrying for hours.
+        const isHardFailure =
+          normalizedError.includes('presence_error:forbidden') ||
+          normalizedError.includes('presence_error:not-allowed') ||
+          normalizedError.includes('presence_error:remote-server-not-found') ||
+          normalizedError.includes('presence_error:item-not-found') ||
+          normalizedError.includes('presence_invalid_jid');
+        if (isHardFailure) {
+          this.roomPresenceBlockedUntil.set(
+            roomJID,
+            Date.now() + 60 * 60 * 1000 // 1h
+          );
+        } else if (
           normalizedError.includes('presence_timeout') ||
-          normalizedError.includes('presence_send_failed')
+          normalizedError.includes('presence_send_failed') ||
+          normalizedError.includes('presence_error')
         ) {
           this.roomPresenceBlockedUntil.set(
             roomJID,
@@ -1897,6 +1930,15 @@ export class XmppClient implements XmppClientInterface {
   }
 
   sendTypingRequestStanza(chatId: string, fullName: string, start: boolean) {
+    // Don't send chatstates before we have a fully-bound session and have
+    // joined the target room — server returns "User session not found" or
+    // routes the message to nowhere if `to` is empty/invalid.
+    if (!chatId || !this.isValidMucRoomJid(chatId)) {
+      return;
+    }
+    if (this.status !== 'online') return;
+    if (!this.client?.jid) return;
+    if (!this.joinedRooms.has(chatId)) return;
     this.wrapWithConnectionCheck(async () => {
       sendTypingRequest(this.client, chatId, fullName, start);
     });

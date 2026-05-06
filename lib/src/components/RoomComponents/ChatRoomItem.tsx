@@ -46,11 +46,10 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
     };
   }, []);
 
+  const lastRawMessage = chat?.messages?.[(chat?.messages?.length ?? 0) - 1];
   const lastMessage = useMemo(
-    // Defensive: optional chaining was missing on the inner `.length` access — if
-    // `chat?.messages` was undefined, `(undefined).length` threw and unwound the router.
-    () => withAuthorFallback(chat?.messages?.[(chat?.messages?.length ?? 0) - 1]),
-    [chat?.messages?.length, withAuthorFallback]
+    () => withAuthorFallback(lastRawMessage),
+    [chat?.jid, lastRawMessage?.id, lastRawMessage?.body, withAuthorFallback]
   );
 
   const formatTimeToHHMM = (
