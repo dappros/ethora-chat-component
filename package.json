@@ -69,6 +69,9 @@
     "vite": "^7.0.0",
     "vite-plugin-dts": "^4.5.4"
   },
+  "overrides": {
+    "csstype": "3.1.3"
+  },
   "description": "1. npm create vite@latest 2. select name of project, select type (react/js) 3. cd project-name 4. npm i 5. npm i @ethora/chat-component 6. go to file src/App.tsx and replace it with this code",
   "directories": {
     "lib": "lib"
