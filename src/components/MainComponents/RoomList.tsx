@@ -298,7 +298,7 @@ const RoomList: React.FC<RoomListProps> = ({
               style={{ flexGrow: 1, overflowY: 'auto', padding: '16px 0px' }}
             >
               {filteredChats.map((chat: IRoom, index: number) => (
-                <React.Fragment key={`${chat.id}-${index}`}>
+                <React.Fragment key={chat.jid || `${chat.id}-${index}`}>
                   <ChatRoomItem
                     chat={chat}
                     index={index}

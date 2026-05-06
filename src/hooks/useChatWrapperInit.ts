@@ -200,12 +200,28 @@ const useChatWrapperInit = ({
       if (roomsList && Object.keys(roomsList).length > 0) {
         if (!presenceBootstrappedClientsRef.current.has(clientKey)) {
           presenceBootstrappedClientsRef.current.add(clientKey);
-          mark('bg:initRoomsPresence:start');
-          try {
-            await initRoomsPresence(targetClient, roomsList);
-            logDuration('bg:initRoomsPresence', 'bg:initRoomsPresence:start');
-          } catch (error) {
-            console.warn('[InitTiming] bg:initRoomsPresence:error', error);
+          // Dedup: sendAllPresencesAndMarkReady (fired from xmppClient `online`
+          // event) already joins every room from the persisted store and
+          // populates `joinedRooms`. If that pass completed, skip the legacy
+          // initRoomsPresence sweep — it would re-iterate the same JIDs and
+          // (for already-joined rooms) just no-op via the joinedRooms guard,
+          // but still adds an N*35ms serial walk and listener churn.
+          // Rooms that failed in the all-presences pass will be retried
+          // lazily when the user opens them (presenceInRoomStanza in
+          // useRoomInitialization) or by the existing roomPresenceBlockedUntil
+          // backoff path.
+          if (targetClient.presencesReady) {
+            ethoraLogger.log(
+              '[InitTiming] bg:initRoomsPresence:skipped reason=presences_already_sent'
+            );
+          } else {
+            mark('bg:initRoomsPresence:start');
+            try {
+              await initRoomsPresence(targetClient, roomsList);
+              logDuration('bg:initRoomsPresence', 'bg:initRoomsPresence:start');
+            } catch (error) {
+              console.warn('[InitTiming] bg:initRoomsPresence:error', error);
+            }
           }
         }
       }

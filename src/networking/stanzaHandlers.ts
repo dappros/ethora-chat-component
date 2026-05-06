@@ -371,7 +371,12 @@ const handleComposing = async (stanza: Element, currentUser: string) => {
 };
 
 const onPresenceInRoom = (stanza: Element | any) => {
-  if (stanza.attrs.id === 'presenceInRoom' && !stanza.getChild('error')) {
+  const stanzaId: string | undefined = stanza?.attrs?.id;
+  if (
+    typeof stanzaId === 'string' &&
+    stanzaId.startsWith('presenceInRoom') &&
+    !stanza.getChild('error')
+  ) {
     const roomJID: string = stanza.attrs.from.split('/')[0];
     const role: string = stanza?.children[1]?.children[0]?.attrs.role;
     store.dispatch(setRoomRole({ chatJID: roomJID, role: role }));
