@@ -157,10 +157,18 @@ export const resolveInitBeforeLoadUser = async (
 
   const explicitUser = config?.userLogin?.enabled ? config?.userLogin?.user : null;
   if (explicitUser) {
+    const candidate = normalizeUserForXmpp(explicitUser);
+
+    if (candidate && hasXmppCredentials(candidate)) {
+      return candidate;
+    }
+
     const hydrated = await tryHydrateViaMy(explicitUser, myEndpoint, signal).catch(() => null);
     if (hydrated && hasXmppCredentials(hydrated)) {
       return hydrated;
     }
+
+    return null;
   }
 
   if (config?.jwtLogin?.enabled && config?.jwtLogin?.token) {

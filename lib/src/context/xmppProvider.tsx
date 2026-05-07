@@ -103,24 +103,37 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
     initializingRef.current = null;
   }, []);
 
-  const syncRoomsForPreload = async (
-    targetClient: XmppClient,
+  const prefetchRoomsViaRest = async (
+    targetClient: XmppClient | null,
     signal?: AbortSignal
   ) => {
-    const roomsResponse = await getRooms();
+    const roomsResponse = await getRooms().catch(() => ({ items: [] }));
     const items = roomsResponse?.items || [];
-    if (signal?.aborted || !items.length) return;
+    if (signal?.aborted || !items.length) return [];
 
     items.forEach((room) => {
       if (signal?.aborted) return;
       store.dispatch(
         addRoomViaApi({
           room: createRoomFromApi(room, config?.xmppSettings?.conference),
-          xmpp: targetClient,
+          xmpp: targetClient as XmppClient,
         })
       );
     });
     store.dispatch(updateUsersSet({ rooms: items }));
+    return items;
+  };
+
+  const syncRoomsForPreload = async (
+    targetClient: XmppClient,
+    signal?: AbortSignal,
+    prefetched?: any[]
+  ) => {
+    const items =
+      prefetched && prefetched.length
+        ? prefetched
+        : await prefetchRoomsViaRest(targetClient, signal);
+    if (signal?.aborted || !items.length) return;
     await targetClient.sendAllPresencesAndMarkReady();
   };
 
@@ -329,6 +342,11 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
         return;
       }
 
+      const prefetchPromise = prefetchRoomsViaRest(
+        null,
+        abortController.signal
+      ).catch(() => [] as any[]);
+
       const targetClient = await initializeClient(
         resolvedUsername,
         resolvedPassword,
@@ -355,7 +373,12 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
         return;
       }
 
-      await syncRoomsForPreload(targetClient, abortController.signal);
+      const prefetchedItems = await prefetchPromise;
+      await syncRoomsForPreload(
+        targetClient,
+        abortController.signal,
+        prefetchedItems
+      );
 
       if (abortController.signal.aborted) return;
 

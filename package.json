@@ -1,6 +1,6 @@
 {
   "name": "@ethora/chat-component",
-  "version": "26.3.7",
+  "version": "26.3.10",
   "type": "module",
   "main": "dist/main.js",
   "types": "dist/main.d.ts",
@@ -16,7 +16,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "build:lib": "tsc --p ./tsconfig-build.json && vite build",
-    "prepare": "npm run build",
+    "prepare": "npm run build && npm run build:lib",
     "lint": "eslint . --quiet --report-unused-disable-directives",
     "lint:full": "eslint . --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
