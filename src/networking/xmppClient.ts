@@ -85,6 +85,11 @@ interface PrivateStoreCache {
   data: Record<string, string | number> | null;
 }
 
+interface HistoryInFlightEntry {
+  max: number;
+  promise: Promise<IMessage[] | undefined>;
+}
+
 export class XmppClient implements XmppClientInterface {
   client!: Client;
   devServer: string | undefined;
@@ -127,13 +132,14 @@ export class XmppClient implements XmppClientInterface {
   private recoveryRoomJid: string | null = null;
   private joinedRooms: Set<string> = new Set();
   private roomPresenceInFlight: Map<string, Promise<boolean>> = new Map();
-  private historyPreloadInFlight: Map<string, Promise<IMessage[] | undefined>> =
+  private historyPreloadInFlight: Map<string, HistoryInFlightEntry> =
     new Map();
   private mamRequestRegistry: Map<string, MamRequestState> = new Map();
   private historyQueue: HistoryQueueTask[] = [];
   private historyQueueInFlight = 0;
   private historyQueueInFlightHigh = 0;
   private historyQueueWorkerScheduled = false;
+  private historyQueueWorkerTimer: ReturnType<typeof setTimeout> | null = null;
   private roomHistoryEpoch: Map<string, number> = new Map();
   private criticalSendUntil = 0;
   private activeRoomBoostUntil = 0;
@@ -156,6 +162,9 @@ export class XmppClient implements XmppClientInterface {
     fetchedAt: 0,
     data: null,
   };
+  private chatsPrivateStoreInFlight: Promise<
+    Record<string, string | number> | null
+  > | null = null;
   private activeRoomJid: string | null = null;
   private sendIsActiveById: Map<string, boolean> = new Map();
   private sendClickToEchoByScope: Record<'active' | 'nonactive', number[]> = {
@@ -807,6 +816,10 @@ export class XmppClient implements XmppClientInterface {
     this.historyQueueInFlight = 0;
     this.historyQueueInFlightHigh = 0;
     this.historyQueueWorkerScheduled = false;
+    if (this.historyQueueWorkerTimer) {
+      clearTimeout(this.historyQueueWorkerTimer);
+      this.historyQueueWorkerTimer = null;
+    }
   }
 
   private getSendLane(roomJid?: string): SendLane {
@@ -984,13 +997,30 @@ export class XmppClient implements XmppClientInterface {
     return `get-history:${Date.now().toString()}:${Math.random().toString(16).slice(2, 8)}`;
   }
 
-  private scheduleHistoryQueue() {
-    if (this.historyQueueWorkerScheduled) return;
+  private getHistoryInFlightKey(chatJID: string, before?: number): string {
+    const fixedChatJid = chatJID.includes('@')
+      ? chatJID
+      : `${chatJID}@${this.service || VITE_APP_XMPP_CONFERENCE}`;
+    return `${fixedChatJid}:${String(before || '')}`;
+  }
+
+  private scheduleHistoryQueue(delayMs = 0) {
+    if (this.historyQueueWorkerScheduled) {
+      if (delayMs <= 0 && this.historyQueueWorkerTimer) {
+        clearTimeout(this.historyQueueWorkerTimer);
+        this.historyQueueWorkerTimer = null;
+        this.historyQueueWorkerScheduled = false;
+      } else {
+        return;
+      }
+    }
+
     this.historyQueueWorkerScheduled = true;
-    setTimeout(() => {
+    this.historyQueueWorkerTimer = setTimeout(() => {
+      this.historyQueueWorkerTimer = null;
       this.historyQueueWorkerScheduled = false;
       this.processHistoryQueue().catch(() => {});
-    }, 0);
+    }, Math.max(0, delayMs));
   }
 
   private pickNextHistoryTask(): HistoryQueueTask | null {
@@ -1005,6 +1035,13 @@ export class XmppClient implements XmppClientInterface {
       (task) => task.priority === 2
     ) && (suppressBackground || now < backgroundPausedUntil);
     this.updateBackgroundSuppressionMetrics(hasBlockedBackgroundTasks);
+    if (hasBlockedBackgroundTasks) {
+      const resumeAt = Math.max(
+        backgroundPausedUntil,
+        suppressBackground ? now + 120 : now
+      );
+      this.scheduleHistoryQueue(Math.max(80, resumeAt - now));
+    }
     const runnable = this.historyQueue
       .filter(
         (task) =>
@@ -1725,12 +1762,24 @@ export class XmppClient implements XmppClientInterface {
     const source = options?.source || 'default';
     const shouldCoalesceActive =
       source === 'active' || source === 'send_ack' || options?.coalesceRoom;
+    const inFlightKey = this.getHistoryInFlightKey(chatJID, before);
+    const existingInFlight = this.historyPreloadInFlight.get(inFlightKey);
 
     if (options?.skipIfPreloaded) {
       const currentRoom = store.getState().rooms.rooms?.[chatJID];
       if (currentRoom?.historyPreloadState === 'done' && currentRoom?.messages?.length) {
         return currentRoom.messages;
       }
+    }
+
+    if (existingInFlight) {
+      if (source === 'active' || source === 'send_ack') {
+        this.promoteRoomHistory(chatJID);
+      }
+      ethoraLogger.log(
+        `[XMPP] history_inflight_reuse room=${chatJID} source=${source} requestedMax=${max} existingMax=${existingInFlight.max}`
+      );
+      return existingInFlight.promise;
     }
 
     if (shouldCoalesceActive) {
@@ -1749,16 +1798,25 @@ export class XmppClient implements XmppClientInterface {
       id: otherStanzaId,
       source,
     });
+    this.historyPreloadInFlight.set(inFlightKey, {
+      max,
+      promise: requestPromise,
+    });
 
     if (shouldCoalesceActive) {
       const inFlightKey = `${chatJID}:${String(before || '')}:${source}`;
       this.activeHistoryInFlight.set(inFlightKey, requestPromise);
       return requestPromise.finally(() => {
+        this.historyPreloadInFlight.delete(
+          this.getHistoryInFlightKey(chatJID, before)
+        );
         this.activeHistoryInFlight.delete(inFlightKey);
       });
     }
 
-    return await requestPromise;
+    return await requestPromise.finally(() => {
+      this.historyPreloadInFlight.delete(inFlightKey);
+    });
   };
 
   getLastMessageArchiveStanza(roomJID: string) {
@@ -1962,7 +2020,9 @@ export class XmppClient implements XmppClientInterface {
     });
   }
 
-  getChatsPrivateStoreRequestStanza = async () => {
+  getChatsPrivateStoreRequestStanza = async (): Promise<
+    Record<string, string | number> | null
+  > => {
     if (this.disableLastRead) {
       return null;
     }
@@ -1973,29 +2033,47 @@ export class XmppClient implements XmppClientInterface {
     ) {
       return this.chatsPrivateStoreCache.data;
     }
+    if (this.chatsPrivateStoreInFlight) {
+      return this.chatsPrivateStoreInFlight;
+    }
 
-    return this.wrapWithConnectionCheck(async () => {
+    this.chatsPrivateStoreInFlight = this.wrapWithConnectionCheck<
+      Record<string, string | number> | null
+    >(async () => {
       try {
         const timeoutPromise = new Promise<null>((resolve) =>
           setTimeout(resolve, this.startupPrivateStoreTimeoutMs)
         );
-        const result = await Promise.race([
+        const result = (await Promise.race([
           getChatsPrivateStoreRequest(this.client),
           timeoutPromise,
-        ]);
+        ])) as Record<string, string | number> | null;
+        const fetchedAt = Date.now();
         if (result) {
           this.chatsPrivateStoreCache = {
-            fetchedAt: Date.now(),
-            data: result as Record<string, string | number>,
+            fetchedAt,
+            data: result,
           };
-          return result;
+          return this.chatsPrivateStoreCache.data;
         }
+        this.chatsPrivateStoreCache = {
+          fetchedAt,
+          data: this.chatsPrivateStoreCache.data,
+        };
         return this.chatsPrivateStoreCache.data;
       } catch (error) {
         ethoraLogger.log('error getChatsPrivateStoreRequest', error);
+        this.chatsPrivateStoreCache = {
+          fetchedAt: Date.now(),
+          data: this.chatsPrivateStoreCache.data,
+        };
         return this.chatsPrivateStoreCache.data;
       }
+    }).finally(() => {
+      this.chatsPrivateStoreInFlight = null;
     });
+
+    return this.chatsPrivateStoreInFlight;
   };
 
   async actionSetTimestampToPrivateStoreStanza(

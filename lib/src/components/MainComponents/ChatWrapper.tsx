@@ -116,6 +116,8 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     if (!chat?.historyComplete && chat.messages?.length < 30) {
       client?.getHistoryStanza(chat.jid, 30, undefined, undefined, {
         source: 'active',
+        coalesceRoom: true,
+        skipIfPreloaded: true,
       });
     }
   };

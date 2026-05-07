@@ -59,6 +59,20 @@ const getNormalizedSubscribedRooms = (subscribedRooms: unknown): string[] =>
     ? subscribedRooms.filter((room): room is string => typeof room === 'string')
     : [];
 
+// MUC JIDs always look like `<localpart>@conference.<host>`. Slice keys leaking
+// into `state.rooms` (e.g. when persisted state was double-wrapped and keys like
+// 'rooms', 'subscribedRooms', 'usersSet', 'pushSubscriptionStatus' got rehydrated
+// as room entries) corrupt the rooms map. The persist transform filters them on
+// rehydrate, but reducers can still write a non-JID key if upstream code passes
+// a malformed object. Guard at reducer entry so corrupt state can't be created
+// in-memory either — without this, the next persist round would re-serialize
+// the bad keys and presence/MAM keep targeting them.
+const isValidRoomJid = (jid: unknown): jid is string => {
+  if (typeof jid !== 'string' || !jid) return false;
+  if (!jid.includes('@')) return false;
+  return true;
+};
+
 const getMessageTimestampValue = (message: IMessage): number => {
   const hasExplicitTimestamp = Object.prototype.hasOwnProperty.call(
     message || {},
@@ -229,6 +243,7 @@ export const roomsStore = createSlice({
   reducers: {
     addRoom(state, action: PayloadAction<{ roomData: IRoom }>) {
       const { roomData } = action.payload;
+      if (!isValidRoomJid(roomData?.jid)) return;
       const existing = state.rooms[roomData.jid];
       const incomingMessages = Array.isArray(roomData.messages)
         ? roomData.messages
@@ -663,6 +678,7 @@ export const roomsStore = createSlice({
     },
     addRoomFromApi: (state, action: PayloadAction<{ room: IRoom }>) => {
       const { room } = action.payload;
+      if (!isValidRoomJid(room?.jid)) return;
       const existing = state.rooms[room.jid];
       const incomingMessages = Array.isArray(room.messages)
         ? room.messages
@@ -707,6 +723,7 @@ export const roomsStore = createSlice({
       if (!rooms?.length) return;
 
       rooms.forEach((update) => {
+        if (!isValidRoomJid(update?.jid)) return;
         const room = state.rooms[update.jid];
         // Defensive: a corrupt rehydration can leave non-object entries here
         // (e.g. an array with stringified props). Mutating them via Immer

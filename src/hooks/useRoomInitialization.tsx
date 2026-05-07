@@ -116,7 +116,11 @@ export const useRoomInitialization = (
           30,
           undefined,
           undefined,
-          { source: 'active' }
+          {
+            source: 'active',
+            coalesceRoom: true,
+            skipIfPreloaded: true,
+          }
         );
         if (!res?.length) {
           client.prioritizeRoomPresence(activeRoomJID).catch(() => {});
@@ -128,7 +132,10 @@ export const useRoomInitialization = (
             20 + countUndefinedText(res),
             Number(res[0].id),
             undefined,
-            { source: 'active' }
+            {
+              source: 'active',
+              coalesceRoom: true,
+            }
           );
         }
       } finally {
@@ -196,6 +203,7 @@ export const useRoomInitialization = (
         client
           .getHistoryStanza(activeRoomJID, 30, undefined, undefined, {
             source: 'active',
+            coalesceRoom: true,
           })
           .catch(() => {})
           .finally(() => {

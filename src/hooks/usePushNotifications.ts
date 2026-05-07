@@ -167,6 +167,7 @@ const usePushNotifications = (
       client
         .getHistoryStanza(roomJid, 30, undefined, undefined, {
           source: 'active',
+          coalesceRoom: true,
         })
         .catch(() => {})
         .finally(() => {

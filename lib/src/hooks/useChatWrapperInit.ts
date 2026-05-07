@@ -302,7 +302,6 @@ const useChatWrapperInit = ({
             retryLimit: 2,
             selectedRoomJid: store.getState().rooms.activeRoomJID || null,
             defaultRoomJids,
-            forceReload: true,
           });
         } else {
           // Keep legacy catch-up path for cached rooms.
