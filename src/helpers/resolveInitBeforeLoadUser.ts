@@ -88,9 +88,6 @@ const tryHydrateViaMy = async (
   if (signal?.aborted) return null;
 
   const mergedCandidate = normalizeUserForXmpp(candidate);
-  if (hasXmppCredentials(mergedCandidate)) {
-    return mergedCandidate;
-  }
 
   if (!candidate?.token && !candidate?.refreshToken) {
     return mergedCandidate;
@@ -108,7 +105,10 @@ const tryHydrateViaMy = async (
         merged.refreshToken = workingRefresh || merged.refreshToken;
       }
       return merged;
-    } catch {
+    } catch (error) {
+      if (!isAuthError(error) && hasXmppCredentials(mergedCandidate)) {
+        return mergedCandidate;
+      }
       // ignore and try refresh path
     }
   }
