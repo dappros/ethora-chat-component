@@ -6,6 +6,7 @@ import LastMessagePhoto from './styled/LastMessagePhoto';
 import LastMessageEmoji from './styled/LastMessageEmoji';
 import LastMessageFile from './styled/LastMessageFile';
 import LastAudioMessage from './styled/LastAudioMessage';
+import { LastRoomMessageText } from './styled/StyledRoomComponents';
 
 interface LastMessageItemProps {
   lastMessage: LastMessage;
@@ -13,6 +14,14 @@ interface LastMessageItemProps {
 
 const LastMessageItem: FC<LastMessageItemProps> = ({ lastMessage }) => {
   const { body, emoji, mimetype } = lastMessage;
+
+  if (lastMessage?.isDeleted) {
+    return (
+      <LastRoomMessageText style={{ fontStyle: 'italic', opacity: 0.7 }}>
+        Message deleted
+      </LastRoomMessageText>
+    );
+  }
 
   if (mimetype) {
     if (mimetype.startsWith('image/')) {

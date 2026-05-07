@@ -157,7 +157,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
               usersTyping={chat.composingList}
               style={{ color: !isChatActive ? '#141414' : '#fff' }}
             />
-          ) : lastMessage?.body ? (
+          ) : lastMessage?.body || lastMessage?.isDeleted ? (
             <LastMessageItem lastMessage={lastMessage} />
           ) : (chat?.messages?.length ?? 0) === 0 && chat?.historyComplete ? (
             <LastRoomMessageText>Room created</LastRoomMessageText>

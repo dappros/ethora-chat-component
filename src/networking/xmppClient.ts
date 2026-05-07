@@ -119,6 +119,10 @@ export class XmppClient implements XmppClientInterface {
   private inFlightIds: Set<string> = new Set();
   private processingQueue: boolean = false;
   private currentlyProcessingQueueId: string | null = null;
+  // Resolves the in-flight send to `false` when called — used on disconnect
+  // so a stuck send (e.g. laptop sleep killed the WS) doesn't pin processQueue
+  // forever. The queue then unshifts the entry and resumes after reconnect.
+  private currentSendCancel: (() => void) | null = null;
   private isRecoveringRoomPresence: boolean = false;
   private recoveryRoomJid: string | null = null;
   private joinedRooms: Set<string> = new Set();
@@ -398,8 +402,18 @@ export class XmppClient implements XmppClientInterface {
       this.roomPresenceBlockedUntil.clear();
       this.clearMamRegistry();
       this.clearHistoryQueue();
-      this.pendingSendById.clear();
+      // Don't clear pendingSendById — the messageQueue entries survive disconnect
+      // and we need their metadata so reconnect can resume them. Just unstick
+      // any in-flight send so processQueue can exit and retry on reconnect.
       this.sendIsActiveById.clear();
+      try {
+        this.currentSendCancel?.();
+      } catch {
+        // ignore
+      }
+      this.currentSendCancel = null;
+      this.processingQueue = false;
+      this.currentlyProcessingQueueId = null;
       this.isRecoveringRoomPresence = false;
       this.recoveryRoomJid = null;
       this.logStep('event:disconnect');
@@ -1457,7 +1471,11 @@ export class XmppClient implements XmppClientInterface {
             roomJid: nextEntry.roomJid,
           });
         }
-        const okRaw = await nextEntry.task();
+        const cancelPromise = new Promise<boolean>((resolve) => {
+          this.currentSendCancel = () => resolve(false);
+        });
+        const okRaw = await Promise.race([nextEntry.task(), cancelPromise]);
+        this.currentSendCancel = null;
         this.currentlyProcessingQueueId = null;
         const ok = okRaw !== false;
         if (ok) {

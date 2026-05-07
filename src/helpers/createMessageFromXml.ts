@@ -19,6 +19,10 @@ export const createMessageFromXml = async (
   const message: IMessage = {
     ...data,
     ...data.data,
+    // Server marks deleted messages in MAM with a `<deleted>` child; map that
+    // onto the model's `isDeleted` flag so the bubble renders the tombstone
+    // instead of the stale body.
+    isDeleted: !!(data as any)?.deleted || !!(data as any)?.isDeleted,
   };
 
   return message;

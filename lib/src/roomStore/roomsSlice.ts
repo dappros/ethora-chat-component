@@ -250,6 +250,12 @@ export const roomsStore = createSlice({
         unreadMessages: existing?.unreadMessages ?? roomData.unreadMessages ?? 0,
         lastViewedTimestamp:
           existing?.lastViewedTimestamp ?? roomData.lastViewedTimestamp ?? 0,
+        unreadBaselineTimestamp:
+          existing?.unreadBaselineTimestamp ??
+          existing?.lastViewedTimestamp ??
+          roomData.unreadBaselineTimestamp ??
+          roomData.lastViewedTimestamp ??
+          0,
         composingList: existing?.composingList ?? roomData.composingList,
         composing: existing?.composing ?? roomData.composing,
         unreadCapped:
@@ -330,8 +336,23 @@ export const roomsStore = createSlice({
     ) {
       const { roomJID, messageId } = action.payload;
       if (state.rooms[roomJID]) {
-        state.rooms[roomJID].messages = state.rooms[roomJID].messages.filter(
-          (message) => message.id !== messageId
+        // Tombstone the message instead of removing it so the bubble can render
+        // a "deleted" placeholder and ordering / replies / quoting stay intact.
+        state.rooms[roomJID].messages = state.rooms[roomJID].messages.map(
+          (message) =>
+            message.id === messageId
+              ? {
+                  ...message,
+                  isDeleted: true,
+                  body: '',
+                  isMediafile: 'false',
+                  location: undefined,
+                  locationPreview: undefined,
+                  mimetype: undefined,
+                  fileName: undefined,
+                  reaction: undefined,
+                }
+              : message
         );
       }
     },
@@ -663,6 +684,12 @@ export const roomsStore = createSlice({
         unreadMessages: existing?.unreadMessages ?? room.unreadMessages ?? 0,
         lastViewedTimestamp:
           existing?.lastViewedTimestamp ?? room.lastViewedTimestamp ?? 0,
+        unreadBaselineTimestamp:
+          existing?.unreadBaselineTimestamp ??
+          existing?.lastViewedTimestamp ??
+          room.unreadBaselineTimestamp ??
+          room.lastViewedTimestamp ??
+          0,
         composingList: existing?.composingList ?? room.composingList,
         composing: existing?.composing ?? room.composing,
         unreadCapped: existing?.unreadCapped ?? room.unreadCapped ?? false,

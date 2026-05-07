@@ -210,16 +210,6 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
           </ChatContainerHeaderBoxInfo>
       </div>
       )}
-
-      {!config?.disableChatInfo?.disableChatHeaderMenu && (
-        <div style={{ display: 'flex', gap: 16 }}>
-          {/* <SearchInput animated icon={<SearchIcon />} /> */}
-          <RoomMenu
-            handleLeaveClick={handleLeaveClick}
-            handleReportClick={handleReportClick}
-          />
-        </div>
-      )}
     </>
   );
 };
