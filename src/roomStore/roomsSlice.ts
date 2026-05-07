@@ -708,7 +708,12 @@ export const roomsStore = createSlice({
 
       rooms.forEach((update) => {
         const room = state.rooms[update.jid];
-        if (!room) return;
+        // Defensive: a corrupt rehydration can leave non-object entries here
+        // (e.g. an array with stringified props). Mutating them via Immer
+        // throws "Immer only supports setting array indices and the 'length'
+        // property" which then nukes the entire history scheduler. Skip
+        // anything that isn't a plain room object.
+        if (!room || typeof room !== 'object' || Array.isArray(room)) return;
 
         if (typeof update.historyPreloadState !== 'undefined') {
           room.historyPreloadState = update.historyPreloadState;
@@ -720,7 +725,7 @@ export const roomsStore = createSlice({
 
         if (update.messages) {
           const merged = mergeRoomMessages(
-            room.messages || [],
+            Array.isArray(room.messages) ? room.messages : [],
             update.messages,
             state.usersSet
           );

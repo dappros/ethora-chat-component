@@ -36,6 +36,7 @@ import {
   resolveInitBeforeLoadUser,
 } from '../helpers/resolveInitBeforeLoadUser';
 import { setBaseURL } from '../networking/apiClient';
+import { ensureScopedChatCache } from '../helpers/cacheScope';
 import { ethoraLogger } from '../helpers/ethoraLogger';
 
 // Declare XmppContext
@@ -332,6 +333,18 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
 
       applyResolvedUserToStore(resolvedUser);
 
+      // Stamp the cache scope marker BEFORE we start writing rooms into
+      // redux-persist. Without this, the first <ChatWrapper> mount after
+      // login sees `previousScope === null` + freshly-persisted rooms in
+      // localStorage and treats them as legacy/foreign data — wiping all the
+      // rooms the bootstrap just loaded. Legacy data for a different scope
+      // is still cleared inside ensureScopedChatCache.
+      try {
+        ensureScopedChatCache(config);
+      } catch (error) {
+        console.warn('[initBeforeLoad] ensureScopedChatCache failed', error);
+      }
+
       const resolvedUsername =
         resolvedUser.xmppUsername ||
         resolvedUser.defaultWallet?.walletAddress;
@@ -342,10 +355,9 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
         return;
       }
 
-      const prefetchPromise = prefetchRoomsViaRest(
-        null,
-        abortController.signal
-      ).catch(() => [] as any[]);
+      const prefetchPromise = prefetchRoomsViaRest(null).catch(
+        () => [] as any[]
+      );
 
       const targetClient = await initializeClient(
         resolvedUsername,
@@ -356,8 +368,6 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
         } as xmppSettingsInterface
       );
 
-      if (abortController.signal.aborted) return;
-
       const isOnline = await waitForOnline(targetClient)
         .then(() => true)
         .catch((error) => {
@@ -367,24 +377,16 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
           );
           return false;
         });
-      if (abortController.signal.aborted) return;
       if (!isOnline) {
         setProviderBootstrapStatus('failed');
         return;
       }
 
       const prefetchedItems = await prefetchPromise;
-      await syncRoomsForPreload(
-        targetClient,
-        abortController.signal,
-        prefetchedItems
-      );
-
-      if (abortController.signal.aborted) return;
+      await syncRoomsForPreload(targetClient, undefined, prefetchedItems);
 
       const roomTimestampObject =
         await targetClient.getChatsPrivateStoreRequestStanza();
-      if (abortController.signal.aborted) return;
 
       updatedChatLastTimestamps(
         roomTimestampObject as Record<string, string | number>,
@@ -393,7 +395,7 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
 
       void runHistoryPreloadScheduler({
         client: targetClient,
-        signal: abortController.signal,
+        // intentionally no signal — see comment above
         concurrency: 3,
         pageSize: 10,
         retryLimit: 2,

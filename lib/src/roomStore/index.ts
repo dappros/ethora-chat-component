@@ -67,8 +67,16 @@ const normalizeRoomsState = (state: Record<string, any>) => {
     state.rooms && typeof state.rooms === 'object' ? state.rooms : {};
 
   const normalizedRooms = Object.fromEntries(
-    Object.entries(roomsState).filter(([, room]) => room && typeof room === 'object').map(
-      ([jid, room]: [string, IRoom]) => [
+    Object.entries(roomsState)
+      .filter(([key, room]) => {
+        // Strip non-JID keys (e.g. when persisted state was double-wrapped
+        // and slice keys like 'rooms', 'activeRoomJID', 'usersSet' leaked
+        // into the rooms map). Also drop arrays / non-objects which crash
+        // Immer when reducers later try to mutate them as room records.
+        if (!key || typeof key !== 'string' || !key.includes('@')) return false;
+        return room && typeof room === 'object' && !Array.isArray(room);
+      })
+      .map(([jid, room]: [string, IRoom]) => [
         jid,
         {
           ...room,
@@ -79,8 +87,7 @@ const normalizeRoomsState = (state: Record<string, any>) => {
               )
             : [],
         },
-      ]
-    )
+      ])
   );
 
   return {
