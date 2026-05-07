@@ -10,7 +10,11 @@ import {
 import http from '../apiClient';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
 
-const GET_ROOMS_CACHE_MS = 1500;
+// 60s, not 1.5s. Provider bootstrap fires /chats/my early; chat mount can
+// happen many seconds later (route transition, lazy chunk). Without this
+// the UI fires a second /chats/my just to refetch the same data — and the
+// user sees a "0 rooms" flash while the second request is in flight.
+const GET_ROOMS_CACHE_MS = 60_000;
 let getRoomsInFlight: Promise<{ items: ApiRoom[] }> | null = null;
 let getRoomsInFlightToken = '';
 let lastGetRoomsResponse: { items: ApiRoom[] } | null = null;

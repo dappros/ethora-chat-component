@@ -504,8 +504,8 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
         <XmppProviderPushNotificationsEnabler
           pushNotifications={pushNotifications}
         />
+        {children}
       </Provider>
-      {children}
     </XmppContext.Provider>
   );
 };
