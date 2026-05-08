@@ -33,6 +33,18 @@ const logoutService = {
     }
     setGlobalXmppClient(null);
 
+    // Notify XmppProvider so it can drop its `client` ref. Without this,
+    // a re-login in the same tab keeps the disconnected client in context,
+    // useChatWrapperInit takes the "client already exists" branch on next
+    // mount, and presence/loadRooms run against a dead socket.
+    if (typeof window !== 'undefined') {
+      try {
+        window.dispatchEvent(new Event('ethora-xmpp-logout'));
+      } catch {
+        // Older browsers may need new CustomEvent; fall through silently.
+      }
+    }
+
     // Clear app state immediately so UI doesn't wait on network/teardown latency.
     store.dispatch(logout());
     store.dispatch(setLogoutState());

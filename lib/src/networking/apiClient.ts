@@ -100,12 +100,27 @@ http.interceptors.response.use(
     if (
       originalRequest._retry ||
       originalRequest.url === '/users/login/refresh' ||
-      originalRequest.url === '/users/login'
+      originalRequest.url === '/users/login' ||
+      originalRequest.url === '/users/login-with-email' ||
+      originalRequest.url === '/users/client' ||
+      originalRequest.url === '/users/my'
     ) {
+      // Login / hydrate endpoints handle their own retry semantics.
+      // Triggering the refresh interceptor here would dispatch logout()
+      // mid-bootstrap and mask the original error with
+      // "Refresh token is missing".
       return Promise.reject(error);
     }
 
     if (!refreshConfig?.enabled) {
+      return Promise.reject(error);
+    }
+
+    const hasRefreshableSession = Boolean(
+      refreshConfig.refreshFunction ||
+        store.getState().chatSettingStore.user?.refreshToken
+    );
+    if (!hasRefreshableSession) {
       return Promise.reject(error);
     }
 

@@ -495,6 +495,17 @@ const useChatWrapperInit = ({
 
               if (roomsList && Object.keys(roomsList).length > 0) {
                 setInited(true);
+                // Rooms came from redux-persist or a prior bootstrap.
+                // Still refresh from /chats/my in the background so the
+                // sidebar reflects the current server state — without it,
+                // a re-login (or a multi-tenant App Switcher hop) keeps
+                // showing stale rooms or, when the cache turned out
+                // empty, never loads any rooms at all.
+                if (config?.newArch !== false) {
+                  void loadRooms(newClient, true).catch((error) => {
+                    ethoraLogger.log('background loadRooms failed', error);
+                  });
+                }
               } else {
                 if (config?.newArch === false) {
                   mark('xmpp:getRoomsStanza:start');
@@ -539,6 +550,11 @@ const useChatWrapperInit = ({
                 ensureActiveRoomSelected(loadedRooms as any);
               } else {
                 ensureActiveRoomSelected(Object.values(roomsList) as any);
+                // Background-refresh rehydrated rooms — see comment in the
+                // first-time init branch above.
+                void loadRooms(client, true).catch((error) => {
+                  ethoraLogger.log('background loadRooms failed', error);
+                });
               }
               if (config?.enableRoomsRetry?.enabled) {
                 const isSelectedRoomPresent = isChatIdPresentInArray(
