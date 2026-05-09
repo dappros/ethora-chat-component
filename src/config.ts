@@ -6,6 +6,7 @@ const env = (((import.meta as unknown as { env?: Record<string, string | undefin
 const runtimeHostConfig = buildRuntimeHostConfig(env);
 
 export const VITE_APP_API_URL = runtimeHostConfig.apiUrl;
+export const VITE_APP_ID = runtimeHostConfig.appId;
 export const VITE_APP_DISABLE_STRICT = 'true';
 export const VITE_APP_DOMAIN_NAME = runtimeHostConfig.domainName;
 export const VITE_APP_WEB_DOMAIN = runtimeHostConfig.webDomain;
