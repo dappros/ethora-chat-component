@@ -17,6 +17,7 @@ import { ethoraLogger } from './helpers/ethoraLogger';
 import {
   VITE_APP_API_URL,
   VITE_APP_ID,
+  VITE_APP_TOKEN,
   VITE_APP_XMPP_BASEDOMAIN,
   VITE_APP_XMPP_CONFERENCE,
   SERVICE,
@@ -29,9 +30,26 @@ import {
 // .env.local — empty fallbacks here mean the consts will be empty
 // strings until the developer provides them, which fails fast with a
 // readable error rather than silently hitting the wrong server.
+// One-time startup log so it's obvious from the console which env got
+// loaded into the build. If this prints empty strings, .env.local
+// wasn't read at Vite startup — restart `npm run dev` after writing it.
+// eslint-disable-next-line no-console
+console.log('[demo] env →', {
+  VITE_API: VITE_APP_API_URL,
+  VITE_APP_ID,
+  VITE_XMPP_HOST: VITE_APP_XMPP_BASEDOMAIN,
+  VITE_APP_XMPP_SERVICE: SERVICE,
+});
+
 const APP_CHAT_BASE_CONFIG: IConfig = {
   appId: VITE_APP_ID,
   baseUrl: VITE_APP_API_URL,
+  // setBaseURL() in apiClient.ts uses customAppToken to override the
+  // hardcoded fallback in api.config.ts (which targets the BASE app on
+  // prod). Without this, the SDK signs every authenticated request
+  // with the wrong app token and the API rejects login as 401 even
+  // when the URL is correct.
+  customAppToken: VITE_APP_TOKEN,
   xmppSettings: {
     devServer: SERVICE,
     host: VITE_APP_XMPP_BASEDOMAIN,
