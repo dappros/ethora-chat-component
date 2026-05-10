@@ -34,5 +34,6 @@ export const AuthTestIds = {
   emailInput: 'auth_email_input',
   passwordInput: 'auth_password_input',
   submitButton: 'auth_submit_button',
-  loginErrorMessage: 'auth_login_error',
+  emailError: 'auth_email_error',
+  passwordError: 'auth_password_error',
 } as const;

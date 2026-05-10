@@ -15,3 +15,16 @@ export { useQRCodeChat, handleQRChatId } from './hooks/useQRCodeChatHandler';
 export { useInAppNotifications } from './hooks/useInAppNotifications';
 export { default as usePushNotifications } from './hooks/usePushNotifications';
 export { resendMessage } from './utils/resendMessage';
+
+// Stable `data-testid` constants — exposed so host apps that consume
+// this package (e.g. ethora-app-reactjs) can resolve chat-component
+// nodes in their own Playwright / Cypress tests without re-typing
+// magic strings, and so the values stay in lockstep with Android's
+// `*TestTags` Kotlin objects and iOS's `*AccessibilityID` Swift
+// enums. Cross-platform parity table: see README "Testing".
+export {
+  ChatInputTestIds,
+  MessageBubbleTestIds,
+  RoomListTestIds,
+  AuthTestIds,
+} from './testIds';

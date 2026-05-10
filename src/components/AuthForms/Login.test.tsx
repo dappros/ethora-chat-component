@@ -19,6 +19,7 @@ vi.mock('../../networking/api-requests/auth.api', () => ({
 import Login from './Login';
 import { renderWithProviders } from '../../test/renderWithProviders';
 import * as authApi from '../../networking/api-requests/auth.api';
+import { AuthTestIds } from '../../testIds';
 
 const loginEmailMock = vi.mocked(authApi.loginEmail);
 
@@ -30,18 +31,18 @@ describe('<Login />', () => {
   test('renders email + password fields and submit button', () => {
     renderWithProviders(<Login />);
 
-    expect(screen.getByTestId('auth_email_input')).toBeInTheDocument();
-    expect(screen.getByTestId('auth_password_input')).toBeInTheDocument();
-    expect(screen.getByTestId('auth_submit_button')).toBeInTheDocument();
+    expect(screen.getByTestId(AuthTestIds.emailInput)).toBeInTheDocument();
+    expect(screen.getByTestId(AuthTestIds.passwordInput)).toBeInTheDocument();
+    expect(screen.getByTestId(AuthTestIds.submitButton)).toBeInTheDocument();
   });
 
   test('shows email validation error for an invalid email', async () => {
     renderWithProviders(<Login />);
 
-    fireEvent.change(screen.getByTestId('auth_email_input'), {
+    fireEvent.change(screen.getByTestId(AuthTestIds.emailInput), {
       target: { value: 'not-an-email' },
     });
-    fireEvent.change(screen.getByTestId('auth_password_input'), {
+    fireEvent.change(screen.getByTestId(AuthTestIds.passwordInput), {
       target: { value: 'longenough' },
     });
     // Submit via the form element rather than clicking the type=submit
@@ -51,11 +52,11 @@ describe('<Login />', () => {
     // runs. fireEvent.submit fires the synthetic submit event React
     // listens to, exercising our custom validateForm directly.
     fireEvent.submit(
-      screen.getByTestId('auth_email_input').closest('form')!
+      screen.getByTestId(AuthTestIds.emailInput).closest('form')!
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId('auth_email_error')).toHaveTextContent(
+      expect(screen.getByTestId(AuthTestIds.emailError)).toHaveTextContent(
         'Invalid email format'
       );
     });
@@ -66,16 +67,16 @@ describe('<Login />', () => {
   test('shows password length error for short passwords', async () => {
     renderWithProviders(<Login />);
 
-    fireEvent.change(screen.getByTestId('auth_email_input'), {
+    fireEvent.change(screen.getByTestId(AuthTestIds.emailInput), {
       target: { value: 'alice@ethora.com' },
     });
-    fireEvent.change(screen.getByTestId('auth_password_input'), {
+    fireEvent.change(screen.getByTestId(AuthTestIds.passwordInput), {
       target: { value: 'short' },
     });
-    fireEvent.click(screen.getByTestId('auth_submit_button'));
+    fireEvent.click(screen.getByTestId(AuthTestIds.submitButton));
 
     await waitFor(() => {
-      expect(screen.getByTestId('auth_password_error')).toHaveTextContent(
+      expect(screen.getByTestId(AuthTestIds.passwordError)).toHaveTextContent(
         'Password must be at least 6 characters long'
       );
     });
@@ -99,13 +100,13 @@ describe('<Login />', () => {
 
     renderWithProviders(<Login />);
 
-    fireEvent.change(screen.getByTestId('auth_email_input'), {
+    fireEvent.change(screen.getByTestId(AuthTestIds.emailInput), {
       target: { value: 'alice@ethora.com' },
     });
-    fireEvent.change(screen.getByTestId('auth_password_input'), {
+    fireEvent.change(screen.getByTestId(AuthTestIds.passwordInput), {
       target: { value: 'TestPass123' },
     });
-    fireEvent.click(screen.getByTestId('auth_submit_button'));
+    fireEvent.click(screen.getByTestId(AuthTestIds.submitButton));
 
     await waitFor(() => {
       expect(loginEmailMock).toHaveBeenCalledTimes(1);
