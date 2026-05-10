@@ -175,6 +175,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
             value={email}
             placeholder="Email"
             autoComplete="email"
+            data-testid="auth_email_input"
             onChange={(e) => setEmail(e.target.value)}
             style={{
               border: `1px solid ${
@@ -182,7 +183,11 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
               }`,
             }}
           />
-          {errors.email && <ErrorMessage>{errors.email}</ErrorMessage>}
+          {errors.email && (
+            <ErrorMessage data-testid="auth_email_error">
+              {errors.email}
+            </ErrorMessage>
+          )}
         </div>
 
         <div
@@ -199,6 +204,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
             value={password}
             placeholder="Password"
             autoComplete="current-password"
+            data-testid="auth_password_input"
             onChange={(e) => setPassword(e.target.value)}
             style={{
               border: `1px solid ${
@@ -206,12 +212,17 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
               }`,
             }}
           />
-          {errors.password && <ErrorMessage>{errors.password}</ErrorMessage>}
+          {errors.password && (
+            <ErrorMessage data-testid="auth_password_error">
+              {errors.password}
+            </ErrorMessage>
+          )}
         </div>
 
         <Button
           type="submit"
           text={'Login to Ethora Chat'}
+          data-testid="auth_submit_button"
           style={{
             width: '100%',
             height: '40px',
