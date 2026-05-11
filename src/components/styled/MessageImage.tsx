@@ -6,6 +6,7 @@ import {
   setActiveModal,
 } from '../../roomStore/chatSettingsSlice';
 import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
+import { MessageBubbleTestIds } from '../../testIds';
 interface CustomMessageImageProps {
   fileURL: string;
   fileName: string;
@@ -33,6 +34,7 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
           src={locationPreview}
           alt={fileName}
           onClick={handleOpen}
+          data-testid={MessageBubbleTestIds.mediaContent}
           style={{
             borderRadius: 16,
             cursor: 'pointer',
@@ -49,6 +51,7 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
           src="https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg"
           alt={fileName}
           onClick={handleOpen}
+          data-testid={MessageBubbleTestIds.mediaContent}
           style={{
             borderRadius: 16,
             cursor: 'pointer',

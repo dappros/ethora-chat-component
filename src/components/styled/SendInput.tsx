@@ -24,6 +24,7 @@ import { IConfig } from '../../types/types';
 import Button from './Button';
 import { AttachIcon, FileIcon, RemoveIcon, SendIcon } from '../../assets/icons';
 import { parseMessageBody } from '../../helpers/parseMessageBody';
+import { ChatInputTestIds } from '../../testIds';
 
 export interface SendInputProps {
   sendMessage: (message: string) => void | Promise<void>;
@@ -308,6 +309,7 @@ const SendInput: React.FC<SendInputProps> = ({
                 onClick={handleAttachClick}
                 disabled={false}
                 EndIcon={<AttachIcon />}
+                data-testid={ChatInputTestIds.attachButton}
               />
             )}
             {multiline ? (
@@ -327,6 +329,7 @@ const SendInput: React.FC<SendInputProps> = ({
                   disabled={isLoading || isMessageProcessing}
                   $dynamicHeight={textareaHeight}
                   $color={config?.colors?.primary}
+                  data-testid={ChatInputTestIds.inputField}
                 />
               </TextareaWrapper>
             ) : (
@@ -343,6 +346,7 @@ const SendInput: React.FC<SendInputProps> = ({
                   height: inputHeight,
                   maxHeight: inputHeight || '40px',
                 }}
+                data-testid={ChatInputTestIds.inputField}
               />
             )}
           </>
@@ -413,6 +417,7 @@ const SendInput: React.FC<SendInputProps> = ({
                         ? 'transparent'
                         : config?.colors?.primary,
                 }}
+                data-testid={ChatInputTestIds.sendButton}
               />
             )}
           </>
