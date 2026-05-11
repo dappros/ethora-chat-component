@@ -407,18 +407,24 @@ const useChatWrapperInit = ({
     const available = (loadedRooms || []).map(resolveRoomJid).filter(Boolean);
     if (available.length === 0) return;
 
-    if (activeRoomJID && available.includes(activeRoomJID)) {
+    // Consumer-provided roomJID prop is authoritative — covers the
+    // "patient switcher" case where a single mounted <Chat roomJID={x} />
+    // swaps room without unmount/remount. Without this, a prop change is
+    // silently ignored because the activeRoomJID early-return below wins
+    // (since previous active room is still in the loaded list). The
+    // existing useEffect that calls ensureActiveRoomSelected has roomJID
+    // in its dep chain via this callback, so a prop swap re-fires this
+    // function and the dispatch propagates.
+    const preferredFromProp = roomJID || null;
+    if (preferredFromProp && available.includes(preferredFromProp)) {
+      if (activeRoomJID !== preferredFromProp) {
+        dispatch(setCurrentRoom({ roomJID: preferredFromProp }));
+      }
       return;
     }
 
-    const preferredFromProp = roomJID || null;
-    const nextRoom =
-      preferredFromProp && available.includes(preferredFromProp)
-        ? preferredFromProp
-        : null;
-
-    if (nextRoom) {
-      dispatch(setCurrentRoom({ roomJID: nextRoom }));
+    if (activeRoomJID && available.includes(activeRoomJID)) {
+      return;
     }
   }, [activeRoomJID, dispatch, resolveRoomJid, roomJID]);
 
@@ -495,6 +501,17 @@ const useChatWrapperInit = ({
 
               if (roomsList && Object.keys(roomsList).length > 0) {
                 setInited(true);
+                // Rooms came from redux-persist or a prior bootstrap.
+                // Still refresh from /chats/my in the background so the
+                // sidebar reflects the current server state — without it,
+                // a re-login (or a multi-tenant App Switcher hop) keeps
+                // showing stale rooms or, when the cache turned out
+                // empty, never loads any rooms at all.
+                if (config?.newArch !== false) {
+                  void loadRooms(newClient, true).catch((error) => {
+                    ethoraLogger.log('background loadRooms failed', error);
+                  });
+                }
               } else {
                 if (config?.newArch === false) {
                   mark('xmpp:getRoomsStanza:start');
@@ -533,17 +550,32 @@ const useChatWrapperInit = ({
             }
           } else {
             if (config?.newArch !== false) {
+              // Track the rooms set we just observed/loaded in THIS effect
+              // run, not the `roomsList` closure (which is captured from
+              // useSelector at effect-start and never updates mid-await).
+              // The stale closure was the bug behind "Chat stuck on
+              // Connecting..." until tab-switch: loadRooms had populated
+              // the store, but the retry check still saw the empty
+              // pre-load value and burnt up to 75s in getRoomsWithRetry.
+              let currentRooms: any[] = [];
               if (!roomsList || Object.keys(roomsList).length === 0) {
                 setInited(false);
                 const loadedRooms = await loadRooms(client);
                 ensureActiveRoomSelected(loadedRooms as any);
+                currentRooms = Array.isArray(loadedRooms) ? loadedRooms : [];
               } else {
                 ensureActiveRoomSelected(Object.values(roomsList) as any);
+                currentRooms = Object.values(roomsList);
+                // Background-refresh rehydrated rooms — see comment in the
+                // first-time init branch above.
+                void loadRooms(client, true).catch((error) => {
+                  ethoraLogger.log('background loadRooms failed', error);
+                });
               }
               if (config?.enableRoomsRetry?.enabled) {
                 const isSelectedRoomPresent = isChatIdPresentInArray(
                   roomJID,
-                  roomsList
+                  currentRooms
                 );
                 if (!isSelectedRoomPresent) {
                   await getRoomsWithRertyRequest();

@@ -160,8 +160,11 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
               >
                 {composing ? (
                   <Composing usersTyping={currentRoom?.composingList} />
+                ) : typeof currentRoom?.usersCnt === 'number' &&
+                  currentRoom.usersCnt > 0 ? (
+                  `${formatNumberWithCommas(currentRoom.usersCnt)} ${currentRoom.usersCnt === 1 ? 'user' : 'users'}`
                 ) : (
-                  `${formatNumberWithCommas(currentRoom?.usersCnt)} ${currentRoom?.usersCnt === 1 ? 'user' : 'users'}`
+                  ''
                 )}
               </ChatContainerHeaderLabel>
             </ChatContainerHeaderInfo>
