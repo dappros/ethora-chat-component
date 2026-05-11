@@ -237,7 +237,7 @@ export const addRoomViaApi = createAsyncThunk(
   }
 );
 
-export const roomsStore = createSlice({
+const roomsStore = createSlice({
   name: 'roomMessages',
   initialState,
   reducers: {

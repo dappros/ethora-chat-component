@@ -10,7 +10,7 @@ const initialState: roomHeapSliceState = {
   messageHeap: [],
 };
 
-export const roomHeapSlice = createSlice({
+const roomHeapSlice = createSlice({
   name: 'roomHeapStore',
   initialState,
   reducers: {

@@ -102,7 +102,7 @@ const initialState: ChatState = {
   appId: '',
 };
 
-export const chatSlice = createSlice({
+const chatSlice = createSlice({
   name: 'chatSettingStore',
   initialState,
   reducers: {

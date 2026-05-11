@@ -15,7 +15,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "build:lib": "tsc --p ./tsconfig-build.json && vite build",
+    "sync:lib": "node ./scripts/sync-lib.mjs",
+    "build:lib": "npm run sync:lib && tsc --p ./tsconfig-build.json && vite build",
     "prepare": "npm run build && npm run build:lib",
     "lint": "eslint . --quiet --report-unused-disable-directives",
     "lint:full": "eslint . --report-unused-disable-directives --max-warnings 0",
