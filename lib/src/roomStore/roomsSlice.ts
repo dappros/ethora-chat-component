@@ -255,10 +255,18 @@ export const roomsStore = createSlice({
         ...existing,
         ...roomData,
         title: roomData.title || existing?.title || roomData.title,
-        usersCnt:
-          typeof roomData.usersCnt === 'number' && roomData.usersCnt > 0
-            ? roomData.usersCnt
-            : existing?.usersCnt ?? roomData.usersCnt,
+        usersCnt: (() => {
+          const incoming =
+            typeof roomData.usersCnt === 'number' && roomData.usersCnt > 0
+              ? roomData.usersCnt
+              : 0;
+          const previous =
+            typeof existing?.usersCnt === 'number' && existing.usersCnt > 0
+              ? existing.usersCnt
+              : 0;
+          if (incoming === 0 && previous === 0) return roomData.usersCnt;
+          return Math.max(incoming, previous);
+        })(),
         icon: roomData.icon ?? existing?.icon,
         messages:
           existingMessages.length > 0 ? existingMessages : incomingMessages,
@@ -690,10 +698,18 @@ export const roomsStore = createSlice({
         ...existing,
         ...room,
         title: room.title || existing?.title || room.title,
-        usersCnt:
-          typeof room.usersCnt === 'number' && room.usersCnt > 0
-            ? room.usersCnt
-            : existing?.usersCnt ?? room.usersCnt,
+        usersCnt: (() => {
+          const incoming =
+            typeof room.usersCnt === 'number' && room.usersCnt > 0
+              ? room.usersCnt
+              : 0;
+          const previous =
+            typeof existing?.usersCnt === 'number' && existing.usersCnt > 0
+              ? existing.usersCnt
+              : 0;
+          if (incoming === 0 && previous === 0) return room.usersCnt;
+          return Math.max(incoming, previous);
+        })(),
         icon: room.icon ?? existing?.icon,
         messages:
           existingMessages.length > 0 ? existingMessages : incomingMessages,
