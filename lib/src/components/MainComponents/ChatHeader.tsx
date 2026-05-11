@@ -54,6 +54,23 @@ const getDisplayTitle = (room: IRoom | undefined): string => {
   return title as string;
 };
 
+// Reconcile the participant count between two sources that can drift out
+// of sync:
+//   - `usersCnt`: live MUC occupant count from XMPP roominfo (or 0 when
+//     presence is forbidden / hasn't fired yet).
+//   - `members.length`: the authoritative membership list from
+//     /chats/my (or onRoomMembershipChange).
+// When presence is blocked for a user, XMPP roominfo can land at 1 (or 0)
+// while members[] correctly holds 3+ entries. Showing "1 user" in the
+// header while the chat profile lists 3 looks broken to the user. Take
+// the max so the header reflects the higher-confidence number.
+const getDisplayCount = (room: IRoom | undefined): number => {
+  const fromCnt =
+    typeof room?.usersCnt === 'number' && room.usersCnt > 0 ? room.usersCnt : 0;
+  const fromMembers = Array.isArray(room?.members) ? room.members.length : 0;
+  return Math.max(fromCnt, fromMembers);
+};
+
 const ChatHeader: React.FC<ChatHeaderProps> = ({
   currentRoom,
   handleBackClick,
@@ -158,14 +175,14 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
               <ChatContainerHeaderLabel
                 style={{ color: '#8C8C8C', fontSize: '14px' }}
               >
-                {composing ? (
-                  <Composing usersTyping={currentRoom?.composingList} />
-                ) : typeof currentRoom?.usersCnt === 'number' &&
-                  currentRoom.usersCnt > 0 ? (
-                  `${formatNumberWithCommas(currentRoom.usersCnt)} ${currentRoom.usersCnt === 1 ? 'user' : 'users'}`
-                ) : (
-                  ''
-                )}
+                {(() => {
+                  if (composing) {
+                    return <Composing usersTyping={currentRoom?.composingList} />;
+                  }
+                  const displayCount = getDisplayCount(currentRoom);
+                  if (displayCount <= 0) return '';
+                  return `${formatNumberWithCommas(displayCount)} ${displayCount === 1 ? 'user' : 'users'}`;
+                })()}
               </ChatContainerHeaderLabel>
             </ChatContainerHeaderInfo>
           </ChatContainerHeaderBoxInfo>
@@ -200,14 +217,14 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
               <ChatContainerHeaderLabel
                 style={{ color: '#8C8C8C', fontSize: '14px' }}
               >
-                {composing ? (
-                  <Composing usersTyping={currentRoom?.composingList} />
-                ) : typeof currentRoom?.usersCnt === 'number' &&
-                  currentRoom.usersCnt > 0 ? (
-                  `${formatNumberWithCommas(currentRoom.usersCnt)} ${currentRoom.usersCnt === 1 ? 'user' : 'users'}`
-                ) : (
-                  ''
-                )}
+                {(() => {
+                  if (composing) {
+                    return <Composing usersTyping={currentRoom?.composingList} />;
+                  }
+                  const displayCount = getDisplayCount(currentRoom);
+                  if (displayCount <= 0) return '';
+                  return `${formatNumberWithCommas(displayCount)} ${displayCount === 1 ? 'user' : 'users'}`;
+                })()}
               </ChatContainerHeaderLabel>
             </ChatContainerHeaderInfo>
           </ChatContainerHeaderBoxInfo>

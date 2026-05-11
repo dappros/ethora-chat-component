@@ -306,10 +306,40 @@ const roomsStore = createSlice({
       const existingRoom = state.rooms[jid];
 
       if (existingRoom) {
-        state.rooms[jid] = {
+        // Guard usersCnt against a "we just entered the room and XMPP
+        // roominfo reports 1 because presence is forbidden so we only
+        // see ourselves" downgrade. After merging, the participant count
+        // must not drop below the known members[] size — that array is
+        // the authoritative membership list and only shrinks through
+        // onRoomMembershipChange (which also reduces usersCnt to the
+        // matching size in the same dispatch, so the floor moves with
+        // it). Without this, a stale roominfo packet wipes the visible
+        // count and the header flickers from "3 users" → "1 user".
+        const merged: IRoom = {
           ...existingRoom,
           ...updates,
         };
+        if (typeof updates.usersCnt === 'number') {
+          const incoming = updates.usersCnt;
+          const newMembers = Array.isArray(updates.members)
+            ? updates.members
+            : existingRoom.members;
+          const floor = Array.isArray(newMembers) ? newMembers.length : 0;
+          const previous =
+            typeof existingRoom.usersCnt === 'number' && existingRoom.usersCnt > 0
+              ? existingRoom.usersCnt
+              : 0;
+          // If members didn't shrink, also keep the previous higher
+          // count — covers the case where XMPP reports an authoritative
+          // bigger number (e.g. 3216) and a later refresh briefly hands
+          // back the truncated /chats/my members array.
+          const preservePrevious =
+            floor >= (Array.isArray(existingRoom.members) ? existingRoom.members.length : 0)
+              ? previous
+              : 0;
+          merged.usersCnt = Math.max(incoming, floor, preservePrevious);
+        }
+        state.rooms[jid] = merged;
       }
     },
     setRoomMessages(
