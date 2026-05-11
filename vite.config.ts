@@ -5,7 +5,13 @@ import dts from 'vite-plugin-dts';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react(), dts({ include: ['src'] })],
+  plugins: [
+    react(),
+    dts({
+      include: ['src'],
+      exclude: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'src/test/**'],
+    }),
+  ],
   build: {
     sourcemap: true,
     lib: {

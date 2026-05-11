@@ -1,6 +1,6 @@
 {
   "name": "@ethora/chat-component",
-  "version": "26.3.19",
+  "version": "26.3.20",
   "type": "module",
   "main": "dist/main.js",
   "types": "dist/main.d.ts",
@@ -15,12 +15,16 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "build:lib": "tsc --p ./tsconfig-build.json && vite build",
+    "sync:lib": "node ./scripts/sync-lib.mjs",
+    "build:lib": "npm run sync:lib && tsc --p ./tsconfig-build.json && vite build",
     "prepare": "npm run build && npm run build:lib",
     "lint": "eslint . --quiet --report-unused-disable-directives",
     "lint:full": "eslint . --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "lint:fix": "eslint . --fix && prettier . --write"
+    "lint:fix": "eslint . --fix && prettier . --write",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui"
   },
   "dependencies": {
     "@emoji-mart/data": "^1.2.1",
@@ -52,6 +56,9 @@
     "wavesurfer.js": "^7.9.6"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.4.6",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/user-event": "^14.5.2",
     "@types/node": "^24.0.3",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
@@ -64,10 +71,12 @@
     "eslint-plugin-prettier": "^5.5.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
+    "jsdom": "^24.1.0",
     "prettier": "3.6.0",
     "typescript": "^5.8.3",
     "vite": "^7.0.0",
-    "vite-plugin-dts": "^4.5.4"
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^2.0.0"
   },
   "overrides": {
     "csstype": "3.1.3"
