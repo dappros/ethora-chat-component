@@ -116,4 +116,151 @@ describe('<Login />', () => {
       'TestPass123'
     );
   });
+
+  // ----- Edge cases (L2 contract pinning) ------------------------------
+
+  test('shows BOTH email and password errors when both fields are blank', async () => {
+    // Two unrelated validation paths fire from the same submit —
+    // and both must render their error text. A regression where the
+    // second one wipes the first is easy to introduce.
+    renderWithProviders(<Login />);
+
+    fireEvent.submit(
+      screen.getByTestId(AuthTestIds.emailInput).closest('form')!
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId(AuthTestIds.emailError)).toHaveTextContent(
+        'Invalid email format'
+      );
+      expect(screen.getByTestId(AuthTestIds.passwordError)).toHaveTextContent(
+        'Password must be at least 6 characters long'
+      );
+    });
+    expect(loginEmailMock).not.toHaveBeenCalled();
+  });
+
+  test('accepts a password of exactly 6 characters (boundary)', async () => {
+    // The check is `length < 6` — so 6 chars passes. Boundary
+    // assertions guard against the classic off-by-one (`<= 6`).
+    loginEmailMock.mockResolvedValue({
+      data: {
+        token: 't',
+        refreshToken: 'r',
+        user: { _id: 'u-1', firstName: 'Alice', lastName: 'T', email: 'a@b.c' },
+      },
+      status: 200,
+    } as Awaited<ReturnType<typeof authApi.loginEmail>>);
+
+    renderWithProviders(<Login />);
+
+    fireEvent.change(screen.getByTestId(AuthTestIds.emailInput), {
+      target: { value: 'alice@ethora.com' },
+    });
+    fireEvent.change(screen.getByTestId(AuthTestIds.passwordInput), {
+      target: { value: 'abcdef' }, // 6 chars exactly
+    });
+    fireEvent.click(screen.getByTestId(AuthTestIds.submitButton));
+
+    await waitFor(() => {
+      expect(loginEmailMock).toHaveBeenCalledTimes(1);
+    });
+    expect(screen.queryByTestId(AuthTestIds.passwordError)).toBeNull();
+  });
+
+  test('surfaces a "wrong data" error when the server returns 401', async () => {
+    // Documented 401 handling: clear the error text into the
+    // passwordError slot + show a toast. This is the only
+    // server-driven error the form recovers from inline.
+    loginEmailMock.mockResolvedValue({
+      data: null,
+      status: 401,
+    } as unknown as Awaited<ReturnType<typeof authApi.loginEmail>>);
+
+    renderWithProviders(<Login />);
+
+    fireEvent.change(screen.getByTestId(AuthTestIds.emailInput), {
+      target: { value: 'alice@ethora.com' },
+    });
+    fireEvent.change(screen.getByTestId(AuthTestIds.passwordInput), {
+      target: { value: 'wrongpass' },
+    });
+    fireEvent.click(screen.getByTestId(AuthTestIds.submitButton));
+
+    await waitFor(() => {
+      expect(screen.getByTestId(AuthTestIds.passwordError)).toHaveTextContent(
+        'You entered wrong data. Try again'
+      );
+    });
+    expect(loginEmailMock).toHaveBeenCalledTimes(1);
+  });
+
+  test('does not render error texts on a successful login', async () => {
+    loginEmailMock.mockResolvedValue({
+      data: {
+        token: 't',
+        refreshToken: 'r',
+        user: { _id: 'u-1', firstName: 'Alice', lastName: 'T', email: 'a@b.c' },
+      },
+      status: 200,
+    } as Awaited<ReturnType<typeof authApi.loginEmail>>);
+
+    renderWithProviders(<Login />);
+
+    fireEvent.change(screen.getByTestId(AuthTestIds.emailInput), {
+      target: { value: 'alice@ethora.com' },
+    });
+    fireEvent.change(screen.getByTestId(AuthTestIds.passwordInput), {
+      target: { value: 'longenough' },
+    });
+    fireEvent.click(screen.getByTestId(AuthTestIds.submitButton));
+
+    await waitFor(() => {
+      expect(loginEmailMock).toHaveBeenCalled();
+    });
+    expect(screen.queryByTestId(AuthTestIds.emailError)).toBeNull();
+    expect(screen.queryByTestId(AuthTestIds.passwordError)).toBeNull();
+  });
+
+  test('re-submitting with corrected input replaces stale error text', async () => {
+    // A regression where setErrors merges instead of replaces would
+    // leave a stale error on the field the user just corrected.
+    renderWithProviders(<Login />);
+
+    // First submit with bad email — error appears.
+    fireEvent.change(screen.getByTestId(AuthTestIds.emailInput), {
+      target: { value: 'not-an-email' },
+    });
+    fireEvent.change(screen.getByTestId(AuthTestIds.passwordInput), {
+      target: { value: 'longenough' },
+    });
+    fireEvent.submit(
+      screen.getByTestId(AuthTestIds.emailInput).closest('form')!
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId(AuthTestIds.emailError)).toBeInTheDocument();
+    });
+
+    // Now correct the email and resubmit. The email-error node must
+    // disappear (validateForm wrote '' into errors.email, which the
+    // render guards with `errors.email && ...`).
+    loginEmailMock.mockResolvedValue({
+      data: {
+        token: 't',
+        refreshToken: 'r',
+        user: { _id: 'u-1', firstName: 'A', lastName: 'B', email: 'a@b.c' },
+      },
+      status: 200,
+    } as Awaited<ReturnType<typeof authApi.loginEmail>>);
+    fireEvent.change(screen.getByTestId(AuthTestIds.emailInput), {
+      target: { value: 'alice@ethora.com' },
+    });
+    fireEvent.click(screen.getByTestId(AuthTestIds.submitButton));
+
+    await waitFor(() => {
+      expect(loginEmailMock).toHaveBeenCalled();
+    });
+    expect(screen.queryByTestId(AuthTestIds.emailError)).toBeNull();
+  });
 });
