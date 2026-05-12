@@ -774,7 +774,7 @@ const AuthedShell: React.FC<{
             onRoomsLoaded={setRooms}
           />
         </div>
-        <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+        <div style={{ flex: 1, display: 'flex', minHeight: 0, maxWidth: '80%' }}>
           {selectedJid ? (
             <RoomView
               roomJid={selectedJid}
