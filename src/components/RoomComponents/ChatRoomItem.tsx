@@ -13,6 +13,7 @@ import {
   NewMessageMarker,
 } from './styled/StyledRoomComponents';
 import LastMessageItem from './LastMessageItem';
+import { RoomListTestIds } from '../../testIds';
 
 interface ChatRoomItemProps {
   chat: IRoom;
@@ -110,6 +111,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
       active={isChatActive}
       onClick={() => performClick(chat)}
       bg={config?.colors?.primary}
+      data-testid={RoomListTestIds.roomRow}
     >
       <ProfileImagePlaceholder name={displayName} icon={chat?.icon} />
       <div

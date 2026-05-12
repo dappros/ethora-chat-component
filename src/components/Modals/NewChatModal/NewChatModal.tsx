@@ -11,6 +11,7 @@ import {
   ModalContainer,
   ModalTitle,
 } from '../styledModalComponents';
+import { RoomListTestIds } from '../../../testIds';
 import {
   addRoomViaApi,
   setCurrentRoom,
@@ -214,6 +215,7 @@ const NewChatModal: React.FC = () => {
         unstyled
         EndIcon={<AddNewIcon color={config?.colors?.primary} />}
         onClick={handleOpenModal}
+        data-testid={RoomListTestIds.createRoomButton}
       />
 
       {isModalOpen && (

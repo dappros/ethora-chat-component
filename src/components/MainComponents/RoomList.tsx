@@ -27,6 +27,7 @@ import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { logoutService } from '../../hooks/useLogout';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
 import { deleteRoom, setCurrentRoom } from '../../roomStore/roomsSlice';
+import { RoomListTestIds } from '../../testIds';
 
 interface RoomListProps {
   chats: IRoom[];
@@ -287,6 +288,7 @@ const RoomList: React.FC<RoomListProps> = ({
                     value={searchTerm}
                     onChange={handleSearchChange}
                     placeholder="Search..."
+                    data-testid={RoomListTestIds.searchInput}
                     // animated={true}
                   />
                 )}
@@ -296,6 +298,7 @@ const RoomList: React.FC<RoomListProps> = ({
             )}
             <div
               style={{ flexGrow: 1, overflowY: 'auto', padding: '16px 0px' }}
+              data-testid={RoomListTestIds.roomsList}
             >
               {filteredChats.map((chat: IRoom, index: number) => (
                 <React.Fragment key={chat.jid || `${chat.id}-${index}`}>
