@@ -236,9 +236,11 @@ export const CustomSystemMessage = styled.div`
   align-items: center;
   justify-content: center;
   width: 100%;
+  margin: 8px 0;
+  box-sizing: border-box;
+  padding: 0 8px;
   background-color: transparent;
   gap: 16px;
-  margin: 8px;
 `;
 
 export const CustomSystemMessageText = styled.p`
