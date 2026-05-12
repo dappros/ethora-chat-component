@@ -118,7 +118,85 @@ const tabBtnStyle = (active: boolean): React.CSSProperties => ({
   borderRadius: 6,
 });
 
-const LoginScreen: React.FC<{ onSubmit: (p: LoginPayload) => void }> = ({
+// Simple JWT-only entry screen. Kept around as a standalone option for
+// developers who only need the jwtLogin flow without the email-toggle UI
+// (the default export uses it). Switch to <LoginScreen /> if you want
+// the toggleable jwt-vs-email picker.
+const JwtInputScreen: React.FC<{ onSubmit: (jwt: string) => void }> = ({
+  onSubmit,
+}) => {
+  const [jwt, setJwt] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = jwt.trim();
+    if (!trimmed) return;
+    onSubmit(trimmed);
+  };
+
+  return (
+    <div
+      style={{
+        height: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#f5f5f5',
+      }}
+    >
+      <form
+        onSubmit={handleSubmit}
+        style={{
+          background: 'white',
+          padding: 30,
+          borderRadius: 8,
+          boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
+          width: 520,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 12,
+        }}
+      >
+        <strong>Test app — paste a custom client JWT</strong>
+        <div style={{ fontSize: 12, color: '#71717A', lineHeight: 1.5 }}>
+          The XmppProvider will POST this token to <code>/users/client</code>{' '}
+          (jwtLogin flow) and use the returned creds to connect to XMPP. No
+          email/password, no customAppToken.
+        </div>
+        <textarea
+          value={jwt}
+          onChange={(e) => setJwt(e.target.value)}
+          placeholder="eyJhbGciOi..."
+          rows={6}
+          style={{
+            ...inputStyle,
+            fontFamily: 'monospace',
+            fontSize: 12,
+            resize: 'vertical',
+          }}
+        />
+        <button
+          type="submit"
+          style={{
+            padding: 10,
+            background: PRIMARY,
+            color: 'white',
+            border: 'none',
+            borderRadius: 6,
+            cursor: 'pointer',
+          }}
+        >
+          Connect
+        </button>
+      </form>
+    </div>
+  );
+};
+
+// Exported so it can be wired into the default export when the toggleable
+// jwt-vs-email picker is desired. Also avoids the TS6133 unused warning
+// while keeping the component available alongside <JwtInputScreen />.
+export const LoginScreen: React.FC<{ onSubmit: (p: LoginPayload) => void }> = ({
   onSubmit,
 }) => {
   const [mode, setMode] = useState<LoginMode>('jwt');
@@ -652,19 +730,19 @@ const AuthedShell: React.FC<{
 
   const config = useMemo(() => {
     if (payload.mode === 'jwt') {
-      // jwtLogin path: resolveInitBeforeLoadUser sees this, calls
-      // loginViaJwt(token) -> /users/client, applies the resolved user
-      // to the store, then initializes the XMPP client. No appToken
-      // needed.
+      // jwtLogin path: XmppProvider's resolveInitBeforeLoadUser will POST
+      // /users/client with this token, get back xmpp creds, and connect.
+      // No appToken needed.
       return {
         ...BASE_CONFIG,
         initBeforeLoad: true,
         jwtLogin: { enabled: true, token: payload.jwt },
       };
     }
-    // email path: user already resolved by /users/login-with-email.
-    // Pass it via userLogin, plus the appToken as customAppToken so
-    // downstream API requests (e.g. /chats/my refresh) carry it.
+    // email path: user already resolved (we POST'd /users/login-with-email
+    // with appToken on the LoginScreen). Pass the user via userLogin and
+    // keep appToken as customAppToken so the package's apiClient carries
+    // it on downstream calls (refresh /chats/my, etc.).
     return {
       ...BASE_CONFIG,
       customAppToken: payload.appToken,
@@ -727,8 +805,22 @@ const AuthedShell: React.FC<{
   );
 };
 
+// Wraps JwtInputScreen back into the LoginScreen contract so the default
+// export can swap freely between the simple jwt-only screen and the
+// toggleable jwt/email picker. Exported so JwtInputScreen stays
+// referenced (no TS6133) and is one line to switch back to if the
+// email mode is unwanted.
+export const JwtOnlyScreen: React.FC<{ onSubmit: (p: LoginPayload) => void }> = ({
+  onSubmit,
+}) => (
+  <JwtInputScreen onSubmit={(jwt) => onSubmit({ mode: 'jwt', jwt })} />
+);
+
 export default function AppLoginChatsNpm() {
   const [payload, setPayload] = useState<LoginPayload | null>(null);
+  // Switch <LoginScreen /> → <JwtOnlyScreen /> here if you want to drop
+  // the email mode from the entry UI. Both produce LoginPayload, so the
+  // rest of AuthedShell stays the same.
   if (!payload) return <LoginScreen onSubmit={setPayload} />;
   return <AuthedShell payload={payload} onLogout={() => setPayload(null)} />;
 }
