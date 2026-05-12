@@ -14,14 +14,46 @@ import CustomDaySeparator from './examples/customComponents/CustomDaySeparator';
 import CustomMessageBubble from './examples/customComponents/CustomMessageBubble';
 import { MessageNotificationProvider } from './context/MessageNotificationContext';
 import { ethoraLogger } from './helpers/ethoraLogger';
+import {
+  VITE_APP_API_URL,
+  VITE_APP_ID,
+  VITE_APP_TOKEN,
+  VITE_APP_XMPP_BASEDOMAIN,
+  VITE_APP_XMPP_CONFERENCE,
+  SERVICE,
+} from './config';
+
+// Defaults for the demo app come from the env-driven runtime config
+// (see src/config.ts → src/utils/runtimeHostConfig.ts). Populate the
+// VITE_API / VITE_APP_ID / VITE_XMPP_HOST / VITE_XMPP_SERVICE /
+// VITE_APP_XMPP_SERVICE keys via @ethora/setup or a hand-written
+// .env.local — empty fallbacks here mean the consts will be empty
+// strings until the developer provides them, which fails fast with a
+// readable error rather than silently hitting the wrong server.
+// One-time startup log so it's obvious from the console which env got
+// loaded into the build. If this prints empty strings, .env.local
+// wasn't read at Vite startup — restart `npm run dev` after writing it.
+// eslint-disable-next-line no-console
+console.log('[demo] env →', {
+  VITE_API: VITE_APP_API_URL,
+  VITE_APP_ID,
+  VITE_XMPP_HOST: VITE_APP_XMPP_BASEDOMAIN,
+  VITE_APP_XMPP_SERVICE: SERVICE,
+});
 
 const APP_CHAT_BASE_CONFIG: IConfig = {
-  appId: '646cc8dc96d4a4dc8f7b2f2d',
-  baseUrl: 'https://api.chat.ethora.com/v1',
+  appId: VITE_APP_ID,
+  baseUrl: VITE_APP_API_URL,
+  // setBaseURL() in apiClient.ts uses customAppToken to override the
+  // hardcoded fallback in api.config.ts (which targets the BASE app on
+  // prod). Without this, the SDK signs every authenticated request
+  // with the wrong app token and the API rejects login as 401 even
+  // when the URL is correct.
+  customAppToken: VITE_APP_TOKEN,
   xmppSettings: {
-    devServer: 'wss://xmpp.chat.ethora.com/ws',
-    host: 'xmpp.chat.ethora.com',
-    conference: 'conference.xmpp.chat.ethora.com',
+    devServer: SERVICE,
+    host: VITE_APP_XMPP_BASEDOMAIN,
+    conference: VITE_APP_XMPP_CONFERENCE,
     xmppPingOnSendEnabled: true,
   },
   userLogin: {
@@ -97,7 +129,7 @@ const Apps = () => {
               CustomScrollableArea={CustomScrollableArea}
               CustomDaySeparator={CustomDaySeparator}
               config={{
-                baseUrl: 'https://api.chat.ethora.com/v1',
+                baseUrl: VITE_APP_API_URL,
                 inAppNotifications: {
                   enabled: true,
                   showInContext: true, // Show in chat component context as well

@@ -17,6 +17,8 @@ const parseHostFromDevServer = (devServer?: string): string => {
 
 export const buildRuntimeHostConfig = (env: EnvMap) => {
   const apiUrl = env['VITE_API'] || env['VITE_WIDGET_API_URL'] || '';
+  const appId = env['VITE_APP_ID'] || env['VITE_WIDGET_APP_ID'] || '';
+  const appToken = env['VITE_APP_TOKEN'] || env['VITE_WIDGET_APP_TOKEN'] || '';
   const domainName = env['VITE_DOMAIN_NAME'] || '';
   const webDomain = normalizeHost(env['VITE_WEB_DOMAIN']);
   const webUrl = webDomain ? `https://${webDomain}` : '';
@@ -34,6 +36,8 @@ export const buildRuntimeHostConfig = (env: EnvMap) => {
 
   return {
     apiUrl,
+    appId,
+    appToken,
     domainName,
     webDomain,
     webUrl,
