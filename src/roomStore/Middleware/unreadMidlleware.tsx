@@ -2,6 +2,7 @@ import { Middleware } from '@reduxjs/toolkit';
 import { updateRoom } from '../roomsSlice';
 import { IMessage } from '../../types/types';
 import { getTimestampFromUnknown } from '../../helpers/timestamp';
+import { isSameXmppUsername } from '../../helpers/xmppUsername';
 
 const TRACKED_ACTIONS_PREFIX = 'roomMessages/';
 const EXCLUDED_ACTIONS = new Set(['roomMessages/insertUsers']);
@@ -11,11 +12,6 @@ const isCountableMessage = (msg: IMessage): boolean =>
   msg.id !== 'delimiter-new' &&
   !msg.pending &&
   String((msg as any)?.isSystemMessage || '') !== 'true';
-
-const toLocal = (value?: string): string => {
-  if (!value) return '';
-  return String(value).split('@')[0];
-};
 
 const getMessageTimestamp = (message: IMessage): number => {
   return (
@@ -46,9 +42,10 @@ const computeUnreadForRoom = (
   const countableMessages = (room.messages || []).filter((msg: IMessage) => {
     if (!isCountableMessage(msg)) return false;
 
-    const isOwnMessage =
-      toLocal(msg?.user?.id) !== '' &&
-      toLocal(msg?.user?.id) === toLocal(currentXmppUsername);
+    const isOwnMessage = isSameXmppUsername(
+      msg?.user?.id,
+      currentXmppUsername
+    );
 
     if (isOwnMessage) return false;
 
