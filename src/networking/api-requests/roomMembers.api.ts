@@ -1,19 +1,18 @@
 import http from '../apiClient';
 import { RoomMember } from '../../types/types';
 import { store } from '../../roomStore';
+import { normalizeXmppUsername } from '../../helpers/xmppUsername';
 
 const cache = new Map<string, RoomMember | null>();
 const inflight = new Map<string, Promise<RoomMember | null>>();
 
-const normalizeXmppUsername = (username: string): string => {
+const isLookupable = (canonical: string): boolean => {
+  if (!canonical) return false;
   const appId = store.getState().chatSettingStore?.appId || '';
-  if (!appId) return username;
-  const doublePrefix = `${appId}_${appId}_`;
-  if (username.startsWith(doublePrefix)) {
-    return username.slice(appId.length + 1);
-  }
-  if (username === `${appId}_${appId}`) return '';
-  return username;
+  if (!appId) return true;
+  if (canonical === appId) return false;
+  if (canonical === `${appId}_${appId}`) return false;
+  return true;
 };
 
 export async function getUserByXmppUsername(
@@ -25,7 +24,8 @@ export async function getUserByXmppUsername(
     return null;
   }
   const normalizedXmppUsername = normalizeXmppUsername(trimmed);
-  if (!normalizedXmppUsername) {
+  if (!normalizedXmppUsername || !isLookupable(normalizedXmppUsername)) {
+    cache.set(normalizedXmppUsername || trimmed, null);
     return null;
   }
 

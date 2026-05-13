@@ -5,6 +5,7 @@ import { Iso639_1Codes } from '../types/types';
 import { ethoraLogger } from './ethoraLogger';
 import { safeJsonParse } from './safeJson';
 import { getTimestampFromUnknown } from './timestamp';
+import { normalizeXmppUsername } from './xmppUsername';
 
 const getLocalpartFromJid = (jid?: string): string | undefined => {
   const value = String(jid || '').trim();
@@ -93,10 +94,12 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
 
   const data = fullData?.getChild('data') || stanza?.getChild('data');
   const photoURL = data?.attrs?.['photo'];
-  const userWallet =
+  const rawUserWallet =
     userWalletFromResource ||
     getLocalpartFromJid(data?.attrs?.senderJID) ||
     undefined;
+  const normalizedUserWallet = normalizeXmppUsername(rawUserWallet);
+  const userWallet = normalizedUserWallet || rawUserWallet;
 
   const user = {
     id: userWallet,
