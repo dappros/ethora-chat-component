@@ -1,6 +1,6 @@
 import { persistor, store } from '../roomStore';
 import { logout } from '../roomStore/chatSettingsSlice';
-import { setLogoutState } from '../roomStore/roomsSlice';
+import { setCurrentRoom, setLogoutState } from '../roomStore/roomsSlice';
 import { useCallback } from 'react';
 import { clearHeap } from '../roomStore/roomHeapSlice';
 import { clearScopedChatCache } from '../helpers/cacheScope';
@@ -22,10 +22,6 @@ const logoutService = {
   performLogout: async () => {
     const authToken = store.getState().chatSettingStore.user.token || '';
     const xmppClient = getGlobalXmppClient();
-    // Took main's `markIntentionalLogout` flow over tf-dev's explicit
-    // `disconnect({ suppressReconnect: true })`. Roman's intentional-logout
-    // pattern (commit 11ed82a) is the more robust approach - the explicit
-    // tf-dev block became redundant once markIntentionalLogout landed.
     try {
       (xmppClient as any)?.markIntentionalLogout?.();
     } catch {
@@ -33,10 +29,6 @@ const logoutService = {
     }
     setGlobalXmppClient(null);
 
-    // Notify XmppProvider so it can drop its `client` ref. Without this,
-    // a re-login in the same tab keeps the disconnected client in context,
-    // useChatWrapperInit takes the "client already exists" branch on next
-    // mount, and presence/loadRooms run against a dead socket.
     if (typeof window !== 'undefined') {
       try {
         window.dispatchEvent(new Event('ethora-xmpp-logout'));
@@ -45,7 +37,12 @@ const logoutService = {
       }
     }
 
-    // Clear app state immediately so UI doesn't wait on network/teardown latency.
+    store.dispatch(setCurrentRoom({ roomJID: null }));
+    try {
+      (xmppClient as any)?.setActiveRoomJid?.(null);
+    } catch {
+      // client builds; ignore.
+    }
     store.dispatch(logout());
     store.dispatch(setLogoutState());
     store.dispatch(clearHeap());

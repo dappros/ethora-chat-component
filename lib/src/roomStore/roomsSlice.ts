@@ -647,14 +647,24 @@ const roomsStore = createSlice({
     ) => {
       const { chatJID, timestamp } = action.payload;
       if (state.rooms[chatJID]) {
+        const previousLastViewed = getTimestampFromUnknown(
+          state.rooms[chatJID].lastViewedTimestamp
+        );
+        const baseline = getTimestampFromUnknown(
+          state.rooms[chatJID].unreadBaselineTimestamp
+        );
         const normalizedTimestamp = getTimestampFromUnknown(timestamp);
         state.rooms[chatJID].lastViewedTimestamp = normalizedTimestamp;
-        if (state.activeRoomJID === chatJID) {
+        const isEnteringActive = state.activeRoomJID === chatJID;
+        if (isEnteringActive) {
           state.rooms[chatJID].unreadMessages = 0;
         }
+        const delimiterCutoff = isEnteringActive
+          ? (previousLastViewed > 0 ? previousLastViewed : baseline)
+          : normalizedTimestamp;
         state.rooms[chatJID].messages = normalizeDelimiterPosition(
           state.rooms[chatJID].messages,
-          state.activeRoomJID === chatJID ? 0 : normalizedTimestamp
+          delimiterCutoff
         );
         state.rooms[chatJID].unreadCapped = false;
       }

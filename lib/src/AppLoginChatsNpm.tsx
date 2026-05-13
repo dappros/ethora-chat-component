@@ -1,22 +1,26 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-// Use LOCAL source to verify the useChatWrapperInit fix.
-// Original npm imports kept for reference:
-// import { XmppProvider, Chat, useUnread } from 'ethora-chat-pkg';
+
+// To test against the published npm package instead of local src, replace
+// these imports with:
+//   import { XmppProvider, Chat, useUnread, logoutService } from '@ethora/chat-component';
+// (after `npm install @ethora/chat-component@26.3.21`). The local src
+// already matches 26.3.21
+// identical — using local lets HMR pick up further fixes without a reinstall.
 import { XmppProvider } from './context/xmppProvider';
 import { ReduxWrapper as Chat } from './components/MainComponents/ReduxWrapper';
 import { useUnread } from './hooks/useUnreadMessagesCounter';
+import { logoutService } from './hooks/useLogout';
 
-const APP_ID = '646cc8dc96d4a4dc8f7b2f2d';
+// JWT-based bootstrap — no email/password login screen, no customAppToken.
+// XmppProvider receives `jwtLogin.token`, exchanges it via POST /users/client
+// for an Ethora user-auth token + xmpp creds, then connects. Mirrors the
+// production patient flow (see Slack thread).
 const BASE_URL = 'https://api.chat.ethora.com/v1';
 const CONFERENCE = 'conference.xmpp.chat.ethora.com';
-const APP_TOKEN =
-  'JWT eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7ImlzVXNlckRhdGFFbmNyeXB0ZWQiOmZhbHNlLCJwYXJlbnRBcHBJZCI6bnVsbCwiaXNBbGxvd2VkTmV3QXBwQ3JlYXRlIjp0cnVlLCJpc0Jhc2VBcHAiOnRydWUsIl9pZCI6IjY0NmNjOGRjOTZkNGE0ZGM4ZjdiMmYyZCIsImRpc3BsYXlOYW1lIjoiRXRob3JhIiwiZG9tYWluTmFtZSI6ImV0aG9yYSIsImNyZWF0b3JJZCI6IjY0NmNjOGQzOTZkNGE0ZGM4ZjdiMmYyNSIsInVzZXJzQ2FuRnJlZSI6dHJ1ZSwiZGVmYXVsdEFjY2Vzc0Fzc2V0c09wZW4iOnRydWUsImRlZmF1bHRBY2Nlc3NQcm9maWxlT3BlbiI6dHJ1ZSwiYnVuZGxlSWQiOiJjb20uZXRob3JhIiwicHJpbWFyeUNvbG9yIjoiIzAwM0U5QyIsInNlY29uZGFyeUNvbG9yIjoiIzI3NzVFQSIsImNvaW5TeW1ib2wiOiJFVE8iLCJjb2luTmFtZSI6IkV0aG9yYSBDb2luIiwiUkVBQ1RfQVBQX0ZJUkVCQVNFX0FQSV9LRVkiOiJBSXphU3lEUWRrdnZ4S0t4NC1XcmpMUW9ZZjA4R0ZBUmdpX3FPNGciLCJSRUFDVF9BUFBfRklSRUJBU0VfQVVUSF9ET01BSU4iOiJldGhvcmEtNjY4ZTkuZmlyZWJhc2VhcHAuY29tIiwiUkVBQ1RfQVBQX0ZJUkVCQVNFX1BST0pFQ1RfSUQiOiJldGhvcmEtNjY4ZTkiLCJSRUFDVF9BUFBfRklSRUJBU0VfU1RPUkFHRV9CVUNLRVQiOiJldGhvcmEtNjY4ZTkuYXBwc3BvdC5jb20iLCJSRUFDVF9BUFBfRklSRUJBU0VfTUVTU0FHSU5HX1NFTkRFUl9JRCI6Ijk3MjkzMzQ3MDA1NCIsIlJFQUNUX0FQUF9GSVJFQkFTRV9BUFBfSUQiOiIxOjk3MjkzMzQ3MDA1NDp3ZWI6ZDQ2ODJlNzZlZjAyZmQ5YjljZGFhNyIsIlJFQUNUX0FQUF9GSVJFQkFTRV9NRUFTVVJNRU5UX0lEIjoiRy1XSE03WFJaNEM4IiwiUkVBQ1RfQVBQX1NUUklQRV9QVUJMSVNIQUJMRV9LRVkiOiIiLCJSRUFDVF9BUFBfU1RSSVBFX1NFQ1JFVF9LRVkiOiIiLCJjcmVhdGVkQXQiOiIyMDIzLTA1LTIzVDE0OjA4OjI4LjEzNloiLCJ1cGRhdGVkQXQiOiIyMDIzLTA1LTIzVDE0OjA4OjI4LjEzNloiLCJfX3YiOjB9LCJpYXQiOjE2ODQ4NTA5MjV9.-IqNVMsf8GyS9Z-_yuNW7hpSmejajjAy-W0J8TadRIM';
 
 const BASE_CONFIG = {
-  appId: APP_ID,
   baseUrl: BASE_URL,
-  customAppToken: APP_TOKEN,
   xmppSettings: {
     devServer: 'wss://xmpp.chat.ethora.com/ws',
     host: 'xmpp.chat.ethora.com',
@@ -28,15 +32,7 @@ const BASE_CONFIG = {
   disableRooms: true,
 } as const;
 
-type AppUser = {
-  token: string;
-  refreshToken?: string;
-  xmppUsername: string;
-  xmppPassword: string;
-  firstName?: string;
-  email?: string;
-  _id?: string;
-};
+// Default JWT pre-filled in the textarea so the dev can hit "Connect" and go.
 
 type ApiRoomMember = { _id: string; firstName?: string; lastName?: string };
 type ApiRoomItem = {
@@ -85,32 +81,216 @@ const UnreadBadge: React.FC<{ value: string | number; muted?: boolean }> = ({
   </span>
 );
 
-const LoginScreen: React.FC<{ onLogin: (user: AppUser) => void }> = ({
-  onLogin,
+type AppUser = {
+  token: string;
+  refreshToken?: string;
+  xmppUsername: string;
+  xmppPassword: string;
+  firstName?: string;
+  email?: string;
+  _id?: string;
+};
+
+// JWT mode keeps the raw JWT — XmppProvider does its own /users/client
+// exchange via `jwtLogin.token`. The wrapper does a *separate* exchange
+// purely for /chats/my.
+//
+// Email mode pre-resolves the user via POST /users/login-with-email in
+// LoginScreen (the package's email-login fallback in LoginWrapper is
+// effectively dead because the `user`-vs-`loginData` prop renames never
+// reached `<Chat>`). The resolved user is then handed to both <Chat>'s
+// config and the parent XmppProvider's config as `userLogin.user`, so
+// no further login round-trips happen inside the package.
+type LoginPayload =
+  | { mode: 'jwt'; jwt: string }
+  | { mode: 'email'; user: AppUser; appToken: string };
+
+// Mirrors the package's `loginViaJwt` (auth.api.ts): POST /users/client
+// with no body and the raw client JWT in `x-custom-token`.
+const resolveUserFromJwt = async (jwt: string): Promise<AppUser> => {
+  const res = await axios.post(
+    `${BASE_URL}/users/client`,
+    null,
+    { headers: { 'x-custom-token': jwt } }
+  );
+  const data = res.data || {};
+  const user: AppUser = {
+    ...data.user,
+    token: data.token,
+    refreshToken: data.refreshToken,
+  };
+  if (!user.token || !user.xmppUsername || !user.xmppPassword) {
+    throw new Error('JWT exchange returned incomplete user');
+  }
+  return user;
+};
+
+const resolveUserFromEmail = async (
+  email: string,
+  password: string,
+  appToken: string
+): Promise<AppUser> => {
+  const res = await axios.post(
+    `${BASE_URL}/users/login-with-email`,
+    { email, password },
+    { headers: { Authorization: appToken } }
+  );
+  const data = res.data || {};
+  const user: AppUser = {
+    ...data.user,
+    token: data.token,
+    refreshToken: data.refreshToken,
+  };
+  if (!user.token || !user.xmppUsername || !user.xmppPassword) {
+    throw new Error('Email login returned incomplete user');
+  }
+  return user;
+};
+
+const resolveUserFromPayload = (p: LoginPayload): Promise<AppUser> =>
+  p.mode === 'jwt' ? resolveUserFromJwt(p.jwt) : Promise.resolve(p.user);
+
+type LoginMode = 'jwt' | 'email';
+
+const inputStyle = {
+  padding: 10,
+  border: `1px solid ${PRIMARY}`,
+  borderRadius: 6,
+  fontSize: 14,
+} as const;
+
+const tabBtnStyle = (active: boolean): React.CSSProperties => ({
+  flex: 1,
+  padding: '10px 14px',
+  border: 'none',
+  background: active ? PRIMARY : 'transparent',
+  color: active ? 'white' : '#52525B',
+  fontWeight: active ? 600 : 400,
+  cursor: 'pointer',
+  borderRadius: 6,
+});
+
+// Simple JWT-only entry screen.
+const JwtInputScreen: React.FC<{ onSubmit: (p: LoginPayload) => void }> = ({
+  onSubmit,
 }) => {
-  const [email, setEmail] = useState('dawepa1952@hutudns.com');
-  const [password, setPassword] = useState('12345678');
+  const [jwt, setJwt] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = jwt.trim();
+    if (!trimmed) return;
+    onSubmit({ mode: 'jwt', jwt: trimmed });
+  };
+
+  return (
+    <div
+      style={{
+        height: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#f5f5f5',
+      }}
+    >
+      <form
+        onSubmit={handleSubmit}
+        style={{
+          background: 'white',
+          padding: 30,
+          borderRadius: 8,
+          boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
+          width: 520,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 12,
+        }}
+      >
+        <strong>Test app — paste a custom client JWT</strong>
+        <div style={{ fontSize: 12, color: '#71717A', lineHeight: 1.5 }}>
+          The XmppProvider will POST this token to <code>/users/client</code>{' '}
+          (jwtLogin flow) and use the returned creds to connect to XMPP. No
+          email/password, no customAppToken.
+        </div>
+        <textarea
+          value={jwt}
+          onChange={(e) => setJwt(e.target.value)}
+          placeholder="eyJhbGciOi..."
+          rows={6}
+          style={{
+            ...inputStyle,
+            fontFamily: 'monospace',
+            fontSize: 12,
+            resize: 'vertical',
+          }}
+        />
+        <button
+          type="submit"
+          style={{
+            padding: 10,
+            background: PRIMARY,
+            color: 'white',
+            border: 'none',
+            borderRadius: 6,
+            cursor: 'pointer',
+          }}
+        >
+          Connect
+        </button>
+      </form>
+    </div>
+  );
+};
+
+// Exported so it can be wired into the default export when the toggleable
+// jwt-vs-email picker is desired. Also avoids the TS6133 unused warning
+// while keeping the component available alongside <JwtInputScreen />.
+export const LoginScreen: React.FC<{ onSubmit: (p: LoginPayload) => void }> = ({
+  onSubmit,
+}) => {
+  const [mode, setMode] = useState<LoginMode>('jwt');
+
+  // JWT mode state
+  const [jwt, setJwt] = useState('');
+
+  // Email mode state
+  const [appToken, setAppToken] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setBusy(true);
     setError(null);
+
+    if (mode === 'jwt') {
+      const trimmed = jwt.trim();
+      if (!trimmed) {
+        setError('Paste a JWT');
+        return;
+      }
+      onSubmit({ mode: 'jwt', jwt: trimmed });
+      return;
+    }
+
+    // mode === 'email' — resolve the user up-front so we can hand it
+    // straight to `userLogin.user` for both <Chat> and XmppProvider.
+    const trimmedAppToken = appToken.trim();
+    const trimmedEmail = email.trim();
+    if (!trimmedAppToken) {
+      setError('App token required for email login');
+      return;
+    }
+    if (!trimmedEmail || !password) {
+      setError('Email and password required');
+      return;
+    }
+    setBusy(true);
     try {
-      const res = await axios.post(
-        `${BASE_URL}/users/login-with-email`,
-        { email, password },
-        { headers: { Authorization: APP_TOKEN } }
-      );
-      const data = res.data || {};
-      const user: AppUser = {
-        ...data.user,
-        token: data.token,
-        refreshToken: data.refreshToken,
-      };
-      if (!user.token) throw new Error('No token');
-      onLogin(user);
+      const user = await resolveUserFromEmail(trimmedEmail, password, trimmedAppToken);
+      onSubmit({ mode: 'email', user, appToken: trimmedAppToken });
     } catch (err: any) {
       setError(err?.response?.data?.message || err?.message || 'Login failed');
     } finally {
@@ -135,27 +315,111 @@ const LoginScreen: React.FC<{ onLogin: (user: AppUser) => void }> = ({
           padding: 30,
           borderRadius: 8,
           boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
-          width: 320,
+          width: 520,
           display: 'flex',
           flexDirection: 'column',
           gap: 12,
         }}
       >
-        <strong>Test app — npm @ethora/chat-component@26.3.18</strong>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
-          style={{ padding: 10, border: `1px solid ${PRIMARY}`, borderRadius: 6 }}
-        />
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password"
-          style={{ padding: 10, border: `1px solid ${PRIMARY}`, borderRadius: 6 }}
-        />
+        <strong>Test app — choose a login mode</strong>
+
+        <div
+          style={{
+            display: 'flex',
+            gap: 4,
+            padding: 4,
+            background: '#F4F4F5',
+            borderRadius: 8,
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => {
+              setMode('jwt');
+              setError(null);
+            }}
+            style={tabBtnStyle(mode === 'jwt')}
+          >
+            jwtLogin (custom JWT)
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode('email');
+              setError(null);
+            }}
+            style={tabBtnStyle(mode === 'email')}
+          >
+            email + appToken
+          </button>
+        </div>
+
+        {mode === 'jwt' ? (
+          <>
+            <div style={{ fontSize: 12, color: '#71717A', lineHeight: 1.5 }}>
+              XmppProvider will POST this token to <code>/users/client</code>{' '}
+              (jwtLogin flow). No appToken needed.
+            </div>
+            <textarea
+              value={jwt}
+              onChange={(e) => setJwt(e.target.value)}
+              placeholder="eyJhbGciOi..."
+              rows={6}
+              style={{
+                ...inputStyle,
+                fontFamily: 'monospace',
+                fontSize: 12,
+                resize: 'vertical',
+              }}
+            />
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize: 12, color: '#71717A', lineHeight: 1.5 }}>
+              POST <code>/users/login-with-email</code> with this appToken as
+              Authorization. The resolved user is fed to XmppProvider AND
+              to <code>&lt;Chat&gt;</code> as <code>userLogin.user</code>;
+              appToken stays as <code>customAppToken</code> for downstream
+              API calls.
+            </div>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 12, color: '#52525B' }}>App token</span>
+              <textarea
+                value={appToken}
+                onChange={(e) => setAppToken(e.target.value)}
+                placeholder="JWT eyJhbGc..."
+                rows={3}
+                style={{
+                  ...inputStyle,
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                  resize: 'vertical',
+                }}
+              />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 12, color: '#52525B' }}>Email</span>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                style={inputStyle}
+              />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 12, color: '#52525B' }}>Password</span>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                style={inputStyle}
+              />
+            </label>
+          </>
+        )}
+
         <button
           type="submit"
           disabled={busy}
@@ -165,10 +429,11 @@ const LoginScreen: React.FC<{ onLogin: (user: AppUser) => void }> = ({
             color: 'white',
             border: 'none',
             borderRadius: 6,
-            cursor: 'pointer',
+            cursor: busy ? 'not-allowed' : 'pointer',
+            opacity: busy ? 0.7 : 1,
           }}
         >
-          {busy ? 'Logging in…' : 'Login'}
+          {busy ? 'Logging in…' : 'Connect'}
         </button>
         {error && <div style={{ color: '#E5484D', fontSize: 13 }}>{error}</div>}
       </form>
@@ -187,24 +452,32 @@ const apiRoomToMeta = (room: ApiRoomItem) => ({
 type RoomMeta = ReturnType<typeof apiRoomToMeta>;
 
 const HomeScreen: React.FC<{
-  user: AppUser;
+  payload: LoginPayload;
   onSelect: (jid: string) => void;
   selectedJid: string | null;
   onLogout: () => void;
   onRoomsLoaded: (rooms: RoomMeta[]) => void;
-}> = ({ user, onSelect, selectedJid, onLogout, onRoomsLoaded }) => {
+}> = ({ payload, onSelect, selectedJid, onLogout, onRoomsLoaded }) => {
   const { hasUnread, displayTotal, unreadByRoom, displayByRoom } = useUnread();
+  // Wrapper does its own login here purely to get a token for /chats/my.
+  // The chat component does an independent login of its own via XmppProvider.
+  const [user, setUser] = useState<AppUser | null>(null);
   const [rooms, setRooms] = useState<RoomMeta[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setUser(null);
+    setRooms([]);
     (async () => {
-      setLoading(true);
       try {
+        const resolved = await resolveUserFromPayload(payload);
+        if (cancelled) return;
+        setUser(resolved);
         const res = await axios.get<{ items: ApiRoomItem[] }>(
           `${BASE_URL}/chats/my`,
-          { headers: { Authorization: user.token } }
+          { headers: { Authorization: resolved.token } }
         );
         if (cancelled) return;
         const list = (res.data?.items || []).map(apiRoomToMeta);
@@ -219,7 +492,7 @@ const HomeScreen: React.FC<{
     return () => {
       cancelled = true;
     };
-  }, [user.token]);
+  }, [payload]);
 
   return (
     <div
@@ -244,7 +517,7 @@ const HomeScreen: React.FC<{
       >
         <div>
           <div style={{ fontSize: 18, fontWeight: 700 }}>
-            Welcome{user.firstName ? `, ${user.firstName}` : ''} 👋
+            Welcome{user?.firstName ? `, ${user.firstName}` : ''} 👋
           </div>
           <div
             style={{
@@ -381,27 +654,29 @@ const OtherTab: React.FC<{ jid: string }> = ({ jid }) => {
   );
 };
 
-const ChatTab: React.FC<{ user: AppUser; roomJid: string }> = ({
-  user,
+const ChatTab: React.FC<{ payload: LoginPayload; roomJid: string }> = ({
+  payload,
   roomJid,
 }) => {
-  // No external dispatch needed — package now reacts to roomJID prop
-  // changes (useChatWrapperInit.ensureActiveRoomSelected treats prop
-  // as authoritative).
-  const config = useMemo(
-    () => ({
+  // XmppProvider above already ran initBeforeLoad — ChatWrapper plugs
+  // into the existing XMPP client. Email mode mirrors `userLogin` /
+  // `customAppToken` onto <Chat>'s own config too, so if it ever mounts
+  // standalone (no XmppProvider parent) it can still bootstrap.
+  const config = useMemo(() => {
+    const base = {
       ...BASE_CONFIG,
-      initBeforeLoad: true,
-      userLogin: { enabled: true, user },
       setRoomJidInPath: false,
-      // Mirrors the production single-chat config that surfaces bug 1.
-      enableRoomsRetry: {
-        enabled: true,
-        helperText: 'Initializing chat…',
-      },
-    }),
-    [user.xmppUsername, user.xmppPassword, user.token]
-  );
+      enableRoomsRetry: { enabled: true, helperText: 'Initializing chat…' },
+    };
+    if (payload.mode === 'email') {
+      return {
+        ...base,
+        customAppToken: payload.appToken,
+        userLogin: { enabled: true, user: payload.user },
+      };
+    }
+    return base;
+  }, [payload]);
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
@@ -419,12 +694,12 @@ const ChatTab: React.FC<{ user: AppUser; roomJid: string }> = ({
 };
 
 const RoomView: React.FC<{
-  user: AppUser;
+  payload: LoginPayload;
   roomJid: string;
   meta?: RoomMeta;
   activeTab: RoomTab;
   onTabChange: (t: RoomTab) => void;
-}> = ({ user, roomJid, meta, activeTab, onTabChange }) => (
+}> = ({ payload, roomJid, meta, activeTab, onTabChange }) => (
   <div
     style={{
       flex: 1,
@@ -483,29 +758,38 @@ const RoomView: React.FC<{
         <DescriptionTab key={`desc-${roomJid}`} meta={meta} />
       )}
       {activeTab === 'other' && <OtherTab key={`other-${roomJid}`} jid={roomJid} />}
-      {activeTab === 'chat' && (
-        <ChatTab user={user} roomJid={roomJid} />
-      )}
+      {activeTab === 'chat' && <ChatTab payload={payload} roomJid={roomJid} />}
     </div>
   </div>
 );
 
-const AuthedShell: React.FC<{ user: AppUser; onLogout: () => void }> = ({
-  user,
-  onLogout,
-}) => {
+const AuthedShell: React.FC<{
+  payload: LoginPayload;
+  onLogout: () => void;
+}> = ({ payload, onLogout }) => {
   const [selectedJid, setSelectedJid] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<RoomTab>('chat');
   const [rooms, setRooms] = useState<RoomMeta[]>([]);
 
-  const config = useMemo(
-    () => ({
+  const config = useMemo(() => {
+    if (payload.mode === 'jwt') {
+      // jwt → XmppProvider runs initBeforeLoad off `jwtLogin.token`.
+      return {
+        ...BASE_CONFIG,
+        initBeforeLoad: true,
+        jwtLogin: { enabled: true, token: payload.jwt },
+      };
+    }
+    // email → user is already resolved upstream; hand it to userLogin
+    // so initBeforeLoad has everything it needs (xmpp creds + token)
+    // without a second /users/login-with-email round trip.
+    return {
       ...BASE_CONFIG,
       initBeforeLoad: true,
-      userLogin: { enabled: true, user },
-    }),
-    [user.xmppUsername, user.xmppPassword, user.token]
-  );
+      customAppToken: payload.appToken,
+      userLogin: { enabled: true, user: payload.user },
+    };
+  }, [payload]);
 
   const meta = selectedJid ? rooms.find((r) => r.jid === selectedJid) : undefined;
 
@@ -524,17 +808,17 @@ const AuthedShell: React.FC<{ user: AppUser; onLogout: () => void }> = ({
       >
         <div style={{ flex: '0 0 360px', maxWidth: 360, display: 'flex', minHeight: 0 }}>
           <HomeScreen
-            user={user}
+            payload={payload}
             onSelect={setSelectedJid}
             selectedJid={selectedJid}
             onLogout={onLogout}
             onRoomsLoaded={setRooms}
           />
         </div>
-        <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+        <div style={{ flex: 1, display: 'flex', minHeight: 0, maxWidth: '80%' }}>
           {selectedJid ? (
             <RoomView
-              user={user}
+              payload={payload}
               roomJid={selectedJid}
               meta={meta}
               activeTab={activeTab}
@@ -563,8 +847,28 @@ const AuthedShell: React.FC<{ user: AppUser; onLogout: () => void }> = ({
   );
 };
 
+// Re-export under a name that matches the other entry screen contract,
+// so the default export can swap freely between the simple jwt-only
+// screen and the toggleable jwt/email picker.
+export const JwtOnlyScreen = JwtInputScreen;
+
 export default function AppLoginChatsNpm() {
-  const [user, setUser] = useState<AppUser | null>(null);
-  if (!user) return <LoginScreen onLogin={setUser} />;
-  return <AuthedShell user={user} onLogout={() => setUser(null)} />;
+  const [payload, setPayload] = useState<LoginPayload | null>(null);
+  // Switch <LoginScreen /> → <JwtOnlyScreen /> here if you want to drop
+  // the email mode from the entry UI. Both produce LoginPayload, so the
+  // rest of AuthedShell stays the same.
+  const handleLogout = async () => {
+    // Tear down the chat component first — disconnects the XMPP client,
+    // clears redux user/rooms/heap, purges redux-persist, clears stored
+    // creds and push subscriptions. Without this, a re-login in the same
+    // tab inherits the dead socket and previous user from persisted state.
+    try {
+      await logoutService.performLogout();
+    } catch (err) {
+      console.warn('[AppLoginChatsNpm] logoutService failed', err);
+    }
+    setPayload(null);
+  };
+  if (!payload) return <LoginScreen onSubmit={setPayload} />;
+  return <AuthedShell payload={payload} onLogout={handleLogout} />;
 }
