@@ -30,7 +30,7 @@ interface MessageInteractionsProps {
   isReply?: boolean;
   isUser?: boolean;
   message: IMessage;
-  contextMenu: { visible: boolean; x: number; y: number };
+  contextMenu: { visible: boolean; x: number; y: number } | null;
   setContextMenu: ({ visible, x, y }) => void;
   handleReplyMessage: () => void;
   handleDeleteMessage: () => void;
@@ -130,7 +130,7 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
   };
 
   useEffect(() => {
-    if (typeof window === "undefined") {
+    if (typeof window === "undefined" || !contextMenu) {
       return;
     }
 
@@ -151,9 +151,9 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
         window.removeEventListener('scroll', handleScroll);
       }
     };
-  }, [showPicker, contextMenu.x, contextMenu.y]);
+  }, [showPicker, contextMenu?.x, contextMenu?.y]);
 
-  if (config?.disableInteractions || !contextMenu.visible) return null;
+  if (!contextMenu || config?.disableInteractions || !contextMenu.visible) return null;
 
   return (
     <>
