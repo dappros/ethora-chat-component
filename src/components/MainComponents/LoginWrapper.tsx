@@ -114,7 +114,15 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
       }
 
       if (config?.userLogin?.enabled && config.userLogin.user) {
-        const normalizedUser = await ensureUserFromMy(config.userLogin.user);
+        const candidate = config.userLogin.user as User;
+        const hasXmppCreds = Boolean(
+          (candidate as any)?.xmppPassword &&
+            ((candidate as any)?.xmppUsername ||
+              (candidate as any)?.defaultWallet?.walletAddress)
+        );
+        const normalizedUser = hasXmppCreds
+          ? candidate
+          : await ensureUserFromMy(candidate);
         if (!cancelled && normalizedUser) {
           dispatch(setUser(normalizedUser));
         }
