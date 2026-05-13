@@ -235,6 +235,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
           )
         ) : (
           <MessageList
+            key={activeRoomJID}
             loadMoreMessages={loadMoreMessages}
             CustomMessage={CustomMessageComponent}
             user={user}
