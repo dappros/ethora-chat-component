@@ -15,6 +15,7 @@ export async function getChatsPrivateStoreRequest(client: Client) {
       try {
         (client as any)?.off?.('stanza', stanzaHdlrPointer);
       } catch {
+        //
       }
     };
 
