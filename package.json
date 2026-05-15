@@ -81,21 +81,33 @@
   "overrides": {
     "csstype": "3.1.3"
   },
-  "description": "1. npm create vite@latest 2. select name of project, select type (react/js) 3. cd project-name 4. npm i 5. npm i @ethora/chat-component 6. go to file src/App.tsx and replace it with this code",
+  "description": "Embeddable React chat UI for the open-source Ethora messaging platform — drop-in chat as a popup widget, an embedded panel, or a standalone app.",
+  "homepage": "https://playground.chat.ethora.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dappros/ethora-chat-component.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dappros/ethora-chat-component/issues"
+  },
   "directories": {
     "lib": "lib"
   },
   "author": "Ethora",
-  "license": "AGPL",
+  "license": "MIT",
   "keywords": [
     "chat",
+    "chat-widget",
+    "embeddable-chat",
     "messaging",
+    "messaging-sdk",
     "react",
     "react-component",
-    "messenger",
     "reactjs",
-    "web3",
+    "typescript",
+    "tailwindcss",
     "xmpp",
+    "website-chatbot",
     "ethora"
   ]
 }
