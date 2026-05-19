@@ -12,6 +12,7 @@ import { refresh } from '../networking/apiClient';
 import { setLangSource, setConfig } from '../roomStore/chatSettingsSlice';
 import {
   setCurrentRoom,
+  setChatUiVisible,
   setIsLoading,
   setLogoutState,
 } from '../roomStore/roomsSlice';
@@ -636,8 +637,9 @@ const useChatWrapperInit = ({
   }, [roomsList, activeRoomJID, ensureActiveRoomSelected]);
 
   useEffect(() => {
+    dispatch(setChatUiVisible(true));
     return () => {
-      dispatch(setCurrentRoom({ roomJID: null }));
+      dispatch(setChatUiVisible(false));
     };
   }, [dispatch]);
 

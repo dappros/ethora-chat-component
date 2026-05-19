@@ -183,7 +183,7 @@ const chatSettingPersistConfig = {
 const roomsPersistConfig = {
   key: 'roomMessages',
   storage,
-  blacklist: ['editAction', 'activeRoomJID', 'loadingText'],
+  blacklist: ['editAction', 'activeRoomJID', 'loadingText', 'isChatUiVisible'],
   transforms: [sanitizeRoomsStateTransform, limitMessagesTransform, encryptor],
 };
 

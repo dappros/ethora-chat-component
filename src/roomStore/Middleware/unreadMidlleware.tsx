@@ -25,13 +25,14 @@ const computeUnreadForRoom = (
   room: any,
   activeChatJID: string | null,
   roomJid: string,
-  currentXmppUsername: string
+  currentXmppUsername: string,
+  isChatUiVisible: boolean
 ): { unread: number; unreadCapped: boolean } => {
   if (!room) {
     return { unread: 0, unreadCapped: false };
   }
 
-  if (roomJid === activeChatJID) {
+  if (isChatUiVisible && roomJid === activeChatJID) {
     return { unread: 0, unreadCapped: false };
   }
 
@@ -183,6 +184,7 @@ export const unreadMiddleware: Middleware =
 
     const rooms = nextState.rooms.rooms;
     const activeChatJID = nextState.rooms.activeRoomJID;
+    const isChatUiVisible = nextState.rooms.isChatUiVisible ?? false;
     const currentXmppUsername = nextState.chatSettingStore?.user?.xmppUsername;
 
     if (!rooms || Object.keys(rooms).length === 0) return result;
@@ -198,7 +200,8 @@ export const unreadMiddleware: Middleware =
         room,
         activeChatJID,
         jid,
-        currentXmppUsername
+        currentXmppUsername,
+        isChatUiVisible
       );
 
       if (

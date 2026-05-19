@@ -17,6 +17,7 @@ import { getTimestampFromUnknown } from '../helpers/timestamp';
 interface RoomMessagesState {
   rooms: { [jid: string]: IRoom };
   activeRoomJID: string;
+  isChatUiVisible: boolean;
   editAction?: EditAction;
   isLoading: boolean;
   usersSet: Record<string, RoomMember>;
@@ -38,6 +39,7 @@ interface PreloadRoomUpdate {
 const initialState: RoomMessagesState = {
   rooms: {},
   activeRoomJID: null,
+  isChatUiVisible: false,
   isLoading: false,
   editAction: {
     isEdit: false,
@@ -694,9 +696,13 @@ const roomsStore = createSlice({
       const { roomJID } = action.payload;
       state.activeRoomJID = roomJID;
     },
+    setChatUiVisible: (state, action: PayloadAction<boolean>) => {
+      state.isChatUiVisible = action.payload;
+    },
     setLogoutState: (state) => {
       state.rooms = {};
       state.activeRoomJID = null;
+      state.isChatUiVisible = false;
       state.isLoading = false;
       state.usersSet = {};
     },
@@ -908,6 +914,7 @@ export const {
   setLastViewedTimestamp,
   setRoomNoMessages,
   setCurrentRoom,
+  setChatUiVisible,
   setRoomRole,
   setReactions,
   setLogoutState,
