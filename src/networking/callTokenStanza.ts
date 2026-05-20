@@ -65,6 +65,8 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
 
   const token = String(data.attrs?.token || '').trim();
   const stanzaRoom = String(data.attrs?.room || '').trim();
+  const stanzaKind = String(data.attrs?.kind || '').toLowerCase();
+  const kind: 'audio' | 'video' = stanzaKind === 'audio' ? 'audio' : 'video';
   if (!token || !stanzaRoom) {
     return true;
   }
@@ -112,6 +114,6 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
     return true;
   }
 
-  store.dispatch(setIncomingCallToken({ roomJid, roomName, token }));
+  store.dispatch(setIncomingCallToken({ roomJid, roomName, token, kind }));
   return true;
 };

@@ -10,19 +10,54 @@ import {
 import http from '../apiClient';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
 
+// 60s, not 1.5s. Provider bootstrap fires /chats/my early; chat mount can
+// happen many seconds later (route transition, lazy chunk). Without this
+// the UI fires a second /chats/my just to refetch the same data — and the
+// user sees a "0 rooms" flash while the second request is in flight.
+const GET_ROOMS_CACHE_MS = 60_000;
+let getRoomsInFlight: Promise<{ items: ApiRoom[] }> | null = null;
+let getRoomsInFlightToken = '';
+let lastGetRoomsResponse: { items: ApiRoom[] } | null = null;
+let lastGetRoomsResponseAt = 0;
+let lastGetRoomsResponseToken = '';
+
 export async function getRooms(): Promise<{ items: ApiRoom[] }> {
   const token = store.getState().chatSettingStore.user.token || '';
+  const now = Date.now();
 
-  try {
+  if (
+    lastGetRoomsResponse &&
+    lastGetRoomsResponseToken === token &&
+    now - lastGetRoomsResponseAt < GET_ROOMS_CACHE_MS
+  ) {
+    return lastGetRoomsResponse;
+  }
+
+  if (getRoomsInFlight && getRoomsInFlightToken === token) {
+    return getRoomsInFlight;
+  }
+
+  getRoomsInFlightToken = token;
+  getRoomsInFlight = (async () => {
     const response = await http.get('/chats/my', {
       headers: {
         Authorization: token,
       },
     });
+    lastGetRoomsResponse = response.data;
+    lastGetRoomsResponseAt = Date.now();
+    lastGetRoomsResponseToken = token;
     return response.data;
+  })();
+
+  try {
+    return await getRoomsInFlight;
   } catch (error) {
     ethoraLogger.log('Error loading rooms');
     return { items: [] };
+  } finally {
+    getRoomsInFlight = null;
+    getRoomsInFlightToken = '';
   }
 }
 
@@ -156,13 +191,23 @@ export async function deleteRoom(name: string) {
   }
 }
 
-export async function createChatCall(chatName: string): Promise<void> {
+// POST /v1/chats/call/create/{chatName}
+// Swagger documents the body as `additionalProperties: true` — we forward
+// `kind: 'audio' | 'video'` so the server can stamp it on the broadcast
+// call-token stanza for the callee. When the server doesn't recognize the
+// field both sides still fall through to a video call (the default), which
+// matches the prior single-mode behavior.
+export async function createChatCall(
+  chatName: string,
+  options?: { kind?: 'audio' | 'video' }
+): Promise<void> {
   const token = store.getState().chatSettingStore.user.token || '';
+  const kind = options?.kind || 'video';
 
   try {
     await http.post(
       `/chats/call/create/${chatName}`,
-      {},
+      { kind },
       {
         headers: {
           Authorization: token,

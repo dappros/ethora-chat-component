@@ -6,7 +6,7 @@ export const getRooms = async (client: Client): Promise<any> => {
   let stanzaHdlrPointer: (stanza: Element) => void;
 
   const unsubscribe = () => {
-    client.off('stanza', stanzaHdlrPointer);
+    client?.off?.('stanza', stanzaHdlrPointer);
   };
 
   const responsePromise = new Promise<void>((resolve, reject) => {

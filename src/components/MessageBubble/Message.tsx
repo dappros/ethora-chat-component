@@ -179,8 +179,8 @@ const Message: React.FC<MessageProps> = forwardRef<
     );
     setContextMenu({
       visible: false,
-      x: null,
-      y: null,
+      x: 0,
+      y: 0,
     });
   };
 
@@ -260,9 +260,9 @@ const Message: React.FC<MessageProps> = forwardRef<
         <CustomMessageBubble
           $deleted={message.isDeleted}
           $isUser={isUser}
-          onContextMenu={handleContextMenu}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
+          onContextMenu={!config?.disableInteractions ? handleContextMenu : undefined}
+          onTouchStart={!config?.disableInteractions ? handleTouchStart : undefined}
+          onTouchEnd={!config?.disableInteractions ? handleTouchEnd : undefined}
         >
           {!isUser && (
             <CustomUserName $isUser={isUser} $color={config?.colors?.primary}>

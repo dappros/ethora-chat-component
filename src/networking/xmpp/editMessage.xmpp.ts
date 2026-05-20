@@ -21,7 +21,7 @@ export async function editMessage(client: Client, chatId: string, messageId: str
   )
   // let stanzaHdlrPointer;
   // const unsubscribe = () => {
-  //   client.off('stanza', stanzaHdlrPointer)
+  //   client?.off?.('stanza', stanzaHdlrPointer)
   // }
   // const responsePromise = new Promise((resolve, _) => {
   //   stanzaHdlrPointer = (stanza) => {

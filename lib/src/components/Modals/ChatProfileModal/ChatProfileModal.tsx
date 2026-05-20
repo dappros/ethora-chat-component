@@ -188,7 +188,8 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
               <Button EndIcon={<QrIcon />} onClick={() => setVisible(true)} />
             )}
             {activeRoom.role === 'moderator' &&
-              activeRoom.type !== 'private' && (
+              activeRoom.type !== 'private' &&
+              !config?.disableChatInfo?.disableChatHeaderMenu && (
                 <DropdownMenu
                   position="left"
                   options={chatMenuOptions}
@@ -219,8 +220,16 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         <UserInfo>
           <UserName>{activeRoom.name}</UserName>
           <UserStatus>
-            {activeRoom.usersCnt}{' '}
-            {activeRoom.usersCnt > 1 ? 'members' : 'member'}
+            {(() => {
+              const displayCount =
+                Array.isArray(activeRoom.members) && activeRoom.members.length > 0
+                  ? activeRoom.members.length
+                  : typeof activeRoom.usersCnt === 'number' &&
+                      activeRoom.usersCnt > 0
+                    ? activeRoom.usersCnt
+                    : 0;
+              return `${displayCount} ${displayCount === 1 ? 'member' : 'members'}`;
+            })()}
           </UserStatus>
         </UserInfo>
         {activeRoom.role === 'moderator' && activeRoom.type === 'group' && (

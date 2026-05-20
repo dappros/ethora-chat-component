@@ -15,6 +15,7 @@ import {
   onReactionMessage,
   onReactionHistory,
   onRoomKicked,
+  onRoomMembershipChange,
   onMessageError,
   onUserUpdate,
   onChatUpdate,
@@ -22,6 +23,18 @@ import {
 import XmppClient from '../xmppClient';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
 import { onCallTokenMessage } from '../callTokenStanza';
+
+// Unwrap mucsub event wrappers so downstream handlers see the inner stanza
+// (which has the original id like 'deleteMessageStanza' / 'edit-message-*').
+// Server sends: <message id='<mucsubItemId>'><event><items><item><message id='deleteMessageStanza'>...
+const unwrapMucsubMessage = (stanza: Element): Element => {
+  const inner = stanza
+    ?.getChild?.('event', 'http://jabber.org/protocol/pubsub#event')
+    ?.getChild?.('items')
+    ?.getChild?.('item')
+    ?.getChild?.('message');
+  return (inner as Element) || stanza;
+};
 
 export function handleStanza(stanza: Element, xmppWs: XmppClient) {
   if (stanza?.attrs?.type === 'headline') {
@@ -35,18 +48,21 @@ export function handleStanza(stanza: Element, xmppWs: XmppClient) {
   }
 
   switch (stanza.name) {
-    case 'message':
-      onMessageError(stanza, xmppWs);
-      onReactionMessage(stanza);
-      onReactionHistory(stanza);
-      onDeleteMessage(stanza);
-      onEditMessage(stanza);
-      onChatInvite(stanza, xmppWs);
-      onRealtimeMessage(stanza, xmppWs);
-      onMessageHistory(stanza);
-      handleComposing(stanza, xmppWs.username);
-      onPresenceInRoom(stanza);
+    case 'message': {
+      const unwrapped = unwrapMucsubMessage(stanza);
+      onMessageError(unwrapped, xmppWs);
+      onReactionMessage(unwrapped);
+      onReactionHistory(unwrapped);
+      onDeleteMessage(unwrapped);
+      onEditMessage(unwrapped);
+      onChatInvite(unwrapped, xmppWs);
+      onRoomMembershipChange(unwrapped);
+      onRealtimeMessage(unwrapped, xmppWs);
+      onMessageHistory(unwrapped);
+      handleComposing(unwrapped, xmppWs.username);
+      onPresenceInRoom(unwrapped);
       break;
+    }
     case 'presence':
       onRoomKicked(stanza);
       onPresenceInRoom(stanza);

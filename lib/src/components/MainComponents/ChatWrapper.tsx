@@ -92,6 +92,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
   const rooms = useSelector((state: RootState) => state.rooms.rooms);
   const activeRoomJID = useSelector((state: RootState) => state.rooms.activeRoomJID);
+  const isRoomsLoading = useSelector((state: RootState) => state.rooms.isLoading);
   const reportRoomIsOpen = useSelector((state: RootState) =>
     Boolean(state.rooms?.reportRoom?.isOpen)
   );
@@ -115,6 +116,8 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     if (!chat?.historyComplete && chat.messages?.length < 30) {
       client?.getHistoryStanza(chat.jid, 30, undefined, undefined, {
         source: 'active',
+        coalesceRoom: true,
+        skipIfPreloaded: true,
       });
     }
   };
@@ -142,7 +145,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   });
   const hasRooms = Object.keys(rooms || {}).length > 0;
   const clientReadyForUI = !!client && !isConnectionLost && hasRooms;
-  const showShell = inited || clientReadyForUI;
+  const showShell = (inited || clientReadyForUI) && !(isRoomsLoading && !hasRooms);
   const isConnectingLoaderVisible = isConnectionLost && !inited;
   const isRoomsRetryLoaderVisible = Boolean(
     config?.enableRoomsRetry?.enabled && isRetrying && isRetrying !== 'norooms'

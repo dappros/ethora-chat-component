@@ -45,6 +45,8 @@ export async function resendMessage(
   }
 
   const id = `resend-text-message-${uuidv4()}`;
+  const optimisticTimestamp = Date.now();
+  const optimisticDate = new Date(optimisticTimestamp).toISOString();
 
   store.dispatch(
     addRoomMessage({
@@ -56,7 +58,8 @@ export async function resendMessage(
           id: user.xmppUsername,
           name: user.firstName + ' ' + user.lastName,
         },
-        date: new Date().toISOString(),
+        date: optimisticDate,
+        messageTimestampMs: optimisticTimestamp,
         body: message.body,
         roomJid: activeRoomJID,
         xmppFrom: `${activeRoomJID}/${user.xmppUsername}`,

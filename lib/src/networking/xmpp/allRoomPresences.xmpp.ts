@@ -10,11 +10,25 @@ export interface AllRoomPresenceSummary {
   failures?: Array<{ roomJid: string; reason: string }>;
 }
 
+// Real MUC JIDs always look like `<localpart>@conference.<host>`. The
+// rehydrated state can be corrupted (slice keys leak into the rooms map,
+// API returns bare app IDs without the conference suffix), so we filter
+// before sending presence — otherwise mod_muc replies with
+// remote-server-not-found and the failure list pollutes logs.
+const isLikelyMucJid = (jid: unknown): jid is string => {
+  if (typeof jid !== 'string' || !jid) return false;
+  const at = jid.indexOf('@');
+  if (at <= 0) return false;
+  const domain = jid.slice(at + 1).split('/')[0];
+  return domain.includes('.') && domain.startsWith('conference.');
+};
+
 export async function allRoomPresences(
   client: Client
 ): Promise<AllRoomPresenceSummary> {
   const rooms = store.getState().rooms.rooms;
-  const roomJids = Object.keys(rooms);
+  const allKeys = rooms && typeof rooms === 'object' ? Object.keys(rooms) : [];
+  const roomJids = allKeys.filter(isLikelyMucJid);
   if (!roomJids.length) {
     return { total: 0, success: 0, failed: 0, failedRooms: [], failures: [] };
   }

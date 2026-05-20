@@ -102,7 +102,7 @@ import { Chat, XmppProvider } from '@ethora/chat-component';
 export default function App() {
   return (
     <XmppProvider>
-      <Chat config={{ baseUrl: 'https://api.ethoradev.com/v1' }} />
+      <Chat config={{ baseUrl: 'https://api.chat.ethora.com/v1' }} />
     </XmppProvider>
   );
 }
@@ -116,7 +116,7 @@ import { XmppProvider } from '@ethora/chat-component';
 export default function App() {
   return (
     <XmppProvider
-      config={{ baseUrl: 'https://api.ethoradev.com/v1', initBeforeLoad: true }}
+      config={{ baseUrl: 'https://api.chat.ethora.com/v1', initBeforeLoad: true }}
       pushNotifications={{
         enabled: true,
         softAsk: false,
@@ -281,7 +281,7 @@ If no `googleLogin`, no `jwtLogin`, no `userLogin`, and no `defaultLogin`, `Logi
 ```tsx
 <XmppProvider>
   <Chat
-    roomJID="ROOM_JID@conference.xmpp.ethoradev.com"
+    roomJID="ROOM_JID@conference.xmpp.chat.ethora.com"
     config={{
       setRoomJidInPath: true,
       qrUrl: 'https://your-app.example/chat/?qrChatId=',
@@ -329,7 +329,7 @@ Below is a grouped reference for all `config` options.
 | Option | Type | Description |
 | --- | --- | --- |
 | `appId` | `string` | App identifier for backend context. |
-| `baseUrl` | `string` | API base URL (default project uses `https://api.ethoradev.com/v1`). |
+| `baseUrl` | `string` | API base URL (defaults to `https://api.chat.ethora.com/v1`, the Ethora Cloud production endpoint). |
 | `customAppToken` | `string` | Custom app token for API initialization. |
 | `xmppSettings` | `{ devServer; host; conference?; xmppPingOnSendEnabled? }` | XMPP connectivity settings. |
 | `initBeforeLoad` | `boolean` | Initialize XMPP before normal chat load flow. |
@@ -681,20 +681,92 @@ This is a practical planning snapshot for cross-platform consumers. It is not a 
 | Service worker not found | `firebase-messaging-sw.js` missing in public dir | Run `npx @ethora/chat-component ethora-chat` or copy file manually. |
 | Login loop / auth failure | Wrong token/user object shape | Validate `jwtLogin`, `userLogin.user`, and refresh token flow. |
 
+## Testing
+
+Same two-layer split as the [Android](https://github.com/dappros/ethora-sdk-android/blob/main/README.md#testing)
+and [iOS](https://github.com/dappros/ethora-sdk-swift/blob/main/README.md#testing)
+SDKs.
+
+### Layer 1 — Vitest + React Testing Library (this repo)
+
+Hermetic component tests, no real server, no XMPP. Run with:
+
+```bash
+npm test          # one-shot
+npm run test:watch # watch mode
+```
+
+| Where | What | Run with |
+|-------|------|----------|
+| `src/**/*.test.tsx` | Component tests using `@testing-library/react` — render the component in isolation, drive it with userEvent, assert behavior | `npm test` |
+| `src/test/setup.ts` | Vitest global setup (jest-dom matchers, jsdom polyfills for `matchMedia` / `IntersectionObserver` / `scrollIntoView`) | (loaded automatically) |
+| `src/test/renderWithProviders.tsx` | Test render helper that wraps a component with a fresh Redux store + ToastProvider — no persisted-store / saga / XMPP middleware leaking between tests | (imported by tests) |
+| `src/test/testIds.ts` | Stable `data-testid` constants matching Android `*TestTags` and iOS `*AccessibilityID`, so a single Maestro flow exercises the same intent on either mobile platform | (imported by tests + components) |
+
+#### Current Layer-1 coverage
+
+| Component | Test | Asserts |
+|-----------|------|---------|
+| `<Login />` | `renders email + password fields and submit button` | `data-testid` selectors all resolve |
+| `<Login />` | `shows email validation error for an invalid email` | Bad email → error message + no API call fires |
+| `<Login />` | `shows password length error for short passwords` | Password < 6 chars → error + no API call |
+| `<Login />` | `calls loginEmail with valid credentials` | Valid creds → mocked `loginEmail` called once with the right args |
+
+**Gaps** to cover in follow-up PRs (file an issue + a test in the same PR when you tackle one):
+
+- `<Register />` — same shape as Login + Google sign-up branch
+- `<MessageBubble />` — body / deleted / sendFailed / reaction states
+- `<RoomList />` — search filter, active-room highlight, badge counts
+- `<MessageInput />` (chat input) — send callback fires, edit mode, reply mode, `disabled` state
+- `<URLPreviewCard />` — link extraction + image fallback
+
+### Layer 2 — End-to-end Playwright
+
+The host app
+[`ethora-app-reactjs`](https://github.com/dappros/ethora-app-reactjs)
+runs a Playwright suite. Its current scope is public-page smoke
+(login / register / 404). The chat-component flows themselves
+are not yet covered by Playwright — when they are, those tests
+should resolve nodes via the same `data-testid` values exported
+from `src/test/testIds.ts` here.
+
+### Cross-platform parity
+
+| Identifier | This repo | Android | iOS |
+|------------|-----------|---------|-----|
+| `chat_input` | `ChatInputTestIds.inputField` | `ChatInputTestTags.INPUT_FIELD` | `ChatInputAccessibilityID.inputField` |
+| `chat_send_button` | `ChatInputTestIds.sendButton` | `ChatInputTestTags.SEND_BUTTON` | `ChatInputAccessibilityID.sendButton` |
+| `chat_attach_button` | `ChatInputTestIds.attachButton` | `ChatInputTestTags.ATTACH_BUTTON` | `ChatInputAccessibilityID.attachButton` |
+| `chat_message_image` | `MessageBubbleTestIds.mediaContent` | `MessageBubbleTestTags.MEDIA_CONTENT` | `MessageBubbleAccessibilityID.mediaContent` |
+| `rooms_list` | `RoomListTestIds.roomsList` | `RoomListViewTestTags.ROOMS_LIST` | `RoomListAccessibilityID.roomsList` |
+| `room_row` | `RoomListTestIds.roomRow` | `RoomListViewTestTags.ROOM_ROW` | `RoomListAccessibilityID.roomRow` |
+| `auth_email_input` | `AuthTestIds.emailInput` | (web-only) | (web-only) |
+| `auth_submit_button` | `AuthTestIds.submitButton` | (web-only) | (web-only) |
+
+### Adding a test for a fix or new feature
+
+- **Behavior bug in a chat component** → add a Vitest test in this
+  repo, in the same PR as the fix.
+- **Integration bug** (something a host app sees but a hermetic test
+  can't) → add a Playwright test in `ethora-app-reactjs`, in a paired PR.
+- **Cross-platform parity gap** → make sure the matching Android
+  Compose test or Maestro flow exists too.
+
 ## Ethora Links and Support
 ### Product
 
 - Website: https://ethora.com/
-- Try Ethora: https://app.ethora.com/register
+- Try Ethora: https://app.chat.ethora.com/register
+- SDK Playground (live): https://playground.chat.ethora.com
+- Platform status / uptime: https://uptime.chat.ethora.com
 
 ### Developer Docs
 
 - Chat component docs: https://docs.ethora.com/
+- API docs (Swagger, live): https://api.chat.ethora.com/api-docs/#/
 - Ethora GitHub hub: https://github.com/dappros/ethora
 - This package repo: https://github.com/dappros/ethora-chat-component
 - Ethora GitHub organization: https://github.com/dappros
-- API docs (public): https://app.dappros.com/api-docs/
-- API docs (environment used in this repo): https://api.ethoradev.com/api-docs
 
 ### Community and Support
 

@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ChatContainerHeader,
   ChatContainerHeaderBoxInfo,
@@ -26,11 +26,43 @@ import { RoomMenu } from '../MenuRoom/MenuRoom';
 import { useRoomState } from '../../hooks/useRoomState';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { formatNumberWithCommas } from '../../helpers/formatNumberWithCommas';
+import { ModalWrapper } from '../Modals/ModalWrapper/ModalWrapper';
 
 interface ChatHeaderProps {
   currentRoom: IRoom;
   handleBackClick?: (value: boolean) => void;
 }
+
+const UUID_LIKE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
+const looksLikeRawJidLocalPart = (
+  value: string | undefined,
+  jid: string | undefined
+): boolean => {
+  if (!value) return true;
+  const localPart = (jid || '').split('@')[0];
+  if (localPart && value === localPart) return true;
+  if (UUID_LIKE.test(value)) return true;
+  return false;
+};
+
+const getDisplayTitle = (room: IRoom | undefined): string => {
+  const title = room?.title?.trim();
+  if (looksLikeRawJidLocalPart(title, room?.jid)) {
+    return 'Loading…';
+  }
+  return title as string;
+};
+
+
+const getDisplayCount = (room: IRoom | undefined): number => {
+  if (Array.isArray(room?.members) && room.members.length > 0) {
+    return room.members.length;
+  }
+  return typeof room?.usersCnt === 'number' && room.usersCnt > 0
+    ? room.usersCnt
+    : 0;
+};
 
 const ChatHeader: React.FC<ChatHeaderProps> = ({
   currentRoom,
@@ -38,6 +70,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
 }) => {
   const dispatch = useDispatch();
   const { client } = useXmppClient();
+  const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
 
   const { roomsList, activeRoomJID } = useRoomState(currentRoom.jid);
   const { composing } = useRoomState(currentRoom.jid).room;
@@ -56,91 +89,141 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   };
 
   const handleLeaveClick = useCallback(() => {
+    setIsLeaveModalOpen(true);
+  }, []);
+
+  const handleCancelLeave = useCallback(() => {
+    setIsLeaveModalOpen(false);
+  }, []);
+
+  const handleConfirmLeave = useCallback(() => {
+    if (!activeRoomJID) {
+      setIsLeaveModalOpen(false);
+      return;
+    }
+
     client.leaveTheRoomStanza(activeRoomJID);
     dispatch(deleteRoom({ jid: activeRoomJID }));
 
-    if (
-      Object.keys(roomsList).length < 1 ||
-      activeRoomJID === Object.keys(roomsList)[0]
-    ) {
+    const nextRoomJID =
+      Object.keys(roomsList).find((roomJID) => roomJID !== activeRoomJID) ||
+      null;
+
+    if (!nextRoomJID) {
       if (typeof window !== 'undefined') {
         const newUrl = `${window.location.pathname}`;
         window.history.pushState(null, '', newUrl);
       }
       dispatch(setCurrentRoom({ roomJID: null }));
+      setIsLeaveModalOpen(false);
       return;
     }
 
-    const nextRoomJID = Object.keys(roomsList)[0] || null;
-    if (nextRoomJID) {
-      dispatch(setCurrentRoom({ roomJID: nextRoomJID }));
-    }
+    dispatch(setCurrentRoom({ roomJID: nextRoomJID }));
+    setIsLeaveModalOpen(false);
   }, [activeRoomJID, roomsList, dispatch, client]);
 
   return (
-    <ChatContainerHeader>
-      {/* todo add here list of rooms */}
-      <div style={{ display: 'flex', gap: '8px' }}>
-        {!config?.disableRooms && handleBackClick && (
-          <Button
-            EndIcon={<BackIcon />}
-            onClick={() => handleBackClick(false)}
-          />
-        )}
-        {config?.chatHeaderBurgerMenu && roomsList && (
-          <RoomList
-            chats={Object.values(roomsList)}
-            burgerMenu
-            onRoomClick={handleChangeChat}
-          />
-        )}
-        <ChatContainerHeaderBoxInfo
-          onClick={
-            config?.disableChatInfo?.disableHeader
-              ? undefined
-              : () => dispatch(setActiveModal(MODAL_TYPES.CHAT_PROFILE))
-          }
-          style={
-            config?.disableChatInfo?.disableHeader
-              ? { cursor: 'default' }
-              : undefined
-          }
-        >
-          <div>
-            <ProfileImagePlaceholder
-              name={currentRoom.name}
-              size={40}
-              icon={currentRoom?.icon}
-              active={true}
+    <>
+      <ChatContainerHeader>
+        {/* todo add here list of rooms */}
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {!config?.disableRooms && handleBackClick && (
+            <Button
+              EndIcon={<BackIcon />}
+              onClick={() => handleBackClick(false)}
+            />
+          )}
+          {config?.chatHeaderBurgerMenu && roomsList && (
+            <RoomList
+              chats={Object.values(roomsList)}
+              burgerMenu
+              onRoomClick={handleChangeChat}
+            />
+          )}
+          <ChatContainerHeaderBoxInfo
+            onClick={
+              config?.disableChatInfo?.disableHeader
+                ? undefined
+                : () => dispatch(setActiveModal(MODAL_TYPES.CHAT_PROFILE))
+            }
+            style={
+              config?.disableChatInfo?.disableHeader
+                ? { cursor: 'default' }
+                : undefined
+            }
+          >
+            <div>
+              <ProfileImagePlaceholder
+                name={currentRoom.name}
+                size={40}
+                icon={currentRoom?.icon}
+                active={true}
+              />
+            </div>
+            <ChatContainerHeaderInfo>
+              <ChatContainerHeaderLabel>
+                {currentRoom?.title}
+              </ChatContainerHeaderLabel>
+              <ChatContainerHeaderLabel
+                style={{ color: '#8C8C8C', fontSize: '14px' }}
+              >
+                {(() => {
+                  if (composing) {
+                    return <Composing usersTyping={currentRoom?.composingList} />;
+                  }
+                  const displayCount = getDisplayCount(currentRoom);
+                  if (displayCount <= 0) return '';
+                  return `${formatNumberWithCommas(displayCount)} ${displayCount === 1 ? 'user' : 'users'}`;
+                })()}
+              </ChatContainerHeaderLabel>
+            </ChatContainerHeaderInfo>
+          </ChatContainerHeaderBoxInfo>
+        </div>
+
+        {!config?.disableChatInfo?.disableChatHeaderMenu && (
+          <div style={{ display: 'flex', gap: 16 }}>
+            {/* <SearchInput animated icon={<SearchIcon />} /> */}
+            <RoomMenu
+              handleLeaveClick={handleLeaveClick}
+              handleReportClick={handleReportClick}
             />
           </div>
-          <ChatContainerHeaderInfo>
-            <ChatContainerHeaderLabel>
-              {currentRoom?.title}
-            </ChatContainerHeaderLabel>
-            <ChatContainerHeaderLabel
-              style={{ color: '#8C8C8C', fontSize: '14px' }}
-            >
-              {composing ? (
-                <Composing usersTyping={currentRoom?.composingList} />
-              ) : (
-                `${formatNumberWithCommas(currentRoom?.usersCnt)} ${currentRoom?.usersCnt === 1 ? 'user' : 'users'}`
-              )}
-            </ChatContainerHeaderLabel>
-          </ChatContainerHeaderInfo>
-        </ChatContainerHeaderBoxInfo>
-      </div>
-
-      {!config?.disableChatInfo?.disableChatHeaderMenu && (
-        <div style={{ display: 'flex', gap: 16 }}>
-          {/* <SearchInput animated icon={<SearchIcon />} /> */}
-          <RoomMenu
-            handleLeaveClick={handleLeaveClick}
-            handleReportClick={handleReportClick}
+        )}
+      </ChatContainerHeader>
+      {isLeaveModalOpen && (
+        <div>
+          <ModalWrapper
+            title="Leave Chat"
+            description="Are you sure you want to leave this chat?"
+            buttonText="Yes"
+            cancelText="No"
+            backgroundColorButton="#E53935"
+            handleClick={handleConfirmLeave}
+            handleCloseModal={handleCancelLeave}
           />
-        </div>
+          <ChatContainerHeaderBoxInfo>
+            <ChatContainerHeaderInfo>
+              <ChatContainerHeaderLabel>
+                {getDisplayTitle(currentRoom)}
+              </ChatContainerHeaderLabel>
+              <ChatContainerHeaderLabel
+                style={{ color: '#8C8C8C', fontSize: '14px' }}
+              >
+                {(() => {
+                  if (composing) {
+                    return <Composing usersTyping={currentRoom?.composingList} />;
+                  }
+                  const displayCount = getDisplayCount(currentRoom);
+                  if (displayCount <= 0) return '';
+                  return `${formatNumberWithCommas(displayCount)} ${displayCount === 1 ? 'user' : 'users'}`;
+                })()}
+              </ChatContainerHeaderLabel>
+            </ChatContainerHeaderInfo>
+          </ChatContainerHeaderBoxInfo>
+      </div>
       )}
-    </ChatContainerHeader>
+    </>
   );
 };
 

@@ -6,8 +6,8 @@ import {
 } from '@reduxjs/toolkit';
 import chatSettingsReducer from './chatSettingsSlice';
 import roomsSlice from './roomsSlice';
-import roomHeapSlice, { roomHeapSliceState } from './roomHeapSlice';
-import { IRoom } from '../types/types';
+import roomHeapSlice from './roomHeapSlice';
+import { IMessage, IRoom } from '../types/types';
 import { unreadMiddleware } from './Middleware/unreadMidlleware';
 import { storage } from './storage';
 import { persistReducer, persistStore } from 'redux-persist';
@@ -50,19 +50,74 @@ const debugMiddleware = (storeAPI) => (next) => (action) => {
   return next(action);
 };
 
+const normalizeMessageList = (messages: unknown): IMessage[] =>
+  Array.isArray(messages)
+    ? messages.filter(
+        (message): message is IMessage =>
+          Boolean(message) && typeof message === 'object'
+      )
+    : [];
+
+const normalizeRoomsState = (state: Record<string, any>) => {
+  if (!state || typeof state !== 'object') {
+    return state;
+  }
+
+  const roomsState =
+    state.rooms && typeof state.rooms === 'object' ? state.rooms : {};
+
+  const normalizedRooms = Object.fromEntries(
+    Object.entries(roomsState)
+      .filter(([key, room]) => {
+        // Strip non-JID keys (e.g. when persisted state was double-wrapped
+        // and slice keys like 'rooms', 'activeRoomJID', 'usersSet' leaked
+        // into the rooms map). Also drop arrays / non-objects which crash
+        // Immer when reducers later try to mutate them as room records.
+        if (!key || typeof key !== 'string' || !key.includes('@')) return false;
+        return room && typeof room === 'object' && !Array.isArray(room);
+      })
+      .map(([jid, room]: [string, IRoom]) => [
+        jid,
+        {
+          ...room,
+          messages: normalizeMessageList(room?.messages),
+          composingList: Array.isArray((room as any)?.composingList)
+            ? (room as any).composingList.filter(
+                (item: unknown): item is string => typeof item === 'string'
+              )
+            : [],
+        },
+      ])
+  );
+
+  return {
+    ...state,
+    rooms: normalizedRooms,
+    activeRoomJID:
+      typeof state.activeRoomJID === "string" ? state.activeRoomJID : null,
+    usersSet:
+      state.usersSet && typeof state.usersSet === 'object' ? state.usersSet : {},
+    subscribedRooms: Array.isArray(state.subscribedRooms)
+      ? state.subscribedRooms.filter(
+          (room: unknown): room is string => typeof room === 'string'
+        )
+      : [],
+    pushSubscriptionStatus:
+      state.pushSubscriptionStatus && typeof state.pushSubscriptionStatus === 'object'
+        ? state.pushSubscriptionStatus
+        : {},
+  };
+};
+
 const limitMessagesTransform = createTransform(
   (inboundState: Record<string, any>) => {
-    if (!inboundState || typeof inboundState !== 'object') {
-      return inboundState;
+    const normalizedState = normalizeRoomsState(inboundState);
+    if (!normalizedState || typeof normalizedState !== 'object') {
+      return normalizedState;
     }
 
-    const roomsState =
-      inboundState.rooms && typeof inboundState.rooms === 'object'
-        ? inboundState.rooms
-        : {};
-
     const limitedRooms = Object.fromEntries(
-      Object.entries(roomsState).map(([jid, room]: [string, IRoom]) => [
+      Object.entries(normalizedState.rooms).map(([jid, room]: [string, IRoom]) => [
         jid,
         room?.messages?.length > 50
           ? {
@@ -74,12 +129,12 @@ const limitMessagesTransform = createTransform(
     );
 
     return {
-      ...inboundState,
+      ...normalizedState,
       rooms: limitedRooms,
     };
   },
 
-  (outboundState: Record<string, any>) => outboundState
+  (outboundState: Record<string, any>) => normalizeRoomsState(outboundState)
 );
 
 const encryptor = encryptTransform({
@@ -104,6 +159,11 @@ const scrubSensitiveChatStateTransform = createTransform(
   (outboundState: Record<string, any>) => outboundState
 );
 
+const sanitizeRoomsStateTransform = createTransform(
+  (inboundState: Record<string, any>) => normalizeRoomsState(inboundState),
+  (outboundState: Record<string, any>) => normalizeRoomsState(outboundState)
+);
+
 const chatSettingPersistConfig = {
   key: 'chatSettingStore',
   storage,
@@ -123,22 +183,8 @@ const chatSettingPersistConfig = {
 const roomsPersistConfig = {
   key: 'roomMessages',
   storage,
-  blacklist: ['editAction', 'activeRoomJID', 'loadingText'],
-  transforms: [limitMessagesTransform, encryptor],
-};
-
-const roomHeapSliceConfig = {
-  key: 'roomHeapSlice',
-  storage,
-  transforms: [encryptor],
-};
-
-const persistConfig = {
-  key: 'root',
-  storage,
-  whitelist: ['chatSettingStore', 'roomMessages'],
-  blacklist: ['routing'],
-  transforms: [encryptor],
+  blacklist: ['editAction', 'activeRoomJID', 'loadingText', 'isChatUiVisible'],
+  transforms: [sanitizeRoomsStateTransform, limitMessagesTransform, encryptor],
 };
 
 const rootReducer = combineReducers({
@@ -147,15 +193,16 @@ const rootReducer = combineReducers({
     chatSettingsReducer
   ),
   rooms: persistReducer(roomsPersistConfig, roomsSlice),
-  roomHeapSlice: persistReducer(roomHeapSliceConfig, roomHeapSlice),
+  roomHeapSlice,
 });
 
 export type RootState = ReturnType<typeof rootReducer>;
 
-const persistedReducer: Reducer<RootState, AnyAction> = persistReducer(
-  persistConfig,
-  rootReducer
-) as Reducer<RootState, AnyAction>;
+// Keep persistence scoped to the slices that actually need it. Persisting the
+// already-persisted root state again can rehydrate malformed nested data and
+// breaks the encrypt transform because it receives objects instead of strings.
+const persistedReducer: Reducer<RootState, AnyAction> =
+  rootReducer as Reducer<RootState, AnyAction>;
 
 export const getActiveRoom = (state: RootState): IRoom | null => {
   const roomMessagesState = state.rooms;

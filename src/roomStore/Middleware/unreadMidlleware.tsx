@@ -1,69 +1,60 @@
 import { Middleware } from '@reduxjs/toolkit';
 import { updateRoom } from '../roomsSlice';
 import { IMessage } from '../../types/types';
+import { getTimestampFromUnknown } from '../../helpers/timestamp';
+import { isSameXmppUsername } from '../../helpers/xmppUsername';
 
-const TRACKED_ACTIONS = new Set([
-  'roomMessages/addRoomMessage',
-  'roomMessages/setRoomMessages',
-  'roomMessages/deleteRoomMessage',
-  'roomMessages/setLastViewedTimestamp',
-  'roomMessages/setCurrentRoom',
-  'roomMessages/applyRoomsPreloadBatch',
-]);
+const TRACKED_ACTIONS_PREFIX = 'roomMessages/';
+const EXCLUDED_ACTIONS = new Set(['roomMessages/insertUsers']);
 
 const isCountableMessage = (msg: IMessage): boolean =>
-  !!msg && msg.id !== 'delimiter-new' && !msg.pending;
-
-const toLocal = (value?: string): string => {
-  if (!value) return '';
-  return String(value).split('@')[0];
-};
+  !!msg &&
+  msg.id !== 'delimiter-new' &&
+  !msg.pending &&
+  String((msg as any)?.isSystemMessage || '') !== 'true';
 
 const getMessageTimestamp = (message: IMessage): number => {
-  const dateTs = new Date(message?.date as string).getTime();
-  if (Number.isFinite(dateTs) && dateTs > 0) return dateTs;
-
-  const numericId = Number(message?.id);
-  if (Number.isFinite(numericId) && numericId > 0) return numericId;
-
-  const inlineTimestamp = Number((message as any)?.timestamp);
-  if (Number.isFinite(inlineTimestamp) && inlineTimestamp > 0) {
-    return inlineTimestamp;
-  }
-
-  return 0;
+  return (
+    getTimestampFromUnknown(message?.date) ||
+    getTimestampFromUnknown((message as any)?.timestamp) ||
+    getTimestampFromUnknown(message?.id)
+  );
 };
 
 const computeUnreadForRoom = (
   room: any,
   activeChatJID: string | null,
   roomJid: string,
-  currentXmppUsername: string
+  currentXmppUsername: string,
+  isChatUiVisible: boolean
 ): { unread: number; unreadCapped: boolean } => {
   if (!room) {
     return { unread: 0, unreadCapped: false };
   }
 
-  if (roomJid === activeChatJID) {
+  if (isChatUiVisible && roomJid === activeChatJID) {
     return { unread: 0, unreadCapped: false };
   }
 
-  const lastViewed = Number(room.lastViewedTimestamp || 0);
+  const lastViewed = getTimestampFromUnknown(room.lastViewedTimestamp);
+  const baseline = getTimestampFromUnknown(room.unreadBaselineTimestamp);
+  const cutoff = lastViewed > 0 ? lastViewed : baseline;
 
   const countableMessages = (room.messages || []).filter((msg: IMessage) => {
     if (!isCountableMessage(msg)) return false;
 
-    const isOwnMessage =
-      toLocal(msg?.user?.id) !== '' &&
-      toLocal(msg?.user?.id) === toLocal(currentXmppUsername);
+    const isOwnMessage = isSameXmppUsername(
+      msg?.user?.id,
+      currentXmppUsername
+    );
 
     if (isOwnMessage) return false;
 
     const ts = getMessageTimestamp(msg);
     if (ts <= 0) return false;
 
-    if (lastViewed <= 0) return true;
-    return ts > lastViewed;
+    if (cutoff <= 0) return false;
+    return ts > cutoff;
   });
 
   let unreadCapped = false;
@@ -79,8 +70,9 @@ const computeUnreadForRoom = (
 
     if (
       countableMessages.length >= 10 &&
-      (lastViewed <= 0 ||
-        (Number.isFinite(oldestLoadedTs) && oldestLoadedTs > lastViewed))
+      cutoff > 0 &&
+      Number.isFinite(oldestLoadedTs) &&
+      oldestLoadedTs > cutoff
     ) {
       unreadCapped = true;
     }
@@ -128,7 +120,29 @@ const resolveTouchedRooms = (
       if (nextActive) touched.add(nextActive);
       break;
     }
+    case 'roomMessages/updateRoom': {
+      const jid = action?.payload?.jid;
+      if (jid) touched.add(jid);
+      break;
+    }
+    case 'roomMessages/replaceRoomMessages': {
+      const roomJID = action?.payload?.roomJID;
+      if (roomJID) touched.add(roomJID);
+      break;
+    }
+    case 'roomMessages/addRoom':
+    case 'roomMessages/addRoomFromApi':
+    case 'roomMessages/addRoomViaApi':
+    case 'roomMessages/deleteRoom':
+    case 'roomMessages/setLogoutState': {
+      Object.keys(nextState?.rooms?.rooms || {}).forEach((jid) => touched.add(jid));
+      Object.keys(prevState?.rooms?.rooms || {}).forEach((jid) => touched.add(jid));
+      break;
+    }
     default:
+      if (String(action.type || '').startsWith(TRACKED_ACTIONS_PREFIX)) {
+        Object.keys(nextState?.rooms?.rooms || {}).forEach((jid) => touched.add(jid));
+      }
       break;
   }
 
@@ -156,7 +170,11 @@ export const unreadMiddleware: Middleware =
       }
     }
 
-    if (!TRACKED_ACTIONS.has(action.type)) {
+    const actionType = String(action.type || '');
+    if (
+      !actionType.startsWith(TRACKED_ACTIONS_PREFIX) ||
+      EXCLUDED_ACTIONS.has(actionType)
+    ) {
       return next(action);
     }
 
@@ -166,6 +184,7 @@ export const unreadMiddleware: Middleware =
 
     const rooms = nextState.rooms.rooms;
     const activeChatJID = nextState.rooms.activeRoomJID;
+    const isChatUiVisible = nextState.rooms.isChatUiVisible ?? false;
     const currentXmppUsername = nextState.chatSettingStore?.user?.xmppUsername;
 
     if (!rooms || Object.keys(rooms).length === 0) return result;
@@ -181,7 +200,8 @@ export const unreadMiddleware: Middleware =
         room,
         activeChatJID,
         jid,
-        currentXmppUsername
+        currentXmppUsername,
+        isChatUiVisible
       );
 
       if (

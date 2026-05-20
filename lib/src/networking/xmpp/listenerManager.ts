@@ -40,7 +40,7 @@ export class XmppListenerManager {
   static removeListener(listenerKey: string): boolean {
     const listener = activeListeners.get(listenerKey);
     if (listener) {
-      listener.client.off(listener.eventType, listener.handler);
+      listener.client?.off?.(listener.eventType, listener.handler);
       activeListeners.delete(listenerKey);
 
       if (process.env.NODE_ENV === 'development') {
@@ -57,7 +57,7 @@ export class XmppListenerManager {
     let removedCount = 0;
     for (const [key, listener] of activeListeners.entries()) {
       if (listener.client === client) {
-        listener.client.off(listener.eventType, listener.handler);
+        listener.client?.off?.(listener.eventType, listener.handler);
         activeListeners.delete(key);
         removedCount++;
       }
@@ -77,7 +77,7 @@ export class XmppListenerManager {
   static clearAllListeners(): void {
     const count = activeListeners.size;
     for (const [key, listener] of activeListeners.entries()) {
-      listener.client.off(listener.eventType, listener.handler);
+      listener.client?.off?.(listener.eventType, listener.handler);
     }
     activeListeners.clear();
 

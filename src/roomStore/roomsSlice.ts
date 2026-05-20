@@ -12,10 +12,12 @@ import { insertMessageWithDelimiter } from '../helpers/insertMessageWithDelimite
 import XmppClient from '../networking/xmppClient';
 import { createUserNameFromSetUser } from '../helpers/createUserNameFromSetUser';
 import { extractUniqueMembersFromRooms } from '../helpers/extractUniqueMembersFromRooms';
+import { getTimestampFromUnknown } from '../helpers/timestamp';
 
 interface RoomMessagesState {
   rooms: { [jid: string]: IRoom };
   activeRoomJID: string;
+  isChatUiVisible: boolean;
   editAction?: EditAction;
   isLoading: boolean;
   usersSet: Record<string, RoomMember>;
@@ -37,6 +39,7 @@ interface PreloadRoomUpdate {
 const initialState: RoomMessagesState = {
   rooms: {},
   activeRoomJID: null,
+  isChatUiVisible: false,
   isLoading: false,
   editAction: {
     isEdit: false,
@@ -58,43 +61,41 @@ const getNormalizedSubscribedRooms = (subscribedRooms: unknown): string[] =>
     ? subscribedRooms.filter((room): room is string => typeof room === 'string')
     : [];
 
-const normalizeTimestampValue = (value: number): number => {
-  if (!Number.isFinite(value) || value <= 0) return 0;
-  if (value < 1e11) return value * 1000; // seconds -> milliseconds
-  if (value > 1e14) return Math.floor(value / 1000); // microseconds-ish -> milliseconds
-  return value;
+// MUC JIDs always look like `<localpart>@conference.<host>`. Slice keys leaking
+// into `state.rooms` (e.g. when persisted state was double-wrapped and keys like
+// 'rooms', 'subscribedRooms', 'usersSet', 'pushSubscriptionStatus' got rehydrated
+// as room entries) corrupt the rooms map. The persist transform filters them on
+// rehydrate, but reducers can still write a non-JID key if upstream code passes
+// a malformed object. Guard at reducer entry so corrupt state can't be created
+// in-memory either — without this, the next persist round would re-serialize
+// the bad keys and presence/MAM keep targeting them.
+const isValidRoomJid = (jid: unknown): jid is string => {
+  if (typeof jid !== 'string' || !jid) return false;
+  if (!jid.includes('@')) return false;
+  return true;
 };
 
 const getMessageTimestampValue = (message: IMessage): number => {
-  const dateTs = new Date(message?.date as string).getTime();
-  if (Number.isFinite(dateTs) && dateTs > 0) return dateTs;
-
-  const inlineTimestamp = Number((message as any)?.timestamp);
-  const normalizedInlineTimestamp = normalizeTimestampValue(inlineTimestamp);
-  if (normalizedInlineTimestamp > 0) {
-    return normalizedInlineTimestamp;
+  const hasExplicitTimestamp = Object.prototype.hasOwnProperty.call(
+    message || {},
+    'messageTimestampMs'
+  );
+  if (hasExplicitTimestamp) {
+    return getTimestampFromUnknown((message as any)?.messageTimestampMs);
   }
 
-  const messageIds = [message?.id, (message as any)?.xmppId]
-    .map((id) => String(id || '').trim())
-    .filter(Boolean);
-
-  for (const id of messageIds) {
-    const numericId = Number(id);
-    const normalizedNumericId = normalizeTimestampValue(numericId);
-    if (normalizedNumericId > 0) return normalizedNumericId;
-
-    const numericChunk = id.match(/\d{10,}/)?.[0];
-    if (numericChunk) {
-      const normalizedChunk = normalizeTimestampValue(Number(numericChunk));
-      if (normalizedChunk > 0) return normalizedChunk;
-    }
-  }
-
-  return 0;
+  return (
+    getTimestampFromUnknown(message?.date) ||
+    getTimestampFromUnknown((message as any)?.timestamp) ||
+    getTimestampFromUnknown((message as any)?.xmppId) ||
+    getTimestampFromUnknown(message?.id)
+  );
 };
 
 const getMessageKey = (message: IMessage): string =>
+  String(message?.xmppId || message?.id || '');
+
+const getMessageStableTieBreaker = (message: IMessage): string =>
   String(message?.xmppId || message?.id || '');
 
 const compareMessageOrder = (a: IMessage, b: IMessage): number => {
@@ -103,8 +104,19 @@ const compareMessageOrder = (a: IMessage, b: IMessage): number => {
   if (tsA !== tsB) {
     return tsA - tsB;
   }
-  // Keep existing relative order for equal timestamps.
-  return 0;
+
+  const pendingDelta = Number(Boolean(a?.pending)) - Number(Boolean(b?.pending));
+  if (pendingDelta !== 0) {
+    return pendingDelta;
+  }
+
+  const keyA = getMessageStableTieBreaker(a);
+  const keyB = getMessageStableTieBreaker(b);
+  if (keyA !== keyB) {
+    return keyA.localeCompare(keyB);
+  }
+
+  return String(a?.body || '').localeCompare(String(b?.body || ''));
 };
 
 const enrichMessageAuthor = (
@@ -113,11 +125,39 @@ const enrichMessageAuthor = (
 ): IMessage => {
   const rawUserId = String(message?.user?.id || '');
   const localUserId = rawUserId.split('@')[0];
-  const currentName = String(message?.user?.name || '').trim();
+  const currentNameRaw = String(message?.user?.name || '').trim();
+  // Treat a previously-set "Deleted User" as unresolved. Without this, a message
+  // that got "Deleted User" on first render (because usersSet + <data> metadata
+  // weren't available yet) would KEEP that name forever even after insertUsers
+  // populates usersSet - `currentName || ...` short-circuits on the truthy
+  // "Deleted User" string. Now we skip past it and let downstream sources
+  // (in-message identity, usersSet) produce the real name.
+  const currentName = currentNameRaw === 'Deleted User' ? '' : currentNameRaw;
+
+  // Identity carried in the message <data> stanza by the sending client (regular users
+  // and now AI Agent bots). Spread by createMessageFromXml onto the top-level message
+  // object, so available here as message.fullName / senderFirstName / senderLastName.
+  // Honor that BEFORE falling through to createUserNameFromSetUser, which returns the
+  // literal "Deleted User" string when usersSet has no entry for the sender. Without
+  // this the chat shows "Deleted User" for any sender (e.g. fresh bot, batch broadcast)
+  // not yet in the locally cached usersSet.
+  const dataFullName = String((message as any)?.fullName || '').trim();
+  const dataFirst = String((message as any)?.senderFirstName || '').trim();
+  const dataLast = String((message as any)?.senderLastName || '').trim();
+  const composedFromData =
+    dataFullName ||
+    `${dataFirst} ${dataLast}`.trim() ||
+    '';
+
+  const usersSetName = createUserNameFromSetUser(usersSet, localUserId);
+  const usersSetNameAlt = createUserNameFromSetUser(usersSet, rawUserId);
+  const isUsersSetUseful = (n: string) => n && n !== 'Deleted User';
+
   const resolvedName =
     currentName ||
-    createUserNameFromSetUser(usersSet, localUserId) ||
-    createUserNameFromSetUser(usersSet, rawUserId) ||
+    (isUsersSetUseful(usersSetName) && usersSetName) ||
+    (isUsersSetUseful(usersSetNameAlt) && usersSetNameAlt) ||
+    composedFromData ||
     localUserId ||
     rawUserId;
 
@@ -155,7 +195,7 @@ const normalizeDelimiterPosition = (
   lastViewedTimestamp?: number
 ): IMessage[] => {
   const list = (messages || []).filter((msg) => msg?.id !== 'delimiter-new');
-  const lastViewed = Number(lastViewedTimestamp || 0);
+  const lastViewed = getTimestampFromUnknown(lastViewedTimestamp);
 
   if (lastViewed <= 0 || list.length === 0) {
     return list;
@@ -192,31 +232,66 @@ export const addRoomViaApi = createAsyncThunk(
   'roomMessages/addRoomViaApi',
   async (
     { room, xmpp: _xmpp }: { room: IRoom; xmpp: XmppClient },
-    { dispatch, getState }
+    { dispatch }
   ) => {
-    const state = getState() as { rooms: RoomMessagesState };
-    const isRoomAlreadyAdded = Object.values(state.rooms.rooms).some(
-      (element) => element.jid === room?.jid
-    );
-
-    if (!isRoomAlreadyAdded) {
-      // Room bootstrap is handled by dedicated initialization flows.
-      // Avoid per-room blocking network calls during initial room list sync.
-      dispatch(roomsStore.actions.addRoomFromApi({ room }));
-    }
+    if (!room || !room.jid) return;
+    dispatch(roomsStore.actions.addRoomFromApi({ room }));
   }
 );
 
-export const roomsStore = createSlice({
+const roomsStore = createSlice({
   name: 'roomMessages',
   initialState,
   reducers: {
     addRoom(state, action: PayloadAction<{ roomData: IRoom }>) {
       const { roomData } = action.payload;
+      if (!isValidRoomJid(roomData?.jid)) return;
+      const existing = state.rooms[roomData.jid];
+      const incomingMessages = Array.isArray(roomData.messages)
+        ? roomData.messages
+        : [];
+      const existingMessages = Array.isArray(existing?.messages)
+        ? existing!.messages
+        : [];
       state.rooms[roomData.jid] = {
+        ...existing,
         ...roomData,
-        unreadCapped: roomData.unreadCapped ?? false,
-        historyPreloadState: roomData.historyPreloadState ?? 'idle',
+        title: roomData.title || existing?.title || roomData.title,
+        usersCnt: (() => {
+          const incoming =
+            typeof roomData.usersCnt === 'number' && roomData.usersCnt > 0
+              ? roomData.usersCnt
+              : 0;
+          const previous =
+            typeof existing?.usersCnt === 'number' && existing.usersCnt > 0
+              ? existing.usersCnt
+              : 0;
+          if (incoming === 0 && previous === 0) return roomData.usersCnt;
+          return Math.max(incoming, previous);
+        })(),
+        icon: roomData.icon ?? existing?.icon,
+        messages:
+          existingMessages.length > 0 ? existingMessages : incomingMessages,
+        unreadMessages: existing?.unreadMessages ?? roomData.unreadMessages ?? 0,
+        lastViewedTimestamp:
+          existing?.lastViewedTimestamp ?? roomData.lastViewedTimestamp ?? 0,
+        unreadBaselineTimestamp:
+          existing?.unreadBaselineTimestamp ??
+          existing?.lastViewedTimestamp ??
+          roomData.unreadBaselineTimestamp ??
+          roomData.lastViewedTimestamp ??
+          0,
+        composingList: existing?.composingList ?? roomData.composingList,
+        composing: existing?.composing ?? roomData.composing,
+        unreadCapped:
+          existing?.unreadCapped ?? roomData.unreadCapped ?? false,
+        historyPreloadState:
+          existing?.historyPreloadState ??
+          roomData.historyPreloadState ??
+          'idle',
+        messageStats: existing?.messageStats ?? roomData.messageStats,
+        historyComplete:
+          existing?.historyComplete ?? roomData.historyComplete,
       };
     },
     deleteRoom(state, action: PayloadAction<{ jid: string }>) {
@@ -233,10 +308,22 @@ export const roomsStore = createSlice({
       const existingRoom = state.rooms[jid];
 
       if (existingRoom) {
-        state.rooms[jid] = {
+        const merged: IRoom = {
           ...existingRoom,
           ...updates,
         };
+      
+        if (typeof updates.usersCnt === 'number') {
+          const incoming = updates.usersCnt;
+          const newMembers = Array.isArray(updates.members)
+            ? updates.members
+            : existingRoom.members;
+          const floor = Array.isArray(newMembers) ? newMembers.length : 0;
+          merged.usersCnt = Math.max(incoming, floor);
+        } else if (Array.isArray(updates.members)) {
+          merged.usersCnt = updates.members.length;
+        }
+        state.rooms[jid] = merged;
       }
     },
     setRoomMessages(
@@ -250,9 +337,13 @@ export const roomsStore = createSlice({
           messages || [],
           state.usersSet
         );
+        const effectiveLastViewed =
+          state.activeRoomJID === roomJID
+            ? 0
+            : state.rooms[roomJID].lastViewedTimestamp;
         state.rooms[roomJID].messages = normalizeDelimiterPosition(
           merged,
-          state.rooms[roomJID].lastViewedTimestamp
+          effectiveLastViewed
         );
       }
     },
@@ -266,9 +357,13 @@ export const roomsStore = createSlice({
           enrichMessageAuthor(message, state.usersSet)
         );
         const sorted = [...enriched].sort(compareMessageOrder);
+        const effectiveLastViewed =
+          state.activeRoomJID === roomJID
+            ? 0
+            : state.rooms[roomJID].lastViewedTimestamp;
         state.rooms[roomJID].messages = normalizeDelimiterPosition(
           sorted,
-          state.rooms[roomJID].lastViewedTimestamp
+          effectiveLastViewed
         );
       }
     },
@@ -278,8 +373,23 @@ export const roomsStore = createSlice({
     ) {
       const { roomJID, messageId } = action.payload;
       if (state.rooms[roomJID]) {
-        state.rooms[roomJID].messages = state.rooms[roomJID].messages.filter(
-          (message) => message.id !== messageId
+        // Tombstone the message instead of removing it so the bubble can render
+        // a "deleted" placeholder and ordering / replies / quoting stay intact.
+        state.rooms[roomJID].messages = state.rooms[roomJID].messages.map(
+          (message) =>
+            message.id === messageId
+              ? {
+                  ...message,
+                  isDeleted: true,
+                  body: '',
+                  isMediafile: 'false',
+                  location: undefined,
+                  locationPreview: undefined,
+                  mimetype: undefined,
+                  fileName: undefined,
+                  reaction: undefined,
+                }
+              : message
         );
       }
     },
@@ -374,11 +484,22 @@ export const roomsStore = createSlice({
         return;
       }
 
+      // Run the full author-resolution pipeline so newly-arrived messages honor
+      // the sender's <data fullName>/senderFirstName/senderLastName attrs from the
+      // stanza (bots + regular users both emit those). Previously we only used
+      // createUserNameFromSetUser here, which returns the literal "Deleted User"
+      // string the instant usersSet doesn't yet know the sender - precisely the
+      // case for live bot messages that arrive before usersSet is hydrated.
+      const enriched = enrichMessageAuthor(
+        message as IMessage,
+        state.usersSet
+      );
       const updMessage = {
-        ...message,
+        ...enriched,
         user: {
-          name: createUserNameFromSetUser(state.usersSet, message.user.id),
+          // Keep photoURL etc. from the incoming message, but use enriched `name`.
           ...message.user,
+          ...enriched.user,
         },
       };
 
@@ -409,7 +530,9 @@ export const roomsStore = createSlice({
 
       state.rooms[roomJID].messages = normalizeDelimiterPosition(
         [...state.rooms[roomJID].messages].sort(compareMessageOrder),
-        state.rooms[roomJID].lastViewedTimestamp
+        state.activeRoomJID === roomJID
+          ? 0
+          : state.rooms[roomJID].lastViewedTimestamp
       );
     },
     deleteAllRooms(state) {
@@ -427,16 +550,42 @@ export const roomsStore = createSlice({
       Object.values(state.rooms).forEach((room) => {
         room.messages.forEach((message) => {
           const msgUserLocal = message.user?.id?.split('@')[0] ?? '';
-          if (updatedUsernames.has(msgUserLocal) || updatedUsernames.has(message.user?.id)) {
-            const matched =
-              state.usersSet[msgUserLocal] ||
-              state.usersSet[message.user?.id];
-            if (matched) {
-              message.user = {
-                ...message.user,
-                name: createUserNameFromSetUser(state.usersSet, msgUserLocal) ||
-                      createUserNameFromSetUser(state.usersSet, message.user?.id),
-              };
+          const rawId = message.user?.id ?? '';
+          const matched =
+            (msgUserLocal && state.usersSet[msgUserLocal]) ||
+            (rawId && state.usersSet[rawId]) ||
+            null;
+
+          // Upgrade the rendered name when:
+          //  (a) this is one of the newly-inserted users, OR
+          //  (b) the message was previously stamped with "Deleted User" and we now
+          //      have an identity we can use (either from usersSet or from in-message
+          //      <data> fullName fields) - fixes the sticky-"Deleted User" bug users
+          //      hit after an ai-service bot restart.
+          const stale = String(message.user?.name || '') === 'Deleted User';
+          const isTargetedUpdate =
+            updatedUsernames.has(msgUserLocal) || updatedUsernames.has(rawId);
+          if (!isTargetedUpdate && !stale) return;
+
+          if (matched) {
+            const upgraded =
+              createUserNameFromSetUser(state.usersSet, msgUserLocal) ||
+              createUserNameFromSetUser(state.usersSet, rawId);
+            if (upgraded && upgraded !== 'Deleted User') {
+              message.user = { ...message.user, name: upgraded };
+              return;
+            }
+          }
+          if (stale) {
+            // Try the in-message <data> fullName fields as a last resort so old
+            // messages that landed before usersSet hydrated stop displaying
+            // "Deleted User" even when no API lookup ever succeeds.
+            const dataFull = String((message as any)?.fullName || '').trim();
+            const dataFirst = String((message as any)?.senderFirstName || '').trim();
+            const dataLast = String((message as any)?.senderLastName || '').trim();
+            const fromData = dataFull || `${dataFirst} ${dataLast}`.trim();
+            if (fromData) {
+              message.user = { ...message.user, name: fromData };
             }
           }
         });
@@ -472,7 +621,7 @@ export const roomsStore = createSlice({
       if (!chatJID) {
         state.isLoading = loading;
       }
-      if (loadingText) {
+      if (Object.prototype.hasOwnProperty.call(action.payload, 'loadingText')) {
         state.loadingText = loadingText;
       }
     },
@@ -482,16 +631,24 @@ export const roomsStore = createSlice({
     ) => {
       const { chatJID, timestamp } = action.payload;
       if (state.rooms[chatJID]) {
-        state.rooms[chatJID].lastViewedTimestamp = timestamp;
-        if (timestamp) {
-          state.rooms[chatJID].unreadMessages = countNewerMessages(
-            state.rooms[chatJID].messages,
-            timestamp
-          );
+        const previousLastViewed = getTimestampFromUnknown(
+          state.rooms[chatJID].lastViewedTimestamp
+        );
+        const baseline = getTimestampFromUnknown(
+          state.rooms[chatJID].unreadBaselineTimestamp
+        );
+        const normalizedTimestamp = getTimestampFromUnknown(timestamp);
+        state.rooms[chatJID].lastViewedTimestamp = normalizedTimestamp;
+        const isEnteringActive = state.activeRoomJID === chatJID;
+        if (isEnteringActive) {
+          state.rooms[chatJID].unreadMessages = 0;
         }
+        const delimiterCutoff = isEnteringActive
+          ? (previousLastViewed > 0 ? previousLastViewed : baseline)
+          : normalizedTimestamp;
         state.rooms[chatJID].messages = normalizeDelimiterPosition(
           state.rooms[chatJID].messages,
-          timestamp
+          delimiterCutoff
         );
         state.rooms[chatJID].unreadCapped = false;
       }
@@ -521,9 +678,13 @@ export const roomsStore = createSlice({
       const { roomJID } = action.payload;
       state.activeRoomJID = roomJID;
     },
+    setChatUiVisible: (state, action: PayloadAction<boolean>) => {
+      state.isChatUiVisible = action.payload;
+    },
     setLogoutState: (state) => {
       state.rooms = {};
       state.activeRoomJID = null;
+      state.isChatUiVisible = false;
       state.isLoading = false;
       state.usersSet = {};
     },
@@ -553,10 +714,49 @@ export const roomsStore = createSlice({
     },
     addRoomFromApi: (state, action: PayloadAction<{ room: IRoom }>) => {
       const { room } = action.payload;
+      if (!isValidRoomJid(room?.jid)) return;
+      const existing = state.rooms[room.jid];
+      const incomingMessages = Array.isArray(room.messages)
+        ? room.messages
+        : [];
+      const existingMessages = Array.isArray(existing?.messages)
+        ? existing!.messages
+        : [];
       state.rooms[room.jid] = {
+        ...existing,
         ...room,
-        unreadCapped: room.unreadCapped ?? false,
-        historyPreloadState: room.historyPreloadState ?? 'idle',
+        title: room.title || existing?.title || room.title,
+        usersCnt: (() => {
+          const incoming =
+            typeof room.usersCnt === 'number' && room.usersCnt > 0
+              ? room.usersCnt
+              : 0;
+          const previous =
+            typeof existing?.usersCnt === 'number' && existing.usersCnt > 0
+              ? existing.usersCnt
+              : 0;
+          if (incoming === 0 && previous === 0) return room.usersCnt;
+          return Math.max(incoming, previous);
+        })(),
+        icon: room.icon ?? existing?.icon,
+        messages:
+          existingMessages.length > 0 ? existingMessages : incomingMessages,
+        unreadMessages: existing?.unreadMessages ?? room.unreadMessages ?? 0,
+        lastViewedTimestamp:
+          existing?.lastViewedTimestamp ?? room.lastViewedTimestamp ?? 0,
+        unreadBaselineTimestamp:
+          existing?.unreadBaselineTimestamp ??
+          existing?.lastViewedTimestamp ??
+          room.unreadBaselineTimestamp ??
+          room.lastViewedTimestamp ??
+          0,
+        composingList: existing?.composingList ?? room.composingList,
+        composing: existing?.composing ?? room.composing,
+        unreadCapped: existing?.unreadCapped ?? room.unreadCapped ?? false,
+        historyPreloadState:
+          existing?.historyPreloadState ?? room.historyPreloadState ?? 'idle',
+        messageStats: existing?.messageStats ?? room.messageStats,
+        historyComplete: existing?.historyComplete ?? room.historyComplete,
       };
     },
     applyRoomsPreloadBatch: (
@@ -567,8 +767,14 @@ export const roomsStore = createSlice({
       if (!rooms?.length) return;
 
       rooms.forEach((update) => {
+        if (!isValidRoomJid(update?.jid)) return;
         const room = state.rooms[update.jid];
-        if (!room) return;
+        // Defensive: a corrupt rehydration can leave non-object entries here
+        // (e.g. an array with stringified props). Mutating them via Immer
+        // throws "Immer only supports setting array indices and the 'length'
+        // property" which then nukes the entire history scheduler. Skip
+        // anything that isn't a plain room object.
+        if (!room || typeof room !== 'object' || Array.isArray(room)) return;
 
         if (typeof update.historyPreloadState !== 'undefined') {
           room.historyPreloadState = update.historyPreloadState;
@@ -580,13 +786,13 @@ export const roomsStore = createSlice({
 
         if (update.messages) {
           const merged = mergeRoomMessages(
-            room.messages || [],
+            Array.isArray(room.messages) ? room.messages : [],
             update.messages,
             state.usersSet
           );
           room.messages = normalizeDelimiterPosition(
             merged,
-            room.lastViewedTimestamp
+            state.activeRoomJID === update.jid ? 0 : room.lastViewedTimestamp
           );
         }
       });
@@ -647,25 +853,20 @@ const countNewerMessages = (
   messages: IMessage[],
   timestamp: number
 ): number => {
-  if (timestamp <= 0) return 0;
-  const getMessageTimestamp = (message: IMessage): number => {
-    const dateTs = new Date(message?.date as string).getTime();
-    if (Number.isFinite(dateTs) && dateTs > 0) return dateTs;
-
-    const numericId = Number(message?.id);
-    if (Number.isFinite(numericId) && numericId > 0) return numericId;
-
-    const inlineTimestamp = Number((message as any)?.timestamp);
-    if (Number.isFinite(inlineTimestamp) && inlineTimestamp > 0) {
-      return inlineTimestamp;
-    }
-    return 0;
-  };
+  const normalizedTimestamp = getTimestampFromUnknown(timestamp);
+  if (normalizedTimestamp <= 0) return 0;
 
   return messages.filter((message) => {
-    if (!message || message.id === 'delimiter-new' || message.pending) return false;
-    const ts = getMessageTimestamp(message);
-    return ts > timestamp;
+    if (
+      !message ||
+      message.id === 'delimiter-new' ||
+      message.pending ||
+      String((message as any)?.isSystemMessage || '') === 'true'
+    ) {
+      return false;
+    }
+    const ts = getMessageTimestampValue(message);
+    return ts > normalizedTimestamp;
   }).length;
 };
 
@@ -695,6 +896,7 @@ export const {
   setLastViewedTimestamp,
   setRoomNoMessages,
   setCurrentRoom,
+  setChatUiVisible,
   setRoomRole,
   setReactions,
   setLogoutState,

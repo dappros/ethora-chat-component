@@ -9,10 +9,12 @@ export type CallPhase =
   | 'error';
 
 export type CallDirection = 'outgoing' | 'incoming' | null;
+export type CallKind = 'audio' | 'video';
 
 export interface CallState {
   phase: CallPhase;
   direction: CallDirection;
+  kind: CallKind;
   roomJid: string | null;
   roomName: string | null;
   token: string | null;
@@ -23,6 +25,7 @@ export interface CallState {
 const initialState: CallState = {
   phase: 'idle',
   direction: null,
+  kind: 'video',
   roomJid: null,
   roomName: null,
   token: null,
@@ -38,10 +41,15 @@ const callSlice = createSlice({
   reducers: {
     startOutgoingCall(
       state,
-      action: PayloadAction<{ roomJid: string; roomName?: string | null }>
+      action: PayloadAction<{
+        roomJid: string;
+        roomName?: string | null;
+        kind?: CallKind;
+      }>
     ) {
       state.phase = 'requesting';
       state.direction = 'outgoing';
+      state.kind = action.payload.kind || 'video';
       state.roomJid = action.payload.roomJid;
       state.roomName = action.payload.roomName || null;
       state.token = null;
@@ -54,10 +62,12 @@ const callSlice = createSlice({
         roomJid: string;
         roomName?: string | null;
         token: string;
+        kind?: CallKind;
       }>
     ) {
       state.phase = 'ringing-incoming';
       state.direction = 'incoming';
+      state.kind = action.payload.kind || 'video';
       state.roomJid = action.payload.roomJid;
       state.roomName = action.payload.roomName || null;
       state.token = action.payload.token;

@@ -6,6 +6,7 @@ import { RootState } from '../../roomStore';
 import { useDispatch, useSelector } from 'react-redux';
 import { setUser } from '../../roomStore/chatSettingsSlice';
 import {
+  ensureUserFromMy,
   loginEmail,
   loginViaJwt,
 } from '../../networking/api-requests/auth.api';
@@ -71,15 +72,35 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
         setBaseURL(config.baseUrl, config.customAppToken);
       }
 
-      if (user.xmppUsername) {
+      // Short-circuit ONLY when the current redux user already matches what
+      // config asks for (or config doesn't ask for anything specific).
+      // The previous "any user wins" behavior broke multi-tenant scenarios
+      // like the Ethora App Switcher: when an admin switches from base-app
+      // to a child-app context, the parent component remounts the chat
+      // tree with a new userLogin.user (the per-app gateway user), but
+      // the redux store still holds the previous user from the previous
+      // context. Without this check we'd skip the dispatch and the
+      // chat-component would keep using the old user's JID against the
+      // new app's rooms, which mod_ethora rejects with "wrong app name"
+      // (because the JID prefix doesn't match the room JID prefix).
+      const wantedUsername = config?.userLogin?.user?.xmppUsername || '';
+      if (
+        user.xmppUsername &&
+        (!wantedUsername || user.xmppUsername === wantedUsername)
+      ) {
         return;
       }
 
       if (config?.customLogin?.enabled && config?.customLogin?.loginFunction) {
         try {
           const loginData = await config.customLogin.loginFunction();
-          if (!cancelled && loginData) {
-            dispatch(setUser(loginData));
+          // Took main's ensureUserFromMy(loginData) over tf-dev's direct
+          // dispatch(loginData). Main's /my-endpoint normalization is exactly
+          // the fix Roman mentioned for the "/user returning undefined ->
+          // Deleted User" issue we discussed in Slack.
+          const normalizedUser = await ensureUserFromMy(loginData);
+          if (!cancelled && normalizedUser) {
+            dispatch(setUser(normalizedUser));
           } else if (!cancelled) {
             setShowModal(true);
           }
@@ -93,13 +114,27 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
       }
 
       if (config?.userLogin?.enabled && config.userLogin.user) {
-        dispatch(setUser(config.userLogin.user));
+        const candidate = config.userLogin.user as User;
+        const hasXmppCreds = Boolean(
+          (candidate as any)?.xmppPassword &&
+            ((candidate as any)?.xmppUsername ||
+              (candidate as any)?.defaultWallet?.walletAddress)
+        );
+        const normalizedUser = hasXmppCreds
+          ? candidate
+          : await ensureUserFromMy(candidate);
+        if (!cancelled && normalizedUser) {
+          dispatch(setUser(normalizedUser));
+        }
         return;
       }
 
       const storedUser = getStoredUser(config?.appId) as User | null;
       if (storedUser && hasStoredSensitiveSession(storedUser)) {
-        dispatch(setUser(storedUser));
+        const normalizedUser = await ensureUserFromMy(storedUser);
+        if (!cancelled && normalizedUser) {
+          dispatch(setUser(normalizedUser));
+        }
         return;
       }
 
@@ -107,7 +142,10 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
         try {
           const loginData = await loginViaJwt(config.jwtLogin.token);
           if (!cancelled && loginData) {
-            dispatch(setUser(loginData));
+            const normalizedUser = await ensureUserFromMy(loginData);
+            if (normalizedUser) {
+              dispatch(setUser(normalizedUser));
+            }
           }
         } catch (error) {
           ethoraLogger.log('error with jwt login', error);
@@ -130,7 +168,10 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
         try {
           const loginData = await loginUserFunction();
           if (!cancelled && loginData) {
-            dispatch(setUser(loginData));
+            const normalizedUser = await ensureUserFromMy(loginData);
+            if (normalizedUser) {
+              dispatch(setUser(normalizedUser));
+            }
           }
         } catch (error) {
           ethoraLogger.log('error with default login', error);
@@ -155,7 +196,17 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
           MainComponentStyles={MainComponentStyles}
           onButtonClick={() => setShowModal(false)}
         />
-      ) : user && user.xmppPassword !== '' ? (
+      ) : user &&
+        user.xmppPassword !== '' &&
+        // When config asks for a specific user (multi-tenant App
+        // Switcher use case), wait for the redux user to match before
+        // mounting ChatWrapper. Without this gate, ChatWrapper would
+        // render once with the previous user, useChatWrapperInit would
+        // fire with stale credentials, XmppClient would SASL-bind as
+        // the wrong JID, and by the time the useEffect above dispatches
+        // the new user the connection is already wedged.
+        (!config?.userLogin?.user?.xmppUsername ||
+          user.xmppUsername === config.userLogin.user.xmppUsername) ? (
         <ChatWrapper {...props} />
       ) : config?.jwtLogin?.enabled ? (
         <StyledLoaderWrapper

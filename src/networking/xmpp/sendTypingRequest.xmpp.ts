@@ -6,6 +6,9 @@ export function sendTypingRequest(
   fullName: string,
   start: boolean
 ) {
+  if (!chatId || typeof chatId !== 'string' || !chatId.includes('@')) {
+    return;
+  }
   let id = start ? `typing-${Date.now()}` : `stop-typing-${Date.now()}`;
   const stanza = xml(
     'message',

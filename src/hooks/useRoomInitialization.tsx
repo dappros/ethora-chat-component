@@ -21,6 +21,12 @@ const hasLoadedRoomHistory = (room?: IRoom): boolean => {
 
 const PUSH_MESSAGE_ID_KEY = '@ethora/chat-component-pushMessageId';
 const PUSH_ROOM_JID_KEY = '@ethora/chat-component-pushRoomJid';
+// Took main's tighter timeouts + the new ACTIVE_ROOM_LOADER_HARD_CAP_MS over
+// tf-dev's 5000ms presence wait. Main's flow uses prioritizeRoomPresence + a
+// hard-cap timer instead of tf-dev's retry-on-empty pattern (commit 62b0b6d
+// fix(chat): wait longer for migrated room history joins). Worth confirming
+// with Roman that 1200ms is sufficient for the migrated-rooms case tf-dev's
+// 5000ms was tuned for.
 const ACTIVE_ROOM_PRESENCE_TIMEOUT_MS = 1200;
 const ACTIVE_ROOM_FAST_PRESENCE_TIMEOUT_MS = 3000;
 const ACTIVE_ROOM_LOADER_HARD_CAP_MS = 3000;
@@ -49,6 +55,7 @@ export const useRoomInitialization = (
 
   useEffect(() => {
     if (client && activeRoomJID) {
+      client.setActiveRoomJid(activeRoomJID);
       client.promoteRoomHistory(activeRoomJID);
       // Try fast explicit join for active room right after selection/login.
       client
@@ -60,7 +67,20 @@ export const useRoomInitialization = (
         )
         .catch(() => {
           client.prioritizeRoomPresence(activeRoomJID).catch(() => {});
+        })
+        .finally(() => {
+          // Pull authoritative room metadata (name, occupant count) via
+          // disco#info — this guards against the API/disco#items race that
+          // leaves the header showing a raw JID and "0 users".
+          try {
+            client.getRoomInfoStanza(activeRoomJID);
+          } catch {
+            /* non-fatal */
+          }
         });
+    }
+    if (client && !activeRoomJID) {
+      client.setActiveRoomJid(null);
     }
   }, [client, activeRoomJID]);
 
@@ -72,6 +92,11 @@ export const useRoomInitialization = (
     const getDefaultHistory = async () => {
       if (!client) return;
       if (!activeRoomJID) return;
+      // Took main's prioritizeRoomPresence + hardCapTimer flow over tf-dev's
+      // double-presence + double-history retry (commit 62b0b6d). Main's
+      // approach is functionally equivalent for the migrated-rooms case
+      // (the empty-result branch below also calls prioritizeRoomPresence)
+      // but cleaner. Verify behaviour with a slow-joining room before merge.
       const joined = await client
         .presenceInRoomStanza(activeRoomJID, 0, ACTIVE_ROOM_PRESENCE_TIMEOUT_MS, true)
         .catch(() => false);
@@ -91,7 +116,11 @@ export const useRoomInitialization = (
           30,
           undefined,
           undefined,
-          { source: 'active' }
+          {
+            source: 'active',
+            coalesceRoom: true,
+            skipIfPreloaded: true,
+          }
         );
         if (!res?.length) {
           client.prioritizeRoomPresence(activeRoomJID).catch(() => {});
@@ -103,7 +132,10 @@ export const useRoomInitialization = (
             20 + countUndefinedText(res),
             Number(res[0].id),
             undefined,
-            { source: 'active' }
+            {
+              source: 'active',
+              coalesceRoom: true,
+            }
           );
         }
       } finally {
@@ -171,6 +203,7 @@ export const useRoomInitialization = (
         client
           .getHistoryStanza(activeRoomJID, 30, undefined, undefined, {
             source: 'active',
+            coalesceRoom: true,
           })
           .catch(() => {})
           .finally(() => {

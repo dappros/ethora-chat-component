@@ -29,6 +29,8 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
   performClick,
   config,
 }) => {
+  const displayName = String(chat?.title || chat?.name || '').trim();
+
   const withAuthorFallback = useCallback((message?: IMessage): IMessage | undefined => {
     if (!message) return message;
     const rawUserId = String(message?.user?.id || '');
@@ -44,9 +46,10 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
     };
   }, []);
 
+  const lastRawMessage = chat?.messages?.[(chat?.messages?.length ?? 0) - 1];
   const lastMessage = useMemo(
-    () => withAuthorFallback(chat?.messages?.[chat?.messages.length - 1]),
-    [chat?.messages?.length, withAuthorFallback]
+    () => withAuthorFallback(lastRawMessage),
+    [chat?.jid, lastRawMessage?.id, lastRawMessage?.body, withAuthorFallback]
   );
 
   const formatTimeToHHMM = (
@@ -108,7 +111,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
       onClick={() => performClick(chat)}
       bg={config?.colors?.primary}
     >
-      <ProfileImagePlaceholder name={chat.name} icon={chat?.icon} />
+      <ProfileImagePlaceholder name={displayName} icon={chat?.icon} />
       <div
         style={{
           display: 'flex',
@@ -127,7 +130,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
           }}
         >
           <ChatInfo>
-            <ChatName>{chat.name}</ChatName>
+            <ChatName>{displayName}</ChatName>
           </ChatInfo>
 
           <UserCount
@@ -154,9 +157,9 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
               usersTyping={chat.composingList}
               style={{ color: !isChatActive ? '#141414' : '#fff' }}
             />
-          ) : lastMessage?.body ? (
+          ) : lastMessage?.body || lastMessage?.isDeleted ? (
             <LastMessageItem lastMessage={lastMessage} />
-          ) : chat.messages.length === 0 && chat.historyComplete ? (
+          ) : (chat?.messages?.length ?? 0) === 0 && chat?.historyComplete ? (
             <LastRoomMessageText>Room created</LastRoomMessageText>
           ) : undefined}
           {chat.unreadMessages > 0 && (

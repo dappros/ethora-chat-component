@@ -88,9 +88,6 @@ const tryHydrateViaMy = async (
   if (signal?.aborted) return null;
 
   const mergedCandidate = normalizeUserForXmpp(candidate);
-  if (hasXmppCredentials(mergedCandidate)) {
-    return mergedCandidate;
-  }
 
   if (!candidate?.token && !candidate?.refreshToken) {
     return mergedCandidate;
@@ -98,6 +95,24 @@ const tryHydrateViaMy = async (
 
   let workingToken = candidate?.token || '';
   let workingRefresh = candidate?.refreshToken || '';
+
+  // /users/my is metadata-only (firstName, profileImage, etc). It must
+  // never gate bootstrap when we already hold xmpp credentials — some
+  // server configurations 403 this endpoint for non-admin roles even
+  // though the user is authenticated for chat.
+  const candidateWithCurrentTokens = (): User => ({
+    ...candidate,
+    token: workingToken || candidate.token,
+    refreshToken: workingRefresh || candidate.refreshToken,
+  });
+
+  const fallbackWithCreds = (): User | null => {
+    const normalized = normalizeUserForXmpp(candidateWithCurrentTokens());
+    if (normalized && hasXmppCredentials(normalized)) {
+      return normalized;
+    }
+    return null;
+  };
 
   if (workingToken) {
     try {
@@ -108,13 +123,32 @@ const tryHydrateViaMy = async (
         merged.refreshToken = workingRefresh || merged.refreshToken;
       }
       return merged;
-    } catch {
-      // ignore and try refresh path
+    } catch (error) {
+      if (signal?.aborted || isAbortError(error)) {
+        return null;
+      }
+      // Auth error: token may simply be expired. Always try refresh
+      // first so downstream calls (/chats/my, etc.) get a fresh token,
+      // then fall back to xmpp creds only if /users/my still fails.
+      if (isAuthError(error)) {
+        if (!workingRefresh) {
+          return fallbackWithCreds();
+        }
+        // fall through to refresh path
+      } else {
+        // Non-auth failure (network, etc.). Refresh won't help — keep
+        // existing tokens and proceed if we have xmpp creds.
+        const fallback = fallbackWithCreds();
+        if (fallback) {
+          return fallback;
+        }
+        return null;
+      }
     }
   }
 
   if (!workingRefresh) {
-    return normalizeUserForXmpp(candidate);
+    return mergedCandidate;
   }
 
   try {
@@ -122,13 +156,31 @@ const tryHydrateViaMy = async (
     workingToken = refreshed.token;
     workingRefresh = refreshed.refreshToken;
 
-    const myUser = await getMyUser({ token: workingToken, endpoint: myEndpoint });
-    const merged = normalizeUserForXmpp(mergeUsers(candidate, myUser));
-    if (merged) {
-      merged.token = workingToken || merged.token;
-      merged.refreshToken = workingRefresh || merged.refreshToken;
+    try {
+      const myUser = await getMyUser({ token: workingToken, endpoint: myEndpoint });
+      const merged = normalizeUserForXmpp(
+        mergeUsers(candidateWithCurrentTokens(), myUser)
+      );
+      if (merged) {
+        merged.token = workingToken || merged.token;
+        merged.refreshToken = workingRefresh || merged.refreshToken;
+      }
+      return merged;
+    } catch (myError) {
+      if (signal?.aborted || isAbortError(myError)) {
+        return null;
+      }
+      // /users/my still failing post-refresh — proceed with refreshed
+      // tokens if the candidate already has xmpp creds.
+      const fallback = fallbackWithCreds();
+      if (fallback) {
+        return fallback;
+      }
+      if (isAuthError(myError)) {
+        return null;
+      }
+      throw myError;
     }
-    return merged;
   } catch (error) {
     if (signal?.aborted || isAbortError(error)) {
       return null;
@@ -157,10 +209,18 @@ export const resolveInitBeforeLoadUser = async (
 
   const explicitUser = config?.userLogin?.enabled ? config?.userLogin?.user : null;
   if (explicitUser) {
+    const candidate = normalizeUserForXmpp(explicitUser);
+
+    if (candidate && hasXmppCredentials(candidate)) {
+      return candidate;
+    }
+
     const hydrated = await tryHydrateViaMy(explicitUser, myEndpoint, signal).catch(() => null);
     if (hydrated && hasXmppCredentials(hydrated)) {
       return hydrated;
     }
+
+    return null;
   }
 
   if (config?.jwtLogin?.enabled && config?.jwtLogin?.token) {

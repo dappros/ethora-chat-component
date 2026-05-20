@@ -29,6 +29,8 @@ import {
 } from '../roomStore/roomsSlice';
 import { IConfig } from '../types/types';
 import { ethoraLogger } from '../helpers/ethoraLogger';
+import { setStoredFcmToken } from '../utils/pushStorage';
+import { normalizeRoomJidWithConference } from '../utils/runtimeHostConfig';
 import {
   buildNotificationUrl,
   hasMessageInRooms,
@@ -133,13 +135,8 @@ const usePushNotifications = (
   const recentHistoryFetchRef = useRef<Map<string, number>>(new Map());
 
   const normalizeRoomJid = useCallback(
-    (jid?: string): string => {
-      if (!jid) return '';
-      if (jid.includes('@')) return jid;
-      const conference =
-        config?.xmppSettings?.conference || 'conference.xmpp.ethoradev.com';
-      return `${jid}@${conference}`;
-    },
+    (jid?: string): string =>
+      normalizeRoomJidWithConference(jid, config?.xmppSettings?.conference),
     [config?.xmppSettings?.conference]
   );
 
@@ -170,6 +167,7 @@ const usePushNotifications = (
       client
         .getHistoryStanza(roomJid, 30, undefined, undefined, {
           source: 'active',
+          coalesceRoom: true,
         })
         .catch(() => {})
         .finally(() => {
@@ -271,6 +269,7 @@ const usePushNotifications = (
         _subscriptionRegistered = true;
         fcmTokenRef.current = fcmToken;
         setFcmTokenReady(fcmToken); // signal room-subscription effect
+        setStoredFcmToken(fcmToken);
 
         // Log: subscribed via API
         if (config?.useStoreConsoleEnabled) {
@@ -476,6 +475,7 @@ const usePushNotifications = (
       hasRanRef.current = false;
       fcmTokenRef.current = null;
       setFcmTokenReady(null);
+      setStoredFcmToken('');
       lastRoomsHashRef.current = '';
       isSyncingRef.current = false;
       _subscriptionRegistered = false;

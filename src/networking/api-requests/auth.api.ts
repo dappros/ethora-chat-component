@@ -10,6 +10,17 @@ import { app } from '../../firebase-config';
 
 import http, { appToken } from '../apiClient';
 import { store } from '../../roomStore';
+import { getMyUser } from './user.api';
+
+async function resolveUserViaMyEndpoint(token?: string): Promise<User | null> {
+  if (!token) return null;
+
+  try {
+    return await getMyUser({ token });
+  } catch {
+    return null;
+  }
+}
 
 // login functions
 export async function loginEmail(email: string, password: string) {
@@ -26,16 +37,21 @@ export async function loginEmail(email: string, password: string) {
     { headers: { Authorization: appToken } }
   );
 
+  const myUser = await resolveUserViaMyEndpoint(res.data.token);
+  if (myUser) {
+    res.data.user = { ...res.data.user, ...myUser };
+  }
+
   return res;
 }
 
-export function loginSocial(
+export async function loginSocial(
   idToken: string,
   accessToken: string,
   loginType: string,
   authToken: string = 'authToken'
 ) {
-  return http.post<any>(
+  const response = await http.post<any>(
     '/users/login',
     {
       idToken,
@@ -45,6 +61,14 @@ export function loginSocial(
     },
     { headers: { Authorization: appToken } }
   );
+
+  const token = response?.data?.token as string | undefined;
+  const myUser = await resolveUserViaMyEndpoint(token);
+  if (myUser && response?.data?.user) {
+    response.data.user = { ...response.data.user, ...myUser };
+  }
+
+  return response;
 }
 
 export function registerSocial(
@@ -86,10 +110,22 @@ export async function loginViaJwt(clientToken: string): Promise<User> {
     refreshToken: response.data.refreshToken,
     token: response.data.token,
   };
-  return user;
+  const myUser = await resolveUserViaMyEndpoint(response.data.token);
+  return myUser
+    ? {
+        ...user,
+        ...myUser,
+        refreshToken: response.data.refreshToken,
+        token: response.data.token,
+      }
+    : user;
 }
 
 export const signInWithGoogle = async () => {
+  if (!app) {
+    console.warn('Firebase app is not configured for Google sign-in');
+    return {};
+  }
   const auth = getAuth(app);
   const googleProvider = new GoogleAuthProvider();
   googleProvider.addScope('https://www.googleapis.com/auth/userinfo.email');
@@ -118,4 +154,14 @@ export function uploadFile(formData: FormData) {
       Accept: '*/*',
     },
   });
+}
+
+export async function ensureUserFromMy(
+  user: User | null | undefined
+): Promise<User | null> {
+  if (!user) return null;
+  const token = (user as any)?.token;
+  const myUser = await resolveUserViaMyEndpoint(token);
+  if (!myUser) return user;
+  return { ...user, ...myUser };
 }

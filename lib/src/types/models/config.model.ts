@@ -87,6 +87,7 @@ export interface IConfig {
     myEndpoint?: string;
   };
   newArch?: boolean;
+  disableLastRead?: boolean;
   qrUrl?: string;
   secondarySendButton?: {
     enabled: boolean;
@@ -166,6 +167,10 @@ export interface IConfig {
     maxInFlightHistory?: number;
     softPauseAfterSendMs?: number;
     activeRoomBoostTtlMs?: number;
+    activeSendBoostMs?: number;
+    alwaysPrioritizeActiveRoom?: boolean;
+    backgroundWhileCriticalSend?: boolean;
+    preloadTopKRooms?: number;
     presenceFailureBackoffMs?: number;
     startupPrivateStoreTimeoutMs?: number;
     startupPrivateStoreTtlMs?: number;

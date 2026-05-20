@@ -9,6 +9,7 @@ interface ModalWrapperProps {
   title: string;
   description?: string;
   buttonText?: string;
+  cancelText?: string;
   backgroundColorButton?: string;
   isTextarea?: boolean;
   textarea?: string;
@@ -22,6 +23,7 @@ export const ModalWrapper: FC<ModalWrapperProps> = ({
   title,
   description,
   buttonText,
+  cancelText = 'Cancel',
   backgroundColorButton,
   isTextarea,
   textarea,
@@ -66,7 +68,7 @@ export const ModalWrapper: FC<ModalWrapperProps> = ({
         <GroupContainer>
           <Button
             onClick={handleCloseModal}
-            text={'Cancel'}
+            text={cancelText}
             style={{ width: '100%' }}
             unstyled
             variant="outlined"

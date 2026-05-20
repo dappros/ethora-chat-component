@@ -35,7 +35,7 @@ interface ChatRoomProps {
 const ChatRoom: React.FC<ChatRoomProps> = React.memo(
   ({ CustomMessageComponent, handleBackClick }) => {
     const { CustomInputComponent } = useCustomComponents();
-    const { client } = useXmppClient();
+    const { client, providerBootstrapStatus, initMode } = useXmppClient();
     const dispatch = useDispatch();
 
     const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
@@ -59,12 +59,6 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
 
     const sendMessage = useCallback(
       (message: string) => {
-        dispatch(
-          setLastViewedTimestamp({
-            chatJID: activeRoomJID,
-            timestamp: 0,
-          })
-        );
         sendMs(message, activeRoomJID);
       },
       [activeRoomJID, sendMs]
@@ -72,7 +66,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
 
     const sendMedia = useCallback(
       (data: any, type: string) => {
-        sendMessageMedia(data, type, activeRoomJID);
+        return sendMessageMedia(data, type, activeRoomJID);
       },
       [activeRoomJID]
     );
@@ -106,16 +100,17 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     };
 
     useEffect(() => {
+      const enterTs = Date.now();
       dispatch(
         setLastViewedTimestamp({
           chatJID: activeRoomJID,
-          timestamp: 0,
+          timestamp: enterTs,
         })
       );
       setIsLoadingMore(false);
       return () => {
         const exitTs = Date.now();
-        if (client) {
+        if (client && !config?.disableLastRead) {
           client.actionSetTimestampToPrivateStoreStanza(
             activeRoomJID,
             exitTs
@@ -182,7 +177,25 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       loaderByHistoryPreloadLoading
     );
 
-    if (Object.keys(roomsList)?.length < 1 && !loading && !globalLoading) {
+    // Suppress the "No room" empty-state CTA while the system can still
+    // produce rooms: provider bootstrap is in flight, WS is connecting, or
+    // we're between mount and the first dispatch flush. Without this the
+    // user sees "No room. Let's create one!" the instant they navigate to
+    // chat, then rooms pop in a frame later — looks like a stuck/broken UI.
+    const providerStillBootstrapping =
+      initMode === 'provider' &&
+      providerBootstrapStatus !== 'ready' &&
+      providerBootstrapStatus !== 'failed';
+    const xmppNotOnline =
+      !!client && client.status !== 'online' && client.status !== 'auth_failed';
+
+    if (
+      Object.keys(roomsList)?.length < 1 &&
+      !loading &&
+      !globalLoading &&
+      !providerStillBootstrapping &&
+      !xmppNotOnline
+    ) {
       return (
         <NonRoomChat>
           No room. Let's create one!
@@ -222,6 +235,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
           )
         ) : (
           <MessageList
+            key={activeRoomJID}
             loadMoreMessages={loadMoreMessages}
             CustomMessage={CustomMessageComponent}
             user={user}
