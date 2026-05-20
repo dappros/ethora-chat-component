@@ -188,7 +188,8 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
               <Button EndIcon={<QrIcon />} onClick={() => setVisible(true)} />
             )}
             {activeRoom.role === 'moderator' &&
-              activeRoom.type !== 'private' && (
+              activeRoom.type !== 'private' &&
+              !config?.disableChatInfo?.disableChatHeaderMenu && (
                 <DropdownMenu
                   position="left"
                   options={chatMenuOptions}
@@ -220,18 +221,13 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
           <UserName>{activeRoom.name}</UserName>
           <UserStatus>
             {(() => {
-              // Same reconciliation as ChatHeader: take the higher of
-              // live MUC occupant count and the authoritative members[]
-              // array length. Avoids "1 member" at the top while the
-              // list below shows 3 distinct entries.
-              const fromCnt =
-                typeof activeRoom.usersCnt === 'number' && activeRoom.usersCnt > 0
-                  ? activeRoom.usersCnt
-                  : 0;
-              const fromMembers = Array.isArray(activeRoom.members)
-                ? activeRoom.members.length
-                : 0;
-              const displayCount = Math.max(fromCnt, fromMembers);
+              const displayCount =
+                Array.isArray(activeRoom.members) && activeRoom.members.length > 0
+                  ? activeRoom.members.length
+                  : typeof activeRoom.usersCnt === 'number' &&
+                      activeRoom.usersCnt > 0
+                    ? activeRoom.usersCnt
+                    : 0;
               return `${displayCount} ${displayCount === 1 ? 'member' : 'members'}`;
             })()}
           </UserStatus>

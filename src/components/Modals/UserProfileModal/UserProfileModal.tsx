@@ -306,23 +306,25 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 : 'No description'}
             </LabelData>
           </BorderedContainer>
-          {selectedUser && selectedUser.xmppUsername !== user.xmppUsername && (
-            <>
-              <ActionButton
-                StartIcon={<ChatIcon />}
-                onClick={handlePrivateMessage}
-                variant="filled"
-              >
-                Message
-              </ActionButton>
-              <ActionButton
-                onClick={() => handleCopyClick(selectedUser.id)}
-                variant="filled"
-              >
-                Copy User Id
-              </ActionButton>
-            </>
-          )}
+          {selectedUser &&
+            selectedUser.xmppUsername !== user.xmppUsername &&
+            !config?.disableProfilesInteractions && (
+              <>
+                <ActionButton
+                  StartIcon={<ChatIcon />}
+                  onClick={handlePrivateMessage}
+                  variant="filled"
+                >
+                  Message
+                </ActionButton>
+                <ActionButton
+                  onClick={() => handleCopyClick(selectedUser.id)}
+                  variant="filled"
+                >
+                  Copy User Id
+                </ActionButton>
+              </>
+            )}
           {/* <EmptySection /> */}
         </CenterContainer>
       </>
