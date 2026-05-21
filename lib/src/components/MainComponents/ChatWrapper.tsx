@@ -32,6 +32,7 @@ import ConnectionBanner from './ConnectionBanner';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
 import { useLoaderDebug } from '../../hooks/useLoaderDebug';
+import { VideoCallOverlay } from '../VideoCalls/VideoCallOverlay';
 
 interface ChatWrapperProps {
   token?: string;
@@ -334,6 +335,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
                 dispatch(setActiveModal(value))
               }
             />
+            <VideoCallOverlay />
           </ChatWrapperBox>
         </ChatWrapperBox>
       ) : (

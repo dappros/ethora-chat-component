@@ -236,6 +236,38 @@ export const SearchIcon = ({ color = '#8C8C8C', ...props }) => (
   </svg>
 );
 
+export const VideoCallIcon = ({ color = '#FFFFFF', ...props }) => (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <path
+      d="M16 10.5V6.5C16 5.67 15.33 5 14.5 5H4.5C3.67 5 3 5.67 3 6.5V17.5C3 18.33 3.67 19 4.5 19H14.5C15.33 19 16 18.33 16 17.5V13.5L21 17V7L16 10.5Z"
+      fill={color}
+    />
+  </svg>
+);
+
+export const AudioCallIcon = ({ color = '#FFFFFF', ...props }) => (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <path
+      d="M6.62 10.79a15.05 15.05 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1.02-.24c1.12.37 2.33.57 3.57.57a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.24.2 2.45.57 3.57a1 1 0 0 1-.24 1.02l-2.2 2.2Z"
+      fill={color}
+    />
+  </svg>
+);
+
 export const NoSelectedChatIcon = ({ color = '#8C8C8C', ...props }) => (
   <svg
     width="241"
@@ -561,7 +593,7 @@ export const BurgerMenuIcon = ({ color = '#fff', ...props }) => (
   </svg>
 );
 
-export const LeaveIcon = ({ color = '#fff', ...props }) => (
+export const LeaveIcon = ({ color = '#E53935', ...props }) => (
   <svg
     width="24"
     height="24"
@@ -572,14 +604,14 @@ export const LeaveIcon = ({ color = '#fff', ...props }) => (
   >
     <path
       d="M14 8V6C14 5.46957 13.7893 4.96086 13.4142 4.58579C13.0391 4.21071 12.5304 4 12 4H5C4.46957 4 3.96086 4.21071 3.58579 4.58579C3.21071 4.96086 3 5.46957 3 6V18C3 18.5304 3.21071 19.0391 3.58579 19.4142C3.96086 19.7893 4.46957 20 5 20H12C12.5304 20 13.0391 19.7893 13.4142 19.4142C13.7893 19.0391 14 18.5304 14 18V16"
-      stroke="#E53935"
+      stroke={color}
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
     />
     <path
       d="M9 12H21M21 12L18 9M21 12L18 15"
-      stroke="#E53935"
+      stroke={color}
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"

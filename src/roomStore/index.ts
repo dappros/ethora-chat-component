@@ -51,12 +51,35 @@ const debugMiddleware = (storeAPI) => (next) => (action) => {
   return next(action);
 };
 
+// Body strings the server uses for call signaling broadcasts. These
+// should never reach the transcript / sidebar preview — keep this set in
+// sync with the same constant in roomsSlice.ts.
+const CALL_SIGNAL_BODIES = new Set([
+  'call-token',
+  'call-state',
+  'call-ringing',
+  'call-ended',
+  'call-declined',
+  'call-cancelled',
+  'call-canceled',
+  'call-timeout',
+  'call-rejected',
+  'call-invite',
+]);
+
 const normalizeMessageList = (messages: unknown): IMessage[] =>
   Array.isArray(messages)
-    ? messages.filter(
-        (message): message is IMessage =>
-          Boolean(message) && typeof message === 'object'
-      )
+    ? messages.filter((message): message is IMessage => {
+        if (!message || typeof message !== 'object') return false;
+        // Strip call-signal messages from rehydrated state — older
+        // builds wrote them into the transcript before the live filter
+        // existed, and they survive in encrypted persisted blobs.
+        const body = String((message as any).body || '')
+          .trim()
+          .toLowerCase();
+        if (body && CALL_SIGNAL_BODIES.has(body)) return false;
+        return true;
+      })
     : [];
 
 const normalizeRoomsState = (state: Record<string, any>) => {
@@ -255,6 +278,24 @@ export const store = configureStore({
 export type AppDispatch = typeof store.dispatch;
 
 export const persistor = persistStore(store);
+
+// Dev-only: expose the redux store on window so QA / preview tooling can
+// inspect / dispatch state during testing. Treeshakes out of production
+// builds because the env check evaluates to a literal `false`.
+try {
+  const isDev =
+    typeof import.meta !== 'undefined'
+      ? Boolean((import.meta as any)?.env?.DEV)
+      : false;
+  if (typeof window !== 'undefined' && isDev) {
+    (window as any).__ethoraStore = store;
+    // eslint-disable-next-line no-console
+    console.info('[ethora] redux store available as window.__ethoraStore');
+  }
+} catch (e) {
+  // eslint-disable-next-line no-console
+  console.warn('[ethora] failed to attach __ethoraStore bridge:', e);
+}
 
 try {
   ethoraLogger.always('[EthoraChatComponent] version:', ETHORA_CHAT_COMPONENT_VERSION);

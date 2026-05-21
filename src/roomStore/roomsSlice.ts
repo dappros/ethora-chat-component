@@ -14,6 +14,38 @@ import { createUserNameFromSetUser } from '../helpers/createUserNameFromSetUser'
 import { extractUniqueMembersFromRooms } from '../helpers/extractUniqueMembersFromRooms';
 import { getTimestampFromUnknown } from '../helpers/timestamp';
 
+// Body strings the server uses for call signaling broadcasts (call-token,
+// call-state ringing/ended, etc). These should never reach the chat
+// transcript or the sidebar "last message" preview — they're control
+// frames, not user-visible content. The XMPP handler (onCallTokenMessage)
+// already swallows them in the live stream, but they can still arrive via
+// MAM history, mucsub catchup, or be present in persisted state from
+// before that filter existed. Drop them at the reducer boundary so the
+// transcript stays clean regardless of source.
+const CALL_SIGNAL_BODIES = new Set([
+  'call-token',
+  'call-state',
+  'call-ringing',
+  'call-ended',
+  'call-declined',
+  'call-cancelled',
+  'call-canceled',
+  'call-timeout',
+  'call-rejected',
+  'call-invite',
+]);
+
+const isCallSignalMessage = (message: IMessage | undefined | null): boolean => {
+  if (!message) return false;
+  const body = String(message.body || '').trim().toLowerCase();
+  return CALL_SIGNAL_BODIES.has(body);
+};
+
+const stripCallSignals = (messages: IMessage[] | undefined): IMessage[] =>
+  Array.isArray(messages)
+    ? messages.filter((message) => !isCallSignalMessage(message))
+    : [];
+
 interface RoomMessagesState {
   rooms: { [jid: string]: IRoom };
   activeRoomJID: string;
@@ -333,8 +365,8 @@ const roomsStore = createSlice({
       const { roomJID, messages } = action.payload;
       if (state.rooms[roomJID]) {
         const merged = mergeRoomMessages(
-          state.rooms[roomJID].messages || [],
-          messages || [],
+          stripCallSignals(state.rooms[roomJID].messages),
+          stripCallSignals(messages),
           state.usersSet
         );
         const effectiveLastViewed =
@@ -353,7 +385,7 @@ const roomsStore = createSlice({
     ) {
       const { roomJID, messages } = action.payload;
       if (state.rooms[roomJID]) {
-        const enriched = (messages || []).map((message) =>
+        const enriched = stripCallSignals(messages).map((message) =>
           enrichMessageAuthor(message, state.usersSet)
         );
         const sorted = [...enriched].sort(compareMessageOrder);
@@ -455,6 +487,11 @@ const roomsStore = createSlice({
       const { roomJID, message, start } = action.payload;
 
       if (!message?.body) return;
+      // Call signaling broadcasts ("call-token", "call-state", etc.)
+      // sometimes slip past the live XMPP filter (e.g. MAM history,
+      // mucsub catch-up) — drop them here so they never land in the
+      // transcript or the sidebar "last message" preview.
+      if (isCallSignalMessage(message)) return;
 
       const roomMessages = state.rooms[roomJID]?.messages;
 

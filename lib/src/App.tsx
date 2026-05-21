@@ -15,13 +15,17 @@ import CustomMessageBubble from './examples/customComponents/CustomMessageBubble
 import { MessageNotificationProvider } from './context/MessageNotificationContext';
 import { ethoraLogger } from './helpers/ethoraLogger';
 
+const LIVEKIT_URL =
+  (((import.meta as unknown as { env?: Record<string, string | undefined> }).env) || {})
+    .VITE_LIVEKIT_URL || 'https://livekit.ethora-qa.com';
+
 const APP_CHAT_BASE_CONFIG: IConfig = {
   appId: '646cc8dc96d4a4dc8f7b2f2d',
-  baseUrl: 'https://api.chat.ethora.com/v1',
+  baseUrl: 'https://api.messenger.ethora-qa.com/v1',
   xmppSettings: {
-    devServer: 'wss://xmpp.chat.ethora.com/ws',
-    host: 'xmpp.chat.ethora.com',
-    conference: 'conference.xmpp.chat.ethora.com',
+    devServer: 'wss://xmpp.messenger.ethora-qa.com/ws',
+    host: 'xmpp.messenger.ethora-qa.com',
+    conference: 'conference.xmpp.messenger.ethora-qa.com',
     xmppPingOnSendEnabled: true,
   },
   userLogin: {
@@ -31,6 +35,11 @@ const APP_CHAT_BASE_CONFIG: IConfig = {
   refreshTokens: { enabled: true },
   setRoomJidInPath: true,
   initBeforeLoad: true,
+  videoCalls: {
+    enabled: true,
+    livekitUrl: LIVEKIT_URL,
+    allowedRoomTypes: ['private'],
+  },
 };
 
 const Apps = () => {
@@ -97,7 +106,7 @@ const Apps = () => {
               CustomScrollableArea={CustomScrollableArea}
               CustomDaySeparator={CustomDaySeparator}
               config={{
-                baseUrl: 'https://api.chat.ethora.com/v1',
+                baseUrl: 'https://api.messenger.ethora-qa.com/v1',
                 inAppNotifications: {
                   enabled: true,
                   showInContext: true, // Show in chat component context as well
@@ -181,7 +190,7 @@ const ChatComponent = React.memo(() => {
         // CustomInputComponent={CustomChatInput}
         // CustomScrollableArea={CustomScrollableArea}
         // CustomDaySeparator={CustomDaySeparator}
-        // roomJID="646cc8dc96d4a4dc8f7b2f2d_6824685682d635dba7522423@conference.xmpp.chat.ethora.com"
+        // roomJID="646cc8dc96d4a4dc8f7b2f2d_6824685682d635dba7522423@conference.xmpp.messenger.ethora-qa.com"
         // roomJID="6998429ba125477a74a7dcef_69b96235545b8217d39dc1ac@conference.xmpp-dev.preshent.com"
         config={{
           // ...(demoJwtToken
@@ -192,6 +201,7 @@ const ChatComponent = React.memo(() => {
           //       },
           //     }
           //   : {}),
+          customAppToken: 'JWT eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7ImRpc3BsYXlOYW1lIjoiRXRob3JhIiwiZG9tYWluTmFtZSI6ImFwcCIsImFwcFNlY3JldCI6ImMxMmViMjhkYjRjZjAyOWVlMGFmNjJmZmQ3ZWY1ZTZlYzRkNDhjZjk1YjNlNmMyNmMyY2QzNGJiZDFlNWRmZjkiLCJjcmVhdG9ySWQiOiI2OWMyNGU5MDFlNTNkNDRkMmI2YzRiYjEiLCJidW5kbGVJZCI6ImNvbS5ldGhvcmEiLCJwcmltYXJ5Q29sb3IiOiIjMDAzRTlDIiwiY29pblN5bWJvbCI6IkVUTyIsImNvaW5OYW1lIjoiRXRob3JhIENvaW4iLCJkZWZhdWx0QWNjZXNzUHJvZmlsZU9wZW4iOnRydWUsImRlZmF1bHRBY2Nlc3NBc3NldHNPcGVuIjp0cnVlLCJ1c2Vyc0NhbkZyZWUiOnRydWUsInBhcmVudEFwcElkIjpudWxsLCJpc0FsbG93ZWROZXdBcHBDcmVhdGUiOnRydWUsImlzQmFzZUFwcCI6dHJ1ZSwiZmlyZWJhc2VXZWJDb25maWdTdHJpbmciOiJ7XCJhcGlLZXlcIjpcIkFJemFTeURRZGt2dnhLS3g0LVdyakxRb1lmMDhHRkFSZ2lfcU80Z1wiLFwiYXV0aERvbWFpblwiOlwiZXRob3JhLTY2OGU5LmZpcmViYXNlYXBwLmNvbVwiLFwicHJvamVjdElkXCI6XCJldGhvcmEtNjY4ZTlcIixcInN0b3JhZ2VCdWNrZXRcIjpcImV0aG9yYS02NjhlOS5hcHBzcG90LmNvbVwiLFwibWVzc2FnaW5nU2VuZGVySWRcIjpcIjk3MjkzMzQ3MDA1NFwiLFwiYXBwSWRcIjpcIjE6OTcyOTMzNDcwMDU0OndlYjpkNDY4MmU3NmVmMDJmZDliOWNkYWE3XCIsXCJtZWFzdXJlbWVudElkXCI6XCJHLVdITTdYUlo0QzhcIn0iLCJnb29nbGVTZXJ2aWNlc0pzb24iOiIiLCJnb29nbGVTZXJ2aWNlSW5mb1BsaXN0IjoiIiwiUkVBQ1RfQVBQX1NUUklQRV9QVUJMSVNIQUJMRV9LRVkiOiIiLCJSRUFDVF9BUFBfU1RSSVBFX1NFQ1JFVF9LRVkiOiIiLCJzeXN0ZW1DaGF0QWNjb3VudCI6eyJqaWQiOiJhcHBfNjljMjRlOTExZTUzZDQ0ZDJiNmM0YmJiIiwicGFzc3dvcmQiOiIwc3pMOFBNMk1jIn0sInNpZ25vbk9wdGlvbnMiOlsiZW1haWwiLCJnb29nbGUiLCJmYWNlYm9vayJdLCJhZnRlckxvZ2luUGFnZSI6ImNoYXRzIiwiYXZhaWxhYmxlTWVudUl0ZW1zIjp7ImNoYXRzIjp0cnVlLCJwcm9maWxlIjp0cnVlLCJzZXR0aW5ncyI6dHJ1ZX0sImFsbG93VXNlcnNUb0NyZWF0ZVJvb21zIjp0cnVlLCJhaUJvdCI6eyJ0cmlnZ2VyIjoiYW55X21lc3NhZ2UiLCJwcm9tcHQiOiJZb3UgYXJlIGEgaGVscGZ1bCBhc3Npc3RhbnQuIiwiaXNSQUciOnRydWUsInRvdGFsU2l0ZVNvdXJjZVNpemUiOjB9LCJfaWQiOiI2OWMyNGU5MTFlNTNkNDRkMmI2YzRiYmMiLCJhcHBUb2tlbnMiOltdLCJkZWZhdWx0Um9vbXMiOltdfSwiaWF0IjoxNzc0MzQxNzc3fQ.PWKVFYAk3e2j_LaL4yiXAMQXu-XzUA6y3v62kkPcMTk',
           setRoomJidInPath: true,
           refreshTokens: { enabled: true },
           // secondarySendButton: {

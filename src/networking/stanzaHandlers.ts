@@ -896,10 +896,23 @@ const onChatUpdate = async (stanza: Element) => {
 
     // Build room update object with available attributes
     const roomUpdates: Partial<IRoom> = {};
-    
+
+    // Reject server "deleted" / "unknown" / empty title pushes for private
+    // chats — those overwrite the peer-name we derived in createRoomFromApi
+    // and make the sidebar read "deleted". Other room types still accept
+    // any non-empty title.
     if (attrs.title !== undefined) {
-      roomUpdates.title = attrs.title;
-      roomUpdates.name = attrs.title; // Also update name field
+      const incomingTitle = String(attrs.title || '').trim();
+      const isPrivateRoom = existingRoom?.type === 'private';
+      const isBadTitle =
+        !incomingTitle ||
+        ['deleted', 'deleted user', 'unknown', 'null'].includes(
+          incomingTitle.toLowerCase()
+        );
+      if (!(isPrivateRoom && isBadTitle)) {
+        roomUpdates.title = incomingTitle || existingRoom?.title;
+        roomUpdates.name = incomingTitle || existingRoom?.name;
+      }
     }
     if (attrs.description !== undefined) {
       roomUpdates.description = attrs.description;

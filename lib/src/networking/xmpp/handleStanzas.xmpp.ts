@@ -22,6 +22,7 @@ import {
 } from '../stanzaHandlers';
 import XmppClient from '../xmppClient';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
+import { onCallTokenMessage } from '../callTokenStanza';
 
 // Unwrap mucsub event wrappers so downstream handlers see the inner stanza
 // (which has the original id like 'deleteMessageStanza' / 'edit-message-*').
@@ -41,6 +42,11 @@ export function handleStanza(stanza: Element, xmppWs: XmppClient) {
     onChatUpdate(stanza);
     return;
   }
+
+  if (stanza?.name === 'message' && onCallTokenMessage(stanza)) {
+    return;
+  }
+
   switch (stanza.name) {
     case 'message': {
       const unwrapped = unwrapMucsubMessage(stanza);

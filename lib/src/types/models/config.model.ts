@@ -7,6 +7,12 @@ import React from 'react'; // Assuming React types are globally available or man
 
 import { MessageNotificationToastProps } from '../../components/MessageNotification/MessageNotificationToast';
 
+export interface VideoCallsConfig {
+  enabled: boolean;
+  livekitUrl: string;
+  allowedRoomTypes?: Array<'private'>;
+}
+
 export interface FBConfig {
   apiKey: string;
   authDomain: string;
@@ -222,4 +228,5 @@ export interface IConfig {
       source?: 'service_worker' | 'foreground';
     }) => void | Promise<void>;
   };
+  videoCalls?: VideoCallsConfig;
 }

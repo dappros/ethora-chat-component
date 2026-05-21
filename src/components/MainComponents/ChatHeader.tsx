@@ -32,6 +32,7 @@ import {
   setCallError,
   startOutgoingCall,
 } from '../../roomStore/callSlice';
+import { sendCallInviteSignal } from '../../networking/callTokenStanza';
 import { ModalWrapper } from '../Modals/ModalWrapper/ModalWrapper';
 
 interface ChatHeaderProps {
@@ -80,7 +81,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
 
   const { roomsList, activeRoomJID } = useRoomState(currentRoom.jid);
   const { composing } = useRoomState(currentRoom.jid).room;
-  const { config } = useChatSettingState();
+  const { config, user: stateUser } = useChatSettingState();
   const call = useSelector((state: RootState) => state.call);
 
   const videoCallsConfig = config?.videoCalls;
@@ -150,27 +151,82 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
 
   const placeCall = useCallback(
     async (kind: 'audio' | 'video') => {
-      if (!canCall || isCallBusy || !currentRoom?.jid || !currentRoom?.name) {
+      if (!canCall || isCallBusy || !currentRoom?.jid) {
         return;
       }
+
+      // The call API expects the bare room name (e.g. "${appId}_<uuid>"),
+      // which createRoomFromApi stores as the JID localpart. `currentRoom.name`
+      // looks tempting but actually holds the display title (e.g. the other
+      // party's "First Last"), so passing it produces nonsense URLs like
+      // /v1/chats/call/create/test2%20test2.
+      const chatName = currentRoom.jid.split('@')[0];
+      if (!chatName) return;
+
+      // Resolve the peer xmpp localpart so we can XMPP-signal them when
+      // we hang up / cancel — without this they'd keep ringing forever.
+      const selfLocal = String(stateUser?.xmppUsername || '').split('@')[0];
+      const peer = (currentRoom.members || []).find((member) => {
+        const mLocal = String(member?.xmppUsername || '').split('@')[0];
+        return mLocal && mLocal !== selfLocal;
+      });
+      const peerXmppUsername = peer?.xmppUsername || null;
+
+      // Don't show "deleted" / "Deleted User" / "Unknown" as the dial
+      // screen title when the chat title is one of the server sentinels.
+      // Prefer the peer's first+last name, falling back to bare chat name.
+      const rawTitle = String(currentRoom.name || '').trim();
+      const isBadTitle =
+        !rawTitle ||
+        ['deleted', 'deleted user', 'unknown', 'null'].includes(
+          rawTitle.toLowerCase()
+        );
+      const peerDisplay = peer
+        ? `${peer.firstName || ''} ${peer.lastName || ''}`.trim() ||
+          peer.name ||
+          ''
+        : '';
+      const dialName =
+        (isBadTitle ? peerDisplay : rawTitle) || peerDisplay || chatName;
 
       dispatch(
         startOutgoingCall({
           roomJid: currentRoom.jid,
-          roomName: currentRoom.name,
+          roomName: dialName,
+          roomBareName: chatName,
           kind,
+          peerXmppUsername,
         })
       );
 
+      // Server's broadcast call-token currently drops the `kind` attribute,
+      // so signal it directly to the peer first. Direct chat is fast
+      // (~50ms) and almost always lands before the server-relayed token
+      // (~200-300ms), so the callee enters the right UI mode.
+      if (peerXmppUsername) {
+        sendCallInviteSignal(kind, {
+          peerXmppUsername,
+          roomBareName: chatName,
+        });
+      }
+
       try {
-        await createChatCall(currentRoom.name, { kind });
+        await createChatCall(chatName, { kind });
       } catch (error) {
         const message =
           error instanceof Error ? error.message : 'Failed to create call';
         dispatch(setCallError(message));
       }
     },
-    [canCall, isCallBusy, currentRoom?.jid, currentRoom?.name, dispatch]
+    [
+      canCall,
+      isCallBusy,
+      currentRoom?.jid,
+      currentRoom?.name,
+      currentRoom?.members,
+      stateUser?.xmppUsername,
+      dispatch,
+    ]
   );
 
   const handleVideoCallClick = useCallback(
@@ -245,6 +301,11 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             {canCall && !isCallBusy && (
               <>
+                {/*
+                  Audio call entry point hidden for now — backend doesn't
+                  propagate the `kind` on the call-token stanza, so the
+                  callee receives every call as video. We'll restore the
+                  audio button once the server passes the kind through.
                 <button
                   onClick={() => {
                     void handleAudioCallClick();
@@ -269,6 +330,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                 >
                   <AudioCallIcon />
                 </button>
+                */}
                 <button
                   onClick={() => {
                     void handleVideoCallClick();
