@@ -181,7 +181,8 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
           </ChatContainerHeaderBoxInfo>
         </div>
 
-        {!config?.disableChatInfo?.disableChatHeaderMenu && (
+        {!config?.disableRoomMenu &&
+          !config?.disableChatInfo?.disableChatHeaderMenu && (
           <div style={{ display: 'flex', gap: 16 }}>
             {/* <SearchInput animated icon={<SearchIcon />} /> */}
             <RoomMenu
@@ -189,7 +190,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
               handleReportClick={handleReportClick}
             />
           </div>
-        )}
+          )}
       </ChatContainerHeader>
       {isLeaveModalOpen && (
         <div>
