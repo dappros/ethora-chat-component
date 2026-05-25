@@ -16,6 +16,7 @@ import {
   onReactionHistory,
   onRoomKicked,
   onRoomMembershipChange,
+  onMembersRefreshSignal,
   onMessageError,
   onUserUpdate,
   onChatUpdate,
@@ -51,6 +52,7 @@ export function handleStanza(stanza: Element, xmppWs: XmppClient) {
       onEditMessage(unwrapped);
       onChatInvite(unwrapped, xmppWs);
       onRoomMembershipChange(unwrapped);
+      onMembersRefreshSignal(unwrapped, xmppWs);
       onRealtimeMessage(unwrapped, xmppWs);
       onMessageHistory(unwrapped);
       handleComposing(unwrapped, xmppWs.username);

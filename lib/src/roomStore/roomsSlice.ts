@@ -258,16 +258,13 @@ const roomsStore = createSlice({
         ...roomData,
         title: roomData.title || existing?.title || roomData.title,
         usersCnt: (() => {
-          const incoming =
-            typeof roomData.usersCnt === 'number' && roomData.usersCnt > 0
-              ? roomData.usersCnt
-              : 0;
-          const previous =
-            typeof existing?.usersCnt === 'number' && existing.usersCnt > 0
-              ? existing.usersCnt
-              : 0;
-          if (incoming === 0 && previous === 0) return roomData.usersCnt;
-          return Math.max(incoming, previous);
+          if (Array.isArray(roomData.members)) {
+            return roomData.members.length;
+          }
+          if (typeof roomData.usersCnt === 'number' && roomData.usersCnt > 0) {
+            return roomData.usersCnt;
+          }
+          return existing?.usersCnt ?? roomData.usersCnt;
         })(),
         icon: roomData.icon ?? existing?.icon,
         messages:
@@ -727,16 +724,13 @@ const roomsStore = createSlice({
         ...room,
         title: room.title || existing?.title || room.title,
         usersCnt: (() => {
-          const incoming =
-            typeof room.usersCnt === 'number' && room.usersCnt > 0
-              ? room.usersCnt
-              : 0;
-          const previous =
-            typeof existing?.usersCnt === 'number' && existing.usersCnt > 0
-              ? existing.usersCnt
-              : 0;
-          if (incoming === 0 && previous === 0) return room.usersCnt;
-          return Math.max(incoming, previous);
+          if (Array.isArray(room.members)) {
+            return room.members.length;
+          }
+          if (typeof room.usersCnt === 'number' && room.usersCnt > 0) {
+            return room.usersCnt;
+          }
+          return existing?.usersCnt ?? room.usersCnt;
         })(),
         icon: room.icon ?? existing?.icon,
         messages:

@@ -21,6 +21,12 @@ let lastGetRoomsResponse: { items: ApiRoom[] } | null = null;
 let lastGetRoomsResponseAt = 0;
 let lastGetRoomsResponseToken = '';
 
+export function invalidateRoomsCache() {
+  lastGetRoomsResponse = null;
+  lastGetRoomsResponseAt = 0;
+  lastGetRoomsResponseToken = '';
+}
+
 export async function getRooms(): Promise<{ items: ApiRoom[] }> {
   const token = store.getState().chatSettingStore.user.token || '';
   const now = Date.now();
