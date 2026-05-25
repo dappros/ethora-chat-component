@@ -1,5 +1,7 @@
 import { Client, xml } from '@xmpp/client';
 
+export const MEMBERS_REFRESH_XMLNS = 'ethora:chats:members-refresh';
+
 export async function notifyMembersChanged(
   client: Client,
   roomJid: string,
@@ -12,6 +14,7 @@ export async function notifyMembersChanged(
   const message = xml(
     'message',
     { to: roomJid, type: 'groupchat', id },
+    xml('members-refresh', { xmlns: MEMBERS_REFRESH_XMLNS }),
     xml('no-store', 'urn:xmpp:hints'),
     xml(
       'x',

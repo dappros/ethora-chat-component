@@ -1636,7 +1636,7 @@ export class XmppClient implements XmppClientInterface {
 
   async notifyMembersChangedStanza(roomJid: string) {
     return this.wrapWithConnectionCheck(async () => {
-      await notifyMembersChanged(this.client, roomJid);
+      await notifyMembersChanged(this.client, roomJid, this.username);
     });
   }
 
