@@ -14,7 +14,7 @@ import { VideoCallSession } from './VideoCallSession';
 import { ProfileImagePlaceholder } from '../MainComponents/ProfileImagePlaceholder';
 import {
   AudioCallIcon,
-  LeaveIcon,
+  HangUpIcon,
   VideoCallIcon,
 } from '../../assets/icons';
 import {
@@ -283,12 +283,9 @@ const RingingCard: React.FC<RingingCardProps> = ({
               onClick={onDecline}
               aria-label="Decline call"
               title="Decline"
-              style={{
-                ...circleActionStyle(DANGER),
-                transform: 'rotate(135deg)',
-              }}
+              style={circleActionStyle(DANGER)}
             >
-              <LeaveIcon color="#FFFFFF" />
+              <HangUpIcon color="#FFFFFF" />
             </button>
             <button
               onClick={onAccept}
@@ -309,12 +306,9 @@ const RingingCard: React.FC<RingingCardProps> = ({
             onClick={onHangup}
             aria-label="Cancel call"
             title="Cancel"
-            style={{
-              ...circleActionStyle(DANGER),
-              transform: 'rotate(135deg)',
-            }}
+            style={circleActionStyle(DANGER)}
           >
-            <LeaveIcon color="#FFFFFF" />
+            <HangUpIcon color="#FFFFFF" />
           </button>
         )}
         {variant === 'error' && (

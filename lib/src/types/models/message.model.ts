@@ -33,6 +33,15 @@ export interface IMessage {
   size?: string;
   xmppId?: string;
   xmppFrom?: string;
+  // Present when this message is a call-log entry derived from a
+  // `<data type="call-state">` stanza (see helpers/callLogMessage.ts).
+  callLog?: {
+    callId: string;
+    direction: 'outgoing' | 'incoming';
+    durationMs: number;
+    missed: boolean;
+    kind: 'audio' | 'video';
+  };
 }
 
 export interface ReactionMessage {

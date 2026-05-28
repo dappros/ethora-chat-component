@@ -17,6 +17,7 @@ import {
 } from '../roomStore/roomsSlice';
 import { IMessage, IRoom, RoomMember, User } from '../types/types';
 import { createMessageFromXml } from '../helpers/createMessageFromXml';
+import { transformCallLogMessage } from '../helpers/callLogMessage';
 import { setDeleteModal, updateUser } from '../roomStore/chatSettingsSlice';
 import { getDataFromXml } from '../helpers/getDataFromXml';
 import { getBooleanFromString } from '../helpers/getBooleanFromString';
@@ -83,12 +84,20 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
       return;
     }
 
-    const message = await createMessageFromXml({
+    const rawMessage = await createMessageFromXml({
       data,
       id,
       body,
       ...rest,
     });
+
+    // Turn server call-state stanzas into a friendly call-log entry
+    // ("Outgoing call · 12 sec" / "Missed call"). Non-call messages pass
+    // through unchanged.
+    const message = transformCallLogMessage(
+      rawMessage,
+      store.getState().chatSettingStore.user?.xmppUsername || ''
+    );
 
     // Ignore non-message stanzas (e.g. typing/chatstate with only <data .../>)
     if (!message?.body || !String(message.body).trim()) {
@@ -315,12 +324,17 @@ const onMessageHistory = async (stanza: any) => {
       return;
     }
 
-    const message = await createMessageFromXml({
+    const rawMessage = await createMessageFromXml({
       data,
       id,
       body,
       ...rest,
     });
+
+    const message = transformCallLogMessage(
+      rawMessage,
+      store.getState().chatSettingStore.user?.xmppUsername || ''
+    );
 
     const fixedUser = await checkSingleUser(
       store.getState().rooms.usersSet,

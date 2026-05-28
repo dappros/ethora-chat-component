@@ -19,7 +19,7 @@ import {
 } from '@livekit/components-react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
-import { LeaveIcon } from '../../assets/icons';
+import { HangUpIcon } from '../../assets/icons';
 import { ProfileImagePlaceholder } from '../MainComponents/ProfileImagePlaceholder';
 
 interface VideoCallSessionProps {
@@ -268,10 +268,9 @@ const CallControls: React.FC<CallControlsProps> = ({
         style={{
           ...controlButtonBase,
           ...toneStyle('danger', primaryColor),
-          transform: 'rotate(135deg)',
         }}
       >
-        <LeaveIcon color="#FFFFFF" />
+        <HangUpIcon color="#FFFFFF" />
       </button>
     </div>
   );
@@ -299,7 +298,40 @@ const VideoCallContent: React.FC<{
   const localCamera = cameraTracks.find((t) => t.participant.isLocal);
   const remoteCamera = cameraTracks.find((t) => !t.participant.isLocal);
   const remoteScreen = screenTracks.find((t) => !t.participant.isLocal);
-  const mainTrack = remoteScreen || remoteCamera;
+
+  // A TrackReference exists even when the camera is muted/off — rendering
+  // ParticipantTile for it shows LiveKit's default grey-silhouette
+  // placeholder + name + connection bars, which clashes with our chrome.
+  // Only treat a track as renderable when it has a live, unmuted track.
+  const hasLiveVideo = (t: typeof remoteCamera): boolean =>
+    !!t && !!t.publication && !t.publication.isMuted && !!t.publication.track;
+
+  const remoteScreenLive = hasLiveVideo(remoteScreen);
+  const remoteCameraLive = hasLiveVideo(remoteCamera);
+  const localCameraLive = hasLiveVideo(localCamera);
+  const mainTrack = remoteScreenLive
+    ? remoteScreen
+    : remoteCameraLive
+      ? remoteCamera
+      : null;
+
+  // Live duration in the header, gated on the peer actually joining — same
+  // semantics as the audio screen so the dialer doesn't see a timer until
+  // the callee picks up.
+  const [connectedAt, setConnectedAt] = useState<number | null>(null);
+  const [tickSeconds, setTickSeconds] = useState(0);
+  useEffect(() => {
+    if (peerJoined && connectedAt === null) setConnectedAt(Date.now());
+  }, [peerJoined, connectedAt]);
+  useEffect(() => {
+    if (connectedAt === null) return;
+    const id = window.setInterval(
+      () => setTickSeconds(Math.floor((Date.now() - connectedAt) / 1000)),
+      1000
+    );
+    return () => window.clearInterval(id);
+  }, [connectedAt]);
+  const headerStatus = peerJoined ? formatDuration(tickSeconds) : 'Ringing…';
 
   return (
     <div
@@ -324,12 +356,24 @@ const VideoCallContent: React.FC<{
           background:
             'linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0))',
           color: '#FFFFFF',
-          fontSize: 14,
-          fontWeight: 500,
           zIndex: 10,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
         }}
       >
-        {roomName || 'Video call'}
+        <span style={{ fontSize: 15, fontWeight: 600 }}>
+          {roomName || 'Video call'}
+        </span>
+        <span
+          style={{
+            fontSize: 13,
+            color: 'rgba(255,255,255,0.7)',
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {headerStatus}
+        </span>
       </div>
 
       {/* Main stage: remote video / placeholder */}
@@ -361,26 +405,44 @@ const VideoCallContent: React.FC<{
         )}
       </div>
 
-      {/* Local self-view (only when there's actually a camera track) */}
-      {localCamera && (
-        <div
-          style={{
-            position: 'absolute',
-            right: 16,
-            bottom: 96,
-            width: 200,
-            height: 112,
-            borderRadius: 16,
-            overflow: 'hidden',
-            background: '#0B1220',
-            border: '1px solid rgba(255,255,255,0.18)',
-            boxShadow: '0 8px 20px rgba(0,0,0,0.35)',
-            zIndex: 20,
-          }}
-        >
+      {/* Local self-view — only mount the tile when our camera is actually
+          producing video. When it's off we show a small avatar instead of
+          a black rectangle. */}
+      <div
+        style={{
+          position: 'absolute',
+          right: 16,
+          bottom: 96,
+          width: 200,
+          height: 112,
+          borderRadius: 16,
+          overflow: 'hidden',
+          background: '#111827',
+          border: '1px solid rgba(255,255,255,0.18)',
+          boxShadow: '0 8px 20px rgba(0,0,0,0.35)',
+          zIndex: 20,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {localCameraLive && localCamera ? (
           <ParticipantTile trackRef={localCamera} />
-        </div>
-      )}
+        ) : (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 6,
+              color: 'rgba(255,255,255,0.7)',
+            }}
+          >
+            <ProfileImagePlaceholder name="You" size={44} />
+            <span style={{ fontSize: 12 }}>Camera off</span>
+          </div>
+        )}
+      </div>
 
       {/* Bottom control tray */}
       <div

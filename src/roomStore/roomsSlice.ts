@@ -507,6 +507,34 @@ const roomsStore = createSlice({
         state.rooms[roomJID].messages = [];
       }
 
+      // Collapse multiple call-state events for the same call into a single
+      // log entry. The server can emit a call-state each time a participant
+      // leaves the LiveKit room (or on a mid-call reconnect blip), and the
+      // earlier ones carry a partial / tiny durationMs. Keep the entry with
+      // the LARGEST duration so a 2-minute call doesn't render as "2 sec".
+      const incomingCallLog = (message as IMessage).callLog;
+      if (incomingCallLog?.callId) {
+        const list = state.rooms[roomJID].messages;
+        const existingCallIdx = list.findIndex(
+          (msg) => msg.callLog?.callId === incomingCallLog.callId
+        );
+        if (existingCallIdx !== -1) {
+          const existingLog = list[existingCallIdx].callLog;
+          if (
+            (existingLog?.durationMs || 0) >= (incomingCallLog.durationMs || 0)
+          ) {
+            // Existing entry already reflects the longer (truer) duration.
+            return;
+          }
+          // Replace in place with the longer-duration version.
+          list[existingCallIdx] = {
+            ...list[existingCallIdx],
+            ...(message as IMessage),
+          };
+          return;
+        }
+      }
+
       const existingIndex = roomMessages.findIndex(
         (msg) =>
           msg.id === message.id ||

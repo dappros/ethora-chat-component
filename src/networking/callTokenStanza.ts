@@ -8,6 +8,8 @@ import {
   setOutgoingCallToken,
 } from '../roomStore/callSlice';
 import { getGlobalXmppClient } from '../utils/clientRegistry';
+import { callStateHasLogData } from '../helpers/callLogMessage';
+import { ethoraLogger } from '../helpers/ethoraLogger';
 
 // Backend currently doesn't propagate `kind` on the broadcast call-token
 // stanza — both ends default to video unless we tell them otherwise. We
@@ -217,6 +219,15 @@ const getBodyText = (stanza: Element): string => {
   return String(body?.getText?.() || '').trim();
 };
 
+// Tear down the active call overlay in response to a call-state stanza.
+// Two shapes arrive here:
+//   1. Client signaling (sendCallStateSignal): has explicit `state`
+//      (cancelled / declined / ended). Terminal → end.
+//   2. Server call-log: NO `state` attr, but carries `callId` /
+//      `durationMs` and is broadcast into the room when the LiveKit room
+//      empties. For a 1:1 call that means the other side left → end.
+// `fallbackRoomAttr` is the bare room name derived from the message's
+// `from` JID (server call-logs don't put `room` on the <data>).
 const handleCallStateData = (
   data: Element,
   fallbackRoomAttr?: string
@@ -224,27 +235,35 @@ const handleCallStateData = (
   const state = String(data.attrs?.state || data.attrs?.event || '').toLowerCase();
   const stanzaRoomAttr =
     String(data.attrs?.room || '').trim() || (fallbackRoomAttr || '');
+  const stanzaCallId = String(
+    data.attrs?.callId || data.attrs?.callid || ''
+  ).trim();
   const currentCall = store.getState().call;
 
-  const matchesActive =
-    !stanzaRoomAttr ||
-    currentCall.roomJid === stanzaRoomAttr ||
-    currentCall.roomName === stanzaRoomAttr ||
-    (currentCall.roomJid || '').split('@')[0] === stanzaRoomAttr;
+  if (currentCall.phase === 'idle') return;
 
-  if (!matchesActive) return;
+  const roomMatches =
+    !!stanzaRoomAttr &&
+    (currentCall.roomJid === stanzaRoomAttr ||
+      currentCall.roomName === stanzaRoomAttr ||
+      currentCall.roomBareName === stanzaRoomAttr ||
+      (currentCall.roomJid || '').split('@')[0] === stanzaRoomAttr);
+  const callIdMatches =
+    !!stanzaCallId && !!currentCall.callId && currentCall.callId === stanzaCallId;
 
-  // 'ringing' is informational — the dial UI already shows "Calling…"
-  // during the 'requesting' window. Terminal transitions tear the call
-  // down so neither side is stuck staring at a phantom modal.
-  if (
+  const isTerminalState =
     state === 'ended' ||
     state === 'declined' ||
     state === 'cancelled' ||
     state === 'canceled' ||
     state === 'timeout' ||
-    state === 'rejected'
-  ) {
+    state === 'rejected';
+
+  // A server call-log (no explicit state, but with callId/duration) is
+  // itself a "session concluded" signal.
+  const isServerCallLog = !state && callStateHasLogData(data.attrs || {});
+
+  if ((roomMatches || callIdMatches) && (isTerminalState || isServerCallLog)) {
     store.dispatch(endCall());
   }
 };
@@ -266,7 +285,36 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
     const dataType = String(data.attrs?.type || '').toLowerCase();
 
     if (dataType === 'call-state') {
-      handleCallStateData(inner);
+      // Surface the raw call-state attrs so we can confirm what the server
+      // sends for durationMs / callerXmppUsername during QA.
+      try {
+        ethoraLogger.log('[call-state] received', {
+          callId: data.attrs?.callId,
+          durationMs: data.attrs?.durationMs,
+          state: data.attrs?.state,
+          callerXmppUsername: data.attrs?.callerXmppUsername,
+          from: stanza.attrs?.from,
+        });
+      } catch {
+        /* noop */
+      }
+
+      // The server call-log doesn't put `room` on the <data>; derive it
+      // from the message's `from` MUC JID localpart instead.
+      const fromRoom = String(stanza.attrs?.from || '')
+        .split('/')[0]
+        .split('@')[0]
+        .trim();
+      handleCallStateData(inner, fromRoom);
+
+      // Server call-logs (carry callerXmppUsername / durationMs) should
+      // flow on to onRealtimeMessage / onMessageHistory where they become
+      // a friendly "Outgoing call · 12 sec" entry. Bare client-side
+      // signaling frames (state=cancelled/declined, no log data) are
+      // swallowed — they exist only to tear the overlay down.
+      if (callStateHasLogData(data.attrs || {})) {
+        return false;
+      }
       return true;
     }
 
