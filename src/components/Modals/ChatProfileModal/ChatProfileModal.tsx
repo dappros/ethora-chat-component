@@ -307,6 +307,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                     >
                       <ProfileImagePlaceholder
                         name={`${user.firstName} ${user.lastName}`}
+                        icon={(user as any).profileImage || (user as any).photoURL}
                         size={40}
                       />
                       <div
