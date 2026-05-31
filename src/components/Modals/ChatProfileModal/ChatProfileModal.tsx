@@ -68,6 +68,30 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   const { client } = useXmppClient();
   const { user: stateUser, config } = useChatSettingState();
   const activeRoom = useSelector((state: RootState) => getActiveRoom(state));
+  const usersSet = useSelector((state: RootState) => state.rooms.usersSet);
+
+  // XMPP affiliation responses populate activeRoom.members with bare
+  // xmppUsername-only entries (firstName/lastName/profileImage are blank). The
+  // user dictionary `usersSet` is populated separately from <data> stamps on
+  // incoming messages and from API enrichment calls, so it carries the actual
+  // names + avatars. Merge them at render time so the chat-details members list
+  // doesn't fall back to initials for participants who already have an avatar
+  // visible in inline message bubbles.
+  const enrichedMembers = useMemo(() => {
+    const members = Array.isArray(activeRoom?.members) ? activeRoom.members : [];
+    return members.map((m) => {
+      const key = String(m?.xmppUsername || '');
+      const localKey = key.split('@')[0];
+      const enriched = (usersSet as any)?.[key] || (usersSet as any)?.[localKey];
+      if (!enriched) return m;
+      return {
+        ...m,
+        firstName: m.firstName || enriched.firstName || '',
+        lastName: m.lastName || enriched.lastName || '',
+        profileImage: (m as any).profileImage || enriched.profileImage || (enriched as any).photoURL || '',
+      };
+    });
+  }, [activeRoom?.members, usersSet]);
 
   const onUpload = async (file: File) => {
     try {
@@ -272,7 +296,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
             {loading ? (
               <Loader />
             ) : (
-              activeRoom?.members?.map((user, index) => (
+              enrichedMembers.map((user, index) => (
                 <div
                   key={user.xmppUsername}
                   style={{
@@ -366,7 +390,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                         />
                       )}
                   </div>
-                  {index < activeRoom?.members.length - 1 && <Divider />}
+                  {index < enrichedMembers.length - 1 && <Divider />}
                 </div>
               ))
             )}
