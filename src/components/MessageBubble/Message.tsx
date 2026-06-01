@@ -240,10 +240,10 @@ const Message: React.FC<MessageProps> = forwardRef<
                 : null
             }
           >
-            {message.user?.profileImage && message.user.profileImage !== '' ? (
+            {(message.user?.profileImage || (message.user as any)?.photoURL) ? (
               <CustomMessagePhoto
                 src={
-                  message.user.profileImage 
+                  message.user.profileImage || (message.user as any)?.photoURL
                 }
                 alt="userIcon"
               />

@@ -101,6 +101,10 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
   const user = {
     id: userWallet,
     photoURL,
+    // The message bubble renders `user.profileImage`; carry the envelope photo
+    // into it so per-message avatars show even when the room-member list omits
+    // profileImage (the /chats/my members projection does not include it).
+    profileImage: photoURL,
   };
 
   const dataAttrs = data?.attrs || {};
