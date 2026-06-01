@@ -74,6 +74,7 @@ export const ModalWrapper: FC<ModalWrapperProps> = ({
             variant="outlined"
           />
           {buttonText && <Button
+            data-testid="modal_confirm_button"
             onClick={handleClick}
             text={buttonText}
             style={{ width: '100%', backgroundColor: backgroundColorButton }}

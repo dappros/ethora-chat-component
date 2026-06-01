@@ -236,7 +236,7 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
               <Delimeter />
               {isUser && (
                 <>
-                  <MenuItem onClick={handleEditMessage}>
+                  <MenuItem data-testid="msg_edit" onClick={handleEditMessage}>
                     {MESSAGE_INTERACTIONS.EDIT}
                     <MESSAGE_INTERACTIONS_ICONS.EDIT />{' '}
                   </MenuItem>
@@ -244,7 +244,7 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
                 </>
               )}
               {(isUser || roomsList?.[activeRoomJID].role === 'moderator') && (
-                <MenuItem onClick={handleDeleteMessage}>
+                <MenuItem data-testid="msg_delete" onClick={handleDeleteMessage}>
                   {MESSAGE_INTERACTIONS.DELETE}
                   <MESSAGE_INTERACTIONS_ICONS.DELETE />{' '}
                 </MenuItem>
