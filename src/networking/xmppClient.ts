@@ -306,6 +306,21 @@ export class XmppClient implements XmppClientInterface {
         password: this.password,
       });
 
+      // Force SASL PLAIN. Ethora's ejabberd uses a custom token-aware auth
+      // backend that only handles the PLAIN response; when a cluster also
+      // advertises SCRAM-SHA-1 (observed on chat-qa), @xmpp/client picks SCRAM
+      // by default and the stream dies with `invalid-xml`. The bots already
+      // pin PLAIN for this reason. PLAIN over wss:// is safe (TLS-encrypted).
+      try {
+        const sasl = (this.client as unknown as { sasl?: { use: (n: string, m: unknown) => { _mechs: { name: string }[] } } }).sasl;
+        if (sasl) {
+          const factory = sasl.use('_NOOP', class {});
+          factory._mechs = factory._mechs.filter((m) => m.name === 'PLAIN');
+        }
+      } catch {
+        /* if the SASL internals change, fall back to default negotiation */
+      }
+
       if (this.client.setMaxListeners) {
         this.client.setMaxListeners(50);
       }

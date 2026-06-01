@@ -228,6 +228,9 @@ const Message: React.FC<MessageProps> = forwardRef<
         $reply={!!message?.reply?.length}
         $reaction={message?.reaction && !!Object.keys(message?.reaction)?.length}
         ref={ref}
+        data-testid="chat_message"
+        data-message-id={message.id}
+        data-is-user={isUser ? 'true' : 'false'}
       >
         {!isUser && (
           <CustomMessagePhotoContainer

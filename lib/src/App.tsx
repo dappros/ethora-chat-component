@@ -33,6 +33,17 @@ const APP_CHAT_BASE_CONFIG: IConfig = {
   initBeforeLoad: true,
 };
 
+// Demo/QA harness hook: an external driver (e.g. ethora-demo-qa) can inject a
+// full IConfig (+ optional `roomJID`) on `window.__ETHORA_DEMO_CONFIG__` before
+// the app mounts to point this sandbox at any server/app/user and auto-open a
+// room. When absent, the normal sandbox config applies. Safe no-op in prod.
+const DEMO_OVERRIDE: (Partial<IConfig> & { roomJID?: string }) | null =
+  typeof window !== 'undefined'
+    ? ((window as unknown as Record<string, unknown>).__ETHORA_DEMO_CONFIG__ as
+        | (Partial<IConfig> & { roomJID?: string })
+        | undefined) ?? null
+    : null;
+
 const Apps = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const { hasUnread, totalCount, displayTotal, unreadByRoom, displayByRoom } =
@@ -181,8 +192,7 @@ const ChatComponent = React.memo(() => {
         // CustomInputComponent={CustomChatInput}
         // CustomScrollableArea={CustomScrollableArea}
         // CustomDaySeparator={CustomDaySeparator}
-        // roomJID="646cc8dc96d4a4dc8f7b2f2d_6824685682d635dba7522423@conference.xmpp.chat.ethora.com"
-        // roomJID="6998429ba125477a74a7dcef_69b96235545b8217d39dc1ac@conference.xmpp-dev.preshent.com"
+        roomJID={DEMO_OVERRIDE?.roomJID}
         config={{
           // ...(demoJwtToken
           //   ? {
@@ -223,7 +233,9 @@ const ChatComponent = React.memo(() => {
                 bottom: 20,
               },
             },
-          }
+          },
+          // Harness override wins over every sandbox default above.
+          ...(DEMO_OVERRIDE || {}),
           // pushNotifications: {
           //   enabled: true,
           //   softAsk: false,

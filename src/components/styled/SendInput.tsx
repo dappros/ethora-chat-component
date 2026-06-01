@@ -305,6 +305,7 @@ const SendInput: React.FC<SendInputProps> = ({
           <>
             {!config?.disableMedia && (
               <Button
+                data-testid="chat_attach_button"
                 onClick={handleAttachClick}
                 disabled={false}
                 EndIcon={<AttachIcon />}
@@ -318,6 +319,7 @@ const SendInput: React.FC<SendInputProps> = ({
               >
                 <TextareaInput
                   ref={textareaRef}
+                  data-testid="chat_input"
                   placeholder="Type message"
                   value={message}
                   onChange={handleInputChange}
@@ -331,6 +333,7 @@ const SendInput: React.FC<SendInputProps> = ({
               </TextareaWrapper>
             ) : (
               <MessageInput
+                data-testid="chat_input"
                 $color={config?.colors?.primary}
                 placeholder={placeholderText || 'Type message'}
                 value={message}
@@ -388,6 +391,7 @@ const SendInput: React.FC<SendInputProps> = ({
             )}
             {config?.secondarySendButton?.hideInputSendButton ? null : (
               <Button
+                data-testid="chat_send_button"
                 onClick={() => handleSendClick()}
                 disabled={
                   (message === '' && filePreviews.length === 0) ||

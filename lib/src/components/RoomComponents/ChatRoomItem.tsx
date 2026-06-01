@@ -110,6 +110,8 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
       active={isChatActive}
       onClick={() => performClick(chat)}
       bg={config?.colors?.primary}
+      data-testid={`room_row_${String(chat?.jid || '').split('@')[0]}`}
+      data-roomjid={chat?.jid}
     >
       <ProfileImagePlaceholder name={displayName} icon={chat?.icon} />
       <div
