@@ -137,6 +137,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         <div style={{ display: 'flex', gap: '8px' }}>
           {!config?.disableRooms && handleBackClick && (
             <Button
+              data-testid="chat_back_button"
               EndIcon={<BackIcon />}
               onClick={() => handleBackClick(false)}
             />

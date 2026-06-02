@@ -166,6 +166,7 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
               {fixedEmojiIds.map((id) => (
                 <ReactionBadge
                   key={id}
+                  data-testid={`reaction_${id}`}
                   className="apple-emoji"
                   onClick={(e) => handleReactionClick(id, e)}
                 >
@@ -222,7 +223,7 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
               {/* <Delimeter /> */}
               {!isReply && (
                 <>
-                  <MenuItem onClick={handleReplyMessage}>
+                  <MenuItem data-testid="msg_reply" onClick={handleReplyMessage}>
                     {MESSAGE_INTERACTIONS.REPLY}
                     <MESSAGE_INTERACTIONS_ICONS.REPLY />{' '}
                   </MenuItem>
