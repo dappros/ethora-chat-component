@@ -35,6 +35,9 @@ const BASE_CONFIG = {
   colors: { primary: '#5E3FDE', secondary: '#E1E4FE' },
   refreshTokens: { enabled: true },
   disableRooms: true,
+   typography: {                                                                                        
+       fontFamily: 'Georgia, serif',                                                                      
+       },
 } as const;
 
 // Default JWT pre-filled in the textarea so the dev can hit "Connect" and go.
@@ -109,6 +112,41 @@ type AppUser = {
 type LoginPayload =
   | { mode: 'jwt'; jwt: string }
   | { mode: 'email'; user: AppUser; appToken: string };
+
+// Persist the resolved LoginPayload so a page refresh restores the session
+// instead of bouncing back to the login screen. Cleared on explicit logout.
+const SESSION_STORAGE_KEY = 'ethora-test-app-login-payload';
+
+const loadPersistedPayload = (): LoginPayload | null => {
+  try {
+    const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as LoginPayload;
+    if (parsed?.mode === 'jwt' && parsed.jwt) return parsed;
+    if (parsed?.mode === 'email' && parsed.user?.token && parsed.appToken) {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+const persistPayload = (p: LoginPayload) => {
+  try {
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(p));
+  } catch {
+    /* ignore quota / serialization errors */
+  }
+};
+
+const clearPersistedPayload = () => {
+  try {
+    localStorage.removeItem(SESSION_STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+};
 
 // Mirrors the package's `loginViaJwt` (auth.api.ts): POST /users/client
 // with no body and the raw client JWT in `x-custom-token`.
@@ -1336,11 +1374,20 @@ const AuthedShell: React.FC<{
 export const JwtOnlyScreen = JwtInputScreen;
 
 export default function AppLoginChatsNpm() {
-  const [payload, setPayload] = useState<LoginPayload | null>(null);
+  // Lazy initializer reads any persisted session from localStorage, so a
+  // page refresh resumes straight into AuthedShell instead of the login UI.
+  const [payload, setPayload] = useState<LoginPayload | null>(
+    loadPersistedPayload
+  );
+
   // Switch <LoginScreen /> → <JwtOnlyScreen /> here if you want to drop
   // the email mode from the entry UI. Both produce LoginPayload, so the
   // rest of AuthedShell stays the same.
-  //
+  const handleLogin = useCallback((p: LoginPayload) => {
+    persistPayload(p);
+    setPayload(p);
+  }, []);
+
   // useCallback so AuthedShell receives a stable `onLogout` reference
   // across renders. Without this, every parent render would propagate
   // a fresh prop into AuthedShell → XmppProvider → context value change
@@ -1356,8 +1403,9 @@ export default function AppLoginChatsNpm() {
     } catch (err) {
       console.warn('[AppLoginChatsNpm] logoutService failed', err);
     }
+    clearPersistedPayload();
     setPayload(null);
   }, []);
-  if (!payload) return <LoginScreen onSubmit={setPayload} />;
+  if (!payload) return <LoginScreen onSubmit={handleLogin} />;
   return <AuthedShell payload={payload} onLogout={handleLogout} />;
 }

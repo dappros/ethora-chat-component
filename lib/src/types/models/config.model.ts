@@ -16,11 +16,66 @@ export interface FBConfig {
   appId: string;
 }
 
+/**
+ * A single self-hosted font file to register via an injected `@font-face`
+ * rule. Use this for fonts that are not on Google Fonts — e.g. the Ukrainian
+ * government "e-Ukraine" family distributed from thedigital.gov.ua. Host the
+ * `.woff2`/`.ttf` somewhere reachable and point `src` at it.
+ */
+export interface FontFaceSource {
+  /** The `font-family` name this file provides, e.g. "e-Ukraine". */
+  family: string;
+  /** Absolute or relative URL to the font file (`.woff2`, `.woff`, `.ttf`, `.otf`). */
+  src: string;
+  /** Numeric weight this file covers (e.g. 400, 500, 700). Default 400. */
+  weight?: number | string;
+  /** Style this file covers. Default "normal". */
+  style?: 'normal' | 'italic';
+  /** `font-display` strategy. Default "swap" to avoid invisible text. */
+  display?: 'auto' | 'block' | 'swap' | 'fallback' | 'optional';
+}
+
+/**
+ * Font configuration for the chat UI. When omitted, the component keeps its
+ * default system font stack, so existing integrations are unaffected.
+ *
+ * Two loading paths are supported and can be combined:
+ *  - `googleFontsUrl` / `googleFontsFamily` → a Google Fonts stylesheet is
+ *    injected at runtime (no host setup needed).
+ *  - `fontFaces` → `@font-face` rules are injected for self-hosted files
+ *    (e.g. e-Ukraine).
+ *
+ * `fontFamily` is the family actually applied to the chat (via the
+ * `--ethora-font-family` CSS variable). It should match a family you loaded
+ * above, optionally followed by fallbacks, e.g. "e-Ukraine, Inter, sans-serif".
+ */
+export interface TypographyConfig {
+  /** Family applied to the chat UI, optionally with fallbacks. */
+  fontFamily?: string;
+  /** A full Google Fonts stylesheet URL, e.g.
+   * "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap". */
+  googleFontsUrl?: string;
+  /** Convenience: a Google family name (e.g. "Inter"); a stylesheet URL is
+   * built for the weights below. Ignored if `googleFontsUrl` is set. */
+  googleFontsFamily?: string;
+  /** Self-hosted `@font-face` sources (e.g. e-Ukraine .woff2 files). */
+  fontFaces?: FontFaceSource[];
+  /** Weight tokens used by the chat; also drives the generated Google URL. */
+  weights?: {
+    regular?: number;
+    medium?: number;
+    semibold?: number;
+    bold?: number;
+  };
+}
+
 export interface IConfig {
   appId?: string;
   disableHeader?: boolean;
   disableMedia?: boolean;
   colors?: { primary: string; secondary: string };
+  /** Configurable font family / weights for the chat UI. See TypographyConfig. */
+  typography?: TypographyConfig;
   googleLogin?: {
     enabled: boolean;
     firebaseConfig: FBConfig;
