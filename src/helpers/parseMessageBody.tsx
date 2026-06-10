@@ -10,7 +10,7 @@ export const parseMessageBody = ({ text }: { text: string }) => {
     <div
       style={{
         fontFamily:
-          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          'var(--ethora-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif)',
         color: '#24292f',
         lineHeight: 1.6,
       }}

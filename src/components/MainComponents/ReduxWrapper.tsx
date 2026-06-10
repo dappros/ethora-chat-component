@@ -13,6 +13,7 @@ import { CustomComponentsContextValue } from '../../types/models/customComponent
 import { MessageNotificationProvider } from '../../context/MessageNotificationContext';
 import { useInAppNotifications } from '../../hooks/useInAppNotifications';
 import usePushNotifications from '../../hooks/usePushNotifications';
+import { useTypography } from '../../hooks/useTypography';
 
 interface ChatWrapperProps
   extends Pick<
@@ -33,6 +34,11 @@ interface ChatWrapperProps
 
 const NotificationEnabler: React.FC = () => {
   useInAppNotifications();
+  return null;
+};
+
+const TypographyEnabler: React.FC<{ config?: IConfig }> = ({ config }) => {
+  useTypography(config?.typography);
   return null;
 };
 
@@ -73,6 +79,7 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
           <ToastProvider>
             <MessageNotificationProvider config={memoizedConfig}>
               <NotificationEnabler />
+              <TypographyEnabler config={memoizedConfig} />
               <PushNotificationsEnabler config={memoizedConfig} />
               <CustomComponentsProvider
                 CustomMessageComponent={CustomMessageComponent}

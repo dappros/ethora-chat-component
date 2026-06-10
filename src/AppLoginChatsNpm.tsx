@@ -23,7 +23,7 @@ import type { ApiRoom } from './types/types';
 // production patient flow (see Slack thread).
 const BASE_URL = 'https://api.chat.ethora.com/v1';
 const CONFERENCE = 'conference.xmpp.chat.ethora.com';
-
+//JWT eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7InBhcmVudEFwcElkIjpudWxsLCJpc0FsbG93ZWROZXdBcHBDcmVhdGUiOnRydWUsImlzQmFzZUFwcCI6dHJ1ZSwiZ29vZ2xlU2VydmljZXNKc29uIjoiIiwiZ29vZ2xlU2VydmljZUluZm9QbGlzdCI6IiIsIlJFQUNUX0FQUF9TVFJJUEVfUFVCTElTSEFCTEVfS0VZIjoiIiwiUkVBQ1RfQVBQX1NUUklQRV9TRUNSRVRfS0VZIjoiIiwic2lnbm9uT3B0aW9ucyI6W10sImFmdGVyTG9naW5QYWdlIjoiY2hhdHMiLCJhdmFpbGFibGVNZW51SXRlbXMiOnsiY2hhdHMiOnRydWUsInByb2ZpbGUiOnRydWUsInNldHRpbmdzIjp0cnVlfSwiYWxsb3dVc2Vyc1RvQ3JlYXRlUm9vbXMiOnRydWUsImFpQm90Ijp7InRyaWdnZXIiOiJhbnlfbWVzc2FnZSIsInByb21wdCI6IllvdSBhcmUgYSBoZWxwZnVsIGFzc2lzdGFudC4iLCJpc1JBRyI6dHJ1ZSwidG90YWxTaXRlU291cmNlU2l6ZSI6MH0sIl9pZCI6IjY5OWM2OTIzNDI5YzI3NTdhYzhhYjZhNCIsImFwcFRva2VucyI6W10sImRlZmF1bHRSb29tcyI6W10sImRpc3BsYXlOYW1lIjoiVml0YWxsIERldiIsImRvbWFpbk5hbWUiOiJhcHAiLCJjcmVhdG9ySWQiOiI2OTljNjkyMzQyOWMyNzU3YWM4YWI2YTUiLCJ1c2Vyc0NhbkZyZWUiOnRydWUsImRlZmF1bHRBY2Nlc3NBc3NldHNPcGVuIjp0cnVlLCJkZWZhdWx0QWNjZXNzUHJvZmlsZU9wZW4iOnRydWUsImJ1bmRsZUlkIjoiY29tLmV0aG9yYSIsInByaW1hcnlDb2xvciI6IiMwMDNFOUMiLCJjb2luU3ltYm9sIjoiRVRPIiwiY29pbk5hbWUiOiJFdGhvcmEgQ29pbiJ9LCJpYXQiOjE3NzE4NTgyMTF9.WGeM2-YpryLsBvNuNJekrfqUf2f6b8lryWZj2ZuEN1w
 const BASE_CONFIG = {
   baseUrl: BASE_URL,
   xmppSettings: {
@@ -109,6 +109,41 @@ type AppUser = {
 type LoginPayload =
   | { mode: 'jwt'; jwt: string }
   | { mode: 'email'; user: AppUser; appToken: string };
+
+// Persist the resolved LoginPayload so a page refresh restores the session
+// instead of bouncing back to the login screen. Cleared on explicit logout.
+const SESSION_STORAGE_KEY = 'ethora-test-app-login-payload';
+
+const loadPersistedPayload = (): LoginPayload | null => {
+  try {
+    const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as LoginPayload;
+    if (parsed?.mode === 'jwt' && parsed.jwt) return parsed;
+    if (parsed?.mode === 'email' && parsed.user?.token && parsed.appToken) {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+const persistPayload = (p: LoginPayload) => {
+  try {
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(p));
+  } catch {
+    /* ignore quota / serialization errors */
+  }
+};
+
+const clearPersistedPayload = () => {
+  try {
+    localStorage.removeItem(SESSION_STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+};
 
 // Mirrors the package's `loginViaJwt` (auth.api.ts): POST /users/client
 // with no body and the raw client JWT in `x-custom-token`.
@@ -1336,11 +1371,20 @@ const AuthedShell: React.FC<{
 export const JwtOnlyScreen = JwtInputScreen;
 
 export default function AppLoginChatsNpm() {
-  const [payload, setPayload] = useState<LoginPayload | null>(null);
+  // Lazy initializer reads any persisted session from localStorage, so a
+  // page refresh resumes straight into AuthedShell instead of the login UI.
+  const [payload, setPayload] = useState<LoginPayload | null>(
+    loadPersistedPayload
+  );
+
   // Switch <LoginScreen /> → <JwtOnlyScreen /> here if you want to drop
   // the email mode from the entry UI. Both produce LoginPayload, so the
   // rest of AuthedShell stays the same.
-  //
+  const handleLogin = useCallback((p: LoginPayload) => {
+    persistPayload(p);
+    setPayload(p);
+  }, []);
+
   // useCallback so AuthedShell receives a stable `onLogout` reference
   // across renders. Without this, every parent render would propagate
   // a fresh prop into AuthedShell → XmppProvider → context value change
@@ -1356,8 +1400,9 @@ export default function AppLoginChatsNpm() {
     } catch (err) {
       console.warn('[AppLoginChatsNpm] logoutService failed', err);
     }
+    clearPersistedPayload();
     setPayload(null);
   }, []);
-  if (!payload) return <LoginScreen onSubmit={setPayload} />;
+  if (!payload) return <LoginScreen onSubmit={handleLogin} />;
   return <AuthedShell payload={payload} onLogout={handleLogout} />;
 }

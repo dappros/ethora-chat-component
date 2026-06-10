@@ -9,8 +9,12 @@ export const parseMessageBody = ({ text }: { text: string }) => {
   return (
     <div
       style={{
+        // Use the host-configured chat font (published on --ethora-font-family
+        // by config.typography). Falls back to the system stack when unset, so
+        // existing integrations are unaffected. Previously this was a hardcoded
+        // system stack, which overrode the configured font for message bodies.
         fontFamily:
-          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          'var(--ethora-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif)',
         color: '#24292f',
         lineHeight: 1.6,
       }}

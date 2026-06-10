@@ -93,7 +93,7 @@ const getMessageTimestampValue = (message: IMessage): number => {
 };
 
 const getMessageKey = (message: IMessage): string =>
-  String(message?.xmppId || message?.id || '');
+  String(message?.id || message?.xmppId || '');
 
 const getMessageStableTieBreaker = (message: IMessage): string =>
   String(message?.xmppId || message?.id || '');
@@ -180,8 +180,19 @@ const mergeRoomMessages = (
     return incoming.map((message) => enrichMessageAuthor(message, usersSet));
   }
 
+  const all = [...existing, ...incoming];
+
+  const echoedClientIds = new Set<string>();
+  all.forEach((message) => {
+    if (message && !message.pending && message.xmppId) {
+      echoedClientIds.add(String(message.xmppId));
+    }
+  });
+
   const byId = new Map<string, IMessage>();
-  [...existing, ...incoming].forEach((message) => {
+  all.forEach((message) => {
+    if (!message) return;
+    if (message.pending && echoedClientIds.has(String(message.id))) return;
     const key = getMessageKey(message);
     if (!key) return;
     byId.set(key, enrichMessageAuthor(message, usersSet));
