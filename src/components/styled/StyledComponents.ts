@@ -192,7 +192,7 @@ export const CustomMessageText = styled.div`
 `;
 
 export const CustomUserName = styled.span<{ $isUser: boolean; $color?: string }>`
-  font-family: 'Open Sans', sans-serif;
+  font-family: var(--ethora-font-family, 'Open Sans', sans-serif);
   font-weight: 600;
   font-size: 18px;
   color: ${(props) =>
