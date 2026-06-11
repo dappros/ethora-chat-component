@@ -1,4 +1,4 @@
-import { EmptyChatIllustration } from '../../assets/illustrations/EmptyChatIllustration';
+import { NoMessagesIllustration } from '../../assets/illustrations/NoMessagesIllustration';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { resolveIconColor } from '../../helpers/resolveIconColor';
 
@@ -15,9 +15,10 @@ const NoMessagesPlaceholder = () => {
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {/* Vector illustration: its accent uses `currentColor`, so the empty
-            state follows config.colors.icons/primary. */}
-        <EmptyChatIllustration
+        {/* Vector illustration (traced from the legacy NoMessages raster): its
+            accent uses `currentColor`, so the empty state follows
+            config.colors.icons/primary. */}
+        <NoMessagesIllustration
           width={240}
           style={{ color: resolveIconColor(config) }}
         />
