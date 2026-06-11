@@ -14,6 +14,7 @@ export function useTypography(typography?: TypographyConfig): void {
     // Re-run when any meaningful field changes.
   }, [
     typography?.fontFamily,
+    typography?.fontSize,
     typography?.googleFontsUrl,
     typography?.googleFontsFamily,
     JSON.stringify(typography?.fontFaces ?? []),

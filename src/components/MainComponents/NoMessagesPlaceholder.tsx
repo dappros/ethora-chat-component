@@ -1,6 +1,10 @@
-import { NoMessages } from '../../assets/icons';
+import { EmptyChatIllustration } from '../../assets/illustrations/EmptyChatIllustration';
+import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { resolveIconColor } from '../../helpers/resolveIconColor';
 
 const NoMessagesPlaceholder = () => {
+  const { config } = useChatSettingState();
+
   return (
     <div
       style={{
@@ -11,7 +15,12 @@ const NoMessagesPlaceholder = () => {
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <NoMessages />
+        {/* Vector illustration: its accent uses `currentColor`, so the empty
+            state follows config.colors.icons/primary. */}
+        <EmptyChatIllustration
+          width={240}
+          style={{ color: resolveIconColor(config) }}
+        />
         <div
           style={{
             display: 'flex',
@@ -22,10 +31,20 @@ const NoMessagesPlaceholder = () => {
             textAlign: 'center',
           }}
         >
-          <div style={{ fontSize: '16px', fontWeight: 600 }}>
+          <div
+            style={{
+              fontSize: 'var(--ethora-font-size, 16px)',
+              fontWeight: 600,
+            }}
+          >
             This chat is empty
           </div>
-          <div style={{ fontSize: '14px', fontWeight: 400 }}>
+          <div
+            style={{
+              fontSize: 'var(--ethora-font-size-sm, 14px)',
+              fontWeight: 400,
+            }}
+          >
             Be the first one to start it.
           </div>
         </div>

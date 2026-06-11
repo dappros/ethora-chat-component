@@ -6,6 +6,18 @@ All notable changes to this package are documented here. For cross-SDK release n
 
 ### Added
 
+- `config.typography.fontSize`: base font size (px) for the chat UI, published as `--ethora-font-size` (+ `-xs`/`-sm`/`-lg` variants); message text, sender names, timestamps, inputs, room names and badges scale proportionally.
+- `config.colors.icons`: default colour for the chat's chrome icons (input bar — attach/mic/send/file, header — back/more/search/edit/info/close/download, empty-state, etc.), published as the `--ethora-icon-color` CSS variable. Defaults to `colors.primary`. Semantic icons (destructive red, status ticks, Google brand) intentionally keep their own colours.
+
+### Fixed
+
+- The configured font family now applies to **message text and sender names**: when only `typography.googleFontsFamily` is provided (without `fontFamily`), the family is now also published to `--ethora-font-family` instead of merely being loaded.
+- Message sender name colour now follows `colors.primary` for all senders (previously non-own messages were hardcoded to `#0052cd`).
+- Attach (file) and microphone icons in the input bar now accept a colour and follow `colors.icons`/`colors.primary` (were hardcoded to `#0052CD`).
+- Empty-state illustrations now follow the theme colour: "Start a Conversation" and the "This chat is empty" illustration (the latter replaced its legacy raster PNG with a vector whose accent uses `currentColor`). `config.noMessagesPlaceholder` still lets you swap in your own.
+
+### Added
+
 - `useUnread` now returns a `loading` flag (alias `isLoading`, matching the React Native SDK) that stays `true` until the room list has been populated at least once, so hosts can show a spinner instead of a misleading `0`.
 - `config.fallbackScreens` (`noUser` / `noConnection` / `noRoom`): replace the built-in Ethora login form, the "Connecting..." state and the empty-rooms state with custom text or React nodes.
 - `config.hiddenRooms` (`titles` / `jids`): hide specific rooms (e.g. the auto-created "Main chat") from the room list and from unread counters.

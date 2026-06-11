@@ -17,10 +17,35 @@ import { TypographyConfig } from '../types/models/config.model';
 const STYLE_ID = 'ethora-typography-faces';
 const LINK_ID = 'ethora-typography-google';
 const FONT_VAR = '--ethora-font-family';
+const SIZE_VAR = '--ethora-font-size';
+/** Derived size tokens: ratios of the base size used across the chat UI. */
+const SIZE_VARIANTS: Array<{ suffix: string; ratio: number }> = [
+  { suffix: '-xs', ratio: 0.75 }, // timestamps, hints (12px @ base 16)
+  { suffix: '-sm', ratio: 0.875 }, // secondary text, badges (14px @ base 16)
+  { suffix: '-lg', ratio: 1.125 }, // sender names, accents (18px @ base 16)
+];
 
 /** Default fallback stack appended when the host doesn't specify one. */
 const FALLBACK_STACK =
   "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+
+/**
+ * The family the chat should actually render in. Prefer an explicit
+ * `fontFamily`, but fall back to `googleFontsFamily` so that hosts which only
+ * pass `googleFontsFamily` (a common shorthand) still get the font applied to
+ * message text and sender names — not just loaded.
+ */
+function resolveEffectiveFamily(cfg: TypographyConfig): string | undefined {
+  return cfg.fontFamily?.trim() || cfg.googleFontsFamily?.trim() || undefined;
+}
+
+/** Resolve `fontSize` to a CSS length string (px when unitless), or undefined. */
+function resolveBaseFontSize(fontSize?: number | string): number | undefined {
+  if (fontSize == null) return undefined;
+  const parsed =
+    typeof fontSize === 'number' ? fontSize : parseFloat(String(fontSize));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
 
 function buildGoogleUrl(cfg: TypographyConfig): string | undefined {
   if (cfg.googleFontsUrl) return cfg.googleFontsUrl;
@@ -95,13 +120,34 @@ export function applyTypography(cfg?: TypographyConfig): void {
   }
 
   // 3. Publish the chosen family on the CSS variable the chat reads.
-  if (cfg.fontFamily) {
-    const value = /,/.test(cfg.fontFamily)
-      ? cfg.fontFamily
-      : `'${cfg.fontFamily}', ${FALLBACK_STACK}`;
+  const effectiveFamily = resolveEffectiveFamily(cfg);
+  if (effectiveFamily) {
+    const value = /,/.test(effectiveFamily)
+      ? effectiveFamily
+      : `'${effectiveFamily}', ${FALLBACK_STACK}`;
     document.documentElement.style.setProperty(FONT_VAR, value);
   } else {
     document.documentElement.style.removeProperty(FONT_VAR);
+  }
+
+  // 4. Publish the base font size + derived xs/sm/lg tokens. The chat's text
+  // styles reference these with their previous hardcoded values as fallbacks,
+  // so omitting `fontSize` keeps the chat pixel-identical to before.
+  const basePx = resolveBaseFontSize(cfg.fontSize);
+  if (basePx) {
+    const round = (v: number) => Math.round(v * 100) / 100;
+    document.documentElement.style.setProperty(SIZE_VAR, `${round(basePx)}px`);
+    SIZE_VARIANTS.forEach(({ suffix, ratio }) => {
+      document.documentElement.style.setProperty(
+        `${SIZE_VAR}${suffix}`,
+        `${round(basePx * ratio)}px`
+      );
+    });
+  } else {
+    document.documentElement.style.removeProperty(SIZE_VAR);
+    SIZE_VARIANTS.forEach(({ suffix }) => {
+      document.documentElement.style.removeProperty(`${SIZE_VAR}${suffix}`);
+    });
   }
 }
 
@@ -111,4 +157,8 @@ export function clearTypography(): void {
   document.getElementById(LINK_ID)?.remove();
   document.getElementById(STYLE_ID)?.remove();
   document.documentElement.style.removeProperty(FONT_VAR);
+  document.documentElement.style.removeProperty(SIZE_VAR);
+  SIZE_VARIANTS.forEach(({ suffix }) => {
+    document.documentElement.style.removeProperty(`${SIZE_VAR}${suffix}`);
+  });
 }

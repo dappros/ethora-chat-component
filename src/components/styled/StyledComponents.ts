@@ -39,7 +39,7 @@ export const ChatContainerHeaderInfo = styled.div`
 export const ChatContainerHeaderLabel = styled.div`
   color: #141414;
   font-weight: 600;
-  font-size: 16px;
+  font-size: var(--ethora-font-size, 16px);
 `;
 
 export const NonRoomChat = styled.div`
@@ -189,19 +189,20 @@ export const CustomMessageBubble = styled.div<{
 export const CustomMessageText = styled.div`
   margin: 0px;
   word-wrap: break-word;
+  font-family: var(--ethora-font-family, 'Open Sans', sans-serif);
+  font-size: var(--ethora-font-size, 16px);
 `;
 
 export const CustomUserName = styled.span<{ $isUser: boolean; $color?: string }>`
   font-family: var(--ethora-font-family, 'Open Sans', sans-serif);
   font-weight: 600;
-  font-size: 18px;
-  color: ${(props) =>
-    props.$isUser ? (props?.$color ? props?.$color : '#0052CD') : '#0052cd'};
+  font-size: var(--ethora-font-size-lg, 18px);
+  color: ${(props) => props?.$color || '#0052CD'};
   margin-bottom: 8px;
 `;
 
 export const CustomMessageTimestamp = styled.span`
-  font-size: 0.75rem;
+  font-size: var(--ethora-font-size-xs, 0.75rem);
   align-self: flex-end;
   color: #8f8f8f;
   display: flex;

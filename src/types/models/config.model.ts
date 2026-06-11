@@ -52,6 +52,15 @@ export interface FontFaceSource {
 export interface TypographyConfig {
   /** Family applied to the chat UI, optionally with fallbacks. */
   fontFamily?: string;
+  /**
+   * Base font size for chat text. A number is treated as pixels (e.g. `18`),
+   * a string is used verbatim if it carries a unit (`"1.1rem"`, `"18px"`) or
+   * parsed as pixels otherwise. Published as the `--ethora-font-size` CSS
+   * variable (plus derived `-xs` / `-sm` / `-lg` variants) which the chat's
+   * text styles read, so message text, sender names, timestamps, inputs,
+   * room names and badges all scale proportionally. Default 16px.
+   */
+  fontSize?: number | string;
   /** A full Google Fonts stylesheet URL, e.g.
    * "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap". */
   googleFontsUrl?: string;
@@ -73,8 +82,18 @@ export interface IConfig {
   appId?: string;
   disableHeader?: boolean;
   disableMedia?: boolean;
-  colors?: { primary: string; secondary: string };
-  /** Configurable font family / weights for the chat UI. See TypographyConfig. */
+  colors?: {
+    primary: string;
+    secondary: string;
+    /**
+     * Default colour applied to the chat's icons (attach, microphone, send,
+     * file, empty-state illustrations, etc.). When omitted, icons fall back
+     * to `primary`. Set to a specific colour to decouple icons from the
+     * primary theme colour.
+     */
+    icons?: string;
+  };
+  /** Configurable font family / size / weights for the chat UI. See TypographyConfig. */
   typography?: TypographyConfig;
   /**
    * Custom screens shown instead of the built-in Ethora UI when the chat
