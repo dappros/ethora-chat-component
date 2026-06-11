@@ -93,7 +93,13 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
   ).toISOString();
 
   const data = fullData?.getChild('data') || stanza?.getChild('data');
-  const photoURL = data?.attrs?.['photo'];
+  // Senders are inconsistent: some stamp `photo` only (ai-service xmpp.ts), some
+  // stamp both `photo` and `photoURL` (sendTextMessage.xmpp.ts), older clients may
+  // stamp `profileImage`. Treat any of the three as the avatar URL.
+  const photoURL =
+    data?.attrs?.['photo'] ||
+    data?.attrs?.['photoURL'] ||
+    data?.attrs?.['profileImage'];
   const rawUserWallet =
     userWalletFromResource ||
     getLocalpartFromJid(data?.attrs?.senderJID) ||
@@ -104,6 +110,7 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
   const user = {
     id: userWallet,
     photoURL,
+    profileImage: photoURL,
   };
 
   const dataAttrs = data?.attrs || {};
