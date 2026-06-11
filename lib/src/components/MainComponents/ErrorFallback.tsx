@@ -28,7 +28,13 @@ const ErrorFallback: React.FC<ErrorFallbackProps> = ({
         fontSize: '14px',
       }}
     >
-      <p style={{ fontFamily: 'Inter, Arial, sans-serif', fontSize: '14px' }}>
+      <p
+        style={{
+          fontFamily:
+            'var(--ethora-font-family, Inter, Arial, sans-serif)',
+          fontSize: 'var(--ethora-font-size-sm, 14px)',
+        }}
+      >
         {message}
       </p>
 
@@ -37,8 +43,9 @@ const ErrorFallback: React.FC<ErrorFallbackProps> = ({
         onClick={onButtonClick}
         style={{
           width: '100%',
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: '14px',
+          fontFamily:
+            'var(--ethora-font-family, Inter, Arial, sans-serif)',
+          fontSize: 'var(--ethora-font-size-sm, 14px)',
         }}
       >
         {buttonLabel}

@@ -15,7 +15,8 @@ import ChatHeader from './ChatHeader.tsx';
 import NoMessagesPlaceholder from './NoMessagesPlaceholder.tsx';
 import NewChatModal from '../Modals/NewChatModal/NewChatModal.tsx';
 import { EditWrapper } from './EditWrapper.tsx';
-import { NoSelectedChatIcon } from '../../assets/icons.tsx';
+import { EmptyChatIllustration } from '../../assets/illustrations/EmptyChatIllustration';
+import { resolveIconColor } from '../../helpers/resolveIconColor';
 import { ChooseChatMessage } from './ChooseChatMessage.tsx';
 import { useRoomUrl } from '../../hooks/useRoomUrl.tsx';
 import { useSendMessage } from '../../hooks/useSendMessage.tsx';
@@ -226,7 +227,10 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         {activeRoomLoading ? (
           <Loader color={config?.colors?.primary} />
         ) : Object.keys(roomsList).length < 1 || !activeRoomJID ? (
-          <NoSelectedChatIcon />
+          <EmptyChatIllustration
+            width={240}
+            style={{ color: resolveIconColor(config) }}
+          />
         ) : !hasMessages ? (
           CustomNoMessagesPlaceholder ? (
             <CustomNoMessagesPlaceholder />

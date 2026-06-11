@@ -6,8 +6,8 @@ const BannerContainer = styled.div`
   color: white;
   padding: 8px 16px;
   text-align: center;
-  font-family: 'Inter', sans-serif;
-  font-size: 14px;
+  font-family: var(--ethora-font-family, 'Inter', sans-serif);
+  font-size: var(--ethora-font-size-sm, 14px);
   font-weight: 500;
   width: 100%;
   box-sizing: border-box;
