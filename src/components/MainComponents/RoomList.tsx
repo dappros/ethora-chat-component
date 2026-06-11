@@ -24,6 +24,7 @@ import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 import { useXmppClient } from '../../context/xmppProvider';
 import ChatRoomItem from '../RoomComponents/ChatRoomItem';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { isRoomHidden } from '../../helpers/hiddenRooms';
 import { logoutService } from '../../hooks/useLogout';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
 import { deleteRoom, setCurrentRoom } from '../../roomStore/roomsSlice';
@@ -181,7 +182,8 @@ const RoomList: React.FC<RoomListProps> = ({
           !!chat &&
           typeof chat === 'object' &&
           typeof chat.jid === 'string' &&
-          chat.jid.length > 0
+          chat.jid.length > 0 &&
+          !isRoomHidden(chat, config)
       );
       const result = safeChats
         .filter((chat) =>
@@ -200,7 +202,7 @@ const RoomList: React.FC<RoomListProps> = ({
     }
 
     return chatsMap.get(lowerCaseSearchTerm) || [];
-  }, [chats, searchTerm]);
+  }, [chats, searchTerm, config?.hiddenRooms]);
 
   useEffect(() => {
     if (burgerMenu) {

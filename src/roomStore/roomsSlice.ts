@@ -56,6 +56,30 @@ const initialState: RoomMessagesState = {
   loadingText: undefined,
 };
 
+const firstPositiveTimestamp = (...values: unknown[]): number => {
+  for (const value of values) {
+    const ts = getTimestampFromUnknown(value);
+    if (ts > 0) return ts;
+  }
+  return 0;
+};
+
+// A room without a read marker (the user never opened it on any device) must
+// still get a non-zero unread cutoff, otherwise computeUnreadForRoom treats
+// every message as "before the baseline" and the room-list badge can never
+// appear for that room. Anchor the baseline at the newest message we already
+// hold when the room first enters the store; rooms that arrive empty start
+// counting from "now".
+const resolveInitialUnreadBaseline = (messages: IMessage[]): number => {
+  const latest = messages?.[messages.length - 1];
+  const ts = firstPositiveTimestamp(
+    latest?.date,
+    (latest as { timestamp?: number })?.timestamp,
+    latest?.id
+  );
+  return ts > 0 ? ts : Date.now();
+};
+
 const getNormalizedSubscribedRooms = (subscribedRooms: unknown): string[] =>
   Array.isArray(subscribedRooms)
     ? subscribedRooms.filter((room): room is string => typeof room === 'string')
@@ -284,11 +308,15 @@ const roomsStore = createSlice({
         lastViewedTimestamp:
           existing?.lastViewedTimestamp ?? roomData.lastViewedTimestamp ?? 0,
         unreadBaselineTimestamp:
-          existing?.unreadBaselineTimestamp ??
-          existing?.lastViewedTimestamp ??
-          roomData.unreadBaselineTimestamp ??
-          roomData.lastViewedTimestamp ??
-          0,
+          firstPositiveTimestamp(
+            existing?.unreadBaselineTimestamp,
+            existing?.lastViewedTimestamp,
+            roomData.unreadBaselineTimestamp,
+            roomData.lastViewedTimestamp
+          ) ||
+          resolveInitialUnreadBaseline(
+            existingMessages.length > 0 ? existingMessages : incomingMessages
+          ),
         composingList: existing?.composingList ?? roomData.composingList,
         composing: existing?.composing ?? roomData.composing,
         unreadCapped:
@@ -750,11 +778,15 @@ const roomsStore = createSlice({
         lastViewedTimestamp:
           existing?.lastViewedTimestamp ?? room.lastViewedTimestamp ?? 0,
         unreadBaselineTimestamp:
-          existing?.unreadBaselineTimestamp ??
-          existing?.lastViewedTimestamp ??
-          room.unreadBaselineTimestamp ??
-          room.lastViewedTimestamp ??
-          0,
+          firstPositiveTimestamp(
+            existing?.unreadBaselineTimestamp,
+            existing?.lastViewedTimestamp,
+            room.unreadBaselineTimestamp,
+            room.lastViewedTimestamp
+          ) ||
+          resolveInitialUnreadBaseline(
+            existingMessages.length > 0 ? existingMessages : incomingMessages
+          ),
         composingList: existing?.composingList ?? room.composingList,
         composing: existing?.composing ?? room.composing,
         unreadCapped: existing?.unreadCapped ?? room.unreadCapped ?? false,

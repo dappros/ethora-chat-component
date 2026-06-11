@@ -76,6 +76,31 @@ export interface IConfig {
   colors?: { primary: string; secondary: string };
   /** Configurable font family / weights for the chat UI. See TypographyConfig. */
   typography?: TypographyConfig;
+  /**
+   * Custom screens shown instead of the built-in Ethora UI when the chat
+   * cannot be displayed. Each value may be a plain string (rendered as
+   * centered text) or any React node. When a value is omitted, the default
+   * built-in UI for that state (e.g. the Ethora login form) is kept.
+   */
+  fallbackScreens?: {
+    /** Replaces the default Ethora login form when there is no user session. */
+    noUser?: React.ReactNode;
+    /** Shown when the XMPP connection is lost / cannot be established. */
+    noConnection?: React.ReactNode;
+    /** Shown when the user has no chat room to display. */
+    noRoom?: React.ReactNode;
+  };
+  /**
+   * Hide specific rooms from the room list and unread counters without
+   * leaving them. Useful to suppress auto-created rooms such as the default
+   * "Main chat" created with a new Ethora app.
+   */
+  hiddenRooms?: {
+    /** Case-insensitive exact room titles to hide, e.g. ["Main chat"]. */
+    titles?: string[];
+    /** Full room JIDs to hide. */
+    jids?: string[];
+  };
   googleLogin?: {
     enabled: boolean;
     firebaseConfig: FBConfig;

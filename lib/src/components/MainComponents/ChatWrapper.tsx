@@ -29,6 +29,7 @@ import { useQRCodeChat } from '../../hooks/useQRCodeChatHandler';
 import useChatWrapperInit from '../../hooks/useChatWrapperInit.ts';
 import ErrorFallback from './ErrorFallback';
 import ConnectionBanner from './ConnectionBanner';
+import FallbackScreen from './FallbackScreen';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
 import { useLoaderDebug } from '../../hooks/useLoaderDebug';
@@ -224,6 +225,13 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   }
 
   if (isConnectionLost && !inited) {
+    if (config?.fallbackScreens?.noConnection != null) {
+      return (
+        <ChatWrapperBox style={{ ...MainComponentStyles }}>
+          <FallbackScreen content={config.fallbackScreens.noConnection} />
+        </ChatWrapperBox>
+      );
+    }
     return (
       <ChatWrapperBox
         style={{
@@ -242,6 +250,13 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   }
 
   if (config?.enableRoomsRetry?.enabled && isRetrying === 'norooms') {
+    if (config?.fallbackScreens?.noRoom != null) {
+      return (
+        <ChatWrapperBox style={{ ...MainComponentStyles }}>
+          <FallbackScreen content={config.fallbackScreens.noRoom} />
+        </ChatWrapperBox>
+      );
+    }
     return (
       <StyledLoaderWrapper
         style={{ alignItems: 'center', flexDirection: 'column', gap: '10px' }}
@@ -263,11 +278,34 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     );
   }
 
-  if (user.xmppPassword === '' && user.xmppUsername === '')
+  if (user.xmppPassword === '' && user.xmppUsername === '') {
+    if (config?.fallbackScreens?.noUser != null) {
+      return (
+        <ChatWrapperBox style={{ ...MainComponentStyles }}>
+          <FallbackScreen content={config.fallbackScreens.noUser} />
+        </ChatWrapperBox>
+      );
+    }
     return <LoginForm config={config} />;
+  }
 
   if (!isRouteActive) {
     return null;
+  }
+
+  // No rooms exist for this user after init finished — the shell would just
+  // show an empty list, so let the host swap in an explanation instead.
+  if (
+    config?.fallbackScreens?.noRoom != null &&
+    inited &&
+    !isRoomsLoading &&
+    !hasRooms
+  ) {
+    return (
+      <ChatWrapperBox style={{ ...MainComponentStyles }}>
+        <FallbackScreen content={config.fallbackScreens.noRoom} />
+      </ChatWrapperBox>
+    );
   }
 
   return (

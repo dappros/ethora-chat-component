@@ -171,7 +171,9 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
                 color: isChatActive ? '#141414' : '#fff',
               }}
             >
-              {chat.unreadMessages}
+              {chat.unreadCapped
+                ? `${Math.max(chat.unreadMessages, 10)}+`
+                : chat.unreadMessages}
             </NewMessageMarker>
           )}
         </div>
