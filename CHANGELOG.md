@@ -2,6 +2,19 @@
 
 All notable changes to this package are documented here. For cross-SDK release notes, see [ethora/RELEASE-NOTES.md](https://github.com/dappros/ethora/blob/main/RELEASE-NOTES.md).
 
+## Unreleased
+
+### Added
+
+- `config.colors.ownMessageBackground` / `otherMessageBackground` / `inputBackground`: background colours for own/other message bubbles and the message input bar (were hardcoded `#E7EDF9` / `#FFFFFF` / `#fff`).
+
+### Fixed
+
+- `config.fallbackScreens.noUser` is now honored on **logout** too: `LoginWrapper` (which renders on logout, before `ChatWrapper` mounts) previously always showed the built-in Ethora login form, ignoring the fallback.
+- `config.backgroundChat.color` / `.image` is now actually applied to the chat (messages area) background — previously the prop was type-only and did nothing.
+- `config.colors.icons` now also drives the active send button, the new-chat button and other accent icon-buttons (not just the standalone chrome icons). It defaults to `colors.primary`, so setting `icons` equal to `primary` produces no visible change — set a distinct colour to decouple them.
+- Unread counter no longer ramps up from `0`: `useUnread().loading` now stays `true` while a room is still backfilling history, so the host can reveal the final count at once. The room-list badge is likewise hidden until the room's history settles.
+
 ## 26.5.1
 
 ### Added

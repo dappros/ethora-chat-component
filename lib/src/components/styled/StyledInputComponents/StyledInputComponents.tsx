@@ -5,7 +5,7 @@ export const InputContainer = styled.div`
   flex-direction: column;
   border-radius: 15px 15px 0px 0px;
   padding: 16px;
-  background-color: #fff;
+  background-color: var(--ethora-input-bg, #fff);
   z-index: 1;
   box-shadow: 0px 0px 8px -4px #12121908;
   box-shadow: 0px 0px 24px -4px #12121914;

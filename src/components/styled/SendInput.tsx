@@ -366,10 +366,10 @@ const SendInput: React.FC<SendInputProps> = ({
                   borderRadius: '100px',
                   backgroundColor:
                     filePreviews.length > 0
-                      ? config?.colors?.primary
+                      ? resolveIconColor(config)
                       : !message || message === ''
                         ? 'transparent'
-                        : config?.colors?.primary,
+                        : resolveIconColor(config),
                   ...config?.secondarySendButton.buttonStyles,
                 }}
                 EndIcon={
@@ -409,10 +409,10 @@ const SendInput: React.FC<SendInputProps> = ({
                   borderRadius: '100px',
                   backgroundColor:
                     filePreviews.length > 0
-                      ? config?.colors?.primary
+                      ? resolveIconColor(config)
                       : !message || message === ''
                         ? 'transparent'
-                        : config?.colors?.primary,
+                        : resolveIconColor(config),
                 }}
               />
             )}
