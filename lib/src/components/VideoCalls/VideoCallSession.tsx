@@ -24,6 +24,7 @@ import { RootState } from '../../roomStore';
 import { HangUpIcon } from '../../assets/icons';
 import { ProfileImagePlaceholder } from '../MainComponents/ProfileImagePlaceholder';
 import { VideoCallIcons } from '../../types/models/config.model';
+import { useDraggable } from '../../helpers/useDraggable';
 
 interface VideoCallSessionProps {
   token: string;
@@ -38,6 +39,10 @@ interface VideoCallSessionProps {
   startWithMicOn?: boolean;
   /** Show the screen-share control. Default true. */
   showScreenShare?: boolean;
+  /** Render the compact floating-panel layout instead of the full screen. */
+  minimized?: boolean;
+  /** Toggle between full and minimized layouts (keeps the session mounted). */
+  onToggleMinimize?: () => void;
   onConnected?: () => void;
   onError?: (message: string) => void;
   onHangup: () => void;
@@ -178,6 +183,30 @@ const ShareScreenIcon: React.FC<{ color?: string }> = ({
       stroke={color}
       strokeWidth="2"
       strokeLinecap="round"
+    />
+  </svg>
+);
+
+const MinimizeIcon: React.FC<{ color?: string }> = ({ color = '#FFFFFF' }) => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+    <path
+      d="M6 14h6v6M18 10h-6V4"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+const ExpandIcon: React.FC<{ color?: string }> = ({ color = '#FFFFFF' }) => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+    <path
+      d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     />
   </svg>
 );
@@ -413,7 +442,14 @@ const VideoCallContent: React.FC<{
   onHangup: () => void;
   icons?: VideoCallIcons;
   showScreenShare?: boolean;
-}> = ({ primaryColor, onHangup, icons, showScreenShare = true }) => {
+  onToggleMinimize?: () => void;
+}> = ({
+  primaryColor,
+  onHangup,
+  icons,
+  showScreenShare = true,
+  onToggleMinimize,
+}) => {
   const roomName = useSelector((state: RootState) => state.call.roomName);
   const remoteParticipants = useRemoteParticipants();
   const peerJoined = remoteParticipants.length > 0;
@@ -451,6 +487,9 @@ const VideoCallContent: React.FC<{
   // Shared, server-anchored duration so both sides show the same time.
   const elapsed = useSharedCallElapsed();
   const headerStatus = elapsed === null ? 'Ringing…' : formatDuration(elapsed);
+
+  // Draggable self-view (picture-in-picture). Offset from its default corner.
+  const selfView = useDraggable();
 
   return (
     <div
@@ -495,6 +534,32 @@ const VideoCallContent: React.FC<{
         </span>
       </div>
 
+      {onToggleMinimize && (
+        <button
+          onClick={onToggleMinimize}
+          aria-label="Minimize call"
+          title="Minimize"
+          style={{
+            position: 'absolute',
+            top: 12,
+            right: 12,
+            zIndex: 11,
+            width: 36,
+            height: 36,
+            borderRadius: 999,
+            border: 'none',
+            background: 'rgba(255,255,255,0.14)',
+            color: '#FFFFFF',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <MinimizeIcon />
+        </button>
+      )}
+
       {/* Main stage: remote video AND placeholder both absolutely fill the
           same box, so toggling between them never shifts layout. The video
           sits on top when live; otherwise the centered avatar shows. */}
@@ -535,10 +600,11 @@ const VideoCallContent: React.FC<{
         )}
       </div>
 
-      {/* Local self-view — only mount the tile when our camera is actually
-          producing video. When it's off we show a small avatar instead of
-          a black rectangle. */}
+      {/* Local self-view — draggable picture-in-picture. Only mount the tile
+          when our camera is actually producing video; otherwise a small
+          avatar instead of a black rectangle. */}
       <div
+        onPointerDown={selfView.onPointerDown}
         style={{
           position: 'absolute',
           right: 16,
@@ -554,6 +620,11 @@ const VideoCallContent: React.FC<{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          cursor: 'grab',
+          touchAction: 'none',
+          transform: selfView.pos
+            ? `translate(${selfView.pos.x}px, ${selfView.pos.y}px)`
+            : undefined,
         }}
       >
         {localCameraLive && localCamera ? (
@@ -620,7 +691,8 @@ const AudioCallContent: React.FC<{
   primaryColor: string;
   onHangup: () => void;
   icons?: VideoCallIcons;
-}> = ({ primaryColor, onHangup, icons }) => {
+  onToggleMinimize?: () => void;
+}> = ({ primaryColor, onHangup, icons, onToggleMinimize }) => {
   const connectionState = useConnectionState();
   const isConnected = connectionState === ConnectionState.Connected;
 
@@ -671,6 +743,31 @@ const AudioCallContent: React.FC<{
       >
         Audio call
       </div>
+
+      {onToggleMinimize && (
+        <button
+          onClick={onToggleMinimize}
+          aria-label="Minimize call"
+          title="Minimize"
+          style={{
+            position: 'absolute',
+            top: 12,
+            right: 12,
+            width: 36,
+            height: 36,
+            borderRadius: 999,
+            border: `1px solid ${DIVIDER}`,
+            background: SURFACE_MUTED,
+            color: TEXT_PRIMARY,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <MinimizeIcon color={TEXT_PRIMARY} />
+        </button>
+      )}
 
       <div
         style={{
@@ -817,6 +914,118 @@ const PeerLeaveWatcher: React.FC<{ onPeerLeft: () => void }> = ({
   return null;
 };
 
+// ---------- compact (minimized) content --------------------------------
+
+// Rendered inside the same RoomContext as the full UI, so the LiveKit room
+// stays connected while the call is minimized. Shows just enough to keep the
+// call usable while the user is back in the chat: name, timer, mute, hangup,
+// and expand. The whole bar is the drag handle (the parent panel handles the
+// pointer events) except the buttons.
+const CompactCallContent: React.FC<{
+  primaryColor: string;
+  onHangup: () => void;
+  onToggleMinimize?: () => void;
+  icons?: VideoCallIcons;
+}> = ({ primaryColor, onHangup, onToggleMinimize, icons }) => {
+  const roomName = useSelector((state: RootState) => state.call.roomName);
+  const elapsed = useSharedCallElapsed();
+  const mic = useTrackToggle({ source: Track.Source.Microphone });
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '10px 12px',
+        width: '100%',
+        boxSizing: 'border-box',
+        color: '#fff',
+      }}
+    >
+      <ProfileImagePlaceholder name={roomName || 'Call'} size={36} />
+      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+        <span
+          style={{
+            fontSize: 14,
+            fontWeight: 600,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {roomName || 'Call'}
+        </span>
+        <span
+          style={{
+            fontSize: 12,
+            color: 'rgba(255,255,255,0.7)',
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {elapsed === null ? 'Ringing…' : formatDuration(elapsed)}
+        </span>
+      </div>
+
+      <button
+        onClick={() => mic.toggle()}
+        aria-label={mic.enabled ? 'Mute microphone' : 'Unmute microphone'}
+        title={mic.enabled ? 'Mute' : 'Unmute'}
+        style={{
+          ...controlButtonBase,
+          width: 38,
+          height: 38,
+          ...(mic.enabled
+            ? {
+                background: 'rgba(255,255,255,0.14)',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.18)',
+              }
+            : toneStyle('danger', primaryColor)),
+        }}
+      >
+        {mic.enabled
+          ? icons?.micOn ?? <MicOnIcon />
+          : icons?.micOff ?? <MicOffIcon />}
+      </button>
+
+      <button
+        onClick={onHangup}
+        aria-label="End call"
+        title="End call"
+        style={{
+          ...controlButtonBase,
+          width: 38,
+          height: 38,
+          ...toneStyle('danger', primaryColor),
+        }}
+      >
+        {icons?.hangup ?? <HangUpIcon color="#FFFFFF" />}
+      </button>
+
+      {onToggleMinimize && (
+        <button
+          onClick={onToggleMinimize}
+          aria-label="Expand call"
+          title="Expand"
+          style={{
+            ...controlButtonBase,
+            width: 38,
+            height: 38,
+            background: 'rgba(255,255,255,0.14)',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.18)',
+          }}
+        >
+          <ExpandIcon />
+        </button>
+      )}
+
+      <RoomAudioRenderer />
+    </div>
+  );
+};
+
 // ---------- session shell ----------------------------------------------
 
 const getErrorMessage = (error: unknown): string => {
@@ -839,6 +1048,8 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
   startWithCameraOn = true,
   startWithMicOn = true,
   showScreenShare = true,
+  minimized = false,
+  onToggleMinimize,
   onConnected,
   onError,
   onHangup,
@@ -918,11 +1129,19 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
   return (
     <RoomContext.Provider value={room}>
       <PeerLeaveWatcher onPeerLeft={onHangup} />
-      {isAudioOnly ? (
+      {minimized ? (
+        <CompactCallContent
+          primaryColor={primaryColor}
+          onHangup={onHangup}
+          onToggleMinimize={onToggleMinimize}
+          icons={icons}
+        />
+      ) : isAudioOnly ? (
         <AudioCallContent
           primaryColor={primaryColor}
           onHangup={onHangup}
           icons={icons}
+          onToggleMinimize={onToggleMinimize}
         />
       ) : (
         <VideoCallContent
@@ -930,6 +1149,7 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
           onHangup={onHangup}
           icons={icons}
           showScreenShare={showScreenShare}
+          onToggleMinimize={onToggleMinimize}
         />
       )}
     </RoomContext.Provider>

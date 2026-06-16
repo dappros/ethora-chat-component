@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
 import {
@@ -22,7 +28,50 @@ import {
   sendCallStateSignal,
 } from '../../networking/callTokenStanza';
 import { VideoCallIcons } from '../../types/models/config.model';
+import { useDraggable } from '../../helpers/useDraggable';
 import Button from '../styled/Button';
+
+const visuallyHidden: React.CSSProperties = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  padding: 0,
+  margin: -1,
+  overflow: 'hidden',
+  clip: 'rect(0 0 0 0)',
+  whiteSpace: 'nowrap',
+  border: 0,
+};
+
+// Floating panel shown when the call is minimized — non-blocking so the user
+// can keep chatting. Dark rounded bar, draggable, bottom-right by default.
+const floatingPanelBase: React.CSSProperties = {
+  position: 'fixed',
+  right: 24,
+  bottom: 24,
+  zIndex: 1001,
+  width: 'min(340px, calc(100vw - 32px))',
+  borderRadius: 16,
+  background: '#0B1220',
+  boxShadow: '0px 8px 28px rgba(0, 0, 0, 0.35)',
+  cursor: 'grab',
+  touchAction: 'none',
+  userSelect: 'none',
+};
+
+const dialogWrapperStyle: React.CSSProperties = {
+  position: 'fixed',
+  inset: 0,
+  zIndex: 1001,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 16,
+};
+
+// Focusable elements query for the focus trap.
+const FOCUSABLE =
+  'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 // Stop the dial UI sitting forever when the server never broadcasts a
 // call-token (offline peer, backend error, etc.). 30s matches the typical
@@ -387,37 +436,165 @@ export const VideoCallOverlay: React.FC = () => {
     dispatch(declineIncomingCall());
   }, [dispatch]);
 
+  // Hang up / dismiss whatever call state we're in (used by Esc).
+  const hangupCurrent = useCallback(() => {
+    if (call.direction === 'incoming' && call.phase === 'ringing-incoming') {
+      declineCall();
+    } else if (call.phase === 'error') {
+      dispatch(resetCall());
+    } else {
+      terminateCall(call.phase === 'requesting' ? 'cancelled' : 'ended');
+    }
+  }, [call.direction, call.phase, declineCall, terminateCall, dispatch]);
+
+  const [minimized, setMinimized] = useState(false);
+  const panel = useDraggable();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const lastFocusedRef = useRef<HTMLElement | null>(null);
+
+  // A call that's just an active session can be minimized; ringing/error are
+  // always modal.
+  const canRenderSession =
+    !!call.token &&
+    (call.phase === 'connecting' || call.phase === 'in-call') &&
+    !!livekitUrl;
+  const isMinimized = minimized && canRenderSession;
+
+  // Reset the minimized flag whenever the call ends, so the next call opens
+  // full-screen.
+  useEffect(() => {
+    if (call.phase === 'idle') setMinimized(false);
+  }, [call.phase]);
+
+  // Esc = hang up (full modal only — a minimized panel shouldn't swallow Esc).
+  useEffect(() => {
+    if (!isOpen || isMinimized) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        hangupCurrent();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, isMinimized, hangupCurrent]);
+
+  // Focus trap + restore for the modal dialog (full mode only).
+  useEffect(() => {
+    if (!isOpen || isMinimized) return;
+    lastFocusedRef.current = (document.activeElement as HTMLElement) || null;
+    const node = dialogRef.current;
+    if (!node) return;
+    const focusFirst = () => {
+      const els = node.querySelectorAll<HTMLElement>(FOCUSABLE);
+      (els[0] || node).focus();
+    };
+    focusFirst();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      const els = Array.from(node.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
+        (el) => el.offsetParent !== null
+      );
+      if (els.length === 0) return;
+      const first = els[0];
+      const last = els[els.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    node.addEventListener('keydown', onKeyDown);
+    return () => {
+      node.removeEventListener('keydown', onKeyDown);
+      lastFocusedRef.current?.focus?.();
+    };
+  }, [isOpen, isMinimized]);
+
   if (!isOpen) {
     return null;
   }
 
   const showIncomingDecision =
     call.direction === 'incoming' && call.phase === 'ringing-incoming';
-  const canRenderSession =
-    !!call.token &&
-    (call.phase === 'connecting' || call.phase === 'in-call') &&
-    !!livekitUrl;
   const showSession = canRenderSession;
 
-  return (
-    <div style={overlayBackdropStyle}>
-      {showSession ? (
-        <div style={sessionCardStyle}>
-          <VideoCallSession
-            token={call.token as string}
-            livekitUrl={livekitUrl}
-            kind={call.kind}
-            primaryColor={primaryColor}
-            icons={videoCallsConfig?.icons}
-            startWithCameraOn={videoCallsConfig?.startWithCameraOn}
-            startWithMicOn={videoCallsConfig?.startWithMicOn}
-            showScreenShare={videoCallsConfig?.showScreenShare}
-            onConnected={() => dispatch(setCallPhase('in-call'))}
-            onError={(message) => dispatch(setCallError(message))}
-            onHangup={() => terminateCall('ended')}
-          />
+  const dialogAriaLabel =
+    call.direction === 'incoming'
+      ? ringingHeader
+      : showSession
+        ? `Call with ${call.roomName || 'contact'}`
+        : ringingHeader;
+
+  // Screen-reader status announcement.
+  const liveStatus = showSession
+    ? `In call with ${call.roomName || 'contact'}`
+    : `${ringingHeader}${call.roomName ? `, ${call.roomName}` : ''}`;
+
+  // The active session lives in one stable element whether full or minimized,
+  // so toggling minimize never unmounts VideoCallSession (LiveKit stays up).
+  if (showSession) {
+    return (
+      <>
+        <div aria-live="polite" role="status" style={visuallyHidden}>
+          {liveStatus}
         </div>
-      ) : showIncomingDecision ? (
+        {!isMinimized && <div style={overlayBackdropStyle} aria-hidden="true" />}
+        <div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal={!isMinimized}
+          aria-label={dialogAriaLabel}
+          tabIndex={-1}
+          onPointerDown={isMinimized ? panel.onPointerDown : undefined}
+          style={
+            isMinimized
+              ? {
+                  ...floatingPanelBase,
+                  transform: panel.pos
+                    ? `translate(${panel.pos.x}px, ${panel.pos.y}px)`
+                    : undefined,
+                }
+              : dialogWrapperStyle
+          }
+        >
+          <div style={isMinimized ? undefined : sessionCardStyle}>
+            <VideoCallSession
+              token={call.token as string}
+              livekitUrl={livekitUrl}
+              kind={call.kind}
+              primaryColor={primaryColor}
+              icons={videoCallsConfig?.icons}
+              startWithCameraOn={videoCallsConfig?.startWithCameraOn}
+              startWithMicOn={videoCallsConfig?.startWithMicOn}
+              showScreenShare={videoCallsConfig?.showScreenShare}
+              minimized={isMinimized}
+              onToggleMinimize={() => setMinimized((m) => !m)}
+              onConnected={() => dispatch(setCallPhase('in-call'))}
+              onError={(message) => dispatch(setCallError(message))}
+              onHangup={() => terminateCall('ended')}
+            />
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label={dialogAriaLabel}
+      tabIndex={-1}
+      style={overlayBackdropStyle}
+    >
+      <div aria-live="polite" role="status" style={visuallyHidden}>
+        {liveStatus}
+      </div>
+      {showIncomingDecision ? (
         <RingingCard
           title={ringingHeader}
           subtitle={ringingSubtitle}
