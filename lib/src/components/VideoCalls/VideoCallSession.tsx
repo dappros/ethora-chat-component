@@ -53,38 +53,107 @@ const DANGER = '#E53935';
 
 // ---------- inline icon set ---------------------------------------------
 
+// Clean, cohesive call-control glyphs (24px). The off variants overlay a
+// two-tone diagonal slash — a thick `cutColor` line (matches the red muted
+// button) under a thin icon-color line — so the slash reads clearly against
+// the glyph on any background. `cutColor` defaults to the danger red used by
+// the muted buttons.
 const MicOnIcon: React.FC<{ color?: string }> = ({ color = '#FFFFFF' }) => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <rect x="8.5" y="2" width="7" height="12" rx="3.5" fill={color} />
     <path
-      d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z"
-      fill={color}
+      d="M5 11a7 7 0 0 0 14 0"
+      fill="none"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+    />
+    <path
+      d="M12 18v3M9 21h6"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
     />
   </svg>
 );
 
-const MicOffIcon: React.FC<{ color?: string }> = ({ color = '#FFFFFF' }) => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+const MicOffIcon: React.FC<{ color?: string; cutColor?: string }> = ({
+  color = '#FFFFFF',
+  cutColor = DANGER,
+}) => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <rect x="8.5" y="2" width="7" height="12" rx="3.5" fill={color} />
     <path
-      d="M15 10.6V6a3 3 0 0 0-6 0v.6L15 10.6Zm4 0h-1.7a5.5 5.5 0 0 1-.5 2L15.3 11.9a3.5 3.5 0 0 0 .2-.9V11H19Zm-3.7 4.4A5 5 0 0 1 12 16a5 5 0 0 1-5-5H5a7 7 0 0 0 6 6.92V21h2v-3.08a7 7 0 0 0 2.5-.92ZM3.3 2.7 2 4l4 4v3a5 5 0 0 0 8.5 3.5l1.4 1.4a7 7 0 0 1-3.9 1.92V21h-2v-3.08A7 7 0 0 1 5 11H7v.55a3 3 0 0 0 5 2.45l5.7 5.7 1.4-1.4Z"
-      fill={color}
+      d="M5 11a7 7 0 0 0 14 0"
+      fill="none"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+    />
+    <path
+      d="M12 18v3M9 21h6"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+    />
+    <line
+      x1="3"
+      y1="2"
+      x2="21"
+      y2="22"
+      stroke={cutColor}
+      strokeWidth="5"
+      strokeLinecap="round"
+    />
+    <line
+      x1="3"
+      y1="2"
+      x2="21"
+      y2="22"
+      stroke={color}
+      strokeWidth="2.2"
+      strokeLinecap="round"
     />
   </svg>
 );
 
 const CamOnIcon: React.FC<{ color?: string }> = ({ color = '#FFFFFF' }) => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <rect x="2" y="6" width="14" height="12" rx="2.5" fill={color} />
     <path
-      d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 3.5v-10l-4 3.5Z"
+      d="M17.5 10l4-2.6a1 1 0 0 1 1.5.85v7.5a1 1 0 0 1-1.5.85l-4-2.6Z"
       fill={color}
     />
   </svg>
 );
 
-const CamOffIcon: React.FC<{ color?: string }> = ({ color = '#FFFFFF' }) => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+const CamOffIcon: React.FC<{ color?: string; cutColor?: string }> = ({
+  color = '#FFFFFF',
+  cutColor = DANGER,
+}) => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <rect x="2" y="6" width="14" height="12" rx="2.5" fill={color} />
     <path
-      d="M21 6.5 17 10v-3a1 1 0 0 0-1-1H7.5L21 19.5v-13ZM3.3 2.7 2 4l2 2H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12.7l3 3 1.3-1.3L3.3 2.7Z"
+      d="M17.5 10l4-2.6a1 1 0 0 1 1.5.85v7.5a1 1 0 0 1-1.5.85l-4-2.6Z"
       fill={color}
+    />
+    <line
+      x1="2"
+      y1="2"
+      x2="22"
+      y2="22"
+      stroke={cutColor}
+      strokeWidth="5"
+      strokeLinecap="round"
+    />
+    <line
+      x1="2"
+      y1="2"
+      x2="22"
+      y2="22"
+      stroke={color}
+      strokeWidth="2.2"
+      strokeLinecap="round"
     />
   </svg>
 );
@@ -92,10 +161,23 @@ const CamOffIcon: React.FC<{ color?: string }> = ({ color = '#FFFFFF' }) => (
 const ShareScreenIcon: React.FC<{ color?: string }> = ({
   color = '#FFFFFF',
 }) => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <rect
+      x="1.5"
+      y="3.5"
+      width="21"
+      height="14"
+      rx="2.2"
+      fill="none"
+      stroke={color}
+      strokeWidth="2"
+    />
+    <path d="M12 6l-4.2 4.5H10.4V14h3.2v-3.5h2.6Z" fill={color} />
     <path
-      d="M20 3H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6v2H7v2h10v-2h-3v-2h6a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2Zm0 14H4V5h16v12Zm-8-9-5 5h3v3h4v-3h3l-5-5Z"
-      fill={color}
+      d="M8 21h8"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
     />
   </svg>
 );
