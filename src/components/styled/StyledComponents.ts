@@ -62,7 +62,10 @@ export const MessagesScroll = styled.div<{ color?: string }>`
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: #f3f6fc;
+  background-color: var(--ethora-chat-bg, #f3f6fc);
+  background-image: var(--ethora-chat-bg-image, none);
+  background-size: cover;
+  background-position: center;
   padding: 0px 16px;
 
   transition: height 0.3s ease-in-out; /* Smooth height transition */
@@ -182,7 +185,11 @@ export const CustomMessageBubble = styled.div<{
   display: flex;
   flex-direction: column;
   background-color: ${(props) =>
-    props.$deleted ? '#dfdfdf' : props.$isUser ? '#E7EDF9' : '#FFFFFF'};
+    props.$deleted
+      ? '#dfdfdf'
+      : props.$isUser
+        ? 'var(--ethora-own-message-bg, #E7EDF9)'
+        : 'var(--ethora-other-message-bg, #FFFFFF)'};
   position: relative;
 `;
 

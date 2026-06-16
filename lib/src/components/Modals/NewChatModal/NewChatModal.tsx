@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import Button from '../../styled/Button';
 import { AddNewIcon, AddPhotoIcon } from '../../../assets/icons';
+import { resolveIconColor } from '../../../helpers/resolveIconColor';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../../roomStore';
 import { useXmppClient } from '../../../context/xmppProvider';
@@ -212,7 +213,7 @@ const NewChatModal: React.FC = () => {
           backgroundColor: 'transparent',
         }}
         unstyled
-        EndIcon={<AddNewIcon color={config?.colors?.primary} />}
+        EndIcon={<AddNewIcon color={resolveIconColor(config)} />}
         onClick={handleOpenModal}
       />
 

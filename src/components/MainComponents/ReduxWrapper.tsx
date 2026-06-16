@@ -14,7 +14,7 @@ import { MessageNotificationProvider } from '../../context/MessageNotificationCo
 import { useInAppNotifications } from '../../hooks/useInAppNotifications';
 import usePushNotifications from '../../hooks/usePushNotifications';
 import { useTypography } from '../../hooks/useTypography';
-import { applyIconColor } from '../../helpers/resolveIconColor';
+import { applyThemeColors } from '../../helpers/resolveIconColor';
 
 interface ChatWrapperProps
   extends Pick<
@@ -43,10 +43,18 @@ const TypographyEnabler: React.FC<{ config?: IConfig }> = ({ config }) => {
   return null;
 };
 
-const IconThemeEnabler: React.FC<{ config?: IConfig }> = ({ config }) => {
+const ThemeColorsEnabler: React.FC<{ config?: IConfig }> = ({ config }) => {
   React.useEffect(() => {
-    applyIconColor(config);
-  }, [config?.colors?.icons, config?.colors?.primary]);
+    applyThemeColors(config);
+  }, [
+    config?.colors?.icons,
+    config?.colors?.primary,
+    config?.colors?.ownMessageBackground,
+    config?.colors?.otherMessageBackground,
+    config?.colors?.inputBackground,
+    config?.backgroundChat?.color,
+    config?.backgroundChat?.image,
+  ]);
   return null;
 };
 
@@ -88,7 +96,7 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
             <MessageNotificationProvider config={memoizedConfig}>
               <NotificationEnabler />
               <TypographyEnabler config={memoizedConfig} />
-              <IconThemeEnabler config={memoizedConfig} />
+              <ThemeColorsEnabler config={memoizedConfig} />
               <PushNotificationsEnabler config={memoizedConfig} />
               <CustomComponentsProvider
                 CustomMessageComponent={CustomMessageComponent}

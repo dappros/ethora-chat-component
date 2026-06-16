@@ -92,6 +92,12 @@ export interface IConfig {
      * primary theme colour.
      */
     icons?: string;
+    /** Background colour of the user's own message bubbles. Default #E7EDF9. */
+    ownMessageBackground?: string;
+    /** Background colour of other users' message bubbles. Default #FFFFFF. */
+    otherMessageBackground?: string;
+    /** Background colour of the message input bar. Default #FFFFFF. */
+    inputBackground?: string;
   };
   /** Configurable font family / size / weights for the chat UI. See TypographyConfig. */
   typography?: TypographyConfig;

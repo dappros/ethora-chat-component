@@ -355,7 +355,8 @@ Below is a grouped reference for all `config` options.
 | `headerLogo` | `string \| React.ReactElement` | Custom logo in header. |
 | `headerMenu` | `() => void` | Custom menu handler. |
 | `headerChatMenu` | `() => void` | Custom room header menu handler. |
-| `colors` | `{ primary; secondary; icons? }` | Theme colours. `primary` also drives icon colours and the message sender name; set `colors.icons` to give icons (attach, mic, send, file, empty-state) a colour independent of `primary`. |
+| `colors` | `{ primary; secondary; icons?; ownMessageBackground?; otherMessageBackground?; inputBackground? }` | Theme colours. `primary` drives icon colours and the sender name. `icons` themes every accent icon/icon-button (attach, mic, active send, new-chat, header, empty-state) — defaults to `primary`, so set a *distinct* value to decouple. `ownMessageBackground`/`otherMessageBackground`/`inputBackground` recolour the message bubbles and input bar. |
+| `backgroundChat` | `{ color?; image? }` | Background colour and/or image for the messages area. (`image` as a string URL; pass an object URL for a `File`.) |
 | `typography` | `TypographyConfig` | Font family + size for the chat UI: `fontFamily` (or just `googleFontsFamily`) is applied across all chat text incl. messages and sender names; `fontSize` (px) scales message text, sender names, timestamps, inputs, room names and badges. Plus loaders (`googleFontsUrl`/`fontFaces`) and weight tokens. |
 | `fallbackScreens` | `{ noUser?; noConnection?; noRoom? }` | Replace the built-in screens (Ethora login form, "Connecting...", empty room state) with your own text or React nodes. A plain string is rendered as centered text. |
 | `hiddenRooms` | `{ titles?: string[]; jids?: string[] }` | Hide specific rooms from the room list and unread counters (e.g. `{ titles: ['Main chat'] }` to suppress the auto-created default room). |

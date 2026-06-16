@@ -162,20 +162,23 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
           ) : (chat?.messages?.length ?? 0) === 0 && chat?.historyComplete ? (
             <LastRoomMessageText>Room created</LastRoomMessageText>
           ) : undefined}
-          {chat.unreadMessages > 0 && (
-            <NewMessageMarker
-              style={{
-                backgroundColor: isChatActive
-                  ? '#fff'
-                  : config?.colors?.primary,
-                color: isChatActive ? '#141414' : '#fff',
-              }}
-            >
-              {chat.unreadCapped
-                ? `${Math.max(chat.unreadMessages, 10)}+`
-                : chat.unreadMessages}
-            </NewMessageMarker>
-          )}
+          {chat.unreadMessages > 0 &&
+            // Hide while this room is still backfilling history — the count is
+            // mid-climb; reveal the final number once the preload settles.
+            chat.historyPreloadState !== 'loading' && (
+              <NewMessageMarker
+                style={{
+                  backgroundColor: isChatActive
+                    ? '#fff'
+                    : config?.colors?.primary,
+                  color: isChatActive ? '#141414' : '#fff',
+                }}
+              >
+                {chat.unreadCapped
+                  ? `${Math.max(chat.unreadMessages, 10)}+`
+                  : chat.unreadMessages}
+              </NewMessageMarker>
+            )}
         </div>
       </div>
     </ChatItem>

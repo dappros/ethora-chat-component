@@ -99,14 +99,27 @@ export const useUnreadMessagesCounter = (): UnreadMessagesStats => {
 
   const computeLoading = (): boolean => {
     const roomsState = store.getState().rooms;
-    const hasRooms = Object.keys(roomsState.rooms || {}).length > 0;
+    const rooms = roomsState.rooms || {};
+    const hasRooms = Object.keys(rooms).length > 0;
     if (hasRooms) {
       hasLoadedOnceRef.current = true;
     } else if (prevRoomsLoadingRef.current && !roomsState.isLoading) {
       hasLoadedOnceRef.current = true;
     }
     prevRoomsLoadingRef.current = roomsState.isLoading;
-    return !hasLoadedOnceRef.current;
+
+    if (!hasLoadedOnceRef.current) return true;
+
+    // While a room is actively backfilling history, its unread count is still
+    // climbing as older messages stream in — surfacing it would show the count
+    // ramp up from 0. Stay "loading" until no room is mid-backfill, so the host
+    // can hold a spinner and reveal the final count at once. Live messages
+    // (state already 'done') don't set 'loading', so normal real-time
+    // increments are unaffected.
+    const anyRoomBackfilling = Object.values(rooms).some(
+      (room) => (room as IRoom)?.historyPreloadState === 'loading'
+    );
+    return anyRoomBackfilling;
   };
 
   const [stats, setStats] = useState<UnreadMessagesStats>(() => {
