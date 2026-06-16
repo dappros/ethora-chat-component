@@ -21,6 +21,7 @@ import {
   CallSignalState,
   sendCallStateSignal,
 } from '../../networking/callTokenStanza';
+import { VideoCallIcons } from '../../types/models/config.model';
 import Button from '../styled/Button';
 
 // Stop the dial UI sitting forever when the server never broadcasts a
@@ -134,6 +135,7 @@ interface RingingCardProps {
   variant: 'incoming' | 'outgoing' | 'error';
   primaryColor: string;
   errorMessage?: string | null;
+  icons?: VideoCallIcons;
   onAccept?: () => void;
   onDecline?: () => void;
   onHangup?: () => void;
@@ -148,6 +150,7 @@ const RingingCard: React.FC<RingingCardProps> = ({
   variant,
   primaryColor,
   errorMessage,
+  icons,
   onAccept,
   onDecline,
   onHangup,
@@ -285,7 +288,7 @@ const RingingCard: React.FC<RingingCardProps> = ({
               title="Decline"
               style={circleActionStyle(DANGER)}
             >
-              <HangUpIcon color="#FFFFFF" />
+              {icons?.decline ?? <HangUpIcon color="#FFFFFF" />}
             </button>
             <button
               onClick={onAccept}
@@ -293,11 +296,12 @@ const RingingCard: React.FC<RingingCardProps> = ({
               title="Accept"
               style={circleActionStyle('#10B981')}
             >
-              {kind === 'audio' ? (
-                <AudioCallIcon color="#FFFFFF" />
-              ) : (
-                <VideoCallIcon color="#FFFFFF" />
-              )}
+              {icons?.accept ??
+                (kind === 'audio' ? (
+                  <AudioCallIcon color="#FFFFFF" />
+                ) : (
+                  <VideoCallIcon color="#FFFFFF" />
+                ))}
             </button>
           </>
         )}
@@ -308,7 +312,7 @@ const RingingCard: React.FC<RingingCardProps> = ({
             title="Cancel"
             style={circleActionStyle(DANGER)}
           >
-            <HangUpIcon color="#FFFFFF" />
+            {icons?.hangup ?? <HangUpIcon color="#FFFFFF" />}
           </button>
         )}
         {variant === 'error' && (
@@ -404,6 +408,10 @@ export const VideoCallOverlay: React.FC = () => {
             livekitUrl={livekitUrl}
             kind={call.kind}
             primaryColor={primaryColor}
+            icons={videoCallsConfig?.icons}
+            startWithCameraOn={videoCallsConfig?.startWithCameraOn}
+            startWithMicOn={videoCallsConfig?.startWithMicOn}
+            showScreenShare={videoCallsConfig?.showScreenShare}
             onConnected={() => dispatch(setCallPhase('in-call'))}
             onError={(message) => dispatch(setCallError(message))}
             onHangup={() => terminateCall('ended')}
@@ -417,6 +425,7 @@ export const VideoCallOverlay: React.FC = () => {
           kind={call.kind}
           variant="incoming"
           primaryColor={primaryColor}
+          icons={videoCallsConfig?.icons}
           onAccept={() => dispatch(acceptIncomingCall())}
           onDecline={declineCall}
         />
@@ -444,6 +453,7 @@ export const VideoCallOverlay: React.FC = () => {
           kind={call.kind}
           variant="outgoing"
           primaryColor={primaryColor}
+          icons={videoCallsConfig?.icons}
           onHangup={() => terminateCall('cancelled')}
         />
       )}

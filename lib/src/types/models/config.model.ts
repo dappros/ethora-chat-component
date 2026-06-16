@@ -7,10 +7,37 @@ import React from 'react'; // Assuming React types are globally available or man
 
 import { MessageNotificationToastProps } from '../../components/MessageNotification/MessageNotificationToast';
 
+/**
+ * Override the icons used by the in-call control bar and the incoming-call
+ * ring screen. Each value is any React node (an <svg>, an <img>, an icon
+ * component element). When omitted, the chat's built-in icon is used. The
+ * mic/camera/screen-share toggles take separate on/off icons so the host can
+ * express the active vs muted state however they like.
+ */
+export interface VideoCallIcons {
+  micOn?: React.ReactNode;
+  micOff?: React.ReactNode;
+  cameraOn?: React.ReactNode;
+  cameraOff?: React.ReactNode;
+  screenShareOn?: React.ReactNode;
+  screenShareOff?: React.ReactNode;
+  hangup?: React.ReactNode;
+  accept?: React.ReactNode;
+  decline?: React.ReactNode;
+}
+
 export interface VideoCallsConfig {
   enabled: boolean;
   livekitUrl: string;
   allowedRoomTypes?: Array<'private'>;
+  /** Start a video call with the camera already on. Default true. */
+  startWithCameraOn?: boolean;
+  /** Start a call with the microphone already on. Default true. */
+  startWithMicOn?: boolean;
+  /** Show the screen-share control. Default true. */
+  showScreenShare?: boolean;
+  /** Custom icons for the call control bar / ring screen. See VideoCallIcons. */
+  icons?: VideoCallIcons;
 }
 
 export interface FBConfig {

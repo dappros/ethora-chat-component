@@ -8,25 +8,35 @@ import {
   VideoPresets,
 } from 'livekit-client';
 import {
-  ParticipantTile,
   RoomAudioRenderer,
   RoomContext,
+  VideoTrack,
   useConnectionState,
   useRemoteParticipants,
   useSpeakingParticipants,
   useTrackToggle,
   useTracks,
 } from '@livekit/components-react';
+import type { TrackReference } from '@livekit/components-react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
 import { HangUpIcon } from '../../assets/icons';
 import { ProfileImagePlaceholder } from '../MainComponents/ProfileImagePlaceholder';
+import { VideoCallIcons } from '../../types/models/config.model';
 
 interface VideoCallSessionProps {
   token: string;
   livekitUrl: string;
   kind?: 'audio' | 'video';
   primaryColor?: string;
+  /** Host icon overrides for the control bar. */
+  icons?: VideoCallIcons;
+  /** Start with the camera on (video calls). Default true. */
+  startWithCameraOn?: boolean;
+  /** Start with the microphone on. Default true. */
+  startWithMicOn?: boolean;
+  /** Show the screen-share control. Default true. */
+  showScreenShare?: boolean;
   onConnected?: () => void;
   onError?: (message: string) => void;
   onHangup: () => void;
@@ -183,6 +193,7 @@ interface CallControlsProps {
   includeCamera?: boolean;
   includeScreenShare?: boolean;
   layout?: 'light' | 'overlay';
+  icons?: VideoCallIcons;
 }
 
 const CallControls: React.FC<CallControlsProps> = ({
@@ -191,6 +202,7 @@ const CallControls: React.FC<CallControlsProps> = ({
   includeCamera = false,
   includeScreenShare = false,
   layout = 'light',
+  icons,
 }) => {
   const mic = useTrackToggle({ source: Track.Source.Microphone });
   const cam = useTrackToggle({ source: Track.Source.Camera });
@@ -224,7 +236,9 @@ const CallControls: React.FC<CallControlsProps> = ({
             : toneStyle('danger', primaryColor)),
         }}
       >
-        {mic.enabled ? <MicOnIcon color={iconColor} /> : <MicOffIcon />}
+        {mic.enabled
+          ? icons?.micOn ?? <MicOnIcon color={iconColor} />
+          : icons?.micOff ?? <MicOffIcon />}
       </button>
 
       {includeCamera && (
@@ -239,7 +253,9 @@ const CallControls: React.FC<CallControlsProps> = ({
               : toneStyle('danger', primaryColor)),
           }}
         >
-          {cam.enabled ? <CamOnIcon color={iconColor} /> : <CamOffIcon />}
+          {cam.enabled
+            ? icons?.cameraOn ?? <CamOnIcon color={iconColor} />
+            : icons?.cameraOff ?? <CamOffIcon />}
         </button>
       )}
 
@@ -257,7 +273,11 @@ const CallControls: React.FC<CallControlsProps> = ({
               : { background: neutralBg, color: iconColor, border: `1px solid ${neutralBorder}` }),
           }}
         >
-          <ShareScreenIcon color={screen.enabled ? primaryColor : iconColor} />
+          {screen.enabled
+            ? icons?.screenShareOn ?? (
+                <ShareScreenIcon color={primaryColor} />
+              )
+            : icons?.screenShareOff ?? <ShareScreenIcon color={iconColor} />}
         </button>
       )}
 
@@ -270,7 +290,7 @@ const CallControls: React.FC<CallControlsProps> = ({
           ...toneStyle('danger', primaryColor),
         }}
       >
-        <HangUpIcon color="#FFFFFF" />
+        {icons?.hangup ?? <HangUpIcon color="#FFFFFF" />}
       </button>
     </div>
   );
@@ -281,7 +301,9 @@ const CallControls: React.FC<CallControlsProps> = ({
 const VideoCallContent: React.FC<{
   primaryColor: string;
   onHangup: () => void;
-}> = ({ primaryColor, onHangup }) => {
+  icons?: VideoCallIcons;
+  showScreenShare?: boolean;
+}> = ({ primaryColor, onHangup, icons, showScreenShare = true }) => {
   const roomName = useSelector((state: RootState) => state.call.roomName);
   const remoteParticipants = useRemoteParticipants();
   const peerJoined = remoteParticipants.length > 0;
@@ -299,10 +321,11 @@ const VideoCallContent: React.FC<{
   const remoteCamera = cameraTracks.find((t) => !t.participant.isLocal);
   const remoteScreen = screenTracks.find((t) => !t.participant.isLocal);
 
-  // A TrackReference exists even when the camera is muted/off — rendering
-  // ParticipantTile for it shows LiveKit's default grey-silhouette
-  // placeholder + name + connection bars, which clashes with our chrome.
-  // Only treat a track as renderable when it has a live, unmuted track.
+  // A TrackReference exists even when the camera is muted/off. We render our
+  // OWN <VideoTrack> (not LiveKit's ParticipantTile) so there's no built-in
+  // grey-silhouette placeholder, name label or connection bars — and we only
+  // mount the <video> for a live, unmuted track so the layout never jumps
+  // between an avatar and a video of a different size/position.
   const hasLiveVideo = (t: typeof remoteCamera): boolean =>
     !!t && !!t.publication && !t.publication.isMuted && !!t.publication.track;
 
@@ -376,32 +399,43 @@ const VideoCallContent: React.FC<{
         </span>
       </div>
 
-      {/* Main stage: remote video / placeholder */}
+      {/* Main stage: remote video AND placeholder both absolutely fill the
+          same box, so toggling between them never shifts layout. The video
+          sits on top when live; otherwise the centered avatar shows. */}
       <div style={{ position: 'absolute', inset: 0 }}>
-        {mainTrack ? (
-          <ParticipantTile trackRef={mainTrack} />
-        ) : (
-          <div
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 16,
+            color: '#FFFFFF',
+            padding: 24,
+          }}
+        >
+          <ProfileImagePlaceholder name={roomName || 'Video call'} size={120} />
+          <div style={{ fontSize: 20, fontWeight: 500 }}>
+            {roomName || 'Video call'}
+          </div>
+          <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)' }}>
+            {peerJoined ? "Peer's camera is off" : 'Ringing…'}
+          </div>
+        </div>
+        {mainTrack && (
+          <VideoTrack
+            trackRef={mainTrack as TrackReference}
             style={{
+              position: 'absolute',
+              inset: 0,
               width: '100%',
               height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 16,
-              color: '#FFFFFF',
-              padding: 24,
+              objectFit: 'cover',
+              background: '#0B1220',
             }}
-          >
-            <ProfileImagePlaceholder name={roomName || 'Video call'} size={120} />
-            <div style={{ fontSize: 20, fontWeight: 500 }}>
-              {roomName || 'Video call'}
-            </div>
-            <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)' }}>
-              {peerJoined ? "Peer's camera is off" : 'Ringing…'}
-            </div>
-          </div>
+          />
         )}
       </div>
 
@@ -427,7 +461,16 @@ const VideoCallContent: React.FC<{
         }}
       >
         {localCameraLive && localCamera ? (
-          <ParticipantTile trackRef={localCamera} />
+          <VideoTrack
+            trackRef={localCamera as TrackReference}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              // Mirror the local self-view like every major call app.
+              transform: 'scaleX(-1)',
+            }}
+          />
         ) : (
           <div
             style={{
@@ -464,8 +507,9 @@ const VideoCallContent: React.FC<{
           primaryColor={primaryColor}
           onHangup={onHangup}
           includeCamera
-          includeScreenShare
+          includeScreenShare={showScreenShare}
           layout="overlay"
+          icons={icons}
         />
       </div>
 
@@ -479,7 +523,8 @@ const VideoCallContent: React.FC<{
 const AudioCallContent: React.FC<{
   primaryColor: string;
   onHangup: () => void;
-}> = ({ primaryColor, onHangup }) => {
+  icons?: VideoCallIcons;
+}> = ({ primaryColor, onHangup, icons }) => {
   const connectionState = useConnectionState();
   const isConnected = connectionState === ConnectionState.Connected;
 
@@ -652,7 +697,11 @@ const AudioCallContent: React.FC<{
         </div>
       </div>
 
-      <CallControls primaryColor={primaryColor} onHangup={onHangup} />
+      <CallControls
+        primaryColor={primaryColor}
+        onHangup={onHangup}
+        icons={icons}
+      />
 
       <RoomAudioRenderer />
     </div>
@@ -708,11 +757,19 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
   livekitUrl,
   kind = 'video',
   primaryColor = DEFAULT_PRIMARY,
+  icons,
+  startWithCameraOn = true,
+  startWithMicOn = true,
+  showScreenShare = true,
   onConnected,
   onError,
   onHangup,
 }) => {
   const isAudioOnly = kind === 'audio';
+  // Read the initial device state from refs so the connect effect stays
+  // dependency-stable (it must run exactly once — see the callback refs below).
+  const startCameraRef = useRef(startWithCameraOn);
+  const startMicRef = useRef(startWithMicOn);
 
   const roomOptions: RoomOptions = useMemo(
     () => ({
@@ -754,13 +811,14 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
       try {
         await room.connect(livekitUrl, token, connectOptions);
         if (!mounted) return;
-        // Audio call: publish only the microphone — leaves the camera
-        // capture device untouched so the browser doesn't prompt for it
-        // and the peer doesn't get a black video tile.
-        if (isAudioOnly) {
-          await room.localParticipant.setMicrophoneEnabled(true);
-        } else {
-          await room.localParticipant.enableCameraAndMicrophone();
+        // Publish devices per host config. Audio calls never touch the
+        // camera (no prompt, no black tile for the peer). For video calls,
+        // the camera defaults on but can be configured off.
+        const micOn = startMicRef.current !== false;
+        const camOn = !isAudioOnly && startCameraRef.current !== false;
+        await room.localParticipant.setMicrophoneEnabled(micOn);
+        if (!isAudioOnly) {
+          await room.localParticipant.setCameraEnabled(camOn);
         }
         onConnectedRef.current?.();
       } catch (error) {
@@ -783,9 +841,18 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
     <RoomContext.Provider value={room}>
       <PeerLeaveWatcher onPeerLeft={onHangup} />
       {isAudioOnly ? (
-        <AudioCallContent primaryColor={primaryColor} onHangup={onHangup} />
+        <AudioCallContent
+          primaryColor={primaryColor}
+          onHangup={onHangup}
+          icons={icons}
+        />
       ) : (
-        <VideoCallContent primaryColor={primaryColor} onHangup={onHangup} />
+        <VideoCallContent
+          primaryColor={primaryColor}
+          onHangup={onHangup}
+          icons={icons}
+          showScreenShare={showScreenShare}
+        />
       )}
     </RoomContext.Provider>
   );
