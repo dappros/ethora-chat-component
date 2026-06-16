@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ConnectionState,
   Room,
@@ -659,6 +659,37 @@ const AudioCallContent: React.FC<{
   );
 };
 
+// ---------- peer-leave watcher -----------------------------------------
+
+// End a 1:1 call locally as soon as the remote peer leaves the LiveKit room
+// (they hung up, dropped, or closed the tab). Without this the survivor sits
+// on a "Ringing…" screen forever, because the only other teardown path is an
+// XMPP `call-state ended` signal that isn't guaranteed to arrive. Fires once,
+// and only after the peer had actually joined (so the outgoing "Ringing…"
+// pre-answer state, where remoteParticipants is legitimately 0, is ignored).
+const PeerLeaveWatcher: React.FC<{ onPeerLeft: () => void }> = ({
+  onPeerLeft,
+}) => {
+  const remoteParticipants = useRemoteParticipants();
+  const everJoinedRef = useRef(false);
+  const firedRef = useRef(false);
+  const cbRef = useRef(onPeerLeft);
+  useEffect(() => {
+    cbRef.current = onPeerLeft;
+  }, [onPeerLeft]);
+  useEffect(() => {
+    if (remoteParticipants.length > 0) {
+      everJoinedRef.current = true;
+      return;
+    }
+    if (everJoinedRef.current && !firedRef.current) {
+      firedRef.current = true;
+      cbRef.current?.();
+    }
+  }, [remoteParticipants.length]);
+  return null;
+};
+
 // ---------- session shell ----------------------------------------------
 
 const getErrorMessage = (error: unknown): string => {
@@ -702,6 +733,20 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
     []
   );
 
+  // Keep the latest callbacks in refs so the connect effect below does NOT
+  // depend on their identity. The parent (VideoCallOverlay) passes inline
+  // arrows that change on every render — and onConnected itself dispatches a
+  // redux action that re-renders the parent. If those were in the dep array
+  // the effect would re-run, its cleanup would `room.disconnect()` the call
+  // we JUST joined, the server would see the participant leave and broadcast
+  // a "call ended" log — so accepting a call instantly tore it down.
+  const onConnectedRef = useRef(onConnected);
+  const onErrorRef = useRef(onError);
+  useEffect(() => {
+    onConnectedRef.current = onConnected;
+    onErrorRef.current = onError;
+  }, [onConnected, onError]);
+
   useEffect(() => {
     let mounted = true;
 
@@ -717,10 +762,10 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
         } else {
           await room.localParticipant.enableCameraAndMicrophone();
         }
-        onConnected?.();
+        onConnectedRef.current?.();
       } catch (error) {
         if (!mounted) return;
-        onError?.(getErrorMessage(error));
+        onErrorRef.current?.(getErrorMessage(error));
       }
     };
 
@@ -730,10 +775,13 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
       mounted = false;
       room.disconnect();
     };
-  }, [room, livekitUrl, token, connectOptions, isAudioOnly, onConnected, onError]);
+    // Connect exactly once per (room, url, token, kind) — callbacks are read
+    // from refs so their changing identity can't retrigger a disconnect.
+  }, [room, livekitUrl, token, connectOptions, isAudioOnly]);
 
   return (
     <RoomContext.Provider value={room}>
+      <PeerLeaveWatcher onPeerLeft={onHangup} />
       {isAudioOnly ? (
         <AudioCallContent primaryColor={primaryColor} onHangup={onHangup} />
       ) : (

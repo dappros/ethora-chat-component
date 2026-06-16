@@ -2,17 +2,30 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "ethora-chat-dev",
+      "name": "chat-a",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
         "run",
         "dev",
         "--",
         "--port",
-        "5199",
+        "5173",
         "--strictPort"
       ],
-      "port": 5199
+      "port": 5173
+    },
+    {
+      "name": "chat-b",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5174",
+        "--strictPort"
+      ],
+      "port": 5174
     }
   ]
 }
