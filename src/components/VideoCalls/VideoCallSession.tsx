@@ -12,6 +12,7 @@ import {
   RoomContext,
   VideoTrack,
   useConnectionState,
+  useParticipants,
   useRemoteParticipants,
   useSpeakingParticipants,
   useTrackToggle,
@@ -116,6 +117,33 @@ const hexToRgba = (hex: string, alpha: number): string => {
   const g = (num >> 8) & 255;
   const b = num & 255;
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
+// Elapsed call seconds anchored to a value BOTH sides agree on: the moment
+// the last participant joined (= when the call truly connected). LiveKit sets
+// `joinedAt` server-side, so every client reads the same timestamp — unlike
+// the old "start a local timer when I first see the peer" approach, where the
+// caller and callee began counting at different local moments and drifted.
+// Returns null until the peer is present (caller still sees "Ringing…").
+const useSharedCallElapsed = (): number | null => {
+  const participants = useParticipants();
+  const [, forceTick] = useState(0);
+
+  const joinTimes = participants
+    .map((p) => (p.joinedAt ? new Date(p.joinedAt).getTime() : 0))
+    .filter((t) => t > 0);
+  const peerPresent = participants.length >= 2;
+  const anchor =
+    peerPresent && joinTimes.length >= 2 ? Math.max(...joinTimes) : null;
+
+  useEffect(() => {
+    if (anchor === null) return;
+    const id = window.setInterval(() => forceTick((t) => t + 1), 1000);
+    return () => window.clearInterval(id);
+  }, [anchor]);
+
+  if (anchor === null) return null;
+  return Math.max(0, Math.floor((Date.now() - anchor) / 1000));
 };
 
 const formatDuration = (totalSeconds: number): string => {
@@ -338,23 +366,9 @@ const VideoCallContent: React.FC<{
       ? remoteCamera
       : null;
 
-  // Live duration in the header, gated on the peer actually joining — same
-  // semantics as the audio screen so the dialer doesn't see a timer until
-  // the callee picks up.
-  const [connectedAt, setConnectedAt] = useState<number | null>(null);
-  const [tickSeconds, setTickSeconds] = useState(0);
-  useEffect(() => {
-    if (peerJoined && connectedAt === null) setConnectedAt(Date.now());
-  }, [peerJoined, connectedAt]);
-  useEffect(() => {
-    if (connectedAt === null) return;
-    const id = window.setInterval(
-      () => setTickSeconds(Math.floor((Date.now() - connectedAt) / 1000)),
-      1000
-    );
-    return () => window.clearInterval(id);
-  }, [connectedAt]);
-  const headerStatus = peerJoined ? formatDuration(tickSeconds) : 'Ringing…';
+  // Shared, server-anchored duration so both sides show the same time.
+  const elapsed = useSharedCallElapsed();
+  const headerStatus = elapsed === null ? 'Ringing…' : formatDuration(elapsed);
 
   return (
     <div
@@ -529,8 +543,6 @@ const AudioCallContent: React.FC<{
   const isConnected = connectionState === ConnectionState.Connected;
 
   const roomName = useSelector((state: RootState) => state.call.roomName);
-  const remoteParticipants = useRemoteParticipants();
-  const peerJoined = remoteParticipants.length > 0;
 
   const speakingParticipants = useSpeakingParticipants();
   const peerSpeaking = speakingParticipants.some((p) => !p.isLocal);
@@ -539,33 +551,17 @@ const AudioCallContent: React.FC<{
     source: Track.Source.Microphone,
   });
 
-  const [connectedAt, setConnectedAt] = useState<number | null>(null);
-  const [tickSeconds, setTickSeconds] = useState(0);
-
   useEffect(() => {
     ensureAudioPulseKeyframes();
   }, []);
 
-  // The duration timer only ticks once the remote peer actually joins
-  // the LiveKit room. Without this gate the dialer's UI flips from
-  // "Calling…" to "00:00" the instant their own token arrives, which
-  // looks like the callee already accepted.
-  useEffect(() => {
-    if (peerJoined && connectedAt === null) {
-      setConnectedAt(Date.now());
-    }
-  }, [peerJoined, connectedAt]);
-
-  useEffect(() => {
-    if (connectedAt === null) return;
-    const id = window.setInterval(() => {
-      setTickSeconds(Math.floor((Date.now() - connectedAt) / 1000));
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, [connectedAt]);
+  // Shared, server-anchored duration (same on both sides). Null until the
+  // peer joins, so the dialer keeps seeing "Ringing…" until the callee picks
+  // up rather than flipping to 00:00 when its own token arrives.
+  const elapsed = useSharedCallElapsed();
 
   const statusText = (() => {
-    if (peerJoined) return formatDuration(tickSeconds);
+    if (elapsed !== null) return formatDuration(elapsed);
     if (isConnected) return 'Ringing…';
     return 'Connecting…';
   })();
