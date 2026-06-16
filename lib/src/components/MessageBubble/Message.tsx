@@ -46,6 +46,8 @@ const Message: React.FC<MessageProps> = forwardRef<
   const { client } = useXmppClient();
   const { user, config, langSource } = useChatSettingState();
   const { idSet } = useMessageHeapState();
+  const interactionsDisabled = Boolean(config?.disableInteractions);
+  const profilesDisabled = Boolean(config?.disableProfilesInteractions);
 
   // Read sender name live from usersSet so user-update stanzas trigger immediate re-render.
   const usersSet = useSelector((state: RootState) => state.rooms.usersSet);
@@ -64,7 +66,7 @@ const Message: React.FC<MessageProps> = forwardRef<
     x: number;
     y: number;
   } | null>(
-    config?.disableInteractions
+    interactionsDisabled
       ? null
       : {
           visible: false,
@@ -85,7 +87,7 @@ const Message: React.FC<MessageProps> = forwardRef<
   }, [message?.body]);
 
   const handleContextMenu = (event: React.MouseEvent | React.TouchEvent) => {
-    if (config?.disableInteractions) return;
+    if (interactionsDisabled) return;
 
     event.preventDefault();
     const menuWidth = 240;
@@ -133,7 +135,7 @@ const Message: React.FC<MessageProps> = forwardRef<
   };
 
   const handleUserAvatarClick = (user: IUser): void => {
-    if (user?.name === 'Deleted User') return;
+    if (profilesDisabled || user?.name === 'Deleted User') return;
     dispatch(setActiveModal(MODAL_TYPES.PROFILE));
     dispatch(setSelectedUser(user));
   };
@@ -334,7 +336,9 @@ const Message: React.FC<MessageProps> = forwardRef<
           {message.reaction && (
             <MessageReaction
               reaction={message.reaction}
-              changeReaction={handleReactionMessage}
+              changeReaction={
+                interactionsDisabled ? () => undefined : handleReactionMessage
+              }
               color={config.colors?.primary || '#0052CD'}
               userName={`${user.firstName} ${user.lastName}`}
             />
@@ -359,7 +363,7 @@ const Message: React.FC<MessageProps> = forwardRef<
         </button> */}
       </CustomMessageContainer>
 
-      {!config?.disableInteractions && (
+      {!interactionsDisabled && (
         <MessageInteractions
           isReply={isReply}
           isUser={isUser}

@@ -297,7 +297,8 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
           </ChatContainerHeaderBoxInfo>
         </div>
 
-        {!config?.disableChatInfo?.disableChatHeaderMenu && (
+        {!config?.disableRoomMenu &&
+          !config?.disableChatInfo?.disableChatHeaderMenu && (
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             {canCall && !isCallBusy && (
               <>
@@ -362,7 +363,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
               handleReportClick={handleReportClick}
             />
           </div>
-        )}
+          )}
       </ChatContainerHeader>
       {isLeaveModalOpen && (
         <ModalWrapper

@@ -201,12 +201,24 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
           return latestReusableClient;
         }
 
+        // We only reach this point because the earlier
+        // getReusableXmppClientByKey(clientKey) guard returned null —
+        // i.e. either there is no global client, or the one in the
+        // registry is bound to a DIFFERENT clientKey (different identity
+        // or host). In both "different key but still online" and
+        // "same instance held in React state" cases the previous
+        // condition (`staleGlobalClient !== client && !isXmppClientReusable`)
+        // silently skipped the disconnect and we ended up with two
+        // XmppClient instances racing the same JID resource — the XMPP
+        // server responded with `<stream:error><conflict/>Replaced by
+        // new connection`, both sides re-scheduled their reconnect, and
+        // the WS loop never settled (each successful `online` event
+        // resets `offlineReconnectAttempts` in xmppClient.ts:447, so the
+        // backoff cap never kicks in).
+        //
+        // Disconnect unconditionally before binding the new client.
         const staleGlobalClient = getGlobalXmppClient();
-        if (
-          staleGlobalClient &&
-          staleGlobalClient !== client &&
-          !isXmppClientReusable(staleGlobalClient)
-        ) {
+        if (staleGlobalClient) {
           try {
             await staleGlobalClient.disconnect?.({ suppressReconnect: true });
           } catch (error) {

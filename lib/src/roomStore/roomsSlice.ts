@@ -88,6 +88,30 @@ const initialState: RoomMessagesState = {
   loadingText: undefined,
 };
 
+const firstPositiveTimestamp = (...values: unknown[]): number => {
+  for (const value of values) {
+    const ts = getTimestampFromUnknown(value);
+    if (ts > 0) return ts;
+  }
+  return 0;
+};
+
+// A room without a read marker (the user never opened it on any device) must
+// still get a non-zero unread cutoff, otherwise computeUnreadForRoom treats
+// every message as "before the baseline" and the room-list badge can never
+// appear for that room. Anchor the baseline at the newest message we already
+// hold when the room first enters the store; rooms that arrive empty start
+// counting from "now".
+const resolveInitialUnreadBaseline = (messages: IMessage[]): number => {
+  const latest = messages?.[messages.length - 1];
+  const ts = firstPositiveTimestamp(
+    latest?.date,
+    (latest as { timestamp?: number })?.timestamp,
+    latest?.id
+  );
+  return ts > 0 ? ts : Date.now();
+};
+
 const getNormalizedSubscribedRooms = (subscribedRooms: unknown): string[] =>
   Array.isArray(subscribedRooms)
     ? subscribedRooms.filter((room): room is string => typeof room === 'string')
@@ -125,7 +149,7 @@ const getMessageTimestampValue = (message: IMessage): number => {
 };
 
 const getMessageKey = (message: IMessage): string =>
-  String(message?.xmppId || message?.id || '');
+  String(message?.id || message?.xmppId || '');
 
 const getMessageStableTieBreaker = (message: IMessage): string =>
   String(message?.xmppId || message?.id || '');
@@ -212,8 +236,19 @@ const mergeRoomMessages = (
     return incoming.map((message) => enrichMessageAuthor(message, usersSet));
   }
 
+  const all = [...existing, ...incoming];
+
+  const echoedClientIds = new Set<string>();
+  all.forEach((message) => {
+    if (message && !message.pending && message.xmppId) {
+      echoedClientIds.add(String(message.xmppId));
+    }
+  });
+
   const byId = new Map<string, IMessage>();
-  [...existing, ...incoming].forEach((message) => {
+  all.forEach((message) => {
+    if (!message) return;
+    if (message.pending && echoedClientIds.has(String(message.id))) return;
     const key = getMessageKey(message);
     if (!key) return;
     byId.set(key, enrichMessageAuthor(message, usersSet));
@@ -290,16 +325,13 @@ const roomsStore = createSlice({
         ...roomData,
         title: roomData.title || existing?.title || roomData.title,
         usersCnt: (() => {
-          const incoming =
-            typeof roomData.usersCnt === 'number' && roomData.usersCnt > 0
-              ? roomData.usersCnt
-              : 0;
-          const previous =
-            typeof existing?.usersCnt === 'number' && existing.usersCnt > 0
-              ? existing.usersCnt
-              : 0;
-          if (incoming === 0 && previous === 0) return roomData.usersCnt;
-          return Math.max(incoming, previous);
+          if (Array.isArray(roomData.members)) {
+            return roomData.members.length;
+          }
+          if (typeof roomData.usersCnt === 'number' && roomData.usersCnt > 0) {
+            return roomData.usersCnt;
+          }
+          return existing?.usersCnt ?? roomData.usersCnt;
         })(),
         icon: roomData.icon ?? existing?.icon,
         messages:
@@ -308,11 +340,15 @@ const roomsStore = createSlice({
         lastViewedTimestamp:
           existing?.lastViewedTimestamp ?? roomData.lastViewedTimestamp ?? 0,
         unreadBaselineTimestamp:
-          existing?.unreadBaselineTimestamp ??
-          existing?.lastViewedTimestamp ??
-          roomData.unreadBaselineTimestamp ??
-          roomData.lastViewedTimestamp ??
-          0,
+          firstPositiveTimestamp(
+            existing?.unreadBaselineTimestamp,
+            existing?.lastViewedTimestamp,
+            roomData.unreadBaselineTimestamp,
+            roomData.lastViewedTimestamp
+          ) ||
+          resolveInitialUnreadBaseline(
+            existingMessages.length > 0 ? existingMessages : incomingMessages
+          ),
         composingList: existing?.composingList ?? roomData.composingList,
         composing: existing?.composing ?? roomData.composing,
         unreadCapped:
@@ -792,16 +828,13 @@ const roomsStore = createSlice({
         ...room,
         title: room.title || existing?.title || room.title,
         usersCnt: (() => {
-          const incoming =
-            typeof room.usersCnt === 'number' && room.usersCnt > 0
-              ? room.usersCnt
-              : 0;
-          const previous =
-            typeof existing?.usersCnt === 'number' && existing.usersCnt > 0
-              ? existing.usersCnt
-              : 0;
-          if (incoming === 0 && previous === 0) return room.usersCnt;
-          return Math.max(incoming, previous);
+          if (Array.isArray(room.members)) {
+            return room.members.length;
+          }
+          if (typeof room.usersCnt === 'number' && room.usersCnt > 0) {
+            return room.usersCnt;
+          }
+          return existing?.usersCnt ?? room.usersCnt;
         })(),
         icon: room.icon ?? existing?.icon,
         messages:
@@ -810,11 +843,15 @@ const roomsStore = createSlice({
         lastViewedTimestamp:
           existing?.lastViewedTimestamp ?? room.lastViewedTimestamp ?? 0,
         unreadBaselineTimestamp:
-          existing?.unreadBaselineTimestamp ??
-          existing?.lastViewedTimestamp ??
-          room.unreadBaselineTimestamp ??
-          room.lastViewedTimestamp ??
-          0,
+          firstPositiveTimestamp(
+            existing?.unreadBaselineTimestamp,
+            existing?.lastViewedTimestamp,
+            room.unreadBaselineTimestamp,
+            room.lastViewedTimestamp
+          ) ||
+          resolveInitialUnreadBaseline(
+            existingMessages.length > 0 ? existingMessages : incomingMessages
+          ),
         composingList: existing?.composingList ?? room.composingList,
         composing: existing?.composing ?? room.composing,
         unreadCapped: existing?.unreadCapped ?? room.unreadCapped ?? false,

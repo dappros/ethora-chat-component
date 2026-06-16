@@ -22,8 +22,13 @@ import { setDeleteModal, updateUser } from '../roomStore/chatSettingsSlice';
 import { getDataFromXml } from '../helpers/getDataFromXml';
 import { getBooleanFromString } from '../helpers/getBooleanFromString';
 import { getNumberFromString } from '../helpers/getNumberFromString';
-import { getRooms } from '../networking/api-requests/rooms.api';
+import {
+  getRoomByName,
+  getRooms,
+  invalidateRoomsCache,
+} from '../networking/api-requests/rooms.api';
 import { createRoomFromApi } from '../helpers/createRoomFromApi';
+import { MEMBERS_REFRESH_XMLNS } from './xmpp/notifyMembersChanged.xmpp';
 import XmppClient from './xmppClient';
 import { checkSingleUser } from '../helpers/checkUniqueUsers';
 import { removeMessageFromHeapById } from '../roomStore/roomHeapSlice';
@@ -385,16 +390,107 @@ const handleComposing = async (stanza: Element, currentUser: string) => {
 };
 
 const onPresenceInRoom = (stanza: Element | any) => {
-  const stanzaId: string | undefined = stanza?.attrs?.id;
-  if (
-    typeof stanzaId === 'string' &&
-    stanzaId.startsWith('presenceInRoom') &&
-    !stanza.getChild('error')
-  ) {
-    const roomJID: string = stanza.attrs.from.split('/')[0];
-    const role: string = stanza?.children[1]?.children[0]?.attrs.role;
-    store.dispatch(setRoomRole({ chatJID: roomJID, role: role }));
+  // Only process actual <presence> stanzas. The dispatcher in
+  // handleStanzas.xmpp.ts also calls this from the 'message' and 'iq'
+  // branches, where the old id-based guard was at best a no-op and at
+  // worst would misfire on broadcast frames whose id is forwarded
+  // verbatim by the MUC server.
+  if (!stanza?.is?.('presence')) return;
+  if (stanza.getChild?.('error')) return;
+
+  const from: string = stanza.attrs?.from || '';
+  if (!from) return;
+
+  const slashIdx = from.indexOf('/');
+  const roomJID = slashIdx >= 0 ? from.slice(0, slashIdx) : from;
+  const nickname = slashIdx >= 0 ? from.slice(slashIdx + 1) : '';
+  if (!roomJID) return;
+
+  const state = store.getState();
+  const room = state.rooms.rooms[roomJID];
+  if (!room) return;
+
+  const myXmppUsername = state.chatSettingStore.user?.xmppUsername || '';
+  const isOwn = !!myXmppUsername && nickname === myXmppUsername;
+
+  const xChildren =
+    (typeof stanza.getChildren === 'function' && stanza.getChildren('x')) || [];
+  const mucUserX = xChildren.find(
+    (e: Element) => e.attrs?.xmlns === 'http://jabber.org/protocol/muc#user'
+  );
+  const item =
+    typeof mucUserX?.getChild === 'function' ? mucUserX.getChild('item') : null;
+
+  if (isOwn) {
+    // Server-echoed presence for our own join — keep the prior behavior of
+    // recording our role in the room. Gate on the id we send out from the
+    // wrapper so we don't conflate broadcast frames the server happened to
+    // forward with the same id prefix.
+    const stanzaId: string | undefined = stanza?.attrs?.id;
+    if (
+      item &&
+      typeof stanzaId === 'string' &&
+      stanzaId.startsWith('presenceInRoom')
+    ) {
+      const role: string = item.attrs?.role || '';
+      store.dispatch(setRoomRole({ chatJID: roomJID, role }));
+    }
+    return;
   }
+
+  // Broadcast presence from another room occupant. The MUC server forwards
+  // affiliation changes to everyone already in the room as a <presence>
+  // (in addition to the <message><x muc#user> path covered by
+  // onRoomMembershipChange, which not every server sends on REST-driven
+  // additions). Reflecting the change in members[] here is what makes the
+  // ChatHeader count update LIVE for all currently-connected occupants —
+  // not just for the inviter, who already got the count from their own
+  // explicit /chats/my refetch + redux dispatch.
+  if (!item) return;
+
+  const affiliation: string = item.attrs?.affiliation || '';
+  const isLeaving = stanza.attrs?.type === 'unavailable';
+  const isKickedOut =
+    isLeaving && (affiliation === 'none' || affiliation === 'outcast');
+  const isPersistentMember =
+    !isLeaving &&
+    (affiliation === 'owner' ||
+      affiliation === 'admin' ||
+      affiliation === 'member');
+
+  if (!isKickedOut && !isPersistentMember) {
+    // affiliation=none on a join (transient guest), unrelated role-only
+    // change, etc. — nothing to write to members[].
+    return;
+  }
+
+  const members = Array.isArray(room.members) ? room.members : [];
+  const idx = members.findIndex((m) => m.xmppUsername === nickname);
+
+  let next: typeof members;
+  if (isKickedOut) {
+    if (idx < 0) return;
+    next = members.filter((_, i) => i !== idx);
+  } else {
+    if (idx >= 0) return;
+    next = [
+      ...members,
+      {
+        _id: '',
+        firstName: '',
+        lastName: '',
+        xmppUsername: nickname,
+        jid: '',
+      } as RoomMember,
+    ];
+  }
+
+  store.dispatch(
+    updateRoom({
+      jid: roomJID,
+      updates: { members: next, usersCnt: next.length },
+    })
+  );
 };
 
 const onChatInvite = async (stanza: Element, client: XmppClient) => {
@@ -659,6 +755,55 @@ const onRoomMembershipChange = (stanza: Element) => {
       updates: { members: next, usersCnt: next.length },
     })
   );
+};
+
+// Treat a groupchat message carrying a <members-refresh
+// xmlns="ethora:chats:members-refresh"/> child as a wake-up signal:
+// some peer just mutated this room's membership server-side (typically
+// via REST /chats/users-access) and is asking everyone else in the room
+// to pull the authoritative state. We refetch /chats/my/<name>, build
+// an IRoom from it, and push it through addRoomViaApi → addRoomFromApi
+// — the same path /chats/my load uses — so members[] gains the new
+// user with full firstName/lastName/_id and usersCnt is recomputed
+// from members.length (see addRoomFromApi reducer fix).
+//
+// Compared with synthesizing a member entry from a nickname-only XMPP
+// payload, this avoids:
+//   - Phantom rows in the room profile (empty firstName/lastName).
+//   - Double-adds when both nickname-carrying and jid-carrying frames
+//     arrive (e.g. our notify plus a server-side broadcast).
+//   - Trusting XMPP-side data for membership; the server is the only
+//     source of truth, and we validate everything against it.
+const onMembersRefreshSignal = (stanza: Element, xmpp: XmppClient) => {
+  if (!stanza.is('message')) return;
+  const refresh = stanza.getChild('members-refresh');
+  if (!refresh || refresh.attrs?.xmlns !== MEMBERS_REFRESH_XMLNS) return;
+
+  const from = String(stanza.attrs.from || '');
+  const roomJid = from.split('/')[0];
+  if (!roomJid || !store.getState().rooms.rooms[roomJid]) return;
+
+  const atIdx = roomJid.indexOf('@');
+  if (atIdx <= 0) return;
+  const roomName = roomJid.slice(0, atIdx);
+  const conference = roomJid.slice(atIdx + 1);
+
+  // /chats/my has a 60s in-memory cache — drop it so anything later in
+  // the package that calls getRooms() also sees the post-mutation state.
+  invalidateRoomsCache();
+
+  void getRoomByName(roomName)
+    .then((apiRoom) => {
+      if (!apiRoom) return;
+      const room = createRoomFromApi(apiRoom, conference);
+      if (!room) return;
+      store.dispatch(addRoomViaApi({ room, xmpp }));
+    })
+    .catch(() => {
+      // Refetch can legitimately fail (the receiver may not be a
+      // member of the room anymore, network blip, etc.). Swallow —
+      // count just won't update for this client until the next sync.
+    });
 };
 
 const onRoomKicked = async (stanza: Element) => {
@@ -968,6 +1113,7 @@ export {
   onChatInvite,
   onRoomKicked,
   onRoomMembershipChange,
+  onMembersRefreshSignal,
   onMessageError,
   onUserUpdate,
   onChatUpdate,

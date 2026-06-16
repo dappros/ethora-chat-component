@@ -22,11 +22,116 @@ export interface FBConfig {
   appId: string;
 }
 
+/**
+ * A single self-hosted font file to register via an injected `@font-face`
+ * rule. Use this for fonts that are not on Google Fonts — e.g. the Ukrainian
+ * government "e-Ukraine" family distributed from thedigital.gov.ua. Host the
+ * `.woff2`/`.ttf` somewhere reachable and point `src` at it.
+ */
+export interface FontFaceSource {
+  /** The `font-family` name this file provides, e.g. "e-Ukraine". */
+  family: string;
+  /** Absolute or relative URL to the font file (`.woff2`, `.woff`, `.ttf`, `.otf`). */
+  src: string;
+  /** Numeric weight this file covers (e.g. 400, 500, 700). Default 400. */
+  weight?: number | string;
+  /** Style this file covers. Default "normal". */
+  style?: 'normal' | 'italic';
+  /** `font-display` strategy. Default "swap" to avoid invisible text. */
+  display?: 'auto' | 'block' | 'swap' | 'fallback' | 'optional';
+}
+
+/**
+ * Font configuration for the chat UI. When omitted, the component keeps its
+ * default system font stack, so existing integrations are unaffected.
+ *
+ * Two loading paths are supported and can be combined:
+ *  - `googleFontsUrl` / `googleFontsFamily` → a Google Fonts stylesheet is
+ *    injected at runtime (no host setup needed).
+ *  - `fontFaces` → `@font-face` rules are injected for self-hosted files
+ *    (e.g. e-Ukraine).
+ *
+ * `fontFamily` is the family actually applied to the chat (via the
+ * `--ethora-font-family` CSS variable). It should match a family you loaded
+ * above, optionally followed by fallbacks, e.g. "e-Ukraine, Inter, sans-serif".
+ */
+export interface TypographyConfig {
+  /** Family applied to the chat UI, optionally with fallbacks. */
+  fontFamily?: string;
+  /**
+   * Base font size for chat text. A number is treated as pixels (e.g. `18`),
+   * a string is used verbatim if it carries a unit (`"1.1rem"`, `"18px"`) or
+   * parsed as pixels otherwise. Published as the `--ethora-font-size` CSS
+   * variable (plus derived `-xs` / `-sm` / `-lg` variants) which the chat's
+   * text styles read, so message text, sender names, timestamps, inputs,
+   * room names and badges all scale proportionally. Default 16px.
+   */
+  fontSize?: number | string;
+  /** A full Google Fonts stylesheet URL, e.g.
+   * "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap". */
+  googleFontsUrl?: string;
+  /** Convenience: a Google family name (e.g. "Inter"); a stylesheet URL is
+   * built for the weights below. Ignored if `googleFontsUrl` is set. */
+  googleFontsFamily?: string;
+  /** Self-hosted `@font-face` sources (e.g. e-Ukraine .woff2 files). */
+  fontFaces?: FontFaceSource[];
+  /** Weight tokens used by the chat; also drives the generated Google URL. */
+  weights?: {
+    regular?: number;
+    medium?: number;
+    semibold?: number;
+    bold?: number;
+  };
+}
+
 export interface IConfig {
   appId?: string;
   disableHeader?: boolean;
   disableMedia?: boolean;
-  colors?: { primary: string; secondary: string };
+  colors?: {
+    primary: string;
+    secondary: string;
+    /**
+     * Default colour applied to the chat's icons (attach, microphone, send,
+     * file, empty-state illustrations, etc.). When omitted, icons fall back
+     * to `primary`. Set to a specific colour to decouple icons from the
+     * primary theme colour.
+     */
+    icons?: string;
+    /** Background colour of the user's own message bubbles. Default #E7EDF9. */
+    ownMessageBackground?: string;
+    /** Background colour of other users' message bubbles. Default #FFFFFF. */
+    otherMessageBackground?: string;
+    /** Background colour of the message input bar. Default #FFFFFF. */
+    inputBackground?: string;
+  };
+  /** Configurable font family / size / weights for the chat UI. See TypographyConfig. */
+  typography?: TypographyConfig;
+  /**
+   * Custom screens shown instead of the built-in Ethora UI when the chat
+   * cannot be displayed. Each value may be a plain string (rendered as
+   * centered text) or any React node. When a value is omitted, the default
+   * built-in UI for that state (e.g. the Ethora login form) is kept.
+   */
+  fallbackScreens?: {
+    /** Replaces the default Ethora login form when there is no user session. */
+    noUser?: React.ReactNode;
+    /** Shown when the XMPP connection is lost / cannot be established. */
+    noConnection?: React.ReactNode;
+    /** Shown when the user has no chat room to display. */
+    noRoom?: React.ReactNode;
+  };
+  /**
+   * Hide specific rooms from the room list and unread counters without
+   * leaving them. Useful to suppress auto-created rooms such as the default
+   * "Main chat" created with a new Ethora app.
+   */
+  hiddenRooms?: {
+    /** Case-insensitive exact room titles to hide, e.g. ["Main chat"]. */
+    titles?: string[];
+    /** Full room JIDs to hide. */
+    jids?: string[];
+  };
   googleLogin?: {
     enabled: boolean;
     firebaseConfig: FBConfig;

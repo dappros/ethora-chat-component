@@ -355,7 +355,11 @@ Below is a grouped reference for all `config` options.
 | `headerLogo` | `string \| React.ReactElement` | Custom logo in header. |
 | `headerMenu` | `() => void` | Custom menu handler. |
 | `headerChatMenu` | `() => void` | Custom room header menu handler. |
-| `colors` | `{ primary: string; secondary: string }` | Theme colors for component UI. |
+| `colors` | `{ primary; secondary; icons?; ownMessageBackground?; otherMessageBackground?; inputBackground? }` | Theme colours. `primary` drives icon colours and the sender name. `icons` themes every accent icon/icon-button (attach, mic, active send, new-chat, header, empty-state) — defaults to `primary`, so set a *distinct* value to decouple. `ownMessageBackground`/`otherMessageBackground`/`inputBackground` recolour the message bubbles and input bar. |
+| `backgroundChat` | `{ color?; image? }` | Background colour and/or image for the messages area. (`image` as a string URL; pass an object URL for a `File`.) |
+| `typography` | `TypographyConfig` | Font family + size for the chat UI: `fontFamily` (or just `googleFontsFamily`) is applied across all chat text incl. messages and sender names; `fontSize` (px) scales message text, sender names, timestamps, inputs, room names and badges. Plus loaders (`googleFontsUrl`/`fontFaces`) and weight tokens. |
+| `fallbackScreens` | `{ noUser?; noConnection?; noRoom? }` | Replace the built-in screens (Ethora login form, "Connecting...", empty room state) with your own text or React nodes. A plain string is rendered as centered text. |
+| `hiddenRooms` | `{ titles?: string[]; jids?: string[] }` | Hide specific rooms from the room list and unread counters (e.g. `{ titles: ['Main chat'] }` to suppress the auto-created default room). |
 | `roomListStyles` | `React.CSSProperties` | Styles for room list pane. |
 | `chatRoomStyles` | `React.CSSProperties` | Styles for chat pane. |
 | `noMessagesPlaceholder` | `React.ComponentType` | Replace empty-chat placeholder component (same render position as default placeholder). |
@@ -602,7 +606,7 @@ function PushPermissionButton() {
 | --- | --- | --- |
 | `Chat` | React component | Main chat component. |
 | `XmppProvider` | React provider | Provides XMPP client context for internal hooks/state. |
-| `useUnread` | hook | Returns unread counters. |
+| `useUnread` | hook | Returns unread counters (`totalCount`, per-room maps) plus a `loading` flag that stays `true` until the room list has loaded at least once. |
 | `logoutService` | service | Programmatic logout utility. |
 | `useQRCodeChat` | hook | Handle QR-based room links. |
 | `handleQRChatId` | function | Parse/process QR chat ID from URL. |
@@ -616,11 +620,11 @@ Basic hook usage:
 import { useUnread, logoutService } from '@ethora/chat-component';
 
 function HeaderActions() {
-  const { totalCount } = useUnread();
+  const { totalCount, loading } = useUnread();
 
   return (
     <div>
-      <span>Unread: {totalCount}</span>
+      <span>{loading ? 'Loading…' : `Unread: ${totalCount}`}</span>
       <button onClick={() => logoutService.performLogout()}>Logout</button>
     </div>
   );

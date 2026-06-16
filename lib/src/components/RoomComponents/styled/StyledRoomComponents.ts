@@ -32,7 +32,7 @@ export const NewMessageMarker = styled.div`
   font-weight: 600;
   min-width: 24px;
   min-height: 24px;
-  font-size: 14px;
+  font-size: var(--ethora-font-size-sm, 14px);
   display: flex;
   justify-content: center;
   align-items: center;

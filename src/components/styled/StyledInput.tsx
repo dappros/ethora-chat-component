@@ -19,7 +19,7 @@ const InputWrapper = styled.div`
 `;
 
 const Label = styled.label`
-  font-size: 14px;
+  font-size: var(--ethora-font-size-sm, 14px);
   color: #8c8c8c;
   margin-bottom: 4px;
   margin-left: 8px;
@@ -32,7 +32,7 @@ const StyledInput = styled.input<{ color?: string; error?: boolean }>`
   border: 1px solid ${(props) => (props.error ? 'red' : 'transparent')};
   color: #141414;
   background-color: #f5f7f9;
-  font-size: 16px;
+  font-size: var(--ethora-font-size, 16px);
   box-sizing: border-box;
 
   &:focus {
@@ -44,7 +44,7 @@ const StyledInput = styled.input<{ color?: string; error?: boolean }>`
 `;
 
 const HelperText = styled.span<{ error?: boolean }>`
-  font-size: 12px;
+  font-size: var(--ethora-font-size-xs, 12px);
   color: ${(props) => (props.error ? 'red' : '#8c8c8c')};
   margin-top: 4px;
   margin-left: 8px;

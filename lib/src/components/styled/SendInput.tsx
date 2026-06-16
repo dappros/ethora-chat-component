@@ -23,6 +23,7 @@ import AudioRecorder from '../InputComponents/AudioRecorder';
 import { IConfig } from '../../types/types';
 import Button from './Button';
 import { AttachIcon, FileIcon, RemoveIcon, SendIcon } from '../../assets/icons';
+import { resolveIconColor } from '../../helpers/resolveIconColor';
 import { parseMessageBody } from '../../helpers/parseMessageBody';
 
 export interface SendInputProps {
@@ -271,9 +272,9 @@ const SendInput: React.FC<SendInputProps> = ({
     } else if (fileType === 'video') {
       return <VideoPreview src={fileUrl} controls />;
     } else {
-      return <FileIcon alt={file.name} />;
+      return <FileIcon alt={file.name} color={resolveIconColor(config)} />;
     }
-  }, []);
+  }, [config]);
 
   const memoizedFilePreviews = useMemo(() => {
     return filePreviews.map(
@@ -307,7 +308,7 @@ const SendInput: React.FC<SendInputProps> = ({
               <Button
                 onClick={handleAttachClick}
                 disabled={false}
-                EndIcon={<AttachIcon />}
+                EndIcon={<AttachIcon color={resolveIconColor(config)} />}
               />
             )}
             {multiline ? (
@@ -365,10 +366,10 @@ const SendInput: React.FC<SendInputProps> = ({
                   borderRadius: '100px',
                   backgroundColor:
                     filePreviews.length > 0
-                      ? config?.colors?.primary
+                      ? resolveIconColor(config)
                       : !message || message === ''
                         ? 'transparent'
-                        : config?.colors?.primary,
+                        : resolveIconColor(config),
                   ...config?.secondarySendButton.buttonStyles,
                 }}
                 EndIcon={
@@ -408,10 +409,10 @@ const SendInput: React.FC<SendInputProps> = ({
                   borderRadius: '100px',
                   backgroundColor:
                     filePreviews.length > 0
-                      ? config?.colors?.primary
+                      ? resolveIconColor(config)
                       : !message || message === ''
                         ? 'transparent'
-                        : config?.colors?.primary,
+                        : resolveIconColor(config),
                 }}
               />
             )}

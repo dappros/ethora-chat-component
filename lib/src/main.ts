@@ -16,6 +16,15 @@ export { useInAppNotifications } from './hooks/useInAppNotifications';
 export { default as usePushNotifications } from './hooks/usePushNotifications';
 export { resendMessage } from './utils/resendMessage';
 
+// Font configuration: types + the runtime loader, so hosts can also apply
+// a font outside the <Chat> tree if needed.
+export { applyTypography, clearTypography } from './helpers/applyTypography';
+export { useTypography } from './hooks/useTypography';
+export type {
+  TypographyConfig,
+  FontFaceSource,
+} from './types/models/config.model';
+
 // Stable `data-testid` constants — exposed so host apps that consume
 // this package (e.g. ethora-app-reactjs) can resolve chat-component
 // nodes in their own Playwright / Cypress tests without re-typing

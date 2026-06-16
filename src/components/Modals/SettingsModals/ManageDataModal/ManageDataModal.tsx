@@ -8,6 +8,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../../../roomStore';
 import styled from 'styled-components';
 import { InfoIcon } from '../../../../assets/icons';
+import { resolveIconColor } from '../../../../helpers/resolveIconColor';
 import { getExportMyData } from '../../../../networking/api-requests/user.api';
 import { ethoraLogger } from '../../../../helpers/ethoraLogger';
 import {
@@ -100,7 +101,7 @@ const ManageDataModal: React.FC<ManageDataModalProps> = ({
             bgColor={config?.colors?.secondary || '#F3F6FC'}
           >
             <div>
-              <InfoIcon color={config?.colors?.primary} />
+              <InfoIcon color={resolveIconColor(config)} />
             </div>
             <SharedSettingsInfoText>
               Due to the immutable nature of distributed ledger technology,

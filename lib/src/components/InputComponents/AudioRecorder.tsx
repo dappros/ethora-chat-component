@@ -6,6 +6,8 @@ import {
 import { RecordIcon, RemoveIcon, SendIcon } from '../../assets/icons';
 import Button from '../styled/Button';
 import RecordingIndicator from './RecordingIndicator';
+import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { resolveIconColor } from '../../helpers/resolveIconColor';
 
 interface AudioRecorderProps {
   setIsRecording: (state: boolean) => void;
@@ -18,6 +20,8 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
   isRecording,
   handleSendClick,
 }) => {
+  const { config } = useChatSettingState();
+  const iconColor = resolveIconColor(config);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [timer, setTimer] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -119,11 +123,15 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
 
       <div style={{ display: 'flex', gap: '8px' }}>
         <Button onClick={stopRecording} EndIcon={<RemoveIcon />} unstyled />
-        <Button onClick={sendAudio} EndIcon={<SendIcon />} unstyled />
+        <Button
+          onClick={sendAudio}
+          EndIcon={<SendIcon color={iconColor} />}
+          unstyled
+        />
       </div>
     </RecordContainer>
   ) : (
-    <Button onClick={startRecording} EndIcon={<RecordIcon />} />
+    <Button onClick={startRecording} EndIcon={<RecordIcon color={iconColor} />} />
   );
 };
 

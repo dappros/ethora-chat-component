@@ -39,7 +39,7 @@ export const ChatContainerHeaderInfo = styled.div`
 export const ChatContainerHeaderLabel = styled.div`
   color: #141414;
   font-weight: 600;
-  font-size: 16px;
+  font-size: var(--ethora-font-size, 16px);
 `;
 
 export const NonRoomChat = styled.div`
@@ -62,7 +62,10 @@ export const MessagesScroll = styled.div<{ color?: string }>`
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: #f3f6fc;
+  background-color: var(--ethora-chat-bg, #f3f6fc);
+  background-image: var(--ethora-chat-bg-image, none);
+  background-size: cover;
+  background-position: center;
   padding: 0px 16px;
 
   transition: height 0.3s ease-in-out; /* Smooth height transition */
@@ -182,26 +185,31 @@ export const CustomMessageBubble = styled.div<{
   display: flex;
   flex-direction: column;
   background-color: ${(props) =>
-    props.$deleted ? '#dfdfdf' : props.$isUser ? '#E7EDF9' : '#FFFFFF'};
+    props.$deleted
+      ? '#dfdfdf'
+      : props.$isUser
+        ? 'var(--ethora-own-message-bg, #E7EDF9)'
+        : 'var(--ethora-other-message-bg, #FFFFFF)'};
   position: relative;
 `;
 
 export const CustomMessageText = styled.div`
   margin: 0px;
   word-wrap: break-word;
+  font-family: var(--ethora-font-family, 'Open Sans', sans-serif);
+  font-size: var(--ethora-font-size, 16px);
 `;
 
 export const CustomUserName = styled.span<{ $isUser: boolean; $color?: string }>`
-  font-family: 'Open Sans', sans-serif;
+  font-family: var(--ethora-font-family, 'Open Sans', sans-serif);
   font-weight: 600;
-  font-size: 18px;
-  color: ${(props) =>
-    props.$isUser ? (props?.$color ? props?.$color : '#0052CD') : '#0052cd'};
+  font-size: var(--ethora-font-size-lg, 18px);
+  color: ${(props) => props?.$color || '#0052CD'};
   margin-bottom: 8px;
 `;
 
 export const CustomMessageTimestamp = styled.span`
-  font-size: 0.75rem;
+  font-size: var(--ethora-font-size-xs, 0.75rem);
   align-self: flex-end;
   color: #8f8f8f;
   display: flex;

@@ -1,5 +1,7 @@
 import { styled } from 'styled-components';
-import { NoSelectedChatIcon } from '../../assets/icons';
+import { EmptyChatIllustration } from '../../assets/illustrations/EmptyChatIllustration';
+import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { resolveIconColor } from '../../helpers/resolveIconColor';
 
 export const ChooseChatMessageContainer = styled.div`
   height: 100%;
@@ -19,20 +21,22 @@ export const ChooseChatMessageContainerBoxText = styled.div`
 `;
 
 export const ChooseChatTitle = styled.div`
-  font-size: 16px;
+  font-size: var(--ethora-font-size, 16px);
   color: #141414;
   font-weight: 600;
 `;
 
 export const ChooseChatDescription = styled.div`
-  font-size: 14px;
+  font-size: var(--ethora-font-size-sm, 14px);
   color: #141414;
 `;
 
 export const ChooseChatMessage = () => {
+  const { config } = useChatSettingState();
+
   return (
     <ChooseChatMessageContainer>
-    <NoSelectedChatIcon />
+    <EmptyChatIllustration width={240} style={{ color: resolveIconColor(config) }} />
     <ChooseChatMessageContainerBoxText>
       <ChooseChatTitle>
         Start a Conversation

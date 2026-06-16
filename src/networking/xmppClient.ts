@@ -15,6 +15,7 @@ import { getRoomInfo } from './xmpp/getRoomInfo.xmpp';
 import { leaveTheRoom } from './xmpp/leaveTheRoom.xmpp';
 import { editMessage } from './xmpp/editMessage.xmpp';
 import { inviteRoomRequest } from './xmpp/inviteRoomRequest.xmpp';
+import { notifyMembersChanged } from './xmpp/notifyMembersChanged.xmpp';
 import { getRooms } from './xmpp/getRooms.xmpp';
 import { handleStanza } from './xmpp/handleStanzas.xmpp';
 import { setVcard } from './xmpp/setVCard.xmpp';
@@ -308,6 +309,15 @@ export class XmppClient implements XmppClientInterface {
 
       if (this.client.setMaxListeners) {
         this.client.setMaxListeners(50);
+      }
+
+      try {
+        (this.client as any)?.reconnect?.stop?.();
+      } catch (error) {
+        ethoraLogger.log(
+          '[XMPP] failed to stop @xmpp/reconnect plugin',
+          error
+        );
       }
 
       this.attachEventListeners();
@@ -1621,6 +1631,12 @@ export class XmppClient implements XmppClientInterface {
   async inviteRoomRequestStanza(to: string, roomJid: string) {
     return this.wrapWithConnectionCheck(async () => {
       await inviteRoomRequest(this.client, to, roomJid);
+    });
+  }
+
+  async notifyMembersChangedStanza(roomJid: string) {
+    return this.wrapWithConnectionCheck(async () => {
+      await notifyMembersChanged(this.client, roomJid, this.username);
     });
   }
 
