@@ -6,6 +6,7 @@ import {
   GroupContainer,
 } from '../styledModalComponents';
 import InputWithLabel from '../../styled/StyledInput';
+import { useChatSettingState } from '../../../hooks/useChatSettingState';
 import Select from '../../MainComponents/Select';
 import Button from '../../styled/Button';
 import UsersList from '../../UsersList/UsersList';
@@ -51,6 +52,7 @@ const ModalContent: React.FC<ModalContentProps> = ({
   setErrors,
   options,
 }) => {
+  const { config } = useChatSettingState();
   return (
     <ModalContainer>
       <CloseButton onClick={handleCloseModal} style={{ fontSize: 24 }}>
@@ -80,6 +82,7 @@ const ModalContent: React.FC<ModalContentProps> = ({
           >
             <InputWithLabel
               style={{ flex: 1 }}
+              colorBg={config?.colors?.colorInput}
               id="roomName"
               value={roomName}
               onChange={handleRoomNameChange}

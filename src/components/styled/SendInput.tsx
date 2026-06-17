@@ -315,6 +315,7 @@ const SendInput: React.FC<SendInputProps> = ({
               <TextareaWrapper
                 $dynamicHeight={textareaHeight}
                 $color={config?.colors?.primary}
+                $colorBg={config?.colors?.colorInput}
                 $isFocused={isFocused}
               >
                 <TextareaInput
@@ -328,11 +329,13 @@ const SendInput: React.FC<SendInputProps> = ({
                   disabled={isLoading || isMessageProcessing}
                   $dynamicHeight={textareaHeight}
                   $color={config?.colors?.primary}
+                  $colorBg={config?.colors?.colorInput}
                 />
               </TextareaWrapper>
             ) : (
               <MessageInput
                 $color={config?.colors?.primary}
+                $colorBg={config?.colors?.colorInput}
                 placeholder={placeholderText || 'Type message'}
                 value={message}
                 onChange={handleInputChange}

@@ -98,6 +98,7 @@ export interface IConfig {
     otherMessageBackground?: string;
     /** Background colour of the message input bar. Default #FFFFFF. */
     inputBackground?: string;
+    colorInput?: string;
   };
   /** Configurable font family / size / weights for the chat UI. See TypographyConfig. */
   typography?: TypographyConfig;

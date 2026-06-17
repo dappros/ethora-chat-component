@@ -87,6 +87,7 @@ export const ModalReportChat: FC = () => {
             {reportChoose.name === 'Other' ? (
               <MessageInput
                 color={config?.colors?.primary}
+                $colorBg={config?.colors?.colorInput}
                 placeholder="Type message"
                 value={message}
                 onChange={handleInputChange}

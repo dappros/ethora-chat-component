@@ -4,6 +4,7 @@ import styled from 'styled-components';
 interface StyledInputProps {
   label?: string;
   color?: string;
+  colorBg?: string;
   helperText?: string;
   error?: boolean;
   [key: string]: any;
@@ -25,13 +26,17 @@ const Label = styled.label`
   margin-left: 8px;
 `;
 
-const StyledInput = styled.input<{ color?: string; error?: boolean }>`
+const StyledInput = styled.input<{
+  color?: string;
+  error?: boolean;
+  $colorBg?: string;
+}>`
   width: 100%;
   padding: 12px 16px;
   border-radius: 12px;
   border: 1px solid ${(props) => (props.error ? 'red' : 'transparent')};
   color: #141414;
-  background-color: #f5f7f9;
+  background-color: ${({ $colorBg }) => ($colorBg ? $colorBg : '#f5f7f9')};
   font-size: var(--ethora-font-size, 16px);
   box-sizing: border-box;
 
@@ -39,7 +44,7 @@ const StyledInput = styled.input<{ color?: string; error?: boolean }>`
     border: 1px solid
       ${(props) => (props.error ? 'red' : props.color || '#0052CD')};
     outline: none;
-    background-color: #f5f7f9;
+    background-color: ${({ $colorBg }) => ($colorBg ? $colorBg : '#f5f7f9')};
   }
 `;
 
@@ -55,6 +60,7 @@ const HelperText = styled.span<{ error?: boolean }>`
 const InputWithLabel: React.FC<StyledInputProps> = ({
   label,
   color,
+  colorBg,
   helperText,
   error,
   ...rest
@@ -62,7 +68,7 @@ const InputWithLabel: React.FC<StyledInputProps> = ({
   return (
     <InputWrapper>
       {label && <Label>{label}</Label>}
-      <StyledInput color={color} error={error} {...rest} />
+      <StyledInput color={color} $colorBg={colorBg} error={error} {...rest} />
       {helperText && <HelperText error={error}>{helperText}</HelperText>}
     </InputWrapper>
   );

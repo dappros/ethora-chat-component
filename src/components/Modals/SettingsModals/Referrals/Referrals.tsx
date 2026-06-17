@@ -52,6 +52,7 @@ const ReferralsModal: React.FC<ReferralsModalProps> = ({
           </SharedSettingsStyledLabel>
           <StyledInput
             color={config?.colors?.primary}
+            $colorBg={config?.colors?.colorInput}
             placeholder="Your invitation code"
             // label={'About'}
             // value={message}
@@ -68,6 +69,7 @@ const ReferralsModal: React.FC<ReferralsModalProps> = ({
           </SharedSettingsStyledLabel>
           <StyledInput
             color={config?.colors?.primary}
+            $colorBg={config?.colors?.colorInput}
             placeholder="Your referral code"
             // label={'About'}
             // value={message}

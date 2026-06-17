@@ -43,6 +43,7 @@ const TextInput: React.FC<TextInputProps> = ({
     <>
       <MessageInput
         color={config?.colors?.primary}
+        $colorBg={config?.colors?.colorInput}
         placeholder="Type message"
         value={message}
         onChange={handleInputChange}

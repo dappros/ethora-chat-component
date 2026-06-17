@@ -87,6 +87,7 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
               }}
             >
               <StyledInput
+                $colorBg={config?.colors?.colorInput}
                 value={`${config?.qrUrl || QRCODE_URL}${chatJid.split('@')[0]}`}
                 disabled
                 style={{ width: '80%' }}

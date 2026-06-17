@@ -75,6 +75,7 @@ const DocumentSharesModal: React.FC<DocumentSharesModalProps> = ({
                       animated
                       icon={<SearchIcon />}
                       direction="right"
+                      colorBg={config?.colors?.colorInput}
                     />
                   </div>
                   <div>
