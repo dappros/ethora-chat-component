@@ -8,12 +8,13 @@ const SearchInputWrapper = styled.div.withConfig({ shouldForwardProp })<{
   animated?: boolean;
   direction?: string;
   expanded?: boolean;
+  $colorBg?: string;
 }>`
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f5f7f9;
+  background-color: ${({ $colorBg }) => ($colorBg ? $colorBg : '#f5f7f9')};
   border-radius: 16px;
   height: 48px;
   padding: 0 16px;
@@ -68,12 +69,14 @@ interface SearchInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   icon?: React.ReactNode;
   animated?: boolean;
   direction?: 'left' | 'right';
+  colorBg?: string;
 }
 
 const SearchInput: React.FC<SearchInputProps> = ({
   icon,
   animated = false,
   direction = 'left',
+  colorBg,
   ...props
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -108,6 +111,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
       animated={animated}
       direction={direction}
       expanded={isExpanded}
+      $colorBg={colorBg}
       onClick={handleFocus}
     >
       {icon && (

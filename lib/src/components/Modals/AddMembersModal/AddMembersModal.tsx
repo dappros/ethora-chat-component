@@ -104,6 +104,7 @@ const AddMembersModal: React.FC = () => {
             >
               <InputWithLabel
                 style={{ flex: 1 }}
+                colorBg={config?.colors?.colorInput}
                 id="userName"
                 value={userName}
                 onChange={handleUserNameChange}

@@ -2,6 +2,7 @@ import { FC, useRef, useState } from 'react';
 import { CloseButton, GroupContainer, ModalBackground, ModalContainer, ModalDescription, ModalTitle } from '../styledModalComponents';
 import { TextareaInput } from '../../styled/StyledInputComponents/StyledInputComponents';
 import Button from '../../styled/Button';
+import { useChatSettingState } from '../../../hooks/useChatSettingState';
 
 
 interface ModalWrapperProps {
@@ -32,6 +33,7 @@ export const ModalWrapper: FC<ModalWrapperProps> = ({
   handleClick,
 }) => {
   const textareaRef = useRef(null);
+  const { config } = useChatSettingState();
 
   const handleInput = () => {
     const textarea = textareaRef.current;
@@ -55,6 +57,7 @@ export const ModalWrapper: FC<ModalWrapperProps> = ({
         {isTextarea && <GroupContainer style={{ flexDirection: 'column', position: 'relative' }}>
           <TextareaInput
             ref={textareaRef}
+            $colorBg={config?.colors?.colorInput}
             onInput={handleInput}
             id="additionalDetails"
             value={textarea}

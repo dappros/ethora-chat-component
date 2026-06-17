@@ -286,6 +286,7 @@ const RoomList: React.FC<RoomListProps> = ({
                 {!config?.chatHeaderSettings?.hideSearch && (
                   <SearchInput
                     icon={<SearchIcon height={'20px'} />}
+                    colorBg={config?.colors?.colorInput}
                     value={searchTerm}
                     onChange={handleSearchChange}
                     placeholder="Search..."
