@@ -18,10 +18,12 @@ interface UnreadMessagesStats {
   displayTotal: string;
   displayByRoom: UnreadMessagesDisplayMap;
   /**
-   * True while the unread counts are not trustworthy yet — i.e. until the
-   * room list has been populated at least once (from cache or the API), or
-   * until the first rooms load cycle finishes for an account with no rooms.
-   * Lets consumers show a spinner/skeleton instead of a misleading "0".
+   * True while the unread counts are still settling on first load. Instead of
+   * surfacing the count as it ramps up (0 → 2 → 3 … as history backfills), the
+   * hook keeps `loading` true until the per-room counts have stopped changing
+   * for a short window, then latches it to false. After that first settle,
+   * live message increments update the counts immediately and never flip
+   * `loading` back on — it's a first-load indicator, not a per-update one.
    */
   loading: boolean;
   /** Alias of `loading` — matches the React Native SDK field name. */
@@ -29,6 +31,11 @@ interface UnreadMessagesStats {
 }
 
 type HiddenRoomsConfig = Pick<IConfig, 'hiddenRooms'> | undefined;
+
+// How long the unread counts must stay unchanged before we consider them
+// final and reveal them. Comfortably longer than the gap between history
+// backfill batches (which arrive sub-second).
+const SETTLE_MS = 1200;
 
 const getHiddenRoomsConfig = (): HiddenRoomsConfig =>
   (store.getState() as { chatSettingStore?: { config?: IConfig } })
@@ -74,90 +81,117 @@ const buildUnreadStats = (
   };
 };
 
-const buildUnreadSignature = (
+// Signature of just the unread COUNTS of visible rooms — used to detect when
+// the counts have stopped changing (so we can settle `loading`).
+const buildCountsSignature = (
   rooms: Record<string, IRoom>,
-  hiddenConfig: HiddenRoomsConfig,
-  loading: boolean
+  hiddenConfig: HiddenRoomsConfig
 ): string => {
   const entries = Object.entries(rooms || {})
-    .map(([jid, room]) => `${jid}:${Number(room?.unreadMessages || 0)}:${room?.unreadCapped ? 1 : 0}`)
+    .filter(([, room]) => !isRoomHidden(room, hiddenConfig))
+    .map(
+      ([jid, room]) =>
+        `${jid}:${Number(room?.unreadMessages || 0)}:${room?.unreadCapped ? 1 : 0}`
+    )
     .sort();
-
-  const hiddenKey = JSON.stringify(hiddenConfig?.hiddenRooms ?? null);
-
-  return `${loading ? 1 : 0}#${hiddenKey}#${entries.join('|')}`;
+  return `${entries.join('|')}#${JSON.stringify(hiddenConfig?.hiddenRooms ?? null)}`;
 };
 
 export const useUnreadMessagesCounter = (): UnreadMessagesStats => {
-  // Latches to true once unread data has been available at least once:
-  // either rooms exist in the store (cache rehydration counts), or a full
-  // "Loading chats..." cycle completed — even when it produced zero rooms.
-  const hasLoadedOnceRef = useRef<boolean>(
+  // Latches true once the counts have settled; loading stays false forever
+  // after, so live increments don't re-trigger the spinner.
+  const settledRef = useRef<boolean>(false);
+  // True once rooms have appeared (cache/API) or a full "Loading chats…"
+  // cycle finished even with zero rooms — we only start the settle timer
+  // after this, so the initial empty store doesn't settle prematurely.
+  const loadedOnceRef = useRef<boolean>(
     Object.keys(store.getState().rooms.rooms || {}).length > 0
   );
   const prevRoomsLoadingRef = useRef<boolean>(store.getState().rooms.isLoading);
+  const lastCountsSigRef = useRef<string>('');
+  const lastEmittedRef = useRef<string>('');
+  const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const computeLoading = (): boolean => {
-    const roomsState = store.getState().rooms;
-    const rooms = roomsState.rooms || {};
-    const hasRooms = Object.keys(rooms).length > 0;
+  const refreshLoadedOnce = (): boolean => {
+    const rs = store.getState().rooms;
+    const hasRooms = Object.keys(rs.rooms || {}).length > 0;
     if (hasRooms) {
-      hasLoadedOnceRef.current = true;
-    } else if (prevRoomsLoadingRef.current && !roomsState.isLoading) {
-      hasLoadedOnceRef.current = true;
+      loadedOnceRef.current = true;
+    } else if (prevRoomsLoadingRef.current && !rs.isLoading) {
+      loadedOnceRef.current = true;
     }
-    prevRoomsLoadingRef.current = roomsState.isLoading;
-
-    if (!hasLoadedOnceRef.current) return true;
-
-    // While a room is actively backfilling history, its unread count is still
-    // climbing as older messages stream in — surfacing it would show the count
-    // ramp up from 0. Stay "loading" until no room is mid-backfill, so the host
-    // can hold a spinner and reveal the final count at once. Live messages
-    // (state already 'done') don't set 'loading', so normal real-time
-    // increments are unaffected.
-    const anyRoomBackfilling = Object.values(rooms).some(
-      (room) => (room as IRoom)?.historyPreloadState === 'loading'
-    );
-    return anyRoomBackfilling;
+    prevRoomsLoadingRef.current = rs.isLoading;
+    return loadedOnceRef.current;
   };
 
-  const [stats, setStats] = useState<UnreadMessagesStats>(() => {
-    const loading = computeLoading();
-    return {
-      ...buildUnreadStats(store.getState().rooms.rooms, getHiddenRoomsConfig()),
-      loading,
-      isLoading: loading,
-    };
-  });
-  const signatureRef = useRef<string>(
-    buildUnreadSignature(
-      store.getState().rooms.rooms,
-      getHiddenRoomsConfig(),
-      stats.loading
-    )
-  );
+  const snapshot = (): UnreadMessagesStats => {
+    const rooms = store.getState().rooms.rooms;
+    const hidden = getHiddenRoomsConfig();
+    const loading = !settledRef.current;
+    return { ...buildUnreadStats(rooms, hidden), loading, isLoading: loading };
+  };
+
+  const [stats, setStats] = useState<UnreadMessagesStats>(() => snapshot());
 
   useEffect(() => {
-    const unsubscribe = store.subscribe(() => {
-      const rooms = store.getState().rooms.rooms;
-      const hiddenConfig = getHiddenRoomsConfig();
-      const loading = computeLoading();
-      const signature = buildUnreadSignature(rooms, hiddenConfig, loading);
+    const emit = () => {
+      const next = snapshot();
+      const sig = `${next.loading ? 1 : 0}#${buildCountsSignature(
+        store.getState().rooms.rooms,
+        getHiddenRoomsConfig()
+      )}`;
+      if (sig === lastEmittedRef.current) return;
+      lastEmittedRef.current = sig;
+      setStats(next);
+    };
 
-      if (signatureRef.current === signature) {
+    const armSettle = () => {
+      if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+      settleTimerRef.current = setTimeout(() => {
+        settleTimerRef.current = null;
+        settledRef.current = true;
+        emit();
+      }, SETTLE_MS);
+    };
+
+    const onChange = () => {
+      const loadedOnce = refreshLoadedOnce();
+      const countsSig = buildCountsSignature(
+        store.getState().rooms.rooms,
+        getHiddenRoomsConfig()
+      );
+
+      if (settledRef.current) {
+        // Already settled — reflect live count changes immediately.
+        if (countsSig !== lastCountsSigRef.current) {
+          lastCountsSigRef.current = countsSig;
+          emit();
+        }
         return;
       }
 
-      signatureRef.current = signature;
-      setStats({
-        ...buildUnreadStats(rooms, hiddenConfig),
-        loading,
-        isLoading: loading,
-      });
-    });
+      if (!loadedOnce) {
+        // Room list still loading — keep the spinner, don't start settling.
+        emit();
+        return;
+      }
 
-    return unsubscribe;
+      // Loaded but not settled: (re)start the settle window whenever the
+      // counts change, and arm it the first time we reach this state.
+      if (countsSig !== lastCountsSigRef.current || settleTimerRef.current === null) {
+        lastCountsSigRef.current = countsSig;
+        armSettle();
+      }
+      emit();
+    };
+
+    const unsubscribe = store.subscribe(onChange);
+    onChange();
+
+    return () => {
+      unsubscribe();
+      if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+    };
   }, []);
 
   return useMemo(() => stats, [stats]);
