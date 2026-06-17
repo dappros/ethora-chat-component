@@ -27,6 +27,9 @@ import {
   setCurrentRoom,
   setPushSubscriptionStatus,
 } from '../roomStore/roomsSlice';
+import { setIncomingCallToken } from '../roomStore/callSlice';
+import { isCallPush, parseCallPush } from '../helpers/callPush';
+import { store } from '../roomStore';
 import { IConfig } from '../types/types';
 import { ethoraLogger } from '../helpers/ethoraLogger';
 import { setStoredFcmToken } from '../utils/pushStorage';
@@ -179,6 +182,55 @@ const usePushNotifications = (
     [scrollToMessage]
   );
 
+  // Surface an incoming call that arrived via push (app was backgrounded, so
+  // the live XMPP `call-token` was missed). If the push carried a LiveKit
+  // token we ring immediately and Accept works offline; otherwise we open the
+  // room and let the reconnecting XMPP session deliver the real call-token.
+  const handleIncomingCallPush = useCallback(
+    (data: Record<string, any>) => {
+      if (config?.videoCalls?.enabled !== true) return;
+      const parsed = parseCallPush(data);
+      const roomJid = normalizeRoomJid(parsed.roomRef || '');
+
+      const selfLocal = String(
+        store.getState().chatSettingStore.user?.xmppUsername || ''
+      )
+        .split('@')[0]
+        .trim();
+      let peer = parsed.callerXmppUsername;
+      if (!peer && parsed.roomBareName && parsed.roomBareName.includes('-')) {
+        const parts = parsed.roomBareName.split('-');
+        peer = parts.find((p) => p && p !== selfLocal) || null;
+      }
+
+      if (parsed.token) {
+        dispatch(
+          setIncomingCallToken({
+            roomJid: roomJid || parsed.roomRef || '',
+            roomName: parsed.callerName || parsed.roomBareName,
+            roomBareName: parsed.roomBareName,
+            token: parsed.token,
+            kind: parsed.kind,
+            callId: parsed.callId,
+            peerXmppUsername: peer || null,
+          })
+        );
+        return;
+      }
+
+      // No token in the payload — bring the user to the room and let the live
+      // XMPP call-token (if the caller is still ringing) raise the overlay.
+      if (roomJid) {
+        dispatch(setCurrentRoom({ roomJID: roomJid }));
+      }
+      ethoraLogger.log(
+        '[PushNotifications] incoming call push without LiveKit token; awaiting XMPP call-token',
+        { callId: parsed.callId, roomJid }
+      );
+    },
+    [config?.videoCalls?.enabled, dispatch, normalizeRoomJid]
+  );
+
   const handlePushClick = useCallback(
     async (payload: any, source: 'service_worker' | 'foreground') => {
       const data = payload?.data ?? payload?.payload?.data ?? {};
@@ -197,6 +249,12 @@ const usePushNotifications = (
           window.localStorage.setItem(dedupeKey, String(now));
         }
       } catch (_) { /* empty */ }
+
+      // Incoming call push → raise the ring overlay instead of routing to chat.
+      if (isCallPush(data)) {
+        handleIncomingCallPush(data);
+        return;
+      }
 
       const customOnClick = options.onClick || config?.pushNotifications?.onClick;
       if (customOnClick) {
@@ -220,7 +278,7 @@ const usePushNotifications = (
         fetchRecentHistory(roomJid, messageId ? String(messageId) : undefined);
       }
     },
-    [config?.pushNotifications?.onClick, dispatch, fetchRecentHistory, normalizeRoomJid, options.onClick]
+    [config?.pushNotifications?.onClick, dispatch, fetchRecentHistory, normalizeRoomJid, options.onClick, handleIncomingCallPush]
   );
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -319,6 +377,13 @@ const usePushNotifications = (
 
     const handler = (payload: any) => {
       const data = payload.data ?? {};
+
+      // Incoming call push (foreground) → ring overlay, skip the message toast.
+      if (isCallPush(data)) {
+        handleIncomingCallPush(data);
+        return;
+      }
+
       const title = payload.notification?.title || data.title || 'New message';
       const body = payload.notification?.body || data.body || 'You have a new message.';
       const roomJid = normalizeRoomJid(data.jid || '');
@@ -403,7 +468,7 @@ const usePushNotifications = (
         _foregroundUnsubscribe = null;
       }
     };
-  }, [config, enabled, roomsMap, normalizeRoomJid, fetchRecentHistory]);
+  }, [config, enabled, roomsMap, normalizeRoomJid, fetchRecentHistory, handleIncomingCallPush]);
 
   useEffect(() => {
     if (!enabled) return;
