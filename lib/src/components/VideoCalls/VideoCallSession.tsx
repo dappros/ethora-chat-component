@@ -3,6 +3,7 @@ import {
   ConnectionState,
   Room,
   RoomConnectOptions,
+  RoomEvent,
   RoomOptions,
   Track,
   VideoPresets,
@@ -462,10 +463,21 @@ const VideoCallContent: React.FC<{
     [{ source: Track.Source.ScreenShare, withPlaceholder: false }],
     { onlySubscribed: false }
   );
+  const micTracks = useTracks(
+    [{ source: Track.Source.Microphone, withPlaceholder: false }],
+    { onlySubscribed: false }
+  );
 
   const localCamera = cameraTracks.find((t) => t.participant.isLocal);
   const remoteCamera = cameraTracks.find((t) => !t.participant.isLocal);
   const remoteScreen = screenTracks.find((t) => !t.participant.isLocal);
+  const remoteMic = micTracks.find((t) => !t.participant.isLocal);
+  const localMic = micTracks.find((t) => t.participant.isLocal);
+  // Peer's mic is "muted" when they have no published audio track or it's
+  // muted. Only show once they've joined to avoid a false badge while ringing.
+  const remoteMuted =
+    peerJoined && (!remoteMic || remoteMic.publication?.isMuted !== false);
+  const localMuted = !localMic || localMic.publication?.isMuted !== false;
 
   // A TrackReference exists even when the camera is muted/off. We render our
   // OWN <VideoTrack> (not LiveKit's ParticipantTile) so there's no built-in
@@ -532,6 +544,34 @@ const VideoCallContent: React.FC<{
         >
           {headerStatus}
         </span>
+        {remoteMuted && (
+          <span
+            style={{
+              marginTop: 4,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              alignSelf: 'flex-start',
+              padding: '3px 8px',
+              borderRadius: 999,
+              background: 'rgba(0,0,0,0.45)',
+              fontSize: 12,
+              color: '#fff',
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <rect x="8.5" y="2" width="7" height="12" rx="3.5" fill="#fff" />
+              <path
+                d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"
+                stroke="#fff"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+              <line x1="3" y1="3" x2="21" y2="21" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+            Muted
+          </span>
+        )}
       </div>
 
       {onToggleMinimize && (
@@ -652,6 +692,35 @@ const VideoCallContent: React.FC<{
             <span style={{ fontSize: 12 }}>Camera off</span>
           </div>
         )}
+        {localMuted && (
+          <span
+            aria-label="Your microphone is off"
+            title="Your microphone is off"
+            style={{
+              position: 'absolute',
+              left: 8,
+              bottom: 8,
+              width: 26,
+              height: 26,
+              borderRadius: 999,
+              background: DANGER,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+              <rect x="8.5" y="2" width="7" height="12" rx="3.5" fill="#fff" />
+              <path
+                d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"
+                stroke="#fff"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+              <line x1="3" y1="3" x2="21" y2="21" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </span>
+        )}
       </div>
 
       {/* Bottom control tray */}
@@ -700,6 +769,15 @@ const AudioCallContent: React.FC<{
 
   const speakingParticipants = useSpeakingParticipants();
   const peerSpeaking = speakingParticipants.some((p) => !p.isLocal);
+  const remoteParticipants = useRemoteParticipants();
+  const peerJoined = remoteParticipants.length > 0;
+  const micTracks = useTracks(
+    [{ source: Track.Source.Microphone, withPlaceholder: false }],
+    { onlySubscribed: false }
+  );
+  const remoteMic = micTracks.find((t) => !t.participant.isLocal);
+  const remoteMuted =
+    peerJoined && (!remoteMic || remoteMic.publication?.isMuted !== false);
 
   const { enabled: micEnabled } = useTrackToggle({
     source: Track.Source.Microphone,
@@ -867,6 +945,21 @@ const AudioCallContent: React.FC<{
               }}
             >
               Your microphone is muted
+            </div>
+          )}
+          {remoteMuted && (
+            <div
+              style={{
+                marginTop: 6,
+                fontSize: 13,
+                color: TEXT_MUTED,
+                background: SURFACE_MUTED,
+                border: `1px solid ${DIVIDER}`,
+                padding: '4px 10px',
+                borderRadius: 999,
+              }}
+            >
+              {(roomName || 'Peer') + ' is muted'}
             </div>
           )}
         </div>
@@ -1039,6 +1132,24 @@ const getErrorMessage = (error: unknown): string => {
   return error.message || fallback;
 };
 
+// A device error during enable (vs. a connect failure). Permission denial must
+// NOT fail the call — the user can still talk/hear once they re-allow — so we
+// surface a dismissible hint instead of tearing the call down.
+const humanizeDeviceError = (error: unknown): string => {
+  const name = (error as { name?: string })?.name || '';
+  const text = String((error as Error)?.message || '').toLowerCase();
+  if (name === 'NotAllowedError' || text.includes('permission') || text.includes('denied')) {
+    return 'Camera/microphone access is blocked. Allow it in your browser (the lock icon in the address bar), then tap the mic or camera button again.';
+  }
+  if (name === 'NotFoundError' || text.includes('not found')) {
+    return 'No camera or microphone found on this device.';
+  }
+  if (name === 'NotReadableError' || text.includes('in use')) {
+    return 'Your camera or microphone is already in use by another app.';
+  }
+  return 'Could not access your camera or microphone.';
+};
+
 export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
   token,
   livekitUrl,
@@ -1093,27 +1204,51 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
     onErrorRef.current = onError;
   }, [onConnected, onError]);
 
+  // Device (camera/mic) permission/availability problems — shown as a
+  // dismissible hint, never fail the whole call.
+  const [deviceError, setDeviceError] = useState<string | null>(null);
+  useEffect(() => {
+    const onDeviceErr = (e: unknown) => setDeviceError(humanizeDeviceError(e));
+    room.on(RoomEvent.MediaDevicesError, onDeviceErr);
+    return () => {
+      room.off(RoomEvent.MediaDevicesError, onDeviceErr);
+    };
+  }, [room]);
+
   useEffect(() => {
     let mounted = true;
 
     const startCall = async () => {
+      // Joining the LiveKit room is the only step whose failure should fail
+      // the call (bad token, network, etc.).
       try {
         await room.connect(livekitUrl, token, connectOptions);
-        if (!mounted) return;
-        // Publish devices per host config. Audio calls never touch the
-        // camera (no prompt, no black tile for the peer). For video calls,
-        // the camera defaults on but can be configured off.
-        const micOn = startMicRef.current !== false;
-        const camOn = !isAudioOnly && startCameraRef.current !== false;
-        await room.localParticipant.setMicrophoneEnabled(micOn);
-        if (!isAudioOnly) {
-          await room.localParticipant.setCameraEnabled(camOn);
-        }
-        onConnectedRef.current?.();
       } catch (error) {
         if (!mounted) return;
         onErrorRef.current?.(getErrorMessage(error));
+        return;
       }
+      if (!mounted) return;
+
+      // Devices are best-effort: if the user blocks the camera/mic prompt the
+      // call still connects (they can hear the peer and re-enable later via
+      // the control buttons). A failure here surfaces a dismissible hint
+      // instead of tearing the call down.
+      const micOn = startMicRef.current !== false;
+      const camOn = !isAudioOnly && startCameraRef.current !== false;
+      try {
+        await room.localParticipant.setMicrophoneEnabled(micOn);
+      } catch (error) {
+        if (mounted) setDeviceError(humanizeDeviceError(error));
+      }
+      if (!isAudioOnly) {
+        try {
+          await room.localParticipant.setCameraEnabled(camOn);
+        } catch (error) {
+          if (mounted) setDeviceError(humanizeDeviceError(error));
+        }
+      }
+      onConnectedRef.current?.();
     };
 
     void startCall();
@@ -1129,6 +1264,46 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
   return (
     <RoomContext.Provider value={room}>
       <PeerLeaveWatcher onPeerLeft={onHangup} />
+      {deviceError && !minimized && (
+        <div
+          role="alert"
+          style={{
+            position: 'absolute',
+            top: 12,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 40,
+            maxWidth: 'min(520px, calc(100% - 96px))',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 10,
+            padding: '10px 12px',
+            borderRadius: 12,
+            background: 'rgba(229, 57, 53, 0.96)',
+            color: '#fff',
+            fontSize: 13,
+            lineHeight: 1.35,
+            boxShadow: '0 6px 18px rgba(0,0,0,0.25)',
+          }}
+        >
+          <span style={{ flex: 1 }}>{deviceError}</span>
+          <button
+            onClick={() => setDeviceError(null)}
+            aria-label="Dismiss"
+            style={{
+              border: 'none',
+              background: 'transparent',
+              color: '#fff',
+              cursor: 'pointer',
+              fontSize: 16,
+              lineHeight: 1,
+              padding: 0,
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
       {minimized ? (
         <CompactCallContent
           primaryColor={primaryColor}
