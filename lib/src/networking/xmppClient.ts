@@ -40,6 +40,7 @@ import { SERVICE, VITE_APP_XMPP_BASEDOMAIN, VITE_APP_XMPP_CONFERENCE } from '../
 import { formatError } from '../utils/formatError';
 import { getDataFromXml } from '../helpers/getDataFromXml';
 import { createMessageFromXml } from '../helpers/createMessageFromXml';
+import { transformCallLogMessage } from '../helpers/callLogMessage';
 import { setRoomMessages, updateRoom } from '../roomStore/roomsSlice';
 import { ethoraLogger } from '../helpers/ethoraLogger';
 import { getRoomLastActivityScore } from '../helpers/roomActivityScore';
@@ -1190,12 +1191,20 @@ export class XmppClient implements XmppClientInterface {
 
       const { data, id, body, ...rest } = await getDataFromXml(msg as any);
       if (!data) continue;
-      const message = await createMessageFromXml({
+      const rawMessage = await createMessageFromXml({
         data,
         id,
         body,
         ...rest,
       });
+      // Turn server `call-state` archives into a friendly call-log entry
+      // ("Outgoing call · 12 sec" / "Missed call"). Without this the raw
+      // message keeps body "call-state" and is dropped by stripCallSignals in
+      // setRoomMessages, so call history silently disappears on reload.
+      const message = transformCallLogMessage(
+        rawMessage,
+        store.getState().chatSettingStore.user?.xmppUsername || ''
+      );
       parsed.push(message);
     }
     return parsed;
