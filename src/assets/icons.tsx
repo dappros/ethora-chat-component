@@ -27,7 +27,7 @@ export const AddNewIcon = ({ color = 'var(--ethora-icon-color, #0052CD)', ...pro
   </svg>
 );
 
-export const AttachIcon = ({ color = 'var(--ethora-icon-color, #0052CD)', ...props }: any) => (
+export const AttachIcon = ({ color = 'var(--ethora-icon-color, #0052CD)', bgcolor = 'white', ...props }: any) => (
   <svg
     width="70"
     height="70"
@@ -36,7 +36,7 @@ export const AttachIcon = ({ color = 'var(--ethora-icon-color, #0052CD)', ...pro
     xmlns="http://www.w3.org/2000/svg"
     {...props}
   >
-    <rect width="70" height="70" rx="15" fill="white" />
+    <rect width="70" height="70" rx="15" fill={bgcolor} />
     <path
       fillRule="evenodd"
       clipRule="evenodd"
@@ -99,7 +99,7 @@ export const DownloadIcon = ({
   </svg>
 );
 
-export const RecordIcon = ({ color = 'var(--ethora-icon-color, #0052CD)', ...props }: any) => (
+export const RecordIcon = ({ color = 'var(--ethora-icon-color, #0052CD)', bgcolor = 'white', ...props }: any) => (
   <svg
     width="70"
     height="70"
@@ -108,7 +108,7 @@ export const RecordIcon = ({ color = 'var(--ethora-icon-color, #0052CD)', ...pro
     xmlns="http://www.w3.org/2000/svg"
     {...props}
   >
-    <rect width="70" height="70" rx="15" fill="white" />
+    <rect width="70" height="70" rx="15" fill={bgcolor} />
     <path
       fillRule="evenodd"
       clipRule="evenodd"
@@ -162,7 +162,7 @@ export const RemoveIcon = (props: any) => (
   </svg>
 );
 
-export const SendIcon = ({ color = 'var(--ethora-icon-color, #0052CD)', ...props }) => (
+export const SendIcon = ({ color = 'var(--ethora-icon-color, #0052CD)', bgcolor = 'white', ...props }) => (
   <svg
     width="40"
     height="40"
@@ -171,6 +171,7 @@ export const SendIcon = ({ color = 'var(--ethora-icon-color, #0052CD)', ...props
     xmlns="http://www.w3.org/2000/svg"
     {...props}
   >
+    <circle cx="20" cy="20" r="20" fill={bgcolor} />
     <path
       d="M14.1512 27.92L28.5 20.8666C28.6483 20.7941 28.7748 20.6732 28.8637 20.519C28.9526 20.3647 29 20.1839 29 19.999C29 19.8141 28.9526 19.6333 28.8637 19.4791C28.7748 19.3248 28.6483 19.204 28.5 19.1315L14.1512 12.0781C14.0269 12.0159 13.8912 11.9902 13.7561 12.0033C13.621 12.0164 13.4909 12.0678 13.3775 12.153C13.2641 12.2381 13.171 12.3543 13.1065 12.491C13.042 12.6278 13.0082 12.7807 13.0082 12.9362L13 17.2833C13 17.7548 13.3042 18.1602 13.7154 18.2168L25.3342 19.999L13.7154 21.7718C13.3042 21.8378 13 22.2433 13 22.7148L13.0082 27.0619C13.0082 27.7314 13.6085 28.1934 14.1512 27.92Z"
       fill={color}

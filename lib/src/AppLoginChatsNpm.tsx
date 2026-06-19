@@ -23,7 +23,7 @@ import type { ApiRoom } from './types/types';
 // production patient flow (see Slack thread).
 const BASE_URL = 'https://api.messenger-dev2.vitall.com/v1';
 const CONFERENCE = 'conference.xmpp.messenger-dev2.vitall.com';
-//JWT eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7InBhcmVudEFwcElkIjpudWxsLCJpc0FsbG93ZWROZXdBcHBDcmVhdGUiOnRydWUsImlzQmFzZUFwcCI6dHJ1ZSwiZ29vZ2xlU2VydmljZXNKc29uIjoiIiwiZ29vZ2xlU2VydmljZUluZm9QbGlzdCI6IiIsIlJFQUNUX0FQUF9TVFJJUEVfUFVCTElTSEFCTEVfS0VZIjoiIiwiUkVBQ1RfQVBQX1NUUklQRV9TRUNSRVRfS0VZIjoiIiwic2lnbm9uT3B0aW9ucyI6W10sImFmdGVyTG9naW5QYWdlIjoiY2hhdHMiLCJhdmFpbGFibGVNZW51SXRlbXMiOnsiY2hhdHMiOnRydWUsInByb2ZpbGUiOnRydWUsInNldHRpbmdzIjp0cnVlfSwiYWxsb3dVc2Vyc1RvQ3JlYXRlUm9vbXMiOnRydWUsImFpQm90Ijp7InRyaWdnZXIiOiJhbnlfbWVzc2FnZSIsInByb21wdCI6IllvdSBhcmUgYSBoZWxwZnVsIGFzc2lzdGFudC4iLCJpc1JBRyI6dHJ1ZSwidG90YWxTaXRlU291cmNlU2l6ZSI6MH0sIl9pZCI6IjY5OWM2OTIzNDI5YzI3NTdhYzhhYjZhNCIsImFwcFRva2VucyI6W10sImRlZmF1bHRSb29tcyI6W10sImRpc3BsYXlOYW1lIjoiVml0YWxsIERldiIsImRvbWFpbk5hbWUiOiJhcHAiLCJjcmVhdG9ySWQiOiI2OTljNjkyMzQyOWMyNzU3YWM4YWI2YTUiLCJ1c2Vyc0NhbkZyZWUiOnRydWUsImRlZmF1bHRBY2Nlc3NBc3NldHNPcGVuIjp0cnVlLCJkZWZhdWx0QWNjZXNzUHJvZmlsZU9wZW4iOnRydWUsImJ1bmRsZUlkIjoiY29tLmV0aG9yYSIsInByaW1hcnlDb2xvciI6IiMwMDNFOUMiLCJjb2luU3ltYm9sIjoiRVRPIiwiY29pbk5hbWUiOiJFdGhvcmEgQ29pbiJ9LCJpYXQiOjE3NzE4NTgyMTF9.WGeM2-YpryLsBvNuNJekrfqUf2f6b8lryWZj2ZuEN1w
+
 const BASE_CONFIG = {
   baseUrl: BASE_URL,
   xmppSettings: {
@@ -35,6 +35,9 @@ const BASE_CONFIG = {
   colors: { primary: '#5E3FDE', secondary: '#E1E4FE' },
   refreshTokens: { enabled: true },
   disableRooms: true,
+   typography: {                                                                                        
+       fontFamily: 'Georgia, serif',                                                                      
+       },
 } as const;
 
 // Default JWT pre-filled in the textarea so the dev can hit "Connect" and go.
