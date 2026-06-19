@@ -16,6 +16,24 @@ export const resolveIconColor = (
 ): string =>
   config?.colors?.icons || config?.colors?.primary || DEFAULT_ICON_COLOR;
 
+/** Fallback background colour for the icon "chips" when nothing is configured. */
+const DEFAULT_ICON_BG_COLOR = 'white';
+
+/**
+ * Resolve the background colour to use behind the chat's icon "chips" (attach,
+ * send, microphone, file preview, etc.).
+ *
+ * Priority: explicit `config.colors.iconsBg` → `config.colors.secondary` →
+ * white. Lets a host theme the icon backgrounds independently from `secondary`
+ * via `colors.iconsBg`, while keeping the historical white default.
+ */
+export const resolveIconBgColor = (
+  config?: Pick<IConfig, 'colors'> | null
+): string =>
+  config?.colors?.iconsBg ||
+  config?.colors?.secondary ||
+  DEFAULT_ICON_BG_COLOR;
+
 /** CSS variable read by the chat's chrome icons as their default colour. */
 export const ICON_COLOR_VAR = '--ethora-icon-color';
 

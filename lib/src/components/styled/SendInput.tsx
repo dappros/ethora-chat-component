@@ -23,7 +23,10 @@ import AudioRecorder from '../InputComponents/AudioRecorder';
 import { IConfig } from '../../types/types';
 import Button from './Button';
 import { AttachIcon, FileIcon, RemoveIcon, SendIcon } from '../../assets/icons';
-import { resolveIconColor } from '../../helpers/resolveIconColor';
+import {
+  resolveIconBgColor,
+  resolveIconColor,
+} from '../../helpers/resolveIconColor';
 import { parseMessageBody } from '../../helpers/parseMessageBody';
 
 export interface SendInputProps {
@@ -272,7 +275,7 @@ const SendInput: React.FC<SendInputProps> = ({
     } else if (fileType === 'video') {
       return <VideoPreview src={fileUrl} controls />;
     } else {
-      return <FileIcon alt={file.name} color={resolveIconColor(config)} />;
+      return <FileIcon alt={file.name} color={resolveIconColor(config)} fill={resolveIconBgColor(config)}/>;
     }
   }, [config]);
 
@@ -308,7 +311,7 @@ const SendInput: React.FC<SendInputProps> = ({
               <Button
                 onClick={handleAttachClick}
                 disabled={false}
-                EndIcon={<AttachIcon color={resolveIconColor(config)} />}
+                EndIcon={<AttachIcon color={resolveIconColor(config)} bgcolor={resolveIconBgColor(config)} />}
               />
             )}
             {multiline ? (
@@ -377,6 +380,7 @@ const SendInput: React.FC<SendInputProps> = ({
                 }}
                 EndIcon={
                   <SendIcon
+                    bgcolor={resolveIconBgColor(config)}
                     color={
                       filePreviews.length > 0
                         ? '#fff'
@@ -399,6 +403,7 @@ const SendInput: React.FC<SendInputProps> = ({
                 }
                 EndIcon={
                   <SendIcon
+                    bgcolor={resolveIconBgColor(config)}
                     color={
                       message === '' && filePreviews.length === 0
                         ? '#D4D4D8' // empty/disabled → muted grey

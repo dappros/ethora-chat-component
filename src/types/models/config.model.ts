@@ -92,6 +92,12 @@ export interface IConfig {
      * primary theme colour.
      */
     icons?: string;
+    /**
+     * Background colour of the chat's icon "chips" (attach, send, microphone,
+     * file preview, etc.). When omitted, falls back to `secondary` and then to
+     * white. Set to decouple the icon backgrounds from `secondary`.
+     */
+    iconsBg?: string;
     /** Background colour of the user's own message bubbles. Default #E7EDF9. */
     ownMessageBackground?: string;
     /** Background colour of other users' message bubbles. Default #FFFFFF. */
