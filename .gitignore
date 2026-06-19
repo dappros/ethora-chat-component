@@ -24,7 +24,13 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Real .env files contain endpoint URLs, app IDs, tokens — never commit
+# them. Commit .env.example with placeholders instead. (.env.local is
+# also covered by the *.local rule above, listed here for clarity.)
 .env
+.env.local
+.env.*.local
 
 flutter
 test-app-next
