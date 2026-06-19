@@ -10,6 +10,7 @@ import {
   Wrapper,
 } from '../styled/StyledComponents';
 import { nameToColor } from '../../helpers/hashcolor';
+import { useChatSettingState } from '../../hooks/useChatSettingState';
 
 interface ProfileImagePlaceholderProps {
   name?: string;
@@ -43,7 +44,14 @@ export const ProfileImagePlaceholder: React.FC<
   placeholderIcon,
   disableOverlay,
 }) => {
-  const { backgroundColor } = nameToColor(name);
+  const { config } = useChatSettingState();
+  // When the host themes icons, avatars follow `colors.iconsBg` (circle bg) and
+  // `colors.icons` (initials / placeholder glyph). Otherwise keep the historical
+  // per-name hashed colour so distinct users stay visually distinguishable.
+  const iconsBg = config?.colors?.iconsBg;
+  const iconColor = config?.colors?.icons;
+  const { backgroundColor: hashedBg } = nameToColor(name);
+  const backgroundColor = iconsBg || hashedBg;
 
   const getTwoUppercaseLetters = (fullName: string) => {
     if (!fullName) return '';
@@ -97,7 +105,10 @@ export const ProfileImagePlaceholder: React.FC<
         size={size}
         isClickable={active || (role === 'participant' && !!upload?.active)}
         onClick={handleAvatarClick}
-        style={{ fontSize: size >= 64 ? '24px' : '18px' }}
+        style={{
+          fontSize: size >= 64 ? '24px' : '18px',
+          ...(iconColor ? { color: iconColor } : {}),
+        }}
       >
         {icon ? (
           <AvatarImage
