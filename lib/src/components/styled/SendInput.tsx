@@ -400,22 +400,15 @@ const SendInput: React.FC<SendInputProps> = ({
                 EndIcon={
                   <SendIcon
                     color={
-                      filePreviews.length > 0
-                        ? '#fff'
-                        : !message || message === ''
-                          ? '#D4D4D8'
-                          : '#fff'
+                      message === '' && filePreviews.length === 0
+                        ? '#D4D4D8' // empty/disabled → muted grey
+                        : 'var(--ethora-icon-color, #0052CD)' // active → colors.icons (locked by the icon-tint rule)
                     }
                   />
                 }
                 style={{
                   borderRadius: '100px',
-                  backgroundColor:
-                    filePreviews.length > 0
-                      ? resolveIconColor(config)
-                      : !message || message === ''
-                        ? 'transparent'
-                        : resolveIconColor(config),
+                  backgroundColor: 'transparent',
                 }}
               />
             )}

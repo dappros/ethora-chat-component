@@ -34,6 +34,39 @@ const setVar = (name: string, value?: string | null): void => {
   }
 };
 
+// Bulletproof icon tinting. The chat's chrome icons are authored with
+// `fill="var(--ethora-icon-color, …)"` / `stroke="var(--ethora-icon-color, …)"`.
+// A bare presentation attribute loses to ANY host CSS rule on `svg`/`path`, so
+// `colors.icons` could be silently overridden by the embedding app's
+// stylesheet. We instead inject an `!important` rule that targets exactly those
+// attribute-marked elements with the *resolved* colour. Because:
+//   - it matches only `fill="var(--ethora-icon-color…"` (white sub-shapes use
+//     `fill="white"` and semantic icons use literal hexes, so they're untouched),
+//   - it uses `!important` + attribute-selector specificity,
+// it overrides normal host CSS and even host `!important` on plain element
+// selectors. Removed entirely when no icon colour is configured, so default
+// theming is unchanged.
+const ICON_TINT_STYLE_ID = 'ethora-icon-tint';
+
+const applyIconTint = (color?: string | null): void => {
+  let style = document.getElementById(
+    ICON_TINT_STYLE_ID
+  ) as HTMLStyleElement | null;
+  if (!color) {
+    style?.remove();
+    return;
+  }
+  if (!style) {
+    style = document.createElement('style');
+    style.id = ICON_TINT_STYLE_ID;
+    document.head.appendChild(style);
+  }
+  const css =
+    `[fill^="var(${ICON_COLOR_VAR}"]{fill:${color} !important;}` +
+    `[stroke^="var(${ICON_COLOR_VAR}"]{stroke:${color} !important;}`;
+  if (style.textContent !== css) style.textContent = css;
+};
+
 /**
  * Publish host theme colours as CSS variables that the chat's styled
  * components read with their historical defaults as fallbacks. Covers icons,
@@ -49,7 +82,10 @@ export const applyThemeColors = (
 ): void => {
   if (typeof document === 'undefined') return;
 
-  setVar(ICON_COLOR_VAR, config?.colors?.icons || config?.colors?.primary);
+  const iconColor = config?.colors?.icons || config?.colors?.primary;
+  setVar(ICON_COLOR_VAR, iconColor);
+  // Lock the icon colour so the embedding app's CSS can't override it.
+  applyIconTint(iconColor);
   setVar(OWN_MSG_BG_VAR, config?.colors?.ownMessageBackground);
   setVar(OTHER_MSG_BG_VAR, config?.colors?.otherMessageBackground);
   setVar(INPUT_BG_VAR, config?.colors?.inputBackground);
