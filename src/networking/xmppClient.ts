@@ -40,7 +40,8 @@ import { SERVICE, VITE_APP_XMPP_BASEDOMAIN, VITE_APP_XMPP_CONFERENCE } from '../
 import { formatError } from '../utils/formatError';
 import { getDataFromXml } from '../helpers/getDataFromXml';
 import { createMessageFromXml } from '../helpers/createMessageFromXml';
-import { setRoomMessages, updateRoom } from '../roomStore/roomsSlice';
+import { applyMamReactions } from '../helpers/mamReactions';
+import { setRoomMessages, setReactions, updateRoom } from '../roomStore/roomsSlice';
 import { ethoraLogger } from '../helpers/ethoraLogger';
 import { getRoomLastActivityScore } from '../helpers/roomActivityScore';
 import { getBooleanFromString } from '../helpers/getBooleanFromString';
@@ -1183,10 +1184,18 @@ export class XmppClient implements XmppClientInterface {
 
   private async parseMamMessages(messages: Element[]): Promise<IMessage[]> {
     const parsed: IMessage[] = [];
+    // Reaction stanzas carry <reactions> but no body. They must update their
+    // target message's reactions, not be rendered as standalone messages, so
+    // they are set aside and applied after the page's messages are built.
+    const reactionStanzas: Element[] = [];
+
     for (const msg of messages) {
-      const reactions = msg?.getChild('reactions');
+      if (msg?.getChild('reactions')) {
+        reactionStanzas.push(msg);
+        continue;
+      }
       const text = msg.getChild('body')?.getText();
-      if (!text && !reactions) continue;
+      if (!text) continue;
 
       const { data, id, body, ...rest } = await getDataFromXml(msg as any);
       if (!data) continue;
@@ -1198,6 +1207,17 @@ export class XmppClient implements XmppClientInterface {
       });
       parsed.push(message);
     }
+
+    // Reactions only ever reached the store via the live handler; the MAM fetch
+    // path bypasses onReactionHistory (routeMamStanza consumes the stanza), so
+    // without this they vanished on refresh. applyMamReactions merges onto the
+    // in-page target; reactions whose target lives in an earlier page or arrived
+    // live are dispatched to the store.
+    const { deferred } = applyMamReactions(parsed, reactionStanzas);
+    for (const reaction of deferred) {
+      store.dispatch(setReactions(reaction));
+    }
+
     return parsed;
   }
 
