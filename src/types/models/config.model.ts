@@ -30,6 +30,15 @@ export interface VideoCallsConfig {
   enabled: boolean;
   livekitUrl: string;
   allowedRoomTypes?: Array<'private'>;
+  /**
+   * Show the audio-only call button next to the video-call button. Off by
+   * default: it's a separate opt-in feature. An audio call uses the same call
+   * backend as video (no server changes needed); the client just starts the
+   * session with `kind: 'audio'` so no camera track is published, and the
+   * callee learns the kind from the direct `call-invite` signal. Requires
+   * `enabled` and a `livekitUrl` like video calls.
+   */
+  enableAudioCalls?: boolean;
   /** Start a video call with the camera already on. Default true. */
   startWithCameraOn?: boolean;
   /** Start a call with the microphone already on. Default true. */

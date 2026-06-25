@@ -39,6 +39,7 @@ const APP_CHAT_BASE_CONFIG: IConfig = {
     enabled: true,
     livekitUrl: LIVEKIT_URL,
     allowedRoomTypes: ['private'],
+    enableAudioCalls: true,
   },
 };
 

@@ -93,6 +93,10 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const hasLivekitUrl = Boolean(videoCallsConfig?.livekitUrl?.trim());
   const isCallBusy = call.phase !== 'idle';
   const canCall = isVideoCallsEnabled && isRoomAllowed && hasLivekitUrl;
+  // Audio calls are an opt-in feature on top of the call infra; they need
+  // everything a video call needs plus the explicit flag.
+  const isAudioCallsEnabled =
+    canCall && videoCallsConfig?.enableAudioCalls === true;
 
   const callDisabledReason = !isRoomAllowed
     ? 'Video calls are available only in 1:1 rooms for v1'
@@ -303,35 +307,38 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
             {canCall && !isCallBusy && (
               <>
                 {/*
-                  Audio call entry point hidden for now — backend doesn't
-                  propagate the `kind` on the call-token stanza, so the
-                  callee receives every call as video. We'll restore the
-                  audio button once the server passes the kind through.
-                <button
-                  onClick={() => {
-                    void handleAudioCallClick();
-                  }}
-                  disabled={!canCall || isCallBusy}
-                  title={callDisabledReason || 'Start audio call'}
-                  aria-label="Start audio call"
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 999,
-                    border: 'none',
-                    background:
-                      !canCall || isCallBusy ? '#D1D5DB' : '#0EA5E9',
-                    color: '#FFFFFF',
-                    cursor:
-                      !canCall || isCallBusy ? 'not-allowed' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <AudioCallIcon />
-                </button>
+                  Audio call entry point. Opt-in via config.videoCalls
+                  .enableAudioCalls. The server doesn't propagate the `kind`
+                  on the call-token stanza, so the callee learns it from the
+                  direct `call-invite` signal sent in placeCall() (fast chat
+                  message that lands before the relayed token).
                 */}
+                {isAudioCallsEnabled && (
+                  <button
+                    onClick={() => {
+                      void handleAudioCallClick();
+                    }}
+                    disabled={!canCall || isCallBusy}
+                    title={callDisabledReason || 'Start audio call'}
+                    aria-label="Start audio call"
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 999,
+                      border: 'none',
+                      background:
+                        !canCall || isCallBusy ? '#D1D5DB' : '#0EA5E9',
+                      color: '#FFFFFF',
+                      cursor:
+                        !canCall || isCallBusy ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <AudioCallIcon />
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     void handleVideoCallClick();
