@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveIconColor } from './resolveIconColor';
+import { resolveIconBgColor, resolveIconColor } from './resolveIconColor';
 
 describe('resolveIconColor', () => {
   it('prefers colors.icons over primary', () => {
@@ -17,5 +17,26 @@ describe('resolveIconColor', () => {
   it('falls back to the default when no colors set', () => {
     expect(resolveIconColor(undefined)).toBe('#0052CD');
     expect(resolveIconColor({})).toBe('#0052CD');
+  });
+});
+
+describe('resolveIconBgColor', () => {
+  it('prefers colors.iconsBg over secondary', () => {
+    expect(
+      resolveIconBgColor({
+        colors: { primary: '#111', secondary: '#222', iconsBg: '#abc' },
+      })
+    ).toBe('#abc');
+  });
+
+  it('falls back to colors.secondary', () => {
+    expect(
+      resolveIconBgColor({ colors: { primary: '#111', secondary: '#222' } })
+    ).toBe('#222');
+  });
+
+  it('falls back to white when no colors set', () => {
+    expect(resolveIconBgColor(undefined)).toBe('white');
+    expect(resolveIconBgColor({})).toBe('white');
   });
 });

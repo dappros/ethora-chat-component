@@ -127,6 +127,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
       >
         <InputWithLabel
           color={config?.colors?.primary}
+          colorBg={config?.colors?.colorInput}
           placeholder="First Name"
           label="First Name"
           value={firstName}
@@ -136,6 +137,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
         />
         <InputWithLabel
           color={config?.colors?.primary}
+          colorBg={config?.colors?.colorInput}
           placeholder="Last Name"
           label="Last Name"
           value={lastName}
@@ -145,6 +147,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
         />
         <InputWithLabel
           color={config?.colors?.primary}
+          colorBg={config?.colors?.colorInput}
           placeholder="About"
           label="About"
           value={description}

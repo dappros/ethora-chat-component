@@ -23,7 +23,10 @@ import AudioRecorder from '../InputComponents/AudioRecorder';
 import { IConfig } from '../../types/types';
 import Button from './Button';
 import { AttachIcon, FileIcon, RemoveIcon, SendIcon } from '../../assets/icons';
-import { resolveIconColor } from '../../helpers/resolveIconColor';
+import {
+  resolveIconBgColor,
+  resolveIconColor,
+} from '../../helpers/resolveIconColor';
 import { parseMessageBody } from '../../helpers/parseMessageBody';
 
 export interface SendInputProps {
@@ -272,7 +275,7 @@ const SendInput: React.FC<SendInputProps> = ({
     } else if (fileType === 'video') {
       return <VideoPreview src={fileUrl} controls />;
     } else {
-      return <FileIcon alt={file.name} color={resolveIconColor(config)} />;
+      return <FileIcon alt={file.name} color={resolveIconColor(config)} fill={resolveIconBgColor(config)}/>;
     }
   }, [config]);
 
@@ -308,13 +311,14 @@ const SendInput: React.FC<SendInputProps> = ({
               <Button
                 onClick={handleAttachClick}
                 disabled={false}
-                EndIcon={<AttachIcon color={resolveIconColor(config)} />}
+                EndIcon={<AttachIcon color={resolveIconColor(config)} bgcolor={resolveIconBgColor(config)} />}
               />
             )}
             {multiline ? (
               <TextareaWrapper
                 $dynamicHeight={textareaHeight}
                 $color={config?.colors?.primary}
+                $colorBg={config?.colors?.colorInput}
                 $isFocused={isFocused}
               >
                 <TextareaInput
@@ -328,11 +332,13 @@ const SendInput: React.FC<SendInputProps> = ({
                   disabled={isLoading || isMessageProcessing}
                   $dynamicHeight={textareaHeight}
                   $color={config?.colors?.primary}
+                  $colorBg={config?.colors?.colorInput}
                 />
               </TextareaWrapper>
             ) : (
               <MessageInput
                 $color={config?.colors?.primary}
+                $colorBg={config?.colors?.colorInput}
                 placeholder={placeholderText || 'Type message'}
                 value={message}
                 onChange={handleInputChange}
@@ -374,6 +380,7 @@ const SendInput: React.FC<SendInputProps> = ({
                 }}
                 EndIcon={
                   <SendIcon
+                    bgcolor={resolveIconBgColor(config)}
                     color={
                       filePreviews.length > 0
                         ? '#fff'
@@ -396,23 +403,17 @@ const SendInput: React.FC<SendInputProps> = ({
                 }
                 EndIcon={
                   <SendIcon
+                    bgcolor={resolveIconBgColor(config)}
                     color={
-                      filePreviews.length > 0
-                        ? '#fff'
-                        : !message || message === ''
-                          ? '#D4D4D8'
-                          : '#fff'
+                      message === '' && filePreviews.length === 0
+                        ? '#D4D4D8' // empty/disabled → muted grey
+                        : 'var(--ethora-icon-color, #0052CD)' // active → colors.icons (locked by the icon-tint rule)
                     }
                   />
                 }
                 style={{
                   borderRadius: '100px',
-                  backgroundColor:
-                    filePreviews.length > 0
-                      ? resolveIconColor(config)
-                      : !message || message === ''
-                        ? 'transparent'
-                        : resolveIconColor(config),
+                  backgroundColor: 'transparent',
                 }}
               />
             )}

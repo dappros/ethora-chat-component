@@ -1,6 +1,7 @@
-import React, { CSSProperties, useMemo } from 'react';
+import React, { CSSProperties } from 'react';
 import styled from 'styled-components';
 import { nameToColor } from '../../helpers/hashcolor';
+import { useChatSettingState } from '../../hooks/useChatSettingState';
 
 interface AvatarProps {
   username?: string;
@@ -9,11 +10,12 @@ interface AvatarProps {
   style?: CSSProperties;
 }
 
-const AvatarCircle = styled.div<{ $bgColor: string; textColor?: string }>`
+const AvatarCircle = styled.div<{ $bgColor: string; $textColor?: string }>`
   width: 40px;
   height: 40px;
   border-radius: 50%;
   background-color: ${({ $bgColor }) => $bgColor};
+  ${({ $textColor }) => ($textColor ? `color: ${$textColor};` : '')}
   display: flex;
   align-items: center;
   justify-content: center;
@@ -34,7 +36,16 @@ export const Avatar: React.FC<AvatarProps> = ({
   lastName,
   style,
 }) => {
-  const { backgroundColor } = nameToColor(username ? username : firstName);
+  const { config } = useChatSettingState();
+  // When the host themes icons, message avatars follow `colors.iconsBg` (circle
+  // bg) and `colors.icons` (initials). Otherwise keep the per-name hashed colour
+  // so distinct users stay visually distinguishable.
+  const iconsBg = config?.colors?.iconsBg;
+  const iconColor = config?.colors?.icons;
+  const { backgroundColor: hashedBg } = nameToColor(
+    username ? username : firstName
+  );
+  const backgroundColor = iconsBg || hashedBg;
 
   const getInitials = () => {
     const isAlphabetic = (char: string) => /^[a-zA-Zа-яА-ЯёЁ]$/.test(char);
@@ -68,7 +79,7 @@ export const Avatar: React.FC<AvatarProps> = ({
   };
 
   return (
-    <AvatarCircle style={style} $bgColor={backgroundColor}>
+    <AvatarCircle style={style} $bgColor={backgroundColor} $textColor={iconColor}>
       {getInitials()}
     </AvatarCircle>
   );

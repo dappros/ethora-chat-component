@@ -20,13 +20,13 @@ export const MessageInputContainer = styled.div`
   gap: 16px;
 `;
 
-export const MessageInput = styled.input<{ $color?: string }>`
+export const MessageInput = styled.input<{ $color?: string, $colorBg?: string }>`
   flex-grow: 1;
   padding: 10px;
   border-radius: 12px;
   border: none;
   color: #141414;
-  background-color: #f5f7f9;
+  background-color: ${({$colorBg}) => $colorBg? $colorBg : '#f5f7f9'};
   max-height: 40px;
   &:focus {
     border: 1px solid ${(props) => (props.$color ? props.$color : '#0052CD')};
@@ -95,9 +95,9 @@ export const VideoPreview = styled.video`
   max-height: 80%;
 `;
 
-export const StyledInput = styled.input<{}>`
+export const StyledInput = styled.input<{ $colorBg?: string }>`
   padding: 16px 12px;
-  background-color: #f5f7f9;
+  background-color: ${({$colorBg}) => $colorBg? $colorBg : '#f5f7f9'};
   border: none;
   outline: none;
   font-size: 16px;
@@ -119,11 +119,12 @@ export const TextareaWrapper = styled.div<{
   $dynamicHeight?: number;
   $color?: string;
   $isFocused?: boolean;
+  $colorBg?: string;
 }>`
   flex-grow: 1;
   position: relative;
   border-radius: 12px;
-  background-color: #f5f7f9;
+  background-color: ${({$colorBg}) => $colorBg? $colorBg : '#f5f7f9'};
   padding: 2px;
   height: ${(props) => props.$dynamicHeight || 40}px;
   max-height: ${(props) => props.$dynamicHeight || 40}px;
@@ -139,6 +140,7 @@ export const TextareaWrapper = styled.div<{
 export const TextareaInput = styled.textarea<{
   $dynamicHeight?: number;
   $color?: string;
+  $colorBg?: string;
 }>`
   width: 100%;
   height: 100%;
@@ -146,7 +148,7 @@ export const TextareaInput = styled.textarea<{
   border-radius: 10px;
   border: none;
   color: #141414;
-  background-color: #f5f7f9;
+  background-color: ${({$colorBg}) => $colorBg? $colorBg : '#f5f7f9'};
   line-height: 20px;
   font-size: inherit;
   font-family: inherit;

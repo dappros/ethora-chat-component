@@ -244,6 +244,7 @@ const NewChatModal: React.FC = () => {
               >
                 <InputWithLabel
                   style={{ flex: 1 }}
+                  colorBg={config?.colors?.colorInput}
                   id="roomName"
                   value={roomName}
                   onChange={handleRoomNameChange}

@@ -18,6 +18,7 @@ import { RoomMember } from '../../types/types';
 import { debounce } from '../../helpers/debounce';
 import { StyledInput } from '../styled/StyledInputComponents/StyledInputComponents';
 import { useRoomState } from '../../hooks/useRoomState';
+import { useChatSettingState } from '../../hooks/useChatSettingState';
 
 interface UsersListProps {
   selectedUsers: RoomMember[];
@@ -35,6 +36,7 @@ const UsersList: React.FC<UsersListProps> = ({
   filter,
 }) => {
   const { usersSet } = useRoomState();
+  const { config } = useChatSettingState();
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredUsers, setFilteredUsers] = useState<RoomMember[]>([]);
 
@@ -79,6 +81,7 @@ const UsersList: React.FC<UsersListProps> = ({
       )}
 
       <StyledInput
+        $colorBg={config?.colors?.colorInput}
         type="text"
         placeholder="Search users..."
         value={searchTerm}
