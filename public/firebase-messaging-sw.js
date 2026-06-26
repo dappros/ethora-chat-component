@@ -184,6 +184,54 @@ function pickImage(raw = {}, data = {}, notification = {}) {
   return data.image || notification.image || raw.image || undefined;
 }
 
+// ── CALL DETECTION ────────────────────────────────────────────
+// Mirror of helpers/callPush.ts isCallPush(). A backgrounded call push must
+// (a) read as a call (persistent, call-styled title) and (b) carry its FULL
+// data payload through to the click handler — otherwise the app's isCallPush()
+// sees only {url,messageId,...} and can't raise the ring screen.
+function pickField(data, keys) {
+  for (let i = 0; i < keys.length; i += 1) {
+    const v = data && data[keys[i]];
+    if (v !== undefined && v !== null && String(v).trim() !== '') {
+      return String(v).trim();
+    }
+  }
+  return '';
+}
+
+function isCallPushData(data) {
+  if (!data) return false;
+  const marker = pickField(data, [
+    'type',
+    'pushType',
+    'category',
+    'messageType',
+    'event',
+  ]).toLowerCase();
+  if (
+    marker === 'call' ||
+    marker === 'incoming-call' ||
+    marker === 'call-token' ||
+    marker === 'call-invite'
+  ) {
+    return true;
+  }
+  const callId = pickField(data, ['callId', 'callid', 'callID']);
+  const kind = pickField(data, ['kind']).toLowerCase();
+  const hasCallField =
+    !!pickField(data, ['callToken', 'livekitToken']) ||
+    !!pickField(data, ['callKind']) ||
+    kind === 'audio' ||
+    kind === 'video';
+  return !!callId && hasCallField;
+}
+
+function callPushKind(data) {
+  return pickField(data, ['callKind', 'kind']).toLowerCase() === 'audio'
+    ? 'audio'
+    : 'video';
+}
+
 function extractMessageId(raw = {}, data = {}) {
   return (
     raw.messageId ||
@@ -356,14 +404,40 @@ async function handlePush(raw = {}, source = 'push') {
     dedupKey,
   });
 
+  const isCall = isCallPushData(data);
+  const callerName = isCall
+    ? pickField(data, [
+        'callerName',
+        'callerDisplayName',
+        'senderName',
+        'title',
+      ])
+    : '';
+  const callId = isCall
+    ? pickField(data, ['callId', 'callid', 'callID'])
+    : '';
+
+  // Call pushes: a call-styled title, a tag keyed on the callId so repeat
+  // call-token pushes replace (not stack), and requireInteraction so the
+  // ring notification persists until the user answers/dismisses.
+  const notifTitle = isCall
+    ? `Incoming ${callPushKind(data)} call${callerName ? ` · ${callerName}` : ''}`
+    : title;
+  const notifBody = isCall ? 'Tap to answer' : body;
+
   const options = {
-    body,
+    body: notifBody,
     icon,
     badge,
     image,
-    tag: dedupKey,
-    renotify: false,
+    tag: isCall ? `call:${callId || dedupKey}` : dedupKey,
+    renotify: isCall,
+    requireInteraction: isCall,
+    // Spread the ORIGINAL payload first so the click handler's isCallPush()
+    // sees the full call fields (callId/callToken/kind/room); our routing
+    // fields win on top.
     data: {
+      ...data,
       url,
       messageId,
       dedupKey,
@@ -375,9 +449,10 @@ async function handlePush(raw = {}, source = 'push') {
     log('SHOW NOTIFICATION', {
       reason: 'NO_VISIBLE_CLIENT',
       tag: options.tag,
+      isCall,
     });
 
-    return self.registration.showNotification(title, options);
+    return self.registration.showNotification(notifTitle, options);
   }
 
   log('SKIP NOTIFICATION', {
