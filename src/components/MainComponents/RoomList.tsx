@@ -240,21 +240,25 @@ const RoomList: React.FC<RoomListProps> = ({
           ethoraLogger.log('Profile clicked');
         },
       },
-      {
-        label: 'Settings',
-        icon: null,
-        onClick: () => {
-          dispatch(setActiveModal(MODAL_TYPES.SETTINGS));
-          ethoraLogger.log('Settings clicked');
-        },
-      },
+      ...(!config?.disableProfilesInteractions
+        ? [
+            {
+              label: 'Settings',
+              icon: null,
+              onClick: () => {
+                dispatch(setActiveModal(MODAL_TYPES.SETTINGS));
+                ethoraLogger.log('Settings clicked');
+              },
+            },
+          ]
+        : []),
       {
         label: 'Logout',
         icon: null,
         onClick: () => handleLogout(),
       },
     ],
-    []
+    [config?.disableProfilesInteractions]
   );
 
   return (
