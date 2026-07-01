@@ -205,6 +205,7 @@ const NewChatModal: React.FC = () => {
 
   return (
     <>
+      {!config?.disableNewChatButton && (
       <Button
         style={{
           color: 'black',
@@ -216,6 +217,7 @@ const NewChatModal: React.FC = () => {
         EndIcon={<AddNewIcon color={resolveIconColor(config)} />}
         onClick={handleOpenModal}
       />
+      )}
 
       {isModalOpen && (
         <ModalBackground>
