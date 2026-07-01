@@ -268,8 +268,8 @@ const RoomList: React.FC<RoomListProps> = ({
         ref={containerRef}
         style={{
           ...config?.roomListStyles,
-          ...(isSmallScreen ? { width: '100%' } : { maxWidth: '432px' }),
-          flex: isSmallScreen ? 1 : '0 1 432px',
+          ...(isSmallScreen ? { width: '100%' } : { width: '432px' }),
+          flex: isSmallScreen ? 1 : '0 0 432px',
         }}
       >
         {(open || !burgerMenu) && (
@@ -298,7 +298,7 @@ const RoomList: React.FC<RoomListProps> = ({
               </SearchContainer>
             )}
             <div
-              style={{ flexGrow: 1, overflowY: 'auto', padding: '16px 0px' }}
+              style={{ flexGrow: 1, overflowY: 'auto', scrollbarGutter: 'stable', padding: '16px 0px' }}
             >
               {filteredChats.map((chat: IRoom, index: number) => (
                 <React.Fragment key={chat.jid || `${chat.id}-${index}`}>
