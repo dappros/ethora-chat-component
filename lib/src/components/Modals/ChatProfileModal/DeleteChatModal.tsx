@@ -10,7 +10,8 @@ import {
   ModalTitle,
 } from '../styledModalComponents';
 import { deleteRoom as deleteRoomApi } from '../../../networking/api-requests/rooms.api';
-import { deleteRoom as deleteRoomAction } from '../../../roomStore/roomsSlice';
+import { deleteRoom as deleteRoomAction, setCurrentRoom } from '../../../roomStore/roomsSlice';
+import { useXmppClient } from '../../../context/xmppProvider';
 
 interface DeleteChatModalProps {
   isModalOpen: boolean;
@@ -23,6 +24,7 @@ const DeleteChatModal: React.FC<DeleteChatModalProps> = ({
 }) => {
   const dispatch = useDispatch();
   const activeRoom = useSelector((state: RootState) => getActiveRoom(state));
+  const { client } = useXmppClient();
 
   const handleOpenModal = () => setIsModalOpen(true);
   const handleCloseModal = () => setIsModalOpen(false);
@@ -30,7 +32,11 @@ const DeleteChatModal: React.FC<DeleteChatModalProps> = ({
   const handleDeleteChat = async () => {
     try {
       await deleteRoomApi(activeRoom.jid.split('@')[0]);
+      // Leave/unsubscribe the MUC so a public room isn't auto-rejoined via XMPP
+      // on reload (DELETE succeeds server-side, but the client re-subscribes).
+      client?.leaveTheRoomStanza?.(activeRoom.jid);
       dispatch(deleteRoomAction({ jid: activeRoom.jid }));
+      dispatch(setCurrentRoom({ roomJID: null }));
       handleCloseModal();
     } catch (error) {
       console.error('Failed to delete chat:', error);
