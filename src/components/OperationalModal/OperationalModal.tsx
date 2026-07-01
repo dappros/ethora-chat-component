@@ -80,7 +80,7 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
               <QRCode
                 size={256}
                 style={{ width: '100%', height: '70%', maxWidth: '100%' }}
-                value={`${qrBase}${chatJid}`}
+                value={`${qrBase}${chatJid.split('@')[0]}`}
                 viewBox="0 0 256 256"
               />
             </div>
