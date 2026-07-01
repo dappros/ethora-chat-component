@@ -177,14 +177,6 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         },
       },
       {
-        label: 'Unban',
-        icon: null,
-        onClick: () => {
-          dispatch(setActiveModal(MODAL_TYPES.SETTINGS));
-          ethoraLogger.log('Settings clicked');
-        },
-      },
-      {
         label: 'Delete',
         icon: null,
         onClick: (e: any) => {
