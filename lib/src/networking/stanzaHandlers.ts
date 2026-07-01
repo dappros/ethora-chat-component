@@ -151,8 +151,8 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
       message.user?.id,
       currentXmppUsername
     );
-    // Suppress only exact sender match from stanza resource.
-    const currentUserMessage = senderIsExactCurrentUser;
+    // Suppress own messages via exact stanza-resource match OR the looser user-id match
+    const currentUserMessage = senderIsExactCurrentUser || senderLooksLikeCurrentUser;
     const isSystemMessage = message.isSystemMessage === 'true';
 
     const isHistory = (message as any).isHistory;
