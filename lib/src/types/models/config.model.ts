@@ -367,6 +367,52 @@ export interface IConfig {
     iconPath?: string;
     badgePath?: string;
     softAsk?: boolean;
+    /**
+     * In-app banner that nudges the user to turn on browser notifications.
+     * Off by default. The banner renders one of two states automatically from
+     * the current `Notification.permission`:
+     *  - "default" (never asked) → an "Enable notifications" card with a button
+     *    that triggers the browser permission prompt;
+     *  - "denied" (blocked) → a "Notifications are blocked" card explaining how
+     *    to re-allow it from the browser's site settings.
+     * It hides itself entirely once permission is "granted", when the browser
+     * has no Notification API, or when `pushNotifications.enabled` is not true.
+     * Every label is overridable so it can be localised.
+     */
+    permissionBanner?: {
+      /** Master switch for the banner. Default false (opt-in). */
+      enabled?: boolean;
+      /** Show the prompt while permission is "default". Default true. */
+      showWhenDefault?: boolean;
+      /**
+       * Show the notice while permission is "denied". Default false: a blocked
+       * state can only be fixed by hand in the browser's site settings, so by
+       * default we don't nag. Set true to opt back into the reminder.
+       */
+      showWhenBlocked?: boolean;
+      /** Render a dismiss (×) control. Default true. Dismissal lasts the tab session. */
+      dismissible?: boolean;
+      /** Where the fixed banner is anchored. Default "bottom-right". */
+      position?:
+        | 'top-left'
+        | 'top-right'
+        | 'top-center'
+        | 'bottom-left'
+        | 'bottom-right'
+        | 'bottom-center';
+      /** Title for the "enable" state. Default "Enable notifications". */
+      enableTitle?: string;
+      /** Description for the "enable" state. */
+      enableDescription?: string;
+      /** Button label for the "enable" state. Default "Enable notifications". */
+      enableButtonLabel?: string;
+      /** Title for the "blocked" state. Default "Notifications are blocked". */
+      blockedTitle?: string;
+      /** Description for the "blocked" state. */
+      blockedDescription?: string;
+      /** Inline style overrides merged onto the banner container. */
+      style?: React.CSSProperties;
+    };
     onClick?: (params: {
       roomJID?: string;
       messageId?: string;

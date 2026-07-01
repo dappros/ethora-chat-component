@@ -13,6 +13,7 @@ import { CustomComponentsContextValue } from '../../types/models/customComponent
 import { MessageNotificationProvider } from '../../context/MessageNotificationContext';
 import { useInAppNotifications } from '../../hooks/useInAppNotifications';
 import usePushNotifications from '../../hooks/usePushNotifications';
+import NotificationPermissionBanner from '../Notification/NotificationPermissionBanner';
 import { useTypography } from '../../hooks/useTypography';
 import { applyThemeColors } from '../../helpers/resolveIconColor';
 
@@ -59,7 +60,7 @@ const ThemeColorsEnabler: React.FC<{ config?: IConfig }> = ({ config }) => {
 };
 
 const PushNotificationsEnabler: React.FC<{ config?: IConfig }> = ({ config }) => {
-  usePushNotifications({
+  const { requestPermission } = usePushNotifications({
     enabled: config?.pushNotifications?.enabled,
     vapidPublicKey: config?.pushNotifications?.vapidPublicKey,
     firebaseConfig: config?.pushNotifications?.firebaseConfig,
@@ -68,7 +69,12 @@ const PushNotificationsEnabler: React.FC<{ config?: IConfig }> = ({ config }) =>
     softAsk: config?.pushNotifications?.softAsk,
     onClick: config?.pushNotifications?.onClick,
   });
-  return null;
+  return (
+    <NotificationPermissionBanner
+      config={config}
+      requestPermission={requestPermission}
+    />
+  );
 };
 
 export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(

@@ -21,14 +21,14 @@ import type { ApiRoom } from './types/types';
 // XmppProvider receives `jwtLogin.token`, exchanges it via POST /users/client
 // for an Ethora user-auth token + xmpp creds, then connects. Mirrors the
 // production patient flow (see Slack thread).
-const BASE_URL = 'https://api.messenger.ethora-qa.com/v1';
-const CONFERENCE = 'conference.xmpp.messenger.ethora-qa.com';
+const BASE_URL = 'https://api.chat-qa.ethora.com/v1';
+const CONFERENCE = 'conference.xmpp.chat-qa.ethora.com';
 
 const BASE_CONFIG = {
   baseUrl: BASE_URL,
   xmppSettings: {
-    devServer: 'wss://xmpp.messenger.ethora-qa.com/ws',
-    host: 'xmpp.messenger.ethora-qa.com',
+    devServer: 'wss://xmpp.chat-qa.ethora.com/ws',
+    host: 'xmpp.chat-qa.ethora.com',
     conference: CONFERENCE,
     xmppPingOnSendEnabled: true,
   },

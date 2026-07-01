@@ -159,7 +159,15 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
             />
           ) : lastMessage?.body || lastMessage?.isDeleted ? (
             <LastMessageItem lastMessage={lastMessage} />
-          ) : (chat?.messages?.length ?? 0) === 0 && chat?.historyComplete ? (
+          ) : (chat?.messages?.length ?? 0) === 0 &&
+            // Show "Room created" once the history attempt has settled, not only
+            // when the MAM <fin complete> arrived. Newly created / empty rooms
+            // often time out the MAM query (no fin, presence/affiliation race
+            // after refresh) so historyComplete never flips true — settling on
+            // a terminal preload state (done/error) covers those too.
+            (chat?.historyComplete ||
+              chat?.historyPreloadState === 'done' ||
+              chat?.historyPreloadState === 'error') ? (
             <LastRoomMessageText>Room created</LastRoomMessageText>
           ) : undefined}
           {chat.unreadMessages > 0 &&

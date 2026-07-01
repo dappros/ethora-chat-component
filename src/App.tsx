@@ -21,11 +21,11 @@ const LIVEKIT_URL =
 
 const APP_CHAT_BASE_CONFIG: IConfig = {
   appId: '646cc8dc96d4a4dc8f7b2f2d',
-  baseUrl: 'https://api.messenger.ethora-qa.com/v1',
+  baseUrl: 'https://api.chat-qa.ethora.com/v1',
   xmppSettings: {
-    devServer: 'wss://xmpp.messenger.ethora-qa.com/ws',
-    host: 'xmpp.messenger.ethora-qa.com',
-    conference: 'conference.xmpp.messenger.ethora-qa.com',
+    devServer: 'wss://xmpp.chat-qa.ethora.com/ws',
+    host: 'xmpp.chat-qa.ethora.com',
+    conference: 'conference.xmpp.chat-qa.ethora.com',
     xmppPingOnSendEnabled: true,
   },
   userLogin: {
@@ -107,7 +107,7 @@ const Apps = () => {
               CustomScrollableArea={CustomScrollableArea}
               CustomDaySeparator={CustomDaySeparator}
               config={{
-                baseUrl: 'https://api.messenger.ethora-qa.com/v1',
+                baseUrl: 'https://api.chat-qa.ethora.com/v1',
                 inAppNotifications: {
                   enabled: true,
                   showInContext: true, // Show in chat component context as well
@@ -148,7 +148,10 @@ const ChatComponent = React.memo(() => {
       },
       pushNotifications: {
         enabled: true,
-        softAsk: false,
+        softAsk: true,
+        permissionBanner: {
+          enabled: true,
+        },
       },
       useStoreConsoleEnabled: true,
     }),
@@ -191,7 +194,7 @@ const ChatComponent = React.memo(() => {
         // CustomInputComponent={CustomChatInput}
         // CustomScrollableArea={CustomScrollableArea}
         // CustomDaySeparator={CustomDaySeparator}
-        // roomJID="646cc8dc96d4a4dc8f7b2f2d_6824685682d635dba7522423@conference.xmpp.messenger.ethora-qa.com"
+        // roomJID="646cc8dc96d4a4dc8f7b2f2d_6824685682d635dba7522423@conference.xmpp.chat-qa.ethora.com"
         // roomJID="6998429ba125477a74a7dcef_69b96235545b8217d39dc1ac@conference.xmpp-dev.preshent.com"
         config={{
           // ...(demoJwtToken
