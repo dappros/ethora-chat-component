@@ -239,7 +239,10 @@ export const MessageNotificationProvider: React.FC<{
 
   const showMessageNotification = useCallback(
     (message: IMessage, roomName: string, senderName: string, roomJID: string) => {
-      if (isEnabled && isTabVisible) {
+      // Don't toast for the room the user is actively viewing - they already
+      // see the message (mirrors clearNotificationsByRoom(activeRoomJID) above).
+      const isViewingActiveRoom = !!activeRoomJID && roomJID === activeRoomJID;
+      if (isEnabled && isTabVisible && !isViewingActiveRoom) {
         showToastNotification(message, roomName, senderName, roomJID);
       }
 
@@ -278,7 +281,7 @@ export const MessageNotificationProvider: React.FC<{
         );
       }
     },
-    [config, isEnabled, isTabVisible, showToastNotification, navigateToMessage]
+    [config, isEnabled, isTabVisible, activeRoomJID, showToastNotification, navigateToMessage]
   );
 
   // Register the callback with the global manager
