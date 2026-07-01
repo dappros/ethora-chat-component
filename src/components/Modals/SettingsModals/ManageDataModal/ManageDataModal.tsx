@@ -81,7 +81,7 @@ const ManageDataModal: React.FC<ManageDataModalProps> = ({
             </LabelData>
           </SharedSettingsSectionContainer>
           <SharedSettingsStyledButton
-            borderColor={config.colors.primary || '#0052CD'}
+            borderColor={config?.colors?.primary || '#0052CD'}
             onClick={handleDownloadClick}
           >
             Download your data
