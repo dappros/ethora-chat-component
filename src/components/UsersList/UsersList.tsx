@@ -99,7 +99,7 @@ const UsersList: React.FC<UsersListProps> = ({
             <Checkbox
               type="checkbox"
               checked={selectedUsers.some((u) => u._id === user._id)}
-              onChange={() => handleUserSelect(user)}
+              readOnly
               disabled={selectedUsers.length === 20}
             />
             <div>
