@@ -54,7 +54,7 @@ const MessageList = <TMessage extends IMessage>({
   activeMessage,
 }: MessageListProps<TMessage>) => {
   const { CustomScrollableArea, CustomNewMessageLabel } = useCustomComponents();
-  const { composing, messages, composingList } = useRoomState(roomJID).room;
+  const { composing, messages, composingList } = useRoomState(roomJID).room ?? {};
   const { user } = useChatSettingState();
   useLoaderDebug('chat-room-load-more-loader', loading);
   const [showScrollButton, setShowScrollButton] = useState(false);

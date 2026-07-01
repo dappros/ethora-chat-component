@@ -80,7 +80,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
 
   const { roomsList, activeRoomJID } = useRoomState(currentRoom.jid);
-  const { composing } = useRoomState(currentRoom.jid).room;
+  const { composing } = useRoomState(currentRoom.jid).room ?? {};
   const { config, user: stateUser } = useChatSettingState();
   const call = useSelector((state: RootState) => state.call);
 
