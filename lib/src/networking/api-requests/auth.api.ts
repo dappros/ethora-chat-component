@@ -33,6 +33,7 @@ export async function loginEmail(email: string, password: string) {
     {
       email,
       password,
+      'appId':"646cc8dc96d4a4dc8f7b2f2d"
     },
     { headers: { Authorization: appToken } }
   );
