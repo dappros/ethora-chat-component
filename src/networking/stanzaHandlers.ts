@@ -10,6 +10,8 @@ import {
   setCurrentRoom,
   setReactions,
   setRoomRole,
+  setMemberOnline,
+  setMemberOffline,
   updateRoom,
   updateUsersSet,
   deleteRoom,
@@ -409,6 +411,18 @@ const onPresenceInRoom = (stanza: Element | any) => {
   const state = store.getState();
   const room = state.rooms.rooms[roomJID];
   if (!room) return;
+
+  // Online-status tracking: the MUC broadcasts an available presence for every
+  // occupant already online when you join, live presence as users come online,
+  // and type='unavailable' when a user goes offline. Maintain the per-room
+  // online set from these frames (independent of the affiliation logic below).
+  if (nickname) {
+    if (stanza.attrs?.type === 'unavailable') {
+      store.dispatch(setMemberOffline({ roomJID, xmppUsername: nickname }));
+    } else if (!stanza.attrs?.type) {
+      store.dispatch(setMemberOnline({ roomJID, xmppUsername: nickname }));
+    }
+  }
 
   const myXmppUsername = state.chatSettingStore.user?.xmppUsername || '';
   const isOwn = !!myXmppUsername && nickname === myXmppUsername;

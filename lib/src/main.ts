@@ -10,6 +10,7 @@ if (typeof window !== 'undefined') {
 export { XmppProvider } from './context/xmppProvider';
 export { ReduxWrapper as Chat } from './components/MainComponents/ReduxWrapper';
 export { useUnread } from './hooks/useUnreadMessagesCounter';
+export { useRoomPresence, useIsUserOnline } from './hooks/useRoomPresence';
 export { logoutService } from './hooks/useLogout';
 export { useQRCodeChat, handleQRChatId } from './hooks/useQRCodeChatHandler';
 export { useInAppNotifications } from './hooks/useInAppNotifications';

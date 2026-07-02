@@ -53,6 +53,9 @@ interface RoomMessagesState {
   editAction?: EditAction;
   isLoading: boolean;
   usersSet: Record<string, RoomMember>;
+  // Online MUC occupants per room (xmppUsernames with an available presence),
+  // fed by available / type='unavailable' presence stanzas. Ephemeral.
+  presenceByRoom: Record<string, string[]>;
   reportRoom: {
     isOpen: boolean;
   };
@@ -80,6 +83,7 @@ const initialState: RoomMessagesState = {
     text: '',
   },
   usersSet: {},
+  presenceByRoom: {},
   reportRoom: {
     isOpen: false,
   },
@@ -779,6 +783,26 @@ const roomsStore = createSlice({
       const { roomJID } = action.payload;
       state.activeRoomJID = roomJID;
     },
+    setMemberOnline: (
+      state,
+      action: PayloadAction<{ roomJID: string; xmppUsername: string }>
+    ) => {
+      const { roomJID, xmppUsername } = action.payload;
+      if (!roomJID || !xmppUsername) return;
+      const list =
+        state.presenceByRoom[roomJID] ?? (state.presenceByRoom[roomJID] = []);
+      if (!list.includes(xmppUsername)) list.push(xmppUsername);
+    },
+    setMemberOffline: (
+      state,
+      action: PayloadAction<{ roomJID: string; xmppUsername: string }>
+    ) => {
+      const { roomJID, xmppUsername } = action.payload;
+      const list = state.presenceByRoom[roomJID];
+      if (list) {
+        state.presenceByRoom[roomJID] = list.filter((u) => u !== xmppUsername);
+      }
+    },
     setChatUiVisible: (state, action: PayloadAction<boolean>) => {
       state.isChatUiVisible = action.payload;
     },
@@ -788,6 +812,7 @@ const roomsStore = createSlice({
       state.isChatUiVisible = false;
       state.isLoading = false;
       state.usersSet = {};
+      state.presenceByRoom = {};
     },
     setActiveMessage: (
       state,
@@ -998,6 +1023,8 @@ export const {
   setLastViewedTimestamp,
   setRoomNoMessages,
   setCurrentRoom,
+  setMemberOnline,
+  setMemberOffline,
   setChatUiVisible,
   setRoomRole,
   setReactions,
