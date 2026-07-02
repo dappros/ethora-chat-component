@@ -8,6 +8,7 @@ import {
 import RoomList from './RoomList';
 import { IRoom } from '../../types/types';
 import { ProfileImagePlaceholder } from './ProfileImagePlaceholder';
+import { useRoomPresence } from '../../hooks/useRoomPresence';
 import Button from '../styled/Button';
 import { AudioCallIcon, BackIcon, VideoCallIcon } from '../../assets/icons';
 import { useDispatch, useSelector } from 'react-redux';
@@ -88,6 +89,16 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const allowedRoomTypes = videoCallsConfig?.allowedRoomTypes || ['private'];
   const isVideoCallsEnabled = videoCallsConfig?.enabled === true;
   const isPrivateRoom = currentRoom?.type === 'private';
+  const onlineUsers = useRoomPresence(currentRoom?.jid);
+  const myXmppUsername = stateUser?.xmppUsername || '';
+  const onlineCount = onlineUsers.filter((u) => u !== myXmppUsername).length;
+  const peer = isPrivateRoom
+    ? (currentRoom?.members || []).find(
+        (m) => m.xmppUsername && m.xmppUsername !== myXmppUsername
+      )
+    : undefined;
+  const peerOnline =
+    !!peer?.xmppUsername && onlineUsers.includes(peer.xmppUsername);
   const isRoomAllowedByType = isPrivateRoom && allowedRoomTypes.includes('private');
   const isRoomAllowed = isRoomAllowedByType;
   const hasLivekitUrl = Boolean(videoCallsConfig?.livekitUrl?.trim());
@@ -279,6 +290,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                 size={40}
                 icon={currentRoom?.icon}
                 active={true}
+                online={isPrivateRoom && peerOnline}
               />
             </div>
             <ChatContainerHeaderInfo>
@@ -292,9 +304,17 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                   if (composing) {
                     return <Composing usersTyping={currentRoom?.composingList} />;
                   }
+                  if (isPrivateRoom) {
+                    return (
+                      <span style={{ color: peerOnline ? '#22c55e' : '#8C8C8C' }}>
+                        {peerOnline ? 'online' : 'offline'}
+                      </span>
+                    );
+                  }
                   const displayCount = getDisplayCount(currentRoom);
                   if (displayCount <= 0) return '';
-                  return `${formatNumberWithCommas(displayCount)} ${displayCount === 1 ? 'user' : 'users'}`;
+                  const base = `${formatNumberWithCommas(displayCount)} ${displayCount === 1 ? 'user' : 'users'}`;
+                  return onlineCount > 0 ? `${base} · ${onlineCount} online` : base;
                 })()}
               </ChatContainerHeaderLabel>
             </ChatContainerHeaderInfo>

@@ -12,6 +12,7 @@ import {
 } from '../styledModalComponents';
 import ModalHeaderComponent from '../ModalHeaderComponent';
 import { ProfileImagePlaceholder } from '../../MainComponents/ProfileImagePlaceholder';
+import { useRoomPresence } from '../../../hooks/useRoomPresence';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, getActiveRoom } from '../../../roomStore';
 import { uploadFile } from '../../../networking/api-requests/auth.api';
@@ -68,6 +69,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   const { client } = useXmppClient();
   const { user: stateUser, config } = useChatSettingState();
   const activeRoom = useSelector((state: RootState) => getActiveRoom(state));
+  const onlineUsers = useRoomPresence(activeRoom?.jid);
   const usersSet = useSelector((state: RootState) => state.rooms.usersSet);
 
   // XMPP affiliation responses populate activeRoom.members with bare
@@ -325,6 +327,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                         name={`${user.firstName} ${user.lastName}`}
                         icon={(user as any).profileImage || (user as any).photoURL}
                         size={40}
+                        online={onlineUsers.includes(user.xmppUsername)}
                       />
                       <div
                         style={{
