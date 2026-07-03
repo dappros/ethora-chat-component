@@ -13,6 +13,8 @@ import {
   NewMessageMarker,
 } from './styled/StyledRoomComponents';
 import LastMessageItem from './LastMessageItem';
+import { useRoomPresence } from '../../hooks/useRoomPresence';
+import { useChatSettingState } from '../../hooks/useChatSettingState';
 
 interface ChatRoomItemProps {
   chat: IRoom;
@@ -30,6 +32,20 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
   config,
 }) => {
   const displayName = String(chat?.title || chat?.name || '').trim();
+
+  // For 1:1 rooms, light the peer's avatar when they have an available presence
+  // in this room. (Only populated for rooms whose occupant presence we receive.)
+  const onlineUsers = useRoomPresence(chat?.jid);
+  const { user: stateUser } = useChatSettingState();
+  const myXmppUsername = stateUser?.xmppUsername || '';
+  const isPrivateRoom = chat?.type === 'private';
+  const peer = isPrivateRoom
+    ? (chat?.members || []).find(
+        (m) => m.xmppUsername && m.xmppUsername !== myXmppUsername
+      )
+    : undefined;
+  const peerOnline =
+    !!peer?.xmppUsername && onlineUsers.includes(peer.xmppUsername);
 
   const withAuthorFallback = useCallback((message?: IMessage): IMessage | undefined => {
     if (!message) return message;
@@ -111,7 +127,11 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
       onClick={() => performClick(chat)}
       bg={config?.colors?.primary}
     >
-      <ProfileImagePlaceholder name={displayName} icon={chat?.icon} />
+      <ProfileImagePlaceholder
+        name={displayName}
+        icon={chat?.icon}
+        online={peerOnline}
+      />
       <div
         style={{
           display: 'flex',
