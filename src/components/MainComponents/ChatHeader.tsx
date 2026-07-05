@@ -146,23 +146,15 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     client.leaveTheRoomStanza(activeRoomJID);
     dispatch(deleteRoom({ jid: activeRoomJID }));
 
-    const nextRoomJID =
-      Object.keys(roomsList).find((roomJID) => roomJID !== activeRoomJID) ||
-      null;
-
-    if (!nextRoomJID) {
-      if (typeof window !== 'undefined') {
-        const newUrl = `${window.location.pathname}`;
-        window.history.pushState(null, '', newUrl);
-      }
-      dispatch(setCurrentRoom({ roomJID: null }));
-      setIsLeaveModalOpen(false);
-      return;
+    // After leaving, don't auto-jump into another (often empty) room — that
+    // showed a jarring "This chat is empty". Clear the selection so the pane
+    // renders the neutral "choose a chat" screen instead.
+    if (typeof window !== 'undefined') {
+      window.history.pushState(null, '', window.location.pathname);
     }
-
-    dispatch(setCurrentRoom({ roomJID: nextRoomJID }));
+    dispatch(setCurrentRoom({ roomJID: null }));
     setIsLeaveModalOpen(false);
-  }, [activeRoomJID, roomsList, dispatch, client]);
+  }, [activeRoomJID, dispatch, client]);
 
   const placeCall = useCallback(
     async (kind: 'audio' | 'video') => {
