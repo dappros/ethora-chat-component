@@ -77,6 +77,12 @@ export const SearchContainer = styled.div<{}>`
   width: 100%;
   height: 50px;
   padding: 12px 0px;
+
+  /* Mobile: add breathing room ABOVE the search, and remove the gap BETWEEN
+     the search bar and the chat list below it. */
+  @media (max-width: 767px) {
+    padding: 16px 0 0 0;
+  }
 `;
 
 export const ScollableContainer = styled.div<{}>`
