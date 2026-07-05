@@ -198,7 +198,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
                 style={{
                   backgroundColor: isChatActive
                     ? '#fff'
-                    : config?.colors?.primary,
+                    : config?.colors?.primary || '#0052CD',
                   color: isChatActive ? '#141414' : '#fff',
                 }}
               >
