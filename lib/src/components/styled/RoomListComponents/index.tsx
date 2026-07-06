@@ -24,15 +24,26 @@ export const Container = styled.div.withConfig({
           border-right: 1px solid var(--Colors-Border-border-primary, #f0f0f0);
         `
       : css`
+          box-sizing: border-box;
           padding: 16px;
           padding-top: 0px;
           overflow: auto;
           display: relative;
           z-index: 2;
           background-color: #fff;
-          min-width: 335px;
-          border-right: 1px solid var(--Colors-Border-border-primary, #f0f0f0);
           min-width: 343px;
+          border-right: 1px solid var(--Colors-Border-border-primary, #f0f0f0);
+
+          /* Adapt to narrow viewports: a fixed min-width pushed the list
+             wider than the screen and produced a horizontal scrollbar on
+             mobile. Let it shrink to the container and cap padding. */
+          @media (max-width: 767px) {
+            min-width: 0;
+            width: 100%;
+            max-width: 100%;
+            padding-left: 12px;
+            padding-right: 12px;
+          }
         `}
 `;
 
