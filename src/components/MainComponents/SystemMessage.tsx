@@ -21,7 +21,7 @@ export const CustomSystemMessageText = styled.div<{
   font-size: 12px;
   line-height: 16px;
   font-weight: 600;
-  /* Light chip to match the date separator. Was bound to `secondary`, which
+  /* Light chip to match the date separator. Was bound to 'secondary', which
      hosts set to a near-black text colour (#141414) -> rendered as a harsh
      black pill. */
   background-color: #e7edf9;
