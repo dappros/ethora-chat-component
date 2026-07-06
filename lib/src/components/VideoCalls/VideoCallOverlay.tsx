@@ -6,7 +6,7 @@ import React, {
   useState,
 } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '../../roomStore';
+import { RootState, store } from '../../roomStore';
 import {
   acceptIncomingCall,
   declineIncomingCall,
@@ -15,6 +15,8 @@ import {
   setCallError,
   setCallPhase,
 } from '../../roomStore/callSlice';
+import { addRoomMessage } from '../../roomStore/roomsSlice';
+import { buildLocalCallLogMessage } from '../../helpers/callLogMessage';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { VideoCallSession } from './VideoCallSession';
 import { ProfileImagePlaceholder } from '../MainComponents/ProfileImagePlaceholder';
@@ -425,6 +427,29 @@ export const VideoCallOverlay: React.FC = () => {
 
   const terminateCall = useCallback(
     (state: CallSignalState) => {
+      // Write a local "call ended" log entry BEFORE endCall() wipes the call
+      // slice. The authoritative entry is a server call-state broadcast, but
+      // that isn't guaranteed to arrive, so we synthesize our own. It's
+      // deduped against any server copy by callId in addRoomMessage.
+      const snap = store.getState().call;
+      if (snap.roomJid && (snap.callId || snap.connectedAt)) {
+        const durationMs = snap.connectedAt
+          ? Math.max(0, Date.now() - snap.connectedAt)
+          : 0;
+        dispatch(
+          addRoomMessage({
+            roomJID: snap.roomJid,
+            message: buildLocalCallLogMessage({
+              callId: snap.callId || '',
+              direction: snap.direction === 'incoming' ? 'incoming' : 'outgoing',
+              durationMs,
+              kind: snap.kind === 'audio' ? 'audio' : 'video',
+              selfXmppUsername:
+                store.getState().chatSettingStore.user?.xmppUsername || '',
+            }),
+          })
+        );
+      }
       sendCallStateSignal(state);
       dispatch(endCall());
     },

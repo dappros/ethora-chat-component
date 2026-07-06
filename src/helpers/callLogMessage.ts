@@ -34,7 +34,7 @@ export const callStateHasLogData = (attrs: Record<string, any>): boolean => {
   return hasCaller || hasDuration;
 };
 
-const formatCallDuration = (ms: number): string => {
+export const formatCallDuration = (ms: number): string => {
   const totalSeconds = Math.max(0, Math.round(ms / 1000));
   if (totalSeconds < 60) return `${totalSeconds} sec`;
   const minutes = Math.floor(totalSeconds / 60);
@@ -83,4 +83,48 @@ export const transformCallLogMessage = (
     isSystemMessage: 'true',
     callLog,
   } as IMessage;
+};
+
+// Build a "call ended" log entry locally (client-side) when a call finishes.
+// The authoritative entry is a SERVER `call-state` broadcast, but that isn't
+// guaranteed to arrive (see header comment). This fallback keeps the chat log
+// working regardless. It's deduplicated against any server copy in
+// `addRoomMessage` by `callLog.callId` (the entry with the largest duration
+// wins), so if the server does broadcast, the two collapse into one.
+export const buildLocalCallLogMessage = (params: {
+  callId: string;
+  direction: 'outgoing' | 'incoming';
+  durationMs: number;
+  kind: 'audio' | 'video';
+  selfXmppUsername: string;
+}): IMessage => {
+  const { callId, direction, durationMs, kind, selfXmppUsername } = params;
+  const isOutgoing = direction === 'outgoing';
+  const safeDuration = Math.max(0, Math.round(durationMs || 0));
+
+  let body: string;
+  if (safeDuration > 0) {
+    body = `${isOutgoing ? 'Outgoing' : 'Incoming'} call · ${formatCallDuration(safeDuration)}`;
+  } else {
+    body = isOutgoing ? 'No answer' : 'Missed call';
+  }
+
+  const callLog: CallLogMeta = {
+    callId,
+    direction,
+    durationMs: safeDuration,
+    missed: safeDuration === 0,
+    kind,
+  };
+
+  return {
+    // Deterministic id so a re-fire for the same call collapses in place.
+    id: callId ? `calllog-${callId}` : `calllog-${Date.now()}`,
+    body,
+    date: new Date().toISOString(),
+    isSystemMessage: 'true',
+    type: 'call-state',
+    callLog,
+    user: { id: selfXmppUsername },
+  } as unknown as IMessage;
 };
