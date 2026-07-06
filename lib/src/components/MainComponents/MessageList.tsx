@@ -5,6 +5,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useDispatch } from 'react-redux';
 import {
   MessagesScroll,
   MessagesList,
@@ -18,12 +19,23 @@ import TreadLabel from '../styled/TreadLabel';
 import { MessageContainer } from './MessageContainer';
 import { useRoomState } from '../../hooks/useRoomState';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { useXmppClient } from '../../context/xmppProvider';
+import { useTabVisibility } from '../../hooks/useTabVisibility';
+import { setLastViewedTimestamp } from '../../roomStore/roomsSlice';
 import { DownArrowIcon } from '../../assets/icons';
 import NewMessageLabel from '../styled/NewMessageLabel';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
 import { DecoratedMessage } from '../../types/models/customComponents.model';
 import { parseMessageReference } from '../../helpers/parseMessageReference';
 import { useLoaderDebug } from '../../hooks/useLoaderDebug';
+
+// How long the active room must sit quiet (no new "mark as read" trigger)
+// before we persist the read-state to the server's private store. Each new
+// qualifying event (message arrives while at bottom, or the user jumps to
+// the latest via the scroll button) resets this timer, so a fast burst of
+// messages produces exactly one write, sent for the last message once
+// things go quiet — not one write per message.
+const MARK_READ_DEBOUNCE_MS = 5000;
 
 interface MessageListProps<TMessage extends IMessage> {
   CustomMessage?: React.ComponentType<{
@@ -54,8 +66,12 @@ const MessageList = <TMessage extends IMessage>({
   activeMessage,
 }: MessageListProps<TMessage>) => {
   const { CustomScrollableArea, CustomNewMessageLabel } = useCustomComponents();
-  const { composing, messages, composingList } = useRoomState(roomJID).room ?? {};
+  const { composing, messages, composingList, unreadMessages } =
+    useRoomState(roomJID).room ?? {};
   const { user } = useChatSettingState();
+  const { client } = useXmppClient();
+  const dispatch = useDispatch();
+  const isTabVisible = useTabVisibility();
   useLoaderDebug('chat-room-load-more-loader', loading);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [newMessagesCount, setNewMessagesCount] = useState(0);
@@ -116,6 +132,45 @@ const MessageList = <TMessage extends IMessage>({
   const atBottom = useRef<boolean>(true);
   const isUserScrolledUp = useRef<boolean>(false);
   const lastComposingState = useRef<boolean>(false);
+  const markReadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Persist "I've read up to now" for this room to the server's private
+  // store. Previously this only happened when the user LEFT the room
+  // (ChatRoom's unmount effect) — while a chat stayed open and active with
+  // messages streaming in, the server-side read marker never advanced, so a
+  // refresh (or another device) could see the room as having a pile of
+  // "unread" messages the user had actually already seen live. Debounced via
+  // scheduleMarkRead below so a burst of messages produces one write, not one
+  // per message.
+  const flushMarkRead = useCallback(() => {
+    markReadTimerRef.current = null;
+    if (config?.disableLastRead) return;
+    // Never mark-as-read while the tab is backgrounded — the user isn't
+    // actually looking at these messages.
+    if (!isTabVisible) return;
+    if (!client || !roomJID) return;
+    if (!unreadMessages) return; // nothing to advance
+
+    const ts = Date.now();
+    dispatch(setLastViewedTimestamp({ chatJID: roomJID, timestamp: ts }));
+    client.actionSetTimestampToPrivateStoreStanza(roomJID, ts);
+  }, [config?.disableLastRead, isTabVisible, client, roomJID, unreadMessages, dispatch]);
+
+  const scheduleMarkRead = useCallback(() => {
+    if (config?.disableLastRead) return;
+    if (!isTabVisible) return;
+    if (markReadTimerRef.current) clearTimeout(markReadTimerRef.current);
+    markReadTimerRef.current = setTimeout(flushMarkRead, MARK_READ_DEBOUNCE_MS);
+  }, [config?.disableLastRead, isTabVisible, flushMarkRead]);
+
+  useEffect(() => {
+    return () => {
+      // Drop any pending write on unmount/room-switch — ChatRoom's own
+      // unmount effect writes a fresher `Date.now()` timestamp on room exit,
+      // so there's nothing useful left for this timer to do.
+      if (markReadTimerRef.current) clearTimeout(markReadTimerRef.current);
+    };
+  }, [roomJID]);
 
   const getScrollParams = (): { top: number; height: number } | null => {
     const content = containerRef.current;
@@ -246,8 +301,13 @@ const MessageList = <TMessage extends IMessage>({
       });
       setShowScrollButton(false);
       setNewMessagesCount(0);
+      // Every path that lands here means the user is now looking at the
+      // latest messages: auto-follow while already at the bottom when a new
+      // message arrives, or an explicit click on the "new messages" button
+      // to jump down to them.
+      scheduleMarkRead();
     }
-  }, []);
+  }, [scheduleMarkRead]);
 
   const checkAtBottom = () => {
     const content = containerRef.current;
