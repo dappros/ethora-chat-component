@@ -54,7 +54,13 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   const { user, activeModal, deleteModal } = useChatSettingState();
 
   const [isChatVisible, setIsChatVisible] = useState(false);
-  const [isSmallScreen, setIsSmallScreen] = useState(false);
+  // Initialize from the actual viewport on the FIRST render (lazy initializer)
+  // instead of defaulting to false. Otherwise the first paint uses the desktop
+  // 432px room-list width and then snaps to 100% once the effect runs - the
+  // "list is wide, then shrinks" jump on mobile load.
+  const [isSmallScreen, setIsSmallScreen] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < 768
+  );
   const [isRouteActive, setIsRouteActive] = useState(true);
 
   const conferenceServer = config?.xmppSettings?.conference;
