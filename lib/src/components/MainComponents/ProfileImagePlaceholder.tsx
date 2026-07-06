@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import styled from 'styled-components';
 import { EditIcon } from '../../assets/icons';
 import {
   AvatarCircle,
@@ -48,9 +47,6 @@ export const ProfileImagePlaceholder: React.FC<
   online = false,
 }) => {
   const { config } = useChatSettingState();
-  // When the host themes icons, avatars follow `colors.iconsBg` (circle bg) and
-  // `colors.icons` (initials / placeholder glyph). Otherwise keep the historical
-  // per-name hashed colour so distinct users stay visually distinguishable.
   const iconsBg = config?.colors?.iconsBg;
   const iconColor = config?.colors?.icons;
   const { backgroundColor: hashedBg } = nameToColor(name);
@@ -111,6 +107,7 @@ export const ProfileImagePlaceholder: React.FC<
         style={{
           fontSize: size >= 64 ? '24px' : '18px',
           ...(iconColor ? { color: iconColor } : {}),
+          cursor: 'pointer'
         }}
       >
         {icon ? (
