@@ -78,10 +78,11 @@ export const SearchContainer = styled.div<{}>`
   height: 50px;
   padding: 12px 0px;
 
-  /* Mobile: add breathing room ABOVE the search, and remove the gap BETWEEN
-     the search bar and the chat list below it. */
+  /* Mobile: breathing room ABOVE the search (gap from the header) and a
+     smaller gap BELOW it, so the input isn't glued to the first chat row. */
   @media (max-width: 767px) {
-    padding: 16px 0 0 0;
+    height: auto;
+    padding: 16px 0 12px 0;
   }
 `;
 
