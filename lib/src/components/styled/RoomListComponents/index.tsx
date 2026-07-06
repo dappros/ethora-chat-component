@@ -108,6 +108,7 @@ export const ScollableContainer = styled.div<{}>`
 export const ChatInfo = styled.div`
   display: flex;
   flex-direction: column;
+  min-width: 0;
   max-width: 60%;
   text-align: start;
 `;

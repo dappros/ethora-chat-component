@@ -137,6 +137,12 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
           display: 'flex',
           flexDirection: 'column',
           width: '100%',
+          // Let this column shrink to the container instead of being sized by
+          // its content. Without min-width:0 a long 1:1 title (e.g. an email
+          // address) forces the whole row wider than the list -> that single
+          // item overflows and the list gets a horizontal scroll.
+          minWidth: 0,
+          flex: 1,
         }}
       >
         <div
@@ -144,6 +150,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
             display: 'flex',
             alignItems: 'center',
             width: '100%',
+            minWidth: 0,
             gap: '16px',
             height: '24px',
             justifyContent: 'space-between',
