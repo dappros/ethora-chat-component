@@ -23,6 +23,7 @@ import { messageNotificationManager } from '../utils/messageNotificationManager'
 import { IMessage } from '../types/models/message.model';
 import { pushSubscriptionService } from '../utils/pushSubscriptionService';
 import { getGlobalXmppClient } from '../utils/clientRegistry';
+import { isLikelyMucJid } from '../helpers/isLikelyMucJid';
 import {
   setCurrentRoom,
   setPushSubscriptionStatus,
@@ -586,7 +587,16 @@ const usePushNotifications = (
     if (!enabled) return;
     if (!fcmTokenReady) return;
 
-    const roomJIDs = Object.keys(roomsMap || {}).filter(Boolean).sort();
+    // .filter(Boolean) alone let non-JID keys through — root-slice fields
+    // (usersSet, subscribedRooms, etc.) that leak into rooms.rooms from
+    // corrupted/legacy persisted state — each one then hit
+    // pushSubscriptionService.subscribeToRoom() as if it were a real room,
+    // failing with errors like "Failed to subscribe to usersSet". Same class
+    // of bug as the MAM-queue leak fixed in historyPreloadScheduler.ts /
+    // updateMessagesTillLast.tsx.
+    const roomJIDs = Object.keys(roomsMap || {})
+      .filter(isLikelyMucJid)
+      .sort();
     const roomJIDsHash = roomJIDs
       .map((jid) => `${jid}:${pushSubscriptionStatus[jid] || 'idle'}`)
       .join(',');

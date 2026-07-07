@@ -1,6 +1,7 @@
 import XmppClient from '../networking/xmppClient';
 import { IRoom } from '../types/types';
 import { ethoraLogger } from './ethoraLogger';
+import { isLikelyMucJid } from './isLikelyMucJid';
 
 const inFlightByClient = new Map<string, Promise<void>>();
 
@@ -18,7 +19,11 @@ export const initRoomsPresence = async (
   if (typeof client.client?.setMaxListeners === 'function') {
     client.client.setMaxListeners(100);
   }
-  const jids = Object.keys(rooms || {});
+  // Same class of bug as the MAM-queue leak: non-JID root-slice keys
+  // (usersSet, subscribedRooms, ...) leaking into rooms.rooms would each cost
+  // up to the full 5000ms presenceInRoomStanza timeout in this already-slow
+  // sequential fallback loop, on top of a wasted stanza round-trip.
+  const jids = Object.keys(rooms || {}).filter(isLikelyMucJid);
   if (!jids.length) return null;
   const run = (async () => {
     for (const jid of jids) {
