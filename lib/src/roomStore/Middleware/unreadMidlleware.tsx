@@ -84,7 +84,10 @@ const computeUnreadForRoom = (
   };
 };
 
-const resolveTouchedRooms = (
+// Exported for testing (verifies the O(N) vs O(N^2) room-bootstrap fix
+// directly, without asserting on dispatched side effects that only fire when
+// a computed value actually changes).
+export const resolveTouchedRooms = (
   action: any,
   prevState: any,
   nextState: any
@@ -130,9 +133,32 @@ const resolveTouchedRooms = (
       if (roomJID) touched.add(roomJID);
       break;
     }
-    case 'roomMessages/addRoom':
-    case 'roomMessages/addRoomFromApi':
-    case 'roomMessages/addRoomViaApi':
+    case 'roomMessages/addRoom': {
+      const jid = action?.payload?.roomData?.jid;
+      if (jid) touched.add(jid);
+      break;
+    }
+    case 'roomMessages/addRoomFromApi': {
+      // Fires once per room during initial room-list sync (see
+      // useGetNewArchRoom.tsx). Touching only the added room (not every room
+      // added so far) turns what used to be an O(N^2) unread recompute over
+      // the whole account into O(N) — the previous "touch all rooms" here
+      // meant room 1 recomputed 1 room, room 2 recomputed 2, ... room N
+      // recomputed N, ~N^2/2 recomputes total for an N-room account.
+      const jid = action?.payload?.room?.jid;
+      if (jid) touched.add(jid);
+      break;
+    }
+    // addRoomViaApi is a createAsyncThunk: dispatching it never fires the
+    // bare 'roomMessages/addRoomViaApi' type, only the /pending, /fulfilled,
+    // /rejected lifecycle actions (which don't mutate rooms.rooms at all —
+    // the thunk's actual room write happens via the addRoomFromApi dispatch
+    // above). Without these no-op cases they'd fall through to the generic
+    // 'roomMessages/*' default below and touch every room for nothing.
+    case 'roomMessages/addRoomViaApi/pending':
+    case 'roomMessages/addRoomViaApi/fulfilled':
+    case 'roomMessages/addRoomViaApi/rejected':
+      break;
     case 'roomMessages/deleteRoom':
     case 'roomMessages/setLogoutState': {
       Object.keys(nextState?.rooms?.rooms || {}).forEach((jid) => touched.add(jid));

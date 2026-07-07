@@ -188,9 +188,20 @@ const sanitizeRoomsStateTransform = createTransform(
   (outboundState: Record<string, any>) => normalizeRoomsState(outboundState)
 );
 
+// Coalesce persist writes instead of running the full transform chain
+// (normalize -> cap messages -> JSON.stringify -> crypto-js AES encrypt) on
+// EVERY dispatch that touches the slice. Without this, redux-persist's
+// internal queue (see createPersistoid) still processes back-to-back via
+// setInterval(fn, 0) — not literally synchronous with the dispatch, but a
+// rapid-fire burst of full-state encrypt cycles with no yielding, which reads
+// as a frozen tab. A burst of N dispatches within the throttle window
+// coalesces into ONE write of the latest state instead of N.
+const PERSIST_THROTTLE_MS = 500;
+
 const chatSettingPersistConfig = {
   key: 'chatSettingStore',
   storage,
+  throttle: PERSIST_THROTTLE_MS,
   blacklist: [
     'activeModal',
     'deleteModal',
@@ -207,6 +218,7 @@ const chatSettingPersistConfig = {
 const roomsPersistConfig = {
   key: 'roomMessages',
   storage,
+  throttle: PERSIST_THROTTLE_MS,
   blacklist: ['editAction', 'activeRoomJID', 'loadingText', 'isChatUiVisible'],
   transforms: [sanitizeRoomsStateTransform, limitMessagesTransform, encryptor],
 };

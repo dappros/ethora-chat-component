@@ -5,6 +5,7 @@ import { IMessage, IRoom } from '../types/types';
 import { getMessageTimestamp, getRoomLastActivityScore } from './roomActivityScore';
 import { ethoraLogger } from './ethoraLogger';
 import { getTimestampFromUnknown } from './timestamp';
+import { isLikelyMucJid } from './isLikelyMucJid';
 
 interface HistoryPreloadSchedulerOptions {
   client: XmppClient;
@@ -103,6 +104,11 @@ export const runHistoryPreloadScheduler = async (
   const defaultSet = new Set(defaultRoomJids);
 
   const sortedQueue: QueueItem[] = Object.entries(rooms)
+    // Skip non-JID entries that can leak into `rooms.rooms` from corrupted/
+    // legacy persisted state (root-slice keys like `activeRoomJID`,
+    // `usersSet`) — otherwise they queue as fake "rooms", wasting concurrency
+    // slots and network round-trips that real rooms are waiting on.
+    .filter(([jid]) => isLikelyMucJid(jid))
     .map(([jid, room]: [string, IRoom]) => ({
       jid,
       priority: getRoomPriority(jid, room, selectedRoomJid, defaultSet),

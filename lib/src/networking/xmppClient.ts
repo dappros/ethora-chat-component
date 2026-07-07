@@ -255,9 +255,17 @@ export class XmppClient implements XmppClientInterface {
     this.username = username;
     this.password = password;
     this.pingOnSendEnabled = xmppSettings?.xmppPingOnSendEnabled === true;
+    // Was 2, tighter than historyPreloadScheduler's own concurrency=3 — the
+    // two gates disagreeing meant the scheduler could never actually run 3
+    // rooms in parallel, it always serialized down to 2. A background
+    // preload burst of N rooms round-trips to the server sequentially in
+    // batches of `min(scheduler concurrency, maxInFlightHistory)`, so raising
+    // this to 4 lets the scheduler's own concurrency setting actually apply,
+    // and leaves headroom for an active-room fast-path request landing in
+    // the same window.
     this.maxInFlightHistory = Math.max(
       1,
-      Number(xmppSettings?.historyQoS?.maxInFlightHistory || 2)
+      Number(xmppSettings?.historyQoS?.maxInFlightHistory || 4)
     );
     this.softPauseAfterSendMs = Math.max(
       0,

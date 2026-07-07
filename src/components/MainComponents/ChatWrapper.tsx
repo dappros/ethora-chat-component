@@ -33,7 +33,18 @@ import FallbackScreen from './FallbackScreen';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
 import { useLoaderDebug } from '../../hooks/useLoaderDebug';
-import { VideoCallOverlay } from '../VideoCalls/VideoCallOverlay';
+// Lazy: VideoCallOverlay pulls in VideoCallSession, which pulls in
+// livekit-client + @livekit/components-react — a large dependency that a
+// static import would bundle into every consumer regardless of whether they
+// use calls. A call can only ever become active when config.videoCalls.enabled
+// is true (every entry point — placing, receiving, and the live call-token
+// handler — already gates on it), so it's safe to only fetch this chunk, via
+// Suspense below, for hosts that actually opt in.
+const VideoCallOverlay = React.lazy(() =>
+  import('../VideoCalls/VideoCallOverlay').then((module) => ({
+    default: module.VideoCallOverlay,
+  }))
+);
 
 interface ChatWrapperProps {
   token?: string;
@@ -379,7 +390,11 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
                 dispatch(setActiveModal(value))
               }
             />
-            <VideoCallOverlay />
+            {config?.videoCalls?.enabled === true && (
+              <React.Suspense fallback={null}>
+                <VideoCallOverlay />
+              </React.Suspense>
+            )}
           </ChatWrapperBox>
         </ChatWrapperBox>
       ) : (

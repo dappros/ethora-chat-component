@@ -192,6 +192,15 @@ const useChatWrapperInit = ({
     const clientKey =
       targetClient.client?.jid?.toString() || targetClient.username || 'xmpp-client';
 
+    // Presence-join readiness (all rooms) and history preload used to run
+    // strictly sequentially: preload waited on the ENTIRE presence sweep
+    // finishing (up to a 12s poll) before fetching a single message. MAM
+    // history fetches don't actually require the room to be joined first
+    // (getHistoryStanza never checks `joinedRooms`), so the two are
+    // independent XMPP operations sharing one connection — no reason to
+    // serialize them. Presence readiness now runs as its own fire-and-forget
+    // branch; the private-store + history-preload branch below starts
+    // immediately once the client is online.
     void (async () => {
       const online = await waitForClientOnline(targetClient);
       if (!online) return;
@@ -226,6 +235,11 @@ const useChatWrapperInit = ({
           }
         }
       }
+    })();
+
+    void (async () => {
+      const online = await waitForClientOnline(targetClient);
+      if (!online) return;
 
       if (!privateStoreBootstrappedClientsRef.current.has(clientKey)) {
         if (!config?.disableLastRead) {
