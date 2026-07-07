@@ -22,7 +22,11 @@ export async function allRoomPresences(
   }
 
   const settled: PromiseSettledResult<any>[] = new Array(roomJids.length);
-  const concurrency = 3;
+  // Was 3. This whole sweep re-runs from scratch on every reconnect
+  // (attachEventListeners' disconnect handler clears joinedRooms), so for a
+  // ~10-room account, raising this cuts a 4-round sweep to ~2 rounds -
+  // meaningful when a reconnect mid-load forces a full redo.
+  const concurrency = 5;
   const queue = roomJids.map((roomJid, index) => ({ roomJid, index }));
 
   const worker = async () => {
