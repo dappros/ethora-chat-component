@@ -322,7 +322,7 @@ const onReactionHistory = async (stanza: any) => {
 const onMessageHistory = async (stanza: any) => {
   if (
     stanza.is('message') &&
-    stanza.children[0].attrs.xmlns === 'urn:xmpp:mam:2'
+    (stanza.children[0] as any)?.attrs?.xmlns === 'urn:xmpp:mam:2'
   ) {
     const { data, id, body, ...rest } = await getDataFromXml(stanza);
 

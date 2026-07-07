@@ -26,6 +26,11 @@ export const updateMessagesTillLast = async (
     for (let i = room.messages.length - 1; i >= 0; i -= 1) {
       const message = room.messages[i];
       if (!message || message.id === 'delimiter-new' || message.pending) continue;
+      // Client-side call-log fallbacks (id "calllog-<callId>") exist only in
+      // this client's store — the server can never return them, so anchoring
+      // on one guarantees an anchor-miss and a full room_cache_reset after
+      // EVERY call. Anchor on the newest real server message instead.
+      if (String(message.id || '').startsWith('calllog-')) continue;
       return message;
     }
     return null;
