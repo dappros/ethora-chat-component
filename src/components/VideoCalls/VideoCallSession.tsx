@@ -849,12 +849,15 @@ const AudioCallContent: React.FC<{
 
       <div
         style={{
-          flex: 1,
+          flex: '1 1 auto',
+          minHeight: 0,
+          width: '100%',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
           gap: 18,
+          overflowY: 'auto',
         }}
       >
         <div
@@ -965,11 +968,13 @@ const AudioCallContent: React.FC<{
         </div>
       </div>
 
-      <CallControls
-        primaryColor={primaryColor}
-        onHangup={onHangup}
-        icons={icons}
-      />
+      <div style={{ flexShrink: 0 }}>
+        <CallControls
+          primaryColor={primaryColor}
+          onHangup={onHangup}
+          icons={icons}
+        />
+      </div>
 
       <RoomAudioRenderer />
     </div>
