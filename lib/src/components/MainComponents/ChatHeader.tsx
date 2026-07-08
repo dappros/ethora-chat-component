@@ -9,6 +9,7 @@ import RoomList from './RoomList';
 import { IRoom } from '../../types/types';
 import { ProfileImagePlaceholder } from './ProfileImagePlaceholder';
 import { useRoomPresence } from '../../hooks/useRoomPresence';
+import OnlineUsersPopover from '../RoomComponents/OnlineUsersPopover';
 import Button from '../styled/Button';
 import { AudioCallIcon, BackIcon, VideoCallIcon } from '../../assets/icons';
 import { useDispatch, useSelector } from 'react-redux';
@@ -91,7 +92,6 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const isPrivateRoom = currentRoom?.type === 'private';
   const onlineUsers = useRoomPresence(currentRoom?.jid);
   const myXmppUsername = stateUser?.xmppUsername || '';
-  const onlineCount = onlineUsers.filter((u) => u !== myXmppUsername).length;
   const peer = isPrivateRoom
     ? (currentRoom?.members || []).find(
         (m) => m.xmppUsername && m.xmppUsername !== myXmppUsername
@@ -306,7 +306,17 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                   const displayCount = getDisplayCount(currentRoom);
                   if (displayCount <= 0) return '';
                   const base = `${formatNumberWithCommas(displayCount)} ${displayCount === 1 ? 'user' : 'users'}`;
-                  return onlineCount > 0 ? `${base} · ${onlineCount} online` : base;
+                  if (onlineUsers.length === 0) return base;
+                  return (
+                    <>
+                      {base} ·{' '}
+                      <OnlineUsersPopover
+                        onlineUsernames={onlineUsers}
+                        members={currentRoom?.members}
+                        myXmppUsername={myXmppUsername}
+                      />
+                    </>
+                  );
                 })()}
               </ChatContainerHeaderLabel>
             </ChatContainerHeaderInfo>

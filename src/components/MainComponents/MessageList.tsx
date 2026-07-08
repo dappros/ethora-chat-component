@@ -34,7 +34,7 @@ import { useLoaderDebug } from '../../hooks/useLoaderDebug';
 // the latest via the scroll button) resets this timer, so a fast burst of
 // messages produces exactly one write, sent for the last message once
 // things go quiet — not one write per message.
-const MARK_READ_DEBOUNCE_MS = 5000;
+const MARK_READ_DEBOUNCE_MS = 1000;
 
 interface MessageListProps<TMessage extends IMessage> {
   CustomMessage?: React.ComponentType<{

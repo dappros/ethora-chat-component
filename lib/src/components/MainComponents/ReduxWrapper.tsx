@@ -10,7 +10,6 @@ import Loader from '../styled/Loader.tsx';
 import { ToastProvider } from '../../context/ToastContext.tsx';
 import { CustomComponentsProvider } from '../../context/CustomComponentsContext';
 import { CustomComponentsContextValue } from '../../types/models/customComponents.model';
-import { MessageNotificationProvider } from '../../context/MessageNotificationContext';
 import { useInAppNotifications } from '../../hooks/useInAppNotifications';
 import usePushNotifications from '../../hooks/usePushNotifications';
 import NotificationPermissionBanner from '../Notification/NotificationPermissionBanner';
@@ -99,21 +98,19 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
       <Provider store={store}>
         <PersistGate loading={<Loader />} persistor={persistor}>
           <ToastProvider>
-            <MessageNotificationProvider config={memoizedConfig}>
-              <NotificationEnabler />
-              <TypographyEnabler config={memoizedConfig} />
-              <ThemeColorsEnabler config={memoizedConfig} />
-              <PushNotificationsEnabler config={memoizedConfig} />
-              <CustomComponentsProvider
-                CustomMessageComponent={CustomMessageComponent}
-                CustomInputComponent={CustomInputComponent}
-                CustomScrollableArea={CustomScrollableArea}
-                CustomDaySeparator={CustomDaySeparator}
-                CustomNewMessageLabel={CustomNewMessageLabel}
-              >
-                <LoginWrapper config={memoizedConfig} {...props} />
-              </CustomComponentsProvider>
-            </MessageNotificationProvider>
+            <NotificationEnabler />
+            <TypographyEnabler config={memoizedConfig} />
+            <ThemeColorsEnabler config={memoizedConfig} />
+            <PushNotificationsEnabler config={memoizedConfig} />
+            <CustomComponentsProvider
+              CustomMessageComponent={CustomMessageComponent}
+              CustomInputComponent={CustomInputComponent}
+              CustomScrollableArea={CustomScrollableArea}
+              CustomDaySeparator={CustomDaySeparator}
+              CustomNewMessageLabel={CustomNewMessageLabel}
+            >
+              <LoginWrapper config={memoizedConfig} {...props} />
+            </CustomComponentsProvider>
           </ToastProvider>
         </PersistGate>
       </Provider>

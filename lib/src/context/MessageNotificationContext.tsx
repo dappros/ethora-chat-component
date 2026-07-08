@@ -49,16 +49,26 @@ export const MessageNotificationProvider: React.FC<{
   const isTabVisible = useTabVisibility();
   const dispatch = useDispatch();
   const activeRoomJID = useSelector((state: RootState) => state.rooms.activeRoomJID);
+  // True exactly while the chat UI (ChatWrapper) is mounted - see
+  // useChatWrapperInit's mount/unmount effect. Distinct from activeRoomJID:
+  // this tells us the user is looking at the chat page at all, regardless
+  // of which room is open.
+  const isChatUiVisible = useSelector(
+    (state: RootState) => state.rooms.isChatUiVisible ?? false
+  );
   const contextConfig = useSelector(
     (state: RootState) => state.chatSettingStore?.config
   );
-  
-  // Use config from props, context, or defaults
-  const config = propConfig || contextConfig;
+
+  // Prefer the config <Chat> itself dispatched to Redux over the prop passed
+  // to this provider - this provider now lives in <XmppProvider>, which may
+  // be mounted well before (and stay mounted well after) <Chat>, so <Chat>'s
+  // own richer config (position, custom component, etc.) should win once it
+  // exists.
+  const config = contextConfig || propConfig;
   const notificationConfig = config?.inAppNotifications;
   const isEnabled = notificationConfig?.enabled === true;
-  const showInContext = notificationConfig?.showInContext ?? true; // Default to true - show in chat context
-  
+
   const MAX_NOTIFICATIONS = notificationConfig?.maxNotifications ?? DEFAULT_MAX_NOTIFICATIONS;
   const NOTIFICATION_DURATION = notificationConfig?.duration ?? DEFAULT_NOTIFICATION_DURATION;
   
@@ -239,10 +249,11 @@ export const MessageNotificationProvider: React.FC<{
 
   const showMessageNotification = useCallback(
     (message: IMessage, roomName: string, senderName: string, roomJID: string) => {
-      // Don't toast for the room the user is actively viewing - they already
-      // see the message (mirrors clearNotificationsByRoom(activeRoomJID) above).
-      const isViewingActiveRoom = !!activeRoomJID && roomJID === activeRoomJID;
-      if (isEnabled && isTabVisible && !isViewingActiveRoom) {
+      // Toast only when the tab is focused AND the user isn't on the chat
+      // page at all - not just "not this specific room". While chat is open
+      // they already see unread state/messages live in the UI; while
+      // backgrounded, shouldShowForegroundOsPush below takes over instead.
+      if (isEnabled && isTabVisible && !isChatUiVisible) {
         showToastNotification(message, roomName, senderName, roomJID);
       }
 
@@ -281,7 +292,7 @@ export const MessageNotificationProvider: React.FC<{
         );
       }
     },
-    [config, isEnabled, isTabVisible, activeRoomJID, showToastNotification, navigateToMessage]
+    [config, isEnabled, isTabVisible, isChatUiVisible, showToastNotification, navigateToMessage]
   );
 
   // Register the callback with the global manager

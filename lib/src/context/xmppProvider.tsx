@@ -38,6 +38,7 @@ import {
 import { setBaseURL } from '../networking/apiClient';
 import { ensureScopedChatCache } from '../helpers/cacheScope';
 import { ethoraLogger } from '../helpers/ethoraLogger';
+import { MessageNotificationProvider } from './MessageNotificationContext';
 
 // Declare XmppContext
 interface XmppContextType {
@@ -518,7 +519,13 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
         <XmppProviderPushNotificationsEnabler
           pushNotifications={pushNotifications}
         />
-        {children}
+        {/* Lives here (not inside <Chat>) so registration with
+            messageNotificationManager, and the toast UI, persist across the
+            whole host app - not just while the chat page/component happens
+            to be mounted. */}
+        <MessageNotificationProvider config={config}>
+          {children}
+        </MessageNotificationProvider>
       </Provider>
     </XmppContext.Provider>
   );

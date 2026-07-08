@@ -137,9 +137,31 @@ const overlayBackdropStyle: React.CSSProperties = {
 
 // Wide white card for the active video / audio session (full chat
 // component look). The pre-connect / ringing card is narrower.
+//
+// Uses `svh` (small viewport height), not `vh`: on mobile, `100vh` is sized
+// as if the browser's address/toolbar were hidden, so a card built from it
+// is taller than what's actually visible once that chrome is showing - its
+// bottom (the hangup/mic buttons) renders below the real fold and is
+// unreachable. `svh` is the guaranteed-visible floor regardless of toolbar
+// state, so the card never claims more height than the user can see.
 const sessionCardStyle: React.CSSProperties = {
   width: 'min(920px, calc(100vw - 32px))',
-  height: 'min(680px, calc(100vh - 32px))',
+  height: 'min(680px, calc(100svh - 32px))',
+  borderRadius: 24,
+  background: '#fff',
+  boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.2)',
+  overflow: 'hidden',
+  position: 'relative',
+};
+
+// Audio calls don't need the wide video canvas - reusing sessionCardStyle's
+// fixed 680px height left a huge dead gap around the (much shorter) avatar
+// + name + controls content, with the buttons stranded far from anything
+// else. `maxHeight` instead of a fixed `height` lets the card shrink-wrap
+// its actual content, up to the same safe-viewport cap.
+const audioSessionCardStyle: React.CSSProperties = {
+  width: 'min(420px, calc(100vw - 32px))',
+  maxHeight: 'min(600px, calc(100svh - 32px))',
   borderRadius: 24,
   background: '#fff',
   boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.2)',
@@ -149,6 +171,7 @@ const sessionCardStyle: React.CSSProperties = {
 
 const ringingCardStyle: React.CSSProperties = {
   width: 'min(420px, calc(100vw - 32px))',
+  boxSizing: 'border-box',
   padding: '32px',
   borderRadius: 24,
   background: '#fff',
@@ -585,7 +608,15 @@ export const VideoCallOverlay: React.FC = () => {
               : dialogWrapperStyle
           }
         >
-          <div style={isMinimized ? undefined : sessionCardStyle}>
+          <div
+            style={
+              isMinimized
+                ? undefined
+                : call.kind === 'audio'
+                  ? audioSessionCardStyle
+                  : sessionCardStyle
+            }
+          >
             <VideoCallSession
               token={call.token as string}
               livekitUrl={livekitUrl}

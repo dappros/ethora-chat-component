@@ -15,6 +15,7 @@ import {
 import LastMessageItem from './LastMessageItem';
 import { useRoomPresence } from '../../hooks/useRoomPresence';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
+import OnlineUsersPopover from './OnlineUsersPopover';
 
 interface ChatRoomItemProps {
   chat: IRoom;
@@ -46,6 +47,10 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
     : undefined;
   const peerOnline =
     !!peer?.xmppUsername && onlineUsers.includes(peer.xmppUsername);
+  // Group/public rooms only - 1:1 rooms already show the peer's own
+  // online/offline dot on their avatar, a member-count popover doesn't add
+  // anything there.
+  const showOnlineUsersPopover = !isPrivateRoom && onlineUsers.length > 0;
 
   const withAuthorFallback = useCallback((message?: IMessage): IMessage | undefined => {
     if (!message) return message;
@@ -157,7 +162,24 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
           }}
         >
           <ChatInfo>
-            <ChatName>{displayName}</ChatName>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                minWidth: 0,
+              }}
+            >
+              <ChatName style={{ minWidth: 0 }}>{displayName}</ChatName>
+              {showOnlineUsersPopover && (
+                <OnlineUsersPopover
+                  onlineUsernames={onlineUsers}
+                  members={chat?.members}
+                  myXmppUsername={myXmppUsername}
+                  isChatActive={isChatActive}
+                />
+              )}
+            </div>
           </ChatInfo>
 
           <UserCount
