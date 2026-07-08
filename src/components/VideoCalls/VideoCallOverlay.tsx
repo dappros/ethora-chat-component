@@ -137,9 +137,16 @@ const overlayBackdropStyle: React.CSSProperties = {
 
 // Wide white card for the active video / audio session (full chat
 // component look). The pre-connect / ringing card is narrower.
+//
+// Uses `svh` (small viewport height), not `vh`: on mobile, `100vh` is sized
+// as if the browser's address/toolbar were hidden, so a card built from it
+// is taller than what's actually visible once that chrome is showing - its
+// bottom (the hangup/mic buttons) renders below the real fold and is
+// unreachable. `svh` is the guaranteed-visible floor regardless of toolbar
+// state, so the card never claims more height than the user can see.
 const sessionCardStyle: React.CSSProperties = {
   width: 'min(920px, calc(100vw - 32px))',
-  height: 'min(680px, calc(100vh - 32px))',
+  height: 'min(680px, calc(100svh - 32px))',
   borderRadius: 24,
   background: '#fff',
   boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.2)',
