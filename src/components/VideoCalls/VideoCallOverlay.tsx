@@ -154,6 +154,21 @@ const sessionCardStyle: React.CSSProperties = {
   position: 'relative',
 };
 
+// Audio calls don't need the wide video canvas - reusing sessionCardStyle's
+// fixed 680px height left a huge dead gap around the (much shorter) avatar
+// + name + controls content, with the buttons stranded far from anything
+// else. `maxHeight` instead of a fixed `height` lets the card shrink-wrap
+// its actual content, up to the same safe-viewport cap.
+const audioSessionCardStyle: React.CSSProperties = {
+  width: 'min(420px, calc(100vw - 32px))',
+  maxHeight: 'min(600px, calc(100svh - 32px))',
+  borderRadius: 24,
+  background: '#fff',
+  boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.2)',
+  overflow: 'hidden',
+  position: 'relative',
+};
+
 const ringingCardStyle: React.CSSProperties = {
   width: 'min(420px, calc(100vw - 32px))',
   padding: '32px',
@@ -592,7 +607,15 @@ export const VideoCallOverlay: React.FC = () => {
               : dialogWrapperStyle
           }
         >
-          <div style={isMinimized ? undefined : sessionCardStyle}>
+          <div
+            style={
+              isMinimized
+                ? undefined
+                : call.kind === 'audio'
+                  ? audioSessionCardStyle
+                  : sessionCardStyle
+            }
+          >
             <VideoCallSession
               token={call.token as string}
               livekitUrl={livekitUrl}

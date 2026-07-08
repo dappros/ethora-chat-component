@@ -761,7 +761,16 @@ const AudioCallContent: React.FC<{
   onHangup: () => void;
   icons?: VideoCallIcons;
   onToggleMinimize?: () => void;
-}> = ({ primaryColor, onHangup, icons, onToggleMinimize }) => {
+  deviceError?: string | null;
+  onDismissDeviceError?: () => void;
+}> = ({
+  primaryColor,
+  onHangup,
+  icons,
+  onToggleMinimize,
+  deviceError,
+  onDismissDeviceError,
+}) => {
   const connectionState = useConnectionState();
   const isConnected = connectionState === ConnectionState.Connected;
 
@@ -845,6 +854,51 @@ const AudioCallContent: React.FC<{
         >
           <MinimizeIcon color={TEXT_PRIMARY} />
         </button>
+      )}
+
+      {deviceError && (
+        // In-flow (not an absolute overlay like the video-call version) -
+        // this card is a plain light surface, not a full-bleed video
+        // canvas, so an overlay banner just covers the "Audio call" title
+        // instead of sitting on top of a video feed. Pushing the content
+        // down here reads as a normal inline warning instead.
+        <div
+          role="alert"
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 10,
+            width: '100%',
+            marginTop: 12,
+            padding: '10px 12px',
+            borderRadius: 12,
+            background: 'rgba(229, 57, 53, 0.08)',
+            border: `1px solid ${hexToRgba(DANGER, 0.18)}`,
+            color: DANGER,
+            fontSize: 13,
+            lineHeight: 1.35,
+            boxSizing: 'border-box',
+          }}
+        >
+          <span style={{ flex: 1 }}>{deviceError}</span>
+          {onDismissDeviceError && (
+            <button
+              onClick={onDismissDeviceError}
+              aria-label="Dismiss"
+              style={{
+                border: 'none',
+                background: 'transparent',
+                color: DANGER,
+                cursor: 'pointer',
+                fontSize: 16,
+                lineHeight: 1,
+                padding: 0,
+              }}
+            >
+              ×
+            </button>
+          )}
+        </div>
       )}
 
       <div
@@ -1269,7 +1323,10 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
   return (
     <RoomContext.Provider value={room}>
       <PeerLeaveWatcher onPeerLeft={onHangup} />
-      {deviceError && !minimized && (
+      {/* Audio renders its own in-flow banner (below, inside AudioCallContent)
+          — this overlay-on-canvas style only makes sense for video's
+          full-bleed dark stage. */}
+      {deviceError && !minimized && !isAudioOnly && (
         <div
           role="alert"
           style={{
@@ -1322,6 +1379,8 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
           onHangup={onHangup}
           icons={icons}
           onToggleMinimize={onToggleMinimize}
+          deviceError={deviceError}
+          onDismissDeviceError={() => setDeviceError(null)}
         />
       ) : (
         <VideoCallContent
