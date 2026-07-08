@@ -171,6 +171,7 @@ const audioSessionCardStyle: React.CSSProperties = {
 
 const ringingCardStyle: React.CSSProperties = {
   width: 'min(420px, calc(100vw - 32px))',
+  boxSizing: 'border-box',
   padding: '32px',
   borderRadius: 24,
   background: '#fff',

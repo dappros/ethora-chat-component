@@ -819,6 +819,7 @@ const AudioCallContent: React.FC<{
       style={{
         position: 'relative',
         width: '100%',
+        boxSizing: 'border-box',
         background: SURFACE,
         display: 'flex',
         flexDirection: 'column',
@@ -962,6 +963,7 @@ const AudioCallContent: React.FC<{
                 alignItems: 'center',
                 gap: 8,
                 maxWidth: 260,
+                boxSizing: 'border-box',
                 textAlign: 'left',
                 fontSize: 13,
                 color: DANGER,
@@ -1341,6 +1343,7 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
             transform: 'translateX(-50%)',
             zIndex: 40,
             maxWidth: 'min(520px, calc(100% - 96px))',
+            boxSizing: 'border-box',
             display: 'flex',
             alignItems: 'flex-start',
             gap: 10,
