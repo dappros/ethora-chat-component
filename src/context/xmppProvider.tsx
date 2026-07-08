@@ -39,6 +39,16 @@ import { setBaseURL } from '../networking/apiClient';
 import { ensureScopedChatCache } from '../helpers/cacheScope';
 import { ethoraLogger } from '../helpers/ethoraLogger';
 import { MessageNotificationProvider } from './MessageNotificationContext';
+// Lazy for the same reason ChatWrapper.tsx used to lazy-load this: it pulls
+// in livekit-client + @livekit/components-react, a large dependency that a
+// static import would bundle into every consumer regardless of whether they
+// use calls. Every call entry point already gates on config.videoCalls
+// .enabled, so it's safe to only fetch this chunk for hosts that opt in.
+const VideoCallOverlay = React.lazy(() =>
+  import('../components/VideoCalls/VideoCallOverlay').then((module) => ({
+    default: module.VideoCallOverlay,
+  }))
+);
 
 // Declare XmppContext
 interface XmppContextType {
@@ -525,6 +535,14 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
             to be mounted. */}
         <MessageNotificationProvider config={config}>
           {children}
+          {/* Also lives here, not inside <Chat> - an incoming call-token
+              can arrive (and must still ring) while the user is on a
+              different in-app page than chat, as long as the tab itself
+              is open. VideoCallOverlay reads config/call state from Redux
+              itself, so it needs nothing passed in. */}
+          <React.Suspense fallback={null}>
+            <VideoCallOverlay />
+          </React.Suspense>
         </MessageNotificationProvider>
       </Provider>
     </XmppContext.Provider>

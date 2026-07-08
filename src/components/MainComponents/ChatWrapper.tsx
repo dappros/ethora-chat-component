@@ -33,19 +33,6 @@ import FallbackScreen from './FallbackScreen';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
 import { useLoaderDebug } from '../../hooks/useLoaderDebug';
-// Lazy: VideoCallOverlay pulls in VideoCallSession, which pulls in
-// livekit-client + @livekit/components-react — a large dependency that a
-// static import would bundle into every consumer regardless of whether they
-// use calls. A call can only ever become active when config.videoCalls.enabled
-// is true (every entry point — placing, receiving, and the live call-token
-// handler — already gates on it), so it's safe to only fetch this chunk, via
-// Suspense below, for hosts that actually opt in.
-const VideoCallOverlay = React.lazy(() =>
-  import('../VideoCalls/VideoCallOverlay').then((module) => ({
-    default: module.VideoCallOverlay,
-  }))
-);
-
 interface ChatWrapperProps {
   token?: string;
   room?: IRoom;
@@ -390,11 +377,9 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
                 dispatch(setActiveModal(value))
               }
             />
-            {config?.videoCalls?.enabled === true && (
-              <React.Suspense fallback={null}>
-                <VideoCallOverlay />
-              </React.Suspense>
-            )}
+            {/* VideoCallOverlay now lives in XmppProvider (see xmppProvider.tsx)
+                so an incoming call still rings while the user is on a
+                different in-app page, not just while <Chat> is mounted. */}
           </ChatWrapperBox>
         </ChatWrapperBox>
       ) : (
