@@ -810,10 +810,11 @@ const AudioCallContent: React.FC<{
   return (
     // No fixed/100% height here (unlike the video-call layout) - this card
     // is sized to its content (see audioSessionCardStyle's max-height, not
-    // height), so a real gap between every block (title/banner/avatar/
-    // controls) instead of one flex section that stretches to fill
-    // whatever's left and centers itself inside it - that's what produced
-    // the huge, unpredictable dead space around the avatar.
+    // height). Deliberate, uneven spacing instead of one uniform gap: a
+    // small gap under the "Audio call" eyebrow label, a generous gap before
+    // the identity block (the establishing shot of the screen), and the
+    // biggest gap before the controls - they're a different zone (actions,
+    // not identity) and read better set apart from it.
     <div
       style={{
         position: 'relative',
@@ -824,7 +825,6 @@ const AudioCallContent: React.FC<{
         alignItems: 'center',
         color: TEXT_PRIMARY,
         padding: '28px 24px 24px',
-        gap: 24,
       }}
     >
       <div
@@ -862,50 +862,6 @@ const AudioCallContent: React.FC<{
         </button>
       )}
 
-      {deviceError && (
-        // In-flow (not an absolute overlay like the video-call version) -
-        // this card is a plain light surface, not a full-bleed video
-        // canvas, so an overlay banner just covers the "Audio call" title
-        // instead of sitting on top of a video feed. Pushing the content
-        // down here reads as a normal inline warning instead.
-        <div
-          role="alert"
-          style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: 10,
-            width: '100%',
-            padding: '10px 12px',
-            borderRadius: 12,
-            background: 'rgba(229, 57, 53, 0.08)',
-            border: `1px solid ${hexToRgba(DANGER, 0.18)}`,
-            color: DANGER,
-            fontSize: 13,
-            lineHeight: 1.35,
-            boxSizing: 'border-box',
-          }}
-        >
-          <span style={{ flex: 1 }}>{deviceError}</span>
-          {onDismissDeviceError && (
-            <button
-              onClick={onDismissDeviceError}
-              aria-label="Dismiss"
-              style={{
-                border: 'none',
-                background: 'transparent',
-                color: DANGER,
-                cursor: 'pointer',
-                fontSize: 16,
-                lineHeight: 1,
-                padding: 0,
-              }}
-            >
-              ×
-            </button>
-          )}
-        </div>
-      )}
-
       <div
         style={{
           width: '100%',
@@ -913,6 +869,7 @@ const AudioCallContent: React.FC<{
           flexDirection: 'column',
           alignItems: 'center',
           gap: 18,
+          marginTop: 28,
         }}
       >
         <div
@@ -990,20 +947,67 @@ const AudioCallContent: React.FC<{
           >
             {statusText}
           </div>
-          {!micEnabled && (
+          {deviceError ? (
+            // Supersedes the plain "muted" pill below - when access is
+            // actually blocked, micEnabled is also false, and showing both
+            // just repeats the same fact twice. This is that same pill's
+            // visual language (light fill, hairline border, same radius
+            // family), just wide enough to hold the full explanation and
+            // wrap instead of a full-width alert box.
             <div
+              role="alert"
               style={{
                 marginTop: 6,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                maxWidth: 260,
+                textAlign: 'left',
                 fontSize: 13,
                 color: DANGER,
                 background: 'rgba(229,57,53,0.06)',
                 border: `1px solid ${hexToRgba(DANGER, 0.18)}`,
-                padding: '4px 10px',
-                borderRadius: 999,
+                padding: '6px 10px 6px 12px',
+                borderRadius: 14,
+                lineHeight: 1.35,
               }}
             >
-              Your microphone is muted
+              <span style={{ flex: 1 }}>{deviceError}</span>
+              {onDismissDeviceError && (
+                <button
+                  onClick={onDismissDeviceError}
+                  aria-label="Dismiss"
+                  style={{
+                    flexShrink: 0,
+                    border: 'none',
+                    background: 'transparent',
+                    color: DANGER,
+                    cursor: 'pointer',
+                    fontSize: 15,
+                    lineHeight: 1,
+                    padding: 0,
+                  }}
+                >
+                  ×
+                </button>
+              )}
             </div>
+          ) : (
+            !micEnabled && (
+              <div
+                style={{
+                  marginTop: 6,
+                  fontSize: 13,
+                  color: DANGER,
+                  background: 'rgba(229,57,53,0.06)',
+                  border: `1px solid ${hexToRgba(DANGER, 0.18)}`,
+                  padding: '4px 10px',
+                  borderRadius: 999,
+                }}
+              >
+                Your microphone is muted
+              </div>
+            )
           )}
           {remoteMuted && (
             <div
@@ -1023,7 +1027,7 @@ const AudioCallContent: React.FC<{
         </div>
       </div>
 
-      <div style={{ flexShrink: 0 }}>
+      <div style={{ flexShrink: 0, marginTop: 32 }}>
         <CallControls
           primaryColor={primaryColor}
           onHangup={onHangup}
