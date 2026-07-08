@@ -808,17 +808,23 @@ const AudioCallContent: React.FC<{
   })();
 
   return (
+    // No fixed/100% height here (unlike the video-call layout) - this card
+    // is sized to its content (see audioSessionCardStyle's max-height, not
+    // height), so a real gap between every block (title/banner/avatar/
+    // controls) instead of one flex section that stretches to fill
+    // whatever's left and centers itself inside it - that's what produced
+    // the huge, unpredictable dead space around the avatar.
     <div
       style={{
         position: 'relative',
         width: '100%',
-        height: '100%',
         background: SURFACE,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         color: TEXT_PRIMARY,
         padding: '28px 24px 24px',
+        gap: 24,
       }}
     >
       <div
@@ -869,7 +875,6 @@ const AudioCallContent: React.FC<{
             alignItems: 'flex-start',
             gap: 10,
             width: '100%',
-            marginTop: 12,
             padding: '10px 12px',
             borderRadius: 12,
             background: 'rgba(229, 57, 53, 0.08)',
@@ -903,15 +908,11 @@ const AudioCallContent: React.FC<{
 
       <div
         style={{
-          flex: '1 1 auto',
-          minHeight: 0,
           width: '100%',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'center',
           gap: 18,
-          overflowY: 'auto',
         }}
       >
         <div
