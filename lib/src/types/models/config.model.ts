@@ -231,6 +231,18 @@ export interface IConfig {
     singleRoom: boolean;
   };
   translates?: { enabled: boolean; translations?: Iso639_1Codes };
+  /**
+   * Static UI i18n (interface captions like "Search...", "Type message").
+   * `locale` is a BCP-47 tag the host passes from the device/user (e.g. "en",
+   * "fr-CA", "es-US"); captions resolve to its base language. `strings`
+   * overrides or extends any built-in caption by key (see src/i18n/strings.ts).
+   * Built-in languages: en, fr, es. Independent from `translates` (dynamic
+   * per-message translation).
+   */
+  i18n?: {
+    locale?: string;
+    strings?: Record<string, string>;
+  };
   disableRoomConfig?: boolean;
   disableProfilesInteractions?: boolean;
   disableUserCount?: boolean;

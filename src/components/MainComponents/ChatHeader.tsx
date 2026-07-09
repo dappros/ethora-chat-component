@@ -28,6 +28,7 @@ import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 import { RoomMenu } from '../MenuRoom/MenuRoom';
 import { useRoomState } from '../../hooks/useRoomState';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { useT } from '../../i18n/useT';
 import { formatNumberWithCommas } from '../../helpers/formatNumberWithCommas';
 import { createChatCall } from '../../networking/api-requests/rooms.api';
 import {
@@ -84,6 +85,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const { roomsList, activeRoomJID } = useRoomState(currentRoom.jid);
   const { composing } = useRoomState(currentRoom.jid).room ?? {};
   const { config, user: stateUser } = useChatSettingState();
+  const t = useT();
   const call = useSelector((state: RootState) => state.call);
 
   const videoCallsConfig = config?.videoCalls;
@@ -299,7 +301,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                   if (isPrivateRoom) {
                     return (
                       <span style={{ color: peerOnline ? '#22c55e' : '#8C8C8C' }}>
-                        {peerOnline ? 'online' : 'offline'}
+                        {peerOnline ? t('presence.online') : t('presence.offline')}
                       </span>
                     );
                   }

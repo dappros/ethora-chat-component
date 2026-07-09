@@ -28,6 +28,7 @@ import {
   resolveIconColor,
 } from '../../helpers/resolveIconColor';
 import { parseMessageBody } from '../../helpers/parseMessageBody';
+import { useT } from '../../i18n/useT';
 
 export interface SendInputProps {
   sendMessage: (message: string) => void | Promise<void>;
@@ -66,6 +67,7 @@ const SendInput: React.FC<SendInputProps> = ({
   onSendMedia,
   placeholderText,
 }) => {
+  const t = useT();
   const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [textareaHeight, setTextareaHeight] = useState(40);
@@ -339,7 +341,7 @@ const SendInput: React.FC<SendInputProps> = ({
               <MessageInput
                 $color={config?.colors?.primary}
                 $colorBg={config?.colors?.colorInput}
-                placeholder={placeholderText || 'Type message'}
+                placeholder={placeholderText || t('input.placeholder')}
                 value={message}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}

@@ -15,6 +15,7 @@ import {
 import LastMessageItem from './LastMessageItem';
 import { useRoomPresence } from '../../hooks/useRoomPresence';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { useT } from '../../i18n/useT';
 import OnlineUsersPopover from './OnlineUsersPopover';
 
 interface ChatRoomItemProps {
@@ -38,6 +39,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
   // in this room. (Only populated for rooms whose occupant presence we receive.)
   const onlineUsers = useRoomPresence(chat?.jid);
   const { user: stateUser } = useChatSettingState();
+  const t = useT();
   const myXmppUsername = stateUser?.xmppUsername || '';
   const isPrivateRoom = chat?.type === 'private';
   const peer = isPrivateRoom
@@ -217,7 +219,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
             (chat?.historyComplete ||
               chat?.historyPreloadState === 'done' ||
               chat?.historyPreloadState === 'error') ? (
-            <LastRoomMessageText>Room created</LastRoomMessageText>
+            <LastRoomMessageText>{t('room.created')}</LastRoomMessageText>
           ) : undefined}
           {chat.unreadMessages > 0 &&
             // Hide only while a room with NO locally loaded messages is doing

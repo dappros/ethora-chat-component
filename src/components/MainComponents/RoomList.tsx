@@ -24,6 +24,7 @@ import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 import { useXmppClient } from '../../context/xmppProvider';
 import ChatRoomItem from '../RoomComponents/ChatRoomItem';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { useT } from '../../i18n/useT';
 import { isRoomHidden } from '../../helpers/hiddenRooms';
 import { logoutService } from '../../hooks/useLogout';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
@@ -112,6 +113,7 @@ const RoomList: React.FC<RoomListProps> = ({
   const dispatch = useDispatch();
 
   const { config } = useChatSettingState();
+  const t = useT();
 
   const { activeRoomJID } = useSelector((state: RootState) => state.rooms);
 
@@ -293,7 +295,7 @@ const RoomList: React.FC<RoomListProps> = ({
                     colorBg={config?.colors?.colorInput}
                     value={searchTerm}
                     onChange={handleSearchChange}
-                    placeholder="Search..."
+                    placeholder={t('search.placeholder')}
                     // animated={true}
                   />
                 )}
