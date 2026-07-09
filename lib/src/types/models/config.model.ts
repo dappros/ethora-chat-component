@@ -230,7 +230,39 @@ export interface IConfig {
     disableGetRooms?: boolean;
     singleRoom: boolean;
   };
-  translates?: { enabled: boolean; translations?: Iso639_1Codes };
+  translates?: {
+    enabled: boolean;
+    translations?: Iso639_1Codes;
+    /**
+     * 'auto' shows the translation inline automatically (legacy behaviour).
+     * 'on-demand' shows a "Translate" link the reader clicks (LinkedIn-style),
+     * then renders the result inline with a "Show original" toggle. Default 'auto'.
+     */
+    mode?: 'auto' | 'on-demand';
+    /**
+     * Reader's full locale (BCP-47, e.g. "fr-CA"). Falls back to
+     * `config.i18n.locale`. The region is passed through to `onTranslate` so
+     * the service can distinguish fr-CA vs fr-FR; the Translate button
+     * visibility comparison ignores the region (en-US vs en-CA => no button).
+     */
+    readerLocale?: string;
+    /**
+     * Host-provided translation function. When set, the Translate action calls
+     * this - wire it to your own endpoint (or Google / OpenAI). When omitted,
+     * the component falls back to server-provided translations parsed onto the
+     * message (`message.translations`).
+     */
+    onTranslate?: (
+      text: string,
+      ctx: { sourceLocale?: string; targetLocale: string; message: IMessage }
+    ) => Promise<string>;
+    /**
+     * Host predicate deciding whether to show the Translate action for a given
+     * message. When omitted, the component compares base languages (message
+     * source vs reader, region ignored) and shows the action when they differ.
+     */
+    showTranslateForMessage?: (message: IMessage) => boolean;
+  };
   /**
    * Static UI i18n (interface captions like "Search...", "Type message").
    * `locale` is a BCP-47 tag the host passes from the device/user (e.g. "en",

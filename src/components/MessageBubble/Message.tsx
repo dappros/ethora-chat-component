@@ -29,6 +29,7 @@ import { DeletedMessage } from './DeletedMessage';
 import { useXmppClient } from '../../context/xmppProvider';
 import { MessageReaction } from './MessageReaction';
 import MessageTranslations from './MessageTranslations';
+import MessageTranslate from './MessageTranslate';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { DoubleTick } from '../../assets/icons';
 import { parseMessageBody } from '../../helpers/parseMessageBody';
@@ -302,14 +303,22 @@ const Message: React.FC<MessageProps> = forwardRef<
             </CustomMessageText>
           )}
 
-          {!isUser && config?.translates?.enabled && (
-            <MessageTranslations
-              message={message}
-              config={config}
-              langSource={langSource}
-              isUser={isUser}
-            />
-          )}
+          {!isUser &&
+            config?.translates?.enabled &&
+            (config?.translates?.mode === 'on-demand' ? (
+              <MessageTranslate
+                message={message}
+                config={config}
+                isUser={isUser}
+              />
+            ) : (
+              <MessageTranslations
+                message={message}
+                config={config}
+                langSource={langSource}
+                isUser={isUser}
+              />
+            ))}
           <CustomMessageTimestamp>
             {!config?.disableSentLogic && isUser && isPending && 'sending...'}
             {new Date(message.date).toLocaleTimeString([], {
