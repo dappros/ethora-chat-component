@@ -9,6 +9,8 @@ import {
   setComposing,
   setCurrentRoom,
   setReactions,
+  setReceivedReceipt,
+  setDisplayedMarker,
   setRoomRole,
   setMemberOnline,
   setMemberOffline,
@@ -76,7 +78,9 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
     !stanza.getChild('subject') &&
     !stanza.is('iq') &&
     stanza?.attrs?.id !== 'deleteMessageStanza' &&
-    !stanza?.attrs?.id?.includes('message-reaction')
+    !stanza?.attrs?.id?.includes('message-reaction') &&
+    !stanza?.attrs?.id?.includes('message-received') &&
+    !stanza?.attrs?.id?.includes('message-displayed')
   ) {
     try {
       const { data } = await getDataFromXml(stanza);
@@ -161,6 +165,13 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
     // Suppress notifications for some time after app load to avoid login flood
     const appLoadTime = (window as any)._ethoraAppLoadTime || Date.now();
     const isWithinCatchupPeriod = Date.now() - appLoadTime < 2000;
+
+    // XEP-0184: ack every live message from someone else so their client can
+    // flip the tick from sent -> delivered. Skip our own echo, system
+    // messages, and MAM/catch-up replays (those aren't "just delivered").
+    if (!currentUserMessage && !isSystemMessage && !isHistory) {
+      xmppClient?.sendReceivedReceiptStanza(message.id, roomJID);
+    }
 
     const decision = shouldShowXmppToast({
       config: state.chatSettingStore.config,
@@ -247,6 +258,52 @@ const onDeleteMessage = async (stanza: Element) => {
     );
     store.dispatch(setDeleteModal({ isDeleteModal: false }));
   }
+};
+
+// XEP-0184 delivery receipt, broadcast to the room (see
+// sendReceivedReceipt.xmpp.ts for why the real sender travels in the
+// <received> `from` attr rather than the stanza's own rewritten `from`).
+const onReceivedReceipt = async (stanza: Element) => {
+  if (!stanza?.attrs?.id?.includes('message-received')) return;
+  const received = stanza.getChild('received');
+  if (!received) return;
+
+  const messageId = received.attrs.id;
+  const from: string = received.attrs.from || '';
+  const fromXmppUsername = from.split('@')[0];
+  const roomJID = stanza.attrs.from?.split('/')[0];
+  if (!messageId || !fromXmppUsername || !roomJID) return;
+
+  store.dispatch(
+    setReceivedReceipt({
+      roomJID,
+      messageId,
+      fromXmppUsername,
+      timestamp: Date.now(),
+    })
+  );
+};
+
+// XEP-0333 read marker - room-level watermark (see setDisplayedMarker
+// reducer / lastDisplayedByUser on IRoom), not a per-message field.
+const onDisplayedMarker = async (stanza: Element) => {
+  if (!stanza?.attrs?.id?.includes('message-displayed')) return;
+  const displayed = stanza.getChild('displayed');
+  if (!displayed) return;
+
+  const messageId = displayed.attrs.id;
+  const from: string = displayed.attrs.from || '';
+  const xmppUsername = from.split('@')[0];
+  const roomJID = stanza.attrs.from?.split('/')[0];
+  if (!messageId || !xmppUsername || !roomJID) return;
+
+  store.dispatch(
+    setDisplayedMarker({
+      roomJID,
+      xmppUsername,
+      messageId,
+    })
+  );
 };
 
 const onEditMessage = async (stanza: Element) => {
@@ -1124,6 +1181,8 @@ export {
   onDeleteMessage,
   onEditMessage,
   onReactionMessage,
+  onReceivedReceipt,
+  onDisplayedMarker,
   onChatInvite,
   onRoomKicked,
   onRoomMembershipChange,

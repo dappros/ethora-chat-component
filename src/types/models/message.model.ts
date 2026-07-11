@@ -26,6 +26,9 @@ export interface IMessage {
   mainMessage?: string;
   reply?: IReply[];
   reaction?: Record<string, ReactionMessage>;
+  // Delivery receipts (XEP-0184): xmppUsername -> ms-epoch timestamp the
+  // <received/> stanza for this message's stanza-id was observed at.
+  receivedBy?: Record<string, number>;
   fileName?: string;
   translations?: TranslationObject;
   langSource?: Iso639_1Codes;
@@ -42,6 +45,15 @@ export interface IMessage {
     missed: boolean;
     kind: 'audio' | 'video';
   };
+  // @mentions (XEP-0372 <reference type="mention">), offsets into `body`.
+  mentions?: MessageMention[];
+}
+
+export interface MessageMention {
+  begin: number;
+  end: number;
+  uri: string;
+  xmppUsername: string;
 }
 
 export interface ReactionMessage {

@@ -1,4 +1,4 @@
-import React, { forwardRef, useEffect, useRef, useState } from 'react';
+import React, { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
 import { IUser, MessageProps } from '../../types/types';
 import {
   CustomMessageTimestamp,
@@ -31,7 +31,7 @@ import { MessageReaction } from './MessageReaction';
 import MessageTranslations from './MessageTranslations';
 import MessageTranslate from './MessageTranslate';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
-import { DoubleTick } from '../../assets/icons';
+import { DoubleTick, SingleTick } from '../../assets/icons';
 import { parseMessageBody } from '../../helpers/parseMessageBody';
 import URLPreviewCard from './URLPreviewCard';
 import { useMessageHeapState } from '../../hooks/useMessageHeapState';
@@ -60,6 +60,39 @@ const Message: React.FC<MessageProps> = forwardRef<
     : message.user?.name || senderLocal || 'Unknown';
   const referencedMessage = parseMessageReference(message.mainMessage);
 
+  // Delivery/read tick status (XEP-0184/XEP-0333) - "seen" wins over
+  // "delivered" wins over plain "sent". lastDisplayedByUser is a
+  // room-level watermark (last message id each user has displayed), so
+  // "seen" means some other user's watermark is at-or-after this message.
+  const roomMessages = useSelector(
+    (state: RootState) => state.rooms.rooms[message.roomJid]?.messages
+  );
+  const lastDisplayedByUser = useSelector(
+    (state: RootState) =>
+      state.rooms.rooms[message.roomJid]?.lastDisplayedByUser
+  );
+  const readStatus = useMemo((): 'sent' | 'delivered' | 'seen' => {
+    const hasReceived = !!(
+      message.receivedBy && Object.keys(message.receivedBy).length > 0
+    );
+    const watermark = lastDisplayedByUser || {};
+    const otherViewers = Object.keys(watermark).filter(
+      (xmppUsername) => xmppUsername !== user?.xmppUsername
+    );
+    if (otherViewers.length && roomMessages?.length) {
+      const thisIndex = roomMessages.findIndex((m) => m.id === message.id);
+      const isSeen =
+        thisIndex !== -1 &&
+        otherViewers.some((xmppUsername) => {
+          const displayedIndex = roomMessages.findIndex(
+            (m) => m.id === watermark[xmppUsername]
+          );
+          return displayedIndex >= thisIndex;
+        });
+      if (isSeen) return 'seen';
+    }
+    return hasReceived ? 'delivered' : 'sent';
+  }, [message.id, message.receivedBy, roomMessages, lastDisplayedByUser, user?.xmppUsername]);
 
   const dispatch = useDispatch();
   const [contextMenu, setContextMenu] = useState<{
@@ -326,7 +359,13 @@ const Message: React.FC<MessageProps> = forwardRef<
               minute: '2-digit',
             })}
             {!config?.disableSentLogic && isUser && !isPending && (
-              <DoubleTick />
+              readStatus === 'sent' ? (
+                <SingleTick color="#8C8C8C" />
+              ) : (
+                <DoubleTick
+                  stroke={readStatus === 'seen' ? '#0052CD' : '#8C8C8C'}
+                />
+              )
             )}
           </CustomMessageTimestamp>
           {previewUrl && !message.isDeleted && (

@@ -149,7 +149,13 @@ const MessageList = <TMessage extends IMessage>({
 
     lastFlushedMessageTsRef.current = latestTs;
     client.actionSetTimestampToPrivateStoreStanza(roomJID, Date.now());
-  }, [config?.disableLastRead, isTabVisible, client, roomJID, messages]);
+    // XEP-0333 read marker - broadcast to the room so peers can flip their
+    // tick to "read". Piggybacks on the same debounce as the private
+    // last-viewed write above; only for messages someone else sent.
+    if (latest?.id && latest.user?.id !== user?.xmppUsername) {
+      client.sendDisplayedMarkerStanza(latest.id, roomJID);
+    }
+  }, [config?.disableLastRead, isTabVisible, client, roomJID, messages, user?.xmppUsername]);
 
   const scheduleMarkRead = useCallback(() => {
     if (config?.disableLastRead) return;

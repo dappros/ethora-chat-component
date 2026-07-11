@@ -26,6 +26,8 @@ import {
 } from '../types/types';
 import { createPrivateRoom } from './xmpp/createPrivateRoom.xmpp';
 import { sendMessageReaction } from './xmpp/sendMessageReaction.xmpp';
+import { sendReceivedReceipt } from './xmpp/sendReceivedReceipt.xmpp';
+import { sendDisplayedMarker } from './xmpp/sendDisplayedMarker.xmpp';
 import { sendTextMessageWithTranslateTag } from './xmpp/sendTextMessageWithTranslateTag.xmpp';
 import { getRoomsPaged } from './xmpp/getRoomsPaged.xmpp';
 import {
@@ -2097,6 +2099,18 @@ export class XmppClient implements XmppClientInterface {
         reactionsList,
         reactionSymbol
       );
+    });
+  }
+
+  sendReceivedReceiptStanza(messageId: string, roomJid: string) {
+    this.wrapWithConnectionCheck(async () => {
+      sendReceivedReceipt(this.client, messageId, roomJid);
+    });
+  }
+
+  sendDisplayedMarkerStanza(messageId: string, roomJid: string) {
+    this.wrapWithConnectionCheck(async () => {
+      sendDisplayedMarker(this.client, messageId, roomJid);
     });
   }
 

@@ -124,6 +124,8 @@ export interface XmppClientInterface {
   ): void;
   deleteMessageStanza(room: string, msgId: string): void;
   editMessageStanza(room: string, msgId: string, text: string): void;
+  sendReceivedReceiptStanza(messageId: string, roomJid: string): void;
+  sendDisplayedMarkerStanza(messageId: string, roomJid: string): void;
   sendTypingRequestStanza(
     chatId: string,
     fullName: string,

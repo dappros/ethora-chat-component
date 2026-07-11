@@ -554,6 +554,44 @@ const roomsStore = createSlice({
         });
       }
     },
+    setReceivedReceipt: (
+      state,
+      action: PayloadAction<{
+        roomJID: string;
+        messageId: string;
+        fromXmppUsername: string;
+        timestamp: number;
+      }>
+    ) => {
+      const { roomJID, messageId, fromXmppUsername, timestamp } =
+        action.payload;
+      if (!fromXmppUsername || !state.rooms[roomJID]) return;
+
+      state.rooms[roomJID].messages.forEach((message) => {
+        if (message.id === messageId) {
+          if (!message.receivedBy) {
+            message.receivedBy = {};
+          }
+          message.receivedBy[fromXmppUsername] = timestamp;
+        }
+      });
+    },
+    setDisplayedMarker: (
+      state,
+      action: PayloadAction<{
+        roomJID: string;
+        xmppUsername: string;
+        messageId: string;
+      }>
+    ) => {
+      const { roomJID, xmppUsername, messageId } = action.payload;
+      if (!xmppUsername || !state.rooms[roomJID]) return;
+
+      if (!state.rooms[roomJID].lastDisplayedByUser) {
+        state.rooms[roomJID].lastDisplayedByUser = {};
+      }
+      state.rooms[roomJID].lastDisplayedByUser[xmppUsername] = messageId;
+    },
     setEditAction: (state, action: PayloadAction<EditAction | undefined>) => {
       const { isEdit } = action.payload;
       if (isEdit) {
@@ -1088,6 +1126,8 @@ export const {
   setChatUiVisible,
   setRoomRole,
   setReactions,
+  setReceivedReceipt,
+  setDisplayedMarker,
   setLogoutState,
   setActiveMessage,
   setCloseActiveMessage,

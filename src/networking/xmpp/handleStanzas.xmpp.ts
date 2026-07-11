@@ -13,6 +13,8 @@ import {
   onGetRoomInfo,
   onNewRoomCreated,
   onReactionMessage,
+  onReceivedReceipt,
+  onDisplayedMarker,
   onReactionHistory,
   onRoomKicked,
   onRoomMembershipChange,
@@ -54,6 +56,8 @@ export function handleStanza(stanza: Element, xmppWs: XmppClient) {
       onMessageError(unwrapped, xmppWs);
       onReactionMessage(unwrapped);
       onReactionHistory(unwrapped);
+      onReceivedReceipt(unwrapped);
+      onDisplayedMarker(unwrapped);
       onDeleteMessage(unwrapped);
       onEditMessage(unwrapped);
       onChatInvite(unwrapped, xmppWs);
