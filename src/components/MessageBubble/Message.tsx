@@ -37,9 +37,40 @@ import URLPreviewCard from './URLPreviewCard';
 import { useMessageHeapState } from '../../hooks/useMessageHeapState';
 import { parseMessageReference } from '../../helpers/parseMessageReference';
 import { createUserNameFromSetUser } from '../../helpers/createUserNameFromSetUser';
+import styled from 'styled-components';
 
 const firstUrlRegex =
   /(https?:\/\/[\w.-]+(?:\.[\w.-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=.]+)/;
+
+// Hover-only (no click) status tooltip on the sent/delivered/seen tick -
+// same CSS-hover convention as MessageReaction.tsx's emoji tooltip.
+const TickStatusWrapper = styled.span`
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+
+  &:hover .tick-tooltip {
+    visibility: visible;
+    opacity: 1;
+  }
+`;
+
+const TickTooltip = styled.span`
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.2s;
+  position: absolute;
+  bottom: 120%;
+  right: 0;
+  background-color: #333;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 1;
+`;
 
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
@@ -72,28 +103,58 @@ const Message: React.FC<MessageProps> = forwardRef<
     (state: RootState) =>
       state.rooms.rooms[message.roomJid]?.lastDisplayedByUser
   );
-  const readStatus = useMemo((): 'sent' | 'delivered' | 'seen' => {
-    const hasReceived = !!(
-      message.receivedBy && Object.keys(message.receivedBy).length > 0
-    );
+  const roomType = useSelector(
+    (state: RootState) => state.rooms.rooms[message.roomJid]?.type
+  );
+  const isGroupRoom = roomType !== 'private';
+
+  const tickInfo = useMemo(() => {
     const watermark = lastDisplayedByUser || {};
     const otherViewers = Object.keys(watermark).filter(
       (xmppUsername) => xmppUsername !== user?.xmppUsername
     );
-    if (otherViewers.length && roomMessages?.length) {
-      const thisIndex = roomMessages.findIndex((m) => m.id === message.id);
-      const isSeen =
-        thisIndex !== -1 &&
-        otherViewers.some((xmppUsername) => {
-          const displayedIndex = roomMessages.findIndex(
-            (m) => m.id === watermark[xmppUsername]
-          );
-          return displayedIndex >= thisIndex;
-        });
-      if (isSeen) return 'seen';
+    const thisIndex = roomMessages?.length
+      ? roomMessages.findIndex((m) => m.id === message.id)
+      : -1;
+    const seenBy = otherViewers.filter((xmppUsername) => {
+      if (thisIndex === -1) return false;
+      const displayedIndex = roomMessages.findIndex(
+        (m) => m.id === watermark[xmppUsername]
+      );
+      return displayedIndex >= thisIndex;
+    });
+    const receivedBy = Object.keys(message.receivedBy || {});
+
+    const status: 'sent' | 'delivered' | 'seen' =
+      seenBy.length > 0 ? 'seen' : receivedBy.length > 0 ? 'delivered' : 'sent';
+
+    const nameOf = (xmppUsername: string) =>
+      createUserNameFromSetUser(usersSet, xmppUsername);
+
+    let tooltip: string;
+    if (status === 'seen') {
+      tooltip = isGroupRoom
+        ? `Read by ${seenBy.map(nameOf).join(', ')}`
+        : 'Read';
+    } else if (status === 'delivered') {
+      tooltip = isGroupRoom
+        ? `Delivered to ${receivedBy.map(nameOf).join(', ')}`
+        : 'Delivered';
+    } else {
+      tooltip = 'Sent';
     }
-    return hasReceived ? 'delivered' : 'sent';
-  }, [message.id, message.receivedBy, roomMessages, lastDisplayedByUser, user?.xmppUsername]);
+
+    return { status, tooltip };
+  }, [
+    message.id,
+    message.receivedBy,
+    roomMessages,
+    lastDisplayedByUser,
+    user?.xmppUsername,
+    usersSet,
+    isGroupRoom,
+  ]);
+  const readStatus = tickInfo.status;
 
   const dispatch = useDispatch();
   const [contextMenu, setContextMenu] = useState<{
@@ -380,13 +441,18 @@ const Message: React.FC<MessageProps> = forwardRef<
               minute: '2-digit',
             })}
             {!config?.disableSentLogic && isUser && !isPending && (
-              readStatus === 'sent' ? (
-                <SingleTick color="#8C8C8C" />
-              ) : (
-                <DoubleTick
-                  stroke={readStatus === 'seen' ? '#0052CD' : '#8C8C8C'}
-                />
-              )
+              <TickStatusWrapper>
+                {readStatus === 'sent' ? (
+                  <SingleTick color="#8C8C8C" />
+                ) : (
+                  <DoubleTick
+                    stroke={readStatus === 'seen' ? '#0052CD' : '#8C8C8C'}
+                  />
+                )}
+                <TickTooltip className="tick-tooltip">
+                  {tickInfo.tooltip}
+                </TickTooltip>
+              </TickStatusWrapper>
             )}
           </CustomMessageTimestamp>
           {previewUrl && !message.isDeleted && (
