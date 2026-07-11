@@ -35,10 +35,12 @@ export const parseMessageBody = ({
   text,
   mentions,
   currentXmppUsername,
+  onMentionClick,
 }: {
   text: string;
   mentions?: MessageMention[];
   currentXmppUsername?: string;
+  onMentionClick?: (xmppUsername: string) => void;
 }) => {
   if (!text) return null;
 
@@ -59,12 +61,37 @@ export const parseMessageBody = ({
         rehypePlugins={[rehypeRaw]}
         components={{
           mention: ({ node, children, ...props }: any) => {
+            const mentionedUsername = props['data-username'];
             const isSelf = isSameXmppUsername(
-              props['data-username'],
+              mentionedUsername,
               currentXmppUsername
             );
+            const clickable = !!onMentionClick && !!mentionedUsername;
             return (
               <span
+                role={clickable ? 'button' : undefined}
+                tabIndex={clickable ? 0 : undefined}
+                onClick={
+                  clickable
+                    ? (event) => {
+                        // Don't let it bubble into the bubble's own
+                        // context-menu/reply click handlers.
+                        event.stopPropagation();
+                        onMentionClick!(mentionedUsername);
+                      }
+                    : undefined
+                }
+                onKeyDown={
+                  clickable
+                    ? (event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          onMentionClick!(mentionedUsername);
+                        }
+                      }
+                    : undefined
+                }
                 style={{
                   fontWeight: 600,
                   color: isSelf ? '#fff' : '#0052CD',
@@ -73,6 +100,7 @@ export const parseMessageBody = ({
                     : 'rgba(0, 82, 205, 0.12)',
                   borderRadius: 4,
                   padding: '0 2px',
+                  cursor: clickable ? 'pointer' : undefined,
                 }}
               >
                 {children}

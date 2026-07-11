@@ -64,7 +64,7 @@ export function handleStanza(stanza: Element, xmppWs: XmppClient) {
       onRoomMembershipChange(unwrapped);
       onMembersRefreshSignal(unwrapped, xmppWs);
       onRealtimeMessage(unwrapped, xmppWs);
-      onMessageHistory(unwrapped);
+      onMessageHistory(unwrapped, xmppWs);
       handleComposing(unwrapped, xmppWs.username);
       onPresenceInRoom(unwrapped);
       break;

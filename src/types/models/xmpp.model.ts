@@ -128,6 +128,7 @@ export interface XmppClientInterface {
   editMessageStanza(room: string, msgId: string, text: string): void;
   sendReceivedReceiptStanza(messageId: string, roomJid: string): void;
   sendDisplayedMarkerStanza(messageId: string, roomJid: string): void;
+  sendHistoryReceivedReceiptStanza(roomJid: string, messageId: string): void;
   sendTypingRequestStanza(
     chatId: string,
     fullName: string,

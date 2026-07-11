@@ -36,6 +36,7 @@ import { parseMessageBody } from '../../helpers/parseMessageBody';
 import URLPreviewCard from './URLPreviewCard';
 import { useMessageHeapState } from '../../hooks/useMessageHeapState';
 import { parseMessageReference } from '../../helpers/parseMessageReference';
+import { createUserNameFromSetUser } from '../../helpers/createUserNameFromSetUser';
 
 const firstUrlRegex =
   /(https?:\/\/[\w.-]+(?:\.[\w.-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=.]+)/;
@@ -172,6 +173,19 @@ const Message: React.FC<MessageProps> = forwardRef<
     if (profilesDisabled || user?.name === 'Deleted User') return;
     dispatch(setActiveModal(MODAL_TYPES.PROFILE));
     dispatch(setSelectedUser(user));
+  };
+
+  const handleMentionClick = (xmppUsername: string): void => {
+    if (profilesDisabled) return;
+    const member = usersSet[xmppUsername];
+    const name = createUserNameFromSetUser(usersSet, xmppUsername);
+    if (name === 'Deleted User') return;
+    handleUserAvatarClick({
+      ...member,
+      id: xmppUsername,
+      xmppUsername,
+      name,
+    } as IUser);
   };
 
   const handleReplyMessage = () => {
@@ -336,6 +350,7 @@ const Message: React.FC<MessageProps> = forwardRef<
                       ? undefined
                       : message.mentions,
                     currentXmppUsername: user?.xmppUsername,
+                    onMentionClick: handleMentionClick,
                   })}
                 </div>
               )}

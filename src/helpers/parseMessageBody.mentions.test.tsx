@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect } from 'vitest';
-import { render } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, fireEvent } from '@testing-library/react';
 import { parseMessageBody } from './parseMessageBody';
 
 describe('parseMessageBody - mention highlighting', () => {
@@ -56,6 +56,57 @@ describe('parseMessageBody - mention highlighting', () => {
     expect(selfSpan?.style.backgroundColor).not.toBe(
       otherSpan?.style.backgroundColor
     );
+  });
+
+  it('calls onMentionClick with the mentioned xmppUsername when clicked', () => {
+    const onMentionClick = vi.fn();
+    const { getByText } = render(
+      <>
+        {parseMessageBody({
+          text: 'hi @Bob Smith',
+          mentions: [{ begin: 3, end: 13, uri: '', xmppUsername: 'bob' }],
+          onMentionClick,
+        })}
+      </>
+    );
+
+    fireEvent.click(getByText('@Bob Smith'));
+
+    expect(onMentionClick).toHaveBeenCalledWith('bob');
+  });
+
+  it('triggers onMentionClick on Enter/Space for keyboard accessibility', () => {
+    const onMentionClick = vi.fn();
+    const { getByText } = render(
+      <>
+        {parseMessageBody({
+          text: 'hi @Bob Smith',
+          mentions: [{ begin: 3, end: 13, uri: '', xmppUsername: 'bob' }],
+          onMentionClick,
+        })}
+      </>
+    );
+
+    const span = getByText('@Bob Smith');
+    fireEvent.keyDown(span, { key: 'Enter' });
+    fireEvent.keyDown(span, { key: ' ' });
+
+    expect(onMentionClick).toHaveBeenCalledTimes(2);
+  });
+
+  it('renders a non-interactive mention span when no onMentionClick is passed', () => {
+    const { getByText } = render(
+      <>
+        {parseMessageBody({
+          text: 'hi @Bob Smith',
+          mentions: [{ begin: 3, end: 13, uri: '', xmppUsername: 'bob' }],
+        })}
+      </>
+    );
+
+    const span = getByText('@Bob Smith');
+    expect(span.getAttribute('role')).toBeNull();
+    expect(span.style.cursor).not.toBe('pointer');
   });
 
   it('skips an out-of-range mention instead of throwing', () => {

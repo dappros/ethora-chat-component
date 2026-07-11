@@ -376,7 +376,7 @@ const onReactionHistory = async (stanza: any) => {
   }
 };
 
-const onMessageHistory = async (stanza: any) => {
+const onMessageHistory = async (stanza: any, xmppClient?: XmppClient) => {
   if (
     stanza.is('message') &&
     (stanza.children[0] as any)?.attrs?.xmlns === 'urn:xmpp:mam:2'
@@ -395,10 +395,9 @@ const onMessageHistory = async (stanza: any) => {
       ...rest,
     });
 
-    const message = transformCallLogMessage(
-      rawMessage,
-      store.getState().chatSettingStore.user?.xmppUsername || ''
-    );
+    const currentXmppUsername =
+      store.getState().chatSettingStore.user?.xmppUsername || '';
+    const message = transformCallLogMessage(rawMessage, currentXmppUsername);
 
     const fixedUser = await checkSingleUser(
       store.getState().rooms.usersSet,
@@ -409,12 +408,26 @@ const onMessageHistory = async (stanza: any) => {
       store.dispatch(insertUsers({ newUsers: [fixedUser] }));
     }
 
+    const roomJID = stanza.attrs.from;
     store.dispatch(
       addRoomMessage({
-        roomJID: stanza.attrs.from,
+        roomJID,
         message,
       })
     );
+
+    // XEP-0184: a message delivered while we were offline (MAM catch-up)
+    // never reaches the live-message ack path (onRealtimeMessage guards on
+    // !isHistory), so without this it would sit at "sent" forever even
+    // once we've actually received it. Dedup lives on the client so
+    // repeated MAM fetches of the same page don't re-send the ack.
+    const isSystemMessage = message.isSystemMessage === 'true';
+    if (
+      !isCurrentUserMessage(message.user?.id, currentXmppUsername) &&
+      !isSystemMessage
+    ) {
+      xmppClient?.sendHistoryReceivedReceiptStanza(roomJID, message.id);
+    }
   }
 };
 
