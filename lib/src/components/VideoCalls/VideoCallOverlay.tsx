@@ -32,6 +32,8 @@ import {
 import { VideoCallIcons } from '../../types/models/config.model';
 import { useDraggable } from '../../helpers/useDraggable';
 import Button from '../styled/Button';
+import { useTabVisibility } from '../../hooks/useTabVisibility';
+import { showBrowserNotification } from '../../utils/notificationUtils';
 
 const visuallyHidden: React.CSSProperties = {
   position: 'absolute',
@@ -428,6 +430,65 @@ export const VideoCallOverlay: React.FC = () => {
     }, OUTGOING_CALL_TIMEOUT_MS);
     return () => window.clearTimeout(timer);
   }, [call.phase, call.direction, call.startedAt, dispatch]);
+
+  // An incoming call rings via this overlay whenever the tab is open and
+  // focused (it now lives in XmppProvider - see that file - specifically so
+  // this still happens on any in-app page, not just while <Chat> is
+  // mounted). But the overlay itself is silent to a user who isn't looking
+  // at the tab at all: backgrounded (another tab focused) or the browser
+  // window minimized/hidden. The live call-token that opened this ring was
+  // already intercepted before it could reach the normal message/push
+  // pipeline (see callTokenStanza.ts), so without this, that case had no
+  // notification at all - unlike the fully-offline path, which gets one via
+  // the service worker's call-styled push. Re-checks on every visibility
+  // flip while still ringing, not just once, so backgrounding mid-ring
+  // still notifies.
+  const isTabVisible = useTabVisibility();
+  const notifiedIncomingCallKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    const isRingingIncoming =
+      call.direction === 'incoming' && call.phase === 'ringing-incoming';
+    if (!isRingingIncoming) {
+      notifiedIncomingCallKeyRef.current = null;
+      return;
+    }
+    if (isTabVisible) return; // ring modal is on screen - that IS the notification
+    const key = call.callId || call.roomJid || 'incoming-call';
+    if (notifiedIncomingCallKeyRef.current === key) return;
+    notifiedIncomingCallKeyRef.current = key;
+
+    const title = `Incoming ${call.kind === 'audio' ? 'audio' : 'video'} call${
+      call.roomName ? ` · ${call.roomName}` : ''
+    }`;
+    void showBrowserNotification(
+      title,
+      {
+        body: 'Tap to answer',
+        icon: config?.pushNotifications?.iconPath || '/favicon.ico',
+        badge:
+          config?.pushNotifications?.badgePath ||
+          config?.pushNotifications?.iconPath ||
+          '/favicon.ico',
+        tag: `call:${key}`,
+        requireInteraction: true,
+      },
+      config?.pushNotifications?.serviceWorkerScope || '/',
+      () => {
+        window.focus();
+      }
+    );
+  }, [
+    call.direction,
+    call.phase,
+    call.kind,
+    call.roomName,
+    call.callId,
+    call.roomJid,
+    isTabVisible,
+    config?.pushNotifications?.iconPath,
+    config?.pushNotifications?.badgePath,
+    config?.pushNotifications?.serviceWorkerScope,
+  ]);
 
   const ringingHeader = useMemo(() => {
     if (call.direction === 'incoming') {
