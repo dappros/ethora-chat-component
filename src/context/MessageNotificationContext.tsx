@@ -22,6 +22,8 @@ import {
 } from '../utils/notificationPolicy';
 import { showBrowserNotification } from '../utils/notificationUtils';
 import { ethoraLogger } from '../helpers/ethoraLogger';
+import { playNotificationSound } from '../utils/notificationSound';
+import { isSameXmppUsername } from '../helpers/xmppUsername';
 
 interface MessageNotificationContextType {
   showMessageNotification: (
@@ -58,6 +60,9 @@ export const MessageNotificationProvider: React.FC<{
   );
   const contextConfig = useSelector(
     (state: RootState) => state.chatSettingStore?.config
+  );
+  const currentXmppUsername = useSelector(
+    (state: RootState) => state.chatSettingStore?.user?.xmppUsername
   );
 
   // Prefer the config <Chat> itself dispatched to Redux over the prop passed
@@ -216,7 +221,7 @@ export const MessageNotificationProvider: React.FC<{
   );
 
   const showToastNotification = useCallback(
-    (message: IMessage, roomName: string, senderName: string, roomJID: string) => {
+    (message: IMessage, roomName: string, senderName: string, roomJID: string, isMentioned: boolean) => {
       const dedupeKey = `${roomJID}:${String((message as any)?.xmppId || message?.id || '').trim()}`;
       const notificationId = `msg-notification-${message.id}-${Date.now()}`;
       const newNotification: MessageNotificationData = {
@@ -226,6 +231,7 @@ export const MessageNotificationProvider: React.FC<{
         senderName,
         roomJID,
         timestamp: Date.now(),
+        isMentioned,
       };
 
       setNotifications((prev) => {
@@ -249,12 +255,23 @@ export const MessageNotificationProvider: React.FC<{
 
   const showMessageNotification = useCallback(
     (message: IMessage, roomName: string, senderName: string, roomJID: string) => {
+      const isMentioned = !!message.mentions?.some((mention) =>
+        isSameXmppUsername(mention.xmppUsername, currentXmppUsername)
+      );
+
       // Toast only when the tab is focused AND the user isn't on the chat
       // page at all - not just "not this specific room". While chat is open
       // they already see unread state/messages live in the UI; while
       // backgrounded, shouldShowForegroundOsPush below takes over instead.
       if (isEnabled && isTabVisible && !isChatUiVisible) {
-        showToastNotification(message, roomName, senderName, roomJID);
+        showToastNotification(message, roomName, senderName, roomJID, isMentioned);
+
+        if (notificationConfig?.sound?.enabled) {
+          playNotificationSound(
+            isMentioned ? 'mention' : 'message',
+            notificationConfig.sound.volume
+          );
+        }
       }
 
       const osPushDecision = shouldShowForegroundOsPush({
@@ -292,7 +309,17 @@ export const MessageNotificationProvider: React.FC<{
         );
       }
     },
-    [config, isEnabled, isTabVisible, isChatUiVisible, showToastNotification, navigateToMessage]
+    [
+      config,
+      isEnabled,
+      isTabVisible,
+      isChatUiVisible,
+      showToastNotification,
+      navigateToMessage,
+      currentXmppUsername,
+      notificationConfig?.sound?.enabled,
+      notificationConfig?.sound?.volume,
+    ]
   );
 
   // Register the callback with the global manager

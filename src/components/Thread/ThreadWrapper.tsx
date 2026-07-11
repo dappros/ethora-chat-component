@@ -22,6 +22,7 @@ import { useSendMessage } from '../../hooks/useSendMessage';
 import { createMainMessageForThread } from '../../helpers/createMainMessageForThread';
 import { useRoomState } from '../../hooks/useRoomState';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { OutgoingMention } from '../../networking/xmpp/sendTextMessage.xmpp';
 
 interface ThreadWrapperProps {
   activeMessage: IMessage;
@@ -78,13 +79,14 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
   );
 
   const sendMessage = useCallback(
-    (message: string) => {
+    (message: string, mentions?: OutgoingMention[]) => {
       sendMs(
         message,
         activeMessage.roomJid,
         true,
         isChecked,
-        createMainMessageForThread(activeMessage)
+        createMainMessageForThread(activeMessage),
+        mentions
       );
     },
     [activeMessage, isChecked]

@@ -1,5 +1,5 @@
 import { Element } from 'ltx';
-import { IUser } from '../types/types';
+import { IUser, MessageMention } from '../types/types';
 import { transformArrayToObject } from './transformTranslatations';
 import { Iso639_1Codes } from '../types/types';
 import { ethoraLogger } from './ethoraLogger';
@@ -11,6 +11,33 @@ const getLocalpartFromJid = (jid?: string): string | undefined => {
   const value = String(jid || '').trim();
   if (!value) return undefined;
   return value.split('@')[0] || undefined;
+};
+
+// XEP-0372 <reference type="mention"> children of the message stanza.
+const parseMentionReferences = (fullData?: Element): MessageMention[] | undefined => {
+  const references = fullData
+    ?.getChildren('reference')
+    ?.filter(
+      (ref) =>
+        ref.attrs?.xmlns === 'urn:xmpp:reference:0' &&
+        ref.attrs?.type === 'mention'
+    );
+  if (!references || references.length === 0) return undefined;
+
+  const mentions = references
+    .map((ref) => {
+      const begin = parseInt(ref.attrs?.begin, 10);
+      const end = parseInt(ref.attrs?.end, 10);
+      const uri = String(ref.attrs?.uri || '');
+      const xmppUsername = getLocalpartFromJid(uri.replace(/^xmpp:/, ''));
+      if (Number.isNaN(begin) || Number.isNaN(end) || !xmppUsername) {
+        return undefined;
+      }
+      return { begin, end, uri, xmppUsername };
+    })
+    .filter((mention): mention is MessageMention => !!mention);
+
+  return mentions.length > 0 ? mentions : undefined;
 };
 
 const normalizeTranslations = (value: unknown) =>
@@ -44,6 +71,7 @@ interface DataXml {
   xmppId?: string;
   xmppFrom?: string;
   isHistory?: boolean;
+  mentions?: MessageMention[];
   data: { [x: string]: any };
 }
 export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
@@ -114,6 +142,7 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
   };
 
   const dataAttrs = data?.attrs || {};
+  const mentions = parseMentionReferences(fullData);
 
   return {
     data: dataAttrs,
@@ -129,5 +158,6 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
     xmppId,
     xmppFrom,
     isHistory,
+    mentions,
   };
 };

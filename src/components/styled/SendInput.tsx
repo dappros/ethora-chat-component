@@ -29,9 +29,12 @@ import {
 } from '../../helpers/resolveIconColor';
 import { parseMessageBody } from '../../helpers/parseMessageBody';
 import { useT } from '../../i18n/useT';
+import { OutgoingMention } from '../../networking/xmpp/sendTextMessage.xmpp';
+import { useRoomState } from '../../hooks/useRoomState';
+import { useChatSettingState } from '../../hooks/useChatSettingState';
 
 export interface SendInputProps {
-  sendMessage: (message: string) => void | Promise<void>;
+  sendMessage: (message: string, mentions?: OutgoingMention[]) => void | Promise<void>;
   sendMedia: (data: any, type: string) => void | Promise<void>;
   isLoading: boolean;
   editMessage?: string;
@@ -44,9 +47,14 @@ export interface SendInputProps {
   inputHeight?: number;
   showPreview?: boolean;
   previewParser?: (text: string) => (string | JSX.Element)[];
-  onSendMessage?: (message: string) => void | Promise<void>;
+  onSendMessage?: (message: string, mentions?: OutgoingMention[]) => void | Promise<void>;
   onSendMedia?: (data: any, type: string) => void | Promise<void>;
   placeholderText?: string;
+}
+
+interface MentionCandidate {
+  xmppUsername: string;
+  displayName: string;
 }
 
 const SendInput: React.FC<SendInputProps> = ({
@@ -77,6 +85,44 @@ const SendInput: React.FC<SendInputProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // @mentions (XEP-0372): mention text is committed as literal "@Display
+  // Name " in the composer text, and offsets are resolved from that text
+  // right before sending (see resolveMentions) rather than tracked live -
+  // simpler than diffing the textarea on every keystroke, and self-heals
+  // if the user edits/deletes part of a mention (it just stops matching).
+  const { roomsList, activeRoomJID } = useRoomState();
+  const { user: currentUser } = useChatSettingState();
+  const [mentionQuery, setMentionQuery] = useState<{
+    start: number;
+    query: string;
+  } | null>(null);
+  const [mentionSelectedIndex, setMentionSelectedIndex] = useState(0);
+  const [committedMentions, setCommittedMentions] = useState<
+    MentionCandidate[]
+  >([]);
+
+  const mentionCandidates = useMemo((): MentionCandidate[] => {
+    if (!mentionQuery) return [];
+    const members = roomsList?.[activeRoomJID]?.members || [];
+    const q = mentionQuery.query.toLowerCase();
+    return members
+      .filter(
+        (m) => m.xmppUsername && m.xmppUsername !== currentUser?.xmppUsername
+      )
+      .map((m) => ({
+        xmppUsername: m.xmppUsername,
+        displayName:
+          `${m.firstName || ''} ${m.lastName || ''}`.trim() ||
+          m.xmppUsername,
+      }))
+      .filter(
+        (c) =>
+          c.displayName.toLowerCase().includes(q) ||
+          c.xmppUsername.toLowerCase().includes(q)
+      )
+      .slice(0, 6);
+  }, [mentionQuery, roomsList, activeRoomJID, currentUser?.xmppUsername]);
 
   const handleAttachClick = useCallback(() => {
     if (fileInputRef.current) {
@@ -154,8 +200,73 @@ const SendInput: React.FC<SendInputProps> = ({
       const newValue = event.target.value;
       setMessage(newValue);
       updateTextareaHeight(newValue);
+
+      const caret = event.target.selectionStart ?? newValue.length;
+      const uptoCaret = newValue.slice(0, caret);
+      // "@" trigger: preceded by start-of-text or whitespace, no
+      // whitespace between the "@" and the caret yet.
+      const match = uptoCaret.match(/(?:^|\s)@([^\s@]*)$/);
+      if (match) {
+        setMentionQuery({ start: caret - match[1].length - 1, query: match[1] });
+        setMentionSelectedIndex(0);
+      } else {
+        setMentionQuery(null);
+      }
     },
     [updateTextareaHeight]
+  );
+
+  const handleSelectMention = useCallback(
+    (candidate: MentionCandidate) => {
+      if (!mentionQuery) return;
+      const insertText = `@${candidate.displayName} `;
+      const before = message.slice(0, mentionQuery.start);
+      const after = message.slice(
+        mentionQuery.start + 1 + mentionQuery.query.length
+      );
+      const newMessage = `${before}${insertText}${after}`;
+      setMessage(newMessage);
+      updateTextareaHeight(newMessage);
+      setCommittedMentions((prev) => [
+        ...prev,
+        { xmppUsername: candidate.xmppUsername, displayName: candidate.displayName },
+      ]);
+      setMentionQuery(null);
+
+      const caretPos = before.length + insertText.length;
+      requestAnimationFrame(() => {
+        const el = textareaRef.current;
+        if (el) {
+          el.focus();
+          el.setSelectionRange(caretPos, caretPos);
+        }
+      });
+    },
+    [message, mentionQuery, updateTextareaHeight]
+  );
+
+  // Resolves committed mentions to XEP-0372 begin/end offsets in the final
+  // outgoing text, in insertion order. A mention the user edited/deleted
+  // simply won't be found and is dropped.
+  const resolveMentions = useCallback(
+    (text: string): OutgoingMention[] | undefined => {
+      if (!committedMentions.length) return undefined;
+      let searchFrom = 0;
+      const resolved: OutgoingMention[] = [];
+      for (const mention of committedMentions) {
+        const needle = `@${mention.displayName}`;
+        const idx = text.indexOf(needle, searchFrom);
+        if (idx === -1) continue;
+        resolved.push({
+          begin: idx,
+          end: idx + needle.length,
+          xmppUsername: mention.xmppUsername,
+        });
+        searchFrom = idx + needle.length;
+      }
+      return resolved.length > 0 ? resolved : undefined;
+    },
+    [committedMentions]
   );
 
   useEffect(() => {
@@ -176,6 +287,7 @@ const SendInput: React.FC<SendInputProps> = ({
     async (audioUrl?: string) => {
       const outgoing = formatMessage ? formatMessage(message) : message;
       const trailingText = hasTextContent(outgoing) ? outgoing : null;
+      const mentions = trailingText ? resolveMentions(outgoing) : undefined;
 
       let mediaPromise: void | Promise<void> = undefined;
 
@@ -189,16 +301,18 @@ const SendInput: React.FC<SendInputProps> = ({
         if (!trailingText) {
           return;
         }
-        effectiveSendMessage(trailingText);
+        effectiveSendMessage(trailingText, mentions);
         setMessage('');
         setFilePreviews([]);
         setTextareaHeight(40);
+        setCommittedMentions([]);
         return;
       }
 
       setMessage('');
       setFilePreviews([]);
       setTextareaHeight(40);
+      setCommittedMentions([]);
 
       if (trailingText) {
         // Wait for the media stanza to land before sending the caption so
@@ -208,7 +322,7 @@ const SendInput: React.FC<SendInputProps> = ({
         } catch {
           // Media sender owns its own error reporting; still emit the caption.
         }
-        effectiveSendMessage(trailingText);
+        effectiveSendMessage(trailingText, mentions);
       }
     },
     [
@@ -218,6 +332,7 @@ const SendInput: React.FC<SendInputProps> = ({
       formatMessage,
       hasTextContent,
       message,
+      resolveMentions,
     ]
   );
 
@@ -227,20 +342,47 @@ const SendInput: React.FC<SendInputProps> = ({
     if (!hasTextContent(outgoing)) {
       return;
     }
-    effectiveSendMessage(outgoing);
+    effectiveSendMessage(outgoing, resolveMentions(outgoing));
     setMessage('');
     setFilePreviews([]);
     setTextareaHeight(40);
+    setCommittedMentions([]);
   }, [
     effectiveSendMessage,
     message,
     config?.secondarySendButton?.messageEdit,
     formatMessage,
     hasTextContent,
+    resolveMentions,
   ]);
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      if (mentionQuery && mentionCandidates.length > 0) {
+        if (event.key === 'ArrowDown') {
+          event.preventDefault();
+          setMentionSelectedIndex((i) => (i + 1) % mentionCandidates.length);
+          return;
+        }
+        if (event.key === 'ArrowUp') {
+          event.preventDefault();
+          setMentionSelectedIndex(
+            (i) => (i - 1 + mentionCandidates.length) % mentionCandidates.length
+          );
+          return;
+        }
+        if (event.key === 'Enter' || event.key === 'Tab') {
+          event.preventDefault();
+          handleSelectMention(mentionCandidates[mentionSelectedIndex]);
+          return;
+        }
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          setMentionQuery(null);
+          return;
+        }
+      }
+
       if (event.key !== 'Enter') return;
 
       const hasContent = filePreviews.length > 0 || hasTextContent(message);
@@ -265,6 +407,10 @@ const SendInput: React.FC<SendInputProps> = ({
       hasTextContent,
       message,
       multiline,
+      mentionQuery,
+      mentionCandidates,
+      mentionSelectedIndex,
+      handleSelectMention,
     ]
   );
 
@@ -305,7 +451,50 @@ const SendInput: React.FC<SendInputProps> = ({
   }, [filePreviews, renderFilePreview, handleRemoveFile]);
 
   return (
-    <InputContainer>
+    <InputContainer style={{ position: 'relative' }}>
+      {mentionQuery && mentionCandidates.length > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '100%',
+            left: 16,
+            marginBottom: 4,
+            width: 240,
+            maxHeight: 200,
+            overflowY: 'auto',
+            backgroundColor: '#fcfcfc',
+            border: '1px solid #E4E4E7',
+            borderRadius: 8,
+            boxShadow: '0px 4px 16px -4px rgba(18, 18, 25, 0.15)',
+            zIndex: 1000,
+          }}
+        >
+          {mentionCandidates.map((candidate, index) => (
+            <div
+              key={candidate.xmppUsername}
+              onMouseDown={(event) => {
+                // mousedown (not click) so this fires before the
+                // textarea's blur handler steals focus.
+                event.preventDefault();
+                handleSelectMention(candidate);
+              }}
+              onMouseEnter={() => setMentionSelectedIndex(index)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                padding: '8px 12px',
+                cursor: 'pointer',
+                backgroundColor:
+                  index === mentionSelectedIndex ? '#F0F0F0' : 'transparent',
+                fontSize: 'var(--ethora-font-size-sm, 14px)',
+                color: '#141414',
+              }}
+            >
+              {candidate.displayName}
+            </div>
+          ))}
+        </div>
+      )}
       <MessageInputContainer>
         {!isRecording && (
           <>

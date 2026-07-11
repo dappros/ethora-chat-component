@@ -27,6 +27,7 @@ import useComposing from '../../hooks/useComposing.tsx';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
 import { MessageProps } from '../../types/types';
 import { useLoaderDebug } from '../../hooks/useLoaderDebug';
+import { OutgoingMention } from '../../networking/xmpp/sendTextMessage.xmpp';
 
 interface ChatRoomProps {
   CustomMessageComponent?: React.ComponentType<MessageProps>;
@@ -59,8 +60,8 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     const { sendStartComposing, sendEndComposing } = useComposing(config);
 
     const sendMessage = useCallback(
-      (message: string) => {
-        sendMs(message, activeRoomJID);
+      (message: string, mentions?: OutgoingMention[]) => {
+        sendMs(message, activeRoomJID, undefined, undefined, undefined, mentions);
       },
       [activeRoomJID, sendMs]
     );

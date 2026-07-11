@@ -2,6 +2,7 @@ import { Client } from '@xmpp/client';
 import { Iso639_1Codes } from './language.model';
 import XmppClient from '../../networking/xmppClient';
 import { IMessage } from './message.model';
+import { OutgoingMention } from '../../networking/xmpp/sendTextMessage.xmpp';
 
 export interface XmppState {
   client: XmppClient | null;
@@ -120,7 +121,8 @@ export interface XmppClientInterface {
     isReply?: boolean,
     showInChannel?: boolean,
     mainMessage?: string,
-    customId?: string
+    customId?: string,
+    mentions?: OutgoingMention[]
   ): void;
   deleteMessageStanza(room: string, msgId: string): void;
   editMessageStanza(room: string, msgId: string, text: string): void;

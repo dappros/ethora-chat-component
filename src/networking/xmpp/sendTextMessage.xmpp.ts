@@ -1,6 +1,12 @@
 import { Client, xml } from '@xmpp/client';
 import { SERVICE } from '../../config';
 
+export interface OutgoingMention {
+  begin: number;
+  end: number;
+  xmppUsername: string;
+}
+
 export const sendTextMessage = (
   client: Client,
   roomJID: string,
@@ -14,7 +20,8 @@ export const sendTextMessage = (
   showInChannel?: boolean,
   mainMessage?: string,
   devServer?: string,
-  customId?: string
+  customId?: string,
+  mentions?: OutgoingMention[]
 ): boolean => {
   const id = customId
     ? customId
@@ -56,7 +63,19 @@ export const sendTextMessage = (
         mainMessage: mainMessage || '',
         push: "true",
       }),
-      xml('body', {}, userMessage)
+      xml('body', {}, userMessage),
+      // XEP-0372 mention references - one per @-mentioned user, offsets
+      // into `userMessage`. `uri` needs a full JID; mentioned users share
+      // this sender's domain.
+      ...(mentions || []).map((mention) =>
+        xml('reference', {
+          xmlns: 'urn:xmpp:reference:0',
+          type: 'mention',
+          begin: String(mention.begin),
+          end: String(mention.end),
+          uri: `xmpp:${mention.xmppUsername}@${client.jid?.domain}`,
+        })
+      )
     );
     client.send(message);
     return true;

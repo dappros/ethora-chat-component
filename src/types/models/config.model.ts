@@ -392,6 +392,16 @@ export interface IConfig {
     };
     maxNotifications?: number;
     duration?: number;
+    /**
+     * Synthesized (no audio file) notification chime, played through the
+     * Web Audio API. Off by default. A message that @mentions the current
+     * user plays a distinct, more attention-grabbing two-tone variant.
+     */
+    sound?: {
+      enabled?: boolean;
+      /** 0-1. Default 0.2. */
+      volume?: number;
+    };
     onClick?: (params: {
       roomJID: string;
       messageId: string;

@@ -9,6 +9,7 @@ import { addMessageToHeap } from '../roomStore/roomHeapSlice';
 import { v4 as uuidv4 } from 'uuid';
 import { useEventHandlers } from './useEventHandlers';
 import { ethoraLogger } from '../helpers/ethoraLogger';
+import { OutgoingMention } from '../networking/xmpp/sendTextMessage.xmpp';
 
 const DEFAULT_TIMEOUT_MS = 300000;
 
@@ -269,7 +270,8 @@ export const useSendMessage = () => {
       activeRoomJID: string,
       isReply?: boolean,
       isChecked?: boolean,
-      mainMessage?: string
+      mainMessage?: string,
+      mentions?: OutgoingMention[]
     ) => {
       if (!/\S/.test(String(message || ''))) {
         ethoraLogger.log('Cannot send empty message');
@@ -420,6 +422,10 @@ export const useSendMessage = () => {
                   roomJid: activeRoomJID,
                   xmppFrom: `${activeRoomJID}/${user.xmppUsername}`,
                   pending: true,
+                  // uri isn't needed for local rendering (only begin/end/
+                  // xmppUsername drive the highlight) - the real echo will
+                  // carry the full XEP-0372 uri once it round-trips.
+                  mentions: mentions?.map((m) => ({ ...m, uri: '' })),
                 },
               })
             );
@@ -454,7 +460,8 @@ export const useSendMessage = () => {
                 isReply || false,
                 isChecked || false,
                 mainMessage || '',
-                id
+                id,
+                mentions
               )
             );
             if (sendOk) {

@@ -10,6 +10,9 @@ export interface MessageNotificationData {
   senderName: string;
   roomJID: string;
   timestamp: number;
+  /** True when this message @mentions the current user - renders an
+   * accented variant so it stands out from a plain unread message. */
+  isMentioned?: boolean;
 }
 
 export interface MessageNotificationToastProps extends MessageNotificationData {
@@ -62,10 +65,11 @@ const slideOutMobile = keyframes`
   }
 `;
 
-const ToastContainer = styled.div<{ $isClosing: boolean }>`
+const ToastContainer = styled.div<{ $isClosing: boolean; $isMentioned?: boolean }>`
   position: relative;
   background: white;
   border-radius: 12px;
+  border-left: 3px solid ${({ $isMentioned }) => ($isMentioned ? '#0052CD' : 'transparent')};
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   padding: 12px;
   margin-bottom: 8px;
@@ -256,6 +260,7 @@ const MessageNotificationToast: React.FC<MessageNotificationToastProps> = ({
   senderName,
   roomJID,
   timestamp,
+  isMentioned,
   onClose,
   onNavigateToMessage,
   duration,
@@ -308,7 +313,7 @@ const MessageNotificationToast: React.FC<MessageNotificationToastProps> = ({
     (message.user as any)?.photoURL || (message.user as any)?.profileImage;
 
   return (
-    <ToastContainer $isClosing={isClosing} onClick={handleClick}>
+    <ToastContainer $isClosing={isClosing} $isMentioned={isMentioned} onClick={handleClick}>
       <CloseButton onClick={handleCloseClick} aria-label="Close notification">
         ×
       </CloseButton>

@@ -330,6 +330,12 @@ const Message: React.FC<MessageProps> = forwardRef<
                     text: config?.messageTextFilter?.enabled
                       ? config.messageTextFilter.filterFunction(message.body)
                       : message.body,
+                    // Offsets are into the raw body - skip highlighting if a
+                    // custom filter already reshaped the text around them.
+                    mentions: config?.messageTextFilter?.enabled
+                      ? undefined
+                      : message.mentions,
+                    currentXmppUsername: user?.xmppUsername,
                   })}
                 </div>
               )}

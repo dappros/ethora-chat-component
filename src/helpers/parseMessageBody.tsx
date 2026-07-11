@@ -2,9 +2,47 @@ import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
+import { MessageMention } from '../types/types';
+import { isSameXmppUsername } from './xmppUsername';
 
-export const parseMessageBody = ({ text }: { text: string }) => {
+// Wraps each mention's exact source-text range in a <mention> pseudo-tag so
+// rehypeRaw (already enabled below) turns it into a real element we can
+// style via the `mention` entry in `components` - offsets are into the
+// ORIGINAL text, so this must run before ReactMarkdown touches anything.
+const injectMentionMarkup = (
+  text: string,
+  mentions?: MessageMention[]
+): string => {
+  if (!mentions || mentions.length === 0) return text;
+  const sorted = [...mentions]
+    .filter((m) => m.begin >= 0 && m.end <= text.length && m.begin < m.end)
+    .sort((a, b) => a.begin - b.begin);
+
+  let result = '';
+  let cursor = 0;
+  for (const mention of sorted) {
+    if (mention.begin < cursor) continue; // overlapping/out-of-order, skip
+    result += text.slice(cursor, mention.begin);
+    const mentionText = text.slice(mention.begin, mention.end);
+    result += `<mention data-username="${mention.xmppUsername}">${mentionText}</mention>`;
+    cursor = mention.end;
+  }
+  result += text.slice(cursor);
+  return result;
+};
+
+export const parseMessageBody = ({
+  text,
+  mentions,
+  currentXmppUsername,
+}: {
+  text: string;
+  mentions?: MessageMention[];
+  currentXmppUsername?: string;
+}) => {
   if (!text) return null;
+
+  const markupText = injectMentionMarkup(text, mentions);
 
   return (
     <div
@@ -20,6 +58,27 @@ export const parseMessageBody = ({ text }: { text: string }) => {
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeRaw]}
         components={{
+          mention: ({ node, children, ...props }: any) => {
+            const isSelf = isSameXmppUsername(
+              props['data-username'],
+              currentXmppUsername
+            );
+            return (
+              <span
+                style={{
+                  fontWeight: 600,
+                  color: isSelf ? '#fff' : '#0052CD',
+                  backgroundColor: isSelf
+                    ? 'rgba(0, 82, 205, 0.85)'
+                    : 'rgba(0, 82, 205, 0.12)',
+                  borderRadius: 4,
+                  padding: '0 2px',
+                }}
+              >
+                {children}
+              </span>
+            );
+          },
           a: ({ href, children }) => (
             <a
               href={href!}
@@ -173,7 +232,7 @@ export const parseMessageBody = ({ text }: { text: string }) => {
           ),
         }}
       >
-        {text}
+        {markupText}
       </ReactMarkdown>
     </div>
   );

@@ -4,7 +4,7 @@ import { sendMediaMessage } from './xmpp/sendMediaMessage.xmpp';
 import { getChatsPrivateStoreRequest } from './xmpp/getChatsPrivateStoreRequest.xmpp';
 import { actionSetTimestampToPrivateStore } from './xmpp/actionSetTimestampToPrivateStore.xmpp';
 import { sendTypingRequest } from './xmpp/sendTypingRequest.xmpp';
-import { sendTextMessage } from './xmpp/sendTextMessage.xmpp';
+import { sendTextMessage, OutgoingMention } from './xmpp/sendTextMessage.xmpp';
 import { deleteMessage } from './xmpp/deleteMessage.xmpp';
 import { presenceInRoom } from './xmpp/presenceInRoom.xmpp';
 import { getLastMessage } from './xmpp/getLastMessageArchive.xmpp';
@@ -1975,7 +1975,8 @@ export class XmppClient implements XmppClientInterface {
     isReply?: boolean,
     showInChannel?: boolean,
     mainMessage?: string,
-    customId?: string
+    customId?: string,
+    mentions?: OutgoingMention[]
   ): Promise<boolean> => {
     this.onCriticalSend(roomJID, customId);
     const lane = this.getSendLane(roomJID);
@@ -2009,7 +2010,8 @@ export class XmppClient implements XmppClientInterface {
               showInChannel,
               mainMessage,
               this.devServer || SERVICE,
-              customId
+              customId,
+              mentions
             );
           });
         });
