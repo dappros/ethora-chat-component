@@ -47,6 +47,12 @@ export interface IMessage {
   };
   // @mentions (XEP-0372 <reference type="mention">), offsets into `body`.
   mentions?: MessageMention[];
+  // Groups several media messages sent together into one album/grid in the
+  // UI (see AlbumMediaGrid.tsx) - shared by all files from the same batch.
+  albumId?: string;
+  // Set when this optimistic media message's upload/send failed (no server
+  // echo will ever arrive to clear `pending`, so this is patched directly).
+  sendFailed?: boolean;
 }
 
 export interface MessageMention {

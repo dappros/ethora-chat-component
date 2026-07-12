@@ -67,8 +67,16 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     );
 
     const sendMedia = useCallback(
-      (data: any, type: string) => {
-        return sendMessageMedia(data, type, activeRoomJID);
+      (data: any, type: string, albumId?: string) => {
+        return sendMessageMedia(
+          data,
+          type,
+          activeRoomJID,
+          undefined,
+          undefined,
+          undefined,
+          albumId
+        );
       },
       [activeRoomJID]
     );

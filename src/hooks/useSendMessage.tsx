@@ -1,7 +1,11 @@
 import { useCallback, useRef, useEffect, useState } from 'react';
 import { useXmppClient } from '../context/xmppProvider';
 import { useDispatch, useSelector } from 'react-redux';
-import { addRoomMessage, setEditAction } from '../roomStore/roomsSlice';
+import {
+  addRoomMessage,
+  setEditAction,
+  setMessageSendFailed,
+} from '../roomStore/roomsSlice';
 import { uploadFile } from '../networking/api-requests/auth.api';
 import { RootState, store } from '../roomStore';
 import { useChatSettingState } from './useChatSettingState';
@@ -562,11 +566,12 @@ export const useSendMessage = () => {
       activeRoomJID: string,
       isReply = false,
       isChecked = false,
-      mainMessage = ''
-    ) => {
+      mainMessage = '',
+      albumId?: string
+    ): Promise<boolean> => {
       if (isLastMessageFromUserAndProcessing(activeRoomJID)) {
         ethoraLogger.log('Cannot send media: Message sending is currently blocked');
-        return;
+        return false;
       }
 
       markMessageSending(activeRoomJID, true);
@@ -605,6 +610,7 @@ export const useSendMessage = () => {
               isReply,
               showInChannel: `${isChecked}`,
               mainMessage,
+              albumId,
             },
           })
         );
@@ -642,6 +648,7 @@ export const useSendMessage = () => {
             mainMessage,
             isPrivate: item?.isPrivate,
             __v: item.__v,
+            albumId,
           };
 
           const mediaSent = await sendWithActiveRoomRetry(
@@ -669,14 +676,21 @@ export const useSendMessage = () => {
             uploadResults: response.data.results,
           },
         });
+        return true;
       } catch (error) {
         console.error('Upload failed:', error);
+        // No server echo will ever arrive for a message that never made it
+        // out - patch it directly so it doesn't spin as "pending" forever.
+        if (!config?.disableSentLogic) {
+          dispatch(setMessageSendFailed({ roomJID: activeRoomJID, messageId: id }));
+        }
         handleMessageFailed({
           message: 'media',
           roomJID: activeRoomJID,
           error: error as Error,
           messageType: 'media',
         });
+        return false;
       } finally {
         markMessageSending(activeRoomJID, false);
       }

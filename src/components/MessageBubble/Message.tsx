@@ -11,6 +11,8 @@ import {
   MessageFooter,
 } from '../styled/StyledComponents';
 import MediaMessage from '../MainComponents/MediaMessage';
+import AlbumMediaGrid from './AlbumMediaGrid';
+import { MediaStatusOverlay } from './MediaStatusOverlay';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
 
@@ -155,6 +157,17 @@ const Message: React.FC<MessageProps> = forwardRef<
     isGroupRoom,
   ]);
   const readStatus = tickInfo.status;
+
+  // Multiple files sent together share an albumId (see SendInput.tsx) and
+  // render as one grid instead of N separate bubbles - only the first
+  // message of the group actually renders it (isAlbumSibling below skips
+  // every other one).
+  const albumSiblings = useMemo(() => {
+    if (!message.albumId || !roomMessages?.length) return null;
+    const siblings = roomMessages.filter((m) => m.albumId === message.albumId);
+    return siblings.length > 1 ? siblings : null;
+  }, [message.albumId, roomMessages]);
+  const isAlbumSibling = !!albumSiblings && albumSiblings[0]?.id !== message.id;
 
   const dispatch = useDispatch();
   const [contextMenu, setContextMenu] = useState<{
@@ -331,6 +344,10 @@ const Message: React.FC<MessageProps> = forwardRef<
 
   const isPending = idSet.has(message.id) || message?.pending || false;
 
+  // Not the first tile of an album - the first one already rendered the
+  // whole grid, this row contributes nothing to the DOM.
+  if (isAlbumSibling) return null;
+
   return (
     <>
       <CustomMessageContainer
@@ -389,12 +406,21 @@ const Message: React.FC<MessageProps> = forwardRef<
             />
           )}
           {message?.isMediafile === 'true' && !message?.isDeleted ? (
-            <MediaMessage
-              mimeType={message.mimetype}
-              locationPreview={message.locationPreview}
-              location={message?.location}
-              message={message}
-            />
+            albumSiblings ? (
+              <AlbumMediaGrid messages={albumSiblings} />
+            ) : (
+              <MediaStatusOverlay
+                pending={message.pending}
+                failed={message.sendFailed}
+              >
+                <MediaMessage
+                  mimeType={message.mimetype}
+                  locationPreview={message.locationPreview}
+                  location={message?.location}
+                  message={message}
+                />
+              </MediaStatusOverlay>
+            )
           ) : (
             <CustomMessageText>
               {message.isDeleted && message.id !== 'delimiter-new' ? (

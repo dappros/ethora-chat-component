@@ -22,7 +22,13 @@ import {
 import AudioRecorder from '../InputComponents/AudioRecorder';
 import { IConfig } from '../../types/types';
 import Button from './Button';
-import { AttachIcon, FileIcon, RemoveIcon, SendIcon } from '../../assets/icons';
+import {
+  AttachIcon,
+  FileIcon,
+  RemoveIcon,
+  SendIcon,
+  RedCross,
+} from '../../assets/icons';
 import {
   resolveIconBgColor,
   resolveIconColor,
@@ -32,10 +38,26 @@ import { useT } from '../../i18n/useT';
 import { OutgoingMention } from '../../networking/xmpp/sendTextMessage.xmpp';
 import { useRoomState } from '../../hooks/useRoomState';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
+import Loader from './Loader';
+import styled from 'styled-components';
+
+// Overlay on a composer file tile while its send is in flight or failed.
+const FilePreviewStatusOverlay = styled.div<{ $isError?: boolean }>`
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: ${({ $isError }) =>
+    $isError ? 'rgba(220, 38, 38, 0.55)' : 'rgba(0, 0, 0, 0.45)'};
+`;
 
 export interface SendInputProps {
   sendMessage: (message: string, mentions?: OutgoingMention[]) => void | Promise<void>;
-  sendMedia: (data: any, type: string) => void | Promise<void>;
+  // Returns false (or resolves false) on failure so the composer can keep
+  // that one file's tile in an error state without blocking its siblings -
+  // see handleSendClick's Promise.all over filePreviews.
+  sendMedia: (data: any, type: string, albumId?: string) => boolean | void | Promise<boolean | void>;
   isLoading: boolean;
   editMessage?: string;
   config?: IConfig;
@@ -48,7 +70,7 @@ export interface SendInputProps {
   showPreview?: boolean;
   previewParser?: (text: string) => (string | JSX.Element)[];
   onSendMessage?: (message: string, mentions?: OutgoingMention[]) => void | Promise<void>;
-  onSendMedia?: (data: any, type: string) => void | Promise<void>;
+  onSendMedia?: (data: any, type: string, albumId?: string) => boolean | void | Promise<boolean | void>;
   placeholderText?: string;
 }
 
@@ -82,6 +104,11 @@ const SendInput: React.FC<SendInputProps> = ({
   const [isFocused, setIsFocused] = useState(false);
 
   const [filePreviews, setFilePreviews] = useState<File[]>([]);
+  // Per-tile status while a batch is in flight, keyed by file.name (same
+  // dedup key handleFileChange already uses). Absent = idle/not sending.
+  const [fileUploadState, setFileUploadState] = useState<
+    Record<string, 'uploading' | 'error'>
+  >({});
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -170,6 +197,12 @@ const SendInput: React.FC<SendInputProps> = ({
 
   const handleRemoveFile = useCallback((file: File) => {
     setFilePreviews((prevFiles) => prevFiles.filter((f) => f !== file));
+    setFileUploadState((prev) => {
+      if (!(file.name in prev)) return prev;
+      const next = { ...prev };
+      delete next[file.name];
+      return next;
+    });
   }, []);
 
   const calculateTextareaHeight = useCallback(
@@ -289,41 +322,76 @@ const SendInput: React.FC<SendInputProps> = ({
       const trailingText = hasTextContent(outgoing) ? outgoing : null;
       const mentions = trailingText ? resolveMentions(outgoing) : undefined;
 
-      let mediaPromise: void | Promise<void> = undefined;
-
       if (filePreviews.length > 0) {
-        mediaPromise = effectiveSendMedia(filePreviews[0], 'media');
         setIsRecording(false);
-      } else if (audioUrl) {
-        mediaPromise = effectiveSendMedia(audioUrl, 'audio/');
-        setIsRecording(false);
-      } else {
-        if (!trailingText) {
-          return;
+        const filesToSend = filePreviews;
+        // Only tag a shared album when there's actually more than one file -
+        // a lone attachment keeps rendering exactly as it did before.
+        const albumId =
+          filesToSend.length > 1
+            ? `album-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+            : undefined;
+
+        setFileUploadState(
+          Object.fromEntries(filesToSend.map((file) => [file.name, 'uploading' as const]))
+        );
+
+        const results = await Promise.all(
+          filesToSend.map(async (file) => {
+            let ok = true;
+            try {
+              ok = (await effectiveSendMedia(file, 'media', albumId)) !== false;
+            } catch {
+              ok = false;
+            }
+            return { file, ok };
+          })
+        );
+
+        const failedFiles = results.filter((r) => !r.ok).map((r) => r.file);
+        // Successful tiles vanish from the composer; a failed one stays so
+        // the user can see it happened and just hit Send again to retry.
+        setFilePreviews(failedFiles);
+        setFileUploadState(
+          Object.fromEntries(failedFiles.map((file) => [file.name, 'error' as const]))
+        );
+        setTextareaHeight(40);
+
+        // The caption belongs to the whole batch, not any one file - send
+        // it once the batch has settled, regardless of per-file outcome.
+        if (trailingText) {
+          effectiveSendMessage(trailingText, mentions);
+          setMessage('');
+          setCommittedMentions([]);
         }
-        effectiveSendMessage(trailingText, mentions);
+        return;
+      }
+
+      if (audioUrl) {
+        setIsRecording(false);
+        try {
+          await effectiveSendMedia(audioUrl, 'audio/');
+        } catch {
+          // Media sender owns its own error reporting; still emit the caption.
+        }
         setMessage('');
         setFilePreviews([]);
         setTextareaHeight(40);
         setCommittedMentions([]);
+        if (trailingText) {
+          effectiveSendMessage(trailingText, mentions);
+        }
         return;
       }
 
+      if (!trailingText) {
+        return;
+      }
+      effectiveSendMessage(trailingText, mentions);
       setMessage('');
       setFilePreviews([]);
       setTextareaHeight(40);
       setCommittedMentions([]);
-
-      if (trailingText) {
-        // Wait for the media stanza to land before sending the caption so
-        // recipients see media-then-text order on the wire.
-        try {
-          await mediaPromise;
-        } catch {
-          // Media sender owns its own error reporting; still emit the caption.
-        }
-        effectiveSendMessage(trailingText, mentions);
-      }
     },
     [
       effectiveSendMedia,
@@ -428,11 +496,22 @@ const SendInput: React.FC<SendInputProps> = ({
   }, [config]);
 
   const memoizedFilePreviews = useMemo(() => {
-    return filePreviews.map(
-      (file: any, idx: number) =>
-        idx < 1 && (
-          <FilePreview key={file.name}>
-            {renderFilePreview(file)}
+    return filePreviews.map((file: any) => {
+      const status = fileUploadState[file.name];
+      return (
+        <FilePreview key={file.name}>
+          {renderFilePreview(file)}
+          {status === 'uploading' && (
+            <FilePreviewStatusOverlay>
+              <Loader size={24} color="#fff" />
+            </FilePreviewStatusOverlay>
+          )}
+          {status === 'error' && (
+            <FilePreviewStatusOverlay $isError title="Failed to send - press send to retry">
+              <RedCross color="#fff" />
+            </FilePreviewStatusOverlay>
+          )}
+          {status !== 'uploading' && (
             <Button
               style={{
                 position: 'absolute',
@@ -445,10 +524,11 @@ const SendInput: React.FC<SendInputProps> = ({
               onClick={() => handleRemoveFile(file)}
               EndIcon={<RemoveIcon style={{ height: 16, width: 16 }} />}
             />
-          </FilePreview>
-        )
-    );
-  }, [filePreviews, renderFilePreview, handleRemoveFile]);
+          )}
+        </FilePreview>
+      );
+    });
+  }, [filePreviews, fileUploadState, renderFilePreview, handleRemoveFile]);
 
   return (
     <InputContainer style={{ position: 'relative' }}>
@@ -587,6 +667,7 @@ const SendInput: React.FC<SendInputProps> = ({
             )}
             {config?.secondarySendButton?.hideInputSendButton ? null : (
               <Button
+                aria-label="Send message"
                 onClick={() => handleSendClick()}
                 disabled={
                   (message === '' && filePreviews.length === 0) ||
@@ -640,6 +721,7 @@ const SendInput: React.FC<SendInputProps> = ({
       <HiddenFileInput
         ref={fileInputRef}
         type="file"
+        multiple
         onChange={handleFileChange}
       />
       {filePreviews.length > 0 && (

@@ -622,6 +622,20 @@ const roomsStore = createSlice({
         });
       }
     },
+    setMessageSendFailed(
+      state,
+      action: PayloadAction<{ roomJID: string; messageId: string }>
+    ) {
+      const { roomJID, messageId } = action.payload;
+      if (state.rooms[roomJID]) {
+        state.rooms[roomJID].messages.forEach((message) => {
+          if (message.id === messageId) {
+            message.sendFailed = true;
+            message.pending = false;
+          }
+        });
+      }
+    },
     addRoomMessage(state, action: PayloadAction<AddRoomMessageAction>) {
       const { roomJID, message, start } = action.payload;
 
@@ -1116,6 +1130,7 @@ export const {
   deleteRoomMessage,
   setEditAction,
   editRoomMessage,
+  setMessageSendFailed,
   setComposing,
   setIsLoading,
   setLastViewedTimestamp,

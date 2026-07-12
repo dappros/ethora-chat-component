@@ -93,14 +93,15 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
   );
 
   const sendMedia = useCallback(
-    (data: any, type: string) => {
+    (data: any, type: string, albumId?: string) => {
       return sendMessageMedia(
         data,
         type,
         activeMessage.roomJid,
         true,
         true,
-        createMainMessageForThread(activeMessage)
+        createMainMessageForThread(activeMessage),
+        albumId
       );
     },
     [activeMessage]

@@ -37,6 +37,9 @@ export function sendMediaMessage(
     mainMessage: data?.mainMessage,
     roomJid: data?.roomJid,
     push: "true",
+    // Groups this file with the rest of its batch into one album/grid in
+    // the UI (see AlbumMediaGrid.tsx) - undefined for a lone attachment.
+    albumId: data?.albumId,
   };
 
   const message = xml(
