@@ -408,7 +408,7 @@ const RingingCard: React.FC<RingingCardProps> = ({
 export const VideoCallOverlay: React.FC = () => {
   const dispatch = useDispatch();
   const call = useSelector((state: RootState) => state.call);
-  const { config } = useChatSettingState();
+  const { config, user } = useChatSettingState();
 
   const videoCallsConfig = config?.videoCalls;
   const enabled = videoCallsConfig?.enabled === true;
@@ -452,6 +452,12 @@ export const VideoCallOverlay: React.FC = () => {
       notifiedIncomingCallKeyRef.current = null;
       return;
     }
+    // This overlay lives above the login gate and never unmounts on
+    // logout - without this, a call-state stanza that slips in on a still
+    // -live socket (same class of bug as messageNotificationManager, see
+    // MessageNotificationContext.tsx) could pop a "you're being called"
+    // notification for a user the UI already shows as logged out.
+    if (!user?.xmppUsername) return;
     if (isTabVisible) return; // ring modal is on screen - that IS the notification
     const key = call.callId || call.roomJid || 'incoming-call';
     if (notifiedIncomingCallKeyRef.current === key) return;
@@ -485,6 +491,7 @@ export const VideoCallOverlay: React.FC = () => {
     call.callId,
     call.roomJid,
     isTabVisible,
+    user?.xmppUsername,
     config?.pushNotifications?.iconPath,
     config?.pushNotifications?.badgePath,
     config?.pushNotifications?.serviceWorkerScope,
