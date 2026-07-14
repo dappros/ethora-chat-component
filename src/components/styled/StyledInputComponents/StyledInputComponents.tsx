@@ -10,6 +10,10 @@ export const InputContainer = styled.div`
   box-shadow: 0px 0px 8px -4px #12121908;
   box-shadow: 0px 0px 24px -4px #12121914;
   max-width: 100%;
+  /* Composer sits as a flex sibling after the message list - keep it at
+     its natural height instead of letting the column flex layout shrink
+     it if content above overflows. */
+  flex-shrink: 0;
 `;
 
 export const MessageInputContainer = styled.div`

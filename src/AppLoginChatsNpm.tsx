@@ -1268,7 +1268,11 @@ const AuthedShellInner: React.FC<{
     <>
       <div
         style={{
-          height: '100vh',
+          // svh (small viewport height), not vh: on mobile, 100vh is sized
+          // against the viewport with the browser chrome hidden, so the
+          // page renders taller than what's actually visible on load and
+          // pushes the composer below the fold until the user scrolls.
+          height: '100svh',
           width: '100%',
           display: 'flex',
           gap: 16,

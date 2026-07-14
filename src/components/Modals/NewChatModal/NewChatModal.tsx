@@ -31,6 +31,7 @@ import Loader from '../../styled/Loader';
 import { CHAT_TYPES } from '../../../helpers/constants/CHAT_TYPES';
 import { useAppDispatch } from '../../../hooks/hooks';
 import { useChatSettingState } from '../../../hooks/useChatSettingState';
+import { useIsMobileViewport } from '../../../hooks/useIsMobileViewport';
 
 const NewChatModal: React.FC = () => {
   const config = useSelector(
@@ -41,6 +42,7 @@ const NewChatModal: React.FC = () => {
   const { client } = useXmppClient();
   const { showToast } = useToast();
   const { user } = useChatSettingState();
+  const isMobileViewport = useIsMobileViewport();
 
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
@@ -228,7 +230,7 @@ const NewChatModal: React.FC = () => {
               </CloseButton>
               <ModalTitle>Create New Chat</ModalTitle>
               <ProfileImagePlaceholder
-                size={120}
+                size={isMobileViewport ? 80 : 120}
                 upload={{ active: true, onUpload }}
                 remove={{ enabled: true, onRemoveClick }}
                 placeholderIcon={<AddPhotoIcon />}

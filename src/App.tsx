@@ -162,7 +162,7 @@ const ChatComponent = React.memo(() => {
   }, []);
 
   return (
-    <div style={{ height: 'calc(100vh - 20px)', overflow: 'hidden' }}>
+    <div style={{ height: 'calc(100svh - 20px)', overflow: 'hidden' }}>
       <ReduxWrapper
         // CustomMessageComponent={CustomMessageBubble}
         // CustomInputComponent={CustomChatInput}
