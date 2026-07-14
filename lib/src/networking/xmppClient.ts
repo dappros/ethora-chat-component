@@ -27,6 +27,7 @@ import {
 import { createPrivateRoom } from './xmpp/createPrivateRoom.xmpp';
 import { sendMessageReaction } from './xmpp/sendMessageReaction.xmpp';
 import { sendTextMessageWithTranslateTag } from './xmpp/sendTextMessageWithTranslateTag.xmpp';
+import { fetchMessageTranslations } from './api-requests/translate.api';
 import { getRoomsPaged } from './xmpp/getRoomsPaged.xmpp';
 import {
   allRoomPresences,
@@ -2029,6 +2030,29 @@ export class XmppClient implements XmppClientInterface {
     langSource?: Iso639_1Codes,
     customId?: string
   ): Promise<boolean> => {
+    // Pre-translate BEFORE the message goes out, so recipients receive it with
+    // `<translations>` already attached and render them with the existing
+    // parser. Best-effort: if the translator is down or slow we send the
+    // message untranslated rather than blocking the send.
+    let translationsPayload: string | undefined;
+    try {
+      const translatesConfig =
+        store.getState().chatSettingStore.config?.translates;
+      const targets = translatesConfig?.targets || [];
+      if (translatesConfig?.enabled && langSource && targets.length > 0) {
+        const entries = await fetchMessageTranslations(
+          userMessage,
+          langSource,
+          targets
+        );
+        if (entries.length > 0) {
+          translationsPayload = JSON.stringify({ translates: entries });
+        }
+      }
+    } catch {
+      // ignore - send untranslated
+    }
+
     this.onCriticalSend(roomJID, customId);
     const lane = this.getSendLane(roomJID);
     return this.enqueue(async () => {
@@ -2063,7 +2087,8 @@ export class XmppClient implements XmppClientInterface {
                 devServer: this.devServer || SERVICE,
               },
               langSource,
-              customId
+              customId,
+              translationsPayload
             );
           });
         });
