@@ -16,21 +16,28 @@ const MessageTranslations: FC<MessageTranslationsProps> = ({
   isUser,
   langSource = 'en',
 }) => {
+  // The reader's key can be a full locale ("fr-CA") while a translations map
+  // produced elsewhere may be keyed by the base language ("fr") - or the other
+  // way around. Try the exact key first, then fall back to the base language,
+  // so both the pre-translated stanza and any legacy server-side map resolve.
+  const base = String(langSource).split('-')[0];
+  const translated =
+    message.translations?.[langSource]?.translatedText ||
+    message.translations?.[base]?.translatedText;
+
+  // Nothing to show when the message is already in the reader's language.
+  const messageBase = String(message.langSource || '').split('-')[0];
+  if (!message.langSource || !translated || messageBase === base) return null;
+
   return (
-    message.langSource &&
-    langSource &&
-    message.translations?.[langSource]?.translatedText && (
-      <>
-        <CustomDivider
-          isUser={isUser}
-          configColorUser={config?.colors?.secondary}
-          configColor={config?.colors?.primary}
-        />
-        <CustomMessageText>
-          {message.translations?.[langSource]?.translatedText}
-        </CustomMessageText>
-      </>
-    )
+    <>
+      <CustomDivider
+        isUser={isUser}
+        configColorUser={config?.colors?.secondary}
+        configColor={config?.colors?.primary}
+      />
+      <CustomMessageText>{translated}</CustomMessageText>
+    </>
   );
 };
 
