@@ -3,6 +3,9 @@ import {
   optimizePersistedRooms,
   compactMessageForPersist,
   getRoomActivityTimestamp,
+  limitMessagesTransform,
+  sanitizeRoomsStateTransform,
+  scrubSensitiveChatStateTransform,
   MAX_MESSAGES_PER_ROOM,
   MAX_PERSISTED_ROOMS,
 } from './index';
@@ -216,5 +219,82 @@ describe('optimizePersistedRooms', () => {
   it('handles an empty/undefined rooms map without throwing', () => {
     expect(optimizePersistedRooms({})).toEqual({});
     expect(optimizePersistedRooms(undefined as any)).toEqual({});
+  });
+});
+
+// redux-persist calls transforms PER TOP-LEVEL KEY of the slice state:
+// `transformer.in(state[key], key, state)`. The old transforms assumed the
+// whole slice object ({rooms: {...}}), so for key 'rooms' they read
+// `.rooms` off the rooms MAP (undefined), capped an empty object, and
+// passed the real uncapped map straight through - the message cap never
+// worked at all (persist:roomMessages observed at ~7M chars), and every
+// persist write serialized+encrypted megabytes on the main thread, making
+// each message send visibly slow. These tests exercise the transforms
+// through redux-persist's actual calling convention.
+describe('persist transforms - per-key calling convention', () => {
+  it('limitMessagesTransform caps the rooms map when called with key "rooms"', () => {
+    const messages = Array.from({ length: MAX_MESSAGES_PER_ROOM + 50 }, (_, i) =>
+      makeMessage(`m${i}`)
+    );
+    const roomsMap = { 'r1@conf': makeRoom('r1@conf', { messages }) };
+
+    const persisted = limitMessagesTransform.in(roomsMap, 'rooms', {} as any) as any;
+
+    // The cap actually applied - and no slice keys leaked into the map.
+    expect(persisted['r1@conf'].messages).toHaveLength(MAX_MESSAGES_PER_ROOM);
+    expect(persisted.rooms).toBeUndefined();
+    expect(persisted.activeRoomJID).toBeUndefined();
+    expect(persisted.usersSet).toBeUndefined();
+  });
+
+  it('limitMessagesTransform leaves other keys (e.g. usersSet) untouched', () => {
+    const usersSet = { alice: { xmppUsername: 'alice', firstName: 'Alice' } };
+
+    expect(limitMessagesTransform.in(usersSet, 'usersSet', {} as any)).toBe(usersSet);
+  });
+
+  it('sanitizeRoomsStateTransform drops legacy leaked slice keys from the rooms map on rehydrate', () => {
+    // Shape an old broken build actually persisted: JID rooms plus leaked
+    // slice keys at the same level.
+    const legacyPersistedRoomsMap = {
+      'r1@conf': makeRoom('r1@conf', { messages: [makeMessage('m1')] }),
+      rooms: {},
+      activeRoomJID: 'r1@conf',
+      usersSet: {},
+    };
+
+    const rehydrated = sanitizeRoomsStateTransform.out(
+      legacyPersistedRoomsMap,
+      'rooms',
+      {} as any
+    ) as any;
+
+    expect(rehydrated['r1@conf']).toBeDefined();
+    expect(rehydrated.rooms).toBeUndefined();
+    expect(rehydrated.activeRoomJID).toBeUndefined();
+    expect(rehydrated.usersSet).toBeUndefined();
+  });
+
+  it('scrubSensitiveChatStateTransform strips auth material when called with key "user"', () => {
+    const user = {
+      xmppUsername: 'me',
+      firstName: 'Me',
+      token: 'JWT secret',
+      refreshToken: 'JWT refresh',
+      xmppPassword: 'hunter2',
+    };
+
+    const persisted = scrubSensitiveChatStateTransform.in(user, 'user', {} as any) as any;
+
+    expect(persisted.token).toBe('');
+    expect(persisted.refreshToken).toBe('');
+    expect(persisted.xmppPassword).toBe('');
+    expect(persisted.firstName).toBe('Me');
+  });
+
+  it('scrubSensitiveChatStateTransform leaves other keys untouched', () => {
+    expect(
+      scrubSensitiveChatStateTransform.in('en', 'langSource', {} as any)
+    ).toBe('en');
   });
 });
