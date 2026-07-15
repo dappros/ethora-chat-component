@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { IConfig } from '../types/types';
+import { IConfig, Iso639_1Codes } from '../types/types';
 import XmppClient from '../networking/xmppClient';
 import { AppDispatch, RootState, persistor, store } from '../roomStore';
 import { useXmppClient } from '../context/xmppProvider';
@@ -42,6 +42,19 @@ interface useChatWrapperInitResult {
   setClient: React.Dispatch<React.SetStateAction<XmppClient | null>>;
   isConnectionLost: boolean;
 }
+
+// Legacy single-locale config (`translates.translations`) only seeds
+// langSource when the host actually set it - previously inverted
+// (`!config?.translates?.translations`), which meant this fired
+// `setLangSource(undefined)` on every XMPP init merely because translates
+// was enabled, wiping out whatever the reader had picked via the profile
+// modal's language picker or a host's own readerLocale-driven dispatch.
+export const resolveLegacyTranslatesLangSource = (
+  translatesConfig?: IConfig['translates']
+): Iso639_1Codes | undefined =>
+  translatesConfig?.enabled && translatesConfig?.translations
+    ? translatesConfig.translations
+    : undefined;
 
 const useChatWrapperInit = ({
   roomJID,
@@ -447,8 +460,9 @@ const useChatWrapperInit = ({
     let retryTimeout: NodeJS.Timeout;
 
     const initXmmpClient = async () => {
-      if (config?.translates?.enabled && !config?.translates?.translations) {
-        dispatch(setLangSource(config?.translates?.translations));
+      const legacyLangSource = resolveLegacyTranslatesLangSource(config?.translates);
+      if (legacyLangSource) {
+        dispatch(setLangSource(legacyLangSource));
       }
       try {
         if (!user.xmppUsername) {
