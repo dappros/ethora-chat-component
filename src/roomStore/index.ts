@@ -133,6 +133,145 @@ const normalizeRoomsState = (state: Record<string, any>) => {
   };
 };
 
+export const MAX_MESSAGES_PER_ROOM = 100;
+export const MAX_PERSISTED_ROOMS = 100;
+// Serialized size (UTF-16 code units - the same unit localStorage's
+// ~5M-per-origin quota is measured in) the rooms snapshot may occupy
+// BEFORE encryption. The encrypt transform inflates its input by roughly
+// a third (AES + base64), and localStorage is shared with the settings
+// slice and everything else on the origin, so 2.5M pre-encryption keeps
+// the final write comfortably inside the quota.
+export const PERSISTED_ROOMS_CHAR_BUDGET = 2_500_000;
+
+export const getRoomActivityTimestamp = (room: IRoom): number =>
+  room?.lastMessageTimestamp ||
+  room?.messageStats?.lastMessageTimestamp ||
+  room?.lastViewedTimestamp ||
+  0;
+
+// What a persisted message is FOR: instantly painting a recent transcript
+// on reload before MAM catches up. That needs the fields the bubbles and
+// sidebar previews actually read - nothing else. Everything outside this
+// list is either wire-protocol junk that createMessageFromXml spreads
+// onto every received message (senderFirstName/senderWalletAddress/
+// tokenAmount/quickReplies/push/photo/fullName...), derived state that is
+// recomputed on render (reply), or data that re-syncs from the server on
+// room open (reaction via the reaction-history query, translations inside
+// the MAM stanza). Whitelisting instead of blacklisting means new junk
+// fields can never silently re-bloat the snapshot.
+const PERSISTED_MESSAGE_FIELDS: (keyof IMessage)[] = [
+  'id',
+  'xmppId',
+  'xmppFrom',
+  'body',
+  'date',
+  'messageTimestampMs',
+  'timestamp',
+  'roomJid',
+  'isSystemMessage',
+  'isMediafile',
+  'isDeleted',
+  'isReply',
+  'showInChannel',
+  'mainMessage',
+  'mimetype',
+  'location',
+  'locationPreview',
+  'fileName',
+  'originalName',
+  'size',
+  'langSource',
+  'callLog',
+];
+
+// Optimistic sends spread the ENTIRE logged-in user into message.user
+// (see useSendMessage.tsx) - that can include auth material and always
+// includes fields the bubble never reads. Persist only what the UI uses.
+const PERSISTED_MESSAGE_USER_FIELDS = [
+  'id',
+  'name',
+  'firstName',
+  'lastName',
+  'profileImage',
+  'photoURL',
+  'xmppUsername',
+] as const;
+
+const pickDefined = <T extends object>(
+  source: T,
+  fields: readonly (keyof T)[]
+): Partial<T> => {
+  const result: Partial<T> = {};
+  for (const field of fields) {
+    if (source[field] !== undefined) {
+      result[field] = source[field];
+    }
+  }
+  return result;
+};
+
+export const compactMessageForPersist = (message: IMessage): IMessage => {
+  const compact = pickDefined(message, PERSISTED_MESSAGE_FIELDS) as IMessage;
+  if (message?.user && typeof message.user === 'object') {
+    compact.user = pickDefined(
+      message.user,
+      PERSISTED_MESSAGE_USER_FIELDS as readonly (keyof IMessage['user'])[]
+    ) as IMessage['user'];
+  }
+  return compact;
+};
+
+// Builds the snapshot that actually goes to storage. Three layers, each
+// only doing work when the previous one wasn't enough:
+//  1. compact every message to its whitelisted fields (the big win - the
+//     wire-junk fields typically dominate a message's serialized size);
+//  2. tail-cap messages per room and keep at most the most recently
+//     active MAX_PERSISTED_ROOMS rooms;
+//  3. if the result STILL exceeds the char budget (pathological case:
+//     100 rooms x 100 long messages), evict message caches from the
+//     least recently active rooms - keeping the room shell, so sidebar
+//     previews/unread badges survive and only the transcript cache is
+//     refetched from MAM on open. The active conversations the user
+//     actually returns to keep their instant-paint cache.
+export const optimizePersistedRooms = (
+  rooms: Record<string, IRoom>,
+  charBudget = PERSISTED_ROOMS_CHAR_BUDGET
+): Record<string, IRoom> => {
+  const roomEntries = Object.entries(rooms || {}) as [string, IRoom][];
+  const mostActiveFirst = [...roomEntries].sort(
+    ([, a], [, b]) => getRoomActivityTimestamp(b) - getRoomActivityTimestamp(a)
+  );
+
+  const compacted: [string, IRoom][] = mostActiveFirst
+    .slice(0, MAX_PERSISTED_ROOMS)
+    .map(([jid, room]) => {
+      const messages = Array.isArray(room?.messages) ? room.messages : [];
+      const tail =
+        messages.length > MAX_MESSAGES_PER_ROOM
+          ? messages.slice(-MAX_MESSAGES_PER_ROOM)
+          : messages;
+      return [jid, { ...room, messages: tail.map(compactMessageForPersist) }];
+    });
+
+  const sizes = compacted.map(([, room]) => JSON.stringify(room).length);
+  let total = sizes.reduce((sum, size) => sum + size, 0);
+
+  if (total > charBudget) {
+    // Least recently active rooms are at the end of the array.
+    for (let i = compacted.length - 1; i >= 0 && total > charBudget; i--) {
+      const [jid, room] = compacted[i];
+      if (!room.messages?.length) continue;
+      const shell = { ...room, messages: [] as IMessage[] };
+      total -= sizes[i];
+      sizes[i] = JSON.stringify(shell).length;
+      total += sizes[i];
+      compacted[i] = [jid, shell];
+    }
+  }
+
+  return Object.fromEntries(compacted);
+};
+
 const limitMessagesTransform = createTransform(
   (inboundState: Record<string, any>) => {
     const normalizedState = normalizeRoomsState(inboundState);
@@ -140,21 +279,9 @@ const limitMessagesTransform = createTransform(
       return normalizedState;
     }
 
-    const limitedRooms = Object.fromEntries(
-      Object.entries(normalizedState.rooms).map(([jid, room]: [string, IRoom]) => [
-        jid,
-        room?.messages?.length > 50
-          ? {
-              ...room,
-              messages: room.messages.slice(-50),
-            }
-          : room,
-      ])
-    );
-
     return {
       ...normalizedState,
-      rooms: limitedRooms,
+      rooms: optimizePersistedRooms(normalizedState.rooms),
     };
   },
 
