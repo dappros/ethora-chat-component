@@ -81,6 +81,39 @@ describe('useMessageTranslation', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  // "Numbers don't need translating" - and just as importantly, the
+  // client never even asks: no wasted round trip for a phone number, an
+  // order id, or a lone digit reaction.
+  it('makes no request for a message that has no letters at all', () => {
+    render(<Probe message={{ body: '42', langSource: 'es' }} readerLocale="en" />);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(out()).toBe('false|42');
+  });
+
+  it('skips a phone-number-shaped message the same way', () => {
+    render(
+      <Probe
+        message={{ body: '+1 (555) 123-4567', langSource: 'es' }}
+        readerLocale="en"
+      />
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('still translates text that merely contains digits', () => {
+    fetchMock.mockResolvedValue([
+      { language: 'en', languageName: 'English', translatedText: 'room 42' },
+    ]);
+
+    render(
+      <Probe message={{ body: 'sala 42', langSource: 'es' }} readerLocale="en" />
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith('sala 42', 'es', ['en']);
+  });
+
   it('prefers a translation already attached to the stanza over a request', async () => {
     render(
       <Probe

@@ -15,6 +15,11 @@ export interface MessageTranslationState {
 const toBaseLanguage = (locale?: string | null): string =>
   String(locale || '').split('-')[0].toLowerCase();
 
+// "42", "+1 (555) 123-4567", "3.14159" - text with no actual letters has
+// nothing to translate. Skipping these means the client never sends a
+// translate request for them at all, not just that the UI hides the result.
+const hasNoLetters = (text: string): boolean => !/\p{L}/u.test(text);
+
 // Translations are per (text, target language) - NOT per message id: the
 // same text sent twice, or the same message re-keyed by a MAM refetch,
 // should cost one request, not two. Module-level so it survives remounts
@@ -53,11 +58,17 @@ export const useMessageTranslation = (
   const targetBase = toBaseLanguage(readerLocale || 'en');
   const sourceBase = toBaseLanguage(source);
 
-  // Nothing to do when we don't know the source language, or the message is
+  // Nothing to do when we don't know the source language, the message is
   // already in the reader's language (region ignored: en-US vs en-CA is the
-  // same language, not a translation job).
+  // same language, not a translation job), or there's no actual text to
+  // translate (a bare number, a phone number, an emoji-only reaction).
+  const trimmedText = originalText.trim();
   const needsTranslation =
-    enabled && !!originalText.trim() && !!source && sourceBase !== targetBase;
+    enabled &&
+    !!trimmedText &&
+    !!source &&
+    sourceBase !== targetBase &&
+    !hasNoLetters(trimmedText);
 
   // Only consult stanza-attached translations when a translation is
   // actually wanted: a message already in the reader's language ships a

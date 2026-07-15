@@ -15,6 +15,17 @@ import {
   CloseButton,
 } from '../Modals/styledModalComponents';
 
+// RoomList's mobile burger-menu sidebar is `position: fixed; z-index:
+// 1000` - the exact same z-index as the shared ModalBackground. Equal
+// z-index falls back to DOM order, and the sidebar (mounted alongside
+// ChatHeader as a sibling, not a descendant of this modal) was winning
+// that tie and covering the language picker. Scoped to this modal rather
+// than raising the shared ModalBackground, which every other modal in the
+// app also renders through.
+const LanguageModalBackground = styled(ModalBackground)`
+  z-index: 1300;
+`;
+
 const IconButton = styled.button`
   width: 40px;
   height: 40px;
@@ -119,7 +130,7 @@ export const LanguageSelectorButton: React.FC = () => {
       </IconButton>
 
       {isOpen && (
-        <ModalBackground onClick={() => setIsOpen(false)}>
+        <LanguageModalBackground onClick={() => setIsOpen(false)}>
           <LanguageModalContainer onClick={(e) => e.stopPropagation()}>
             <CloseButton onClick={() => setIsOpen(false)} aria-label={t('action.cancel')}>
               &times;
@@ -145,7 +156,7 @@ export const LanguageSelectorButton: React.FC = () => {
               })}
             </LanguageList>
           </LanguageModalContainer>
-        </ModalBackground>
+        </LanguageModalBackground>
       )}
     </>
   );
