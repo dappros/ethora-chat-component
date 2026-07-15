@@ -36,16 +36,7 @@ import URLPreviewCard from './URLPreviewCard';
 import { useMessageHeapState } from '../../hooks/useMessageHeapState';
 import { parseMessageReference } from '../../helpers/parseMessageReference';
 import { useMessageTranslation } from '../../hooks/useMessageTranslation';
-import styled from 'styled-components';
-
-const TranslationQuote = styled.div`
-  display: flex;
-  gap: 6px;
-  font-size: 13px;
-  line-height: 1.4;
-  opacity: 0.75;
-  margin-bottom: 2px;
-`;
+import TranslatedMessageBody from './TranslatedMessageBody';
 
 const firstUrlRegex =
   /(https?:\/\/[\w.-]+(?:\.[\w.-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=.]+)/;
@@ -321,23 +312,31 @@ const Message: React.FC<MessageProps> = forwardRef<
               {message.isDeleted && message.id !== 'delimiter-new' ? (
                 <DeletedMessage />
               ) : (
-                <>
-                  {translationDisplay.hasTranslation && (
-                    <TranslationQuote>
-                      <span aria-hidden="true">|</span>
-                      <span>{translationDisplay.originalText}</span>
-                    </TranslationQuote>
-                  )}
-                  <div className="message-body">
-                    {parseMessageBody({
-                      text: config?.messageTextFilter?.enabled
-                        ? config.messageTextFilter.filterFunction(
-                            translationDisplay.displayText
-                          )
-                        : (translationDisplay.displayText),
-                    })}
-                  </div>
-                </>
+                (() => {
+                  const body = (
+                    <div className="message-body">
+                      {parseMessageBody({
+                        text: config?.messageTextFilter?.enabled
+                          ? config.messageTextFilter.filterFunction(
+                              translationDisplay.displayText
+                            )
+                          : translationDisplay.displayText,
+                      })}
+                    </div>
+                  );
+
+                  if (!translationDisplay.hasTranslation) return body;
+
+                  return (
+                    <TranslatedMessageBody
+                      originalText={translationDisplay.originalText}
+                      sourceLanguage={message.langSource}
+                      accentColor={config?.colors?.primary}
+                    >
+                      {body}
+                    </TranslatedMessageBody>
+                  );
+                })()
               )}
             </CustomMessageText>
           )}
