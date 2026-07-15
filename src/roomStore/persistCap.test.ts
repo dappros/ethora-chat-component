@@ -70,6 +70,9 @@ describe('compactMessageForPersist', () => {
     expect(compact.locationPreview).toBe('https://cdn.example.com/a-thumb.png');
     expect(compact.isMediafile).toBe('true');
     expect(compact.langSource).toBe('en');
+    // id + name only. usersSet is the canonical name/avatar store and
+    // renderers prefer it, but `name` is the sole home for broadcast /
+    // system senders ("Ethora"), which never enter usersSet.
     expect(compact.user).toEqual({ id: 'someone', name: 'Someone' });
   });
 
@@ -134,7 +137,30 @@ describe('compactMessageForPersist', () => {
     expect(compact.user.refreshToken).toBeUndefined();
     expect(compact.user.walletAddress).toBeUndefined();
     expect(compact.user.id).toBe('me');
-    expect(compact.user.profileImage).toBe('https://cdn.example.com/me.png');
+    // The avatar URL is re-resolved from usersSet - it's the bulky part
+    // of the per-message identity copy.
+    expect(compact.user.profileImage).toBeUndefined();
+  });
+
+  // This whitelist is easy to "helpfully" widen later. The wire identity
+  // is duplicated across every message of every room, and the avatar URLs
+  // are the bulky part of it - usersSet already holds all of it.
+  it('persists only id + name - no avatar/xmppUsername copy per message', () => {
+    const compact = compactMessageForPersist(
+      makeMessage('m1', {
+        user: {
+          id: 'me',
+          name: 'Me',
+          firstName: 'Me',
+          lastName: 'Myself',
+          profileImage: 'https://cdn.example.com/me.png',
+          photoURL: 'https://cdn.example.com/me.png',
+          xmppUsername: 'me',
+        } as any,
+      })
+    );
+
+    expect(Object.keys(compact.user as object).sort()).toEqual(['id', 'name']);
   });
 });
 
@@ -298,6 +324,95 @@ describe('persist transforms - per-key calling convention', () => {
     expect(
       scrubSensitiveChatStateTransform.in('en', 'langSource', {} as any)
     ).toBe('en');
+  });
+});
+
+// Reproduces the shape measured in a real user's localStorage: rooms
+// whose `members` roster (3478 entries, ~838k chars) dwarfs everything
+// else by ~750x. The eviction pass can only drop `messages`, so a budget
+// blown by ROSTERS made it throw away every message in every room, still
+// land ~4.2M, and persist a multi-megabyte blob containing zero of the
+// thing the cache exists for. Reload then showed rooms with no history
+// ("empty chats") and the oversized write kept tripping the quota.
+describe('a member roster must never squeeze the message cache out', () => {
+  const makeRoster = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      _id: `id${i}`,
+      xmppUsername: `appid_user${i}`,
+      firstName: `First${i}`,
+      lastName: `Last${i}`,
+      profileImage: `https://cdn.example.com/u${i}.png`,
+      role: 'participant',
+      ban_status: 'none',
+      last_active: 1700000000,
+    })) as any;
+
+  const makeRoomsWithHugeRosters = () => {
+    const roster = makeRoster(3478);
+    const rooms: Record<string, IRoom> = {};
+    for (let r = 0; r < 5; r++) {
+      rooms[`room${r}@conference.example.com`] = makeRoom(
+        `room${r}@conference.example.com`,
+        {
+          lastMessageTimestamp: 1700000000 + r,
+          usersCnt: 3478,
+          members: roster,
+          messages: Array.from({ length: 60 }, (_, m) =>
+            makeMessage(`m${r}-${m}`, { body: 'hello world '.repeat(8) })
+          ),
+        } as any
+      );
+    }
+    return rooms;
+  };
+
+  it('keeps every message even when rosters blow the budget many times over', () => {
+    const rooms = makeRoomsWithHugeRosters();
+    // Sanity: the input really is the pathological shape (~3.8M).
+    expect(JSON.stringify(rooms).length).toBeGreaterThan(
+      PERSISTED_ROOMS_CHAR_BUDGET * 3
+    );
+
+    const persisted = optimizePersistedRooms(rooms);
+
+    const totalMessages = Object.values(persisted).reduce(
+      (sum, room) => sum + room.messages.length,
+      0
+    );
+    // The whole point: 5 rooms x 60 messages all survive. The old code
+    // shelled them to 0 and STILL blew the budget.
+    expect(totalMessages).toBe(300);
+  });
+
+  it('drops the roster itself - the thing that was actually over budget', () => {
+    const persisted = optimizePersistedRooms(makeRoomsWithHugeRosters());
+
+    Object.values(persisted).forEach((room) => {
+      expect('members' in room).toBe(false);
+    });
+    expect(JSON.stringify(persisted).length).toBeLessThanOrEqual(
+      PERSISTED_ROOMS_CHAR_BUDGET
+    );
+  });
+
+  it('preserves usersCnt, so the header still shows the real member count', () => {
+    const persisted = optimizePersistedRooms(makeRoomsWithHugeRosters());
+
+    Object.values(persisted).forEach((room) => {
+      expect(room.usersCnt).toBe(3478);
+    });
+  });
+
+  it('derives usersCnt from the roster when the room has no explicit count', () => {
+    const rooms: Record<string, IRoom> = {
+      'r@conf': makeRoom('r@conf', {
+        usersCnt: undefined,
+        members: makeRoster(7),
+        messages: [],
+      } as any),
+    };
+
+    expect(optimizePersistedRooms(rooms)['r@conf'].usersCnt).toBe(7);
   });
 });
 

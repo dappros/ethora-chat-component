@@ -170,6 +170,28 @@ export const getRoomActivityTimestamp = (room: IRoom): number =>
   room?.lastViewedTimestamp ||
   0;
 
+// Room fields that are pure server state, re-fetched on every load, and so
+// must never sit in the message cache - let alone compete with messages
+// for its budget.
+//
+// `members` is the one that actually broke things, and it broke them
+// badly. A 3.5k-member room serializes to ~840k chars: ~750x the rest of
+// the room object put together (measured: 838,473 of a room's 839,228).
+// Five such rooms = 4.2M chars of roster in a 1M budget, before a single
+// message is counted.
+//
+// That is what silently emptied the chat cache. optimizePersistedRooms'
+// last-resort eviction can only drop `messages` - so faced with a budget
+// blown by rosters, it dropped EVERY message in EVERY room, stayed ~4.2M
+// anyway, and wrote that: a multi-megabyte blob holding zero of the thing
+// the cache exists to hold. Reload then showed rooms with no history, and
+// the oversized write kept tripping the localStorage quota on top.
+//
+// Dropping it costs nothing: createRoomFromApi repopulates members from
+// /chats/my on every load (see loadRooms), and `usersCnt` - which the
+// header actually reads - is its own scalar field and is preserved below.
+const REFETCHED_ROOM_FIELDS = ['members'] as const;
+
 // What a persisted message is FOR: instantly painting a recent transcript
 // on reload before MAM catches up. That needs the fields the bubbles and
 // sidebar previews actually read - nothing else. Everything outside this
@@ -205,18 +227,30 @@ const PERSISTED_MESSAGE_FIELDS: (keyof IMessage)[] = [
   'callLog',
 ];
 
-// Optimistic sends spread the ENTIRE logged-in user into message.user
-// (see useSendMessage.tsx) - that can include auth material and always
-// includes fields the bubble never reads. Persist only what the UI uses.
-const PERSISTED_MESSAGE_USER_FIELDS = [
-  'id',
-  'name',
-  'firstName',
-  'lastName',
-  'profileImage',
-  'photoURL',
-  'xmppUsername',
-] as const;
+// The sender identity that rides along on every message over the wire
+// (senderFirstName / senderLastName / fullName / photo, which
+// createMessageFromXml folds into message.user) is NOT what the UI reads
+// back, and is not ours to cache: `usersSet` is the canonical store for
+// names and avatars, and enrichMessageAuthor / createUserNameFromSetUser
+// resolve through it on render - re-deriving the name every time usersSet
+// updates, which is exactly what keeps a renamed user from staying stale.
+//
+// Persisting a copy per message duplicated the same handful of identities
+// across every message of every room, and optimistic sends spread the
+// ENTIRE logged-in user into message.user (see useSendMessage.tsx) - auth
+// material included.
+//
+// Keep `id` (the key usersSet is looked up by) and `name` - and nothing
+// else. `name` earns its ~15 chars: broadcast/system senders ("Ethora")
+// never enter usersSet at all, so for those the message IS the only place
+// the name exists. Verified live: dropping it left every broadcast room's
+// sidebar preview showing a raw JID after a refresh.
+//
+// firstName/lastName/profileImage/photoURL/xmppUsername are the ones that
+// genuinely duplicate usersSet (and the avatar URLs are the bulky part) -
+// those go. Renderers prefer usersSet over the cached copy anyway, so a
+// renamed user still updates everywhere.
+const PERSISTED_MESSAGE_USER_FIELDS = ['id', 'name'] as const;
 
 const pickDefined = <T extends object>(
   source: T,
@@ -271,7 +305,19 @@ export const optimizePersistedRooms = (
         messages.length > MAX_MESSAGES_PER_ROOM
           ? messages.slice(-MAX_MESSAGES_PER_ROOM)
           : messages;
-      return [jid, { ...room, messages: tail.map(compactMessageForPersist) }];
+      const compactRoom = {
+        ...room,
+        // Keep the count the header actually reads before dropping the
+        // roster it was derived from.
+        usersCnt:
+          room?.usersCnt ??
+          (Array.isArray(room?.members) ? room.members.length : undefined),
+        messages: tail.map(compactMessageForPersist),
+      } as IRoom;
+      REFETCHED_ROOM_FIELDS.forEach((field) => {
+        delete (compactRoom as unknown as Record<string, unknown>)[field];
+      });
+      return [jid, compactRoom];
     });
 
   const sizes = compacted.map(([, room]) => JSON.stringify(room).length);
