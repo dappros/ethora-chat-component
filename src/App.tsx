@@ -11,6 +11,122 @@ import CustomScrollableArea from './examples/customComponents/CustomScrollableAr
 import CustomDaySeparator from './examples/customComponents/CustomDaySeparator';
 import CustomMessageBubble from './examples/customComponents/CustomMessageBubble';
 import { ethoraLogger } from './helpers/ethoraLogger';
+import { Iso639_1Codes } from './types/models/language.model';
+import { store } from './roomStore';
+import { setLangSource } from './roomStore/chatSettingsSlice';
+
+// Demo-only: which language the reader sees translated messages in, and
+// which language the sender declares themselves writing in when a message
+// is pre-translated on send (see sendTextMessageWithTranslateTagStanza) -
+// one selector drives both, matching how a single person actually uses it
+// ("I read and write in Português"). Kept in localStorage only, per
+// product decision - no server-side persistence.
+const TRANSLATE_LANG_STORAGE_KEY = 'ethora-translate-lang';
+const TRANSLATE_LANGUAGES: { code: Iso639_1Codes; label: string }[] = [
+  { code: 'en', label: 'English' },
+  { code: 'es', label: 'Español' },
+  { code: 'pt', label: 'Português' },
+  { code: 'fr', label: 'Français' },
+  { code: 'zh', label: '中文' },
+];
+const DEFAULT_TRANSLATE_LANG: Iso639_1Codes = 'en';
+
+const readStoredTranslateLang = (): Iso639_1Codes => {
+  if (typeof window === 'undefined') return DEFAULT_TRANSLATE_LANG;
+  const stored = window.localStorage.getItem(TRANSLATE_LANG_STORAGE_KEY);
+  return (TRANSLATE_LANGUAGES.find((l) => l.code === stored)?.code ||
+    DEFAULT_TRANSLATE_LANG) as Iso639_1Codes;
+};
+
+const useTranslateLanguage = () => {
+  const [translateLang, setTranslateLangState] = useState<Iso639_1Codes>(
+    readStoredTranslateLang
+  );
+
+  // Keep Redux's langSource (the source-language declared on outgoing
+  // messages) in sync too - useSendMessage.tsx reads it from there, not
+  // from config, so the dropdown needs to reach it via the store directly
+  // (this runs above <XmppProvider>'s own <Provider>, so no useDispatch here).
+  useEffect(() => {
+    store.dispatch(setLangSource(translateLang));
+  }, [translateLang]);
+
+  const setTranslateLang = (code: Iso639_1Codes) => {
+    setTranslateLangState(code);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(TRANSLATE_LANG_STORAGE_KEY, code);
+    }
+  };
+
+  return { translateLang, setTranslateLang };
+};
+
+const TranslateLanguagePicker: React.FC<{
+  value: Iso639_1Codes;
+  onChange: (code: Iso639_1Codes) => void;
+}> = ({ value, onChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const current = TRANSLATE_LANGUAGES.find((l) => l.code === value) || TRANSLATE_LANGUAGES[0];
+
+  return (
+    <div style={{ position: 'relative', marginBottom: 8 }}>
+      <button
+        type="button"
+        onClick={() => setIsOpen((v) => !v)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          width: '100%',
+          padding: '8px 12px',
+          borderRadius: 8,
+          border: '1px solid #d1d5db',
+          background: '#fff',
+          cursor: 'pointer',
+          fontSize: 14,
+        }}
+      >
+        {current.label}
+        <span style={{ marginLeft: 'auto' }}>{isOpen ? '▲' : '▼'}</span>
+      </button>
+      {isOpen && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            right: 0,
+            marginTop: 4,
+            background: '#fff',
+            border: '1px solid #d1d5db',
+            borderRadius: 8,
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            zIndex: 20,
+            overflow: 'hidden',
+          }}
+        >
+          {TRANSLATE_LANGUAGES.map((lang) => (
+            <div
+              key={lang.code}
+              onClick={() => {
+                onChange(lang.code);
+                setIsOpen(false);
+              }}
+              style={{
+                padding: '8px 12px',
+                fontSize: 14,
+                cursor: 'pointer',
+                background: lang.code === value ? '#eef2ff' : 'transparent',
+              }}
+            >
+              {lang.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const LIVEKIT_URL =
   (((import.meta as unknown as { env?: Record<string, string | undefined> }).env) || {})
@@ -104,7 +220,7 @@ const NotificationEnabler: React.FC = () => {
   return null;
 };
 
-const ChatComponent = React.memo(() => {
+const ChatComponent = React.memo(({ translateLang }: { translateLang: Iso639_1Codes }) => {
   const config: IConfig = useMemo(
     () => ({
       ...APP_CHAT_BASE_CONFIG,
@@ -128,8 +244,14 @@ const ChatComponent = React.memo(() => {
         softAsk: false,
       },
       useStoreConsoleEnabled: true,
+      translates: {
+        enabled: true,
+        mode: 'auto',
+        targets: TRANSLATE_LANGUAGES.map((l) => l.code),
+        readerLocale: translateLang,
+      },
     }),
-    []
+    [translateLang]
   );
 
   const mainStyles = useMemo(
@@ -227,6 +349,7 @@ ChatComponent.displayName = 'ChatComponent';
 
 export default function App() {
   const { totalCount, displayTotal } = useUnreadMessagesCounter();
+  const { translateLang, setTranslateLang } = useTranslateLanguage();
 
   const globalXmppConfig = useMemo(
     () => APP_CHAT_BASE_CONFIG,
@@ -270,9 +393,10 @@ export default function App() {
         >
           Logout
         </button>
+        <TranslateLanguagePicker value={translateLang} onChange={setTranslateLang} />
       </nav>
     ),
-    [totalCount, displayTotal]
+    [totalCount, displayTotal, translateLang, setTranslateLang]
   );
 
   return (
@@ -284,7 +408,10 @@ export default function App() {
           <div className="flex-1 p-4">
             <Routes>
               <Route path="/apps" element={<Apps />} />
-              <Route path="/chat" element={<ChatComponent />} />
+              <Route
+                path="/chat"
+                element={<ChatComponent translateLang={translateLang} />}
+              />
             </Routes>
           </div>
         </div>

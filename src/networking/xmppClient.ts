@@ -2016,7 +2016,7 @@ export class XmppClient implements XmppClientInterface {
     }, customId, roomJID, lane);
   };
 
-  sendTextMessageWithTranslateTagStanza = (
+  sendTextMessageWithTranslateTagStanza = async (
     roomJID: string,
     firstName: string,
     lastName: string,

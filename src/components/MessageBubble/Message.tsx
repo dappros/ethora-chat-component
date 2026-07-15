@@ -28,7 +28,6 @@ import { MessageReply } from './MessageReply';
 import { DeletedMessage } from './DeletedMessage';
 import { useXmppClient } from '../../context/xmppProvider';
 import { MessageReaction } from './MessageReaction';
-import MessageTranslations from './MessageTranslations';
 import MessageTranslate from './MessageTranslate';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { DoubleTick } from '../../assets/icons';
@@ -36,6 +35,17 @@ import { parseMessageBody } from '../../helpers/parseMessageBody';
 import URLPreviewCard from './URLPreviewCard';
 import { useMessageHeapState } from '../../hooks/useMessageHeapState';
 import { parseMessageReference } from '../../helpers/parseMessageReference';
+import { resolveMessageTranslationDisplay } from '../../helpers/resolveMessageTranslationDisplay';
+import styled from 'styled-components';
+
+const TranslationQuote = styled.div`
+  display: flex;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  opacity: 0.75;
+  margin-bottom: 2px;
+`;
 
 const firstUrlRegex =
   /(https?:\/\/[\w.-]+(?:\.[\w.-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=.]+)/;
@@ -49,6 +59,18 @@ const Message: React.FC<MessageProps> = forwardRef<
   const { idSet } = useMessageHeapState();
   const interactionsDisabled = Boolean(config?.disableInteractions);
   const profilesDisabled = Boolean(config?.disableProfilesInteractions);
+
+  // 'auto' mode (the default) shows the translated text inline for
+  // everyone, sender included - so you can confirm what your own message
+  // looks like in the reader's language too. 'on-demand' keeps its own
+  // separate click-to-translate flow below, unchanged.
+  const isAutoTranslate =
+    !!config?.translates?.enabled && config?.translates?.mode !== 'on-demand';
+  const readerLocale =
+    config?.translates?.readerLocale || config?.i18n?.locale || langSource;
+  const translationDisplay = isAutoTranslate
+    ? resolveMessageTranslationDisplay(message, readerLocale)
+    : null;
 
   // Read sender name live from usersSet so user-update stanzas trigger immediate re-render.
   const usersSet = useSelector((state: RootState) => state.rooms.usersSet);
@@ -292,41 +314,34 @@ const Message: React.FC<MessageProps> = forwardRef<
               {message.isDeleted && message.id !== 'delimiter-new' ? (
                 <DeletedMessage />
               ) : (
-                <div className="message-body">
-                  {parseMessageBody({
-                    text: config?.messageTextFilter?.enabled
-                      ? config.messageTextFilter.filterFunction(message.body)
-                      : message.body,
-                  })}
-                </div>
+                <>
+                  {translationDisplay?.hasTranslation && (
+                    <TranslationQuote>
+                      <span aria-hidden="true">|</span>
+                      <span>{translationDisplay.originalText}</span>
+                    </TranslationQuote>
+                  )}
+                  <div className="message-body">
+                    {parseMessageBody({
+                      text: config?.messageTextFilter?.enabled
+                        ? config.messageTextFilter.filterFunction(
+                            translationDisplay?.displayText ?? message.body
+                          )
+                        : (translationDisplay?.displayText ?? message.body),
+                    })}
+                  </div>
+                </>
               )}
             </CustomMessageText>
           )}
 
-          {!isUser &&
-            config?.translates?.enabled &&
-            (config?.translates?.mode === 'on-demand' ? (
-              <MessageTranslate
-                message={message}
-                config={config}
-                isUser={isUser}
-              />
-            ) : (
-              <MessageTranslations
-                message={message}
-                config={config}
-                // The reader's locale is the lookup key. Prefer the full locale
-                // (e.g. "fr-CA") the host passed, since that's what the
-                // pre-translated stanza is keyed by; fall back to the store's
-                // langSource for legacy setups.
-                langSource={
-                  config?.translates?.readerLocale ||
-                  config?.i18n?.locale ||
-                  langSource
-                }
-                isUser={isUser}
-              />
-            ))}
+          {!isUser && config?.translates?.enabled && config?.translates?.mode === 'on-demand' && (
+            <MessageTranslate
+              message={message}
+              config={config}
+              isUser={isUser}
+            />
+          )}
           <CustomMessageTimestamp>
             {!config?.disableSentLogic && isUser && isPending && 'sending...'}
             {new Date(message.date).toLocaleTimeString([], {
