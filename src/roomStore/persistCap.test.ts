@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   optimizePersistedRooms,
+  compactUsersSetForPersist,
+  restoreUsersSetForRehydrate,
   compactMessageForPersist,
   getRoomActivityTimestamp,
   limitMessagesTransform,
@@ -275,10 +277,17 @@ describe('persist transforms - per-key calling convention', () => {
     expect(persisted.usersSet).toBeUndefined();
   });
 
-  it('limitMessagesTransform leaves other keys (e.g. usersSet) untouched', () => {
-    const usersSet = { alice: { xmppUsername: 'alice', firstName: 'Alice' } };
+  it('limitMessagesTransform leaves keys it has no business touching alone', () => {
+    // usersSet is deliberately NOT in this list any more - it now goes
+    // through the xmppUsername de-dup (see its own describe block).
+    const subscribed = ['r1@conf'];
 
-    expect(limitMessagesTransform.in(usersSet, 'usersSet', {} as any)).toBe(usersSet);
+    expect(
+      limitMessagesTransform.in(subscribed, 'subscribedRooms', {} as any)
+    ).toBe(subscribed);
+    expect(
+      limitMessagesTransform.in('anything', 'pushSubscriptionStatus', {} as any)
+    ).toBe('anything');
   });
 
   it('sanitizeRoomsStateTransform drops legacy leaked slice keys from the rooms map on rehydrate', () => {
@@ -413,6 +422,109 @@ describe('a member roster must never squeeze the message cache out', () => {
     };
 
     expect(optimizePersistedRooms(rooms)['r@conf'].usersCnt).toBe(7);
+  });
+});
+
+// usersSet is the OTHER refetched pile that outgrew the cache it lives
+// in: measured on a real session it was 1,022,344 chars for 3,483 users -
+// 95% of the entire persisted blob - while the messages it exists to
+// annotate were 5%. 23% of the whole blob was one field duplicated per
+// entry, because usersSet is keyed BY xmppUsername.
+describe('usersSet xmppUsername de-duplication', () => {
+  const usersSet = {
+    appid_alice: {
+      _id: 'a1',
+      xmppUsername: 'appid_alice',
+      firstName: 'Alice',
+      lastName: 'Doe',
+      profileImage: 'https://cdn.example.com/a.png',
+    },
+    appid_bob: {
+      _id: 'b1',
+      xmppUsername: 'appid_bob',
+      firstName: 'Bob',
+      lastName: 'Roe',
+    },
+  } as any;
+
+  it('drops the field that is already the key', () => {
+    const compact = compactUsersSetForPersist(usersSet);
+
+    expect('xmppUsername' in compact.appid_alice).toBe(false);
+    expect('xmppUsername' in compact.appid_bob).toBe(false);
+    // Everything else is untouched.
+    expect(compact.appid_alice.firstName).toBe('Alice');
+    expect(compact.appid_alice.profileImage).toBe('https://cdn.example.com/a.png');
+  });
+
+  // The whole safety argument for dropping it: the key IS the value, so
+  // every field value must survive the round trip. (Key ORDER shifts -
+  // xmppUsername returns last - which is why this asserts deep equality,
+  // not a stringified compare.) If this ever fails, the optimization is
+  // silently corrupting user identities.
+  it('round-trips without losing a single field value', () => {
+    const restored = restoreUsersSetForRehydrate(
+      compactUsersSetForPersist(usersSet)
+    );
+
+    expect(restored).toEqual(usersSet);
+  });
+
+  it('rebuilds xmppUsername from the key on the way back in', () => {
+    const restored = restoreUsersSetForRehydrate({
+      appid_carol: { _id: 'c1', firstName: 'Carol' },
+    } as any);
+
+    expect(restored.appid_carol.xmppUsername).toBe('appid_carol');
+  });
+
+  it('measurably shrinks a realistic set', () => {
+    const many: Record<string, any> = {};
+    for (let i = 0; i < 500; i++) {
+      const jid = `646cc8dc96d4a4dc8f7b2f2d_646cc8d396d4a4dc8f7b2f${i}`;
+      many[jid] = {
+        _id: `id${i}`,
+        xmppUsername: jid,
+        firstName: `First${i}`,
+        lastName: `Last${i}`,
+        profileImage: `https://files.chat.ethora.com/files/${i}.jpg`,
+      };
+    }
+
+    const before = JSON.stringify(many).length;
+    const after = JSON.stringify(compactUsersSetForPersist(many)).length;
+
+    // ~49 chars x 500 entries of pure duplication.
+    expect(before - after).toBeGreaterThan(500 * 40);
+    expect(restoreUsersSetForRehydrate(compactUsersSetForPersist(many))).toEqual(many);
+  });
+
+  it('survives junk without throwing', () => {
+    expect(compactUsersSetForPersist(null as any)).toEqual({});
+    expect(restoreUsersSetForRehydrate(undefined as any)).toEqual({});
+    expect(compactUsersSetForPersist({ a: null } as any)).toEqual({ a: null });
+  });
+});
+
+// The transform is what redux-persist actually calls - a helper that
+// works in isolation but isn't wired to the right key is exactly the bug
+// class that let the caps sit dormant for months.
+describe('limitMessagesTransform wires usersSet through the de-dup', () => {
+  const usersSet = {
+    appid_alice: { _id: 'a1', xmppUsername: 'appid_alice', firstName: 'Alice' },
+  } as any;
+
+  it('strips on the way out and restores on the way back in', () => {
+    const stored = limitMessagesTransform.in(usersSet, 'usersSet', {} as any);
+    expect('xmppUsername' in stored.appid_alice).toBe(false);
+
+    const rehydrated = limitMessagesTransform.out(stored, 'usersSet', {} as any);
+    expect(rehydrated).toEqual(usersSet);
+  });
+
+  it('leaves unrelated keys alone', () => {
+    expect(limitMessagesTransform.in('x', 'subscribedRooms', {} as any)).toBe('x');
+    expect(limitMessagesTransform.out('x', 'reportRoom', {} as any)).toBe('x');
   });
 });
 
