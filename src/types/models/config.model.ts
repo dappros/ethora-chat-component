@@ -264,8 +264,24 @@ export interface IConfig {
      * `config.i18n.locale`. The region is passed through to `onTranslate` so
      * the service can distinguish fr-CA vs fr-FR; the Translate button
      * visibility comparison ignores the region (en-US vs en-CA => no button).
+     *
+     * This is also how a host drives the reader's language from OUTSIDE the
+     * chat component: set it (e.g. from your own app's language switcher)
+     * and pass the updated config down as a normal prop. Whenever it
+     * changes, the component syncs it into the same internal state the
+     * in-chat language picker writes to - so it drives both what a reader
+     * sees translated INTO and the source language declared on their own
+     * outgoing messages. Leave unset to let the reader manage it themselves
+     * via the picker (see `showLanguageSelector`).
      */
     readerLocale?: string;
+    /**
+     * Shows/hides the globe-icon language picker in the chat header.
+     * Defaults to true whenever `enabled` is true. Set to false when the
+     * host manages the reader's language itself (via `readerLocale`) and
+     * an in-chat picker would just be a second, redundant control.
+     */
+    showLanguageSelector?: boolean;
     /**
      * Host-provided translation function. When set, the Translate action calls
      * this - wire it to your own endpoint (or Google / OpenAI). When omitted,

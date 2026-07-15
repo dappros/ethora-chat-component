@@ -6,7 +6,7 @@ import {
   ChatContainerHeaderLabel,
 } from '../styled/StyledComponents';
 import RoomList from './RoomList';
-import { IRoom } from '../../types/types';
+import { IConfig, IRoom } from '../../types/types';
 import { ProfileImagePlaceholder } from './ProfileImagePlaceholder';
 import { useRoomPresence } from '../../hooks/useRoomPresence';
 import OnlineUsersPopover from '../RoomComponents/OnlineUsersPopover';
@@ -74,6 +74,15 @@ const getDisplayCount = (room: IRoom | undefined): number => {
     ? room.usersCnt
     : 0;
 };
+
+// `showLanguageSelector` defaults to true - only an explicit `false` hides
+// the in-chat picker, e.g. for a host that drives the reader's language
+// itself via config.translates.readerLocale and would otherwise show a
+// second, redundant control.
+export const shouldShowLanguageSelector = (
+  translatesConfig: IConfig['translates'] | undefined
+): boolean =>
+  !!translatesConfig?.enabled && translatesConfig?.showLanguageSelector !== false;
 
 const ChatHeader: React.FC<ChatHeaderProps> = ({
   currentRoom,
@@ -329,7 +338,9 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         {!config?.disableRoomMenu &&
           !config?.disableChatInfo?.disableChatHeaderMenu && (
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            {config?.translates?.enabled && <LanguageSelectorButton />}
+            {shouldShowLanguageSelector(config?.translates) && (
+              <LanguageSelectorButton />
+            )}
             {canCall && !isCallBusy && (
               <>
                 {/*

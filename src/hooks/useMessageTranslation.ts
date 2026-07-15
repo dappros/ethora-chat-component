@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { IMessage } from '../types/types';
 import { fetchMessageTranslations } from '../networking/api-requests/translate.api';
+import { toBaseLanguage } from '../helpers/toBaseLanguage';
 
 export interface MessageTranslationState {
   /** False when the message is already in the reader's language, or no
@@ -11,9 +12,6 @@ export interface MessageTranslationState {
    * render directly. */
   displayText: string;
 }
-
-const toBaseLanguage = (locale?: string | null): string =>
-  String(locale || '').split('-')[0].toLowerCase();
 
 // "42", "+1 (555) 123-4567", "3.14159" - text with no actual letters has
 // nothing to translate. Skipping these means the client never sends a
