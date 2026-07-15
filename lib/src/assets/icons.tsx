@@ -1,5 +1,27 @@
 import React from 'react';
 
+// Globe - opens the reader-language picker (see LanguageSelectorButton) in
+// the chat header.
+export const GlobeIcon = ({ color = 'var(--ethora-icon-color, #8C8C8C)', ...props }) => (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 20 20"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <circle cx="10" cy="10" r="7.5" stroke={color} strokeWidth="1.5" />
+    <path
+      d="M2.5 10h15M10 2.5c2 2.1 3 4.7 3 7.5s-1 5.4-3 7.5c-2-2.1-3-4.7-3-7.5s1-5.4 3-7.5Z"
+      stroke={color}
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 export const AddNewIcon = ({ color = 'var(--ethora-icon-color, #0052CD)', ...props }) => (
   <svg
     width="20"

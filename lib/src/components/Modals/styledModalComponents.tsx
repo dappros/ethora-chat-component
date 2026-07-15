@@ -12,6 +12,11 @@ export const ModalBackground = styled.div`
   justify-content: center;
   align-items: center;
   z-index: 1000;
+
+  @media (max-width: 480px) {
+    padding: 0 16px;
+    box-sizing: border-box;
+  }
 `;
 
 export const CloseButton = styled.button`
@@ -44,6 +49,14 @@ export const ModalContainer = styled.div`
   align-items: center;
   width: 50%;
   max-width: 400px;
+  box-sizing: border-box;
+
+  @media (max-width: 480px) {
+    width: 100%;
+    max-width: 100%;
+    padding: 24px 20px;
+    gap: 20px;
+  }
 `;
 
 export const ModalTitle = styled.h2`
@@ -51,6 +64,10 @@ export const ModalTitle = styled.h2`
   margin: 0;
   font-weight: 400;
   color: #141414;
+
+  @media (max-width: 480px) {
+    font-size: 1.2em;
+  }
 `;
 
 export const ModalDescription = styled.p`

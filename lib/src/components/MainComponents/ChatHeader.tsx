@@ -37,6 +37,7 @@ import {
 } from '../../roomStore/callSlice';
 import { sendCallInviteSignal } from '../../networking/callTokenStanza';
 import { ModalWrapper } from '../Modals/ModalWrapper/ModalWrapper';
+import { LanguageSelectorButton } from './LanguageSelectorModal';
 
 interface ChatHeaderProps {
   currentRoom: IRoom;
@@ -328,6 +329,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         {!config?.disableRoomMenu &&
           !config?.disableChatInfo?.disableChatHeaderMenu && (
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            {config?.translates?.enabled && <LanguageSelectorButton />}
             {canCall && !isCallBusy && (
               <>
                 {/*

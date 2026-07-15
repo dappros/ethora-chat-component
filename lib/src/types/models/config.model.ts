@@ -241,16 +241,24 @@ export interface IConfig {
     mode?: 'auto' | 'on-demand';
     /**
      * Locales a message is pre-translated into BEFORE it is sent (e.g.
-     * ["en-CA", "fr-CA", "es-US"]). The sender calls `POST /v1/chats/translate`
-     * and embeds the result in the stanza as `<translations value='...'/>`, so
-     * every recipient receives the message already translated and renders it
-     * with the existing parser - no ejabberd module needed.
+     * ["en-CA", "fr-CA", "es-US"]). The sender calls the translation service
+     * (see `endpoint`) and embeds the result in the stanza as
+     * `<translations value='...'/>`, so every recipient receives the message
+     * already translated and renders it with the existing parser - no
+     * ejabberd module needed.
      *
      * Keep this to the locales actually present in the room: every extra target
-     * is one more translation per message. Leave empty to disable
+     * is one more translation shipped per message. Leave empty to disable
      * pre-translation (the on-demand `onTranslate` path still works).
      */
     targets?: string[];
+    /**
+     * Translation service URL for pre-translation (GET ?source=&text=,
+     * responding `{translates:[{translatedText, language, languageName}]}`).
+     * Defaults to Ethora's hosted service; point it at your own deployment
+     * for self-hosted setups.
+     */
+    endpoint?: string;
     /**
      * Reader's full locale (BCP-47, e.g. "fr-CA"). Falls back to
      * `config.i18n.locale`. The region is passed through to `onTranslate` so
