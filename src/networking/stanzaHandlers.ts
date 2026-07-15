@@ -35,7 +35,7 @@ import XmppClient from './xmppClient';
 import { checkSingleUser } from '../helpers/checkUniqueUsers';
 import { removeMessageFromHeapById } from '../roomStore/roomHeapSlice';
 import { messageNotificationManager } from '../utils/messageNotificationManager';
-import { createUserNameFromSetUser } from '../helpers/createUserNameFromSetUser';
+import { resolveSenderDisplayName } from '../helpers/createUserNameFromSetUser';
 import {
   isActiveRoom,
   isCurrentUserMessage,
@@ -174,12 +174,14 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
 
     if (decision.show) {
       const roomName = room?.name || room?.title || roomJID.split('@')[0];
-      
-      // Get sender name from usersSet using createUserNameFromSetUser helper
-      const senderName = createUserNameFromSetUser(
-        state.rooms.usersSet,
-        message.user.id
-      );
+
+      // A cache-only usersSet lookup shows "Deleted User" for any sender
+      // whose profile hasn't loaded into usersSet yet - reliably the case
+      // for the first messages to arrive right after reconnect/re-login,
+      // before that fetch resolves. resolveSenderDisplayName prefers the
+      // name the sender already stamped on the message stanza itself, so
+      // this doesn't depend on that timing at all.
+      const senderName = resolveSenderDisplayName(message, state.rooms.usersSet);
 
       // Trigger notification via global manager
       messageNotificationManager.showNotification(
