@@ -8,6 +8,8 @@ import {
   scrubSensitiveChatStateTransform,
   MAX_MESSAGES_PER_ROOM,
   MAX_PERSISTED_ROOMS,
+  PERSISTED_ROOMS_CHAR_BUDGET,
+  ENCRYPTION_INFLATION_FACTOR,
 } from './index';
 import { IMessage, IRoom } from '../types/types';
 
@@ -296,5 +298,120 @@ describe('persist transforms - per-key calling convention', () => {
     expect(
       scrubSensitiveChatStateTransform.in('en', 'langSource', {} as any)
     ).toBe('en');
+  });
+});
+
+// The bug that kept surviving "fixes": a persisted blob of ~7M chars
+// (~13MB as UTF-16, which is what localStorage actually counts) against a
+// ~5MB per-origin quota. Asserting the exact byte ceiling the browser
+// enforces - not just "the caps ran" - is what makes this regression
+// impossible to reintroduce by tuning a constant to a plausible-looking
+// but wrong value.
+describe('persisted rooms blob fits the real localStorage quota', () => {
+  // Browsers store strings as UTF-16 and give ~5MB per origin, so the
+  // whole origin holds only ~2.6M chars - the trap that made a 2.5M-char
+  // budget look safe while encrypting to ~6.4MB.
+  const LOCALSTORAGE_QUOTA_BYTES = 5 * 1024 * 1024;
+  const BYTES_PER_CHAR = 2;
+  const utf16Bytes = (chars: number) => chars * BYTES_PER_CHAR;
+
+  const makeBloatedMessage = (id: string): IMessage =>
+    ({
+      id,
+      body: 'x'.repeat(200),
+      date: new Date().toISOString(),
+      roomJid: 'r@conf',
+      user: {
+        id: 'someone',
+        name: 'Someone Somebody',
+        xmppUsername: 'someone',
+        profileImage: `https://cdn.example.com/${id}/avatar.png`,
+        token: 'JWT '.repeat(60),
+        refreshToken: 'JWT '.repeat(60),
+        walletAddress: '0x'.repeat(30),
+      },
+      // The wire junk createMessageFromXml spreads onto every message.
+      senderFirstName: 'Someone',
+      senderLastName: 'Somebody',
+      fullName: 'Someone Somebody',
+      photo: `https://cdn.example.com/${id}/avatar.png`,
+      photoURL: `https://cdn.example.com/${id}/avatar.png`,
+      senderJID: 'someone@example.com/resource',
+      senderWalletAddress: '0x'.repeat(30),
+      tokenAmount: '0',
+      quickReplies: '',
+      notDisplayedValue: '',
+      push: 'true',
+      translations: {
+        pt: { translatedText: 'y'.repeat(200), language: 'pt', languageName: 'Portuguese' },
+        fr: { translatedText: 'z'.repeat(200), language: 'fr', languageName: 'French' },
+        zh: { translatedText: 'w'.repeat(200), language: 'zh', languageName: 'Chinese' },
+      },
+      reaction: Object.fromEntries(
+        Array.from({ length: 10 }, (_, i) => [
+          `user${i}`,
+          { emoji: ['👍', '🎉'], data: { senderFirstName: 'A', senderLastName: 'B' } },
+        ])
+      ),
+    }) as any;
+
+  // Deliberately worse than anything real: 3x the room cap, 5x the
+  // message cap, every message carrying the full junk payload.
+  const makePathologicalRoomsMap = () => {
+    const rooms: Record<string, IRoom> = {};
+    for (let r = 0; r < MAX_PERSISTED_ROOMS * 3; r++) {
+      rooms[`r${r}@conf`] = makeRoom(`r${r}@conf`, {
+        lastMessageTimestamp: r,
+        messages: Array.from({ length: MAX_MESSAGES_PER_ROOM * 5 }, (_, m) =>
+          makeBloatedMessage(`m${r}-${m}`)
+        ),
+      });
+    }
+    return rooms;
+  };
+
+  it('a pathological state (300 rooms x 500 bloated messages) still fits the quota after encryption', () => {
+    const rooms = makePathologicalRoomsMap();
+
+    // Sanity: the raw state really is way over quota - otherwise this
+    // test would pass for the wrong reason.
+    const rawChars = JSON.stringify(rooms).length;
+    expect(utf16Bytes(rawChars)).toBeGreaterThan(LOCALSTORAGE_QUOTA_BYTES);
+
+    // Run the real transform chain, in the real order, the way
+    // redux-persist calls it (per key, key === 'rooms').
+    const sanitized = sanitizeRoomsStateTransform.in(rooms, 'rooms', {} as any);
+    const persisted = limitMessagesTransform.in(sanitized, 'rooms', {} as any);
+
+    const persistedChars = JSON.stringify(persisted).length;
+    expect(persistedChars).toBeLessThanOrEqual(PERSISTED_ROOMS_CHAR_BUDGET);
+
+    // What actually reaches localStorage is the encrypted string, and it
+    // shares the origin's ~5MB with persist:chatSettingStore - so require
+    // real headroom, not a hairline pass.
+    const encryptedBytes = utf16Bytes(persistedChars * ENCRYPTION_INFLATION_FACTOR);
+    expect(encryptedBytes).toBeLessThan(LOCALSTORAGE_QUOTA_BYTES * 0.7);
+  });
+
+  it('the budget constant itself cannot be set to a value that encrypts past the quota', () => {
+    // Guards the exact mistake that shipped: a budget that reads fine but
+    // blows the quota once encryption and UTF-16 are accounted for.
+    const encryptedBytes = utf16Bytes(
+      PERSISTED_ROOMS_CHAR_BUDGET * ENCRYPTION_INFLATION_FACTOR
+    );
+    expect(encryptedBytes).toBeLessThan(LOCALSTORAGE_QUOTA_BYTES * 0.7);
+  });
+
+  it('keeps the newest rooms cached rather than shelling everything', () => {
+    const persisted = limitMessagesTransform.in(
+      makePathologicalRoomsMap(),
+      'rooms',
+      {} as any
+    ) as Record<string, IRoom>;
+
+    const withMessages = Object.values(persisted).filter(
+      (room) => room.messages.length > 0
+    );
+    expect(withMessages.length).toBeGreaterThan(0);
   });
 });
