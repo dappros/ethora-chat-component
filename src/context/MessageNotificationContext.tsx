@@ -59,6 +59,16 @@ export const MessageNotificationProvider: React.FC<{
   const contextConfig = useSelector(
     (state: RootState) => state.chatSettingStore?.config
   );
+  // This provider lives inside <XmppProvider>, above the login gate, so it
+  // never unmounts on logout - without this, a still-connecting/live XMPP
+  // socket (explicit logout's disconnect() is async; an automatic logout
+  // from a failed token refresh has no synchronous teardown at all) could
+  // keep delivering stanzas into notifications for a user the UI already
+  // shows as logged out.
+  const currentXmppUsername = useSelector(
+    (state: RootState) => state.chatSettingStore?.user?.xmppUsername
+  );
+  const isLoggedIn = !!currentXmppUsername;
 
   // Prefer the config <Chat> itself dispatched to Redux over the prop passed
   // to this provider - this provider now lives in <XmppProvider>, which may
@@ -249,6 +259,11 @@ export const MessageNotificationProvider: React.FC<{
 
   const showMessageNotification = useCallback(
     (message: IMessage, roomName: string, senderName: string, roomJID: string) => {
+      // Belt-and-suspenders: the registration effect below already
+      // unregisters this callback the instant the user is logged out, but
+      // guard here too in case a call was already in flight.
+      if (!isLoggedIn) return;
+
       // Toast only when the tab is focused AND the user isn't on the chat
       // page at all - not just "not this specific room". While chat is open
       // they already see unread state/messages live in the UI; while
@@ -292,12 +307,15 @@ export const MessageNotificationProvider: React.FC<{
         );
       }
     },
-    [config, isEnabled, isTabVisible, isChatUiVisible, showToastNotification, navigateToMessage]
+    [config, isEnabled, isTabVisible, isChatUiVisible, isLoggedIn, showToastNotification, navigateToMessage]
   );
 
-  // Register the callback with the global manager
+  // Register the callback with the global manager - gated on isLoggedIn so
+  // it unregisters the instant Redux's logout() clears the user, on the
+  // very next render, independent of how long the underlying XMPP socket
+  // actually takes to disconnect.
   useEffect(() => {
-    if (!isEnabled) return;
+    if (!isEnabled || !isLoggedIn) return;
     const unsubscribe = messageNotificationManager.addCallback(
       showMessageNotification
     );
@@ -309,7 +327,7 @@ export const MessageNotificationProvider: React.FC<{
     return () => {
       unsubscribe();
     };
-  }, [config?.useStoreConsoleEnabled, isEnabled, showMessageNotification]);
+  }, [config?.useStoreConsoleEnabled, isEnabled, isLoggedIn, showMessageNotification]);
 
   return (
     <MessageNotificationContext.Provider value={{ showMessageNotification }}>

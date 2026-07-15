@@ -315,7 +315,15 @@ const Message: React.FC<MessageProps> = forwardRef<
               <MessageTranslations
                 message={message}
                 config={config}
-                langSource={langSource}
+                // The reader's locale is the lookup key. Prefer the full locale
+                // (e.g. "fr-CA") the host passed, since that's what the
+                // pre-translated stanza is keyed by; fall back to the store's
+                // langSource for legacy setups.
+                langSource={
+                  config?.translates?.readerLocale ||
+                  config?.i18n?.locale ||
+                  langSource
+                }
                 isUser={isUser}
               />
             ))}

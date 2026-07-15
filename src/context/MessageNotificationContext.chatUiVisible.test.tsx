@@ -33,7 +33,7 @@ describe('MessageNotificationProvider - chat UI visibility gating', () => {
       </MessageNotificationProvider>,
       {
         preloadedState: {
-          chatSettingStore: { config } as any,
+          chatSettingStore: { config, user: { xmppUsername: 'me' } } as any,
           rooms: { rooms: {}, activeRoomJID: null, isChatUiVisible: false } as any,
         },
       }
@@ -60,7 +60,7 @@ describe('MessageNotificationProvider - chat UI visibility gating', () => {
       </MessageNotificationProvider>,
       {
         preloadedState: {
-          chatSettingStore: { config } as any,
+          chatSettingStore: { config, user: { xmppUsername: 'me' } } as any,
           rooms: {
             rooms: {},
             activeRoomJID: 'active-room@conf',

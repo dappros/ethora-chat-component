@@ -35,7 +35,10 @@ const baseCallState: CallState = {
   connectedAt: null,
 };
 
-function renderOverlay(callState: CallState) {
+function renderOverlay(
+  callState: CallState,
+  chatSettingOverrides: Record<string, unknown> = {}
+) {
   const store = configureStore({
     reducer: {
       call: callSlice,
@@ -46,6 +49,8 @@ function renderOverlay(callState: CallState) {
       call: callState,
       chatSettingStore: {
         config: { videoCalls: { enabled: true } },
+        user: { xmppUsername: 'me' },
+        ...chatSettingOverrides,
       } as any,
     },
     middleware: (getDefault) =>
@@ -142,6 +147,25 @@ describe('VideoCallOverlay - incoming call browser notification', () => {
         direction: 'outgoing',
         phase: 'requesting',
       });
+      document.dispatchEvent(new Event('visibilitychange'));
+      await Promise.resolve();
+    });
+
+    expect(notificationSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not fire when there is no logged-in user (e.g. after logout, while the socket is still live)', async () => {
+    Object.defineProperty(document, 'visibilityState', {
+      value: 'hidden',
+      configurable: true,
+    });
+    Object.defineProperty(document, 'hidden', {
+      value: true,
+      configurable: true,
+    });
+
+    await act(async () => {
+      renderOverlay(baseCallState, { user: undefined });
       document.dispatchEvent(new Event('visibilitychange'));
       await Promise.resolve();
     });

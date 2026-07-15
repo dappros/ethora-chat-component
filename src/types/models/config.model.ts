@@ -240,6 +240,18 @@ export interface IConfig {
      */
     mode?: 'auto' | 'on-demand';
     /**
+     * Locales a message is pre-translated into BEFORE it is sent (e.g.
+     * ["en-CA", "fr-CA", "es-US"]). The sender calls `POST /v1/chats/translate`
+     * and embeds the result in the stanza as `<translations value='...'/>`, so
+     * every recipient receives the message already translated and renders it
+     * with the existing parser - no ejabberd module needed.
+     *
+     * Keep this to the locales actually present in the room: every extra target
+     * is one more translation per message. Leave empty to disable
+     * pre-translation (the on-demand `onTranslate` path still works).
+     */
+    targets?: string[];
+    /**
      * Reader's full locale (BCP-47, e.g. "fr-CA"). Falls back to
      * `config.i18n.locale`. The region is passed through to `onTranslate` so
      * the service can distinguish fr-CA vs fr-FR; the Translate button
