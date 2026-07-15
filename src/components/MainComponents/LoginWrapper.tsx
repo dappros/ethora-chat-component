@@ -45,6 +45,25 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
 
   const { user } = useSelector((state: RootState) => state.chatSettingStore);
 
+  // Restoring a stored session is async (a /users/my round trip, ~800ms).
+  // Without this the render gate below - which needs `xmppPassword` to
+  // mount ChatWrapper - has nothing to show meanwhile except <LoginForm>,
+  // so a refresh FLASHED the login screen at an already-logged-in user
+  // before snapping to the chat.
+  //
+  // Start true only when there is genuinely something to restore, so a
+  // real logged-out visitor still gets the login form immediately instead
+  // of a pointless spinner. Computed once, at mount: this is about the
+  // session on disk, which nothing in this render pass changes.
+  const [isRestoringSession, setIsRestoringSession] = useState<boolean>(() => {
+    try {
+      const stored = getStoredUser(props.config?.appId) as User | null;
+      return Boolean(stored && hasStoredSensitiveSession(stored));
+    } catch {
+      return false;
+    }
+  });
+
   const loginUserFunction = useCallback(async () => {
     if (!props?.user?.email || !props?.user?.password) {
       return null;
@@ -200,7 +219,13 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
       }
     };
 
-    void initUser();
+    // Whatever initUser decides - restored, gave up, or short-circuited
+    // because the session was already usable - the restore attempt is
+    // over, so the gate below must stop waiting. In a `finally` so a
+    // thrown path can't strand the UI on a spinner forever.
+    void initUser().finally(() => {
+      if (!cancelled) setIsRestoringSession(false);
+    });
 
     return () => {
       cancelled = true;
@@ -231,7 +256,7 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
         (!config?.userLogin?.user?.xmppUsername ||
           user.xmppUsername === config.userLogin.user.xmppUsername) ? (
         <ChatWrapper {...props} />
-      ) : config?.jwtLogin?.enabled ? (
+      ) : isRestoringSession || config?.jwtLogin?.enabled ? (
         <StyledLoaderWrapper
           style={{ alignItems: 'center', flexDirection: 'column', gap: '10px' }}
         >

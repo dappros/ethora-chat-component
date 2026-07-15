@@ -86,9 +86,44 @@ describe('LoginWrapper - session restore after refresh', () => {
   it('does NOT re-restore when redux already holds a usable session', async () => {
     renderWrapper(STORED_SESSION);
 
-    // Give the effect a chance to run before asserting the negative.
+    // Assert on the RESTORE, not on getStoredUser: the latter is also
+    // read synchronously at mount to decide whether to show a spinner
+    // instead of flashing the login form, so it's called either way.
     await waitFor(() => expect(true).toBe(true));
-    expect(getStoredUserMock).not.toHaveBeenCalled();
+    expect(ensureUserFromMyMock).not.toHaveBeenCalled();
+  });
+
+  // Restoring is async (~800ms of /users/my). The render gate needs
+  // xmppPassword to mount ChatWrapper, so with nothing else to show it
+  // rendered <LoginForm> meanwhile - flashing the login screen at an
+  // already-logged-in user on every refresh.
+  it('shows no login form while a stored session is being restored', async () => {
+    let resolveRestore: (u: any) => void = () => {};
+    ensureUserFromMyMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveRestore = resolve;
+      })
+    );
+
+    const { queryByTestId } = renderWrapper(REHYDRATED_HUSK);
+
+    // Mid-restore: neither the chat (no password yet) nor the login form.
+    await waitFor(() => expect(ensureUserFromMyMock).toHaveBeenCalled());
+    expect(queryByTestId('login-form')).toBeNull();
+
+    resolveRestore(STORED_SESSION);
+  });
+
+  it('does show the login form once a restore attempt finds nothing', async () => {
+    getStoredUserMock.mockReturnValue(null);
+    hasStoredSensitiveSessionMock.mockReturnValue(false);
+
+    const { queryByTestId } = renderWrapper({
+      xmppUsername: '',
+      xmppPassword: '',
+    } as any);
+
+    await waitFor(() => expect(queryByTestId('login-form')).not.toBeNull());
   });
 
   it('still refuses to short-circuit for a DIFFERENT user than config asks for (multi-tenant guard)', async () => {
