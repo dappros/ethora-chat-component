@@ -330,7 +330,6 @@ const Message: React.FC<MessageProps> = forwardRef<
                   return (
                     <TranslatedMessageBody
                       originalText={translationDisplay.originalText}
-                      sourceLanguage={message.langSource}
                       accentColor={config?.colors?.primary}
                     >
                       {body}

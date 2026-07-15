@@ -1,8 +1,5 @@
-import React, { ReactNode, useMemo } from 'react';
+import React, { ReactNode } from 'react';
 import styled from 'styled-components';
-import { TranslateGlobeIcon } from '../../assets/icons';
-import { useT } from '../../i18n/useT';
-import { useChatSettingState } from '../../hooks/useChatSettingState';
 
 const Wrapper = styled.div`
   display: flex;
@@ -21,17 +18,6 @@ const OriginalQuote = styled.div<{ $accent: string }>`
   color: currentColor;
   opacity: 0.6;
   word-wrap: break-word;
-`;
-
-const SourceLabel = styled.span`
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-bottom: 3px;
-  font-size: var(--ethora-font-size-xs, 11px);
-  line-height: 1;
-  opacity: 0.75;
-  user-select: none;
 `;
 
 // parseMessageBody renders through ReactMarkdown, whose <p> carries
@@ -59,80 +45,22 @@ const TranslatedText = styled.div`
 interface TranslatedMessageBodyProps {
   /** Text as sent, in the sender's language. */
   originalText: string;
-  /** BCP-47 / ISO-639-1 of originalText, e.g. "en" or "en-CA". */
-  sourceLanguage?: string;
-  /**
-   * Locale to write the label in. The whole label - the phrase AND the
-   * language name inside it - resolves in this one locale, otherwise it
-   * reads half-translated ("Translated from inglês"). Defaults to the UI
-   * locale, since the label is chrome, not message content.
-   */
-  labelLocale?: string;
   accentColor?: string;
   /** Renders the translated text (markdown pipeline, mentions, etc). */
   children: ReactNode;
 }
 
 /**
- * Resolves "en" -> "English", localized into the reader's own language
- * (a Portuguese reader sees "inglês", not "English"). Intl.DisplayNames is
- * built into every browser we target, so this costs no bundle and no table
- * to maintain. Returns undefined for anything it can't name, so the label
- * degrades to a plain "Translated" rather than showing a raw code.
- */
-const languageDisplayName = (
-  languageCode?: string,
-  readerLocale?: string
-): string | undefined => {
-  const base = String(languageCode || '').split('-')[0];
-  if (!base) return undefined;
-
-  let name: string | undefined;
-  try {
-    name = new Intl.DisplayNames([readerLocale || 'en'], {
-      type: 'language',
-    }).of(base);
-  } catch {
-    // Throws RangeError on a malformed tag.
-    return undefined;
-  }
-
-  // For a well-formed but unknown code ("xx"), Intl echoes the code back
-  // rather than returning undefined - which would surface as "Translated
-  // from xx". Treat that as un-nameable.
-  return !name || name.toLowerCase() === base.toLowerCase() ? undefined : name;
-};
-
-/**
  * A message body that is showing a translation: the translated text reads
- * as the primary content, with the original quoted above it for reference
- * and a small globe label explaining why there are two texts at all.
+ * as the primary content, with the original quoted above it for reference.
  */
 export const TranslatedMessageBody: React.FC<TranslatedMessageBodyProps> = ({
   originalText,
-  sourceLanguage,
-  labelLocale,
   accentColor = '#0052CD',
   children,
 }) => {
-  const t = useT();
-  const { config } = useChatSettingState();
-  // useT resolves its phrases from config.i18n.locale - name the language
-  // in that same locale so the two halves of the label agree.
-  const resolvedLabelLocale = labelLocale || config?.i18n?.locale;
-  const sourceName = useMemo(
-    () => languageDisplayName(sourceLanguage, resolvedLabelLocale),
-    [sourceLanguage, resolvedLabelLocale]
-  );
-
   return (
     <Wrapper>
-      <SourceLabel>
-        <TranslateGlobeIcon color="currentColor" />
-        {sourceName
-          ? t('translation.fromLanguage', { language: sourceName })
-          : t('translation.generic')}
-      </SourceLabel>
       <OriginalQuote $accent={accentColor}>{originalText}</OriginalQuote>
       <TranslatedText>{children}</TranslatedText>
     </Wrapper>

@@ -1,7 +1,6 @@
 import React from 'react';
 import { describe, expect, it } from 'vitest';
-import { screen } from '@testing-library/react';
-import { renderWithProviders } from '../../test/renderWithProviders';
+import { render, screen } from '@testing-library/react';
 import TranslatedMessageBody from './TranslatedMessageBody';
 
 // Mirrors what parseMessageBody actually emits: paragraphs nested inside
@@ -19,19 +18,16 @@ const markdownBody = (...paragraphs: string[]) => (
 );
 
 const renderBlock = (
-  props: Partial<React.ComponentProps<typeof TranslatedMessageBody>> = {},
-  uiLocale = 'en'
+  props: Partial<React.ComponentProps<typeof TranslatedMessageBody>> = {}
 ) =>
-  renderWithProviders(
+  render(
     <TranslatedMessageBody
       originalText="bad boy bad boys what you gonna do"
-      sourceLanguage="en"
       accentColor="#5E3FDE"
       {...props}
     >
       {markdownBody('menino travesso meninos travessos o que você vai fazer')}
-    </TranslatedMessageBody>,
-    { preloadedState: { chatSettingStore: { config: { i18n: { locale: uiLocale } } } as any } }
+    </TranslatedMessageBody>
   );
 
 describe('TranslatedMessageBody', () => {
@@ -64,49 +60,9 @@ describe('TranslatedMessageBody', () => {
     expect(getComputedStyle(quote).borderLeftColor).toBe('rgb(94, 63, 222)');
   });
 
-  it('names the source language in English for an English UI', () => {
-    renderBlock({ sourceLanguage: 'pt' }, 'en');
-
-    expect(screen.getByText('Translated from Portuguese')).toBeTruthy();
-  });
-
-  // A half-translated label ("Traduit de Portuguese") is the bug this
-  // guards: the phrase and the language name inside it must resolve in
-  // the SAME locale.
-  it('localizes the whole label - phrase and language name together', () => {
-    renderBlock({ sourceLanguage: 'pt' }, 'fr');
-
-    expect(screen.getByText('Traduit de portugais')).toBeTruthy();
-  });
-
-  it('resolves a full locale down to its language name', () => {
-    renderBlock({ sourceLanguage: 'en-CA' }, 'en');
-
-    expect(screen.getByText('Translated from English')).toBeTruthy();
-  });
-
-  it('degrades to a plain "Translated" label rather than showing a raw code', () => {
-    renderBlock({ sourceLanguage: 'not-a-language' }, 'en');
-
-    expect(screen.getByText('Translated')).toBeTruthy();
-    expect(screen.queryByText(/not-a-language/)).toBeNull();
-  });
-
-  it('falls back to a bare "Translated" when the source language is unknown', () => {
-    renderBlock({ sourceLanguage: undefined });
-
-    expect(screen.getByText('Translated')).toBeTruthy();
-  });
-
-  it('falls back in the UI language, not English', () => {
-    renderBlock({ sourceLanguage: undefined }, 'fr');
-
-    expect(screen.getByText('Traduit')).toBeTruthy();
-  });
-
   it('renders a multi-paragraph translation intact', () => {
-    renderWithProviders(
-      <TranslatedMessageBody originalText="original" sourceLanguage="en">
+    render(
+      <TranslatedMessageBody originalText="original">
         {markdownBody('first para', 'middle para', 'last para')}
       </TranslatedMessageBody>
     );

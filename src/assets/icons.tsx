@@ -804,29 +804,6 @@ export const DoubleTick = ({ fill = '#fff', color = '#0052CD', ...props }) => (
   </svg>
 );
 
-// Globe - marks a message body as machine-translated (see
-// TranslatedMessageBody), so a reader can tell at a glance why a bubble
-// shows two texts rather than one.
-export const TranslateGlobeIcon = ({ color = '#8C8C8C', ...props }) => (
-  <svg
-    width="12"
-    height="12"
-    viewBox="0 0 16 16"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    {...props}
-  >
-    <circle cx="8" cy="8" r="6.25" stroke={color} strokeWidth="1.3" />
-    <path
-      d="M1.75 8h12.5M8 1.75c1.6 1.75 2.4 3.83 2.4 6.25S9.6 12.5 8 14.25c-1.6-1.75-2.4-3.83-2.4-6.25S6.4 3.5 8 1.75Z"
-      stroke={color}
-      strokeWidth="1.3"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-
 export const RedCross = ({ color = '#DC2626', ...props }) => (
   <svg
     width="16"
