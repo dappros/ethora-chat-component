@@ -144,13 +144,25 @@ const sanitizeRoomsSliceKey = (value: any, key: string | number) => {
 
 export const MAX_MESSAGES_PER_ROOM = 100;
 export const MAX_PERSISTED_ROOMS = 100;
-// Serialized size (UTF-16 code units - the same unit localStorage's
-// ~5M-per-origin quota is measured in) the rooms snapshot may occupy
-// BEFORE encryption. The encrypt transform inflates its input by roughly
-// a third (AES + base64), and localStorage is shared with the settings
-// slice and everything else on the origin, so 2.5M pre-encryption keeps
-// the final write comfortably inside the quota.
-export const PERSISTED_ROOMS_CHAR_BUDGET = 2_500_000;
+
+// Budget for the rooms snapshot BEFORE encryption, in characters.
+//
+// Do the unit math carefully - getting this wrong is what still blew the
+// quota: browsers give ~5MB of localStorage per ORIGIN and count a string
+// as UTF-16, i.e. 2 bytes per char. So the whole origin fits roughly
+// 2.6M chars, not 5M. Out of that, this blob must also leave room for
+// persist:chatSettingStore and anything else on the origin, and the
+// encrypt transform (AES + base64) inflates whatever it's given by ~1.4x.
+//
+//   1_000_000 chars * 1.4 (encrypt) = ~1.4M chars = ~2.8MB  -> comfortably
+//   inside ~5MB with room to spare for the settings slice.
+//
+// (The previous 2.5M looked reasonable but encrypts to ~6.4MB - over the
+// quota on its own.)
+export const PERSISTED_ROOMS_CHAR_BUDGET = 1_000_000;
+
+/** ~1.4x: AES + base64 overhead the encrypt transform adds on top. */
+export const ENCRYPTION_INFLATION_FACTOR = 1.4;
 
 export const getRoomActivityTimestamp = (room: IRoom): number =>
   room?.lastMessageTimestamp ||
