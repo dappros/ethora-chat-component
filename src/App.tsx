@@ -249,6 +249,10 @@ const ChatComponent = React.memo(({ translateLang }: { translateLang: Iso639_1Co
         mode: 'auto',
         targets: TRANSLATE_LANGUAGES.map((l) => l.code),
         readerLocale: translateLang,
+        // Same-origin Vite dev proxy (see vite.config.ts) - the translate
+        // service doesn't send CORS headers yet, so the browser blocks
+        // calling it cross-origin directly.
+        endpoint: '/translate-api/translate',
       },
     }),
     [translateLang]
