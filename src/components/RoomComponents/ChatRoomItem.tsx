@@ -19,6 +19,7 @@ import { useT } from '../../i18n/useT';
 import OnlineUsersPopover from './OnlineUsersPopover';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
+import { formatCallLogLabel } from '../../helpers/callLogMessage';
 
 interface ChatRoomItemProps {
   chat: IRoom;
@@ -88,13 +89,19 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
 
       return {
         ...message,
+        // Call logs bake an English sentence into `body` when the stanza
+        // arrives; rebuild from the meta so the preview follows the
+        // current language like the transcript does.
+        body: message.callLog
+          ? formatCallLogLabel(message.callLog, t, message.body)
+          : message.body,
         user: {
           ...message.user,
           name: safeName,
         },
       };
     },
-    [usersSet]
+    [usersSet, t]
   );
 
   const lastRawMessage = chat?.messages?.[(chat?.messages?.length ?? 0) - 1];

@@ -7,6 +7,26 @@ import {
   toBaseLanguage,
   translateKey,
 } from './strings';
+import { LANGUAGE_OPTIONS } from '../helpers/constants/LANGUAGE_OPTIONS';
+
+// The completeness check below compares the tables that EXIST against each
+// other - by construction it cannot see a language that has no table at
+// all. That blind spot shipped: the picker offered pt/ht/zh while
+// BUILTIN_STRINGS only had en/fr/es, so choosing Portuguese translated the
+// messages and left every button in English, silently (resolveStringTable
+// falls back to English for an unknown language - correct behaviour, but
+// it means nothing ever errors).
+//
+// This is the check that ties the two lists together: if the picker offers
+// it, it must be translated.
+describe('every language the picker offers is actually translated', () => {
+  it.each(LANGUAGE_OPTIONS.map((o) => [o.name, o.id] as const))(
+    '%s (%s) has a built-in string table',
+    (_name, id) => {
+      expect(Object.keys(BUILTIN_STRINGS)).toContain(id);
+    }
+  );
+});
 
 // Guards against exactly what already happened once with the
 // translation.* keys mid-session: a key added to `en` but forgotten in the

@@ -22,6 +22,22 @@ import { interpolate, resolveStringTable } from './strings';
  * static captions together, as one language switch, unless the host is
  * explicitly managing UI locale separately via `config.i18n.locale`.
  */
+/**
+ * The locale the UI is currently in, resolved by the same rule useT uses
+ * (explicit `config.i18n.locale`, else the reader's `langSource`).
+ *
+ * For anything Intl already localises - dates, numbers, relative times -
+ * where you need the locale itself rather than a string from the table.
+ * Without it components reach for a hardcoded 'en-US' and quietly render
+ * American dates under a Chinese UI (DateLabel did exactly that).
+ * Undefined means "no explicit choice", which Intl reads as the browser's
+ * own locale - the right default.
+ */
+export const useUiLocale = (): string | undefined => {
+  const { config, langSource } = useChatSettingState();
+  return config?.i18n?.locale || langSource || undefined;
+};
+
 export const useT = () => {
   const { config, langSource } = useChatSettingState();
   const locale = config?.i18n?.locale || langSource;

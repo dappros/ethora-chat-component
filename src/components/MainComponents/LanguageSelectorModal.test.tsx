@@ -17,18 +17,30 @@ const renderButton = (langSource?: string, container?: HTMLElement) => {
   return { ...utils, store: storeRef.current };
 };
 
+// The globe's own aria-label goes through t('language.select'), so it is
+// NOT English once the selected language has a table. Looking it up by the
+// English name used to "work" only because pt/ht/zh had no translations
+// and fell back - i.e. the lookup was asserting the bug. Find it
+// structurally instead: before the modal opens, the globe is the only
+// button rendered.
+const openPicker = () => {
+  const globe = document.querySelector('button');
+  if (!globe) throw new Error('language globe button not rendered');
+  fireEvent.click(globe);
+};
+
 describe('LanguageSelectorButton', () => {
   it('renders as a closed icon button with no modal in the DOM', () => {
     renderButton();
 
     expect(screen.queryByRole('listbox')).toBeNull();
-    expect(screen.getByRole('button', { name: /select language/i })).toBeTruthy();
+    expect(document.querySelector('button')).toBeTruthy();
   });
 
   it('opens the modal on click and lists every language option', () => {
     renderButton();
 
-    fireEvent.click(screen.getByRole('button', { name: /select language/i }));
+    openPicker();
 
     const list = screen.getByRole('listbox');
     LANGUAGE_OPTIONS.forEach((option) => {
@@ -39,7 +51,7 @@ describe('LanguageSelectorButton', () => {
   it('marks the currently selected language', () => {
     renderButton('pt');
 
-    fireEvent.click(screen.getByRole('button', { name: /select language/i }));
+    openPicker();
 
     const selectedRow = screen.getByRole('option', { name: /Portuguese/i });
     expect(selectedRow.getAttribute('aria-selected')).toBe('true');
@@ -51,7 +63,7 @@ describe('LanguageSelectorButton', () => {
   it('dispatches setLangSource and closes the modal on pick', () => {
     const { store } = renderButton('en');
 
-    fireEvent.click(screen.getByRole('button', { name: /select language/i }));
+    openPicker();
     fireEvent.click(screen.getByRole('option', { name: /Portuguese/i }));
 
     expect(store.getState().chatSettingStore.langSource).toBe('pt');
@@ -61,7 +73,7 @@ describe('LanguageSelectorButton', () => {
   it('closes on backdrop click without changing the selection', () => {
     const { store } = renderButton('en');
 
-    fireEvent.click(screen.getByRole('button', { name: /select language/i }));
+    openPicker();
     // The modal is portaled to document.body (see LanguageSelectorModal.tsx
     // - it has to escape ChatContainer's overflow:hidden), so it's no
     // longer a DOM sibling of the button that opened it. The backdrop is
@@ -77,7 +89,7 @@ describe('LanguageSelectorButton', () => {
   it('closes on the explicit close button', () => {
     renderButton();
 
-    fireEvent.click(screen.getByRole('button', { name: /select language/i }));
+    openPicker();
     fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
 
     expect(screen.queryByRole('listbox')).toBeNull();
@@ -98,7 +110,7 @@ describe('LanguageSelectorButton', () => {
     document.body.appendChild(clippingAncestor);
 
     renderButton(undefined, clippingAncestor);
-    fireEvent.click(screen.getByRole('button', { name: /select language/i }));
+    openPicker();
 
     const modal = screen.getByRole('listbox');
     expect(clippingAncestor.contains(modal)).toBe(false);

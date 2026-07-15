@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
 import { RoomMember } from '../../types/types';
 import { isSameXmppUsername } from '../../helpers/xmppUsername';
+import { useT } from '../../i18n/useT';
 
 interface OnlineUsersPopoverProps {
   /** xmppUsernames currently online in this room (from useRoomPresence). */
@@ -27,6 +28,7 @@ const OnlineUsersPopover: React.FC<OnlineUsersPopoverProps> = ({
   myXmppUsername,
   isChatActive,
 }) => {
+  const t = useT();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   // Presence only carries bare xmppUsernames - join against the room roster
@@ -77,7 +79,7 @@ const OnlineUsersPopover: React.FC<OnlineUsersPopoverProps> = ({
           setIsOpen((prev) => !prev);
         }}
       >
-        {onlineUsernames.length} online
+        {t('presence.onlineCount', { count: onlineUsernames.length })}
       </Trigger>
       {isOpen && (
         <Popover onClick={(e) => e.stopPropagation()}>

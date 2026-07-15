@@ -128,3 +128,43 @@ export const buildLocalCallLogMessage = (params: {
     user: { id: selfXmppUsername },
   } as unknown as IMessage;
 };
+
+/**
+ * The label for a call-log entry, built at RENDER time from the callLog
+ * meta rather than read off `message.body`.
+ *
+ * transformCallLogMessage bakes an English sentence into `body` the moment
+ * the stanza arrives, which freezes the language: switch to Chinese and
+ * every call log you already received stays English forever, because the
+ * text is data by then, not a rendering. The meta (direction/duration/
+ * missed) is the actual fact - the sentence is a view of it, so it belongs
+ * where the view is. `body` stays as the fallback for entries received
+ * before this existed, and for the notification/sidebar preview paths that
+ * only have the raw message.
+ */
+export const formatCallLogLabel = (
+  callLog: CallLogMeta | undefined,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+  fallbackBody = ''
+): string => {
+  if (!callLog) return fallbackBody;
+
+  if (!callLog.durationMs || callLog.durationMs <= 0) {
+    return callLog.direction === 'outgoing' ? t('call.noAnswer') : t('call.missed');
+  }
+
+  const totalSeconds = Math.max(0, Math.round(callLog.durationMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  const duration =
+    totalSeconds < 60
+      ? t('call.durationSec', { n: totalSeconds })
+      : seconds === 0
+        ? t('call.durationMin', { n: minutes })
+        : t('call.durationMinSec', { m: minutes, s: seconds });
+
+  const direction =
+    callLog.direction === 'outgoing' ? t('call.outgoing') : t('call.incoming');
+
+  return `${direction} · ${duration}`;
+};
