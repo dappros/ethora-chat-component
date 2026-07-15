@@ -42,6 +42,7 @@ const en: UiStringTable = {
   'status.noInternet': 'No internet connection',
   'translation.translating': 'Translating…',
   'translation.failed': 'Could not translate',
+  'language.select': 'Select language',
 };
 
 const fr: UiStringTable = {
@@ -73,6 +74,7 @@ const fr: UiStringTable = {
   'status.noInternet': 'Pas de connexion internet',
   'translation.translating': 'Traduction…',
   'translation.failed': 'Traduction impossible',
+  'language.select': 'Choisir la langue',
 };
 
 const es: UiStringTable = {
@@ -104,6 +106,7 @@ const es: UiStringTable = {
   'status.noInternet': 'Sin conexión a internet',
   'translation.translating': 'Traduciendo…',
   'translation.failed': 'No se pudo traducir',
+  'language.select': 'Seleccionar idioma',
 };
 
 // Built-in tables keyed by base language. Add a language here (plus the code
