@@ -35,7 +35,7 @@ import { parseMessageBody } from '../../helpers/parseMessageBody';
 import URLPreviewCard from './URLPreviewCard';
 import { useMessageHeapState } from '../../hooks/useMessageHeapState';
 import { parseMessageReference } from '../../helpers/parseMessageReference';
-import { resolveMessageTranslationDisplay } from '../../helpers/resolveMessageTranslationDisplay';
+import { useMessageTranslation } from '../../hooks/useMessageTranslation';
 import styled from 'styled-components';
 
 const TranslationQuote = styled.div`
@@ -64,13 +64,20 @@ const Message: React.FC<MessageProps> = forwardRef<
   // everyone, sender included - so you can confirm what your own message
   // looks like in the reader's language too. 'on-demand' keeps its own
   // separate click-to-translate flow below, unchanged.
+  //
+  // The translation is fetched HERE, by the reader, for this one message
+  // and this one language - not pre-computed by the sender, which used to
+  // block every send on an HTTP round trip. Cached per (text, language),
+  // so re-renders and scroll-away/scroll-back are free.
   const isAutoTranslate =
     !!config?.translates?.enabled && config?.translates?.mode !== 'on-demand';
   const readerLocale =
     config?.translates?.readerLocale || config?.i18n?.locale || langSource;
-  const translationDisplay = isAutoTranslate
-    ? resolveMessageTranslationDisplay(message, readerLocale)
-    : null;
+  const translationDisplay = useMessageTranslation(
+    message,
+    readerLocale,
+    isAutoTranslate
+  );
 
   // Read sender name live from usersSet so user-update stanzas trigger immediate re-render.
   const usersSet = useSelector((state: RootState) => state.rooms.usersSet);
@@ -315,7 +322,7 @@ const Message: React.FC<MessageProps> = forwardRef<
                 <DeletedMessage />
               ) : (
                 <>
-                  {translationDisplay?.hasTranslation && (
+                  {translationDisplay.hasTranslation && (
                     <TranslationQuote>
                       <span aria-hidden="true">|</span>
                       <span>{translationDisplay.originalText}</span>
@@ -325,9 +332,9 @@ const Message: React.FC<MessageProps> = forwardRef<
                     {parseMessageBody({
                       text: config?.messageTextFilter?.enabled
                         ? config.messageTextFilter.filterFunction(
-                            translationDisplay?.displayText ?? message.body
+                            translationDisplay.displayText
                           )
-                        : (translationDisplay?.displayText ?? message.body),
+                        : (translationDisplay.displayText),
                     })}
                   </div>
                 </>

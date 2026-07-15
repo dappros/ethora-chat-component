@@ -17,37 +17,16 @@ export const sendTextMessageWithTranslateTag = (
     devServer?: string;
   },
   source: Iso639_1Codes,
-  customId?: string,
-  /**
-   * Pre-computed translations, already JSON-stringified as
-   * `{"translates":[{language, languageName, translatedText}, ...]}`.
-   *
-   * When present we ship them WITH the message as `<translations value='...'/>`,
-   * so every recipient gets the translated copies inline and renders them with
-   * the existing parser. ejabberd relays custom children untouched (same as our
-   * `<data>` element), so this needs no server-side rewrite.
-   *
-   * When absent the message goes out with just the `<translate source>` tag,
-   * which is exactly the old behaviour.
-   */
-  translations?: string
+  customId?: string
 ): boolean => {
   const id = customId || `get-translate-messsage:${Date.now().toString()}`;
 
   try {
-    const children = [
-      xml('data', {
-        ...stanzaMessage,
-        push: 'true',
-      }),
-      xml('body', {}, stanzaMessage.userMessage),
-      xml('translate', { source: source }),
-    ];
-
-    if (translations) {
-      children.push(xml('translations', { value: translations }));
-    }
-
+    // `<translate source>` only DECLARES what language this text is in -
+    // it costs nothing to send and is what lets each reader translate the
+    // message into their own language on their side. The message is never
+    // pre-translated here: that put an HTTP round trip in front of every
+    // send (see sendTextMessageWithTranslateTagStanza).
     const message = xml(
       'message',
       {
@@ -55,7 +34,12 @@ export const sendTextMessageWithTranslateTag = (
         type: 'groupchat',
         id: id,
       },
-      ...children
+      xml('data', {
+        ...stanzaMessage,
+        push: 'true',
+      }),
+      xml('body', {}, stanzaMessage.userMessage),
+      xml('translate', { source: source })
     );
 
     client.send(message);
