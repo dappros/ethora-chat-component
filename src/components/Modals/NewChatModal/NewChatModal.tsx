@@ -32,6 +32,7 @@ import { CHAT_TYPES } from '../../../helpers/constants/CHAT_TYPES';
 import { useAppDispatch } from '../../../hooks/hooks';
 import { useChatSettingState } from '../../../hooks/useChatSettingState';
 import { useIsMobileViewport } from '../../../hooks/useIsMobileViewport';
+import { useT } from '../../../i18n/useT';
 
 const NewChatModal: React.FC = () => {
   const config = useSelector(
@@ -43,6 +44,7 @@ const NewChatModal: React.FC = () => {
   const { showToast } = useToast();
   const { user } = useChatSettingState();
   const isMobileViewport = useIsMobileViewport();
+  const t = useT();
 
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
@@ -141,8 +143,8 @@ const NewChatModal: React.FC = () => {
   const handleCreateRoom = async () => {
     showToast({
       id: Date.now().toString(),
-      title: 'Room creation',
-      message: 'Room is being created...',
+      title: t('toast.roomCreationTitle'),
+      message: t('toast.roomCreating'),
       type: 'info',
       duration: 3000,
     });
@@ -197,8 +199,8 @@ const NewChatModal: React.FC = () => {
       setLoading(false);
       showToast({
         id: Date.now().toString(),
-        title: 'Success!',
-        message: 'Room created succusfully!',
+        title: t('toast.success'),
+        message: t('toast.roomCreatedSuccess'),
         type: 'success',
         duration: 3000,
       });
@@ -228,7 +230,7 @@ const NewChatModal: React.FC = () => {
               <CloseButton onClick={handleCloseModal} style={{ fontSize: 24 }}>
                 &times;
               </CloseButton>
-              <ModalTitle>Create New Chat</ModalTitle>
+              <ModalTitle>{t('modal.newChat.title')}</ModalTitle>
               <ProfileImagePlaceholder
                 size={isMobileViewport ? 80 : 120}
                 upload={{ active: true, onUpload }}
@@ -252,7 +254,7 @@ const NewChatModal: React.FC = () => {
                   id="roomName"
                   value={roomName}
                   onChange={handleRoomNameChange}
-                  placeholder="Enter Room Name"
+                  placeholder={t('modal.newChat.roomNamePlaceholder')}
                   helperText={errors.name}
                   error={!!errors.name}
                 />
@@ -269,7 +271,7 @@ const NewChatModal: React.FC = () => {
               )} */}
                 <Select
                   options={CHAT_TYPES}
-                  placeholder={'Select your language'}
+                  placeholder={t('modal.newChat.chatTypePlaceholder')}
                   onSelect={(type: ChatAccessOption) => setChatType(type)}
                   accentColor={config?.colors?.primary}
                   selectedValue={chatType}
@@ -283,20 +285,20 @@ const NewChatModal: React.FC = () => {
                   variant="outlined"
                   unstyled
                 >
-                  Add users
+                  {t('action.addUsers')}
                 </Button>
               )}
               <GroupContainer>
                 <Button
                   onClick={handleCloseModal}
-                  text={'Cancel'}
+                  text={t('action.cancel')}
                   style={{ width: '100%' }}
                   unstyled
                   variant="outlined"
                 />
                 <Button
                   onClick={handleCreateRoom}
-                  text={!loading ? 'Create' : undefined}
+                  text={!loading ? t('action.create') : undefined}
                   style={{ width: '100%' }}
                   variant="filled"
                   disabled={!isValid || loading}
@@ -310,7 +312,7 @@ const NewChatModal: React.FC = () => {
               <CloseButton onClick={handleCloseModal} style={{ fontSize: 24 }}>
                 &times;
               </CloseButton>
-              <ModalTitle>Select users to add to Chat</ModalTitle>
+              <ModalTitle>{t('modal.newChat.selectUsersTitle')}</ModalTitle>
               <GroupContainer
                 style={{
                   flexDirection: 'column',
@@ -337,7 +339,7 @@ const NewChatModal: React.FC = () => {
                 variant="outlined"
                 unstyled
               >
-                Back to creation
+                {t('action.backToCreation')}
               </Button>
             </ModalContainer>
           )}

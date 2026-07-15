@@ -19,6 +19,7 @@ import { debounce } from '../../helpers/debounce';
 import { StyledInput } from '../styled/StyledInputComponents/StyledInputComponents';
 import { useRoomState } from '../../hooks/useRoomState';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { useT } from '../../i18n/useT';
 
 interface UsersListProps {
   selectedUsers: RoomMember[];
@@ -37,6 +38,7 @@ const UsersList: React.FC<UsersListProps> = ({
 }) => {
   const { usersSet } = useRoomState();
   const { config } = useChatSettingState();
+  const t = useT();
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredUsers, setFilteredUsers] = useState<RoomMember[]>([]);
 
@@ -73,17 +75,17 @@ const UsersList: React.FC<UsersListProps> = ({
   return (
     <div style={{ maxHeight: '100px', ...style }}>
       {headerElement ? (
-        <ModalTitle>Select Users (max 20)</ModalTitle>
+        <ModalTitle>{t('modal.selectUsers.title')}</ModalTitle>
       ) : (
         <div style={{ fontSize: '14px', fontWeight: 600 }}>
-          Select Users (max 20)
+          {t('modal.selectUsers.title')}
         </div>
       )}
 
       <StyledInput
         $colorBg={config?.colors?.colorInput}
         type="text"
-        placeholder="Search users..."
+        placeholder={t('modal.selectUsers.searchPlaceholder')}
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
         style={{ width: '100%' }}
