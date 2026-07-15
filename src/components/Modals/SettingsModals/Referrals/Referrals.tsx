@@ -20,6 +20,7 @@ import InputWithLabel from '../../../styled/StyledInput';
 import { StyledInput } from '../../../styled/StyledInputComponents/StyledInputComponents';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../../../roomStore';
+import { useT } from '../../../../i18n/useT';
 
 interface ReferralsModalProps {
   handleCloseModal: any;
@@ -29,31 +30,32 @@ const ReferralsModal: React.FC<ReferralsModalProps> = ({
   handleCloseModal,
 }) => {
   const { config } = useSelector((state: RootState) => state.chatSettingStore);
+  const t = useT();
 
   return (
     <ModalContainerFullScreen>
       <ModalHeaderComponent
         handleCloseModal={handleCloseModal}
-        headerTitle={'Referrals'}
+        headerTitle={t('settings.referrals.title')}
       />
       <CenterContainer>
         <ReferalsIcon />
         <SharedSettingsStyledLabel style={{ display: 'block' }}>
-          Gift friends 25
+          {t('settings.referrals.giftPart1')}
           <SendCoinIcon style={{ width: '24px', height: '24px' }} />
-          and receive 25
+          {t('settings.referrals.giftPart2')}
           <SendCoinIcon style={{ width: '24px', height: '24px' }} />
           <span>.</span>
-          Send friends invite with your personal invitation code.
+          {t('settings.referrals.giftPart3')}
         </SharedSettingsStyledLabel>
         <SharedSettingsColumnContainer style={{ width: '100%' }}>
           <SharedSettingsStyledLabel>
-            Your invitation code
+            {t('settings.referrals.yourCode')}
           </SharedSettingsStyledLabel>
           <StyledInput
             color={config?.colors?.primary}
             $colorBg={config?.colors?.colorInput}
-            placeholder="Your invitation code"
+            placeholder={t('settings.referrals.yourCode')}
             // label={'About'}
             // value={message}
             // onChange={handleInputChange}
@@ -65,12 +67,12 @@ const ReferralsModal: React.FC<ReferralsModalProps> = ({
         </SharedSettingsColumnContainer>
         <SharedSettingsColumnContainer style={{ width: '100%' }}>
           <SharedSettingsStyledLabel>
-            Or enter your referral code to earn coins
+            {t('settings.referrals.enterReferralCode')}
           </SharedSettingsStyledLabel>
           <StyledInput
             color={config?.colors?.primary}
             $colorBg={config?.colors?.colorInput}
-            placeholder="Your referral code"
+            placeholder={t('field.referralCode')}
             // label={'About'}
             // value={message}
             // onChange={handleInputChange}

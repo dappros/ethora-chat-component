@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import styled, { keyframes } from 'styled-components';
+import { useT } from '../../i18n/useT';
 
 const rotateUp = keyframes`
   from {
@@ -98,6 +99,7 @@ const Select: React.FC<SelectProps> = ({
   accentColor,
   selectedValue,
 }) => {
+  const t = useT();
   const [isOpen, setIsOpen] = useState(false);
   const [selected, setSelected] = useState<{ name: string; id: string } | null>(
     selectedValue
@@ -159,7 +161,7 @@ const Select: React.FC<SelectProps> = ({
         <Dropdown>
           <SearchBox
             type="text"
-            placeholder="Search..."
+            placeholder={t('search.placeholder')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />

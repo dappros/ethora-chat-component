@@ -411,10 +411,10 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       </ChatContainerHeader>
       {isLeaveModalOpen && (
         <ModalWrapper
-          title="Leave Chat"
-          description="Are you sure you want to leave this chat?"
-          buttonText="Yes"
-          cancelText="No"
+          title={t('modal.leaveChat.title')}
+          description={t('modal.leaveChat.description')}
+          buttonText={t('action.yes')}
+          cancelText={t('action.no')}
           backgroundColorButton="#E53935"
           handleClick={handleConfirmLeave}
           handleCloseModal={handleCancelLeave}

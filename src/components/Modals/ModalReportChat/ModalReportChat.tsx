@@ -9,6 +9,7 @@ import { useDispatch } from 'react-redux';
 import { postReportRoom } from '../../../networking/api-requests/rooms.api.ts';
 import { useRoomState } from '../../../hooks/useRoomState.tsx';
 import Button from '../../styled/Button.tsx';
+import { useT } from '../../../i18n/useT';
 
 export const Report = styled.button`
   padding: 12px 16px;
@@ -19,19 +20,24 @@ export const Report = styled.button`
   background: transparent;
 `;
 
-const reportList: string[] = [
-  'Spam',
-  'Violence',
-  'Child Abuse',
-  'Pornography',
-  'Personal Details',
-  'Illegal Drugs',
+// `id` is what's sent to postReportRoom as `category` (an API contract, not
+// UI text) - keep it in English regardless of locale. `labelKey` is what
+// the reader sees.
+const REPORT_CATEGORIES: { id: string; labelKey: string }[] = [
+  { id: 'Spam', labelKey: 'report.category.spam' },
+  { id: 'Violence', labelKey: 'report.category.violence' },
+  { id: 'Child Abuse', labelKey: 'report.category.childAbuse' },
+  { id: 'Pornography', labelKey: 'report.category.pornography' },
+  { id: 'Personal Details', labelKey: 'report.category.personalDetails' },
+  { id: 'Illegal Drugs', labelKey: 'report.category.illegalDrugs' },
 ];
+const OTHER_CATEGORY = { id: 'Other', labelKey: 'report.category.other' };
 
 export const ModalReportChat: FC = () => {
   const { config } = useChatSettingState();
   const { activeRoomJID } = useRoomState();
   const dispatch = useDispatch();
+  const t = useT();
 
   const [message, setMessage] = useState('');
   const [reportChoose, setReportChoose] = useState({
@@ -58,15 +64,24 @@ export const ModalReportChat: FC = () => {
     });
   }, [activeRoomJID]);
 
+  const chosenLabel = () => {
+    const category = [...REPORT_CATEGORIES, OTHER_CATEGORY].find(
+      (c) => c.id === reportChoose.name
+    );
+    return category ? t(category.labelKey) : reportChoose.name;
+  };
+
   return (
     <ModalBox
-      title={reportChoose.name === 'Other' ? 'Report Message' : 'Report Chat'}
+      title={
+        reportChoose.name === 'Other'
+          ? t('modal.report.messageTitle')
+          : t('modal.report.chatTitle')
+      }
       handleCloseModal={handleCloseModal}
     >
       {reportChoose.name === 'Other' && (
-        <p style={{ margin: 0 }}>
-          Please enter additional details relevant to your report.
-        </p>
+        <p style={{ margin: 0 }}>{t('modal.report.otherDetails')}</p>
       )}
       <div style={{ width: '100%' }}>
         {reportChoose.isChoose ? (
@@ -88,26 +103,26 @@ export const ModalReportChat: FC = () => {
               <MessageInput
                 color={config?.colors?.primary}
                 $colorBg={config?.colors?.colorInput}
-                placeholder="Type message"
+                placeholder={t('input.placeholder')}
                 value={message}
                 onChange={handleInputChange}
                 // disabled={isLoading}
               />
             ) : (
-              <p style={{ margin: 0 }}>{reportChoose.name}</p>
+              <p style={{ margin: 0 }}>{chosenLabel()}</p>
             )}
           </div>
         ) : (
           <div>
-            {reportList.map((report: string) => (
-              <div key={report}>
+            {REPORT_CATEGORIES.map((category) => (
+              <div key={category.id}>
                 <Report
                   onClick={() => {
-                    setReportChoose({ name: report, isChoose: true });
+                    setReportChoose({ name: category.id, isChoose: true });
                   }}
                 >
                   <span style={{ display: 'flex', alignItems: 'flex-start' }}>
-                    {report}
+                    {t(category.labelKey)}
                   </span>
                 </Report>
                 <div style={{ padding: '8px 0' }}>
@@ -116,10 +131,12 @@ export const ModalReportChat: FC = () => {
               </div>
             ))}
             <Report
-              onClick={() => setReportChoose({ name: 'Other', isChoose: true })}
+              onClick={() =>
+                setReportChoose({ name: OTHER_CATEGORY.id, isChoose: true })
+              }
             >
               <span style={{ display: 'flex', alignItems: 'flex-start' }}>
-                Other
+                {t(OTHER_CATEGORY.labelKey)}
               </span>
             </Report>
           </div>
@@ -137,14 +154,14 @@ export const ModalReportChat: FC = () => {
         >
           <Button
             onClick={handleCloseModal}
-            text={'Cancel'}
+            text={t('action.cancel')}
             style={{ width: '100%' }}
             unstyled
             variant="outlined"
           />
           <Button
             onClick={handleReport}
-            text={'Report'}
+            text={t('action.report')}
             style={{ width: '100%', backgroundColor: 'red' }}
             unstyled
             variant="filled"
@@ -153,7 +170,7 @@ export const ModalReportChat: FC = () => {
       ) : (
         <Button
           onClick={handleCloseModal}
-          text={'Cancel'}
+          text={t('action.cancel')}
           style={{ width: '100%' }}
           unstyled
           variant="outlined"
