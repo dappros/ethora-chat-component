@@ -8,6 +8,7 @@ import { updateProfile } from '../../../networking/api-requests/user.api';
 import { useDispatch } from 'react-redux';
 import { updateUser } from '../../../roomStore/chatSettingsSlice';
 import { ethoraLogger } from '../../../helpers/ethoraLogger';
+import { useT } from '../../../i18n/useT';
 // import { actionUpdateUser } from '../actions';
 
 const base64ToFile = (base64String: string, fileName: string) => {
@@ -33,6 +34,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
   config,
 }) => {
   const dispatch = useDispatch();
+  const t = useT();
 
   const [firstName, setFirstName] = useState(modalUser?.firstName || '');
   const [lastName, setLastName] = useState(modalUser?.lastName || '');
@@ -90,7 +92,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
             onClick={() => setIsEditing(false)}
             style={{ padding: '13px 8px', width: '100%' }}
           >
-            Cancel
+            {t('action.cancel')}
           </Button>
         }
         rightMenu={
@@ -99,7 +101,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
             variant="outlined"
             style={{ width: '128px' }}
           >
-            Save
+            {t('action.save')}
           </Button>
         }
       />
@@ -128,8 +130,8 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
         <InputWithLabel
           color={config?.colors?.primary}
           colorBg={config?.colors?.colorInput}
-          placeholder="First Name"
-          label="First Name"
+          placeholder={t('field.firstName')}
+          label={t('field.firstName')}
           value={firstName}
           onChange={(e: { target: { value: any } }) =>
             setFirstName(e.target.value)
@@ -138,8 +140,8 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
         <InputWithLabel
           color={config?.colors?.primary}
           colorBg={config?.colors?.colorInput}
-          placeholder="Last Name"
-          label="Last Name"
+          placeholder={t('field.lastName')}
+          label={t('field.lastName')}
           value={lastName}
           onChange={(e: { target: { value: any } }) =>
             setLastName(e.target.value)
@@ -148,8 +150,8 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
         <InputWithLabel
           color={config?.colors?.primary}
           colorBg={config?.colors?.colorInput}
-          placeholder="About"
-          label="About"
+          placeholder={t('modal.profile.about')}
+          label={t('modal.profile.about')}
           value={description}
           onChange={(e: { target: { value: any } }) =>
             setDescription(e.target.value)

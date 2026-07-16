@@ -23,6 +23,7 @@ import {
   SharedSettingsInfoPanel,
   SharedSettingsInfoText,
 } from '../SharedStyledComponents';
+import { useT } from '../../../../i18n/useT';
 
 interface BlockedUsersModalProps {
   handleCloseModal: any;
@@ -32,26 +33,25 @@ const BlockedUsersModal: React.FC<BlockedUsersModalProps> = ({
   handleCloseModal,
 }) => {
   const { config } = useSelector((state: RootState) => state.chatSettingStore);
+  const t = useT();
 
   return (
     <ModalContainerFullScreen>
       <ModalHeaderComponent
         handleCloseModal={handleCloseModal}
-        headerTitle={'Blocke Users'}
+        headerTitle={t('settings.blockedUsers.title')}
       />
       <SharedSettingsSectionContainer>
         <SharedSettingsStyledLabel>
-          Current Document Shares
+          {t('settings.blockedUsers.label')}
         </SharedSettingsStyledLabel>
         <SharedSettingsLabelData>
-          Listed below are your currently active document sharing links. You can
-          share or delete them.
+          {t('settings.blockedUsers.description')}
         </SharedSettingsLabelData>
         <BorderedContainer>
           <SharedSettingsInfoPanel bgColor={config?.colors?.secondary}>
             <SharedSettingsInfoText>
-              There are no shares yet, or you can add them by clicking the “Add
-              New Share” button
+              {t('settings.blockedUsers.emptyState')}
             </SharedSettingsInfoText>
           </SharedSettingsInfoPanel>
         </BorderedContainer>

@@ -54,6 +54,7 @@ import { sendCallInviteSignal } from '../../../networking/callTokenStanza';
 import { useRoomState } from '../../../hooks/useRoomState';
 import { useAppDispatch } from '../../../hooks/hooks';
 import { logoutService } from '../../../hooks/useLogout';
+import { useT } from '../../../i18n/useT';
 
 interface UserProfileModalProps {
   handleCloseModal: any;
@@ -67,6 +68,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const { client } = useXmppClient();
   const { usersSet } = useRoomState();
   const { showToast } = useToast();
+  const t = useT();
 
   const { config, user, selectedUser, langSource } = useSelector(
     (state: RootState) => state.chatSettingStore
@@ -98,7 +100,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const menuOptions = useMemo(
     () => [
       {
-        label: 'Log Out',
+        label: t('action.logOut'),
         icon: <LeaveIcon />,
         onClick: () => {
           handleLogout();
@@ -106,7 +108,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
         styles: { color: 'red' },
       },
     ],
-    []
+    [handleLogout, t]
   );
 
   const handleSelect = (selected: { name: string; id: Iso639_1Codes }) => {
@@ -137,8 +139,8 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
         );
         showToast({
           id: Date.now().toString(),
-          title: 'Error',
-          message: 'Could not open the new private chat',
+          title: t('toast.error'),
+          message: t('toast.couldNotOpenPrivateChat'),
           type: 'error',
           duration: 4000,
         });
@@ -179,8 +181,8 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
       showToast({
         id: Date.now().toString(),
-        title: 'Success!',
-        message: 'Room created succusfully!',
+        title: t('toast.success'),
+        message: t('toast.roomCreatedSuccess'),
         type: 'success',
         duration: 3000,
       });
@@ -224,8 +226,8 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
       if (!targetUsername) {
         showToast({
           id: Date.now().toString(),
-          title: 'Error',
-          message: 'Could not resolve recipient',
+          title: t('toast.error'),
+          message: t('toast.couldNotResolveRecipient'),
           type: 'error',
           duration: 4000,
         });
@@ -245,8 +247,8 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
         console.error('postPrivateRoom failed:', e);
         showToast({
           id: Date.now().toString(),
-          title: 'Error',
-          message: e?.message || 'Failed to create private chat',
+          title: t('toast.error'),
+          message: e?.message || t('toast.failedToCreatePrivateChat'),
           type: 'error',
           duration: 4000,
         });
@@ -289,14 +291,14 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const handlePrivateMessage = useCallback(async () => {
     showToast({
       id: Date.now().toString(),
-      title: 'Room creation',
-      message: 'Room is being created...',
+      title: t('toast.roomCreationTitle'),
+      message: t('toast.roomCreating'),
       type: 'info',
       duration: 3000,
     });
     await ensurePrivateRoom();
     dispatch(setActiveModal());
-  }, [ensurePrivateRoom, dispatch, showToast]);
+  }, [ensurePrivateRoom, dispatch, showToast, t]);
 
   const handleCall = useCallback(
     async (kind: 'audio' | 'video') => {
@@ -330,11 +332,11 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
         await createChatCall(room.bareName, { kind });
       } catch (error) {
         const message =
-          error instanceof Error ? error.message : 'Failed to create call';
+          error instanceof Error ? error.message : t('toast.failedToCreateCall');
         dispatch(setCallError(message));
       }
     },
-    [ensurePrivateRoom, dispatch]
+    [ensurePrivateRoom, dispatch, t]
   );
 
   const modalUser: any = selectedUser ?? user;
@@ -350,7 +352,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
       <>
         <ModalHeaderComponent
           handleCloseModal={handleBackClick}
-          headerTitle={'Profile'}
+          headerTitle={t('modal.profile.title')}
           rightMenu={
             !selectedUser && (
               <>
@@ -384,7 +386,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
             <BorderedContainer>
               <Select
                 options={LANGUAGE_OPTIONS}
-                placeholder={'Select your language'}
+                placeholder={t('language.select')}
                 onSelect={handleSelect}
                 accentColor={config?.colors?.primary}
                 selectedValue={findLanguage()}
@@ -392,11 +394,11 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
             </BorderedContainer>
           )}
           <BorderedContainer>
-            <Label>About</Label>
+            <Label>{t('modal.profile.about')}</Label>
             <LabelData>
               {modalUser?.description && modalUser?.description?.length > 4
                 ? modalUser.description
-                : 'No description'}
+                : t('modal.profile.noDescription')}
             </LabelData>
           </BorderedContainer>
           {selectedUser &&
@@ -408,7 +410,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   onClick={handlePrivateMessage}
                   variant="filled"
                 >
-                  Message
+                  {t('action.message')}
                 </ActionButton>
                 {canCall && (
                   <ActionButton
@@ -417,7 +419,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     disabled={isCallBusy}
                     variant="filled"
                   >
-                    {isAudioCallsEnabled ? 'Video call' : 'Call'}
+                    {isAudioCallsEnabled ? t('action.videoCall') : t('action.call')}
                   </ActionButton>
                 )}
                 {isAudioCallsEnabled && (
@@ -427,14 +429,14 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     disabled={isCallBusy}
                     variant="filled"
                   >
-                    Audio call
+                    {t('action.audioCall')}
                   </ActionButton>
                 )}
                 <ActionButton
                   onClick={() => handleCopyClick(selectedUser.id)}
                   variant="filled"
                 >
-                  Copy User Id
+                  {t('action.copyUserId')}
                 </ActionButton>
               </>
             )}
@@ -452,6 +454,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
       selectedUser,
       user,
       config,
+      t,
     ]
   );
 

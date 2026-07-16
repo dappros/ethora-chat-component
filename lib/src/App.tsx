@@ -145,6 +145,18 @@ const ChatComponent = React.memo(() => {
         // calling it cross-origin directly.
         endpoint: '/translate-api/translate',
       },
+      i18n: {
+        // locale intentionally left unset: useT() falls back to the same
+        // langSource the globe-icon picker writes to when
+        // config.i18n.locale isn't set, so picking a language in the
+        // header changes static captions (Cancel/Add/Create/...) AND
+        // message translations together, as one switch. Set locale here
+        // explicitly if you want the host app to own UI language instead.
+        strings: {
+          // Uncomment to try a host override of a built-in caption:
+          // 'action.send': 'Go!',
+        },
+      },
     }),
     []
   );

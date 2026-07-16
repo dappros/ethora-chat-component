@@ -25,6 +25,7 @@ import { clearHeap } from '../roomStore/roomHeapSlice';
 import { ensureScopedChatCache } from '../helpers/cacheScope';
 import { ethoraLogger } from '../helpers/ethoraLogger';
 import { runHistoryPreloadScheduler } from '../helpers/historyPreloadScheduler';
+import { toBaseLanguage } from '../helpers/toBaseLanguage';
 
 interface useChatWrapperInitProps {
   roomJID: string | null | undefined;
@@ -55,6 +56,18 @@ export const resolveLegacyTranslatesLangSource = (
   translatesConfig?.enabled && translatesConfig?.translations
     ? translatesConfig.translations
     : undefined;
+
+// A host drives the reader's language from OUTSIDE the chat component by
+// setting config.translates.readerLocale (e.g. from their own app's
+// language switcher). Only ever resolves when it's actually set, so a host
+// that leaves it unset never overrides whatever the reader picked for
+// themselves via the in-chat picker (LanguageSelectorButton) - the same
+// "absence must not clobber a real choice" rule as the legacy resolver
+// above.
+export const resolveExternalReaderLocaleLangSource = (
+  readerLocale?: string
+): Iso639_1Codes | undefined =>
+  readerLocale ? toBaseLanguage(readerLocale) : undefined;
 
 const useChatWrapperInit = ({
   roomJID,
@@ -455,6 +468,28 @@ const useChatWrapperInit = ({
       return;
     }
   }, [activeRoomJID, dispatch, resolveRoomJid, roomJID]);
+
+  // Lets a host drive the reader's language from OUTSIDE the chat
+  // component: set config.translates.readerLocale from your own app (e.g.
+  // your own language switcher) and this syncs it into the same
+  // `langSource` the in-chat picker (LanguageSelectorButton) writes to -
+  // driving both what the reader sees translated into (Message.tsx reads
+  // readerLocale directly anyway) and the source language this reader
+  // declares on their own outgoing messages (useSendMessage/xmppClient
+  // read langSource, not readerLocale).
+  //
+  // Deliberately independent of the XMPP-init effect below (which only
+  // runs the legacy `translates.translations` seed once per connect) -
+  // this needs to re-fire on every readerLocale change even mid-session,
+  // not just at connect time. And it only ever dispatches when readerLocale
+  // is actually set, so a host that leaves it unset never overrides
+  // whatever the reader picked for themselves via the in-chat picker.
+  useEffect(() => {
+    const resolved = resolveExternalReaderLocaleLangSource(
+      config?.translates?.readerLocale
+    );
+    if (resolved) dispatch(setLangSource(resolved));
+  }, [config?.translates?.readerLocale, dispatch]);
 
   useEffect(() => {
     let retryTimeout: NodeJS.Timeout;

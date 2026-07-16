@@ -16,6 +16,7 @@ import { setUser } from '../../roomStore/chatSettingsSlice';
 import { useToast } from '../../context/ToastContext';
 import { VITE_APP_WEB_URL } from '../../config';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
+import { useT } from '../../i18n/useT';
 
 interface LoginFormProps {
   config?: IConfig;
@@ -24,6 +25,7 @@ interface LoginFormProps {
 const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
   const dispatch = useDispatch();
   const { showToast } = useToast();
+  const t = useT();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -35,11 +37,11 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
     let passwordError = '';
 
     if (!/\S+@\S+\.\S+/.test(email)) {
-      emailError = 'Invalid email format';
+      emailError = t('validation.invalidEmail');
     }
 
     if (password.length < 6) {
-      passwordError = 'Password must be at least 6 characters long';
+      passwordError = t('validation.passwordTooShort');
     }
 
     return { emailError, passwordError };
@@ -53,13 +55,13 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
       if (authData?.status === 401) {
         setErrors((prev) => ({
           ...prev,
-          password: 'You entered wrong data. Try again',
+          password: t('validation.wrongCredentials'),
         }));
         setIsLoading(false);
         showToast({
           id: 'error',
-          title: 'Login Failed',
-          message: 'Invalid credentials',
+          title: t('toast.loginFailedTitle'),
+          message: t('toast.invalidCredentials'),
           type: 'error',
         });
         return null;
@@ -73,21 +75,21 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
       dispatch(setUser(user));
       showToast({
         id: 'success',
-        title: 'Login Successful',
-        message: 'Welcome back!',
+        title: t('toast.loginSuccessfulTitle'),
+        message: t('toast.welcomeBack'),
         type: 'success',
       });
     } catch (error) {
       console.error('Login failed:', error);
       showToast({
         id: 'error',
-        title: 'Login Error',
-        message: 'An error occurred during login',
+        title: t('toast.loginErrorTitle'),
+        message: t('toast.loginErrorMessage'),
         type: 'error',
       });
     }
     setIsLoading(false);
-  }, [email, password, dispatch, showToast]);
+  }, [email, password, dispatch, showToast, t]);
 
   const handleGoogleLogin = async (e: { preventDefault: () => void }) => {
     setIsLoading(true);
@@ -173,7 +175,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
           <MessageInput
             type="email"
             value={email}
-            placeholder="Email"
+            placeholder={t('field.email')}
             autoComplete="email"
             data-testid="auth_email_input"
             onChange={(e) => setEmail(e.target.value)}
@@ -202,7 +204,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
           <MessageInput
             type="password"
             value={password}
-            placeholder="Password"
+            placeholder={t('field.password')}
             autoComplete="current-password"
             data-testid="auth_password_input"
             onChange={(e) => setPassword(e.target.value)}
@@ -221,7 +223,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
 
         <Button
           type="submit"
-          text={'Login to Ethora Chat'}
+          text={t('auth.loginButton')}
           data-testid="auth_submit_button"
           style={{
             width: '100%',
@@ -234,18 +236,18 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
         />
         {config?.googleLogin?.enabled && (
           <>
-            <Delimiter>or</Delimiter>
+            <Delimiter>{t('auth.orDelimiter')}</Delimiter>
             <Button
               onClick={handleGoogleLogin}
               style={{ width: '100%', height: '40px' }}
-              text={<>Login with Google</>}
+              text={<>{t('auth.loginWithGoogle')}</>}
               EndIcon={<GoogleIcon style={{ height: '24px' }} />}
               disabled={isLoading}
             />
           </>
         )}
         <div>
-          Don't have an account?{' '}
+          {t('auth.noAccount')}{' '}
           <div
             style={{
               textDecoration: 'underline',
@@ -264,7 +266,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
               }
             }}
           >
-            Sign Up to Ethora
+            {t('auth.signUp')}
           </div>
         </div>
       </Form>

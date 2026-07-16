@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import styled from 'styled-components';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
@@ -14,6 +15,23 @@ import {
   ModalTitle,
   CloseButton,
 } from '../Modals/styledModalComponents';
+
+// Reported bug: the backdrop only dimmed the chat column and left the
+// room-list sidebar untouched, with the modal card off-center as a result -
+// as if the fixed backdrop's containing block were ChatContainer rather
+// than the viewport. Isolated CSS repros of the suspected cause
+// (ChatContainer's `overflow: hidden`) did NOT reproduce that clipping -
+// plain `overflow: hidden` does not constrain a `position: fixed`
+// descendant - so the exact mechanism in the live app is unconfirmed.
+// Rendering via a portal to `document.body` sidesteps the entire ancestor
+// chain regardless of which property was actually responsible, which is
+// the standard fix for "this fixed overlay is somehow bounded by an
+// ancestor" - see the createPortal call below. z-index stays bumped as a
+// second guard against the unrelated stacking-order tie with RoomList's
+// burger-menu sidebar (also z-index: 1000).
+const LanguageModalBackground = styled(ModalBackground)`
+  z-index: 1300;
+`;
 
 const IconButton = styled.button`
   width: 40px;
@@ -32,10 +50,6 @@ const IconButton = styled.button`
   }
 `;
 
-// Reuses ModalContainer's existing responsive rules (full-width, tighter
-// padding under 480px) rather than a bespoke bottom sheet - one modal
-// pattern that already works on mobile across the app, instead of a second
-// one to maintain.
 const LanguageModalContainer = styled(ModalContainer)`
   align-items: stretch;
   padding: 24px;
@@ -55,7 +69,6 @@ const LanguageList = styled.div`
   overflow-y: auto;
 `;
 
-// Touch target sized for mobile (WCAG recommends >=44px).
 const LanguageRow = styled.button<{ $selected: boolean; $accent: string }>`
   display: flex;
   align-items: center;
@@ -82,16 +95,6 @@ const Checkmark = styled.span`
   line-height: 1;
 `;
 
-/**
- * Globe-icon button for the chat header that opens a language picker modal.
- * Picking a language dispatches `setLangSource`, which drives both:
- *  - the reader's translation target (Message.tsx falls back to it when
- *    `config.translates.readerLocale` / `config.i18n.locale` aren't set),
- *  - the source language declared on the reader's own outgoing messages.
- *
- * `langSource` lives in `chatSettingStore`, which redux-persist already
- * persists (see roomStore/index.ts) - no separate storage needed here.
- */
 export const LanguageSelectorButton: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const dispatch = useDispatch();
@@ -118,35 +121,38 @@ export const LanguageSelectorButton: React.FC = () => {
         <GlobeIcon />
       </IconButton>
 
-      {isOpen && (
-        <ModalBackground onClick={() => setIsOpen(false)}>
-          <LanguageModalContainer onClick={(e) => e.stopPropagation()}>
-            <CloseButton onClick={() => setIsOpen(false)} aria-label={t('action.cancel')}>
-              &times;
-            </CloseButton>
-            <ModalTitle>{t('language.select')}</ModalTitle>
-            <LanguageList role="listbox">
-              {LANGUAGE_OPTIONS.map((option) => {
-                const selected = option.id === langSource;
-                return (
-                  <LanguageRow
-                    key={option.id}
-                    type="button"
-                    role="option"
-                    aria-selected={selected}
-                    $selected={selected}
-                    $accent={accentColor}
-                    onClick={() => handleSelect(option.id as Iso639_1Codes)}
-                  >
-                    {option.name}
-                    {selected && <Checkmark aria-hidden="true">✓</Checkmark>}
-                  </LanguageRow>
-                );
-              })}
-            </LanguageList>
-          </LanguageModalContainer>
-        </ModalBackground>
-      )}
+      {isOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <LanguageModalBackground onClick={() => setIsOpen(false)}>
+            <LanguageModalContainer onClick={(e) => e.stopPropagation()}>
+              <CloseButton onClick={() => setIsOpen(false)} aria-label={t('action.cancel')}>
+                &times;
+              </CloseButton>
+              <ModalTitle>{t('language.select')}</ModalTitle>
+              <LanguageList role="listbox">
+                {LANGUAGE_OPTIONS.map((option) => {
+                  const selected = option.id === langSource;
+                  return (
+                    <LanguageRow
+                      key={option.id}
+                      type="button"
+                      role="option"
+                      aria-selected={selected}
+                      $selected={selected}
+                      $accent={accentColor}
+                      onClick={() => handleSelect(option.id as Iso639_1Codes)}
+                    >
+                      {option.name}
+                      {selected && <Checkmark aria-hidden="true">✓</Checkmark>}
+                    </LanguageRow>
+                  );
+                })}
+              </LanguageList>
+            </LanguageModalContainer>
+          </LanguageModalBackground>,
+          document.body
+        )}
     </>
   );
 };

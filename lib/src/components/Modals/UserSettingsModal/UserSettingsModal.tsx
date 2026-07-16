@@ -13,6 +13,7 @@ import Button from '../../styled/Button';
 import { useDispatch } from 'react-redux';
 import { setActiveModal } from '../../../roomStore/chatSettingsSlice';
 import { MODAL_TYPES } from '../../../helpers/constants/MODAL_TYPES';
+import { useT } from '../../../i18n/useT';
 
 interface UserSettingsModalProps {
   handleCloseModal: any;
@@ -21,16 +22,17 @@ interface UserSettingsModalProps {
 const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
   handleCloseModal,
 }) => {
+  const t = useT();
   const options = useMemo(
     () => [
-      { value: 'Manage Data', key: MODAL_TYPES.MANAGE_DATA },
-      { value: 'Visiblility', key: MODAL_TYPES.VISIBILITY },
-      // { value: 'Profile Shares', key: MODAL_TYPES.PROFILE_SHARES },
-      // { value: 'Document Shares', key: MODAL_TYPES.DOCUMENT_SHARES },
-      // { value: 'Blocked Users', key: MODAL_TYPES.BLOCKED_USERS },
-      // { value: 'Referrals', key: MODAL_TYPES.REFERRALS },
+      { value: t('settings.manageData.title'), key: MODAL_TYPES.MANAGE_DATA },
+      { value: t('settings.visibility.title'), key: MODAL_TYPES.VISIBILITY },
+      // { value: t('settings.profileShares.title'), key: MODAL_TYPES.PROFILE_SHARES },
+      // { value: t('settings.documentShares.title'), key: MODAL_TYPES.DOCUMENT_SHARES },
+      // { value: t('settings.blockedUsers.title'), key: MODAL_TYPES.BLOCKED_USERS },
+      // { value: t('settings.referrals.title'), key: MODAL_TYPES.REFERRALS },
     ],
-    []
+    [t]
   );
 
   const dispatch = useDispatch();
@@ -43,7 +45,7 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
     <ModalContainerFullScreen>
       <ModalHeaderComponent
         handleCloseModal={handleCloseModal}
-        headerTitle={'Settings'}
+        headerTitle={t('settings.menu.title')}
       />
       <CenterContainer
         style={{

@@ -170,6 +170,28 @@ export const getRoomActivityTimestamp = (room: IRoom): number =>
   room?.lastViewedTimestamp ||
   0;
 
+// Room fields that are pure server state, re-fetched on every load, and so
+// must never sit in the message cache - let alone compete with messages
+// for its budget.
+//
+// `members` is the one that actually broke things, and it broke them
+// badly. A 3.5k-member room serializes to ~840k chars: ~750x the rest of
+// the room object put together (measured: 838,473 of a room's 839,228).
+// Five such rooms = 4.2M chars of roster in a 1M budget, before a single
+// message is counted.
+//
+// That is what silently emptied the chat cache. optimizePersistedRooms'
+// last-resort eviction can only drop `messages` - so faced with a budget
+// blown by rosters, it dropped EVERY message in EVERY room, stayed ~4.2M
+// anyway, and wrote that: a multi-megabyte blob holding zero of the thing
+// the cache exists to hold. Reload then showed rooms with no history, and
+// the oversized write kept tripping the localStorage quota on top.
+//
+// Dropping it costs nothing: createRoomFromApi repopulates members from
+// /chats/my on every load (see loadRooms), and `usersCnt` - which the
+// header actually reads - is its own scalar field and is preserved below.
+const REFETCHED_ROOM_FIELDS = ['members'] as const;
+
 // What a persisted message is FOR: instantly painting a recent transcript
 // on reload before MAM catches up. That needs the fields the bubbles and
 // sidebar previews actually read - nothing else. Everything outside this
@@ -205,18 +227,30 @@ const PERSISTED_MESSAGE_FIELDS: (keyof IMessage)[] = [
   'callLog',
 ];
 
-// Optimistic sends spread the ENTIRE logged-in user into message.user
-// (see useSendMessage.tsx) - that can include auth material and always
-// includes fields the bubble never reads. Persist only what the UI uses.
-const PERSISTED_MESSAGE_USER_FIELDS = [
-  'id',
-  'name',
-  'firstName',
-  'lastName',
-  'profileImage',
-  'photoURL',
-  'xmppUsername',
-] as const;
+// The sender identity that rides along on every message over the wire
+// (senderFirstName / senderLastName / fullName / photo, which
+// createMessageFromXml folds into message.user) is NOT what the UI reads
+// back, and is not ours to cache: `usersSet` is the canonical store for
+// names and avatars, and enrichMessageAuthor / createUserNameFromSetUser
+// resolve through it on render - re-deriving the name every time usersSet
+// updates, which is exactly what keeps a renamed user from staying stale.
+//
+// Persisting a copy per message duplicated the same handful of identities
+// across every message of every room, and optimistic sends spread the
+// ENTIRE logged-in user into message.user (see useSendMessage.tsx) - auth
+// material included.
+//
+// Keep `id` (the key usersSet is looked up by) and `name` - and nothing
+// else. `name` earns its ~15 chars: broadcast/system senders ("Ethora")
+// never enter usersSet at all, so for those the message IS the only place
+// the name exists. Verified live: dropping it left every broadcast room's
+// sidebar preview showing a raw JID after a refresh.
+//
+// firstName/lastName/profileImage/photoURL/xmppUsername are the ones that
+// genuinely duplicate usersSet (and the avatar URLs are the bulky part) -
+// those go. Renderers prefer usersSet over the cached copy anyway, so a
+// renamed user still updates everywhere.
+const PERSISTED_MESSAGE_USER_FIELDS = ['id', 'name'] as const;
 
 const pickDefined = <T extends object>(
   source: T,
@@ -271,7 +305,19 @@ export const optimizePersistedRooms = (
         messages.length > MAX_MESSAGES_PER_ROOM
           ? messages.slice(-MAX_MESSAGES_PER_ROOM)
           : messages;
-      return [jid, { ...room, messages: tail.map(compactMessageForPersist) }];
+      const compactRoom = {
+        ...room,
+        // Keep the count the header actually reads before dropping the
+        // roster it was derived from.
+        usersCnt:
+          room?.usersCnt ??
+          (Array.isArray(room?.members) ? room.members.length : undefined),
+        messages: tail.map(compactMessageForPersist),
+      } as IRoom;
+      REFETCHED_ROOM_FIELDS.forEach((field) => {
+        delete (compactRoom as unknown as Record<string, unknown>)[field];
+      });
+      return [jid, compactRoom];
     });
 
   const sizes = compacted.map(([, room]) => JSON.stringify(room).length);
@@ -296,16 +342,60 @@ export const optimizePersistedRooms = (
 // Exported for the per-key regression tests - the whole reason the old
 // caps never worked is invisible without testing the transform through
 // redux-persist's actual per-key calling convention.
+// usersSet is keyed BY xmppUsername - `state.usersSet[user.xmppUsername]
+// = user` (roomsSlice insertUsers) - so persisting the field as well
+// stores the same ~49-char string twice per entry. Measured on a real
+// session: 234,799 of usersSet's 1,022,344 chars, i.e. 23% of the ENTIRE
+// persisted blob, is that one duplicated field.
+//
+// Dropping it is lossless precisely because the key IS the value: the
+// pair round-trips through restoreUsersSetForRehydrate below with every
+// field value preserved (verified against a real 3,483-entry set: zero
+// value differences). Only the key ORDER shifts - xmppUsername comes back
+// last - which no consumer can observe, since they all read fields by
+// name.
+export const compactUsersSetForPersist = (
+  usersSet: Record<string, any>
+): Record<string, any> => {
+  if (!usersSet || typeof usersSet !== 'object') return {};
+  return Object.fromEntries(
+    Object.entries(usersSet).map(([xmppUsername, user]) => {
+      if (!user || typeof user !== 'object') return [xmppUsername, user];
+      const { xmppUsername: _duplicate, ...rest } = user as Record<string, any>;
+      return [xmppUsername, rest];
+    })
+  );
+};
+
+/** Puts back what compactUsersSetForPersist folded into the key. */
+export const restoreUsersSetForRehydrate = (
+  usersSet: Record<string, any>
+): Record<string, any> => {
+  if (!usersSet || typeof usersSet !== 'object') return {};
+  return Object.fromEntries(
+    Object.entries(usersSet).map(([xmppUsername, user]) => {
+      if (!user || typeof user !== 'object') return [xmppUsername, user];
+      return [xmppUsername, { ...(user as object), xmppUsername }];
+    })
+  );
+};
+
 export const limitMessagesTransform = createTransform<
   any,
   any,
   Record<string, any>,
   Record<string, any>
 >(
-  (inboundState, key) =>
-    key === 'rooms' ? optimizePersistedRooms(inboundState) : inboundState,
-  (outboundState, key) =>
-    key === 'rooms' ? sanitizeRoomsMap(outboundState) : outboundState
+  (inboundState, key) => {
+    if (key === 'rooms') return optimizePersistedRooms(inboundState);
+    if (key === 'usersSet') return compactUsersSetForPersist(inboundState);
+    return inboundState;
+  },
+  (outboundState, key) => {
+    if (key === 'rooms') return sanitizeRoomsMap(outboundState);
+    if (key === 'usersSet') return restoreUsersSetForRehydrate(outboundState);
+    return outboundState;
+  }
 );
 
 const encryptor = encryptTransform({
@@ -366,7 +456,26 @@ const roomsPersistConfig = {
   key: 'roomMessages',
   storage,
   throttle: PERSIST_THROTTLE_MS,
-  blacklist: ['editAction', 'activeRoomJID', 'loadingText', 'isChatUiVisible'],
+  blacklist: [
+    'editAction',
+    'activeRoomJID',
+    'loadingText',
+    'isChatUiVisible',
+    // Live-only state. Restoring these isn't just wasted bytes, it's
+    // restoring something known to be FALSE:
+    //  - presenceByRoom is who is online *right now*; it's re-established
+    //    from presence stanzas on connect, so a rehydrated copy paints
+    //    green dots and "N online" for people who left hours ago, until
+    //    the real presences land.
+    //  - isLoading / loadingText describe a request that died with the
+    //    previous page; persisting `true` restores a spinner nothing will
+    //    ever resolve.
+    //  - reportRoom is open/closed modal state - a reload should never
+    //    reopen a report dialog by itself.
+    'presenceByRoom',
+    'isLoading',
+    'reportRoom',
+  ],
   transforms: [sanitizeRoomsStateTransform, limitMessagesTransform, encryptor],
 };
 

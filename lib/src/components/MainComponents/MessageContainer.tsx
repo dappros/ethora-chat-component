@@ -10,6 +10,8 @@ import {
   UserName,
 } from '../styled/StyledComponents';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
+import { useT } from '../../i18n/useT';
+import { formatCallLogLabel } from '../../helpers/callLogMessage';
 
 interface MessageContainerProps {
   CustomMessage?: React.ComponentType<{
@@ -38,6 +40,7 @@ export const MessageContainer: FC<MessageContainerProps> = ({
   className,
 }) => {
   const { CustomDaySeparator, CustomNewMessageLabel } = useCustomComponents();
+  const t = useT();
   const isUser = message.user.id === xmppUsername;
 
   const messageDate = new Date(message.date);
@@ -83,7 +86,17 @@ export const MessageContainer: FC<MessageContainerProps> = ({
     return (
       <Fragment key={message.id}>
         {renderDaySeparator()}
-        <SystemMessage messageText={message.body} colors={config?.colors} />
+        <SystemMessage
+          // Call logs carry their facts in `callLog` meta; the sentence is
+          // rebuilt here so it follows the current language instead of
+          // being frozen in whatever was active when the stanza landed.
+          messageText={
+            message.callLog
+              ? formatCallLogLabel(message.callLog, t, message.body)
+              : message.body
+          }
+          colors={config?.colors}
+        />
       </Fragment>
     );
   }

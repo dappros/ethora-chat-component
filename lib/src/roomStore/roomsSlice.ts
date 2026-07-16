@@ -10,7 +10,10 @@ import {
 } from '../types/types';
 import { insertMessageWithDelimiter } from '../helpers/insertMessageWithDelimiter';
 import XmppClient from '../networking/xmppClient';
-import { createUserNameFromSetUser } from '../helpers/createUserNameFromSetUser';
+import {
+  createUserNameFromSetUser,
+  resolveSenderDisplayName,
+} from '../helpers/createUserNameFromSetUser';
 import { extractUniqueMembersFromRooms } from '../helpers/extractUniqueMembersFromRooms';
 import { getTimestampFromUnknown } from '../helpers/timestamp';
 
@@ -238,53 +241,13 @@ const compareMessageOrder = (a: IMessage, b: IMessage): number => {
 const enrichMessageAuthor = (
   message: IMessage,
   usersSet: Record<string, RoomMember>
-): IMessage => {
-  const rawUserId = String(message?.user?.id || '');
-  const localUserId = rawUserId.split('@')[0];
-  const currentNameRaw = String(message?.user?.name || '').trim();
-  // Treat a previously-set "Deleted User" as unresolved. Without this, a message
-  // that got "Deleted User" on first render (because usersSet + <data> metadata
-  // weren't available yet) would KEEP that name forever even after insertUsers
-  // populates usersSet - `currentName || ...` short-circuits on the truthy
-  // "Deleted User" string. Now we skip past it and let downstream sources
-  // (in-message identity, usersSet) produce the real name.
-  const currentName = currentNameRaw === 'Deleted User' ? '' : currentNameRaw;
-
-  // Identity carried in the message <data> stanza by the sending client (regular users
-  // and now AI Agent bots). Spread by createMessageFromXml onto the top-level message
-  // object, so available here as message.fullName / senderFirstName / senderLastName.
-  // Honor that BEFORE falling through to createUserNameFromSetUser, which returns the
-  // literal "Deleted User" string when usersSet has no entry for the sender. Without
-  // this the chat shows "Deleted User" for any sender (e.g. fresh bot, batch broadcast)
-  // not yet in the locally cached usersSet.
-  const dataFullName = String((message as any)?.fullName || '').trim();
-  const dataFirst = String((message as any)?.senderFirstName || '').trim();
-  const dataLast = String((message as any)?.senderLastName || '').trim();
-  const composedFromData =
-    dataFullName ||
-    `${dataFirst} ${dataLast}`.trim() ||
-    '';
-
-  const usersSetName = createUserNameFromSetUser(usersSet, localUserId);
-  const usersSetNameAlt = createUserNameFromSetUser(usersSet, rawUserId);
-  const isUsersSetUseful = (n: string) => n && n !== 'Deleted User';
-
-  const resolvedName =
-    currentName ||
-    (isUsersSetUseful(usersSetName) && usersSetName) ||
-    (isUsersSetUseful(usersSetNameAlt) && usersSetNameAlt) ||
-    composedFromData ||
-    localUserId ||
-    rawUserId;
-
-  return {
-    ...message,
-    user: {
-      ...message.user,
-      name: resolvedName,
-    },
-  };
-};
+): IMessage => ({
+  ...message,
+  user: {
+    ...message.user,
+    name: resolveSenderDisplayName(message, usersSet),
+  },
+});
 
 const mergeRoomMessages = (
   existing: IMessage[],

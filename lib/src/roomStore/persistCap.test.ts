@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   optimizePersistedRooms,
+  compactUsersSetForPersist,
+  restoreUsersSetForRehydrate,
   compactMessageForPersist,
   getRoomActivityTimestamp,
   limitMessagesTransform,
@@ -70,6 +72,9 @@ describe('compactMessageForPersist', () => {
     expect(compact.locationPreview).toBe('https://cdn.example.com/a-thumb.png');
     expect(compact.isMediafile).toBe('true');
     expect(compact.langSource).toBe('en');
+    // id + name only. usersSet is the canonical name/avatar store and
+    // renderers prefer it, but `name` is the sole home for broadcast /
+    // system senders ("Ethora"), which never enter usersSet.
     expect(compact.user).toEqual({ id: 'someone', name: 'Someone' });
   });
 
@@ -134,7 +139,30 @@ describe('compactMessageForPersist', () => {
     expect(compact.user.refreshToken).toBeUndefined();
     expect(compact.user.walletAddress).toBeUndefined();
     expect(compact.user.id).toBe('me');
-    expect(compact.user.profileImage).toBe('https://cdn.example.com/me.png');
+    // The avatar URL is re-resolved from usersSet - it's the bulky part
+    // of the per-message identity copy.
+    expect(compact.user.profileImage).toBeUndefined();
+  });
+
+  // This whitelist is easy to "helpfully" widen later. The wire identity
+  // is duplicated across every message of every room, and the avatar URLs
+  // are the bulky part of it - usersSet already holds all of it.
+  it('persists only id + name - no avatar/xmppUsername copy per message', () => {
+    const compact = compactMessageForPersist(
+      makeMessage('m1', {
+        user: {
+          id: 'me',
+          name: 'Me',
+          firstName: 'Me',
+          lastName: 'Myself',
+          profileImage: 'https://cdn.example.com/me.png',
+          photoURL: 'https://cdn.example.com/me.png',
+          xmppUsername: 'me',
+        } as any,
+      })
+    );
+
+    expect(Object.keys(compact.user as object).sort()).toEqual(['id', 'name']);
   });
 });
 
@@ -249,10 +277,17 @@ describe('persist transforms - per-key calling convention', () => {
     expect(persisted.usersSet).toBeUndefined();
   });
 
-  it('limitMessagesTransform leaves other keys (e.g. usersSet) untouched', () => {
-    const usersSet = { alice: { xmppUsername: 'alice', firstName: 'Alice' } };
+  it('limitMessagesTransform leaves keys it has no business touching alone', () => {
+    // usersSet is deliberately NOT in this list any more - it now goes
+    // through the xmppUsername de-dup (see its own describe block).
+    const subscribed = ['r1@conf'];
 
-    expect(limitMessagesTransform.in(usersSet, 'usersSet', {} as any)).toBe(usersSet);
+    expect(
+      limitMessagesTransform.in(subscribed, 'subscribedRooms', {} as any)
+    ).toBe(subscribed);
+    expect(
+      limitMessagesTransform.in('anything', 'pushSubscriptionStatus', {} as any)
+    ).toBe('anything');
   });
 
   it('sanitizeRoomsStateTransform drops legacy leaked slice keys from the rooms map on rehydrate', () => {
@@ -298,6 +333,198 @@ describe('persist transforms - per-key calling convention', () => {
     expect(
       scrubSensitiveChatStateTransform.in('en', 'langSource', {} as any)
     ).toBe('en');
+  });
+});
+
+// Reproduces the shape measured in a real user's localStorage: rooms
+// whose `members` roster (3478 entries, ~838k chars) dwarfs everything
+// else by ~750x. The eviction pass can only drop `messages`, so a budget
+// blown by ROSTERS made it throw away every message in every room, still
+// land ~4.2M, and persist a multi-megabyte blob containing zero of the
+// thing the cache exists for. Reload then showed rooms with no history
+// ("empty chats") and the oversized write kept tripping the quota.
+describe('a member roster must never squeeze the message cache out', () => {
+  const makeRoster = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      _id: `id${i}`,
+      xmppUsername: `appid_user${i}`,
+      firstName: `First${i}`,
+      lastName: `Last${i}`,
+      profileImage: `https://cdn.example.com/u${i}.png`,
+      role: 'participant',
+      ban_status: 'none',
+      last_active: 1700000000,
+    })) as any;
+
+  const makeRoomsWithHugeRosters = () => {
+    const roster = makeRoster(3478);
+    const rooms: Record<string, IRoom> = {};
+    for (let r = 0; r < 5; r++) {
+      rooms[`room${r}@conference.example.com`] = makeRoom(
+        `room${r}@conference.example.com`,
+        {
+          lastMessageTimestamp: 1700000000 + r,
+          usersCnt: 3478,
+          members: roster,
+          messages: Array.from({ length: 60 }, (_, m) =>
+            makeMessage(`m${r}-${m}`, { body: 'hello world '.repeat(8) })
+          ),
+        } as any
+      );
+    }
+    return rooms;
+  };
+
+  it('keeps every message even when rosters blow the budget many times over', () => {
+    const rooms = makeRoomsWithHugeRosters();
+    // Sanity: the input really is the pathological shape (~3.8M).
+    expect(JSON.stringify(rooms).length).toBeGreaterThan(
+      PERSISTED_ROOMS_CHAR_BUDGET * 3
+    );
+
+    const persisted = optimizePersistedRooms(rooms);
+
+    const totalMessages = Object.values(persisted).reduce(
+      (sum, room) => sum + room.messages.length,
+      0
+    );
+    // The whole point: 5 rooms x 60 messages all survive. The old code
+    // shelled them to 0 and STILL blew the budget.
+    expect(totalMessages).toBe(300);
+  });
+
+  it('drops the roster itself - the thing that was actually over budget', () => {
+    const persisted = optimizePersistedRooms(makeRoomsWithHugeRosters());
+
+    Object.values(persisted).forEach((room) => {
+      expect('members' in room).toBe(false);
+    });
+    expect(JSON.stringify(persisted).length).toBeLessThanOrEqual(
+      PERSISTED_ROOMS_CHAR_BUDGET
+    );
+  });
+
+  it('preserves usersCnt, so the header still shows the real member count', () => {
+    const persisted = optimizePersistedRooms(makeRoomsWithHugeRosters());
+
+    Object.values(persisted).forEach((room) => {
+      expect(room.usersCnt).toBe(3478);
+    });
+  });
+
+  it('derives usersCnt from the roster when the room has no explicit count', () => {
+    const rooms: Record<string, IRoom> = {
+      'r@conf': makeRoom('r@conf', {
+        usersCnt: undefined,
+        members: makeRoster(7),
+        messages: [],
+      } as any),
+    };
+
+    expect(optimizePersistedRooms(rooms)['r@conf'].usersCnt).toBe(7);
+  });
+});
+
+// usersSet is the OTHER refetched pile that outgrew the cache it lives
+// in: measured on a real session it was 1,022,344 chars for 3,483 users -
+// 95% of the entire persisted blob - while the messages it exists to
+// annotate were 5%. 23% of the whole blob was one field duplicated per
+// entry, because usersSet is keyed BY xmppUsername.
+describe('usersSet xmppUsername de-duplication', () => {
+  const usersSet = {
+    appid_alice: {
+      _id: 'a1',
+      xmppUsername: 'appid_alice',
+      firstName: 'Alice',
+      lastName: 'Doe',
+      profileImage: 'https://cdn.example.com/a.png',
+    },
+    appid_bob: {
+      _id: 'b1',
+      xmppUsername: 'appid_bob',
+      firstName: 'Bob',
+      lastName: 'Roe',
+    },
+  } as any;
+
+  it('drops the field that is already the key', () => {
+    const compact = compactUsersSetForPersist(usersSet);
+
+    expect('xmppUsername' in compact.appid_alice).toBe(false);
+    expect('xmppUsername' in compact.appid_bob).toBe(false);
+    // Everything else is untouched.
+    expect(compact.appid_alice.firstName).toBe('Alice');
+    expect(compact.appid_alice.profileImage).toBe('https://cdn.example.com/a.png');
+  });
+
+  // The whole safety argument for dropping it: the key IS the value, so
+  // every field value must survive the round trip. (Key ORDER shifts -
+  // xmppUsername returns last - which is why this asserts deep equality,
+  // not a stringified compare.) If this ever fails, the optimization is
+  // silently corrupting user identities.
+  it('round-trips without losing a single field value', () => {
+    const restored = restoreUsersSetForRehydrate(
+      compactUsersSetForPersist(usersSet)
+    );
+
+    expect(restored).toEqual(usersSet);
+  });
+
+  it('rebuilds xmppUsername from the key on the way back in', () => {
+    const restored = restoreUsersSetForRehydrate({
+      appid_carol: { _id: 'c1', firstName: 'Carol' },
+    } as any);
+
+    expect(restored.appid_carol.xmppUsername).toBe('appid_carol');
+  });
+
+  it('measurably shrinks a realistic set', () => {
+    const many: Record<string, any> = {};
+    for (let i = 0; i < 500; i++) {
+      const jid = `646cc8dc96d4a4dc8f7b2f2d_646cc8d396d4a4dc8f7b2f${i}`;
+      many[jid] = {
+        _id: `id${i}`,
+        xmppUsername: jid,
+        firstName: `First${i}`,
+        lastName: `Last${i}`,
+        profileImage: `https://files.chat.ethora.com/files/${i}.jpg`,
+      };
+    }
+
+    const before = JSON.stringify(many).length;
+    const after = JSON.stringify(compactUsersSetForPersist(many)).length;
+
+    // ~49 chars x 500 entries of pure duplication.
+    expect(before - after).toBeGreaterThan(500 * 40);
+    expect(restoreUsersSetForRehydrate(compactUsersSetForPersist(many))).toEqual(many);
+  });
+
+  it('survives junk without throwing', () => {
+    expect(compactUsersSetForPersist(null as any)).toEqual({});
+    expect(restoreUsersSetForRehydrate(undefined as any)).toEqual({});
+    expect(compactUsersSetForPersist({ a: null } as any)).toEqual({ a: null });
+  });
+});
+
+// The transform is what redux-persist actually calls - a helper that
+// works in isolation but isn't wired to the right key is exactly the bug
+// class that let the caps sit dormant for months.
+describe('limitMessagesTransform wires usersSet through the de-dup', () => {
+  const usersSet = {
+    appid_alice: { _id: 'a1', xmppUsername: 'appid_alice', firstName: 'Alice' },
+  } as any;
+
+  it('strips on the way out and restores on the way back in', () => {
+    const stored = limitMessagesTransform.in(usersSet, 'usersSet', {} as any);
+    expect('xmppUsername' in stored.appid_alice).toBe(false);
+
+    const rehydrated = limitMessagesTransform.out(stored, 'usersSet', {} as any);
+    expect(rehydrated).toEqual(usersSet);
+  });
+
+  it('leaves unrelated keys alone', () => {
+    expect(limitMessagesTransform.in('x', 'subscribedRooms', {} as any)).toBe('x');
+    expect(limitMessagesTransform.out('x', 'reportRoom', {} as any)).toBe('x');
   });
 });
 

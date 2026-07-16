@@ -48,21 +48,29 @@ interface TranslatedMessageBodyProps {
   accentColor?: string;
   /** Renders the translated text (markdown pipeline, mentions, etc). */
   children: ReactNode;
+  /**
+   * Whether this message was sent by the current user. The sender already
+   * knows what they wrote, so their own messages skip the quote-plus-
+   * translation treatment and just show the original text.
+   */
+  isUser: boolean;
 }
 
 /**
  * A message body that is showing a translation: the translated text reads
- * as the primary content, with the original quoted above it for reference.
+ * as the primary content, with the original quoted above it for reference
+ * - skipped for the current user's own messages (see `isUser`).
  */
 export const TranslatedMessageBody: React.FC<TranslatedMessageBodyProps> = ({
   originalText,
   accentColor = '#0052CD',
   children,
+  isUser
 }) => {
   return (
     <Wrapper>
-      <OriginalQuote $accent={accentColor}>{originalText}</OriginalQuote>
-      <TranslatedText>{children}</TranslatedText>
+      {!isUser && <OriginalQuote $accent={accentColor}>{originalText}</OriginalQuote>}
+      <TranslatedText>{isUser ? originalText : children}</TranslatedText>
     </Wrapper>
   );
 };

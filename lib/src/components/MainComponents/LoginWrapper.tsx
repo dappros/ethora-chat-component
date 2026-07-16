@@ -45,6 +45,25 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
 
   const { user } = useSelector((state: RootState) => state.chatSettingStore);
 
+  // Restoring a stored session is async (a /users/my round trip, ~800ms).
+  // Without this the render gate below - which needs `xmppPassword` to
+  // mount ChatWrapper - has nothing to show meanwhile except <LoginForm>,
+  // so a refresh FLASHED the login screen at an already-logged-in user
+  // before snapping to the chat.
+  //
+  // Start true only when there is genuinely something to restore, so a
+  // real logged-out visitor still gets the login form immediately instead
+  // of a pointless spinner. Computed once, at mount: this is about the
+  // session on disk, which nothing in this render pass changes.
+  const [isRestoringSession, setIsRestoringSession] = useState<boolean>(() => {
+    try {
+      const stored = getStoredUser(props.config?.appId) as User | null;
+      return Boolean(stored && hasStoredSensitiveSession(stored));
+    } catch {
+      return false;
+    }
+  });
+
   const loginUserFunction = useCallback(async () => {
     if (!props?.user?.email || !props?.user?.password) {
       return null;
@@ -73,20 +92,37 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
         setBaseURL(config.baseUrl, config.customAppToken);
       }
 
-      // Short-circuit ONLY when the current redux user already matches what
-      // config asks for (or config doesn't ask for anything specific).
-      // The previous "any user wins" behavior broke multi-tenant scenarios
-      // like the Ethora App Switcher: when an admin switches from base-app
-      // to a child-app context, the parent component remounts the chat
-      // tree with a new userLogin.user (the per-app gateway user), but
-      // the redux store still holds the previous user from the previous
-      // context. Without this check we'd skip the dispatch and the
-      // chat-component would keep using the old user's JID against the
-      // new app's rooms, which mod_ethora rejects with "wrong app name"
-      // (because the JID prefix doesn't match the room JID prefix).
+      // Short-circuit ONLY when the current redux user is actually USABLE
+      // and matches what config asks for (or config doesn't ask for
+      // anything specific).
+      //
+      // `xmppPassword` is the thing that makes a rehydrated user usable:
+      // it's what LoginWrapper's own render gate below requires before it
+      // will mount <ChatWrapper>, and what XmppClient needs to connect.
+      // Checking it here (not just `xmppUsername`) is what makes a page
+      // refresh restore the session instead of showing the login form:
+      // scrubSensitiveChatStateTransform deliberately strips token /
+      // xmppPassword out of persist:chatSettingStore (auth material must
+      // not sit in localStorage), so after rehydrate redux holds a user
+      // with a real xmppUsername but an EMPTY xmppPassword. The old
+      // `user.xmppUsername && ...` guard treated that husk as "already
+      // logged in" and returned early - so the restore paths below
+      // (getStoredUser() -> the intact session in
+      // @ethora/chat-component-user-session) never ran, and the render
+      // gate then fell through to <LoginForm> because xmppPassword === ''.
+      // Every refresh looked like a logout even though the stored session
+      // was perfectly good.
+      //
+      // The multi-tenant guard this replaces is preserved: when config
+      // asks for a specific user (Ethora App Switcher hopping between
+      // app contexts), we still refuse to short-circuit unless the redux
+      // user IS that user - otherwise we'd keep the previous context's
+      // JID against the new app's rooms and mod_ethora would reject it
+      // with "wrong app name".
       const wantedUsername = config?.userLogin?.user?.xmppUsername || '';
+      const hasUsableSession = Boolean(user.xmppUsername && user.xmppPassword);
       if (
-        user.xmppUsername &&
+        hasUsableSession &&
         (!wantedUsername || user.xmppUsername === wantedUsername)
       ) {
         return;
@@ -183,12 +219,23 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
       }
     };
 
-    void initUser();
+    // Whatever initUser decides - restored, gave up, or short-circuited
+    // because the session was already usable - the restore attempt is
+    // over, so the gate below must stop waiting. In a `finally` so a
+    // thrown path can't strand the UI on a spinner forever.
+    void initUser().finally(() => {
+      if (!cancelled) setIsRestoringSession(false);
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [config, dispatch, loginUserFunction, user.xmppUsername]);
+    // `user.xmppPassword` belongs here alongside xmppUsername: the
+    // short-circuit above now keys off BOTH (a rehydrated user has a
+    // username but no password - see the comment there). Without the
+    // password in deps, this effect wouldn't re-evaluate when a restore
+    // path fills it in, and a genuinely-needed re-login could be skipped.
+  }, [config, dispatch, loginUserFunction, user.xmppUsername, user.xmppPassword]);
 
   return (
     <>
@@ -209,7 +256,7 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
         (!config?.userLogin?.user?.xmppUsername ||
           user.xmppUsername === config.userLogin.user.xmppUsername) ? (
         <ChatWrapper {...props} />
-      ) : config?.jwtLogin?.enabled ? (
+      ) : isRestoringSession || config?.jwtLogin?.enabled ? (
         <StyledLoaderWrapper
           style={{ alignItems: 'center', flexDirection: 'column', gap: '10px' }}
         >

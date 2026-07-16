@@ -3,6 +3,7 @@ import { SendIcon } from '../../assets/icons';
 import { IConfig } from '../../types/types';
 import Button from '../styled/Button';
 import { MessageInput } from '../styled/StyledInputComponents/StyledInputComponents';
+import { useT } from '../../i18n/useT';
 
 interface TextInputProps {
   message: string;
@@ -23,6 +24,7 @@ const TextInput: React.FC<TextInputProps> = ({
   onFocus,
   onBlur,
 }) => {
+  const t = useT();
   const handleInputChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       setMessage(event.target.value);
@@ -44,7 +46,7 @@ const TextInput: React.FC<TextInputProps> = ({
       <MessageInput
         color={config?.colors?.primary}
         $colorBg={config?.colors?.colorInput}
-        placeholder="Type message"
+        placeholder={t('input.placeholder')}
         value={message}
         onChange={handleInputChange}
         onKeyDown={handleKeyDown}

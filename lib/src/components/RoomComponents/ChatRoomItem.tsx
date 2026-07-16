@@ -17,6 +17,9 @@ import { useRoomPresence } from '../../hooks/useRoomPresence';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { useT } from '../../i18n/useT';
 import OnlineUsersPopover from './OnlineUsersPopover';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../roomStore';
+import { formatCallLogLabel } from '../../helpers/callLogMessage';
 
 interface ChatRoomItemProps {
   chat: IRoom;
@@ -54,20 +57,52 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
   // anything there.
   const showOnlineUsersPopover = !isPrivateRoom && onlineUsers.length > 0;
 
-  const withAuthorFallback = useCallback((message?: IMessage): IMessage | undefined => {
-    if (!message) return message;
-    const rawUserId = String(message?.user?.id || '');
-    const fallbackName = rawUserId.split('@')[0] || rawUserId || 'Unknown';
-    const safeName = String(message?.user?.name || '').trim() || fallbackName;
+  // usersSet is the canonical name store - the same one Message.tsx
+  // resolves sender names through. The preview must go through it too:
+  // a message restored from the persist cache carries only `user.id` (the
+  // wire identity isn't cached - see PERSISTED_MESSAGE_USER_FIELDS), so
+  // reading `user.name` alone left this line showing a raw JID after every
+  // refresh.
+  const usersSet = useSelector((state: RootState) => state.rooms.usersSet);
 
-    return {
-      ...message,
-      user: {
-        ...message.user,
-        name: safeName,
-      },
-    };
-  }, []);
+  const withAuthorFallback = useCallback(
+    (message?: IMessage): IMessage | undefined => {
+      if (!message) return message;
+      const rawUserId = String(message?.user?.id || '');
+      const localId = rawUserId.split('@')[0];
+      const entry = usersSet?.[localId] ?? usersSet?.[rawUserId];
+      const fromUsersSet = entry
+        ? `${entry.firstName ?? ''} ${entry.lastName ?? ''}`.trim()
+        : '';
+
+      // usersSet first, exactly like Message.tsx: it's the live store, so
+      // a renamed user updates here too instead of showing whatever name
+      // was cached with the message. The message's own `name` is the
+      // fallback that carries broadcast/system senders ("Ethora"), which
+      // never appear in usersSet.
+      const safeName =
+        fromUsersSet ||
+        String(message?.user?.name || '').trim() ||
+        localId ||
+        rawUserId ||
+        'Unknown';
+
+      return {
+        ...message,
+        // Call logs bake an English sentence into `body` when the stanza
+        // arrives; rebuild from the meta so the preview follows the
+        // current language like the transcript does.
+        body: message.callLog
+          ? formatCallLogLabel(message.callLog, t, message.body)
+          : message.body,
+        user: {
+          ...message.user,
+          name: safeName,
+        },
+      };
+    },
+    [usersSet, t]
+  );
 
   const lastRawMessage = chat?.messages?.[(chat?.messages?.length ?? 0) - 1];
   const lastMessage = useMemo(

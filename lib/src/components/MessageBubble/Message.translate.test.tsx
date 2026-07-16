@@ -68,10 +68,13 @@ describe('Message - auto-translate quote + primary text', () => {
     expect(container.textContent).toContain('hello');
   });
 
-  it('also shows the translation on the sender\'s own message (no !isUser restriction)', () => {
-    const { getByText } = renderMessage(makeMessage(), true, autoConfig);
+  // The sender already knows what they wrote - showing them a translated
+  // quote of their own message is noise, not useful confirmation.
+  it('shows the sender their own message in plain text, with no translation quote', () => {
+    const { getByText, queryByText } = renderMessage(makeMessage(), true, autoConfig);
 
-    expect(getByText('olá')).toBeTruthy();
+    expect(getByText('hello')).toBeTruthy();
+    expect(queryByText('olá')).toBeNull();
   });
 
   it('shows no quote and just the plain body when the message is already in the reader language', () => {

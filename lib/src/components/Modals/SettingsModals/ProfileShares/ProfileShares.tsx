@@ -23,6 +23,7 @@ import {
   SharedSettingsSectionContainer,
   SharedSettingsStyledLabel,
 } from '../SharedStyledComponents';
+import { useT } from '../../../../i18n/useT';
 
 interface ProfileSharesModalProps {
   handleCloseModal: any;
@@ -32,27 +33,26 @@ const ProfileSharesModal: React.FC<ProfileSharesModalProps> = ({
   handleCloseModal,
 }) => {
   const { config } = useSelector((state: RootState) => state.chatSettingStore);
+  const t = useT();
 
   return (
     <ModalContainerFullScreen>
       <ModalHeaderComponent
         handleCloseModal={handleCloseModal}
-        headerTitle={'Profile Shares'}
+        headerTitle={t('settings.profileShares.title')}
       />
       <CenterContainer>
         <SharedSettingsSectionContainer>
           <SharedSettingsStyledLabel>
-            Current Profile Shares
+            {t('settings.profileShares.currentShares')}
           </SharedSettingsStyledLabel>
           <SharedSettingsLabelData>
-            Listed below are your currently active profile sharing links. You
-            can share or delete them.
+            {t('settings.profileShares.description')}
           </SharedSettingsLabelData>
           <BorderedContainer>
             <SharedSettingsInfoPanel bgColor={config?.colors?.secondary}>
               <SharedSettingsInfoText>
-                There are no shares yet, or you can add them by clicking the
-                “Add New Share” button
+                {t('settings.documentShares.emptyState')}
               </SharedSettingsInfoText>
             </SharedSettingsInfoPanel>
           </BorderedContainer>

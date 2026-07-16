@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { store } from '../../roomStore';
+import { toBaseLanguage } from '../../helpers/toBaseLanguage';
 
 export interface TranslateEntry {
   /** the reader's locale, verbatim (e.g. "fr-CA") - used as the lookup key */
@@ -51,9 +52,6 @@ let translateEndpointMissing = false;
 export const resetTranslateEndpointAvailabilityForTests = () => {
   translateEndpointMissing = false;
 };
-
-const toBaseLanguage = (locale: string): string =>
-  String(locale || '').split('-')[0].toLowerCase();
 
 export const fetchMessageTranslations = async (
   text: string,

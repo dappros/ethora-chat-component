@@ -32,6 +32,7 @@ import {
 import { SearchInput } from '../../../InputComponents/Search';
 import Button from '../../../styled/Button';
 import DropdownMenu from '../../../SortDropDown';
+import { useT } from '../../../../i18n/useT';
 
 interface DocumentSharesModalProps {
   handleCloseModal: any;
@@ -41,22 +42,22 @@ const DocumentSharesModal: React.FC<DocumentSharesModalProps> = ({
   handleCloseModal,
 }) => {
   const { config } = useSelector((state: RootState) => state.chatSettingStore);
+  const t = useT();
 
   return (
     <ModalContainerFullScreen>
       <ModalHeaderComponent
         handleCloseModal={handleCloseModal}
-        headerTitle={'Document Shares'}
+        headerTitle={t('settings.documentShares.title')}
       />
       <CenterContainer>
         <SharedSettingsColumnContainer>
           <SharedSettingsSectionContainer>
             <SharedSettingsStyledLabel>
-              Current Document Shares
+              {t('settings.documentShares.currentShares')}
             </SharedSettingsStyledLabel>
             <SharedSettingsLabelData>
-              Listed below are your currently active document sharing links. You
-              can share or delete them.
+              {t('settings.documentShares.description')}
             </SharedSettingsLabelData>
             <BorderedContainer>
               <div
@@ -68,7 +69,7 @@ const DocumentSharesModal: React.FC<DocumentSharesModalProps> = ({
                   alignItems: 'center',
                 }}
               >
-                <div>List of shares</div>
+                <div>{t('settings.shares.listOfShares')}</div>
                 <div style={{ display: 'flex', flexDirection: 'row' }}>
                   <div>
                     <SearchInput
@@ -84,7 +85,7 @@ const DocumentSharesModal: React.FC<DocumentSharesModalProps> = ({
                         throw new Error('Function not implemented.');
                       }}
                       icon={''}
-                      values={['Name', 'Surname']}
+                      values={[t('sort.name'), t('sort.surname')]}
                     />
                   </div>
                   <Button
@@ -92,14 +93,13 @@ const DocumentSharesModal: React.FC<DocumentSharesModalProps> = ({
                     StartIcon={<PlusIcon />}
                     style={{ width: '100%' }}
                   >
-                    Add New Share
+                    {t('action.addNewShare')}
                   </Button>
                 </div>
               </div>
               <SharedSettingsInfoPanel bgColor={config?.colors?.secondary}>
                 <SharedSettingsInfoText>
-                  There are no shares yet, or you can add them by clicking the
-                  “Add New Share” button
+                  {t('settings.documentShares.emptyState')}
                 </SharedSettingsInfoText>
               </SharedSettingsInfoPanel>
             </BorderedContainer>

@@ -325,7 +325,7 @@ const SendInput: React.FC<SendInputProps> = ({
               >
                 <TextareaInput
                   ref={textareaRef}
-                  placeholder="Type message"
+                  placeholder={placeholderText || t('input.placeholder')}
                   value={message}
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
