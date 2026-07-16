@@ -49,11 +49,11 @@ describe('LanguageSelectorButton', () => {
   });
 
   it('marks the currently selected language', () => {
-    renderButton('pt');
+    renderButton('fr');
 
     openPicker();
 
-    const selectedRow = screen.getByRole('option', { name: /Portuguese/i });
+    const selectedRow = screen.getByRole('option', { name: /Français/i });
     expect(selectedRow.getAttribute('aria-selected')).toBe('true');
 
     const otherRow = screen.getByRole('option', { name: /^English/i });
@@ -64,9 +64,9 @@ describe('LanguageSelectorButton', () => {
     const { store } = renderButton('en');
 
     openPicker();
-    fireEvent.click(screen.getByRole('option', { name: /Portuguese/i }));
+    fireEvent.click(screen.getByRole('option', { name: /Français/i }));
 
-    expect(store.getState().chatSettingStore.langSource).toBe('pt');
+    expect(store.getState().chatSettingStore.langSource).toBe('fr');
     expect(screen.queryByRole('listbox')).toBeNull();
   });
 
