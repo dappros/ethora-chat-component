@@ -543,6 +543,7 @@ const roomsStore = createSlice({
         state.rooms[roomJID].messages.map((message) => {
           if (message.id === messageId) {
             message.body = text;
+            message.isEdited = true;
           }
         });
       }
