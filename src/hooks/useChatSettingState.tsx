@@ -21,6 +21,9 @@ export const useChatSettingState = () => {
   const langSource = useSelector(
     (state: RootState) => state.chatSettingStore.langSource
   );
+  const translateSendEnabled = useSelector(
+    (state: RootState) => state.chatSettingStore.translateSendEnabled
+  );
 
   return {
     user,
@@ -30,5 +33,6 @@ export const useChatSettingState = () => {
     deleteModal,
     selectedUser,
     langSource,
+    translateSendEnabled,
   };
 };

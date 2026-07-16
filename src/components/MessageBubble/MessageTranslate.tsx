@@ -28,10 +28,14 @@ const TranslateLink = styled.span<{ $color?: string }>`
 type Phase = 'idle' | 'loading' | 'done' | 'error';
 
 /**
- * On-demand message translation (LinkedIn-style). Renders a "Translate" link
- * under an incoming message; on click it calls `config.translates.onTranslate`
- * (host endpoint) - or falls back to a server-provided translation already on
- * the message - and shows the result inline with a "Show original" toggle.
+ * Manual-mode message translation (LinkedIn-style). Renders a "Translate"
+ * link under an incoming message; on click it calls
+ * `config.translates.onTranslate` (host-provided) - or, when the host
+ * doesn't supply one, reads whatever translation already arrived attached
+ * to the stanza (`message.translations`) - and shows the result inline
+ * with a "Show original" toggle. No default translation service is called
+ * here; a message with nothing attached and no host `onTranslate` simply
+ * has nothing to reveal (see `translation.failed`).
  *
  * Visibility: `config.translates.showTranslateForMessage(message)` if the host
  * supplies it (they keep the locale logic and just tell us yes/no); otherwise

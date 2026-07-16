@@ -11,14 +11,6 @@ import CustomScrollableArea from './examples/customComponents/CustomScrollableAr
 import CustomDaySeparator from './examples/customComponents/CustomDaySeparator';
 import CustomMessageBubble from './examples/customComponents/CustomMessageBubble';
 import { ethoraLogger } from './helpers/ethoraLogger';
-import { LANGUAGE_OPTIONS } from './helpers/constants/LANGUAGE_OPTIONS';
-
-// The reader's language is picked in the chat header itself now (the
-// globe icon - see LanguageSelectorButton), which dispatches
-// setLangSource directly. Message.tsx falls back to that redux value
-// whenever config.translates.readerLocale/i18n.locale aren't set, so the
-// demo intentionally leaves both unset here and lets the header drive it.
-const TRANSLATE_LANGUAGE_CODES = LANGUAGE_OPTIONS.map((l) => l.id);
 
 const LIVEKIT_URL =
   (((import.meta as unknown as { env?: Record<string, string | undefined> }).env) || {})
@@ -138,12 +130,10 @@ const ChatComponent = React.memo(() => {
       useStoreConsoleEnabled: true,
       translates: {
         enabled: true,
-        mode: 'auto',
-        targets: TRANSLATE_LANGUAGE_CODES,
-        // Same-origin Vite dev proxy (see vite.config.ts) - the translate
-        // service doesn't send CORS headers yet, so the browser blocks
-        // calling it cross-origin directly.
-        endpoint: '/translate-api/translate',
+        // 'manual' (LinkedIn-style "Translate" link, click to reveal) so it
+        // can be tested by hand instead of auto-showing. Switch to 'auto'
+        // to have translations appear inline automatically.
+        mode: 'manual',
       },
       i18n: {
         // locale intentionally left unset: useT() falls back to the same

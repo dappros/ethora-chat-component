@@ -26,6 +26,19 @@
         "--strictPort"
       ],
       "port": 5174
+    },
+    {
+      "name": "chat-c",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5176",
+        "--strictPort"
+      ],
+      "port": 5176
     }
   ]
 }

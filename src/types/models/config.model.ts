@@ -234,31 +234,17 @@ export interface IConfig {
     enabled: boolean;
     translations?: Iso639_1Codes;
     /**
-     * 'auto' shows the translation inline automatically (legacy behaviour).
-     * 'on-demand' shows a "Translate" link the reader clicks (LinkedIn-style),
-     * then renders the result inline with a "Show original" toggle. Default 'auto'.
-     */
-    mode?: 'auto' | 'on-demand';
-    /**
-     * Locales a message is pre-translated into BEFORE it is sent (e.g.
-     * ["en-CA", "fr-CA", "es-US"]). The sender calls the translation service
-     * (see `endpoint`) and embeds the result in the stanza as
-     * `<translations value='...'/>`, so every recipient receives the message
-     * already translated and renders it with the existing parser - no
-     * ejabberd module needed.
+     * 'auto' shows the translation inline automatically. 'manual' shows a
+     * "Translate" link the reader clicks (LinkedIn-style), then renders the
+     * result inline with a "Show original" toggle. Default 'auto'.
      *
-     * Keep this to the locales actually present in the room: every extra target
-     * is one more translation shipped per message. Leave empty to disable
-     * pre-translation (the on-demand `onTranslate` path still works).
+     * Neither mode calls any translation service - both only ever display
+     * `message.translations`, whatever arrived attached to the stanza (see
+     * `readerLocale` below for how a message gets translated in the first
+     * place). This is purely a display choice: show it immediately, or let
+     * the reader ask for it.
      */
-    targets?: string[];
-    /**
-     * Translation service URL for pre-translation (GET ?source=&text=,
-     * responding `{translates:[{translatedText, language, languageName}]}`).
-     * Defaults to Ethora's hosted service; point it at your own deployment
-     * for self-hosted setups.
-     */
-    endpoint?: string;
+    mode?: 'auto' | 'manual';
     /**
      * Reader's full locale (BCP-47, e.g. "fr-CA"). Falls back to
      * `config.i18n.locale`. The region is passed through to `onTranslate` so
@@ -283,10 +269,19 @@ export interface IConfig {
      */
     showLanguageSelector?: boolean;
     /**
-     * Host-provided translation function. When set, the Translate action calls
-     * this - wire it to your own endpoint (or Google / OpenAI). When omitted,
-     * the component falls back to server-provided translations parsed onto the
-     * message (`message.translations`).
+     * Shows/hides the list of selectable languages INSIDE the picker
+     * (English/Español/...). Defaults to true. Set to false to keep only
+     * the enable/disable-translates toggle - for hosts that drive the
+     * reader's language externally via `readerLocale` and don't want a
+     * second, redundant language list, but still want the reader to control
+     * whether their own outgoing messages get tagged for translation.
+     */
+    showLanguageList?: boolean;
+    /**
+     * Host-provided translation function. When set, the manual Translate
+     * action calls this - wire it to your own service - instead of reading
+     * `message.translations`. Optional; omit to use only what already
+     * arrived over XMPP.
      */
     onTranslate?: (
       text: string,

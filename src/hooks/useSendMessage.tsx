@@ -13,6 +13,20 @@ import { scheduleAckCatchup } from '../helpers/scheduleAckCatchup';
 
 const DEFAULT_TIMEOUT_MS = 300000;
 
+// Whether THIS reader's outgoing messages get tagged with
+// `<translate source="xx"/>` (sendTextMessageWithTranslateTag) instead of
+// going out as a plain, untagged send. Two layers: the host must have the
+// feature enabled at all (config.translates.enabled - a build-time
+// decision), AND the reader must not have opted out via the
+// language-selector toggle (translateSendEnabled - a runtime one).
+// `undefined` means the reader never touched the toggle, which reads as
+// opted-in so existing hosts see no behaviour change until someone
+// explicitly turns it off.
+export const shouldTagOutgoingTranslateSource = (
+  translatesEnabled: boolean | undefined,
+  translateSendEnabled: boolean | undefined
+): boolean => !!translatesEnabled && translateSendEnabled !== false;
+
 interface BlockingConfig {
   enabled: boolean;
   timeout: number;
@@ -20,7 +34,7 @@ interface BlockingConfig {
 }
 
 export const useSendMessage = () => {
-  const { config, langSource } = useChatSettingState();
+  const { config, langSource, translateSendEnabled } = useChatSettingState();
   const { client } = useXmppClient();
   const dispatch = useDispatch();
   const { handleMessageSent, handleMessageFailed } = useEventHandlers(config);
@@ -296,7 +310,12 @@ export const useSendMessage = () => {
         return;
       } else {
         try {
-          if (config?.translates?.enabled) {
+          if (
+            shouldTagOutgoingTranslateSource(
+              config?.translates?.enabled,
+              translateSendEnabled
+            )
+          ) {
             const id = `send-translate-message-${uuidv4()}`;
             const optimisticTimestamp = Date.now();
             const optimisticDate = new Date(optimisticTimestamp).toISOString();

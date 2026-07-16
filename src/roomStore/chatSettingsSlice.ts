@@ -24,6 +24,21 @@ interface ChatState {
   selectedUser?: IUser;
   activeFile?: ModalFile;
   langSource?: Iso639_1Codes;
+  /**
+   * Whether THIS reader's own outgoing messages get tagged with
+   * `<translate source="xx"/>` (see sendTextMessageWithTranslateTag) so
+   * translations can be generated for them. Defaults to true so existing
+   * hosts that already set `config.translates.enabled` see no change
+   * until a reader explicitly opts out via the language-selector toggle.
+   *
+   * Turning this off does NOT untag anything already sent - a message
+   * ships with whatever tag was active at send time, permanently. Turning
+   * it back on only affects messages sent from that point forward. Same
+   * asymmetry the other direction: turning it on doesn't retroactively
+   * tag old messages either - see the disclaimer surfaced next to the
+   * toggle in LanguageSelectorModal.
+   */
+  translateSendEnabled?: boolean;
 }
 
 const unpackAndTransform = (input?: User): User => {
@@ -146,6 +161,9 @@ const chatSlice = createSlice({
     ) => {
       state.langSource = action.payload;
     },
+    setTranslateSendEnabled: (state, action: PayloadAction<boolean>) => {
+      state.translateSendEnabled = action.payload;
+    },
     refreshTokens: (
       state,
       action: PayloadAction<{ token: string; refreshToken: string }>
@@ -173,6 +191,7 @@ export const {
   updateUser,
   setActiveFile,
   setLangSource,
+  setTranslateSendEnabled,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

@@ -100,14 +100,14 @@ describe('Message - auto-translate quote + primary text', () => {
     expect(queryByText('olá')).toBeNull();
   });
 
-  it('does not restructure the body in on-demand mode (untouched by this change)', () => {
+  it('does not restructure the body in manual mode (untouched by this change)', () => {
     const { getByText, queryByText } = renderMessage(makeMessage(), false, {
       enabled: true,
-      mode: 'on-demand',
+      mode: 'manual',
       readerLocale: 'pt',
     });
 
-    // Plain original body shown; the "Translate" link (on-demand) handles
+    // Plain original body shown; the "Translate" link (manual mode) handles
     // the rest via its own click-to-reveal flow, untouched here.
     expect(getByText('hello')).toBeTruthy();
     expect(queryByText('olá')).toBeNull();

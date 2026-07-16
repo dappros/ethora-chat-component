@@ -17,6 +17,24 @@ const renderButton = (langSource?: string, container?: HTMLElement) => {
   return { ...utils, store: storeRef.current };
 };
 
+const renderWithTranslates = (
+  translates: Record<string, unknown>,
+  translateSendEnabled?: boolean
+) => {
+  const storeRef: { current: any } = { current: null };
+  const utils = renderWithProviders(<LanguageSelectorButton />, {
+    preloadedState: {
+      chatSettingStore: {
+        langSource: 'en',
+        translateSendEnabled,
+        config: { translates },
+      } as any,
+    },
+    storeRef,
+  });
+  return { ...utils, store: storeRef.current };
+};
+
 // The globe's own aria-label goes through t('language.select'), so it is
 // NOT English once the selected language has a table. Looking it up by the
 // English name used to "work" only because pt/ht/zh had no translations
@@ -117,5 +135,67 @@ describe('LanguageSelectorButton', () => {
     expect(document.body.contains(modal)).toBe(true);
 
     clippingAncestor.remove();
+  });
+});
+
+// The enable/disable-translates toggle: lets a reader opt in/out of their
+// OWN outgoing messages being tagged for translation, independent of
+// which reader-language is selected in the list below it.
+describe('LanguageSelectorButton - translate toggle', () => {
+  it('does not render the toggle when the host has not enabled translates', () => {
+    renderButton();
+
+    openPicker();
+
+    expect(screen.queryByRole('button', { name: /aria-pressed/i })).toBeNull();
+    expect(screen.queryByText(/translate my messages/i)).toBeNull();
+  });
+
+  it('shows the toggle ON by default - undefined reads as opted-in', () => {
+    renderWithTranslates({ enabled: true }, undefined);
+
+    openPicker();
+
+    const toggle = screen.getByRole('button', { name: '', pressed: true }) as HTMLElement;
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('shows the disclaimer next to the toggle', () => {
+    renderWithTranslates({ enabled: true });
+
+    openPicker();
+
+    expect(
+      screen.getByText(/only new messages sent from now on will be translated/i)
+    ).toBeTruthy();
+  });
+
+  it('dispatches setTranslateSendEnabled(false) on click, without closing the modal', () => {
+    const { store } = renderWithTranslates({ enabled: true }, true);
+
+    openPicker();
+    fireEvent.click(screen.getByRole('button', { name: '', pressed: true }));
+
+    expect(store.getState().chatSettingStore.translateSendEnabled).toBe(false);
+    // Toggling translate-sending isn't "pick a language and close" - the
+    // reader may want to flip it back or also pick a language next.
+    expect(screen.queryByRole('listbox')).toBeTruthy();
+  });
+
+  it('hides the language list when showLanguageList is false, keeping only the toggle', () => {
+    renderWithTranslates({ enabled: true, showLanguageList: false });
+
+    openPicker();
+
+    expect(screen.queryByRole('listbox')).toBeNull();
+    expect(screen.getByText(/translate my messages/i)).toBeTruthy();
+  });
+
+  it('shows the language list by default when showLanguageList is unset', () => {
+    renderWithTranslates({ enabled: true });
+
+    openPicker();
+
+    expect(screen.queryByRole('listbox')).toBeTruthy();
   });
 });

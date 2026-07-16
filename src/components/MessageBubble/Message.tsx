@@ -37,6 +37,14 @@ import { useMessageHeapState } from '../../hooks/useMessageHeapState';
 import { parseMessageReference } from '../../helpers/parseMessageReference';
 import { useMessageTranslation } from '../../hooks/useMessageTranslation';
 import TranslatedMessageBody from './TranslatedMessageBody';
+import { useT } from '../../i18n/useT';
+import styled from 'styled-components';
+
+// Inherits CustomMessageTimestamp's colour/size - just the WhatsApp/
+// Telegram-style italic to read as a tag, not a second timestamp.
+const EditedLabel = styled.span`
+  font-style: italic;
+`;
 
 const firstUrlRegex =
   /(https?:\/\/[\w.-]+(?:\.[\w.-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=.]+)/;
@@ -46,13 +54,14 @@ const Message: React.FC<MessageProps> = forwardRef<
   MessageProps
 >(({ message, isUser, isReply }, ref) => {
   const { client } = useXmppClient();
+  const t = useT();
   const { user, config, langSource } = useChatSettingState();
   const { idSet } = useMessageHeapState();
   const interactionsDisabled = Boolean(config?.disableInteractions);
   const profilesDisabled = Boolean(config?.disableProfilesInteractions);
 
   const isAutoTranslate =
-    !!config?.translates?.enabled && config?.translates?.mode !== 'on-demand';
+    !!config?.translates?.enabled && config?.translates?.mode !== 'manual';
   const readerLocale =
     config?.translates?.readerLocale || config?.i18n?.locale || langSource;
   const translationDisplay = useMessageTranslation(
@@ -331,7 +340,7 @@ const Message: React.FC<MessageProps> = forwardRef<
             </CustomMessageText>
           )}
 
-          {!isUser && config?.translates?.enabled && config?.translates?.mode === 'on-demand' && (
+          {!isUser && config?.translates?.enabled && config?.translates?.mode === 'manual' && (
             <MessageTranslate
               message={message}
               config={config}
@@ -340,6 +349,9 @@ const Message: React.FC<MessageProps> = forwardRef<
           )}
           <CustomMessageTimestamp>
             {!config?.disableSentLogic && isUser && isPending && 'sending...'}
+            {message.isEdited && !message.isDeleted && (
+              <EditedLabel>{t('message.edited')}</EditedLabel>
+            )}
             {new Date(message.date).toLocaleTimeString([], {
               hour: '2-digit',
               minute: '2-digit',
