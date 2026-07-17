@@ -19,7 +19,8 @@ const renderButton = (langSource?: string, container?: HTMLElement) => {
 
 const renderWithTranslates = (
   translates: Record<string, unknown>,
-  translateSendEnabled?: boolean
+  translateSendEnabled?: boolean,
+  translateMode?: 'auto' | 'manual'
 ) => {
   const storeRef: { current: any } = { current: null };
   const utils = renderWithProviders(<LanguageSelectorButton />, {
@@ -27,6 +28,7 @@ const renderWithTranslates = (
       chatSettingStore: {
         langSource: 'en',
         translateSendEnabled,
+        translateMode,
         config: { translates },
       } as any,
     },
@@ -197,5 +199,69 @@ describe('LanguageSelectorButton - translate toggle', () => {
     openPicker();
 
     expect(screen.queryByRole('listbox')).toBeTruthy();
+  });
+});
+
+// The auto/manual switcher: lets a reader pick how translations DISPLAY
+// (shown inline automatically, or behind a click), independent of the
+// send-tagging toggle above it and of which reader-language is selected.
+describe('LanguageSelectorButton - translate mode switcher', () => {
+  it('does not render when the host has not enabled translates', () => {
+    renderButton();
+
+    openPicker();
+
+    expect(screen.queryByRole('radiogroup')).toBeNull();
+  });
+
+  it('renders Auto and Manual options, defaulting to the host mode (auto)', () => {
+    renderWithTranslates({ enabled: true, mode: 'auto' });
+
+    openPicker();
+
+    const group = screen.getByRole('radiogroup');
+    const auto = within(group).getByRole('radio', { name: /auto/i });
+    const manual = within(group).getByRole('radio', { name: /manual/i });
+    expect(auto.getAttribute('aria-checked')).toBe('true');
+    expect(manual.getAttribute('aria-checked')).toBe('false');
+  });
+
+  it("reflects the host's manual default when the reader hasn't picked", () => {
+    renderWithTranslates({ enabled: true, mode: 'manual' });
+
+    openPicker();
+
+    const manual = screen.getByRole('radio', { name: /manual/i });
+    expect(manual.getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('dispatches setTranslateMode on click and reflects the reader pick over the host default', () => {
+    const { store } = renderWithTranslates({ enabled: true, mode: 'auto' });
+
+    openPicker();
+    fireEvent.click(screen.getByRole('radio', { name: /manual/i }));
+
+    expect(store.getState().chatSettingStore.translateMode).toBe('manual');
+  });
+
+  it('a prior reader pick shows as selected on open', () => {
+    renderWithTranslates({ enabled: true, mode: 'auto' }, undefined, 'manual');
+
+    openPicker();
+
+    const manual = screen.getByRole('radio', { name: /manual/i });
+    expect(manual.getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('does not render at all when the host set forceType: true, even with a prior reader pick', () => {
+    renderWithTranslates(
+      { enabled: true, mode: 'auto', forceType: true },
+      undefined,
+      'manual'
+    );
+
+    openPicker();
+
+    expect(screen.queryByRole('radiogroup')).toBeNull();
   });
 });

@@ -6,12 +6,17 @@ import { RootState } from '../../roomStore';
 import {
   setLangSource,
   setTranslateSendEnabled,
+  setTranslateMode,
 } from '../../roomStore/chatSettingsSlice';
 import { GlobeIcon } from '../../assets/icons';
 import { LANGUAGE_OPTIONS } from '../../helpers/constants/LANGUAGE_OPTIONS';
 import { Iso639_1Codes } from '../../types/models/language.model';
 import { useT } from '../../i18n/useT';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
+import {
+  canReaderChooseTranslateMode,
+  resolveTranslateMode,
+} from '../../utils/translateModePolicy';
 import Switch from './Switch';
 import {
   ModalBackground,
@@ -125,11 +130,34 @@ const Divider = styled.div`
   margin: 4px 0;
 `;
 
+const ModeSwitchRow = styled.div`
+  display: flex;
+  gap: 8px;
+  padding: 0 14px 4px;
+`;
+
+const ModeButton = styled.button<{ $selected: boolean; $accent: string }>`
+  flex: 1;
+  padding: 8px 0;
+  border-radius: 8px;
+  border: 1px solid
+    ${({ $selected, $accent }) => ($selected ? $accent : 'rgba(0, 0, 0, 0.12)')};
+  background: ${({ $selected, $accent }) => ($selected ? `${$accent}1a` : 'transparent')};
+  color: ${({ $selected, $accent }) => ($selected ? $accent : '#141414')};
+  font-size: 14px;
+  font-weight: ${({ $selected }) => ($selected ? 600 : 400)};
+  cursor: pointer;
+
+  &:hover {
+    background: ${({ $selected, $accent }) => ($selected ? `${$accent}1a` : 'rgba(0, 0, 0, 0.04)')};
+  }
+`;
+
 export const LanguageSelectorButton: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const dispatch = useDispatch();
   const t = useT();
-  const { config, translateSendEnabled } = useChatSettingState();
+  const { config, translateSendEnabled, translateMode } = useChatSettingState();
   const langSource = useSelector(
     (state: RootState) => state.chatSettingStore.langSource
   );
@@ -139,6 +167,10 @@ export const LanguageSelectorButton: React.FC = () => {
   // send-path default in useSendMessage, so the switch shows the state
   // that's actually in effect rather than defaulting to a misleading "off".
   const sendEnabled = translateSendEnabled !== false;
+  // false whenever the host pinned config.translates.forceType: true - the
+  // switcher below must not render at all in that case, not just be inert.
+  const canChooseMode = canReaderChooseTranslateMode(config?.translates);
+  const effectiveMode = resolveTranslateMode(config?.translates, translateMode);
   // Default true: hosts that don't set this keep the language list they
   // already have. Set to false to keep only the enable/disable toggle -
   // for hosts driving the reader's language externally via readerLocale.
@@ -186,6 +218,30 @@ export const LanguageSelectorButton: React.FC = () => {
                   <TranslateDisclaimer>
                     {t('translation.enableToggleDisclaimer')}
                   </TranslateDisclaimer>
+                  {canChooseMode && (
+                    <ModeSwitchRow role="radiogroup" aria-label={t('translation.modeLabel')}>
+                      <ModeButton
+                        type="button"
+                        role="radio"
+                        aria-checked={effectiveMode === 'auto'}
+                        $selected={effectiveMode === 'auto'}
+                        $accent={accentColor}
+                        onClick={() => dispatch(setTranslateMode('auto'))}
+                      >
+                        {t('translation.modeAuto')}
+                      </ModeButton>
+                      <ModeButton
+                        type="button"
+                        role="radio"
+                        aria-checked={effectiveMode === 'manual'}
+                        $selected={effectiveMode === 'manual'}
+                        $accent={accentColor}
+                        onClick={() => dispatch(setTranslateMode('manual'))}
+                      >
+                        {t('translation.modeManual')}
+                      </ModeButton>
+                    </ModeSwitchRow>
+                  )}
                   {showLanguageList && <Divider />}
                 </>
               )}

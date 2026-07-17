@@ -39,6 +39,15 @@ interface ChatState {
    * toggle in LanguageSelectorModal.
    */
   translateSendEnabled?: boolean;
+  /**
+   * Reader's own auto/manual pick from the language-selector modal's
+   * switcher. Undefined means "never touched it" - falls back to
+   * `config.translates.mode` (see resolveTranslateMode). Ignored entirely
+   * when the host sets `config.translates.forceType: true`, which is also
+   * why the switcher itself doesn't render in that case - nothing should
+   * ever write here that a host has pinned.
+   */
+  translateMode?: 'auto' | 'manual';
 }
 
 const unpackAndTransform = (input?: User): User => {
@@ -164,6 +173,12 @@ const chatSlice = createSlice({
     setTranslateSendEnabled: (state, action: PayloadAction<boolean>) => {
       state.translateSendEnabled = action.payload;
     },
+    setTranslateMode: (
+      state,
+      action: PayloadAction<'auto' | 'manual'>
+    ) => {
+      state.translateMode = action.payload;
+    },
     refreshTokens: (
       state,
       action: PayloadAction<{ token: string; refreshToken: string }>
@@ -192,6 +207,7 @@ export const {
   setActiveFile,
   setLangSource,
   setTranslateSendEnabled,
+  setTranslateMode,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

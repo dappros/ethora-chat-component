@@ -24,6 +24,9 @@ export const useChatSettingState = () => {
   const translateSendEnabled = useSelector(
     (state: RootState) => state.chatSettingStore.translateSendEnabled
   );
+  const translateMode = useSelector(
+    (state: RootState) => state.chatSettingStore.translateMode
+  );
 
   return {
     user,
@@ -34,5 +37,6 @@ export const useChatSettingState = () => {
     selectedUser,
     langSource,
     translateSendEnabled,
+    translateMode,
   };
 };

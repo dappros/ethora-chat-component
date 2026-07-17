@@ -39,6 +39,7 @@ import { useMessageTranslation } from '../../hooks/useMessageTranslation';
 import TranslatedMessageBody from './TranslatedMessageBody';
 import { useT } from '../../i18n/useT';
 import styled from 'styled-components';
+import { resolveTranslateMode } from '../../utils/translateModePolicy';
 
 // Inherits CustomMessageTimestamp's colour/size - just the WhatsApp/
 // Telegram-style italic to read as a tag, not a second timestamp.
@@ -55,13 +56,17 @@ const Message: React.FC<MessageProps> = forwardRef<
 >(({ message, isUser, isReply }, ref) => {
   const { client } = useXmppClient();
   const t = useT();
-  const { user, config, langSource } = useChatSettingState();
+  const { user, config, langSource, translateMode } = useChatSettingState();
   const { idSet } = useMessageHeapState();
   const interactionsDisabled = Boolean(config?.disableInteractions);
   const profilesDisabled = Boolean(config?.disableProfilesInteractions);
 
+  const effectiveTranslateMode = resolveTranslateMode(
+    config?.translates,
+    translateMode
+  );
   const isAutoTranslate =
-    !!config?.translates?.enabled && config?.translates?.mode !== 'manual';
+    !!config?.translates?.enabled && effectiveTranslateMode !== 'manual';
   const readerLocale =
     config?.translates?.readerLocale || config?.i18n?.locale || langSource;
   const translationDisplay = useMessageTranslation(
@@ -340,7 +345,7 @@ const Message: React.FC<MessageProps> = forwardRef<
             </CustomMessageText>
           )}
 
-          {!isUser && config?.translates?.enabled && config?.translates?.mode === 'manual' && (
+          {!isUser && config?.translates?.enabled && effectiveTranslateMode === 'manual' && (
             <MessageTranslate
               message={message}
               config={config}

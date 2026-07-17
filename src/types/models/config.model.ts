@@ -246,6 +246,15 @@ export interface IConfig {
      */
     mode?: 'auto' | 'manual';
     /**
+     * Pins `mode` as fixed host policy. When true, the language-selector
+     * modal's auto/manual switcher does not render at all, and the reader
+     * has no way to override `mode` - it's always whatever the host set.
+     * Defaults to false: the reader can flip between auto and manual
+     * themselves via the switcher, which then wins over `mode` (the host's
+     * declared default, used until the reader touches it).
+     */
+    forceType?: boolean;
+    /**
      * Reader's full locale (BCP-47, e.g. "fr-CA"). Falls back to
      * `config.i18n.locale`. The region is passed through to `onTranslate` so
      * the service can distinguish fr-CA vs fr-FR; the Translate button
