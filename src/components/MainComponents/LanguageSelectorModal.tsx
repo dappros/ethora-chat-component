@@ -165,7 +165,7 @@ export const LanguageSelectorButton: React.FC = () => {
         createPortal(
           <LanguageModalBackground onClick={() => setIsOpen(false)}>
             <LanguageModalContainer onClick={(e) => e.stopPropagation()}>
-              <CloseButton style={{width: '8px'}} onClick={() => setIsOpen(false)} aria-label={t('action.cancel')}>
+              <CloseButton onClick={() => setIsOpen(false)} aria-label={t('action.cancel')}>
                 &times;
               </CloseButton>
               <ModalTitle>{t('language.select')}</ModalTitle>
