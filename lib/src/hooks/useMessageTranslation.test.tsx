@@ -1,18 +1,8 @@
 import React from 'react';
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import { render, screen } from '@testing-library/react';
 
-vi.mock('../networking/api-requests/translate.api', () => ({
-  fetchMessageTranslations: vi.fn(),
-}));
-
-import { fetchMessageTranslations } from '../networking/api-requests/translate.api';
-import {
-  useMessageTranslation,
-  resetMessageTranslationCacheForTests,
-} from './useMessageTranslation';
-
-const fetchMock = fetchMessageTranslations as ReturnType<typeof vi.fn>;
+import { useMessageTranslation } from './useMessageTranslation';
 
 const Probe: React.FC<{
   message: any;
@@ -29,33 +19,37 @@ const Probe: React.FC<{
 
 const out = () => screen.getByTestId('out').textContent;
 
-const spanishMessage = { body: 'hola', langSource: 'es' };
-
-// Translation moved OFF the send path (where it blocked every send on an
-// HTTP round trip, translating into languages nobody might read) and onto
-// the reader: their language only, messages they actually look at only.
+// Nothing here calls a network endpoint - every translation this hook can
+// ever surface already arrived attached to the stanza (message.translations,
+// see getDataFromXml). A message that was never translated server-side
+// simply has none to show; that's absence of data, not a failed request.
 describe('useMessageTranslation', () => {
-  beforeEach(() => {
-    fetchMock.mockReset();
-    resetMessageTranslationCacheForTests();
+  it('shows a translation already attached to the stanza', () => {
+    render(
+      <Probe
+        message={{
+          body: 'hola',
+          langSource: 'es',
+          translations: {
+            en: { translatedText: 'hello', language: 'en', languageName: 'English' },
+          },
+        }}
+        readerLocale="en"
+      />
+    );
+
+    expect(out()).toBe('true|hello');
   });
-  afterEach(() => vi.restoreAllMocks());
 
-  it('translates a foreign-language message into the reader language', async () => {
-    fetchMock.mockResolvedValue([
-      { language: 'en', languageName: 'English', translatedText: 'hello' },
-    ]);
+  it('falls back to the original text when no translation is attached', () => {
+    render(<Probe message={{ body: 'hola', langSource: 'es' }} readerLocale="en" />);
 
-    render(<Probe message={spanishMessage} readerLocale="en" />);
-
-    await waitFor(() => expect(out()).toBe('true|hello'));
-    expect(fetchMock).toHaveBeenCalledWith('hola', 'es', ['en']);
+    expect(out()).toBe('false|hola');
   });
 
-  it('makes NO request for a message already in the reader language', () => {
+  it('shows nothing extra for a message already in the reader language', () => {
     render(<Probe message={{ body: 'hello', langSource: 'en' }} readerLocale="en" />);
 
-    expect(fetchMock).not.toHaveBeenCalled();
     expect(out()).toBe('false|hello');
   });
 
@@ -64,111 +58,51 @@ describe('useMessageTranslation', () => {
       <Probe message={{ body: 'hello', langSource: 'en-CA' }} readerLocale="en-US" />
     );
 
-    expect(fetchMock).not.toHaveBeenCalled();
     expect(out()).toBe('false|hello');
   });
 
-  it('makes no request when disabled (on-demand mode owns its own flow)', () => {
-    render(<Probe message={spanishMessage} readerLocale="en" enabled={false} />);
-
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(out()).toBe('false|hola');
-  });
-
-  it('makes no request when the source language is unknown', () => {
-    render(<Probe message={{ body: 'hola' }} readerLocale="en" />);
-
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  // "Numbers don't need translating" - and just as importantly, the
-  // client never even asks: no wasted round trip for a phone number, an
-  // order id, or a lone digit reaction.
-  it('makes no request for a message that has no letters at all', () => {
-    render(<Probe message={{ body: '42', langSource: 'es' }} readerLocale="en" />);
-
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(out()).toBe('false|42');
-  });
-
-  it('skips a phone-number-shaped message the same way', () => {
-    render(
-      <Probe
-        message={{ body: '+1 (555) 123-4567', langSource: 'es' }}
-        readerLocale="en"
-      />
-    );
-
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it('still translates text that merely contains digits', () => {
-    fetchMock.mockResolvedValue([
-      { language: 'en', languageName: 'English', translatedText: 'room 42' },
-    ]);
-
-    render(
-      <Probe message={{ body: 'sala 42', langSource: 'es' }} readerLocale="en" />
-    );
-
-    expect(fetchMock).toHaveBeenCalledWith('sala 42', 'es', ['en']);
-  });
-
-  it('prefers a translation already attached to the stanza over a request', async () => {
+  it('shows nothing when disabled (manual mode owns its own click-to-reveal flow)', () => {
     render(
       <Probe
         message={{
           body: 'hola',
           langSource: 'es',
-          translations: {
-            en: { translatedText: 'hello (from stanza)', language: 'en', languageName: 'English' },
-          },
+          translations: { en: { translatedText: 'hello', language: 'en', languageName: 'English' } },
+        }}
+        readerLocale="en"
+        enabled={false}
+      />
+    );
+
+    expect(out()).toBe('false|hola');
+  });
+
+  it('shows nothing when the source language is unknown - never tagged, so never translatable', () => {
+    render(<Probe message={{ body: 'hola' }} readerLocale="en" />);
+
+    expect(out()).toBe('false|hola');
+  });
+
+  // "Numbers don't need translating" - a phone number or order id has no
+  // reader-language equivalent to show, tagged or not.
+  it('shows nothing for a message that has no letters at all', () => {
+    render(<Probe message={{ body: '42', langSource: 'es' }} readerLocale="en" />);
+
+    expect(out()).toBe('false|42');
+  });
+
+  it('still resolves text that merely contains digits', () => {
+    render(
+      <Probe
+        message={{
+          body: 'sala 42',
+          langSource: 'es',
+          translations: { en: { translatedText: 'room 42', language: 'en', languageName: 'English' } },
         }}
         readerLocale="en"
       />
     );
 
-    await waitFor(() => expect(out()).toBe('true|hello (from stanza)'));
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it('caches across remounts - scrolling a message away and back costs nothing', async () => {
-    fetchMock.mockResolvedValue([
-      { language: 'en', languageName: 'English', translatedText: 'hello' },
-    ]);
-
-    const first = render(<Probe message={spanishMessage} readerLocale="en" />);
-    await waitFor(() => expect(out()).toBe('true|hello'));
-    first.unmount();
-
-    render(<Probe message={spanishMessage} readerLocale="en" />);
-    // Served from cache synchronously, and no second request.
-    expect(out()).toBe('true|hello');
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('dedupes concurrent renders of the same text into ONE request', async () => {
-    fetchMock.mockResolvedValue([
-      { language: 'en', languageName: 'English', translatedText: 'hello' },
-    ]);
-
-    render(
-      <>
-        <Probe message={spanishMessage} readerLocale="en" />
-        <Probe message={spanishMessage} readerLocale="en" />
-        <Probe message={spanishMessage} readerLocale="en" />
-      </>
-    );
-
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-  });
-
-  it('falls back to the original text when the service fails', async () => {
-    fetchMock.mockResolvedValue([]);
-
-    render(<Probe message={spanishMessage} readerLocale="en" />);
-
-    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    expect(out()).toBe('false|hola');
+    expect(out()).toBe('true|room 42');
   });
 });

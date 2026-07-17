@@ -38,7 +38,8 @@ const makeRoom = (): IRoom =>
 function renderMessage(
   message: IMessage,
   isUser: boolean,
-  translatesConfig: any
+  translatesConfig: any,
+  translateMode?: 'auto' | 'manual'
 ) {
   return renderWithProviders(
     <Message message={message} isUser={isUser} isReply={false} />,
@@ -46,6 +47,7 @@ function renderMessage(
       preloadedState: {
         chatSettingStore: {
           user: { xmppUsername: 'me' },
+          translateMode,
           config: { translates: translatesConfig },
         } as any,
         rooms: { rooms: { [ROOM_JID]: makeRoom() }, usersSet: {} } as any,
@@ -100,16 +102,59 @@ describe('Message - auto-translate quote + primary text', () => {
     expect(queryByText('olá')).toBeNull();
   });
 
-  it('does not restructure the body in on-demand mode (untouched by this change)', () => {
+  it('does not restructure the body in manual mode (untouched by this change)', () => {
     const { getByText, queryByText } = renderMessage(makeMessage(), false, {
       enabled: true,
-      mode: 'on-demand',
+      mode: 'manual',
       readerLocale: 'pt',
     });
 
-    // Plain original body shown; the "Translate" link (on-demand) handles
+    // Plain original body shown; the "Translate" link (manual mode) handles
     // the rest via its own click-to-reveal flow, untouched here.
     expect(getByText('hello')).toBeTruthy();
     expect(queryByText('olá')).toBeNull();
+  });
+});
+
+// The reader's own auto/manual pick (set via the language-selector modal's
+// switcher) must actually change what Message.tsx renders, not just sit
+// unused in redux - this is the wiring resolveTranslateMode exists for.
+describe('Message - reader-picked translate mode overrides the host default', () => {
+  it('reader picked manual - auto-quote does not appear even though the host default is auto', () => {
+    const { getByText, queryByText } = renderMessage(
+      makeMessage(),
+      false,
+      { enabled: true, mode: 'auto', readerLocale: 'pt' },
+      'manual'
+    );
+
+    expect(getByText('hello')).toBeTruthy();
+    expect(queryByText('olá')).toBeNull();
+  });
+
+  it('reader picked auto - the quote appears even though the host default is manual', () => {
+    const { getByText } = renderMessage(
+      makeMessage(),
+      false,
+      { enabled: true, mode: 'manual', readerLocale: 'pt' },
+      'auto'
+    );
+
+    expect(getByText('olá')).toBeTruthy();
+  });
+
+  it('forceType pins the host mode even when the reader had picked the opposite', () => {
+    const { container, getByText } = renderMessage(
+      makeMessage(),
+      false,
+      { enabled: true, mode: 'auto', forceType: true, readerLocale: 'pt' },
+      'manual'
+    );
+
+    // Forced auto wins over the reader's stale 'manual' pick: the
+    // translation shows as primary text with the original as a quote -
+    // manual mode would show only the plain original, no quote at all.
+    expect(getByText('olá')).toBeTruthy();
+    expect(container.textContent).toContain('hello');
   });
 });

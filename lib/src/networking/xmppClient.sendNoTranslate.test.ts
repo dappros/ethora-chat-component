@@ -1,12 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-vi.mock('./api-requests/translate.api', () => ({
-  fetchMessageTranslations: vi.fn(() =>
-    Promise.reject(new Error('the send path must never call the translator'))
-  ),
-}));
-
-import { fetchMessageTranslations } from './api-requests/translate.api';
 import { sendTextMessageWithTranslateTag } from './xmpp/sendTextMessageWithTranslateTag.xmpp';
 
 const makeClient = () => {
@@ -43,14 +36,6 @@ describe('sendTextMessageWithTranslateTag', () => {
     // `<translations>` was the pre-translated payload - it must be gone.
     expect(stanza.getChild('translations')).toBeFalsy();
     expect(stanza.getChild('body')?.getText()).toBe('hola');
-  });
-
-  it('does not touch the translation service at all', () => {
-    const client = makeClient();
-
-    sendTextMessageWithTranslateTag(client, baseStanza, 'es', 'id1');
-
-    expect(fetchMessageTranslations).not.toHaveBeenCalled();
   });
 
   it('is synchronous - nothing to await before the stanza goes out', () => {

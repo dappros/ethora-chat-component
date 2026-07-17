@@ -317,7 +317,12 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                   }
                   const displayCount = getDisplayCount(currentRoom);
                   if (displayCount <= 0) return '';
-                  const base = `${formatNumberWithCommas(displayCount)} ${displayCount === 1 ? 'user' : 'users'}`;
+                  const base = t(
+                    displayCount === 1
+                      ? 'header.userCountSingular'
+                      : 'header.userCountPlural',
+                    { count: formatNumberWithCommas(displayCount) }
+                  );
                   if (onlineUsers.length === 0) return base;
                   return (
                     <>
