@@ -69,7 +69,9 @@ describe('LanguageSelectorButton', () => {
   });
 
   it('marks the currently selected language', () => {
-    renderButton('fr');
+    // Options carry regional ids now (en-CA/es-US/fr-CA) - langSource must
+    // match the exact id, not the bare base language.
+    renderButton('fr-CA');
 
     openPicker();
 
@@ -81,12 +83,12 @@ describe('LanguageSelectorButton', () => {
   });
 
   it('dispatches setLangSource and closes the modal on pick', () => {
-    const { store } = renderButton('en');
+    const { store } = renderButton('en-CA');
 
     openPicker();
     fireEvent.click(screen.getByRole('option', { name: /Français/i }));
 
-    expect(store.getState().chatSettingStore.langSource).toBe('fr');
+    expect(store.getState().chatSettingStore.langSource).toBe('fr-CA');
     expect(screen.queryByRole('listbox')).toBeNull();
   });
 

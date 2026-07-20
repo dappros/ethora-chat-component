@@ -59,9 +59,18 @@ export const useMessageTranslation = (
       message?.translations?.[targetBase]?.translatedText
     : undefined;
 
+  // A "translation" that's byte-identical to the original (mistagged
+  // langSource, a no-op from the source, matching proper nouns/numbers in
+  // otherwise-different text) is worse than nothing: it renders the same
+  // sentence twice - a small quote block above, then the body repeating
+  // it verbatim. Treat identical-after-trim as "nothing to show" rather
+  // than a real translation.
+  const isRealTranslation =
+    !!result && result.trim() !== originalText.trim();
+
   return {
-    hasTranslation: !!result,
+    hasTranslation: isRealTranslation,
     originalText,
-    displayText: result || originalText,
+    displayText: isRealTranslation ? (result as string) : originalText,
   };
 };
