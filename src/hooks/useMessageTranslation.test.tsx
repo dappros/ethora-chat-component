@@ -91,6 +91,51 @@ describe('useMessageTranslation', () => {
     expect(out()).toBe('false|42');
   });
 
+  // Reported bug: a message rendered a small quote block and the body
+  // showing the exact same sentence twice. Root cause: an attached
+  // "translation" whose text happens to be byte-identical to the
+  // original (mistagged langSource, a no-op echo, matching text that
+  // coincidentally reads the same) still set hasTranslation - the UI has
+  // no way to tell "real translation" from "same text twice" apart from
+  // this hook, so the hook must make that call.
+  it('treats an attached translation identical to the original as no translation at all', () => {
+    render(
+      <Probe
+        message={{
+          body: 'hello this is shapin',
+          langSource: 'es',
+          translations: {
+            en: {
+              translatedText: 'hello this is shapin',
+              language: 'en',
+              languageName: 'English',
+            },
+          },
+        }}
+        readerLocale="en"
+      />
+    );
+
+    expect(out()).toBe('false|hello this is shapin');
+  });
+
+  it('ignores only leading/trailing whitespace differences when comparing - still no real translation', () => {
+    render(
+      <Probe
+        message={{
+          body: 'hola',
+          langSource: 'es',
+          translations: {
+            en: { translatedText: '  hola  ', language: 'en', languageName: 'English' },
+          },
+        }}
+        readerLocale="en"
+      />
+    );
+
+    expect(out()).toBe('false|hola');
+  });
+
   it('still resolves text that merely contains digits', () => {
     render(
       <Probe
