@@ -20,10 +20,14 @@ import { LANGUAGE_OPTIONS } from '../helpers/constants/LANGUAGE_OPTIONS';
 // This is the check that ties the two lists together: if the picker offers
 // it, it must be translated.
 describe('every language the picker offers is actually translated', () => {
+  // Options carry regional ids (en-CA, es-US, fr-CA) - check the base
+  // language BUILTIN_STRINGS actually keys on and resolveStringTable
+  // actually looks up, not the exact regional id (which no table is ever
+  // keyed by).
   it.each(LANGUAGE_OPTIONS.map((o) => [o.name, o.id] as const))(
     '%s (%s) has a built-in string table',
     (_name, id) => {
-      expect(Object.keys(BUILTIN_STRINGS)).toContain(id);
+      expect(Object.keys(BUILTIN_STRINGS)).toContain(toBaseLanguage(id));
     }
   );
 });
