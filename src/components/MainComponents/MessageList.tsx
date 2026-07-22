@@ -110,6 +110,24 @@ const MessageList = <TMessage extends IMessage>({
     memoizedMessages[memoizedMessages.length - 1]
   );
   const isLoadingMore = useRef<boolean>(false);
+  // The oldest message id we last KICKED OFF a load-more request for.
+  // Guards against a busy-loop: a short conversation that never fills the
+  // viewport keeps scrollTop permanently "near the top" (there's nothing
+  // to scroll through), so every scroll tick re-satisfies
+  // checkIfLoadMoreMessages' own top<150 condition. `isLoadingMore.current`
+  // only blocks a request that's still in flight - it doesn't stop an
+  // immediately-following one once that request resolves, even when
+  // nothing about the room actually changed (parent's loadMoreMessages
+  // no-ops once historyComplete is true, but a fresh promise still
+  // resolves and re-arms this callback on the very next tick). Live-
+  // observed on a real account: 245+ fetches in ~11s, ~340ms apart -
+  // matching a real round trip each time, not a same-tick loop, so this
+  // alone was never going to self-resolve. Skipping a repeat request for
+  // the SAME oldest message id breaks the loop regardless of why the
+  // server-side completion signal isn't sticking - a genuine page of
+  // older history changes which message is oldest, so real pagination is
+  // unaffected.
+  const lastRequestedFirstMessageIdRef = useRef<string | null>(null);
 
   const timeoutRef = useRef<number>(0);
   const scrollParams = useRef<{ top: number; height: number } | null>(null);
@@ -208,6 +226,10 @@ const MessageList = <TMessage extends IMessage>({
 
   useEffect(() => {
     restoreScrollPosition();
+    // A new room's oldest message is unrelated to whatever the previous
+    // room last attempted - don't let a stale guard block its first
+    // legitimate load-more.
+    lastRequestedFirstMessageIdRef.current = null;
   }, [roomJID]);
 
   const checkIfLoadMoreMessages = useCallback(() => {
@@ -217,8 +239,6 @@ const MessageList = <TMessage extends IMessage>({
 
     if (params.top >= 150 || isLoadingMore.current) return;
 
-    scrollParams.current = getScrollParams();
-
     const [firstMessage, secondMessage] = memoizedMessages;
     const firstMessageId =
       firstMessage?.id === 'delimiter-new'
@@ -226,8 +246,11 @@ const MessageList = <TMessage extends IMessage>({
         : firstMessage?.id;
 
     if (!firstMessageId) return;
+    if (firstMessageId === lastRequestedFirstMessageIdRef.current) return;
 
+    scrollParams.current = getScrollParams();
     isLoadingMore.current = true;
+    lastRequestedFirstMessageIdRef.current = firstMessageId;
 
     loadMoreMessages(firstMessage.roomJid, 30, Number(firstMessageId)).finally(
       () => {
@@ -284,10 +307,20 @@ const MessageList = <TMessage extends IMessage>({
     if (typeof window !== "undefined") {
       window.clearTimeout(timeoutRef.current);
       timeoutRef.current = window.setTimeout(() => {
-        checkAtBottom();
+        checkAtBottomRef.current();
       }, 50);
     }
   };
+
+  // The listener below is attached exactly once (empty deps - re-attaching
+  // on every render would be wasteful and isn't needed). `checkAtBottom` is
+  // a plain closure recreated every render (it reads checkIfLoadMoreMessages,
+  // memoizedMessages, etc.), so without this ref indirection the listener
+  // would permanently call the MOUNT-TIME version forever - e.g. a fresh
+  // page of history arriving would never be seen by the scroll handler,
+  // since it'd keep checking against the messages array from first render.
+  const checkAtBottomRef = useRef(checkAtBottom);
+  checkAtBottomRef.current = checkAtBottom;
 
   useEffect(() => {
     const messagesOuter = outerRef.current;
