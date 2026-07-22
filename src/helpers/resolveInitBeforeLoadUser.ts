@@ -1,11 +1,7 @@
 import http, { setBaseURL } from '../networking/apiClient';
 import { loginViaJwt } from '../networking/api-requests/auth.api';
 import { getMyUser } from '../networking/api-requests/user.api';
-import {
-  clearStoredUser,
-  getStoredUser,
-  hasStoredSensitiveSession,
-} from './authStorage';
+import { getStoredUser, hasStoredSensitiveSession } from './authStorage';
 import { IConfig, User } from '../types/types';
 import { store } from '../roomStore';
 import { setUser } from '../roomStore/chatSettingsSlice';
@@ -238,21 +234,29 @@ export const resolveInitBeforeLoadUser = async (
     }
   }
 
+  // Neither of these two fallbacks calls /users/my anymore - unlike the
+  // explicitUser path above (a host deliberately opting into token-only
+  // login), these fire on every bootstrap that reaches this point, for
+  // every session restore, whether or not the account's role even has
+  // the ACL for that endpoint. Measured live against a real QA backend:
+  // /users/my reliably 403s ("!reqUserAcl") for at least one real role,
+  // so this network round trip was pure overhead (and console/network
+  // noise) for exactly the accounts it can never help - a candidate
+  // lacking xmpp credentials here still lacks them whether or not the
+  // request succeeds, since only currentUser/storedUser (not the /users/my
+  // response) ever supplies xmppUsername/xmppPassword for these two paths.
   const currentUser = store.getState().chatSettingStore.user;
-  if (currentUser?.token || currentUser?.refreshToken || currentUser?.xmppPassword) {
-    const hydrated = await tryHydrateViaMy(currentUser as User, myEndpoint, signal).catch(() => null);
-    if (hydrated && hasXmppCredentials(hydrated)) {
-      return hydrated;
-    }
+  const normalizedCurrentUser = normalizeUserForXmpp(currentUser as User);
+  if (normalizedCurrentUser && hasXmppCredentials(normalizedCurrentUser)) {
+    return normalizedCurrentUser;
   }
 
   const storedUser = getStoredUser(config?.appId) as User | null;
   if (storedUser && hasStoredSensitiveSession(storedUser)) {
-    const hydrated = await tryHydrateViaMy(storedUser, myEndpoint, signal).catch(() => null);
-    if (hydrated && hasXmppCredentials(hydrated)) {
-      return hydrated;
+    const normalizedStoredUser = normalizeUserForXmpp(storedUser);
+    if (normalizedStoredUser && hasXmppCredentials(normalizedStoredUser)) {
+      return normalizedStoredUser;
     }
-    clearStoredUser();
   }
 
   return null;
