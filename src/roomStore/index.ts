@@ -82,21 +82,32 @@ const normalizeMessageList = (messages: unknown): IMessage[] =>
       })
     : [];
 
-const normalizeRoomsState = (state: Record<string, any>) => {
-  if (!state || typeof state !== 'object') {
-    return state;
-  }
+// IMPORTANT: redux-persist applies transforms PER TOP-LEVEL KEY of the
+// slice state - `transformer.in(state[key], key, state)` (see
+// redux-persist/lib/createPersistoid.js). So for the rooms slice the
+// transform receives the rooms MAP itself under key 'rooms', the usersSet
+// under key 'usersSet', and so on - never the whole slice object. The old
+// transforms here assumed whole-slice shape ({rooms: {...}}), read
+// `.rooms` off the rooms map (undefined), capped an empty object, and
+// spread the real, uncapped map straight through - which is why the
+// 50-message cap never actually limited anything (persist:roomMessages
+// was observed at ~7M chars), why every persist write serialized and
+// AES-encrypted megabytes on the main thread, and where the legacy
+// "slice keys leaked into the rooms map" corruption came from (the
+// transform itself injected `rooms`/`activeRoomJID`/`usersSet` keys into
+// the persisted value it returned). Everything below is key-aware.
+export const sanitizeRoomsMap = (
+  roomsMap: Record<string, any>
+): Record<string, IRoom> => {
+  if (!roomsMap || typeof roomsMap !== 'object') return {};
 
-  const roomsState =
-    state.rooms && typeof state.rooms === 'object' ? state.rooms : {};
-
-  const normalizedRooms = Object.fromEntries(
-    Object.entries(roomsState)
+  return Object.fromEntries(
+    Object.entries(roomsMap)
       .filter(([key, room]) => {
-        // Strip non-JID keys (e.g. when persisted state was double-wrapped
-        // and slice keys like 'rooms', 'activeRoomJID', 'usersSet' leaked
-        // into the rooms map). Also drop arrays / non-objects which crash
-        // Immer when reducers later try to mutate them as room records.
+        // Strip non-JID keys (legacy persisted blobs from the broken
+        // whole-slice transforms carry `rooms`/`activeRoomJID`/`usersSet`
+        // keys inside the rooms map). Also drop arrays / non-objects
+        // which crash Immer when reducers later mutate them as rooms.
         if (!key || typeof key !== 'string' || !key.includes('@')) return false;
         return room && typeof room === 'object' && !Array.isArray(room);
       })
@@ -113,24 +124,22 @@ const normalizeRoomsState = (state: Record<string, any>) => {
         },
       ])
   );
+};
 
-  return {
-    ...state,
-    rooms: normalizedRooms,
-    activeRoomJID:
-      typeof state.activeRoomJID === "string" ? state.activeRoomJID : null,
-    usersSet:
-      state.usersSet && typeof state.usersSet === 'object' ? state.usersSet : {},
-    subscribedRooms: Array.isArray(state.subscribedRooms)
-      ? state.subscribedRooms.filter(
-          (room: unknown): room is string => typeof room === 'string'
-        )
-      : [],
-    pushSubscriptionStatus:
-      state.pushSubscriptionStatus && typeof state.pushSubscriptionStatus === 'object'
-        ? state.pushSubscriptionStatus
-        : {},
-  };
+const sanitizeRoomsSliceKey = (value: any, key: string | number) => {
+  switch (key) {
+    case 'rooms':
+      return sanitizeRoomsMap(value);
+    case 'usersSet':
+    case 'pushSubscriptionStatus':
+      return value && typeof value === 'object' ? value : {};
+    case 'subscribedRooms':
+      return Array.isArray(value)
+        ? value.filter((room: unknown): room is string => typeof room === 'string')
+        : [];
+    default:
+      return value;
+  }
 };
 
 export const MAX_MESSAGES_PER_ROOM = 100;
@@ -272,20 +281,19 @@ export const optimizePersistedRooms = (
   return Object.fromEntries(compacted);
 };
 
-const limitMessagesTransform = createTransform(
-  (inboundState: Record<string, any>) => {
-    const normalizedState = normalizeRoomsState(inboundState);
-    if (!normalizedState || typeof normalizedState !== 'object') {
-      return normalizedState;
-    }
-
-    return {
-      ...normalizedState,
-      rooms: optimizePersistedRooms(normalizedState.rooms),
-    };
-  },
-
-  (outboundState: Record<string, any>) => normalizeRoomsState(outboundState)
+// Exported for the per-key regression tests - the whole reason the old
+// caps never worked is invisible without testing the transform through
+// redux-persist's actual per-key calling convention.
+export const limitMessagesTransform = createTransform<
+  any,
+  any,
+  Record<string, any>,
+  Record<string, any>
+>(
+  (inboundState, key) =>
+    key === 'rooms' ? optimizePersistedRooms(inboundState) : inboundState,
+  (outboundState, key) =>
+    key === 'rooms' ? sanitizeRoomsMap(outboundState) : outboundState
 );
 
 const encryptor = encryptTransform({
@@ -295,29 +303,40 @@ const encryptor = encryptTransform({
   },
 });
 
-const scrubSensitiveChatStateTransform = createTransform(
-  (inboundState: Record<string, any>) => {
-    if (!inboundState?.user) {
-      return inboundState;
-    }
-
-    return {
-      ...inboundState,
-      user:
-        sanitizeUserForPersistentStorage(inboundState.user) ?? inboundState.user,
-    };
-  },
-  (outboundState: Record<string, any>) => outboundState
+// Same per-key bug as the rooms transforms: this used to check
+// `inboundState?.user`, but for key 'user' the inbound IS the user object
+// itself - `.user` was always undefined, so the token/password scrub
+// never actually ran and auth material was persisted (encrypted only by
+// the hardcoded-key transform below).
+export const scrubSensitiveChatStateTransform = createTransform<
+  any,
+  any,
+  Record<string, any>,
+  Record<string, any>
+>(
+  (inboundState, key) =>
+    key === 'user' && inboundState
+      ? (sanitizeUserForPersistentStorage(inboundState) ?? inboundState)
+      : inboundState,
+  (outboundState) => outboundState
 );
 
-const sanitizeRoomsStateTransform = createTransform(
-  (inboundState: Record<string, any>) => normalizeRoomsState(inboundState),
-  (outboundState: Record<string, any>) => normalizeRoomsState(outboundState)
+export const sanitizeRoomsStateTransform = createTransform<
+  any,
+  any,
+  Record<string, any>,
+  Record<string, any>
+>(
+  (inboundState, key) => sanitizeRoomsSliceKey(inboundState, key),
+  (outboundState, key) => sanitizeRoomsSliceKey(outboundState, key)
 );
+
+const PERSIST_THROTTLE_MS = 500;
 
 const chatSettingPersistConfig = {
   key: 'chatSettingStore',
   storage,
+  throttle: PERSIST_THROTTLE_MS,
   blacklist: [
     'activeModal',
     'deleteModal',
@@ -334,6 +353,7 @@ const chatSettingPersistConfig = {
 const roomsPersistConfig = {
   key: 'roomMessages',
   storage,
+  throttle: PERSIST_THROTTLE_MS,
   blacklist: ['editAction', 'activeRoomJID', 'loadingText', 'isChatUiVisible'],
   transforms: [sanitizeRoomsStateTransform, limitMessagesTransform, encryptor],
 };
