@@ -20,6 +20,13 @@ const getLoaderDebugStore = (): LoaderDebugStore => {
   return globalScope.__ethoraLoaderStats;
 };
 
+// Was an unconditional console.log on every SHOW/HIDE for every loader
+// this hook tracks (9 call sites - ChatWrapper's connecting/retry/startup
+// loaders, ChatRoom's history loader and its 3 sub-conditions,
+// MessageList's load-more loader) - noisy in every deployment, not just
+// while someone was actually debugging a stuck-loader issue. The stat
+// tracking itself is still live in `window.__ethoraLoaderStats` for
+// exactly that debugging, just silent unless you go look.
 export const useLoaderDebug = (loaderName: string, visible: boolean): void => {
   const previousVisibleRef = useRef<boolean>(false);
 
@@ -38,10 +45,6 @@ export const useLoaderDebug = (loaderName: string, visible: boolean): void => {
     if (visible && !previousVisibleRef.current) {
       stat.count += 1;
       stat.activeSince = Date.now();
-      console.log(`[LoaderDebug] SHOW ${loaderName}`, {
-        count: stat.count,
-        totalVisibleMs: stat.totalVisibleMs,
-      });
     }
 
     if (!visible && previousVisibleRef.current) {
@@ -50,11 +53,6 @@ export const useLoaderDebug = (loaderName: string, visible: boolean): void => {
         : 0;
       stat.totalVisibleMs += lastDurationMs;
       stat.activeSince = null;
-      console.log(`[LoaderDebug] HIDE ${loaderName}`, {
-        count: stat.count,
-        lastDurationMs,
-        totalVisibleMs: stat.totalVisibleMs,
-      });
     }
 
     previousVisibleRef.current = visible;
@@ -71,12 +69,6 @@ export const useLoaderDebug = (loaderName: string, visible: boolean): void => {
       const lastDurationMs = stat.activeSince ? Date.now() - stat.activeSince : 0;
       stat.totalVisibleMs += lastDurationMs;
       stat.activeSince = null;
-
-      console.log(`[LoaderDebug] HIDE ${loaderName} (unmount)`, {
-        count: stat.count,
-        lastDurationMs,
-        totalVisibleMs: stat.totalVisibleMs,
-      });
     };
   }, [loaderName]);
 };
