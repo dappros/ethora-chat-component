@@ -50,7 +50,7 @@ const normalizeUserForXmpp = (user?: User | null): User | null => {
 };
 
 const refreshWithToken = async (refreshToken: string) => {
-  const response = await http.post('/users/login/refresh', {}, {
+  const response = await http.post('/v1/users/login/refresh', {}, {
     headers: {
       Authorization: refreshToken,
     },
@@ -201,7 +201,7 @@ export const resolveInitBeforeLoadUser = async (
     setBaseURL(config.baseUrl, config.customAppToken);
   }
 
-  const myEndpoint = config?.initBeforeLoadAuth?.myEndpoint || '/users/my';
+  const myEndpoint = config?.initBeforeLoadAuth?.myEndpoint || '/v1/users/my';
 
   const explicitUser = config?.userLogin?.enabled ? config?.userLogin?.user : null;
   if (explicitUser) {

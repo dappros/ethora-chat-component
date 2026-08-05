@@ -34,7 +34,7 @@ export async function registerPushToken(registrationToken: string): Promise<any>
   });
 
   try {
-    const response = await http.post(`/push/subscription/${appId}`, payload, {
+    const response = await http.post(`/v1/push/subscription/${appId}`, payload, {
       headers: {
         Authorization: token,
       },
@@ -66,7 +66,7 @@ export async function unregisterPushToken(
   });
 
   try {
-    const response = await http.delete('/users/endpoints', {
+    const response = await http.delete('/v1/users/endpoints', {
       headers: {
         Authorization: token,
       },

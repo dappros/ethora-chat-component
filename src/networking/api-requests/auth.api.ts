@@ -29,7 +29,7 @@ export async function loginEmail(email: string, password: string) {
     refreshToken: string;
     token: string;
   }>(
-    '/users/login-with-email',
+    '/v1/users/login-with-email',
     {
       email,
       password,
@@ -52,7 +52,7 @@ export async function loginSocial(
   authToken: string = 'authToken'
 ) {
   const response = await http.post<any>(
-    '/users/login',
+    '/v1/users/login',
     {
       idToken,
       accessToken,
@@ -79,7 +79,7 @@ export function registerSocial(
   signUpPlan?: string
 ) {
   return http.post(
-    '/users',
+    '/v1/users',
     {
       idToken,
       accessToken,
@@ -93,7 +93,7 @@ export function registerSocial(
 
 export function checkEmailExist(email: string) {
   return http.get(
-    '/users/checkEmail/' + email,
+    '/v1/users/checkEmail/' + email,
 
     { headers: { Authorization: appToken } }
   );
@@ -104,7 +104,7 @@ export async function loginViaJwt(clientToken: string): Promise<User> {
     user: User;
     refreshToken: string;
     token: string;
-  }>('/users/client', null, { headers: { 'x-custom-token': clientToken } });
+  }>('/v1/users/client', null, { headers: { 'x-custom-token': clientToken } });
   const user = {
     ...response.data.user,
     refreshToken: response.data.refreshToken,
@@ -146,9 +146,21 @@ export const signInWithGoogle = async () => {
   }
 };
 
-export function uploadFile(formData: FormData) {
+// export function uploadFile(formData: FormData) {
+//   const token = store.getState().chatSettingStore.user.token;
+//   return http.post('/v1/files/', formData, {
+//     headers: {
+//       Authorization: token,
+//       Accept: '*/*',
+//     },
+//   });
+// }
+
+export function uploadFile(formData: FormData, activeRoomJID: string) {
   const token = store.getState().chatSettingStore.user.token;
-  return http.post('/files/', formData, {
+  const chatName = activeRoomJID.split('@')[0];
+  formData.append('chatName', chatName);
+  return http.post('/v2/files/secure', formData, {
     headers: {
       Authorization: token,
       Accept: '*/*',

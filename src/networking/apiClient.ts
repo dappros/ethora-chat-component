@@ -36,7 +36,7 @@ export function refresh(): Promise<{
 
   return http
     .post(
-      '/users/login/refresh',
+      '/v1/users/login/refresh',
       {},
       { headers: { Authorization: user.refreshToken } }
     )
@@ -99,11 +99,11 @@ http.interceptors.response.use(
 
     if (
       originalRequest._retry ||
-      originalRequest.url === '/users/login/refresh' ||
-      originalRequest.url === '/users/login' ||
-      originalRequest.url === '/users/login-with-email' ||
-      originalRequest.url === '/users/client' ||
-      originalRequest.url === '/users/my'
+      originalRequest.url === '/v1/users/login/refresh' ||
+      originalRequest.url === '/v1/users/login' ||
+      originalRequest.url === '/v1/users/login-with-email' ||
+      originalRequest.url === '/v1/users/client' ||
+      originalRequest.url === '/v1/users/my'
     ) {
       // Login / hydrate endpoints handle their own retry semantics.
       // Triggering the refresh interceptor here would dispatch logout()
