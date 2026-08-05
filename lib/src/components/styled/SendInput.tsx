@@ -6,33 +6,47 @@ import React, {
   useEffect,
 } from 'react';
 import {
-  FilePreview,
+  AttachmentNotice,
   FilePreviewContainer,
   HiddenFileInput,
   MessageInputContainer,
-  VideoPreview,
   InputContainer,
   MessageInput,
-  ImagePreview,
 } from './StyledInputComponents/StyledInputComponents';
 import {
   TextareaInput,
   TextareaWrapper,
 } from './StyledInputComponents/StyledInputComponents';
 import AudioRecorder from '../InputComponents/AudioRecorder';
+import AttachmentPreview from '../InputComponents/AttachmentPreview';
 import { IConfig } from '../../types/types';
 import Button from './Button';
-import { AttachIcon, FileIcon, RemoveIcon, SendIcon } from '../../assets/icons';
+import { AttachIcon, SendIcon } from '../../assets/icons';
 import {
   resolveIconBgColor,
   resolveIconColor,
 } from '../../helpers/resolveIconColor';
 import { parseMessageBody } from '../../helpers/parseMessageBody';
 import { useT } from '../../i18n/useT';
+import { MAX_ATTACHMENTS_PER_MESSAGE } from '../../helpers/attachments';
+import { getFileKind } from '../../helpers/fileKind';
+
+const DEFAULT_MAX_FILES = 5;
+
+/** Identity for dedup: same name AND size AND mtime is the same pick. */
+const fileKey = (file: File) =>
+  `${file.name}:${file.size}:${file.lastModified ?? 0}`;
 
 export interface SendInputProps {
   sendMessage: (message: string) => void | Promise<void>;
-  sendMedia: (data: any, type: string) => void | Promise<void>;
+  /**
+   * Receives a `File[]` for picked attachments (one message, N files) and a
+   * `Blob` for voice notes. Single files still arrive as a one-element array.
+   */
+  sendMedia: (
+    data: File[] | File | Blob,
+    type: string
+  ) => void | Promise<void>;
   isLoading: boolean;
   editMessage?: string;
   config?: IConfig;
@@ -45,7 +59,10 @@ export interface SendInputProps {
   showPreview?: boolean;
   previewParser?: (text: string) => (string | JSX.Element)[];
   onSendMessage?: (message: string) => void | Promise<void>;
-  onSendMedia?: (data: any, type: string) => void | Promise<void>;
+  onSendMedia?: (
+    data: File[] | File | Blob,
+    type: string
+  ) => void | Promise<void>;
   placeholderText?: string;
 }
 
@@ -74,9 +91,53 @@ const SendInput: React.FC<SendInputProps> = ({
   const [isFocused, setIsFocused] = useState(false);
 
   const [filePreviews, setFilePreviews] = useState<File[]>([]);
+  const [attachmentNotice, setAttachmentNotice] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const maxFiles = Math.min(
+    Math.max(1, config?.attachments?.maxFiles ?? DEFAULT_MAX_FILES),
+    MAX_ATTACHMENTS_PER_MESSAGE
+  );
+  const maxFileSizeMb = config?.attachments?.maxFileSizeMb;
+
+  // One blob URL per picked file, created here and revoked the moment the
+  // file leaves the tray (or the composer unmounts). Creating them during
+  // render - which is what this used to do - leaked one URL per keystroke.
+  const objectUrlsRef = useRef<Map<string, string>>(new Map());
+  const [objectUrls, setObjectUrls] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const urls = objectUrlsRef.current;
+    const liveKeys = new Set(filePreviews.map(fileKey));
+
+    filePreviews.forEach((file) => {
+      const key = fileKey(file);
+      if (urls.has(key)) return;
+      const kind = getFileKind(file.type, file.name);
+      if (kind === 'image' || kind === 'video' || kind === 'pdf') {
+        urls.set(key, URL.createObjectURL(file));
+      }
+    });
+
+    urls.forEach((url, key) => {
+      if (!liveKeys.has(key)) {
+        URL.revokeObjectURL(url);
+        urls.delete(key);
+      }
+    });
+
+    setObjectUrls(Object.fromEntries(urls));
+  }, [filePreviews]);
+
+  useEffect(() => {
+    const urls = objectUrlsRef.current;
+    return () => {
+      urls.forEach((url) => URL.revokeObjectURL(url));
+      urls.clear();
+    };
+  }, []);
 
   const handleAttachClick = useCallback(() => {
     if (fileInputRef.current) {
@@ -86,30 +147,54 @@ const SendInput: React.FC<SendInputProps> = ({
 
   const handleFileChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      const files = event.target.files;
-      if (files) {
-        const newFiles = Array.from(files);
-        setFilePreviews((prevFiles) => {
-          const fileSet = new Set(prevFiles.map((file) => file.name));
+      const picked = Array.from(event.target.files || []);
 
-          const uniqueNewFiles = newFiles.filter(
-            (newFile) => !fileSet.has(newFile.name)
-          );
-          let combinedFiles = [...prevFiles, ...uniqueNewFiles];
-
-          if (combinedFiles.length > 5) {
-            combinedFiles = combinedFiles?.slice(0, 5);
-          }
-
-          return combinedFiles;
-        });
-      }
-
+      // Reset first: re-picking the same file must fire `change` again.
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+      if (picked.length === 0) return;
+
+      const sizeLimit = maxFileSizeMb ? maxFileSizeMb * 1024 * 1024 : null;
+      const seen = new Set(filePreviews.map(fileKey));
+      const accepted: File[] = [];
+      const oversized: string[] = [];
+      let droppedForCount = 0;
+
+      picked.forEach((file) => {
+        const key = fileKey(file);
+        if (seen.has(key)) return;
+        if (sizeLimit && file.size > sizeLimit) {
+          oversized.push(file.name);
+          return;
+        }
+        if (filePreviews.length + accepted.length >= maxFiles) {
+          droppedForCount += 1;
+          return;
+        }
+        seen.add(key);
+        accepted.push(file);
+      });
+
+      if (accepted.length > 0) {
+        setFilePreviews((prevFiles) => [...prevFiles, ...accepted]);
+      }
+
+      const notices: string[] = [];
+      if (oversized.length > 0) {
+        notices.push(
+          t('attachment.tooLarge', {
+            files: oversized.join(', '),
+            size: String(maxFileSizeMb),
+          })
+        );
+      }
+      if (droppedForCount > 0) {
+        notices.push(t('attachment.limit', { count: maxFiles }));
+      }
+      setAttachmentNotice(notices.length > 0 ? notices.join(' ') : null);
     },
-    []
+    [filePreviews, maxFiles, maxFileSizeMb, t]
   );
 
   const handleFocus = () => {
@@ -124,6 +209,7 @@ const SendInput: React.FC<SendInputProps> = ({
 
   const handleRemoveFile = useCallback((file: File) => {
     setFilePreviews((prevFiles) => prevFiles.filter((f) => f !== file));
+    setAttachmentNotice(null);
   }, []);
 
   const calculateTextareaHeight = useCallback(
@@ -159,7 +245,8 @@ const SendInput: React.FC<SendInputProps> = ({
   );
 
   useEffect(() => {
-    setMessage(editMessage);
+    // `undefined` here flips the input from controlled to uncontrolled.
+    setMessage(editMessage ?? '');
     if (editMessage) {
       updateTextareaHeight(editMessage);
     }
@@ -173,14 +260,18 @@ const SendInput: React.FC<SendInputProps> = ({
   );
 
   const handleSendClick = useCallback(
-    async (audioUrl?: string) => {
+    // AudioRecorder hands over the recorded Blob, not a URL - the old name
+    // stuck around from when it did.
+    async (audioUrl?: Blob) => {
       const outgoing = formatMessage ? formatMessage(message) : message;
       const trailingText = hasTextContent(outgoing) ? outgoing : null;
 
       let mediaPromise: void | Promise<void> = undefined;
 
       if (filePreviews.length > 0) {
-        mediaPromise = effectiveSendMedia(filePreviews[0], 'media');
+        // The whole tray goes as one message; sendMedia uploads it in a
+        // single request and emits a single stanza.
+        mediaPromise = effectiveSendMedia(filePreviews, 'media');
         setIsRecording(false);
       } else if (audioUrl) {
         mediaPromise = effectiveSendMedia(audioUrl, 'audio/');
@@ -192,12 +283,14 @@ const SendInput: React.FC<SendInputProps> = ({
         effectiveSendMessage(trailingText);
         setMessage('');
         setFilePreviews([]);
+        setAttachmentNotice(null);
         setTextareaHeight(40);
         return;
       }
 
       setMessage('');
       setFilePreviews([]);
+      setAttachmentNotice(null);
       setTextareaHeight(40);
 
       if (trailingText) {
@@ -230,6 +323,7 @@ const SendInput: React.FC<SendInputProps> = ({
     effectiveSendMessage(outgoing);
     setMessage('');
     setFilePreviews([]);
+    setAttachmentNotice(null);
     setTextareaHeight(40);
   }, [
     effectiveSendMessage,
@@ -268,41 +362,20 @@ const SendInput: React.FC<SendInputProps> = ({
     ]
   );
 
-  const renderFilePreview = useCallback((file: File) => {
-    const fileUrl = URL.createObjectURL(file);
-    const fileType = file.type.split('/')[0];
-
-    if (fileType === 'image') {
-      return <ImagePreview src={fileUrl} alt={file.name} />;
-    } else if (fileType === 'video') {
-      return <VideoPreview src={fileUrl} controls />;
-    } else {
-      return <FileIcon alt={file.name} color={resolveIconColor(config)} fill={resolveIconBgColor(config)}/>;
-    }
-  }, [config]);
-
-  const memoizedFilePreviews = useMemo(() => {
-    return filePreviews.map(
-      (file: any, idx: number) =>
-        idx < 1 && (
-          <FilePreview key={file.name}>
-            {renderFilePreview(file)}
-            <Button
-              style={{
-                position: 'absolute',
-                backgroundColor: 'transparent',
-                top: 4,
-                right: 4,
-                height: 16,
-                width: 16,
-              }}
-              onClick={() => handleRemoveFile(file)}
-              EndIcon={<RemoveIcon style={{ height: 16, width: 16 }} />}
-            />
-          </FilePreview>
-        )
-    );
-  }, [filePreviews, renderFilePreview, handleRemoveFile]);
+  const memoizedFilePreviews = useMemo(
+    () =>
+      filePreviews.map((file) => (
+        <AttachmentPreview
+          key={fileKey(file)}
+          file={file}
+          objectUrl={objectUrls[fileKey(file)]}
+          onRemove={handleRemoveFile}
+          config={config}
+          removeLabel={t('attachment.remove')}
+        />
+      )),
+    [filePreviews, objectUrls, handleRemoveFile, config, t]
+  );
 
   return (
     <InputContainer>
@@ -451,10 +524,15 @@ const SendInput: React.FC<SendInputProps> = ({
       <HiddenFileInput
         ref={fileInputRef}
         type="file"
+        multiple={maxFiles > 1}
+        accept={config?.attachments?.accept}
         onChange={handleFileChange}
       />
       {filePreviews.length > 0 && (
         <FilePreviewContainer>{memoizedFilePreviews}</FilePreviewContainer>
+      )}
+      {attachmentNotice && (
+        <AttachmentNotice role="status">{attachmentNotice}</AttachmentNotice>
       )}
     </InputContainer>
   );

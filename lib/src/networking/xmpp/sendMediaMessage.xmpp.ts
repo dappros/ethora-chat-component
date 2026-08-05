@@ -39,6 +39,15 @@ export function sendMediaMessage(
     push: "true",
   };
 
+  // Multi-attach rides as one extra attribute rather than a new child
+  // element: attributes on <data> are what every hop already round-trips
+  // (getDataFromXml spreads data.attrs wholesale), and a client that has
+  // never heard of `attachments` keeps rendering the flat fields above -
+  // which describe attachment #0 - instead of breaking.
+  if (data?.attachments) {
+    (dataToSend as Record<string, unknown>).attachments = data.attachments;
+  }
+
   const message = xml(
     'message',
     {

@@ -14,6 +14,7 @@ import { setActiveFile } from '../../../roomStore/chatSettingsSlice';
 import PdfViewer from './PdfView';
 import { ethoraLogger } from '../../../helpers/ethoraLogger';
 import { useT } from '../../../i18n/useT';
+import { getFileExtension, getFileKind } from '../../../helpers/fileKind';
 
 interface FilePreviewModalProps {
   handleCloseModal: any;
@@ -34,30 +35,31 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
       headers: {},
     })
       .then((response) => {
-        let downloadFilenameExtesion: string;
-        switch (true) {
-          case activeFile.mimetype.startsWith('image/'):
-            downloadFilenameExtesion = 'png';
-            break;
-          case activeFile.mimetype.startsWith('video/'):
-            downloadFilenameExtesion = 'mp4';
-            break;
-          default:
-            downloadFilenameExtesion = activeFile.fileName;
-        }
+        // The old code appended the whole file name as the extension for
+        // anything that was not an image or video, so `report.pdf` saved as
+        // `MEDIA-ETHORA.report.pdf`. Keep the user's own name when we have
+        // one, and only synthesise an extension when we do not.
+        const kind = getFileKind(activeFile.mimetype, activeFile.fileName);
+        const hasOwnExtension = !!getFileExtension(activeFile.fileName);
+        const fallbackExtension =
+          kind === 'image' ? 'png' : kind === 'video' ? 'mp4' : 'bin';
+        const downloadName = hasOwnExtension
+          ? activeFile.fileName
+          : `MEDIA-ETHORA.${fallbackExtension}`;
+
         response.arrayBuffer().then(function (buffer) {
-          if (typeof window === "undefined") {
+          if (typeof window === 'undefined') {
             return;
           }
           const url = window.URL.createObjectURL(new Blob([buffer]));
           const link = document.createElement('a');
           link.href = url;
-          link.setAttribute(
-            'download',
-            `MEDIA-ETHORA.${downloadFilenameExtesion}`
-          );
+          link.setAttribute('download', downloadName);
           document.body.appendChild(link);
           link.click();
+          // Both the node and the blob outlived every download before this.
+          link.remove();
+          window.URL.revokeObjectURL(url);
         });
       })
       .catch((err) => {
@@ -71,8 +73,8 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
   };
 
   const getMediaComponent = useMemo(() => {
-    switch (true) {
-      case activeFile.mimetype.startsWith('image/'):
+    switch (getFileKind(activeFile.mimetype, activeFile.fileName)) {
+      case 'image':
         return (
           <FullScreenImage
             src={
@@ -86,11 +88,11 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
             }}
           />
         );
-      case activeFile.mimetype.startsWith('video/'):
+      case 'video':
         return (
           <FullScreenVideo src={activeFile.fileURL} controls autoPlay={false} />
         );
-      case activeFile.mimetype.includes('/pdf'):
+      case 'pdf':
         return <PdfViewer pdfUrl={activeFile.fileURL} />;
       default:
         return (

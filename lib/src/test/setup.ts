@@ -37,6 +37,15 @@ if (typeof window !== 'undefined' && !(window as { IntersectionObserver?: unknow
   };
 }
 
+// jsdom implements neither half of the object-URL API, which the composer
+// uses for attachment previews (and the PDF renderer for thumbnails).
+// Hand out a counter-based URL so tests can still assert create/revoke pairing.
+if (typeof URL !== 'undefined' && !URL.createObjectURL) {
+  let objectUrlCounter = 0;
+  URL.createObjectURL = () => `blob:ethora-test/${(objectUrlCounter += 1)}`;
+  URL.revokeObjectURL = () => {};
+}
+
 // jsdom doesn't implement scrollIntoView either.
 if (typeof Element !== 'undefined' && !Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = function noopScrollIntoView() {};

@@ -124,6 +124,31 @@ export interface IConfig {
   appId?: string;
   disableHeader?: boolean;
   disableMedia?: boolean;
+  /** Composer attachment limits. Applies to the built-in SendInput. */
+  attachments?: {
+    /**
+     * How many files one message may carry. Defaults to 5 and is hard-capped
+     * at 10 by the stanza payload (MAX_ATTACHMENTS_PER_MESSAGE).
+     */
+    maxFiles?: number;
+    /** Per-file ceiling in MB. Omit to skip the client-side size check. */
+    maxFileSizeMb?: number;
+    /** `accept` attribute handed to the file picker. Omit to allow anything. */
+    accept?: string;
+  };
+  /** First-page PDF thumbnails inside message bubbles. */
+  pdfPreview?: {
+    /** Set false to always show the static document card. Default true. */
+    enabled?: boolean;
+    /**
+     * URL of a pdf.js worker script. Omit and pdf.js runs on the main
+     * thread, which needs no bundler-specific asset wiring - fine for
+     * thumbnails, worth overriding if your users open large documents.
+     */
+    workerSrc?: string;
+    /** Documents above this are not auto-rendered. Default 25. */
+    maxFileSizeMb?: number;
+  };
   colors?: {
     primary: string;
     secondary: string;

@@ -224,6 +224,9 @@ const PERSISTED_MESSAGE_FIELDS: (keyof IMessage)[] = [
   'fileName',
   'originalName',
   'size',
+  // Bounded by MAX_ATTACHMENTS_PER_MESSAGE, and without it a reloaded
+  // multi-file message would repaint as a single-file one.
+  'attachments',
   'langSource',
   'callLog',
 ];

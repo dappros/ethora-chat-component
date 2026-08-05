@@ -1,6 +1,7 @@
 import { IUser } from './user.model';
 import { TranslationObject } from '../types';
 import { Iso639_1Codes } from './language.model';
+import { IAttachment } from './attachment.model';
 
 export interface IMessage {
   id: string;
@@ -32,6 +33,13 @@ export interface IMessage {
   langSource?: Iso639_1Codes;
   originalName?: string;
   size?: string;
+  /**
+   * Every file carried by this message, oldest wire format included:
+   * `attachments[0]` mirrors the flat `location`/`mimetype`/`originalName`
+   * fields above. Undefined on messages that predate multi-attach, so read
+   * it through `getMessageAttachments()` rather than directly.
+   */
+  attachments?: IAttachment[];
   xmppId?: string;
   xmppFrom?: string;
   // Present when this message is a call-log entry derived from a

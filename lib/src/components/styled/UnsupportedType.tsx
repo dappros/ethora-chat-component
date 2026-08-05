@@ -15,11 +15,12 @@ import {
   setActiveModal,
 } from '../../roomStore/chatSettingsSlice';
 import { FileIcon } from '../../assets/icons';
+import { formatFileName, formatFileSize } from '../../helpers/fileKind';
 
 interface FileDownloadProps {
   fileName: string;
   fileURL: string;
-  mimetype: string;
+  mimetype?: string;
   size?: string;
   locationPreview?: string;
 }
@@ -33,55 +34,21 @@ const FileDownload: React.FC<FileDownloadProps> = ({
 }) => {
   const dispatch = useDispatch();
 
-  const formatFileSize = (sizeInBytes: string): string => {
-    const size = parseInt(sizeInBytes, 10);
-
-    if (isNaN(size)) {
-      return 'Invalid size';
-    }
-
-    if (size < 1024) {
-      return `${size} B`;
-    } else if (size < 1024 ** 2) {
-      return `${(size / 1024).toFixed(2)} KB`;
-    } else if (size < 1024 ** 3) {
-      return `${(size / 1024 ** 2).toFixed(2)} MB`;
-    } else {
-      return `${(size / 1024 ** 3).toFixed(2)} GB`;
-    }
-  };
-
-  const formatFileName = (name: string, maxLength: number): string => {
-    const dotIndex = name.lastIndexOf('.');
-    const extension = dotIndex !== -1 ? name.substring(dotIndex) : '';
-
-    const baseName = dotIndex !== -1 ? name.substring(0, dotIndex) : name;
-
-    if (baseName.length + extension.length <= maxLength) {
-      return name;
-    }
-
-    const shortenedBaseName = baseName.substring(
-      0,
-      maxLength - extension.length - 3
-    );
-
-    return `${shortenedBaseName}...${extension}`;
-  };
-
   const handleOpen = () => {
-    dispatch(setActiveFile({ fileName, fileURL, mimetype }));
+    if (!fileURL) return;
+    dispatch(setActiveFile({ fileName, fileURL, mimetype: mimetype || '' }));
     dispatch(setActiveModal(MODAL_TYPES.FILE_PREVIEW));
   };
 
+  const formattedSize = formatFileSize(size);
+
   return (
-    <UnsupportedContainer onClick={handleOpen}>
+    <UnsupportedContainer onClick={handleOpen} title={fileName}>
       <BackgroundFile>
         {locationPreview ? (
           <img
             src={locationPreview}
             alt={fileName}
-            onClick={handleOpen}
             style={{
               borderRadius: 16,
               cursor: 'pointer',
@@ -99,9 +66,9 @@ const FileDownload: React.FC<FileDownloadProps> = ({
       </BackgroundFile>
       <FileInformation>
         <FileName>{formatFileName(fileName, 20)}</FileName>
-        {size && (
+        {formattedSize && (
           <FileSizeContainer>
-            <FileSize>{formatFileSize(size)}</FileSize>
+            <FileSize>{formattedSize}</FileSize>
           </FileSizeContainer>
         )}
       </FileInformation>

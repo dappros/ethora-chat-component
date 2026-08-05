@@ -1,8 +1,17 @@
 import { useCallback, useRef, useEffect, useState } from 'react';
 import { useXmppClient } from '../context/xmppProvider';
 import { useDispatch, useSelector } from 'react-redux';
-import { addRoomMessage, setEditAction } from '../roomStore/roomsSlice';
+import {
+  addRoomMessage,
+  removeRoomMessage,
+  setEditAction,
+} from '../roomStore/roomsSlice';
 import { uploadFile } from '../networking/api-requests/auth.api';
+import {
+  MAX_ATTACHMENTS_PER_MESSAGE,
+  serializeAttachments,
+} from '../helpers/attachments';
+import { IAttachment } from '../types/types';
 import { RootState, store } from '../roomStore';
 import { useChatSettingState } from './useChatSettingState';
 import { addMessageToHeap } from '../roomStore/roomHeapSlice';
@@ -541,7 +550,7 @@ export const useSendMessage = () => {
 
   const sendMedia = useCallback(
     async (
-      data: File,
+      data: File | File[] | Blob,
       type: string,
       activeRoomJID: string,
       isReply = false,
@@ -553,12 +562,35 @@ export const useSendMessage = () => {
         return;
       }
 
+      // One send = one message, whatever the caller handed us. Voice notes
+      // arrive as a bare Blob, the composer sends an array, and everything
+      // written before multi-attach sends a single File.
+      const files = (Array.isArray(data) ? data : [data]).slice(
+        0,
+        MAX_ATTACHMENTS_PER_MESSAGE
+      ) as File[];
+
+      if (files.length === 0) {
+        ethoraLogger.log('Cannot send media: no files');
+        return;
+      }
+
       markMessageSending(activeRoomJID, true);
       setupRoomTimeout(activeRoomJID);
 
       const id = `send-media-message:${uuidv4()}`;
       const optimisticTimestamp = Date.now();
       const optimisticDate = new Date(optimisticTimestamp).toISOString();
+      const first = files[0];
+      const optimisticAttachments: IAttachment[] = files.map((file) => ({
+        location: '',
+        locationPreview: '',
+        mimetype: file.type || type,
+        originalName: file.name,
+        fileName: file.name,
+        size: file.size?.toString(),
+      }));
+
       if (!config?.disableSentLogic) {
         dispatch(
           addRoomMessage({
@@ -580,12 +612,13 @@ export const useSendMessage = () => {
               xmppFrom: `${activeRoomJID}/${user.id}`,
               isSystemMessage: 'false',
               isMediafile: 'true',
-              fileName: data.name,
+              fileName: first.name,
               location: '',
               locationPreview: '',
               mimetype: type,
-              originalName: data.name,
-              size: data.size.toString(),
+              originalName: first.name,
+              size: first.size?.toString(),
+              attachments: optimisticAttachments,
               isReply,
               showInChannel: `${isChecked}`,
               mainMessage,
@@ -595,47 +628,77 @@ export const useSendMessage = () => {
       }
 
       try {
+        // POST /files/ already answers with a `results` array, so the whole
+        // group is one request - and one failure boundary.
         const mediaData = new FormData();
-        mediaData.append('files', data);
+        files.forEach((file) => mediaData.append('files', file));
 
         const response = await uploadFile(mediaData);
 
-        for (const item of response.data.results) {
-          const messagePayload = {
-            firstName: user.firstName,
-            lastName: user.lastName,
-            walletAddress: user.walletAddress,
-            createdAt: item.createdAt,
-            expiresAt: item.expiresAt,
-            fileName: item.filename,
-            isVisible: item?.isVisible,
-            location: item.location,
-            locationPreview: item.locationPreview,
-            mimetype: item.mimetype,
-            originalName: item?.originalname,
-            ownerKey: item?.ownerKey,
-            size: item.size,
-            duration: item?.duration,
-            updatedAt: item?.updatedAt,
-            userId: item?.userId,
-            attachmentId: item?._id,
-            wrappable: true,
-            roomJid: activeRoomJID,
-            showInChannel: isChecked,
-            isReply,
-            mainMessage,
-            isPrivate: item?.isPrivate,
-            __v: item.__v,
-          };
+        const results: any[] = Array.isArray(response?.data?.results)
+          ? response.data.results
+          : [];
+        if (results.length === 0) {
+          throw new Error('media_upload_empty_response');
+        }
 
-          const mediaSent = await sendWithActiveRoomRetry(
-            activeRoomJID,
-            id,
-            () => client?.sendMediaMessageStanza(activeRoomJID, messagePayload, id)
-          );
-          if (!mediaSent) {
-            throw new Error('media_send_failed');
-          }
+        const attachments: IAttachment[] = results.map((item) => ({
+          attachmentId: item?._id,
+          location: item?.location,
+          locationPreview: item?.locationPreview,
+          mimetype: item?.mimetype,
+          originalName: item?.originalname,
+          fileName: item?.filename,
+          size: item?.size?.toString?.() ?? item?.size,
+          duration: item?.duration,
+          ownerKey: item?.ownerKey,
+          userId: item?.userId,
+          createdAt: item?.createdAt,
+          updatedAt: item?.updatedAt,
+          expiresAt: item?.expiresAt,
+          isVisible: item?.isVisible,
+          isPrivate: item?.isPrivate,
+        }));
+
+        const [head] = results;
+        const messagePayload = {
+          firstName: user.firstName,
+          lastName: user.lastName,
+          walletAddress: user.walletAddress,
+          createdAt: head.createdAt,
+          expiresAt: head.expiresAt,
+          fileName: head.filename,
+          isVisible: head?.isVisible,
+          location: head.location,
+          locationPreview: head.locationPreview,
+          mimetype: head.mimetype,
+          originalName: head?.originalname,
+          ownerKey: head?.ownerKey,
+          size: head.size,
+          duration: head?.duration,
+          updatedAt: head?.updatedAt,
+          userId: head?.userId,
+          attachmentId: head?._id,
+          // Only stamped when there is genuinely more than one file, so
+          // single-file stanzas stay byte-identical to what we sent before.
+          attachments:
+            attachments.length > 1 ? serializeAttachments(attachments) : undefined,
+          wrappable: true,
+          roomJid: activeRoomJID,
+          showInChannel: isChecked,
+          isReply,
+          mainMessage,
+          isPrivate: head?.isPrivate,
+          __v: head.__v,
+        };
+
+        const mediaSent = await sendWithActiveRoomRetry(
+          activeRoomJID,
+          id,
+          () => client?.sendMediaMessageStanza(activeRoomJID, messagePayload, id)
+        );
+        if (!mediaSent) {
+          throw new Error('media_send_failed');
         }
 
         emitMessageSent({
@@ -647,14 +710,18 @@ export const useSendMessage = () => {
             isReply,
             isChecked,
             mainMessage,
-            fileData: data,
+            fileData: Array.isArray(data) ? data : first,
             fileType: type,
             messageId: id,
-            uploadResults: response.data.results,
+            uploadResults: results,
           },
         });
       } catch (error) {
         console.error('Upload failed:', error);
+        // The optimistic bubble would otherwise sit at "sending..." forever.
+        if (!config?.disableSentLogic) {
+          dispatch(removeRoomMessage({ roomJID: activeRoomJID, messageId: id }));
+        }
         handleMessageFailed({
           message: 'media',
           roomJID: activeRoomJID,
