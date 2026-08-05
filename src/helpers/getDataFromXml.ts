@@ -4,6 +4,7 @@ import { transformArrayToObject } from './transformTranslatations';
 import { Iso639_1Codes } from '../types/types';
 import { ethoraLogger } from './ethoraLogger';
 import { safeJsonParse } from './safeJson';
+import { parseAttachments } from './attachments';
 import { getTimestampFromUnknown } from './timestamp';
 import { normalizeXmppUsername } from './xmppUsername';
 
@@ -113,7 +114,16 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
     profileImage: photoURL,
   };
 
-  const dataAttrs = data?.attrs || {};
+  const rawDataAttrs = data?.attrs || {};
+
+  // `attachments` travels as a JSON string on the <data> element (see
+  // sendMediaMessage.xmpp.ts). Decode it here so every downstream consumer -
+  // createMessageFromXml spreads these attrs straight onto IMessage - sees
+  // the typed array rather than a string it would have to parse itself.
+  const dataAttrs =
+    'attachments' in rawDataAttrs
+      ? { ...rawDataAttrs, attachments: parseAttachments(rawDataAttrs.attachments) }
+      : rawDataAttrs;
 
   return {
     data: dataAttrs,

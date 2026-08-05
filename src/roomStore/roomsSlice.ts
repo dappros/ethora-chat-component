@@ -483,9 +483,28 @@ const roomsStore = createSlice({
                   locationPreview: undefined,
                   mimetype: undefined,
                   fileName: undefined,
+                  attachments: undefined,
                   reaction: undefined,
                 }
               : message
+        );
+      }
+    },
+    /**
+     * Hard removal, unlike `deleteRoomMessage`'s tombstone. For optimistic
+     * messages that never made it onto the wire: a failed upload has no
+     * server-side counterpart, so leaving a "deleted message" placeholder
+     * behind would be a lie - and leaving it pending is worse, it sits at
+     * "sending..." forever.
+     */
+    removeRoomMessage(
+      state,
+      action: PayloadAction<{ roomJID: string; messageId: string }>
+    ) {
+      const { roomJID, messageId } = action.payload;
+      if (state.rooms[roomJID]) {
+        state.rooms[roomJID].messages = state.rooms[roomJID].messages.filter(
+          (message) => message.id !== messageId
         );
       }
     },
@@ -1040,6 +1059,7 @@ export const {
   replaceRoomMessages,
   addRoomMessage,
   deleteRoomMessage,
+  removeRoomMessage,
   setEditAction,
   editRoomMessage,
   setComposing,

@@ -99,6 +99,40 @@ export const VideoPreview = styled.video`
   max-height: 80%;
 `;
 
+/** First page of a picked PDF, before it is sent. Fills the whole tile. */
+export const DocumentPreview = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+`;
+
+export const FilePreviewName = styled.span`
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 2px 4px;
+  font-size: 10px;
+  line-height: 1.3;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+`;
+
+/** Why a pick was rejected (too many files, file too large). */
+export const AttachmentNotice = styled.div`
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #9f0000;
+  background-color: #fdecec;
+`;
+
 export const StyledInput = styled.input<{ $colorBg?: string }>`
   padding: 16px 12px;
   background-color: ${({$colorBg}) => $colorBg? $colorBg : '#f5f7f9'};
