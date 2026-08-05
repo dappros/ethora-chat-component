@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
-import { Provider } from 'react-redux';
+import { Provider, useDispatch } from 'react-redux';
 import { store, persistor } from '../../roomStore';
+import { setConfig } from '../../roomStore/chatSettingsSlice';
 import { ConfigUser, IConfig } from '../../types/types';
 import '../../index.css';
 import '../../helpers/storeConsole';
@@ -40,6 +41,15 @@ const NotificationEnabler: React.FC = () => {
 
 const TypographyEnabler: React.FC<{ config?: IConfig }> = ({ config }) => {
   useTypography(config?.typography);
+  return null;
+};
+
+const ConfigEnabler: React.FC<{ config?: IConfig }> = ({ config }) => {
+  const dispatch = useDispatch();
+  React.useEffect(() => {
+    if (!config) return;
+    dispatch(setConfig(config));
+  }, [config, dispatch]);
   return null;
 };
 
@@ -99,6 +109,7 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
         <PersistGate loading={<Loader />} persistor={persistor}>
           <ToastProvider>
             <NotificationEnabler />
+            <ConfigEnabler config={memoizedConfig} />
             <TypographyEnabler config={memoizedConfig} />
             <ThemeColorsEnabler config={memoizedConfig} />
             <PushNotificationsEnabler config={memoizedConfig} />
@@ -109,7 +120,13 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
               CustomDaySeparator={CustomDaySeparator}
               CustomNewMessageLabel={CustomNewMessageLabel}
             >
-              <LoginWrapper config={memoizedConfig} {...props} />
+              {/* `config` must come AFTER the spread: props still carries the
+                  raw config, so spreading last silently overwrote
+                  memoizedConfig and threw away its `newArch ?? true`
+                  default (and would now throw away the same normalization
+                  ConfigEnabler puts in the store, leaving prop and store
+                  disagreeing again). */}
+              <LoginWrapper {...props} config={memoizedConfig} />
             </CustomComponentsProvider>
           </ToastProvider>
         </PersistGate>

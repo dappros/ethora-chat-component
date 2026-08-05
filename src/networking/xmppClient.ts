@@ -38,6 +38,7 @@ import { store } from '../roomStore';
 import { IMessage } from '../types/types';
 import { SERVICE, VITE_APP_XMPP_BASEDOMAIN, VITE_APP_XMPP_CONFERENCE } from '../config';
 import { formatError } from '../utils/formatError';
+import { toRoomJid } from '../helpers/isLikelyMucJid';
 import { getDataFromXml } from '../helpers/getDataFromXml';
 import { createMessageFromXml } from '../helpers/createMessageFromXml';
 import { transformCallLogMessage } from '../helpers/callLogMessage';
@@ -1060,9 +1061,8 @@ export class XmppClient implements XmppClientInterface {
   }
 
   private getHistoryInFlightKey(chatJID: string, before?: number): string {
-    const fixedChatJid = chatJID.includes('@')
-      ? chatJID
-      : `${chatJID}@${this.service || VITE_APP_XMPP_CONFERENCE}`;
+    const fixedChatJid =
+      toRoomJid(chatJID, this.service || VITE_APP_XMPP_CONFERENCE) || chatJID;
     return `${fixedChatJid}:${String(before || '')}`;
   }
 
@@ -1362,9 +1362,15 @@ export class XmppClient implements XmppClientInterface {
     timeoutMs = 10000
   ): Promise<IMessage[] | undefined> {
     if (!chatJID) return Promise.resolve(undefined);
-    const fixedChatJid = chatJID.includes('@')
-      ? chatJID
-      : `${chatJID}@${this.service || VITE_APP_XMPP_CONFERENCE}`;
+    // Drop the request instead of manufacturing a JID out of a non-room value.
+    // Slice keys (`usersSet`, `activeRoomJID`, ...) used to reach here and were
+    // turned into `usersSet@conference.host`, producing a stream of
+    // "Conference room does not exist" errors against rooms that never existed.
+    const fixedChatJid = toRoomJid(
+      chatJID,
+      this.service || VITE_APP_XMPP_CONFERENCE
+    );
+    if (!fixedChatJid) return Promise.resolve(undefined);
 
     return new Promise<IMessage[] | undefined>((resolve) => {
       const timeout = setTimeout(() => {

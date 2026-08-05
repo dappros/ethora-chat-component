@@ -44,30 +44,6 @@ const TypographyEnabler: React.FC<{ config?: IConfig }> = ({ config }) => {
   return null;
 };
 
-// Publish the host's config into the redux store as early as the chat mounts,
-// rather than waiting for <ChatWrapper>.
-//
-// Two different things read "the config" and they used to disagree:
-//   - applyThemeColors (below) reads the PROP, so CSS-variable theming was
-//     live from the first paint;
-//   - every component that calls resolveIconColor/resolveIconBgColor via
-//     useChatSettingState (NoMessagesPlaceholder, ChatRoom, SendInput,
-//     AudioRecorder, ...) reads the STORE.
-//
-// The store was only ever populated by useChatWrapperInit, which lives inside
-// <ChatWrapper> - and LoginWrapper refuses to mount that until there's a
-// logged-in user with xmpp credentials. Until then the store still held the
-// slice's built-in default (`colors.primary: '#0052CD'`, Ethora's own brand
-// blue), so those components rendered Ethora colours instead of the host's:
-// briefly on a slow connect, and PERMANENTLY whenever login or the XMPP
-// connection never completes - exactly the "empty chat placeholder and icons
-// use Ethora's default colours" report.
-//
-// Dispatching here fixes both, and is safe: `config` is blacklisted from
-// persistence, so nothing rehydrates over it, and useChatWrapperInit's own
-// dispatch stays as-is (same value, and it still owns the cache-scope purge).
-// Skipped when the host passes no config at all, so the slice default (which
-// components dereference unguarded) is never replaced by undefined.
 const ConfigEnabler: React.FC<{ config?: IConfig }> = ({ config }) => {
   const dispatch = useDispatch();
   React.useEffect(() => {
