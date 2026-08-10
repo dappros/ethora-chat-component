@@ -15,6 +15,10 @@ import {
   setActiveModal,
 } from '../../roomStore/chatSettingsSlice';
 import { FileIcon } from '../../assets/icons';
+import {
+  isSecureFileUrl,
+  requestFileTokenRecovery,
+} from '../../helpers/secureFileUrl';
 
 interface FileDownloadProps {
   fileName: string;
@@ -89,6 +93,9 @@ const FileDownload: React.FC<FileDownloadProps> = ({
               maxHeight: '60px',
             }}
             onError={(e) => {
+              if (isSecureFileUrl(locationPreview)) {
+                requestFileTokenRecovery();
+              }
               (e.target as HTMLImageElement).src =
                 'https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg';
             }}

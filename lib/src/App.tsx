@@ -21,11 +21,11 @@ const LIVEKIT_URL =
 
 const APP_CHAT_BASE_CONFIG: IConfig = {
   appId: '646cc8dc96d4a4dc8f7b2f2d',
-  baseUrl: 'https://api.messenger.ethora-qa.com/v1',
+  baseUrl: 'https://api.chat-qa.ethora.com',
   xmppSettings: {
-    devServer: 'wss://xmpp.messenger.ethora-qa.com/ws',
-    host: 'xmpp.messenger.ethora-qa.com',
-    conference: 'conference.xmpp.messenger.ethora-qa.com',
+    devServer: 'wss://xmpp.chat-qa.ethora.com/ws',
+    host: 'xmpp.chat-qa.ethora.com',
+    conference: 'conference.xmpp.chat-qa.ethora.com',
     xmppPingOnSendEnabled: true,
   },
   userLogin: {
@@ -107,7 +107,7 @@ const Apps = () => {
               CustomScrollableArea={CustomScrollableArea}
               CustomDaySeparator={CustomDaySeparator}
               config={{
-                baseUrl: 'https://api.messenger.ethora-qa.com/v1',
+                baseUrl: 'https://api.chat-qa.ethora.com',
                 inAppNotifications: {
                   enabled: true,
                   showInContext: true, // Show in chat component context as well
@@ -202,7 +202,7 @@ const ChatComponent = React.memo(() => {
           //       },
           //     }
           //   : {}),
-          customAppToken: 'JWT eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7ImRpc3BsYXlOYW1lIjoiRXRob3JhIiwiZG9tYWluTmFtZSI6ImFwcCIsImFwcFNlY3JldCI6ImMxMmViMjhkYjRjZjAyOWVlMGFmNjJmZmQ3ZWY1ZTZlYzRkNDhjZjk1YjNlNmMyNmMyY2QzNGJiZDFlNWRmZjkiLCJjcmVhdG9ySWQiOiI2OWMyNGU5MDFlNTNkNDRkMmI2YzRiYjEiLCJidW5kbGVJZCI6ImNvbS5ldGhvcmEiLCJwcmltYXJ5Q29sb3IiOiIjMDAzRTlDIiwiY29pblN5bWJvbCI6IkVUTyIsImNvaW5OYW1lIjoiRXRob3JhIENvaW4iLCJkZWZhdWx0QWNjZXNzUHJvZmlsZU9wZW4iOnRydWUsImRlZmF1bHRBY2Nlc3NBc3NldHNPcGVuIjp0cnVlLCJ1c2Vyc0NhbkZyZWUiOnRydWUsInBhcmVudEFwcElkIjpudWxsLCJpc0FsbG93ZWROZXdBcHBDcmVhdGUiOnRydWUsImlzQmFzZUFwcCI6dHJ1ZSwiZmlyZWJhc2VXZWJDb25maWdTdHJpbmciOiJ7XCJhcGlLZXlcIjpcIkFJemFTeURRZGt2dnhLS3g0LVdyakxRb1lmMDhHRkFSZ2lfcU80Z1wiLFwiYXV0aERvbWFpblwiOlwiZXRob3JhLTY2OGU5LmZpcmViYXNlYXBwLmNvbVwiLFwicHJvamVjdElkXCI6XCJldGhvcmEtNjY4ZTlcIixcInN0b3JhZ2VCdWNrZXRcIjpcImV0aG9yYS02NjhlOS5hcHBzcG90LmNvbVwiLFwibWVzc2FnaW5nU2VuZGVySWRcIjpcIjk3MjkzMzQ3MDA1NFwiLFwiYXBwSWRcIjpcIjE6OTcyOTMzNDcwMDU0OndlYjpkNDY4MmU3NmVmMDJmZDliOWNkYWE3XCIsXCJtZWFzdXJlbWVudElkXCI6XCJHLVdITTdYUlo0QzhcIn0iLCJnb29nbGVTZXJ2aWNlc0pzb24iOiIiLCJnb29nbGVTZXJ2aWNlSW5mb1BsaXN0IjoiIiwiUkVBQ1RfQVBQX1NUUklQRV9QVUJMSVNIQUJMRV9LRVkiOiIiLCJSRUFDVF9BUFBfU1RSSVBFX1NFQ1JFVF9LRVkiOiIiLCJzeXN0ZW1DaGF0QWNjb3VudCI6eyJqaWQiOiJhcHBfNjljMjRlOTExZTUzZDQ0ZDJiNmM0YmJiIiwicGFzc3dvcmQiOiIwc3pMOFBNMk1jIn0sInNpZ25vbk9wdGlvbnMiOlsiZW1haWwiLCJnb29nbGUiLCJmYWNlYm9vayJdLCJhZnRlckxvZ2luUGFnZSI6ImNoYXRzIiwiYXZhaWxhYmxlTWVudUl0ZW1zIjp7ImNoYXRzIjp0cnVlLCJwcm9maWxlIjp0cnVlLCJzZXR0aW5ncyI6dHJ1ZX0sImFsbG93VXNlcnNUb0NyZWF0ZVJvb21zIjp0cnVlLCJhaUJvdCI6eyJ0cmlnZ2VyIjoiYW55X21lc3NhZ2UiLCJwcm9tcHQiOiJZb3UgYXJlIGEgaGVscGZ1bCBhc3Npc3RhbnQuIiwiaXNSQUciOnRydWUsInRvdGFsU2l0ZVNvdXJjZVNpemUiOjB9LCJfaWQiOiI2OWMyNGU5MTFlNTNkNDRkMmI2YzRiYmMiLCJhcHBUb2tlbnMiOltdLCJkZWZhdWx0Um9vbXMiOltdfSwiaWF0IjoxNzc0MzQxNzc3fQ.PWKVFYAk3e2j_LaL4yiXAMQXu-XzUA6y3v62kkPcMTk',
+          customAppToken: 'JWT eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7ImlzVXNlckRhdGFFbmNyeXB0ZWQiOmZhbHNlLCJwYXJlbnRBcHBJZCI6bnVsbCwiaXNBbGxvd2VkTmV3QXBwQ3JlYXRlIjp0cnVlLCJpc0Jhc2VBcHAiOnRydWUsIl9pZCI6IjY0NmNjOGRjOTZkNGE0ZGM4ZjdiMmYyZCIsImRpc3BsYXlOYW1lIjoiRXRob3JhIiwiZG9tYWluTmFtZSI6ImV0aG9yYSIsImNyZWF0b3JJZCI6IjY0NmNjOGQzOTZkNGE0ZGM4ZjdiMmYyNSIsInVzZXJzQ2FuRnJlZSI6dHJ1ZSwiZGVmYXVsdEFjY2Vzc0Fzc2V0c09wZW4iOnRydWUsImRlZmF1bHRBY2Nlc3NQcm9maWxlT3BlbiI6dHJ1ZSwiYnVuZGxlSWQiOiJjb20uZXRob3JhIiwicHJpbWFyeUNvbG9yIjoiIzAwM0U5QyIsInNlY29uZGFyeUNvbG9yIjoiIzI3NzVFQSIsImNvaW5TeW1ib2wiOiJFVE8iLCJjb2luTmFtZSI6IkV0aG9yYSBDb2luIiwiUkVBQ1RfQVBQX0ZJUkVCQVNFX0FQSV9LRVkiOiJBSXphU3lEUWRrdnZ4S0t4NC1XcmpMUW9ZZjA4R0ZBUmdpX3FPNGciLCJSRUFDVF9BUFBfRklSRUJBU0VfQVVUSF9ET01BSU4iOiJldGhvcmEtNjY4ZTkuZmlyZWJhc2VhcHAuY29tIiwiUkVBQ1RfQVBQX0ZJUkVCQVNFX1BST0pFQ1RfSUQiOiJldGhvcmEtNjY4ZTkiLCJSRUFDVF9BUFBfRklSRUJBU0VfU1RPUkFHRV9CVUNLRVQiOiJldGhvcmEtNjY4ZTkuYXBwc3BvdC5jb20iLCJSRUFDVF9BUFBfRklSRUJBU0VfTUVTU0FHSU5HX1NFTkRFUl9JRCI6Ijk3MjkzMzQ3MDA1NCIsIlJFQUNUX0FQUF9GSVJFQkFTRV9BUFBfSUQiOiIxOjk3MjkzMzQ3MDA1NDp3ZWI6ZDQ2ODJlNzZlZjAyZmQ5YjljZGFhNyIsIlJFQUNUX0FQUF9GSVJFQkFTRV9NRUFTVVJNRU5UX0lEIjoiRy1XSE03WFJaNEM4IiwiUkVBQ1RfQVBQX1NUUklQRV9QVUJMSVNIQUJMRV9LRVkiOiIiLCJSRUFDVF9BUFBfU1RSSVBFX1NFQ1JFVF9LRVkiOiIiLCJjcmVhdGVkQXQiOiIyMDIzLTA1LTIzVDE0OjA4OjI4LjEzNloiLCJ1cGRhdGVkQXQiOiIyMDIzLTA1LTIzVDE0OjA4OjI4LjEzNloiLCJfX3YiOjB9LCJpYXQiOjE2ODQ4NTA5MjV9.-IqNVMsf8GyS9Z-_yuNW7hpSmejajjAy-W0J8TadRIM',
           setRoomJidInPath: true,
           refreshTokens: { enabled: true },
           // secondarySendButton: {
@@ -216,7 +216,7 @@ const ChatComponent = React.memo(() => {
           //   hideInputSendButton: true,
           //   overwriteEnterClick: true,
           // },
-          disableMedia: true,
+          disableMedia: false,
           eventHandlers: {
             onMessageSent: async (event) => {
               ethoraLogger.log('✅ Message sent successfully:', event.message);

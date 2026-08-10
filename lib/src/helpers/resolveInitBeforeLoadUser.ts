@@ -50,7 +50,7 @@ const normalizeUserForXmpp = (user?: User | null): User | null => {
 };
 
 const refreshWithToken = async (refreshToken: string) => {
-  const response = await http.post('/users/login/refresh', {}, {
+  const response = await http.post('/v1/users/login/refresh', {}, {
     headers: {
       Authorization: refreshToken,
     },
@@ -59,6 +59,7 @@ const refreshWithToken = async (refreshToken: string) => {
   return {
     token: response?.data?.token || '',
     refreshToken: response?.data?.refreshToken || refreshToken,
+    fileToken: response?.data?.fileToken || '',
   };
 };
 
@@ -91,6 +92,7 @@ const tryHydrateViaMy = async (
 
   let workingToken = candidate?.token || '';
   let workingRefresh = candidate?.refreshToken || '';
+  let workingFileToken = candidate?.fileToken || '';
 
   // /users/my is metadata-only (firstName, profileImage, etc). It must
   // never gate bootstrap when we already hold xmpp credentials — some
@@ -100,6 +102,7 @@ const tryHydrateViaMy = async (
     ...candidate,
     token: workingToken || candidate.token,
     refreshToken: workingRefresh || candidate.refreshToken,
+    fileToken: workingFileToken || candidate.fileToken,
   });
 
   const fallbackWithCreds = (): User | null => {
@@ -117,6 +120,7 @@ const tryHydrateViaMy = async (
       if (merged) {
         merged.token = workingToken || merged.token;
         merged.refreshToken = workingRefresh || merged.refreshToken;
+        merged.fileToken = workingFileToken || merged.fileToken;
       }
       return merged;
     } catch (error) {
@@ -151,6 +155,7 @@ const tryHydrateViaMy = async (
     const refreshed = await refreshWithToken(workingRefresh);
     workingToken = refreshed.token;
     workingRefresh = refreshed.refreshToken;
+    workingFileToken = refreshed.fileToken || workingFileToken;
 
     try {
       const myUser = await getMyUser({ token: workingToken, endpoint: myEndpoint });
@@ -160,6 +165,7 @@ const tryHydrateViaMy = async (
       if (merged) {
         merged.token = workingToken || merged.token;
         merged.refreshToken = workingRefresh || merged.refreshToken;
+        merged.fileToken = workingFileToken || merged.fileToken;
       }
       return merged;
     } catch (myError) {
@@ -201,7 +207,7 @@ export const resolveInitBeforeLoadUser = async (
     setBaseURL(config.baseUrl, config.customAppToken);
   }
 
-  const myEndpoint = config?.initBeforeLoadAuth?.myEndpoint || '/users/my';
+  const myEndpoint = config?.initBeforeLoadAuth?.myEndpoint || '/v1/users/my';
 
   const explicitUser = config?.userLogin?.enabled ? config?.userLogin?.user : null;
   if (explicitUser) {

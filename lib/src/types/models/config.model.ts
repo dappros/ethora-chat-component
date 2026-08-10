@@ -215,6 +215,7 @@ export interface IConfig {
     refreshFunction?: () => Promise<{
       accessToken: string;
       refreshToken?: string;
+      fileToken?: string;
     } | null>;
   };
   backgroundChat?: {
