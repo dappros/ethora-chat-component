@@ -10,6 +10,7 @@ import { IMessage, IRoom } from '../types/types';
 import { checkUniqueUsers } from './checkUniqueUsers';
 import { ethoraLogger } from './ethoraLogger';
 import { getMessageTimestamp, getRoomLastActivityScore } from './roomActivityScore';
+import { isLikelyMucJid } from './isLikelyMucJid';
 
 export const updateMessagesTillLast = async (
   rooms: {
@@ -26,6 +27,11 @@ export const updateMessagesTillLast = async (
     for (let i = room.messages.length - 1; i >= 0; i -= 1) {
       const message = room.messages[i];
       if (!message || message.id === 'delimiter-new' || message.pending) continue;
+      // Client-side call-log fallbacks (id "calllog-<callId>") exist only in
+      // this client's store — the server can never return them, so anchoring
+      // on one guarantees an anchor-miss and a full room_cache_reset after
+      // EVERY call. Anchor on the newest real server message instead.
+      if (String(message.id || '').startsWith('calllog-')) continue;
       return message;
     }
     return null;
@@ -89,7 +95,11 @@ export const updateMessagesTillLast = async (
     return anchorTs > 0 && candidateTs > 0 && anchorTs === candidateTs;
   };
 
-  const roomEntries = Object.keys(rooms);
+  // Skip non-JID entries that can leak into `rooms.rooms` from corrupted/
+  // legacy persisted state (root-slice keys like `activeRoomJID`,
+  // `usersSet`, `subscribedRooms`) — otherwise each one queues a MAM fetch
+  // for a garbage "room", wasting a concurrency slot real rooms are waiting on.
+  const roomEntries = Object.keys(rooms).filter(isLikelyMucJid);
   if (roomEntries.length > 0) {
     const normalizedBatchSize = Math.max(1, batchSize);
     const sortedRoomEntries = roomEntries.sort((a, b) => {

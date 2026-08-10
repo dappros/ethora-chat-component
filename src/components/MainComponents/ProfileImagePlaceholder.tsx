@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import styled from 'styled-components';
 import { EditIcon } from '../../assets/icons';
 import {
   AvatarCircle,
@@ -29,6 +28,8 @@ interface ProfileImagePlaceholderProps {
   active?: boolean;
   placeholderIcon?: React.ReactNode;
   disableOverlay?: boolean;
+  /** Show a green online-status dot on the avatar. */
+  online?: boolean;
 }
 
 export const ProfileImagePlaceholder: React.FC<
@@ -43,11 +44,9 @@ export const ProfileImagePlaceholder: React.FC<
   active = false,
   placeholderIcon,
   disableOverlay,
+  online = false,
 }) => {
   const { config } = useChatSettingState();
-  // When the host themes icons, avatars follow `colors.iconsBg` (circle bg) and
-  // `colors.icons` (initials / placeholder glyph). Otherwise keep the historical
-  // per-name hashed colour so distinct users stay visually distinguishable.
   const iconsBg = config?.colors?.iconsBg;
   const iconColor = config?.colors?.icons;
   const { backgroundColor: hashedBg } = nameToColor(name);
@@ -108,6 +107,7 @@ export const ProfileImagePlaceholder: React.FC<
         style={{
           fontSize: size >= 64 ? '24px' : '18px',
           ...(iconColor ? { color: iconColor } : {}),
+          cursor: 'pointer'
         }}
       >
         {icon ? (
@@ -137,6 +137,22 @@ export const ProfileImagePlaceholder: React.FC<
           </>
         )}
       </AvatarCircle>
+      {online && (
+        <span
+          aria-label="online"
+          style={{
+            position: 'absolute',
+            right: 0,
+            bottom: 0,
+            width: Math.max(8, Math.round(size * 0.28)),
+            height: Math.max(8, Math.round(size * 0.28)),
+            borderRadius: '50%',
+            backgroundColor: '#22c55e',
+            border: '2px solid #fff',
+            boxSizing: 'border-box',
+          }}
+        />
+      )}
       {remove?.enabled && icon && role !== 'participant' && (
         <RemoveButton
           onClick={(e) => {

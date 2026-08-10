@@ -231,7 +231,91 @@ export interface IConfig {
     disableGetRooms?: boolean;
     singleRoom: boolean;
   };
-  translates?: { enabled: boolean; translations?: Iso639_1Codes };
+  translates?: {
+    enabled: boolean;
+    translations?: Iso639_1Codes;
+    /**
+     * 'auto' shows the translation inline automatically. 'manual' shows a
+     * "Translate" link the reader clicks (LinkedIn-style), then renders the
+     * result inline with a "Show original" toggle. Default 'auto'.
+     *
+     * Neither mode calls any translation service - both only ever display
+     * `message.translations`, whatever arrived attached to the stanza (see
+     * `readerLocale` below for how a message gets translated in the first
+     * place). This is purely a display choice: show it immediately, or let
+     * the reader ask for it.
+     */
+    mode?: 'auto' | 'manual';
+    /**
+     * Pins `mode` as fixed host policy. When true, the language-selector
+     * modal's auto/manual switcher does not render at all, and the reader
+     * has no way to override `mode` - it's always whatever the host set.
+     * Defaults to false: the reader can flip between auto and manual
+     * themselves via the switcher, which then wins over `mode` (the host's
+     * declared default, used until the reader touches it).
+     */
+    forceType?: boolean;
+    /**
+     * Reader's full locale (BCP-47, e.g. "fr-CA"). Falls back to
+     * `config.i18n.locale`. The region is passed through to `onTranslate` so
+     * the service can distinguish fr-CA vs fr-FR; the Translate button
+     * visibility comparison ignores the region (en-US vs en-CA => no button).
+     *
+     * This is also how a host drives the reader's language from OUTSIDE the
+     * chat component: set it (e.g. from your own app's language switcher)
+     * and pass the updated config down as a normal prop. Whenever it
+     * changes, the component syncs it into the same internal state the
+     * in-chat language picker writes to - so it drives both what a reader
+     * sees translated INTO and the source language declared on their own
+     * outgoing messages. Leave unset to let the reader manage it themselves
+     * via the picker (see `showLanguageSelector`).
+     */
+    readerLocale?: string;
+    /**
+     * Shows/hides the globe-icon language picker in the chat header.
+     * Defaults to true whenever `enabled` is true. Set to false when the
+     * host manages the reader's language itself (via `readerLocale`) and
+     * an in-chat picker would just be a second, redundant control.
+     */
+    showLanguageSelector?: boolean;
+    /**
+     * Shows/hides the list of selectable languages INSIDE the picker
+     * (English/Español/...). Defaults to true. Set to false to keep only
+     * the enable/disable-translates toggle - for hosts that drive the
+     * reader's language externally via `readerLocale` and don't want a
+     * second, redundant language list, but still want the reader to control
+     * whether their own outgoing messages get tagged for translation.
+     */
+    showLanguageList?: boolean;
+    /**
+     * Host-provided translation function. When set, the manual Translate
+     * action calls this - wire it to your own service - instead of reading
+     * `message.translations`. Optional; omit to use only what already
+     * arrived over XMPP.
+     */
+    onTranslate?: (
+      text: string,
+      ctx: { sourceLocale?: string; targetLocale: string; message: IMessage }
+    ) => Promise<string>;
+    /**
+     * Host predicate deciding whether to show the Translate action for a given
+     * message. When omitted, the component compares base languages (message
+     * source vs reader, region ignored) and shows the action when they differ.
+     */
+    showTranslateForMessage?: (message: IMessage) => boolean;
+  };
+  /**
+   * Static UI i18n (interface captions like "Search...", "Type message").
+   * `locale` is a BCP-47 tag the host passes from the device/user (e.g. "en",
+   * "fr-CA", "es-US"); captions resolve to its base language. `strings`
+   * overrides or extends any built-in caption by key (see src/i18n/strings.ts).
+   * Built-in languages: en, fr, es. Independent from `translates` (dynamic
+   * per-message translation).
+   */
+  i18n?: {
+    locale?: string;
+    strings?: Record<string, string>;
+  };
   disableRoomConfig?: boolean;
   disableProfilesInteractions?: boolean;
   disableUserCount?: boolean;
@@ -368,6 +452,52 @@ export interface IConfig {
     iconPath?: string;
     badgePath?: string;
     softAsk?: boolean;
+    /**
+     * In-app banner that nudges the user to turn on browser notifications.
+     * Off by default. The banner renders one of two states automatically from
+     * the current `Notification.permission`:
+     *  - "default" (never asked) → an "Enable notifications" card with a button
+     *    that triggers the browser permission prompt;
+     *  - "denied" (blocked) → a "Notifications are blocked" card explaining how
+     *    to re-allow it from the browser's site settings.
+     * It hides itself entirely once permission is "granted", when the browser
+     * has no Notification API, or when `pushNotifications.enabled` is not true.
+     * Every label is overridable so it can be localised.
+     */
+    permissionBanner?: {
+      /** Master switch for the banner. Default false (opt-in). */
+      enabled?: boolean;
+      /** Show the prompt while permission is "default". Default true. */
+      showWhenDefault?: boolean;
+      /**
+       * Show the notice while permission is "denied". Default false: a blocked
+       * state can only be fixed by hand in the browser's site settings, so by
+       * default we don't nag. Set true to opt back into the reminder.
+       */
+      showWhenBlocked?: boolean;
+      /** Render a dismiss (×) control. Default true. Dismissal lasts the tab session. */
+      dismissible?: boolean;
+      /** Where the fixed banner is anchored. Default "bottom-right". */
+      position?:
+        | 'top-left'
+        | 'top-right'
+        | 'top-center'
+        | 'bottom-left'
+        | 'bottom-right'
+        | 'bottom-center';
+      /** Title for the "enable" state. Default "Enable notifications". */
+      enableTitle?: string;
+      /** Description for the "enable" state. */
+      enableDescription?: string;
+      /** Button label for the "enable" state. Default "Enable notifications". */
+      enableButtonLabel?: string;
+      /** Title for the "blocked" state. Default "Notifications are blocked". */
+      blockedTitle?: string;
+      /** Description for the "blocked" state. */
+      blockedDescription?: string;
+      /** Inline style overrides merged onto the banner container. */
+      style?: React.CSSProperties;
+    };
     onClick?: (params: {
       roomJID?: string;
       messageId?: string;

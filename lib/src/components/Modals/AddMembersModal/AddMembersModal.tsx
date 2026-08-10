@@ -21,10 +21,12 @@ import { createRoomFromApi } from '../../../helpers/createRoomFromApi';
 import { useChatSettingState } from '../../../hooks/useChatSettingState';
 import { useToast } from '../../../context/ToastContext';
 import { useAppDispatch } from '../../../hooks/hooks';
+import { useT } from '../../../i18n/useT';
 
 const AddMembersModal: React.FC = () => {
   const { config } = useChatSettingState();
   const { showToast } = useToast();
+  const t = useT();
   const activeRoom = useSelector((state: RootState) => getActiveRoom(state));
 
   const dispatch = useAppDispatch();
@@ -62,16 +64,16 @@ const AddMembersModal: React.FC = () => {
 
       showToast({
         id: Date.now().toString(),
-        title: 'Success',
-        message: `${userName} has been added to the room.`,
+        title: t('toast.success'),
+        message: t('toast.userAddedToRoom', { userName }),
         type: 'success',
       });
     } catch (error) {
       console.error('Failed to add user:', error);
       showToast({
         id: Date.now().toString(),
-        title: 'Error',
-        message: 'Failed to add user.',
+        title: t('toast.error'),
+        message: t('toast.failedToAddUser'),
         type: 'error',
       });
     }
@@ -84,7 +86,7 @@ const AddMembersModal: React.FC = () => {
   return (
     <>
       <ActionButton variant="filled" unstyled onClick={handleOpenModal}>
-        Add members
+        {t('action.addMembers')}
       </ActionButton>
 
       {isModalOpen && (
@@ -93,7 +95,7 @@ const AddMembersModal: React.FC = () => {
             <CloseButton onClick={handleCloseModal} style={{ fontSize: 24 }}>
               &times;
             </CloseButton>
-            <ModalTitle>Add New Member</ModalTitle>
+            <ModalTitle>{t('modal.addMembers.title')}</ModalTitle>
             <GroupContainer
               style={{
                 flexDirection: 'column',
@@ -108,21 +110,21 @@ const AddMembersModal: React.FC = () => {
                 id="userName"
                 value={userName}
                 onChange={handleUserNameChange}
-                placeholder="Enter User Id"
+                placeholder={t('modal.addMembers.userIdPlaceholder')}
               />
             </GroupContainer>
 
             <GroupContainer>
               <Button
                 onClick={handleCloseModal}
-                text={'Cancel'}
+                text={t('action.cancel')}
                 style={{ width: '100%' }}
                 unstyled
                 variant="outlined"
               />
               <Button
                 onClick={handleAddUser}
-                text={'Add'}
+                text={t('action.add')}
                 style={{ width: '100%' }}
                 unstyled
                 variant="filled"

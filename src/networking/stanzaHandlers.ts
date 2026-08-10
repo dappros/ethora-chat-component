@@ -10,6 +10,8 @@ import {
   setCurrentRoom,
   setReactions,
   setRoomRole,
+  setMemberOnline,
+  setMemberOffline,
   updateRoom,
   updateUsersSet,
   deleteRoom,
@@ -33,7 +35,7 @@ import XmppClient from './xmppClient';
 import { checkSingleUser } from '../helpers/checkUniqueUsers';
 import { removeMessageFromHeapById } from '../roomStore/roomHeapSlice';
 import { messageNotificationManager } from '../utils/messageNotificationManager';
-import { createUserNameFromSetUser } from '../helpers/createUserNameFromSetUser';
+import { resolveSenderDisplayName } from '../helpers/createUserNameFromSetUser';
 import {
   isActiveRoom,
   isCurrentUserMessage,
@@ -151,8 +153,8 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
       message.user?.id,
       currentXmppUsername
     );
-    // Suppress only exact sender match from stanza resource.
-    const currentUserMessage = senderIsExactCurrentUser;
+    // Suppress own messages via exact stanza-resource match OR the looser user-id match
+    const currentUserMessage = senderIsExactCurrentUser || senderLooksLikeCurrentUser;
     const isSystemMessage = message.isSystemMessage === 'true';
 
     const isHistory = (message as any).isHistory;
@@ -172,12 +174,14 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
 
     if (decision.show) {
       const roomName = room?.name || room?.title || roomJID.split('@')[0];
-      
-      // Get sender name from usersSet using createUserNameFromSetUser helper
-      const senderName = createUserNameFromSetUser(
-        state.rooms.usersSet,
-        message.user.id
-      );
+
+      // A cache-only usersSet lookup shows "Deleted User" for any sender
+      // whose profile hasn't loaded into usersSet yet - reliably the case
+      // for the first messages to arrive right after reconnect/re-login,
+      // before that fetch resolves. resolveSenderDisplayName prefers the
+      // name the sender already stamped on the message stanza itself, so
+      // this doesn't depend on that timing at all.
+      const senderName = resolveSenderDisplayName(message, state.rooms.usersSet);
 
       // Trigger notification via global manager
       messageNotificationManager.showNotification(
@@ -320,7 +324,7 @@ const onReactionHistory = async (stanza: any) => {
 const onMessageHistory = async (stanza: any) => {
   if (
     stanza.is('message') &&
-    stanza.children[0].attrs.xmlns === 'urn:xmpp:mam:2'
+    (stanza.children[0] as any)?.attrs?.xmlns === 'urn:xmpp:mam:2'
   ) {
     const { data, id, body, ...rest } = await getDataFromXml(stanza);
 
@@ -409,6 +413,18 @@ const onPresenceInRoom = (stanza: Element | any) => {
   const state = store.getState();
   const room = state.rooms.rooms[roomJID];
   if (!room) return;
+
+  // Online-status tracking: the MUC broadcasts an available presence for every
+  // occupant already online when you join, live presence as users come online,
+  // and type='unavailable' when a user goes offline. Maintain the per-room
+  // online set from these frames (independent of the affiliation logic below).
+  if (nickname) {
+    if (stanza.attrs?.type === 'unavailable') {
+      store.dispatch(setMemberOffline({ roomJID, xmppUsername: nickname }));
+    } else if (!stanza.attrs?.type) {
+      store.dispatch(setMemberOnline({ roomJID, xmppUsername: nickname }));
+    }
+  }
 
   const myXmppUsername = state.chatSettingStore.user?.xmppUsername || '';
   const isOwn = !!myXmppUsername && nickname === myXmppUsername;

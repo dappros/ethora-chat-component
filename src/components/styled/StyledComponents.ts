@@ -95,7 +95,12 @@ export const MessagesList = styled.div`
   width: 100%;
   height: 100%;
   overflow: hidden;
-  min-height: 1.25em;
+  /* As a column-flex child of ChatContainer, without flex:1 + min-height:0
+     this sizes itself off its own content height instead of shrinking to
+     the space actually left over after the header/composer - on mobile
+     that pushes the composer below the visible viewport until scrolled. */
+  flex: 1;
+  min-height: 0;
   position: relative;
   color: #000000de;
 `;

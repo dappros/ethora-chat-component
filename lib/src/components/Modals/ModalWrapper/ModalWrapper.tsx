@@ -3,6 +3,7 @@ import { CloseButton, GroupContainer, ModalBackground, ModalContainer, ModalDesc
 import { TextareaInput } from '../../styled/StyledInputComponents/StyledInputComponents';
 import Button from '../../styled/Button';
 import { useChatSettingState } from '../../../hooks/useChatSettingState';
+import { useT } from '../../../i18n/useT';
 
 
 interface ModalWrapperProps {
@@ -24,7 +25,7 @@ export const ModalWrapper: FC<ModalWrapperProps> = ({
   title,
   description,
   buttonText,
-  cancelText = 'Cancel',
+  cancelText,
   backgroundColorButton,
   isTextarea,
   textarea,
@@ -34,6 +35,8 @@ export const ModalWrapper: FC<ModalWrapperProps> = ({
 }) => {
   const textareaRef = useRef(null);
   const { config } = useChatSettingState();
+  const t = useT();
+  const resolvedCancelText = cancelText ?? t('action.cancel');
 
   const handleInput = () => {
     const textarea = textareaRef.current;
@@ -62,7 +65,7 @@ export const ModalWrapper: FC<ModalWrapperProps> = ({
             id="additionalDetails"
             value={textarea}
             onChange={(e) => setTextarea(e.target.value)}
-            placeholder="Additional Details"
+            placeholder={t('field.additionalDetails')}
           />
         </GroupContainer>}
         {!buttonText && <GroupContainer>
@@ -71,7 +74,7 @@ export const ModalWrapper: FC<ModalWrapperProps> = ({
         <GroupContainer>
           <Button
             onClick={handleCloseModal}
-            text={cancelText}
+            text={resolvedCancelText}
             style={{ width: '100%' }}
             unstyled
             variant="outlined"

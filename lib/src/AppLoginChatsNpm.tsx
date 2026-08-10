@@ -21,14 +21,16 @@ import type { ApiRoom } from './types/types';
 // XmppProvider receives `jwtLogin.token`, exchanges it via POST /users/client
 // for an Ethora user-auth token + xmpp creds, then connects. Mirrors the
 // production patient flow (see Slack thread).
-const BASE_URL = 'https://api.messenger.ethora-qa.com';
-const CONFERENCE = 'conference.xmpp.messenger.ethora-qa.com';
+// NB: no `/v1` suffix — request paths carry their own version prefix
+// (`/v1/chats`, `/v2/files/secure`), so the version must not be baked in here.
+const BASE_URL = 'https://api.chat-qa.ethora.com';
+const CONFERENCE = 'conference.xmpp.chat-qa.ethora.com';
 
 const BASE_CONFIG = {
   baseUrl: BASE_URL,
   xmppSettings: {
-    devServer: 'wss://xmpp.messenger.ethora-qa.com/ws',
-    host: 'xmpp.messenger.ethora-qa.com',
+    devServer: 'wss://xmpp.chat-qa.ethora.com/ws',
+    host: 'xmpp.chat-qa.ethora.com',
     conference: CONFERENCE,
     xmppPingOnSendEnabled: true,
   },
@@ -1268,7 +1270,11 @@ const AuthedShellInner: React.FC<{
     <>
       <div
         style={{
-          height: '100vh',
+          // svh (small viewport height), not vh: on mobile, 100vh is sized
+          // against the viewport with the browser chrome hidden, so the
+          // page renders taller than what's actually visible on load and
+          // pushes the composer below the fold until the user scrolls.
+          height: '100svh',
           width: '100%',
           display: 'flex',
           gap: 16,

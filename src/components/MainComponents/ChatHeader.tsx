@@ -6,8 +6,10 @@ import {
   ChatContainerHeaderLabel,
 } from '../styled/StyledComponents';
 import RoomList from './RoomList';
-import { IRoom } from '../../types/types';
+import { IConfig, IRoom } from '../../types/types';
 import { ProfileImagePlaceholder } from './ProfileImagePlaceholder';
+import { useRoomPresence } from '../../hooks/useRoomPresence';
+import OnlineUsersPopover from '../RoomComponents/OnlineUsersPopover';
 import Button from '../styled/Button';
 import { AudioCallIcon, BackIcon, VideoCallIcon } from '../../assets/icons';
 import { useDispatch, useSelector } from 'react-redux';
@@ -26,6 +28,7 @@ import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 import { RoomMenu } from '../MenuRoom/MenuRoom';
 import { useRoomState } from '../../hooks/useRoomState';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { useT } from '../../i18n/useT';
 import { formatNumberWithCommas } from '../../helpers/formatNumberWithCommas';
 import { createChatCall } from '../../networking/api-requests/rooms.api';
 import {
@@ -34,6 +37,7 @@ import {
 } from '../../roomStore/callSlice';
 import { sendCallInviteSignal } from '../../networking/callTokenStanza';
 import { ModalWrapper } from '../Modals/ModalWrapper/ModalWrapper';
+import { LanguageSelectorButton } from './LanguageSelectorModal';
 
 interface ChatHeaderProps {
   currentRoom: IRoom;
@@ -71,6 +75,15 @@ const getDisplayCount = (room: IRoom | undefined): number => {
     : 0;
 };
 
+// `showLanguageSelector` defaults to true - only an explicit `false` hides
+// the in-chat picker, e.g. for a host that drives the reader's language
+// itself via config.translates.readerLocale and would otherwise show a
+// second, redundant control.
+export const shouldShowLanguageSelector = (
+  translatesConfig: IConfig['translates'] | undefined
+): boolean =>
+  !!translatesConfig?.enabled && translatesConfig?.showLanguageSelector !== false;
+
 const ChatHeader: React.FC<ChatHeaderProps> = ({
   currentRoom,
   handleBackClick,
@@ -80,14 +93,24 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
 
   const { roomsList, activeRoomJID } = useRoomState(currentRoom.jid);
-  const { composing } = useRoomState(currentRoom.jid).room;
+  const { composing } = useRoomState(currentRoom.jid).room ?? {};
   const { config, user: stateUser } = useChatSettingState();
+  const t = useT();
   const call = useSelector((state: RootState) => state.call);
 
   const videoCallsConfig = config?.videoCalls;
   const allowedRoomTypes = videoCallsConfig?.allowedRoomTypes || ['private'];
   const isVideoCallsEnabled = videoCallsConfig?.enabled === true;
   const isPrivateRoom = currentRoom?.type === 'private';
+  const onlineUsers = useRoomPresence(currentRoom?.jid);
+  const myXmppUsername = stateUser?.xmppUsername || '';
+  const peer = isPrivateRoom
+    ? (currentRoom?.members || []).find(
+        (m) => m.xmppUsername && m.xmppUsername !== myXmppUsername
+      )
+    : undefined;
+  const peerOnline =
+    !!peer?.xmppUsername && onlineUsers.includes(peer.xmppUsername);
   const isRoomAllowedByType = isPrivateRoom && allowedRoomTypes.includes('private');
   const isRoomAllowed = isRoomAllowedByType;
   const hasLivekitUrl = Boolean(videoCallsConfig?.livekitUrl?.trim());
@@ -135,23 +158,15 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     client.leaveTheRoomStanza(activeRoomJID);
     dispatch(deleteRoom({ jid: activeRoomJID }));
 
-    const nextRoomJID =
-      Object.keys(roomsList).find((roomJID) => roomJID !== activeRoomJID) ||
-      null;
-
-    if (!nextRoomJID) {
-      if (typeof window !== 'undefined') {
-        const newUrl = `${window.location.pathname}`;
-        window.history.pushState(null, '', newUrl);
-      }
-      dispatch(setCurrentRoom({ roomJID: null }));
-      setIsLeaveModalOpen(false);
-      return;
+    // After leaving, don't auto-jump into another (often empty) room — that
+    // showed a jarring "This chat is empty". Clear the selection so the pane
+    // renders the neutral "choose a chat" screen instead.
+    if (typeof window !== 'undefined') {
+      window.history.pushState(null, '', window.location.pathname);
     }
-
-    dispatch(setCurrentRoom({ roomJID: nextRoomJID }));
+    dispatch(setCurrentRoom({ roomJID: null }));
     setIsLeaveModalOpen(false);
-  }, [activeRoomJID, roomsList, dispatch, client]);
+  }, [activeRoomJID, dispatch, client]);
 
   const placeCall = useCallback(
     async (kind: 'audio' | 'video') => {
@@ -279,6 +294,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                 size={40}
                 icon={currentRoom?.icon}
                 active={true}
+                online={isPrivateRoom && peerOnline}
               />
             </div>
             <ChatContainerHeaderInfo>
@@ -292,9 +308,32 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                   if (composing) {
                     return <Composing usersTyping={currentRoom?.composingList} />;
                   }
+                  if (isPrivateRoom) {
+                    return (
+                      <span style={{ color: peerOnline ? '#22c55e' : '#8C8C8C' }}>
+                        {peerOnline ? t('presence.online') : t('presence.offline')}
+                      </span>
+                    );
+                  }
                   const displayCount = getDisplayCount(currentRoom);
                   if (displayCount <= 0) return '';
-                  return `${formatNumberWithCommas(displayCount)} ${displayCount === 1 ? 'user' : 'users'}`;
+                  const base = t(
+                    displayCount === 1
+                      ? 'header.userCountSingular'
+                      : 'header.userCountPlural',
+                    { count: formatNumberWithCommas(displayCount) }
+                  );
+                  if (onlineUsers.length === 0) return base;
+                  return (
+                    <>
+                      {base} ·{' '}
+                      <OnlineUsersPopover
+                        onlineUsernames={onlineUsers}
+                        members={currentRoom?.members}
+                        myXmppUsername={myXmppUsername}
+                      />
+                    </>
+                  );
                 })()}
               </ChatContainerHeaderLabel>
             </ChatContainerHeaderInfo>
@@ -304,6 +343,9 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         {!config?.disableRoomMenu &&
           !config?.disableChatInfo?.disableChatHeaderMenu && (
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            {shouldShowLanguageSelector(config?.translates) && (
+              <LanguageSelectorButton />
+            )}
             {canCall && !isCallBusy && (
               <>
                 {/*
@@ -374,10 +416,10 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       </ChatContainerHeader>
       {isLeaveModalOpen && (
         <ModalWrapper
-          title="Leave Chat"
-          description="Are you sure you want to leave this chat?"
-          buttonText="Yes"
-          cancelText="No"
+          title={t('modal.leaveChat.title')}
+          description={t('modal.leaveChat.description')}
+          buttonText={t('action.yes')}
+          cancelText={t('action.no')}
           backgroundColorButton="#E53935"
           handleClick={handleConfirmLeave}
           handleCloseModal={handleCancelLeave}

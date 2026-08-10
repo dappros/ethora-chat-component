@@ -22,6 +22,11 @@ export const sendTextMessageWithTranslateTag = (
   const id = customId || `get-translate-messsage:${Date.now().toString()}`;
 
   try {
+    // `<translate source>` only DECLARES what language this text is in -
+    // it costs nothing to send and is what lets each reader translate the
+    // message into their own language on their side. The message is never
+    // pre-translated here: that put an HTTP round trip in front of every
+    // send (see sendTextMessageWithTranslateTagStanza).
     const message = xml(
       'message',
       {
@@ -31,7 +36,7 @@ export const sendTextMessageWithTranslateTag = (
       },
       xml('data', {
         ...stanzaMessage,
-        push: "true",
+        push: 'true',
       }),
       xml('body', {}, stanzaMessage.userMessage),
       xml('translate', { source: source })

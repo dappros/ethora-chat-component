@@ -10,7 +10,9 @@ import {
   ModalTitle,
 } from '../styledModalComponents';
 import { deleteRoom as deleteRoomApi } from '../../../networking/api-requests/rooms.api';
-import { deleteRoom as deleteRoomAction } from '../../../roomStore/roomsSlice';
+import { deleteRoom as deleteRoomAction, setCurrentRoom } from '../../../roomStore/roomsSlice';
+import { useXmppClient } from '../../../context/xmppProvider';
+import { useT } from '../../../i18n/useT';
 
 interface DeleteChatModalProps {
   isModalOpen: boolean;
@@ -23,6 +25,8 @@ const DeleteChatModal: React.FC<DeleteChatModalProps> = ({
 }) => {
   const dispatch = useDispatch();
   const activeRoom = useSelector((state: RootState) => getActiveRoom(state));
+  const { client } = useXmppClient();
+  const t = useT();
 
   const handleOpenModal = () => setIsModalOpen(true);
   const handleCloseModal = () => setIsModalOpen(false);
@@ -30,7 +34,11 @@ const DeleteChatModal: React.FC<DeleteChatModalProps> = ({
   const handleDeleteChat = async () => {
     try {
       await deleteRoomApi(activeRoom.jid.split('@')[0]);
+      // Leave/unsubscribe the MUC so a public room isn't auto-rejoined via XMPP
+      // on reload (DELETE succeeds server-side, but the client re-subscribes).
+      client?.leaveTheRoomStanza?.(activeRoom.jid);
       dispatch(deleteRoomAction({ jid: activeRoom.jid }));
+      dispatch(setCurrentRoom({ roomJID: null }));
       handleCloseModal();
     } catch (error) {
       console.error('Failed to delete chat:', error);
@@ -44,19 +52,19 @@ const DeleteChatModal: React.FC<DeleteChatModalProps> = ({
           <CloseButton onClick={handleCloseModal} style={{ fontSize: 24 }}>
             &times;
           </CloseButton>
-          <ModalTitle>Delete this chat ?</ModalTitle>
+          <ModalTitle>{t('modal.deleteChat.title')}</ModalTitle>
 
           <GroupContainer>
             <Button
               onClick={handleCloseModal}
-              text={'Cancel'}
+              text={t('action.cancel')}
               style={{ width: '100%' }}
               unstyled
               variant="filled"
             />
             <Button
               onClick={handleDeleteChat}
-              text={'Delete'}
+              text={t('action.delete')}
               style={{ width: '100%', border: '1px solid red', color: 'red' }}
               unstyled
               variant="outlined"

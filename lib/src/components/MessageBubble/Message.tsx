@@ -28,13 +28,24 @@ import { MessageReply } from './MessageReply';
 import { DeletedMessage } from './DeletedMessage';
 import { useXmppClient } from '../../context/xmppProvider';
 import { MessageReaction } from './MessageReaction';
-import MessageTranslations from './MessageTranslations';
+import MessageTranslate from './MessageTranslate';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { DoubleTick } from '../../assets/icons';
 import { parseMessageBody } from '../../helpers/parseMessageBody';
 import URLPreviewCard from './URLPreviewCard';
 import { useMessageHeapState } from '../../hooks/useMessageHeapState';
 import { parseMessageReference } from '../../helpers/parseMessageReference';
+import { useMessageTranslation } from '../../hooks/useMessageTranslation';
+import TranslatedMessageBody from './TranslatedMessageBody';
+import { useT } from '../../i18n/useT';
+import styled from 'styled-components';
+import { resolveTranslateMode } from '../../utils/translateModePolicy';
+
+// Inherits CustomMessageTimestamp's colour/size - just the WhatsApp/
+// Telegram-style italic to read as a tag, not a second timestamp.
+const EditedLabel = styled.span`
+  font-style: italic;
+`;
 
 const firstUrlRegex =
   /(https?:\/\/[\w.-]+(?:\.[\w.-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=.]+)/;
@@ -44,10 +55,25 @@ const Message: React.FC<MessageProps> = forwardRef<
   MessageProps
 >(({ message, isUser, isReply }, ref) => {
   const { client } = useXmppClient();
-  const { user, config, langSource } = useChatSettingState();
+  const t = useT();
+  const { user, config, langSource, translateMode } = useChatSettingState();
   const { idSet } = useMessageHeapState();
   const interactionsDisabled = Boolean(config?.disableInteractions);
   const profilesDisabled = Boolean(config?.disableProfilesInteractions);
+
+  const effectiveTranslateMode = resolveTranslateMode(
+    config?.translates,
+    translateMode
+  );
+  const isAutoTranslate =
+    !!config?.translates?.enabled && effectiveTranslateMode !== 'manual';
+  const readerLocale =
+    config?.translates?.readerLocale || config?.i18n?.locale || langSource;
+  const translationDisplay = useMessageTranslation(
+    message,
+    readerLocale,
+    isAutoTranslate
+  );
 
   // Read sender name live from usersSet so user-update stanzas trigger immediate re-render.
   const usersSet = useSelector((state: RootState) => state.rooms.usersSet);
@@ -57,6 +83,19 @@ const Message: React.FC<MessageProps> = forwardRef<
   const senderDisplayName = senderEntry
     ? `${senderEntry.firstName ?? ''} ${senderEntry.lastName ?? ''}`.trim() || senderLocal
     : message.user?.name || senderLocal || 'Unknown';
+  // usersSet first, same reason as the name above: a message restored from
+  // the persist cache never carries an avatar URL at all (profileImage is
+  // deliberately absent from PERSISTED_MESSAGE_USER_FIELDS - it's exactly
+  // the bulky per-message duplicate usersSet exists to replace), and even
+  // a freshly-received live message only carries the sender's avatar as of
+  // whenever THEY last set it, not whenever it's actually rendered. Live-
+  // measured on a real account: usersSet had a profileImage for 2,524 of
+  // 3,483 known users, while `message.user.profileImage` was empty on
+  // nearly every historical message - reading only the message-level copy
+  // is why senders you'd already resolved a name for still showed a blank
+  // initials circle instead of their photo.
+  const senderProfileImage =
+    senderEntry?.profileImage || message.user?.profileImage || '';
   const referencedMessage = parseMessageReference(message.mainMessage);
 
 
@@ -239,11 +278,9 @@ const Message: React.FC<MessageProps> = forwardRef<
                 : null
             }
           >
-            {message.user?.profileImage && message.user.profileImage !== '' ? (
+            {senderProfileImage ? (
               <CustomMessagePhoto
-                src={
-                  message.user.profileImage 
-                }
+                src={senderProfileImage}
                 alt="userIcon"
               />
             ) : (
@@ -291,27 +328,46 @@ const Message: React.FC<MessageProps> = forwardRef<
               {message.isDeleted && message.id !== 'delimiter-new' ? (
                 <DeletedMessage />
               ) : (
-                <div className="message-body">
-                  {parseMessageBody({
-                    text: config?.messageTextFilter?.enabled
-                      ? config.messageTextFilter.filterFunction(message.body)
-                      : message.body,
-                  })}
-                </div>
+                (() => {
+                  const body = (
+                    <div className="message-body">
+                      {parseMessageBody({
+                        text: config?.messageTextFilter?.enabled
+                          ? config.messageTextFilter.filterFunction(
+                              translationDisplay.displayText
+                            )
+                          : translationDisplay.displayText,
+                      })}
+                    </div>
+                  );
+
+                  if (!translationDisplay.hasTranslation) return body;
+                  return (
+                    <TranslatedMessageBody
+                      isUser={isUser}
+                      originalText={translationDisplay.originalText}
+                      accentColor={config?.colors?.primary}
+                    >
+                      {body}
+                    </TranslatedMessageBody>
+                  );
+                })()
               )}
             </CustomMessageText>
           )}
 
-          {!isUser && config?.translates?.enabled && (
-            <MessageTranslations
+          {!isUser && config?.translates?.enabled && effectiveTranslateMode === 'manual' && (
+            <MessageTranslate
               message={message}
               config={config}
-              langSource={langSource}
               isUser={isUser}
             />
           )}
           <CustomMessageTimestamp>
             {!config?.disableSentLogic && isUser && isPending && 'sending...'}
+            {message.isEdited && !message.isDeleted && (
+              <EditedLabel>{t('message.edited')}</EditedLabel>
+            )}
             {new Date(message.date).toLocaleTimeString([], {
               hour: '2-digit',
               minute: '2-digit',

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 
 const SwitchContainer = styled.div<{ isOn: boolean; bgColor?: string }>`
@@ -28,6 +28,14 @@ interface SwitchProps {
   bgColor?: string;
   onSwitchOn?: () => void;
   onSwitchOff?: () => void;
+  /**
+   * Reflects an existing value (e.g. redux state) instead of always
+   * starting from "off". Optional and defaults to undefined so every
+   * existing fire-and-forget caller keeps its original always-starts-off
+   * behaviour unchanged - only pass this when the switch represents a
+   * real, already-known boolean.
+   */
+  checked?: boolean;
 }
 
 const Switch: React.FC<SwitchProps> = ({
@@ -35,8 +43,17 @@ const Switch: React.FC<SwitchProps> = ({
   onSwitchOff,
   onToggle,
   bgColor,
+  checked,
 }) => {
-  const [isOn, setIsOn] = useState(false);
+  const [isOn, setIsOn] = useState(checked ?? false);
+
+  // Stay in sync with an external value change (e.g. another tab/device
+  // toggling the same persisted redux state) without fighting the user's
+  // own click - toggleSwitch below updates local state immediately, and
+  // this only re-syncs when the prop itself actually moves.
+  useEffect(() => {
+    if (checked !== undefined) setIsOn(checked);
+  }, [checked]);
 
   const toggleSwitch = () => {
     const nextState = !isOn;

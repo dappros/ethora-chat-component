@@ -3,6 +3,7 @@ import DropdownMenu from '../DropdownMenu/DropdownMenu';
 import Button from '../styled/Button';
 import { LeaveIcon, MoreIcon, ReportIcon } from '../../assets/icons';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
+import { useT } from '../../i18n/useT';
 
 interface RoomMenuProps {
   handleLeaveClick: () => void;
@@ -10,10 +11,11 @@ interface RoomMenuProps {
 }
 
 export const RoomMenu: FC<RoomMenuProps> = ({ handleLeaveClick, handleReportClick }) => {
+  const t = useT();
   const menuOptions = useMemo(
     () => [
       {
-        label: 'Report',
+        label: t('action.report'),
         icon: <ReportIcon />,
         onClick: () => {
           handleReportClick();
@@ -22,7 +24,7 @@ export const RoomMenu: FC<RoomMenuProps> = ({ handleLeaveClick, handleReportClic
         styles: { color: 'red' },
       },
       {
-        label: 'Leave',
+        label: t('action.leave'),
         icon: <LeaveIcon />,
         onClick: () => {
           handleLeaveClick();
@@ -30,7 +32,7 @@ export const RoomMenu: FC<RoomMenuProps> = ({ handleLeaveClick, handleReportClic
         styles: { color: 'red' },
       },
     ],
-    [handleLeaveClick]
+    [handleLeaveClick, handleReportClick, t]
   );
 
   return (

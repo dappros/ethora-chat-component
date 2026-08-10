@@ -115,6 +115,16 @@ export class XmppClient implements XmppClientInterface {
   private reconnecting: boolean = false;
   private reconnectPromise: Promise<void> | null = null;
   presencesReady: boolean = false;
+  // sendAllPresencesAndMarkReady() is called independently from three
+  // unrelated places (the online-event handler in this class, loadRooms() in
+  // useChatWrapperInit.ts, and xmppProvider.tsx's initBeforeLoad path) with
+  // no coordination between them. Observed live: 2-3 full presence sweeps
+  // for the same ~10 rooms firing back-to-back, each its own concurrency
+  // worker-pool competing for the same WS connection — turning a ~1.6s sweep
+  // into an 8-11s one and dragging the whole catchup phase down with it
+  // (13-14.5s total instead of the ~6.5s a single clean sweep gets). This
+  // in-flight promise makes every caller share the same underlying sweep.
+  private sendAllPresencesInFlight: Promise<void> | null = null;
 
   private connectionSteps: Array<{ ts: number; step: string }> = [];
 
@@ -255,9 +265,17 @@ export class XmppClient implements XmppClientInterface {
     this.username = username;
     this.password = password;
     this.pingOnSendEnabled = xmppSettings?.xmppPingOnSendEnabled === true;
+    // Was 2, tighter than historyPreloadScheduler's own concurrency=3 — the
+    // two gates disagreeing meant the scheduler could never actually run 3
+    // rooms in parallel, it always serialized down to 2. A background
+    // preload burst of N rooms round-trips to the server sequentially in
+    // batches of `min(scheduler concurrency, maxInFlightHistory)`, so raising
+    // this to 4 lets the scheduler's own concurrency setting actually apply,
+    // and leaves headroom for an active-room fast-path request landing in
+    // the same window.
     this.maxInFlightHistory = Math.max(
       1,
-      Number(xmppSettings?.historyQoS?.maxInFlightHistory || 2)
+      Number(xmppSettings?.historyQoS?.maxInFlightHistory || 4)
     );
     this.softPauseAfterSendMs = Math.max(
       0,
@@ -627,10 +645,21 @@ export class XmppClient implements XmppClientInterface {
         const pingId = sendPing(this.client, this.host);
         this.lastPingId = pingId;
 
+        // Match scheduleAdaptivePing's floor: pongTimeoutMs alone (1000ms) is
+        // too tight for THIS, the very first ping after connect — it fires
+        // while the connection is busiest (presence sweep + history preload
+        // racing for the same WS), so any round-trip over 1s would read as a
+        // dead connection and force a reconnect that wipes joinedRooms and
+        // restarts the whole presence sweep from zero. (The actual cause of
+        // the mid-load slowdowns observed live turned out to be a duplicate
+        // presence sweep — see sendAllPresencesAndMarkReady's in-flight guard
+        // — not this timeout; keeping the floor here regardless, since 1s is
+        // still an unreasonably tight window for the busiest ping.)
+        const pongWait = Math.max(this.pongTimeoutMs, 4000);
         this.pingTimeout = setTimeout(() => {
           this.handlePingTimeout();
           this.pingInFlight = false;
-        }, this.pongTimeoutMs);
+        }, pongWait);
 
         const pongListener = (stanza: any) => {
           if (isPong(stanza, pingId)) {
@@ -652,6 +681,23 @@ export class XmppClient implements XmppClientInterface {
   }
 
   async sendAllPresencesAndMarkReady() {
+    if (this.sendAllPresencesInFlight) {
+      return this.sendAllPresencesInFlight;
+    }
+    // A prior sweep already confirmed presence for the current room set —
+    // one of the three independent callers just arrived late. `reconnect()`
+    // explicitly resets presencesReady to false before the next online
+    // cycle, so this never suppresses a sweep that's actually needed again.
+    if (this.presencesReady) {
+      return;
+    }
+    this.sendAllPresencesInFlight = this.runAllPresencesSweep().finally(() => {
+      this.sendAllPresencesInFlight = null;
+    });
+    return this.sendAllPresencesInFlight;
+  }
+
+  private async runAllPresencesSweep() {
     this.presencesReady = false;
     const start = Date.now();
     let summary: AllRoomPresenceSummary = {
@@ -1969,6 +2015,16 @@ export class XmppClient implements XmppClientInterface {
     }, customId, roomJID, lane);
   };
 
+  // NOTE: this deliberately does NOT translate. Pre-translating here meant
+  // every send waited on an HTTP round trip to the translation service
+  // before the stanza could even be queued - latency paid by the SENDER, on
+  // every message, to produce translations for every configured language
+  // whether or not anyone in the room ever reads them. The sender wrote the
+  // message; they don't need it translated. Translation now happens on the
+  // READER's side, for the one language they actually read, and only for
+  // messages they actually look at (see useMessageTranslation). The stanza
+  // still carries `<translate source="xx"/>` so readers know what language
+  // to translate FROM.
   sendTextMessageWithTranslateTagStanza = (
     roomJID: string,
     firstName: string,

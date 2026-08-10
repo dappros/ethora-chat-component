@@ -15,10 +15,12 @@ import Loader from '../../styled/Loader';
 import { postAddRoomMember } from '../../../networking/api-requests/rooms.api';
 import { useToast } from '../../../context/ToastContext';
 import { updateRoom } from '../../../roomStore/roomsSlice';
+import { useT } from '../../../i18n/useT';
 
 const SelectUsersModal: React.FC = () => {
   const { showToast } = useToast();
   const dispatch = useDispatch();
+  const t = useT();
 
   const [loading, setIsLoading] = useState<boolean>(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -60,8 +62,11 @@ const SelectUsersModal: React.FC = () => {
       );
       showToast({
         id: Date.now().toString(),
-        title: 'Success!',
-        message: 'Room created succusfully!',
+        title: t('toast.success'),
+        // This is the "add users to an existing room" flow, not room
+        // creation - the old copy here literally said "Room created
+        // succusfully!" (typo and all), copy-pasted from NewChatModal.
+        message: t('toast.usersAddedSuccess'),
         type: 'success',
         duration: 3000,
       });
@@ -77,7 +82,7 @@ const SelectUsersModal: React.FC = () => {
   return (
     <>
       <ActionButton variant="filled" unstyled onClick={handleOpenModal}>
-        Add more Users
+        {t('action.addMoreUsers')}
       </ActionButton>
 
       {isModalOpen && (
@@ -109,7 +114,7 @@ const SelectUsersModal: React.FC = () => {
             <GroupContainer>
               <Button
                 onClick={handleCloseModal}
-                text="Cancel"
+                text={t('action.cancel')}
                 style={{ width: '100%' }}
                 unstyled
                 variant="outlined"
@@ -119,7 +124,7 @@ const SelectUsersModal: React.FC = () => {
               ) : (
                 <Button
                   onClick={handleAdd}
-                  text="Add"
+                  text={t('action.add')}
                   style={{ width: '100%' }}
                   unstyled
                   variant="filled"

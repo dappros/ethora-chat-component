@@ -5,6 +5,7 @@ import Button from '../styled/Button';
 import { IConfig } from '../../types/types';
 import { useToast } from '../../context/ToastContext';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
+import { useT } from '../../i18n/useT';
 
 interface LoginFormProps {
   config?: IConfig;
@@ -12,13 +13,14 @@ interface LoginFormProps {
 
 const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
   const { showToast } = useToast();
+  const t = useT();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     showToast({
       id: 'success',
-      title: 'Login Successful',
-      message: 'You are logged in anonymously!',
+      title: t('toast.loginSuccessfulTitle'),
+      message: t('auth.anonymousLoginMessage'),
       type: 'success',
     });
     ethoraLogger.log('Form submitted');
@@ -29,10 +31,10 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
       <Button
         type="submit"
         onClick={(e) => handleSubmit(e)}
-        text={'Login anonymously'}
+        text={t('auth.loginAnonymously')}
         style={{ width: '100%', height: '40px' }}
       />
-      <Delimiter>Only could send text messages</Delimiter>
+      <Delimiter>{t('auth.anonymousTextOnly')}</Delimiter>
     </FormContainer>
   );
 };

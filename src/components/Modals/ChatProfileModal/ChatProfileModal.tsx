@@ -12,6 +12,7 @@ import {
 } from '../styledModalComponents';
 import ModalHeaderComponent from '../ModalHeaderComponent';
 import { ProfileImagePlaceholder } from '../../MainComponents/ProfileImagePlaceholder';
+import { useRoomPresence } from '../../../hooks/useRoomPresence';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, getActiveRoom } from '../../../roomStore';
 import { uploadFile } from '../../../networking/api-requests/auth.api';
@@ -35,6 +36,7 @@ import { useChatSettingState } from '../../../hooks/useChatSettingState';
 import SelectUsersModal from '../SelectUsersModal/SelectUsersModal';
 import { useToast } from '../../../context/ToastContext';
 import { ethoraLogger } from '../../../helpers/ethoraLogger';
+import { useT } from '../../../i18n/useT';
 
 interface ChatProfileModalProps {
   handleCloseModal: any;
@@ -48,11 +50,12 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const { showToast } = useToast();
+  const t = useT();
 
   const chatMenuOptions = useMemo(
     () => [
       {
-        label: 'Delete chat',
+        label: t('action.deleteChat'),
         icon: <DeleteIcon />,
         onClick: () => {
           setIsModalOpen(true);
@@ -60,7 +63,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         styles: { color: 'red' },
       },
     ],
-    []
+    [t]
   );
 
   const dispatch = useDispatch();
@@ -68,6 +71,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   const { client } = useXmppClient();
   const { user: stateUser, config } = useChatSettingState();
   const activeRoom = useSelector((state: RootState) => getActiveRoom(state));
+  const onlineUsers = useRoomPresence(activeRoom?.jid);
   const usersSet = useSelector((state: RootState) => state.rooms.usersSet);
 
   // XMPP affiliation responses populate activeRoom.members with bare
@@ -133,16 +137,16 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
 
       showToast({
         id: Date.now().toString(),
-        title: 'Success',
-        message: `${userId} has been removed from the room.`,
+        title: t('toast.success'),
+        message: t('toast.userRemovedFromRoom', { userId }),
         type: 'success',
       });
     } catch (error) {
       console.error('Failed to delete user:', error);
       showToast({
         id: Date.now().toString(),
-        title: 'Error',
-        message: 'Failed to delete user.',
+        title: t('toast.error'),
+        message: t('toast.failedToDeleteUser'),
         type: 'error',
       });
     }
@@ -169,7 +173,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   const menuOptions = useMemo(
     () => (userId: string) => [
       {
-        label: 'Appoint as an admin',
+        label: t('action.appointAsAdmin'),
         icon: null,
         onClick: () => {
           dispatch(setActiveModal(MODAL_TYPES.PROFILE));
@@ -177,15 +181,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         },
       },
       {
-        label: 'Unban',
-        icon: null,
-        onClick: () => {
-          dispatch(setActiveModal(MODAL_TYPES.SETTINGS));
-          ethoraLogger.log('Settings clicked');
-        },
-      },
-      {
-        label: 'Delete',
+        label: t('action.delete'),
         icon: null,
         onClick: (e: any) => {
           e?.preventDefault();
@@ -193,7 +189,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         },
       },
     ],
-    []
+    [t]
   );
 
   if (!activeRoom) {
@@ -205,7 +201,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
     <ModalContainerFullScreen style={{ position: 'relative' }}>
       <ModalHeaderComponent
         handleCloseModal={handleCloseModal}
-        headerTitle={'Chat Profile'}
+        headerTitle={t('modal.chatProfile.title')}
         rightMenu={
           <>
             {activeRoom?.type === 'public' && (
@@ -252,7 +248,9 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                       activeRoom.usersCnt > 0
                     ? activeRoom.usersCnt
                     : 0;
-              return `${displayCount} ${displayCount === 1 ? 'member' : 'members'}`;
+              return displayCount === 1
+                ? t('modal.chatProfile.memberCountSingular', { count: displayCount })
+                : t('modal.chatProfile.memberCountPlural', { count: displayCount });
             })()}
           </UserStatus>
         </UserInfo>
@@ -264,13 +262,13 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         )}
         {!config?.disableChatInfo?.disableDescription && (
           <BorderedContainer>
-            <LabelData>Description</LabelData>
+            <LabelData>{t('modal.chatProfile.description')}</LabelData>
             <Label>{activeRoom?.description}</Label>
           </BorderedContainer>
         )}
         {!config?.disableChatInfo?.disableType && (
           <BorderedContainer>
-            <LabelData>Chat type</LabelData>
+            <LabelData>{t('modal.chatProfile.chatType')}</LabelData>
             <Label>{activeRoom.type}</Label>
           </BorderedContainer>
         )}
@@ -333,6 +331,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                         name={`${user.firstName} ${user.lastName}`}
                         icon={(user as any).profileImage || (user as any).photoURL}
                         size={40}
+                        online={onlineUsers.includes(user.xmppUsername)}
                       />
                       <div
                         style={{
@@ -383,7 +382,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                                 e.preventDefault();
                               }}
                             >
-                              More Options
+                              {t('action.moreOptions')}
                             </Button>
                           }
                           onClose={() => ethoraLogger.log('Dropdown closed')}

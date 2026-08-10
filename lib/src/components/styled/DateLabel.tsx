@@ -1,5 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
+import { useT, useUiLocale } from '../../i18n/useT';
 import { Line } from './StyledComponents';
 
 interface DateLabelProps {
@@ -30,12 +31,14 @@ export const StyledDateLabel = styled.div<{
   font-size: 12px;
   line-height: 14px;
   font-weight: 600;
-  background-color: ${(props) => props.$secondary || '#e7edf9'};
+  background-color: #e7edf9;
   height: 24px;
   white-space: nowrap;
 `;
 
 const DateLabel: React.FC<DateLabelProps> = ({ date, colors }) => {
+  const t = useT();
+  const locale = useUiLocale();
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
@@ -50,20 +53,23 @@ const DateLabel: React.FC<DateLabelProps> = ({ date, colors }) => {
 
   let label: string;
   if (sameDay(date, today)) {
-    label = 'Today';
+    label = t('date.today');
   } else if (sameDay(date, yesterday)) {
-    label = 'Yesterday';
+    label = t('date.yesterday');
   } else {
     const options: Intl.DateTimeFormatOptions = sameYear(date, today)
       ? { month: 'long', day: 'numeric' }
       : { month: 'long', day: 'numeric', year: 'numeric' };
-    label = date.toLocaleDateString('en-US', options);
+    // Was hardcoded 'en-US', so every separator read "March 3" even with
+    // the UI in Chinese. Intl already localises month names and field
+    // order - it just needs to be told which locale.
+    label = date.toLocaleDateString(locale, options);
   }
 
   return (
     <Container>
       <Line />
-      <StyledDateLabel $primary={colors?.primary} $secondary={colors?.secondary}>
+      <StyledDateLabel $primary={colors?.primary}>
         {label}
       </StyledDateLabel>
       <Line />

@@ -24,15 +24,26 @@ export const Container = styled.div.withConfig({
           border-right: 1px solid var(--Colors-Border-border-primary, #f0f0f0);
         `
       : css`
+          box-sizing: border-box;
           padding: 16px;
           padding-top: 0px;
           overflow: auto;
           display: relative;
           z-index: 2;
           background-color: #fff;
-          min-width: 335px;
-          border-right: 1px solid var(--Colors-Border-border-primary, #f0f0f0);
           min-width: 343px;
+          border-right: 1px solid var(--Colors-Border-border-primary, #f0f0f0);
+
+          /* Adapt to narrow viewports: a fixed min-width pushed the list
+             wider than the screen and produced a horizontal scrollbar on
+             mobile. Let it shrink to the container and cap padding. */
+          @media (max-width: 767px) {
+            min-width: 0;
+            width: 100%;
+            max-width: 100%;
+            padding-left: 12px;
+            padding-right: 12px;
+          }
         `}
 `;
 
@@ -77,6 +88,13 @@ export const SearchContainer = styled.div<{}>`
   width: 100%;
   height: 50px;
   padding: 12px 0px;
+
+  /* Mobile: breathing room ABOVE the search (gap from the header) and a
+     smaller gap BELOW it, so the input isn't glued to the first chat row. */
+  @media (max-width: 767px) {
+    height: auto;
+    padding: 16px 0 12px 0;
+  }
 `;
 
 export const ScollableContainer = styled.div<{}>`
@@ -90,6 +108,7 @@ export const ScollableContainer = styled.div<{}>`
 export const ChatInfo = styled.div`
   display: flex;
   flex-direction: column;
+  min-width: 0;
   max-width: 60%;
   text-align: start;
 `;

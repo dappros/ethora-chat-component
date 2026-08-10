@@ -30,6 +30,9 @@ export interface CallState {
   token: string | null;
   error: string | null;
   startedAt: number | null;
+  // When the call actually connected (phase -> 'in-call'). Null until then.
+  // Used to compute a duration for the local "call ended" log fallback.
+  connectedAt: number | null;
 }
 
 const initialState: CallState = {
@@ -44,6 +47,7 @@ const initialState: CallState = {
   token: null,
   error: null,
   startedAt: null,
+  connectedAt: null,
 };
 
 const resetState = (): CallState => ({ ...initialState });
@@ -76,6 +80,7 @@ const callSlice = createSlice({
       state.token = null;
       state.error = null;
       state.startedAt = Date.now();
+      state.connectedAt = null;
     },
     setIncomingCallToken(
       state,
@@ -103,6 +108,7 @@ const callSlice = createSlice({
       state.token = action.payload.token;
       state.error = null;
       state.startedAt = Date.now();
+      state.connectedAt = null;
     },
     setOutgoingCallToken(
       state,
@@ -145,6 +151,9 @@ const callSlice = createSlice({
       state.phase = action.payload;
       if (action.payload === 'in-call') {
         state.error = null;
+        // Anchor the connect moment once, so a mid-call reconnect blip
+        // doesn't reset the duration used by the local call-end log.
+        state.connectedAt = state.connectedAt || Date.now();
       }
     },
     // Patch the call kind in-place. Used when the server's call-token

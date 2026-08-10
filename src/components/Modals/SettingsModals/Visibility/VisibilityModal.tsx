@@ -14,6 +14,7 @@ import {
   SharedSettingsStyledLabel,
 } from '../SharedStyledComponents';
 import { Notification } from '../../../Notification';
+import { useT } from '../../../../i18n/useT';
 
 interface VisibilityModalProps {
   handleCloseModal: any;
@@ -23,6 +24,7 @@ const VisibilityModal: React.FC<VisibilityModalProps> = ({
   handleCloseModal,
 }) => {
   const dispatch = useDispatch();
+  const t = useT();
   const { user, config } = useSelector(
     (state: RootState) => state.chatSettingStore
   );
@@ -45,9 +47,9 @@ const VisibilityModal: React.FC<VisibilityModalProps> = ({
       updateMe({ isProfileOpen })
         .then(({ data }) => {
           doUpdateUser(data.user);
-          showNotification('Saved', 'success');
+          showNotification(t('notification.saved'), 'success');
         })
-        .catch(() => showNotification('Error', 'error'));
+        .catch(() => showNotification(t('toast.error'), 'error'));
     }
   }, [isProfileOpen]);
 
@@ -56,9 +58,9 @@ const VisibilityModal: React.FC<VisibilityModalProps> = ({
       updateMe({ isAssetsOpen })
         .then(({ data }) => {
           doUpdateUser(data.user);
-          showNotification('Saved', 'success');
+          showNotification(t('notification.saved'), 'success');
         })
-        .catch(() => showNotification('Error', 'error'));
+        .catch(() => showNotification(t('toast.error'), 'error'));
     }
   }, [isAssetsOpen]);
 
@@ -66,12 +68,12 @@ const VisibilityModal: React.FC<VisibilityModalProps> = ({
     <ModalContainerFullScreen>
       <ModalHeaderComponent
         handleCloseModal={handleCloseModal}
-        headerTitle={'Visibility'}
+        headerTitle={t('settings.visibility.title')}
       />
       <SharedSettingsCenterContainer>
         <SharedSettingsColumnContainer>
           <SharedSettingsStyledLabel>
-            Profile Visiblility
+            {t('settings.visibility.profileLabel')}
           </SharedSettingsStyledLabel>
           <RadioGroup>
             <RadioLabel>
@@ -81,11 +83,10 @@ const VisibilityModal: React.FC<VisibilityModalProps> = ({
                 checked={isProfileOpen === true}
                 onChange={() => setIsProfileOpen(true)}
               />
-              Open (default)
+              {t('settings.visibility.open')}
             </RadioLabel>
             <SharedSettingsLabelData>
-              Your profile can be viewed by anyone who follows your profile link
-              or QR code.
+              {t('settings.visibility.openDescription')}
             </SharedSettingsLabelData>
             <RadioLabel>
               <RadioInput
@@ -94,17 +95,16 @@ const VisibilityModal: React.FC<VisibilityModalProps> = ({
                 checked={isProfileOpen === false}
                 onChange={() => setIsProfileOpen(false)}
               />
-              Restricted
+              {t('settings.visibility.restricted')}
             </RadioLabel>
             <SharedSettingsLabelData>
-              Only users with your permission or temporary secure link can see
-              your profile.
+              {t('settings.visibility.restrictedDescription')}
             </SharedSettingsLabelData>
           </RadioGroup>
         </SharedSettingsColumnContainer>
         <SharedSettingsColumnContainer>
           <SharedSettingsStyledLabel>
-            Documents Visibility
+            {t('settings.visibility.documentsLabel')}
           </SharedSettingsStyledLabel>
           <RadioGroup>
             <RadioLabel>
@@ -114,10 +114,10 @@ const VisibilityModal: React.FC<VisibilityModalProps> = ({
                 checked={isAssetsOpen === true}
                 onChange={() => setIsAssetsOpen(true)}
               />
-              Full (default)
+              {t('settings.visibility.full')}
             </RadioLabel>
             <SharedSettingsLabelData>
-              Show all Documents to those who can see your profile.
+              {t('settings.visibility.fullDescription')}
             </SharedSettingsLabelData>
             <RadioLabel>
               <RadioInput
@@ -126,11 +126,10 @@ const VisibilityModal: React.FC<VisibilityModalProps> = ({
                 checked={isAssetsOpen === false}
                 onChange={() => setIsAssetsOpen(false)}
               />
-              Individual
+              {t('settings.visibility.individual')}
             </RadioLabel>
             <SharedSettingsLabelData>
-              You need to share each document individually before others can see
-              them.
+              {t('settings.visibility.individualDescription')}
             </SharedSettingsLabelData>
           </RadioGroup>
         </SharedSettingsColumnContainer>

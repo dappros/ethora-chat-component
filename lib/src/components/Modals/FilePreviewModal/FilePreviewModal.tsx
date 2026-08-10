@@ -19,6 +19,7 @@ import {
   requestFileTokenRecovery,
   withFileToken,
 } from '../../../helpers/secureFileUrl';
+import { useT } from '../../../i18n/useT';
 
 interface FilePreviewModalProps {
   handleCloseModal: any;
@@ -28,6 +29,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
   handleCloseModal,
 }) => {
   const dispatch = useDispatch();
+  const t = useT();
   const { activeFile } = useSelector(
     (state: RootState) => state.chatSettingStore
   );
@@ -138,7 +140,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
     <ModalContainerFullScreen>
       <ModalHeaderComponent
         handleCloseModal={closeModal}
-        headerTitle={'File preview'}
+        headerTitle={t('modal.filePreview.title')}
         rightMenu={
           <>
             <Button onClick={saveClick}>

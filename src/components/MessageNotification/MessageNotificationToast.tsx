@@ -1,7 +1,9 @@
 // Telegram-style message notification toast component
 import React from 'react';
+import { useSelector } from 'react-redux';
 import styled, { keyframes } from 'styled-components';
 import { IMessage } from '../../types/models/message.model';
+import { RootState } from '../../roomStore';
 
 export interface MessageNotificationData {
   id: string;
@@ -304,8 +306,19 @@ const MessageNotificationToast: React.FC<MessageNotificationToastProps> = ({
   };
 
   const messagePreview = getMessagePreview(message);
+  // usersSet first - message.user's own photo field is frequently empty
+  // (never persisted at all, and not every live message carries it either;
+  // see Message.tsx for the same gap and a live measurement of how often
+  // it's missing), while usersSet is the canonical, continuously-updated
+  // store the rest of the app already resolves avatars through.
+  const senderUserId = (message.user as any)?.id ?? '';
+  const senderLocal = senderUserId.split('@')[0];
+  const usersSet = useSelector((state: RootState) => state.rooms.usersSet) ?? {};
+  const senderEntry = usersSet[senderLocal] ?? usersSet[senderUserId];
   const userPhotoURL =
-    (message.user as any)?.photoURL || (message.user as any)?.profileImage;
+    senderEntry?.profileImage ||
+    (message.user as any)?.photoURL ||
+    (message.user as any)?.profileImage;
 
   return (
     <ToastContainer $isClosing={isClosing} onClick={handleClick}>
@@ -317,7 +330,7 @@ const MessageNotificationToast: React.FC<MessageNotificationToastProps> = ({
         <Timestamp>{formatTime(timestamp)}</Timestamp>
       </Header>
       <MessageContent>
-        <Avatar photoURL={userPhotoURL} />
+        <Avatar photoURL={userPhotoURL} data-testid="notification-avatar" />
         <MessageBody>
           <SenderName>{senderName}</SenderName>
           {message.isMediafile === 'true' ? (

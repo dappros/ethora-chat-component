@@ -20,6 +20,13 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
   setVisible,
 }) => {
   const { config } = useChatSettingState();
+  // Prefer app-provided qrUrl; else build from the current origin so QA /
+  // self-hosted deployments don't point QR codes at the prod default.
+  const qrBase =
+    config?.qrUrl ||
+    (typeof window !== 'undefined'
+      ? `${window.location.origin}/app/chat/?chatId=`
+      : QRCODE_URL);
 
   useEffect(() => {
     const { overflow } = document.body.style;
@@ -73,7 +80,7 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
               <QRCode
                 size={256}
                 style={{ width: '100%', height: '70%', maxWidth: '100%' }}
-                value={`${config?.qrUrl || QRCODE_URL}${chatJid}`}
+                value={`${qrBase}${chatJid.split('@')[0]}`}
                 viewBox="0 0 256 256"
               />
             </div>
@@ -88,7 +95,7 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
             >
               <StyledInput
                 $colorBg={config?.colors?.colorInput}
-                value={`${config?.qrUrl || QRCODE_URL}${chatJid.split('@')[0]}`}
+                value={`${qrBase}${chatJid.split('@')[0]}`}
                 disabled
                 style={{ width: '80%' }}
               />
@@ -96,7 +103,7 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
                 text="Copy"
                 onClick={() =>
                   handleCopyClick(
-                    `${config?.qrUrl || QRCODE_URL}${chatJid.split('@')[0]}`
+                    `${qrBase}${chatJid.split('@')[0]}`
                   )
                 }
               />

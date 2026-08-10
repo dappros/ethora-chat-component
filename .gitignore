@@ -29,3 +29,5 @@ dist-ssr
 flutter
 test-app-next
 xmpp-client-video
+# Deploy-script stamps and npm cache (setup-node-services.sh)
+.ethora_deploy/

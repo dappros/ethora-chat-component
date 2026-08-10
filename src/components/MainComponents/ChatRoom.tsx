@@ -264,7 +264,11 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             isMessageProcessing:
               isLastMessageFromUserAndProcessing(activeRoomJID),
             multiline: true,
-            placeholderText: 'Type message',
+            // No placeholderText here on purpose: SendInput falls back to
+            // t('input.placeholder'), and passing a hardcoded English
+            // string overrode that - the composer stayed "Type message" in
+            // every language. Hosts can still pass their own via
+            // CustomInputComponent.
           };
 
           const normalizedProps = {

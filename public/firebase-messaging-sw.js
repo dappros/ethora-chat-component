@@ -384,9 +384,10 @@ async function handlePush(raw = {}, source = 'push') {
   });
 
   const visible = isVisibleClients(windowClients);
+  const hasAnyClient = windowClients.length > 0;
 
   if (DEBUG) log('clients:', dumpClients(windowClients));
-  log('visibleClientExists:', visible);
+  log('visibleClientExists:', visible, 'anyClientExists:', hasAnyClient);
 
   await broadcastDebugMessage({
     source,
@@ -445,9 +446,20 @@ async function handlePush(raw = {}, source = 'push') {
     },
   };
 
-  if (!visible) {
+  // Calls: a client that's merely backgrounded (open, just not the
+  // visible/focused tab) is NOT the "nobody will hear this ring" case -
+  // VideoCallOverlay already rings its own OS notification for exactly
+  // that state (see its comment: this SW push is meant to be the
+  // fully-offline fallback). `visible` collapses "backgrounded but open"
+  // and "fully closed" into the same false, which duplicated that
+  // client-side ring every time the tab was merely hidden. Suppress on
+  // ANY open client for calls; regular messages keep the visible-only
+  // check they already had.
+  const suppress = isCall ? hasAnyClient : visible;
+
+  if (!suppress) {
     log('SHOW NOTIFICATION', {
-      reason: 'NO_VISIBLE_CLIENT',
+      reason: isCall ? 'NO_CLIENT_AT_ALL' : 'NO_VISIBLE_CLIENT',
       tag: options.tag,
       isCall,
     });
@@ -456,7 +468,7 @@ async function handlePush(raw = {}, source = 'push') {
   }
 
   log('SKIP NOTIFICATION', {
-    reason: 'VISIBLE_CLIENT',
+    reason: isCall ? 'CLIENT_OPEN_WILL_RING_ITSELF' : 'VISIBLE_CLIENT',
   });
 }
 

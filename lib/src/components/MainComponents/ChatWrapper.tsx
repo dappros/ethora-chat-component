@@ -33,8 +33,6 @@ import FallbackScreen from './FallbackScreen';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
 import { useLoaderDebug } from '../../hooks/useLoaderDebug';
-import { VideoCallOverlay } from '../VideoCalls/VideoCallOverlay';
-
 interface ChatWrapperProps {
   token?: string;
   room?: IRoom;
@@ -54,7 +52,13 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   const { user, activeModal, deleteModal } = useChatSettingState();
 
   const [isChatVisible, setIsChatVisible] = useState(false);
-  const [isSmallScreen, setIsSmallScreen] = useState(false);
+  // Initialize from the actual viewport on the FIRST render (lazy initializer)
+  // instead of defaulting to false. Otherwise the first paint uses the desktop
+  // 432px room-list width and then snaps to 100% once the effect runs - the
+  // "list is wide, then shrinks" jump on mobile load.
+  const [isSmallScreen, setIsSmallScreen] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < 768
+  );
   const [isRouteActive, setIsRouteActive] = useState(true);
 
   const conferenceServer = config?.xmppSettings?.conference;
@@ -373,7 +377,9 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
                 dispatch(setActiveModal(value))
               }
             />
-            <VideoCallOverlay />
+            {/* VideoCallOverlay now lives in XmppProvider (see xmppProvider.tsx)
+                so an incoming call still rings while the user is on a
+                different in-app page, not just while <Chat> is mounted. */}
           </ChatWrapperBox>
         </ChatWrapperBox>
       ) : (

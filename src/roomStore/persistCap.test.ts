@@ -78,6 +78,18 @@ describe('compactMessageForPersist', () => {
     expect(compact.user).toEqual({ id: 'someone', name: 'Someone' });
   });
 
+  // isEdited is the whole point of the "edited" badge: XEP-0308 correction
+  // only rewrites `body` on the live message object (roomsSlice's
+  // editRoomMessage), so a whitelist that whitelists `body` but forgets
+  // `isEdited` would show the corrected text after a reload with the
+  // badge silently gone - the exact bug class PERSISTED_MESSAGE_FIELDS
+  // exists to prevent (see isDeleted/callLog above it).
+  it('keeps isEdited', () => {
+    const compact = compactMessageForPersist(makeMessage('m1', { isEdited: true } as any));
+
+    expect((compact as any).isEdited).toBe(true);
+  });
+
   it('drops the wire-protocol junk that createMessageFromXml spreads onto every message', () => {
     const message = makeMessage('m1', {
       // These arrive as <data> attrs on every stanza and used to be

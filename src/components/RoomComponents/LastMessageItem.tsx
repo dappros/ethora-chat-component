@@ -7,18 +7,20 @@ import LastMessageEmoji from './styled/LastMessageEmoji';
 import LastMessageFile from './styled/LastMessageFile';
 import LastAudioMessage from './styled/LastAudioMessage';
 import { LastRoomMessageText } from './styled/StyledRoomComponents';
+import { useT } from '../../i18n/useT';
 
 interface LastMessageItemProps {
   lastMessage: LastMessage;
 }
 
 const LastMessageItem: FC<LastMessageItemProps> = ({ lastMessage }) => {
+  const t = useT();
   const { body, emoji, mimetype } = lastMessage;
 
   if (lastMessage?.isDeleted) {
     return (
       <LastRoomMessageText style={{ fontStyle: 'italic', opacity: 0.7 }}>
-        Message deleted
+        {t('message.deleted')}
       </LastRoomMessageText>
     );
   }

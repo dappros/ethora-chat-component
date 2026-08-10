@@ -18,12 +18,23 @@ import TreadLabel from '../styled/TreadLabel';
 import { MessageContainer } from './MessageContainer';
 import { useRoomState } from '../../hooks/useRoomState';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { useXmppClient } from '../../context/xmppProvider';
+import { useTabVisibility } from '../../hooks/useTabVisibility';
+import { getTimestampFromUnknown } from '../../helpers/timestamp';
 import { DownArrowIcon } from '../../assets/icons';
 import NewMessageLabel from '../styled/NewMessageLabel';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
 import { DecoratedMessage } from '../../types/models/customComponents.model';
 import { parseMessageReference } from '../../helpers/parseMessageReference';
 import { useLoaderDebug } from '../../hooks/useLoaderDebug';
+
+// How long the active room must sit quiet (no new "mark as read" trigger)
+// before we persist the read-state to the server's private store. Each new
+// qualifying event (message arrives while at bottom, or the user jumps to
+// the latest via the scroll button) resets this timer, so a fast burst of
+// messages produces exactly one write, sent for the last message once
+// things go quiet — not one write per message.
+const MARK_READ_DEBOUNCE_MS = 1000;
 
 interface MessageListProps<TMessage extends IMessage> {
   CustomMessage?: React.ComponentType<{
@@ -54,8 +65,11 @@ const MessageList = <TMessage extends IMessage>({
   activeMessage,
 }: MessageListProps<TMessage>) => {
   const { CustomScrollableArea, CustomNewMessageLabel } = useCustomComponents();
-  const { composing, messages, composingList } = useRoomState(roomJID).room;
+  const { composing, messages, composingList } =
+    useRoomState(roomJID).room ?? {};
   const { user } = useChatSettingState();
+  const { client } = useXmppClient();
+  const isTabVisible = useTabVisibility();
   useLoaderDebug('chat-room-load-more-loader', loading);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [newMessagesCount, setNewMessagesCount] = useState(0);
@@ -134,6 +148,40 @@ const MessageList = <TMessage extends IMessage>({
   const atBottom = useRef<boolean>(true);
   const isUserScrolledUp = useRef<boolean>(false);
   const lastComposingState = useRef<boolean>(false);
+  const markReadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastFlushedMessageTsRef = useRef<number>(0);
+
+  const flushMarkRead = useCallback(() => {
+    markReadTimerRef.current = null;
+    if (config?.disableLastRead) return;
+    if (!isTabVisible) return;
+    if (!client || !roomJID) return;
+
+    const latest = messages[messages.length - 1];
+    const latestTs = latest
+      ? getTimestampFromUnknown(latest.date) ||
+        getTimestampFromUnknown((latest as any)?.timestamp) ||
+        getTimestampFromUnknown(latest.id)
+      : 0;
+    if (!latestTs || latestTs <= lastFlushedMessageTsRef.current) return;
+
+    lastFlushedMessageTsRef.current = latestTs;
+    client.actionSetTimestampToPrivateStoreStanza(roomJID, Date.now());
+  }, [config?.disableLastRead, isTabVisible, client, roomJID, messages]);
+
+  const scheduleMarkRead = useCallback(() => {
+    if (config?.disableLastRead) return;
+    if (!isTabVisible) return;
+    if (markReadTimerRef.current) clearTimeout(markReadTimerRef.current);
+    markReadTimerRef.current = setTimeout(flushMarkRead, MARK_READ_DEBOUNCE_MS);
+  }, [config?.disableLastRead, isTabVisible, flushMarkRead]);
+
+  useEffect(() => {
+    lastFlushedMessageTsRef.current = 0;
+    return () => {
+      if (markReadTimerRef.current) clearTimeout(markReadTimerRef.current);
+    };
+  }, [roomJID]);
 
   const getScrollParams = (): { top: number; height: number } | null => {
     const content = containerRef.current;
@@ -269,8 +317,13 @@ const MessageList = <TMessage extends IMessage>({
       });
       setShowScrollButton(false);
       setNewMessagesCount(0);
+      // Every path that lands here means the user is now looking at the
+      // latest messages: auto-follow while already at the bottom when a new
+      // message arrives, or an explicit click on the "new messages" button
+      // to jump down to them.
+      scheduleMarkRead();
     }
-  }, []);
+  }, [scheduleMarkRead]);
 
   const checkAtBottom = () => {
     const content = containerRef.current;

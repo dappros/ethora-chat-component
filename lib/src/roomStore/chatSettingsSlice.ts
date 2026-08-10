@@ -24,6 +24,30 @@ interface ChatState {
   selectedUser?: IUser;
   activeFile?: ModalFile;
   langSource?: Iso639_1Codes;
+  /**
+   * Whether THIS reader's own outgoing messages get tagged with
+   * `<translate source="xx"/>` (see sendTextMessageWithTranslateTag) so
+   * translations can be generated for them. Defaults to true so existing
+   * hosts that already set `config.translates.enabled` see no change
+   * until a reader explicitly opts out via the language-selector toggle.
+   *
+   * Turning this off does NOT untag anything already sent - a message
+   * ships with whatever tag was active at send time, permanently. Turning
+   * it back on only affects messages sent from that point forward. Same
+   * asymmetry the other direction: turning it on doesn't retroactively
+   * tag old messages either - see the disclaimer surfaced next to the
+   * toggle in LanguageSelectorModal.
+   */
+  translateSendEnabled?: boolean;
+  /**
+   * Reader's own auto/manual pick from the language-selector modal's
+   * switcher. Undefined means "never touched it" - falls back to
+   * `config.translates.mode` (see resolveTranslateMode). Ignored entirely
+   * when the host sets `config.translates.forceType: true`, which is also
+   * why the switcher itself doesn't render in that case - nothing should
+   * ever write here that a host has pinned.
+   */
+  translateMode?: 'auto' | 'manual';
 }
 
 const unpackAndTransform = (input?: User): User => {
@@ -148,6 +172,15 @@ const chatSlice = createSlice({
     ) => {
       state.langSource = action.payload;
     },
+    setTranslateSendEnabled: (state, action: PayloadAction<boolean>) => {
+      state.translateSendEnabled = action.payload;
+    },
+    setTranslateMode: (
+      state,
+      action: PayloadAction<'auto' | 'manual'>
+    ) => {
+      state.translateMode = action.payload;
+    },
     refreshTokens: (
       state,
       action: PayloadAction<{
@@ -182,6 +215,8 @@ export const {
   updateUser,
   setActiveFile,
   setLangSource,
+  setTranslateSendEnabled,
+  setTranslateMode,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

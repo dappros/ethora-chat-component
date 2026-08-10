@@ -6,7 +6,7 @@ import React, {
   useState,
 } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '../../roomStore';
+import { RootState, store } from '../../roomStore';
 import {
   acceptIncomingCall,
   declineIncomingCall,
@@ -15,6 +15,8 @@ import {
   setCallError,
   setCallPhase,
 } from '../../roomStore/callSlice';
+import { addRoomMessage } from '../../roomStore/roomsSlice';
+import { buildLocalCallLogMessage } from '../../helpers/callLogMessage';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { VideoCallSession } from './VideoCallSession';
 import { ProfileImagePlaceholder } from '../MainComponents/ProfileImagePlaceholder';
@@ -30,6 +32,8 @@ import {
 import { VideoCallIcons } from '../../types/models/config.model';
 import { useDraggable } from '../../helpers/useDraggable';
 import Button from '../styled/Button';
+import { useTabVisibility } from '../../hooks/useTabVisibility';
+import { showBrowserNotification } from '../../utils/notificationUtils';
 
 const visuallyHidden: React.CSSProperties = {
   position: 'absolute',
@@ -135,9 +139,31 @@ const overlayBackdropStyle: React.CSSProperties = {
 
 // Wide white card for the active video / audio session (full chat
 // component look). The pre-connect / ringing card is narrower.
+//
+// Uses `svh` (small viewport height), not `vh`: on mobile, `100vh` is sized
+// as if the browser's address/toolbar were hidden, so a card built from it
+// is taller than what's actually visible once that chrome is showing - its
+// bottom (the hangup/mic buttons) renders below the real fold and is
+// unreachable. `svh` is the guaranteed-visible floor regardless of toolbar
+// state, so the card never claims more height than the user can see.
 const sessionCardStyle: React.CSSProperties = {
   width: 'min(920px, calc(100vw - 32px))',
-  height: 'min(680px, calc(100vh - 32px))',
+  height: 'min(680px, calc(100svh - 32px))',
+  borderRadius: 24,
+  background: '#fff',
+  boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.2)',
+  overflow: 'hidden',
+  position: 'relative',
+};
+
+// Audio calls don't need the wide video canvas - reusing sessionCardStyle's
+// fixed 680px height left a huge dead gap around the (much shorter) avatar
+// + name + controls content, with the buttons stranded far from anything
+// else. `maxHeight` instead of a fixed `height` lets the card shrink-wrap
+// its actual content, up to the same safe-viewport cap.
+const audioSessionCardStyle: React.CSSProperties = {
+  width: 'min(420px, calc(100vw - 32px))',
+  maxHeight: 'min(600px, calc(100svh - 32px))',
   borderRadius: 24,
   background: '#fff',
   boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.2)',
@@ -147,6 +173,7 @@ const sessionCardStyle: React.CSSProperties = {
 
 const ringingCardStyle: React.CSSProperties = {
   width: 'min(420px, calc(100vw - 32px))',
+  boxSizing: 'border-box',
   padding: '32px',
   borderRadius: 24,
   background: '#fff',
@@ -381,7 +408,7 @@ const RingingCard: React.FC<RingingCardProps> = ({
 export const VideoCallOverlay: React.FC = () => {
   const dispatch = useDispatch();
   const call = useSelector((state: RootState) => state.call);
-  const { config } = useChatSettingState();
+  const { config, user } = useChatSettingState();
 
   const videoCallsConfig = config?.videoCalls;
   const enabled = videoCallsConfig?.enabled === true;
@@ -404,6 +431,72 @@ export const VideoCallOverlay: React.FC = () => {
     return () => window.clearTimeout(timer);
   }, [call.phase, call.direction, call.startedAt, dispatch]);
 
+  // An incoming call rings via this overlay whenever the tab is open and
+  // focused (it now lives in XmppProvider - see that file - specifically so
+  // this still happens on any in-app page, not just while <Chat> is
+  // mounted). But the overlay itself is silent to a user who isn't looking
+  // at the tab at all: backgrounded (another tab focused) or the browser
+  // window minimized/hidden. The live call-token that opened this ring was
+  // already intercepted before it could reach the normal message/push
+  // pipeline (see callTokenStanza.ts), so without this, that case had no
+  // notification at all - unlike the fully-offline path, which gets one via
+  // the service worker's call-styled push. Re-checks on every visibility
+  // flip while still ringing, not just once, so backgrounding mid-ring
+  // still notifies.
+  const isTabVisible = useTabVisibility();
+  const notifiedIncomingCallKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    const isRingingIncoming =
+      call.direction === 'incoming' && call.phase === 'ringing-incoming';
+    if (!isRingingIncoming) {
+      notifiedIncomingCallKeyRef.current = null;
+      return;
+    }
+    // This overlay lives above the login gate and never unmounts on
+    // logout - without this, a call-state stanza that slips in on a still
+    // -live socket (same class of bug as messageNotificationManager, see
+    // MessageNotificationContext.tsx) could pop a "you're being called"
+    // notification for a user the UI already shows as logged out.
+    if (!user?.xmppUsername) return;
+    if (isTabVisible) return; // ring modal is on screen - that IS the notification
+    const key = call.callId || call.roomJid || 'incoming-call';
+    if (notifiedIncomingCallKeyRef.current === key) return;
+    notifiedIncomingCallKeyRef.current = key;
+
+    const title = `Incoming ${call.kind === 'audio' ? 'audio' : 'video'} call${
+      call.roomName ? ` · ${call.roomName}` : ''
+    }`;
+    void showBrowserNotification(
+      title,
+      {
+        body: 'Tap to answer',
+        icon: config?.pushNotifications?.iconPath || '/favicon.ico',
+        badge:
+          config?.pushNotifications?.badgePath ||
+          config?.pushNotifications?.iconPath ||
+          '/favicon.ico',
+        tag: `call:${key}`,
+        requireInteraction: true,
+      },
+      config?.pushNotifications?.serviceWorkerScope || '/',
+      () => {
+        window.focus();
+      }
+    );
+  }, [
+    call.direction,
+    call.phase,
+    call.kind,
+    call.roomName,
+    call.callId,
+    call.roomJid,
+    isTabVisible,
+    user?.xmppUsername,
+    config?.pushNotifications?.iconPath,
+    config?.pushNotifications?.badgePath,
+    config?.pushNotifications?.serviceWorkerScope,
+  ]);
+
   const ringingHeader = useMemo(() => {
     if (call.direction === 'incoming') {
       return `Incoming ${call.kind === 'audio' ? 'audio' : 'video'} call`;
@@ -425,6 +518,29 @@ export const VideoCallOverlay: React.FC = () => {
 
   const terminateCall = useCallback(
     (state: CallSignalState) => {
+      // Write a local "call ended" log entry BEFORE endCall() wipes the call
+      // slice. The authoritative entry is a server call-state broadcast, but
+      // that isn't guaranteed to arrive, so we synthesize our own. It's
+      // deduped against any server copy by callId in addRoomMessage.
+      const snap = store.getState().call;
+      if (snap.roomJid && (snap.callId || snap.connectedAt)) {
+        const durationMs = snap.connectedAt
+          ? Math.max(0, Date.now() - snap.connectedAt)
+          : 0;
+        dispatch(
+          addRoomMessage({
+            roomJID: snap.roomJid,
+            message: buildLocalCallLogMessage({
+              callId: snap.callId || '',
+              direction: snap.direction === 'incoming' ? 'incoming' : 'outgoing',
+              durationMs,
+              kind: snap.kind === 'audio' ? 'audio' : 'video',
+              selfXmppUsername:
+                store.getState().chatSettingStore.user?.xmppUsername || '',
+            }),
+          })
+        );
+      }
       sendCallStateSignal(state);
       dispatch(endCall());
     },
@@ -560,7 +676,15 @@ export const VideoCallOverlay: React.FC = () => {
               : dialogWrapperStyle
           }
         >
-          <div style={isMinimized ? undefined : sessionCardStyle}>
+          <div
+            style={
+              isMinimized
+                ? undefined
+                : call.kind === 'audio'
+                  ? audioSessionCardStyle
+                  : sessionCardStyle
+            }
+          >
             <VideoCallSession
               token={call.token as string}
               livekitUrl={livekitUrl}

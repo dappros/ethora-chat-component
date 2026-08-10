@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { IConfig } from '../types/types';
+import { IConfig, Iso639_1Codes } from '../types/types';
 import XmppClient from '../networking/xmppClient';
 import { AppDispatch, RootState, persistor, store } from '../roomStore';
 import { useXmppClient } from '../context/xmppProvider';
@@ -25,6 +25,7 @@ import { clearHeap } from '../roomStore/roomHeapSlice';
 import { ensureScopedChatCache } from '../helpers/cacheScope';
 import { ethoraLogger } from '../helpers/ethoraLogger';
 import { runHistoryPreloadScheduler } from '../helpers/historyPreloadScheduler';
+import { toBaseLanguage } from '../helpers/toBaseLanguage';
 
 interface useChatWrapperInitProps {
   roomJID: string | null | undefined;
@@ -42,6 +43,31 @@ interface useChatWrapperInitResult {
   setClient: React.Dispatch<React.SetStateAction<XmppClient | null>>;
   isConnectionLost: boolean;
 }
+
+// Legacy single-locale config (`translates.translations`) only seeds
+// langSource when the host actually set it - previously inverted
+// (`!config?.translates?.translations`), which meant this fired
+// `setLangSource(undefined)` on every XMPP init merely because translates
+// was enabled, wiping out whatever the reader had picked via the profile
+// modal's language picker or a host's own readerLocale-driven dispatch.
+export const resolveLegacyTranslatesLangSource = (
+  translatesConfig?: IConfig['translates']
+): Iso639_1Codes | undefined =>
+  translatesConfig?.enabled && translatesConfig?.translations
+    ? translatesConfig.translations
+    : undefined;
+
+// A host drives the reader's language from OUTSIDE the chat component by
+// setting config.translates.readerLocale (e.g. from their own app's
+// language switcher). Only ever resolves when it's actually set, so a host
+// that leaves it unset never overrides whatever the reader picked for
+// themselves via the in-chat picker (LanguageSelectorButton) - the same
+// "absence must not clobber a real choice" rule as the legacy resolver
+// above.
+export const resolveExternalReaderLocaleLangSource = (
+  readerLocale?: string
+): Iso639_1Codes | undefined =>
+  readerLocale ? toBaseLanguage(readerLocale) : undefined;
 
 const useChatWrapperInit = ({
   roomJID,
@@ -192,6 +218,15 @@ const useChatWrapperInit = ({
     const clientKey =
       targetClient.client?.jid?.toString() || targetClient.username || 'xmpp-client';
 
+    // Presence-join readiness (all rooms) and history preload used to run
+    // strictly sequentially: preload waited on the ENTIRE presence sweep
+    // finishing (up to a 12s poll) before fetching a single message. MAM
+    // history fetches don't actually require the room to be joined first
+    // (getHistoryStanza never checks `joinedRooms`), so the two are
+    // independent XMPP operations sharing one connection — no reason to
+    // serialize them. Presence readiness now runs as its own fire-and-forget
+    // branch; the private-store + history-preload branch below starts
+    // immediately once the client is online.
     void (async () => {
       const online = await waitForClientOnline(targetClient);
       if (!online) return;
@@ -226,6 +261,11 @@ const useChatWrapperInit = ({
           }
         }
       }
+    })();
+
+    void (async () => {
+      const online = await waitForClientOnline(targetClient);
+      if (!online) return;
 
       if (!privateStoreBootstrappedClientsRef.current.has(clientKey)) {
         if (!config?.disableLastRead) {
@@ -429,12 +469,35 @@ const useChatWrapperInit = ({
     }
   }, [activeRoomJID, dispatch, resolveRoomJid, roomJID]);
 
+  // Lets a host drive the reader's language from OUTSIDE the chat
+  // component: set config.translates.readerLocale from your own app (e.g.
+  // your own language switcher) and this syncs it into the same
+  // `langSource` the in-chat picker (LanguageSelectorButton) writes to -
+  // driving both what the reader sees translated into (Message.tsx reads
+  // readerLocale directly anyway) and the source language this reader
+  // declares on their own outgoing messages (useSendMessage/xmppClient
+  // read langSource, not readerLocale).
+  //
+  // Deliberately independent of the XMPP-init effect below (which only
+  // runs the legacy `translates.translations` seed once per connect) -
+  // this needs to re-fire on every readerLocale change even mid-session,
+  // not just at connect time. And it only ever dispatches when readerLocale
+  // is actually set, so a host that leaves it unset never overrides
+  // whatever the reader picked for themselves via the in-chat picker.
+  useEffect(() => {
+    const resolved = resolveExternalReaderLocaleLangSource(
+      config?.translates?.readerLocale
+    );
+    if (resolved) dispatch(setLangSource(resolved));
+  }, [config?.translates?.readerLocale, dispatch]);
+
   useEffect(() => {
     let retryTimeout: NodeJS.Timeout;
 
     const initXmmpClient = async () => {
-      if (config?.translates?.enabled && !config?.translates?.translations) {
-        dispatch(setLangSource(config?.translates?.translations));
+      const legacyLangSource = resolveLegacyTranslatesLangSource(config?.translates);
+      if (legacyLangSource) {
+        dispatch(setLangSource(legacyLangSource));
       }
       try {
         if (!user.xmppUsername) {

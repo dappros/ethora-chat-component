@@ -24,6 +24,7 @@ import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 import { useXmppClient } from '../../context/xmppProvider';
 import ChatRoomItem from '../RoomComponents/ChatRoomItem';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { useT } from '../../i18n/useT';
 import { isRoomHidden } from '../../helpers/hiddenRooms';
 import { logoutService } from '../../hooks/useLogout';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
@@ -112,6 +113,7 @@ const RoomList: React.FC<RoomListProps> = ({
   const dispatch = useDispatch();
 
   const { config } = useChatSettingState();
+  const t = useT();
 
   const { activeRoomJID } = useSelector((state: RootState) => state.rooms);
 
@@ -240,21 +242,25 @@ const RoomList: React.FC<RoomListProps> = ({
           ethoraLogger.log('Profile clicked');
         },
       },
-      {
-        label: 'Settings',
-        icon: null,
-        onClick: () => {
-          dispatch(setActiveModal(MODAL_TYPES.SETTINGS));
-          ethoraLogger.log('Settings clicked');
-        },
-      },
+      ...(!config?.disableProfilesInteractions
+        ? [
+            {
+              label: 'Settings',
+              icon: null,
+              onClick: () => {
+                dispatch(setActiveModal(MODAL_TYPES.SETTINGS));
+                ethoraLogger.log('Settings clicked');
+              },
+            },
+          ]
+        : []),
       {
         label: 'Logout',
         icon: null,
         onClick: () => handleLogout(),
       },
     ],
-    []
+    [config?.disableProfilesInteractions]
   );
 
   return (
@@ -268,8 +274,8 @@ const RoomList: React.FC<RoomListProps> = ({
         ref={containerRef}
         style={{
           ...config?.roomListStyles,
-          ...(isSmallScreen ? { width: '100%' } : { maxWidth: '432px' }),
-          flex: isSmallScreen ? 1 : '0 1 432px',
+          ...(isSmallScreen ? { width: '100%' } : { width: '432px' }),
+          flex: isSmallScreen ? 1 : '0 0 432px',
         }}
       >
         {(open || !burgerMenu) && (
@@ -289,7 +295,7 @@ const RoomList: React.FC<RoomListProps> = ({
                     colorBg={config?.colors?.colorInput}
                     value={searchTerm}
                     onChange={handleSearchChange}
-                    placeholder="Search..."
+                    placeholder={t('search.placeholder')}
                     // animated={true}
                   />
                 )}
@@ -298,7 +304,7 @@ const RoomList: React.FC<RoomListProps> = ({
               </SearchContainer>
             )}
             <div
-              style={{ flexGrow: 1, overflowY: 'auto', padding: '16px 0px' }}
+              style={{ flexGrow: 1, overflowY: 'auto', scrollbarGutter: 'stable', padding: '16px 0px' }}
             >
               {filteredChats.map((chat: IRoom, index: number) => (
                 <React.Fragment key={chat.jid || `${chat.id}-${index}`}>

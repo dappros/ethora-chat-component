@@ -1,7 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import { Provider } from 'react-redux';
-import { store } from './roomStore';
 import { ReduxWrapper } from './components/MainComponents/ReduxWrapper';
 import { XmppProvider } from './context/xmppProvider';
 import { useUnreadMessagesCounter } from './hooks/useUnreadMessagesCounter';
@@ -12,7 +10,6 @@ import CustomChatInput from './examples/customComponents/CustomChatInput';
 import CustomScrollableArea from './examples/customComponents/CustomScrollableArea';
 import CustomDaySeparator from './examples/customComponents/CustomDaySeparator';
 import CustomMessageBubble from './examples/customComponents/CustomMessageBubble';
-import { MessageNotificationProvider } from './context/MessageNotificationContext';
 import { ethoraLogger } from './helpers/ethoraLogger';
 
 const LIVEKIT_URL =
@@ -48,76 +45,57 @@ const Apps = () => {
   const { hasUnread, totalCount, displayTotal, unreadByRoom, displayByRoom } =
     useUnreadMessagesCounter();
 
-  const appsNotificationConfig: IConfig = useMemo(
-    () => ({
-      inAppNotifications: {
-        enabled: true,
-        showInContext: true,
-        position: {
-          horizontal: 'left',
-          vertical: 'bottom',
-          offset: {
-            left: 20,
-            bottom: 20,
-          },
-        },
-      },
-    }),
-    []
-  );
-
+  // Notifications themselves are provided by the root <XmppProvider> (see
+  // App() below) - it persists across routes, unlike <Chat>. No local
+  // <Provider>/<MessageNotificationProvider> needed here anymore.
   return (
-    <Provider store={store}>
-      <MessageNotificationProvider config={appsNotificationConfig}>
-        <NotificationEnabler />
-        <div>
-          <div className="mb-3 p-3 rounded bg-white border border-gray-200 text-xs">
-            <div className="font-semibold mb-2">Unread Counter Demo (outside chat)</div>
-            <div>hasUnread: {hasUnread ? 'true' : 'false'}</div>
-            <div>totalCount: {totalCount}</div>
-            <div>displayTotal: {displayTotal}</div>
-            <div className="mt-2 font-medium">By room:</div>
-            {Object.keys(unreadByRoom).length === 0 ? (
-              <div className="text-gray-500">No unread rooms</div>
-            ) : (
-              <div className="max-h-48 overflow-auto space-y-1 mt-1">
-                {Object.entries(unreadByRoom).map(([jid, count]) => (
-                  <div
-                    key={jid}
-                    className="p-1 rounded bg-gray-50 border border-gray-100"
-                  >
-                    <div className="truncate" title={jid}>
-                      {jid}
-                    </div>
-                    <div>
-                      unread: {count} | display: {displayByRoom[jid] ?? String(count)}
-                    </div>
-                  </div>
-                ))}
+    <div>
+      <NotificationEnabler />
+      <div className="mb-3 p-3 rounded bg-white border border-gray-200 text-xs">
+        <div className="font-semibold mb-2">Unread Counter Demo (outside chat)</div>
+        <div>hasUnread: {hasUnread ? 'true' : 'false'}</div>
+        <div>totalCount: {totalCount}</div>
+        <div>displayTotal: {displayTotal}</div>
+        <div className="mt-2 font-medium">By room:</div>
+        {Object.keys(unreadByRoom).length === 0 ? (
+          <div className="text-gray-500">No unread rooms</div>
+        ) : (
+          <div className="max-h-48 overflow-auto space-y-1 mt-1">
+            {Object.entries(unreadByRoom).map(([jid, count]) => (
+              <div
+                key={jid}
+                className="p-1 rounded bg-gray-50 border border-gray-100"
+              >
+                <div className="truncate" title={jid}>
+                  {jid}
+                </div>
+                <div>
+                  unread: {count} | display: {displayByRoom[jid] ?? String(count)}
+                </div>
               </div>
-            )}
+            ))}
           </div>
-          <button onClick={() => setIsChatOpen(!isChatOpen)}>
-            Toggle Chat
-          </button>
-          {isChatOpen && (
-            <ReduxWrapper
-              CustomMessageComponent={CustomMessageBubble}
-              CustomInputComponent={CustomChatInput}
-              CustomScrollableArea={CustomScrollableArea}
-              CustomDaySeparator={CustomDaySeparator}
-              config={{
-                baseUrl: 'https://api.chat-qa.ethora.com',
-                inAppNotifications: {
-                  enabled: true,
-                  showInContext: true, // Show in chat component context as well
-                },
-              }}
-            />
-          )}
-        </div>
-      </MessageNotificationProvider>
-    </Provider>
+        )}
+      </div>
+      <button onClick={() => setIsChatOpen(!isChatOpen)}>
+        Toggle Chat
+      </button>
+      {isChatOpen && (
+        <ReduxWrapper
+          CustomMessageComponent={CustomMessageBubble}
+          CustomInputComponent={CustomChatInput}
+          CustomScrollableArea={CustomScrollableArea}
+          CustomDaySeparator={CustomDaySeparator}
+          config={{
+            baseUrl: 'https://api.chat-qa.ethora.com',
+            inAppNotifications: {
+              enabled: true,
+              showInContext: true, // Show in chat component context as well
+            },
+          }}
+        />
+      )}
+    </div>
   );
 };
 
@@ -151,6 +129,25 @@ const ChatComponent = React.memo(() => {
         softAsk: false,
       },
       useStoreConsoleEnabled: true,
+      translates: {
+        enabled: true,
+        // 'manual' (LinkedIn-style "Translate" link, click to reveal) so it
+        // can be tested by hand instead of auto-showing. Switch to 'auto'
+        // to have translations appear inline automatically.
+        mode: 'manual',
+      },
+      i18n: {
+        // locale intentionally left unset: useT() falls back to the same
+        // langSource the globe-icon picker writes to when
+        // config.i18n.locale isn't set, so picking a language in the
+        // header changes static captions (Cancel/Add/Create/...) AND
+        // message translations together, as one switch. Set locale here
+        // explicitly if you want the host app to own UI language instead.
+        strings: {
+          // Uncomment to try a host override of a built-in caption:
+          // 'action.send': 'Go!',
+        },
+      },
     }),
     []
   );
@@ -185,13 +182,13 @@ const ChatComponent = React.memo(() => {
   }, []);
 
   return (
-    <div style={{ height: 'calc(100vh - 20px)', overflow: 'hidden' }}>
+    <div style={{ height: 'calc(100svh - 20px)', overflow: 'hidden' }}>
       <ReduxWrapper
         // CustomMessageComponent={CustomMessageBubble}
         // CustomInputComponent={CustomChatInput}
         // CustomScrollableArea={CustomScrollableArea}
         // CustomDaySeparator={CustomDaySeparator}
-        // roomJID="646cc8dc96d4a4dc8f7b2f2d_6824685682d635dba7522423@conference.xmpp.messenger.ethora-qa.com"
+        // roomJID="646cc8dc96d4a4dc8f7b2f2d_6824685682d635dba7522423@conference.xmpp.chat-qa.ethora.com"
         // roomJID="6998429ba125477a74a7dcef_69b96235545b8217d39dc1ac@conference.xmpp-dev.preshent.com"
         config={{
           // ...(demoJwtToken
@@ -256,6 +253,15 @@ export default function App() {
     []
   );
 
+  // Gives the root-level notification provider (see <XmppProvider> below)
+  // something to work with on routes that haven't mounted <Chat> yet (e.g.
+  // /apps before "Toggle Chat") - <Chat>'s own config still wins once it
+  // dispatches setConfig (see MessageNotificationContext's config priority).
+  const rootNotificationConfig: IConfig = useMemo(
+    () => ({ inAppNotifications: { enabled: true } }),
+    []
+  );
+
   const handleLogoutClick = () => {
     logoutService.performLogout();
   };
@@ -290,7 +296,7 @@ export default function App() {
   );
 
   return (
-    <XmppProvider>
+    <XmppProvider config={rootNotificationConfig}>
     {/* <XmppProvider config={globalXmppConfig}> */}
       <Router>
         <div className="flex">

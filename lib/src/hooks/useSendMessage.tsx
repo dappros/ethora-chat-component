@@ -9,8 +9,23 @@ import { addMessageToHeap } from '../roomStore/roomHeapSlice';
 import { v4 as uuidv4 } from 'uuid';
 import { useEventHandlers } from './useEventHandlers';
 import { ethoraLogger } from '../helpers/ethoraLogger';
+import { scheduleAckCatchup } from '../helpers/scheduleAckCatchup';
 
 const DEFAULT_TIMEOUT_MS = 300000;
+
+// Whether THIS reader's outgoing messages get tagged with
+// `<translate source="xx"/>` (sendTextMessageWithTranslateTag) instead of
+// going out as a plain, untagged send. Two layers: the host must have the
+// feature enabled at all (config.translates.enabled - a build-time
+// decision), AND the reader must not have opted out via the
+// language-selector toggle (translateSendEnabled - a runtime one).
+// `undefined` means the reader never touched the toggle, which reads as
+// opted-in so existing hosts see no behaviour change until someone
+// explicitly turns it off.
+export const shouldTagOutgoingTranslateSource = (
+  translatesEnabled: boolean | undefined,
+  translateSendEnabled: boolean | undefined
+): boolean => !!translatesEnabled && translateSendEnabled !== false;
 
 interface BlockingConfig {
   enabled: boolean;
@@ -19,7 +34,7 @@ interface BlockingConfig {
 }
 
 export const useSendMessage = () => {
-  const { config, langSource } = useChatSettingState();
+  const { config, langSource, translateSendEnabled } = useChatSettingState();
   const { client } = useXmppClient();
   const dispatch = useDispatch();
   const { handleMessageSent, handleMessageFailed } = useEventHandlers(config);
@@ -36,7 +51,9 @@ export const useSendMessage = () => {
 
   const timeoutTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const sendingMessagesRef = useRef<Set<string>>(new Set());
-  const fastAckFetchByRoomRef = useRef<Map<string, number>>(new Map());
+  const ackCatchupTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
+    new Map()
+  );
 
   const [blockedRooms, setBlockedRooms] = useState<Set<string>>(new Set());
 
@@ -181,59 +198,31 @@ export const useSendMessage = () => {
     []
   );
 
-  const triggerFastAckFetch = useCallback(
-    (roomJID: string) => {
-      if (!client || !roomJID) return;
-      const now = Date.now();
-      const last = fastAckFetchByRoomRef.current.get(roomJID) || 0;
-      if (now - last < 600) return;
-      fastAckFetchByRoomRef.current.set(roomJID, now);
-      client
-        .presenceInRoomStanza(roomJID, 0, 1200, true)
-        .catch(() => {})
-        .finally(() => {
-          client
-            .getHistoryStanza(roomJID, 10, undefined, undefined, {
-              source: 'send_ack',
-            })
-            .catch(() => {});
-        });
-    },
-    [client]
-  );
-
-  const scheduleAckCatchup = useCallback(
+  // A MUC reflects our own message back on its own, and that echo is what
+  // clears `pending`. Pulling history after a send is therefore only a
+  // safety net for the echo never arriving - see helpers/scheduleAckCatchup
+  // for why it must stay one (it used to be a ~6-query-per-send storm).
+  const armAckCatchup = useCallback(
     (roomJID: string, messageId: string) => {
       if (!client || !roomJID || !messageId) return;
-      const startedAt = Date.now();
 
-      const retry = () => {
-        const state = store.getState();
-        const msg = state.rooms.rooms?.[roomJID]?.messages?.find(
-          (m) => m.id === messageId || m.xmppId === messageId
-        );
-        if (msg && msg.pending === false) {
-          return;
-        }
-        client
-          .presenceInRoomStanza(roomJID, 0, 1200, true)
-          .catch(() => {})
-          .finally(() => {
-            client
-              .getHistoryStanza(roomJID, 20, undefined, undefined, {
-                source: 'send_ack',
-              })
-              .catch(() => {});
-          });
-        if (Date.now() - startedAt < 5000) {
-          setTimeout(retry, 700);
-        }
-      };
-
-      setTimeout(retry, 150);
+      const timer = scheduleAckCatchup(client, roomJID, messageId, () =>
+        ackCatchupTimersRef.current.delete(messageId)
+      );
+      ackCatchupTimersRef.current.set(messageId, timer);
     },
     [client]
   );
+
+  // Don't leave catch-up probes armed against a room the user has already
+  // navigated away from / a component that unmounted.
+  useEffect(() => {
+    const timers = ackCatchupTimersRef.current;
+    return () => {
+      timers.forEach((timer) => clearTimeout(timer));
+      timers.clear();
+    };
+  }, []);
 
   const sendWithActiveRoomRetry = useCallback(
     async (
@@ -321,7 +310,12 @@ export const useSendMessage = () => {
         return;
       } else {
         try {
-          if (config?.translates?.enabled) {
+          if (
+            shouldTagOutgoingTranslateSource(
+              config?.translates?.enabled,
+              translateSendEnabled
+            )
+          ) {
             const id = `send-translate-message-${uuidv4()}`;
             const optimisticTimestamp = Date.now();
             const optimisticDate = new Date(optimisticTimestamp).toISOString();
@@ -382,8 +376,7 @@ export const useSendMessage = () => {
               )
             );
             if (sendOk) {
-              triggerFastAckFetch(activeRoomJID);
-              scheduleAckCatchup(activeRoomJID, id);
+              armAckCatchup(activeRoomJID, id);
             }
 
             emitMessageSent({
@@ -458,8 +451,7 @@ export const useSendMessage = () => {
               )
             );
             if (sendOk) {
-              triggerFastAckFetch(activeRoomJID);
-              scheduleAckCatchup(activeRoomJID, id);
+              armAckCatchup(activeRoomJID, id);
             }
 
             emitMessageSent({
@@ -502,8 +494,7 @@ export const useSendMessage = () => {
       isLastMessageFromUserAndProcessing,
       setupRoomTimeout,
       markMessageSending,
-      triggerFastAckFetch,
-      scheduleAckCatchup,
+      armAckCatchup,
       sendWithActiveRoomRetry,
     ]
   );

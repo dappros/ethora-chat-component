@@ -214,6 +214,7 @@ const PERSISTED_MESSAGE_FIELDS: (keyof IMessage)[] = [
   'isSystemMessage',
   'isMediafile',
   'isDeleted',
+  'isEdited',
   'isReply',
   'showInChannel',
   'mainMessage',

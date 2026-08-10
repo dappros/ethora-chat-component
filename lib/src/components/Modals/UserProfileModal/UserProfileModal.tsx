@@ -10,7 +10,14 @@ import {
   BorderedContainer,
   LabelData,
 } from '../styledModalComponents';
-import { ChatIcon, EditIcon, LeaveIcon, MoreIcon } from '../../../assets/icons';
+import {
+  AudioCallIcon,
+  ChatIcon,
+  EditIcon,
+  LeaveIcon,
+  MoreIcon,
+  VideoCallIcon,
+} from '../../../assets/icons';
 import ModalHeaderComponent from '../ModalHeaderComponent';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../../roomStore';
@@ -41,9 +48,13 @@ import {
 import { LANGUAGE_OPTIONS } from '../../../helpers/constants/LANGUAGE_OPTIONS';
 import { useToast } from '../../../context/ToastContext';
 import { createRoomFromApi } from '../../../helpers/createRoomFromApi';
+import { createChatCall } from '../../../networking/api-requests/rooms.api';
+import { setCallError, startOutgoingCall } from '../../../roomStore/callSlice';
+import { sendCallInviteSignal } from '../../../networking/callTokenStanza';
 import { useRoomState } from '../../../hooks/useRoomState';
 import { useAppDispatch } from '../../../hooks/hooks';
 import { logoutService } from '../../../hooks/useLogout';
+import { useT } from '../../../i18n/useT';
 
 interface UserProfileModalProps {
   handleCloseModal: any;
@@ -57,12 +68,25 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const { client } = useXmppClient();
   const { usersSet } = useRoomState();
   const { showToast } = useToast();
+  const t = useT();
 
   const { config, user, selectedUser, langSource } = useSelector(
     (state: RootState) => state.chatSettingStore
   );
+  const callPhase = useSelector((state: RootState) => state.call.phase);
 
   const [isEditing, setIsEditing] = useState<boolean>(false);
+
+  // Calling from the profile creates the 1:1 private room then dials it. Gate on
+  // the same prerequisites as the chat header (the target room is private).
+  const videoCallsConfig = config?.videoCalls;
+  const canCall =
+    videoCallsConfig?.enabled === true &&
+    Boolean(videoCallsConfig?.livekitUrl?.trim()) &&
+    (videoCallsConfig?.allowedRoomTypes || ['private']).includes('private');
+  const isAudioCallsEnabled =
+    canCall && videoCallsConfig?.enableAudioCalls === true;
+  const isCallBusy = callPhase !== 'idle';
 
   const handleBackClick = useCallback(() => {
     dispatch(setSelectedUser());
@@ -76,7 +100,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const menuOptions = useMemo(
     () => [
       {
-        label: 'Log Out',
+        label: t('action.logOut'),
         icon: <LeaveIcon />,
         onClick: () => {
           handleLogout();
@@ -84,7 +108,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
         styles: { color: 'red' },
       },
     ],
-    []
+    [handleLogout, t]
   );
 
   const handleSelect = (selected: { name: string; id: Iso639_1Codes }) => {
@@ -98,7 +122,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const handleRoomCreation = async (
     newChat: ApiRoom,
     usersArrayLength: number
-  ) => {
+  ): Promise<{ jid: string } | null> => {
     try {
       // Guard against the createRoomFromApi try/catch returning null for malformed
       // payloads. Without this we'd dispatch a null into the store and crash on
@@ -115,12 +139,12 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
         );
         showToast({
           id: Date.now().toString(),
-          title: 'Error',
-          message: 'Could not open the new private chat',
+          title: t('toast.error'),
+          message: t('toast.couldNotOpenPrivateChat'),
           type: 'error',
           duration: 4000,
         });
-        return;
+        return null;
       }
 
       dispatch(
@@ -157,25 +181,36 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
       showToast({
         id: Date.now().toString(),
-        title: 'Success!',
-        message: 'Room created succusfully!',
+        title: t('toast.success'),
+        message: t('toast.roomCreatedSuccess'),
         type: 'success',
         duration: 3000,
       });
+      return { jid: normalizedChat.jid };
     } catch (error) {
       console.error('Error handling room creation:', error);
+      return null;
     }
   };
 
-  const handlePrivateMessage = useCallback(async () => {
-    showToast({
-      id: Date.now().toString(),
-      title: 'Room creation',
-      message: 'Room is being created...',
-      type: 'info',
-      duration: 3000,
-    });
-    let newRoomJid = '';
+  // Create (or resolve) the 1:1 private room with `selectedUser` and make it the
+  // current room. Shared by the Message and Call actions: Message just opens it,
+  // Call additionally dials it. Returns the room identity needed to place a call,
+  // or null on failure (a toast is shown).
+  const ensurePrivateRoom = useCallback(async (): Promise<{
+    jid: string;
+    bareName: string;
+    peerXmppUsername: string;
+    peerDisplay: string;
+  } | null> => {
+    const peerDisplay =
+      String(
+        selectedUser?.name ||
+          `${(selectedUser as any)?.firstName || ''} ${
+            (selectedUser as any)?.lastName || ''
+          }`
+      ).trim() || '';
+
     if (config?.newArch !== false) {
       // Resolve the xmppUsername for postPrivateRoom. The backend accepts the local
       // part only (must startsWith(appId)). Historically `selectedUser.userJID` was
@@ -184,65 +219,125 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
       // xmppUsername / MUC local-part) OR from the room-members fetch (where
       // `.xmppUsername` IS present). Prefer xmppUsername first, then userJID, then
       // id, to be forward-compatible with both shapes.
-      const targetUsername = (selectedUser as any)?.xmppUsername
-        || (selectedUser as any)?.userJID
-        || selectedUser?.id;
+      const targetUsername =
+        (selectedUser as any)?.xmppUsername ||
+        (selectedUser as any)?.userJID ||
+        selectedUser?.id;
       if (!targetUsername) {
         showToast({
           id: Date.now().toString(),
-          title: 'Error',
-          message: 'Could not resolve recipient',
+          title: t('toast.error'),
+          message: t('toast.couldNotResolveRecipient'),
           type: 'error',
           duration: 4000,
         });
-        return;
+        return null;
       }
       try {
         const newRoom = await postPrivateRoom(targetUsername);
-        await handleRoomCreation(newRoom, 2);
-        newRoomJid = newRoom?.name || '';
+        const created = await handleRoomCreation(newRoom, 2);
+        if (!created?.jid) return null;
+        return {
+          jid: created.jid,
+          bareName: created.jid.split('@')[0],
+          peerXmppUsername: String(targetUsername).split('@')[0],
+          peerDisplay,
+        };
       } catch (e: any) {
         console.error('postPrivateRoom failed:', e);
         showToast({
           id: Date.now().toString(),
-          title: 'Error',
-          message: e?.message || 'Failed to create private chat',
+          title: t('toast.error'),
+          message: e?.message || t('toast.failedToCreatePrivateChat'),
           type: 'error',
           duration: 4000,
         });
-        return;
-      }
-    } else {
-      const selectedUserUsername = walletToUsername(selectedUser.id);
-      const myUsername = walletToUsername(user.defaultWallet.walletAddress);
-
-      const combinedWalletAddress = [myUsername, selectedUserUsername]
-        .sort()
-        .join('.');
-
-      const roomJid = combinedWalletAddress.toLowerCase();
-
-      const combinedUsersName = [
-        user.firstName,
-        selectedUser.name?.split(' ')?.[0],
-      ]
-        .sort()
-        .join(' and ');
-
-      newRoomJid = await client.createPrivateRoomStanza(
-        combinedUsersName,
-        `Private chat ${combinedUsersName}`,
-        roomJid
-      );
-
-      if (newRoomJid) {
-        await client.inviteRoomRequestStanza(selectedUserUsername, newRoomJid);
-        await client.getRoomsStanza();
+        return null;
       }
     }
 
+    const selectedUserUsername = walletToUsername(selectedUser.id);
+    const myUsername = walletToUsername(user.defaultWallet.walletAddress);
+
+    const combinedWalletAddress = [myUsername, selectedUserUsername]
+      .sort()
+      .join('.');
+
+    const roomJid = combinedWalletAddress.toLowerCase();
+
+    const combinedUsersName = [user.firstName, selectedUser.name?.split(' ')?.[0]]
+      .sort()
+      .join(' and ');
+
+    const newRoomJid = await client.createPrivateRoomStanza(
+      combinedUsersName,
+      `Private chat ${combinedUsersName}`,
+      roomJid
+    );
+
+    if (newRoomJid) {
+      await client.inviteRoomRequestStanza(selectedUserUsername, newRoomJid);
+      await client.getRoomsStanza();
+    }
+    if (!newRoomJid) return null;
+    return {
+      jid: newRoomJid,
+      bareName: String(newRoomJid).split('@')[0],
+      peerXmppUsername: selectedUserUsername,
+      peerDisplay,
+    };
+  }, [selectedUser, config?.newArch, client, user]);
+
+  const handlePrivateMessage = useCallback(async () => {
+    showToast({
+      id: Date.now().toString(),
+      title: t('toast.roomCreationTitle'),
+      message: t('toast.roomCreating'),
+      type: 'info',
+      duration: 3000,
+    });
+    await ensurePrivateRoom();
     dispatch(setActiveModal());
-  }, [selectedUser]);
+  }, [ensurePrivateRoom, dispatch, showToast, t]);
+
+  const handleCall = useCallback(
+    async (kind: 'audio' | 'video') => {
+      const room = await ensurePrivateRoom();
+      if (!room) return;
+
+      const dialName = room.peerDisplay || room.bareName;
+      dispatch(
+        startOutgoingCall({
+          roomJid: room.jid,
+          roomName: dialName,
+          roomBareName: room.bareName,
+          kind,
+          peerXmppUsername: room.peerXmppUsername || null,
+        })
+      );
+
+      // The server drops `kind` on the relayed call-token, so signal the peer
+      // directly first (fast chat message) — mirrors ChatHeader.placeCall.
+      if (room.peerXmppUsername) {
+        sendCallInviteSignal(kind, {
+          peerXmppUsername: room.peerXmppUsername,
+          roomBareName: room.bareName,
+        });
+      }
+
+      // Close the profile modal so the call overlay isn't hidden behind it.
+      dispatch(setActiveModal());
+
+      try {
+        await createChatCall(room.bareName, { kind });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : t('toast.failedToCreateCall');
+        dispatch(setCallError(message));
+      }
+    },
+    [ensurePrivateRoom, dispatch, t]
+  );
 
   const modalUser: any = selectedUser ?? user;
 
@@ -257,7 +352,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
       <>
         <ModalHeaderComponent
           handleCloseModal={handleBackClick}
-          headerTitle={'Profile'}
+          headerTitle={t('modal.profile.title')}
           rightMenu={
             !selectedUser && (
               <>
@@ -291,7 +386,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
             <BorderedContainer>
               <Select
                 options={LANGUAGE_OPTIONS}
-                placeholder={'Select your language'}
+                placeholder={t('language.select')}
                 onSelect={handleSelect}
                 accentColor={config?.colors?.primary}
                 selectedValue={findLanguage()}
@@ -299,11 +394,11 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
             </BorderedContainer>
           )}
           <BorderedContainer>
-            <Label>About</Label>
+            <Label>{t('modal.profile.about')}</Label>
             <LabelData>
               {modalUser?.description && modalUser?.description?.length > 4
                 ? modalUser.description
-                : 'No description'}
+                : t('modal.profile.noDescription')}
             </LabelData>
           </BorderedContainer>
           {selectedUser &&
@@ -315,13 +410,33 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   onClick={handlePrivateMessage}
                   variant="filled"
                 >
-                  Message
+                  {t('action.message')}
                 </ActionButton>
+                {canCall && (
+                  <ActionButton
+                    StartIcon={<VideoCallIcon color="#FFFFFF" />}
+                    onClick={() => void handleCall('video')}
+                    disabled={isCallBusy}
+                    variant="filled"
+                  >
+                    {isAudioCallsEnabled ? t('action.videoCall') : t('action.call')}
+                  </ActionButton>
+                )}
+                {isAudioCallsEnabled && (
+                  <ActionButton
+                    StartIcon={<AudioCallIcon color="#FFFFFF" />}
+                    onClick={() => void handleCall('audio')}
+                    disabled={isCallBusy}
+                    variant="filled"
+                  >
+                    {t('action.audioCall')}
+                  </ActionButton>
+                )}
                 <ActionButton
                   onClick={() => handleCopyClick(selectedUser.id)}
                   variant="filled"
                 >
-                  Copy User Id
+                  {t('action.copyUserId')}
                 </ActionButton>
               </>
             )}
@@ -329,7 +444,18 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
         </CenterContainer>
       </>
     ),
-    [modalUser]
+    [
+      modalUser,
+      canCall,
+      isAudioCallsEnabled,
+      isCallBusy,
+      handleCall,
+      handlePrivateMessage,
+      selectedUser,
+      user,
+      config,
+      t,
+    ]
   );
 
   const EditingBody = useMemo(

@@ -23,6 +23,7 @@ export interface IMessage {
   activeMessage?: boolean;
   isReply?: boolean | string;
   isDeleted?: boolean;
+  isEdited?: boolean;
   mainMessage?: string;
   reply?: IReply[];
   reaction?: Record<string, ReactionMessage>;

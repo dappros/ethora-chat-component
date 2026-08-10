@@ -10,7 +10,10 @@ import {
 } from '../types/types';
 import { insertMessageWithDelimiter } from '../helpers/insertMessageWithDelimiter';
 import XmppClient from '../networking/xmppClient';
-import { createUserNameFromSetUser } from '../helpers/createUserNameFromSetUser';
+import {
+  createUserNameFromSetUser,
+  resolveSenderDisplayName,
+} from '../helpers/createUserNameFromSetUser';
 import { extractUniqueMembersFromRooms } from '../helpers/extractUniqueMembersFromRooms';
 import { getTimestampFromUnknown } from '../helpers/timestamp';
 
@@ -46,6 +49,62 @@ const stripCallSignals = (messages: IMessage[] | undefined): IMessage[] =>
     ? messages.filter((message) => !isCallSignalMessage(message))
     : [];
 
+// True for the client-side call-log fallback written at hangup: it exists
+// only in this client's store (id "calllog-<callId>"), never on the server.
+const isLocalCallLogEntry = (message: IMessage | undefined | null): boolean =>
+  String(message?.id || '').startsWith('calllog-');
+
+// Merge two log entries for the SAME callId into one. Identity (id/date/
+// xmppId) comes from the server copy when one side is the local fallback —
+// the server archive id is what MAM pages and the catch-up anchor will match
+// against later. Display (body/callLog) comes from whichever copy saw the
+// larger duration, so partial per-participant call-states don't shrink it.
+const mergeCallLogEntries = (a: IMessage, b: IMessage): IMessage => {
+  const aLocal = isLocalCallLogEntry(a);
+  const bLocal = isLocalCallLogEntry(b);
+  const identity = aLocal === bLocal ? a : aLocal ? b : a;
+  const display =
+    (a.callLog?.durationMs || 0) >= (b.callLog?.durationMs || 0) ? a : b;
+  if (identity === display) return identity;
+  return {
+    ...display,
+    id: identity.id,
+    xmppId: (identity as IMessage).xmppId ?? (display as IMessage).xmppId,
+    date: identity.date ?? display.date,
+  };
+};
+
+// Collapse call-log duplicates for the same callId inside a merged history
+// list (the live path dedups in addRoomMessage, but a MAM page merged over a
+// persisted local fallback entry would otherwise show the call twice).
+const collapseCallLogDuplicates = (messages: IMessage[]): IMessage[] => {
+  const byCallId = new Map<string, IMessage>();
+  let hasDuplicates = false;
+  for (const message of messages) {
+    const callId = message?.callLog?.callId;
+    if (!callId) continue;
+    const existing = byCallId.get(callId);
+    if (existing) {
+      hasDuplicates = true;
+      byCallId.set(callId, mergeCallLogEntries(existing, message));
+    } else {
+      byCallId.set(callId, message);
+    }
+  }
+  if (!hasDuplicates) return messages;
+  const emitted = new Set<string>();
+  return messages.filter((message) => {
+    const callId = message?.callLog?.callId;
+    if (!callId) return true;
+    if (emitted.has(callId)) return false;
+    emitted.add(callId);
+    return true;
+  }).map((message) => {
+    const callId = message?.callLog?.callId;
+    return callId ? byCallId.get(callId) || message : message;
+  });
+};
+
 interface RoomMessagesState {
   rooms: { [jid: string]: IRoom };
   activeRoomJID: string;
@@ -53,6 +112,9 @@ interface RoomMessagesState {
   editAction?: EditAction;
   isLoading: boolean;
   usersSet: Record<string, RoomMember>;
+  // Online MUC occupants per room (xmppUsernames with an available presence),
+  // fed by available / type='unavailable' presence stanzas. Ephemeral.
+  presenceByRoom: Record<string, string[]>;
   reportRoom: {
     isOpen: boolean;
   };
@@ -80,6 +142,7 @@ const initialState: RoomMessagesState = {
     text: '',
   },
   usersSet: {},
+  presenceByRoom: {},
   reportRoom: {
     isOpen: false,
   },
@@ -178,53 +241,13 @@ const compareMessageOrder = (a: IMessage, b: IMessage): number => {
 const enrichMessageAuthor = (
   message: IMessage,
   usersSet: Record<string, RoomMember>
-): IMessage => {
-  const rawUserId = String(message?.user?.id || '');
-  const localUserId = rawUserId.split('@')[0];
-  const currentNameRaw = String(message?.user?.name || '').trim();
-  // Treat a previously-set "Deleted User" as unresolved. Without this, a message
-  // that got "Deleted User" on first render (because usersSet + <data> metadata
-  // weren't available yet) would KEEP that name forever even after insertUsers
-  // populates usersSet - `currentName || ...` short-circuits on the truthy
-  // "Deleted User" string. Now we skip past it and let downstream sources
-  // (in-message identity, usersSet) produce the real name.
-  const currentName = currentNameRaw === 'Deleted User' ? '' : currentNameRaw;
-
-  // Identity carried in the message <data> stanza by the sending client (regular users
-  // and now AI Agent bots). Spread by createMessageFromXml onto the top-level message
-  // object, so available here as message.fullName / senderFirstName / senderLastName.
-  // Honor that BEFORE falling through to createUserNameFromSetUser, which returns the
-  // literal "Deleted User" string when usersSet has no entry for the sender. Without
-  // this the chat shows "Deleted User" for any sender (e.g. fresh bot, batch broadcast)
-  // not yet in the locally cached usersSet.
-  const dataFullName = String((message as any)?.fullName || '').trim();
-  const dataFirst = String((message as any)?.senderFirstName || '').trim();
-  const dataLast = String((message as any)?.senderLastName || '').trim();
-  const composedFromData =
-    dataFullName ||
-    `${dataFirst} ${dataLast}`.trim() ||
-    '';
-
-  const usersSetName = createUserNameFromSetUser(usersSet, localUserId);
-  const usersSetNameAlt = createUserNameFromSetUser(usersSet, rawUserId);
-  const isUsersSetUseful = (n: string) => n && n !== 'Deleted User';
-
-  const resolvedName =
-    currentName ||
-    (isUsersSetUseful(usersSetName) && usersSetName) ||
-    (isUsersSetUseful(usersSetNameAlt) && usersSetNameAlt) ||
-    composedFromData ||
-    localUserId ||
-    rawUserId;
-
-  return {
-    ...message,
-    user: {
-      ...message.user,
-      name: resolvedName,
-    },
-  };
-};
+): IMessage => ({
+  ...message,
+  user: {
+    ...message.user,
+    name: resolveSenderDisplayName(message, usersSet),
+  },
+});
 
 const mergeRoomMessages = (
   existing: IMessage[],
@@ -254,7 +277,12 @@ const mergeRoomMessages = (
     byId.set(key, enrichMessageAuthor(message, usersSet));
   });
 
-  return [...byId.values()].sort(compareMessageOrder);
+  // A persisted local call-log fallback (id "calllog-<callId>") and its
+  // server MAM copy have different ids, so the byId pass keeps both — collapse
+  // them into the canonical server entry.
+  return collapseCallLogDuplicates(
+    [...byId.values()].sort(compareMessageOrder)
+  );
 };
 
 const normalizeDelimiterPosition = (
@@ -515,6 +543,7 @@ const roomsStore = createSlice({
         state.rooms[roomJID].messages.map((message) => {
           if (message.id === messageId) {
             message.body = text;
+            message.isEdited = true;
           }
         });
       }
@@ -544,10 +573,16 @@ const roomsStore = createSlice({
       }
 
       // Collapse multiple call-state events for the same call into a single
-      // log entry. The server can emit a call-state each time a participant
-      // leaves the LiveKit room (or on a mid-call reconnect blip), and the
-      // earlier ones carry a partial / tiny durationMs. Keep the entry with
-      // the LARGEST duration so a 2-minute call doesn't render as "2 sec".
+      // log entry. Sources: the client-side fallback written at hangup (id
+      // "calllog-<callId>", exists only locally) and the server broadcast(s),
+      // which can fire once per participant leaving (earlier ones carry a
+      // partial durationMs). Rules:
+      //  - the SERVER copy is canonical for identity (id/date/xmppId): its
+      //    archive id is what MAM and the catch-up anchor return later, so
+      //    keeping a local "calllog-" id around breaks anchor matching and
+      //    duplicates the entry on the next history merge;
+      //  - the LARGEST duration wins for display, so a 2-minute call doesn't
+      //    render as "2 sec".
       const incomingCallLog = (message as IMessage).callLog;
       if (incomingCallLog?.callId) {
         const list = state.rooms[roomJID].messages;
@@ -555,18 +590,11 @@ const roomsStore = createSlice({
           (msg) => msg.callLog?.callId === incomingCallLog.callId
         );
         if (existingCallIdx !== -1) {
-          const existingLog = list[existingCallIdx].callLog;
-          if (
-            (existingLog?.durationMs || 0) >= (incomingCallLog.durationMs || 0)
-          ) {
-            // Existing entry already reflects the longer (truer) duration.
-            return;
+          const existing = list[existingCallIdx];
+          const merged = mergeCallLogEntries(existing, message as IMessage);
+          if (merged !== existing) {
+            list[existingCallIdx] = merged;
           }
-          // Replace in place with the longer-duration version.
-          list[existingCallIdx] = {
-            ...list[existingCallIdx],
-            ...(message as IMessage),
-          };
           return;
         }
       }
@@ -779,6 +807,26 @@ const roomsStore = createSlice({
       const { roomJID } = action.payload;
       state.activeRoomJID = roomJID;
     },
+    setMemberOnline: (
+      state,
+      action: PayloadAction<{ roomJID: string; xmppUsername: string }>
+    ) => {
+      const { roomJID, xmppUsername } = action.payload;
+      if (!roomJID || !xmppUsername) return;
+      const list =
+        state.presenceByRoom[roomJID] ?? (state.presenceByRoom[roomJID] = []);
+      if (!list.includes(xmppUsername)) list.push(xmppUsername);
+    },
+    setMemberOffline: (
+      state,
+      action: PayloadAction<{ roomJID: string; xmppUsername: string }>
+    ) => {
+      const { roomJID, xmppUsername } = action.payload;
+      const list = state.presenceByRoom[roomJID];
+      if (list) {
+        state.presenceByRoom[roomJID] = list.filter((u) => u !== xmppUsername);
+      }
+    },
     setChatUiVisible: (state, action: PayloadAction<boolean>) => {
       state.isChatUiVisible = action.payload;
     },
@@ -788,6 +836,7 @@ const roomsStore = createSlice({
       state.isChatUiVisible = false;
       state.isLoading = false;
       state.usersSet = {};
+      state.presenceByRoom = {};
     },
     setActiveMessage: (
       state,
@@ -998,6 +1047,8 @@ export const {
   setLastViewedTimestamp,
   setRoomNoMessages,
   setCurrentRoom,
+  setMemberOnline,
+  setMemberOffline,
   setChatUiVisible,
   setRoomRole,
   setReactions,

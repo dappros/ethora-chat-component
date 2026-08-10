@@ -11,9 +11,9 @@ import Loader from '../styled/Loader.tsx';
 import { ToastProvider } from '../../context/ToastContext.tsx';
 import { CustomComponentsProvider } from '../../context/CustomComponentsContext';
 import { CustomComponentsContextValue } from '../../types/models/customComponents.model';
-import { MessageNotificationProvider } from '../../context/MessageNotificationContext';
 import { useInAppNotifications } from '../../hooks/useInAppNotifications';
 import usePushNotifications from '../../hooks/usePushNotifications';
+import NotificationPermissionBanner from '../Notification/NotificationPermissionBanner';
 import { useTypography } from '../../hooks/useTypography';
 import { applyThemeColors } from '../../helpers/resolveIconColor';
 
@@ -93,7 +93,7 @@ const ThemeColorsEnabler: React.FC<{ config?: IConfig }> = ({ config }) => {
 };
 
 const PushNotificationsEnabler: React.FC<{ config?: IConfig }> = ({ config }) => {
-  usePushNotifications({
+  const { requestPermission } = usePushNotifications({
     enabled: config?.pushNotifications?.enabled,
     vapidPublicKey: config?.pushNotifications?.vapidPublicKey,
     firebaseConfig: config?.pushNotifications?.firebaseConfig,
@@ -102,7 +102,12 @@ const PushNotificationsEnabler: React.FC<{ config?: IConfig }> = ({ config }) =>
     softAsk: config?.pushNotifications?.softAsk,
     onClick: config?.pushNotifications?.onClick,
   });
-  return null;
+  return (
+    <NotificationPermissionBanner
+      config={config}
+      requestPermission={requestPermission}
+    />
+  );
 };
 
 export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
@@ -127,28 +132,29 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
       <Provider store={store}>
         <PersistGate loading={<Loader />} persistor={persistor}>
           <ToastProvider>
-            <MessageNotificationProvider config={memoizedConfig}>
-              <NotificationEnabler />
-              <ConfigEnabler config={memoizedConfig} />
-              <TypographyEnabler config={memoizedConfig} />
-              <ThemeColorsEnabler config={memoizedConfig} />
-              <PushNotificationsEnabler config={memoizedConfig} />
-              <CustomComponentsProvider
-                CustomMessageComponent={CustomMessageComponent}
-                CustomInputComponent={CustomInputComponent}
-                CustomScrollableArea={CustomScrollableArea}
-                CustomDaySeparator={CustomDaySeparator}
-                CustomNewMessageLabel={CustomNewMessageLabel}
-              >
-                {/* `config` must come AFTER the spread: props still carries
-                    the raw config, so spreading last silently overwrote
-                    memoizedConfig and threw away its `newArch ?? true`
-                    default (and would now throw away the same normalization
-                    ConfigEnabler puts in the store, leaving prop and store
-                    disagreeing again). */}
-                <LoginWrapper {...props} config={memoizedConfig} />
-              </CustomComponentsProvider>
-            </MessageNotificationProvider>
+            {/* No <MessageNotificationProvider> here: it now wraps the tree
+                once, up in <XmppProvider>, so mounting a second one around
+                <Chat> would double-handle every incoming message. */}
+            <NotificationEnabler />
+            <ConfigEnabler config={memoizedConfig} />
+            <TypographyEnabler config={memoizedConfig} />
+            <ThemeColorsEnabler config={memoizedConfig} />
+            <PushNotificationsEnabler config={memoizedConfig} />
+            <CustomComponentsProvider
+              CustomMessageComponent={CustomMessageComponent}
+              CustomInputComponent={CustomInputComponent}
+              CustomScrollableArea={CustomScrollableArea}
+              CustomDaySeparator={CustomDaySeparator}
+              CustomNewMessageLabel={CustomNewMessageLabel}
+            >
+              {/* `config` must come AFTER the spread: props still carries
+                  the raw config, so spreading last silently overwrote
+                  memoizedConfig and threw away its `newArch ?? true`
+                  default (and would now throw away the same normalization
+                  ConfigEnabler puts in the store, leaving prop and store
+                  disagreeing again). */}
+              <LoginWrapper {...props} config={memoizedConfig} />
+            </CustomComponentsProvider>
           </ToastProvider>
         </PersistGate>
       </Provider>
