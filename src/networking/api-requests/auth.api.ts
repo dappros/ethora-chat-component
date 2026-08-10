@@ -28,6 +28,7 @@ export async function loginEmail(email: string, password: string) {
     user: User;
     refreshToken: string;
     token: string;
+    fileToken?: string;
   }>(
     '/v1/users/login-with-email',
     {
@@ -41,6 +42,7 @@ export async function loginEmail(email: string, password: string) {
   if (myUser) {
     res.data.user = { ...res.data.user, ...myUser };
   }
+  res.data.user = { ...res.data.user, fileToken: res.data.fileToken || '' };
 
   return res;
 }
@@ -66,6 +68,12 @@ export async function loginSocial(
   const myUser = await resolveUserViaMyEndpoint(token);
   if (myUser && response?.data?.user) {
     response.data.user = { ...response.data.user, ...myUser };
+  }
+  if (response?.data?.user) {
+    response.data.user = {
+      ...response.data.user,
+      fileToken: response.data.fileToken || '',
+    };
   }
 
   return response;
@@ -104,11 +112,13 @@ export async function loginViaJwt(clientToken: string): Promise<User> {
     user: User;
     refreshToken: string;
     token: string;
+    fileToken?: string;
   }>('/v1/users/client', null, { headers: { 'x-custom-token': clientToken } });
   const user = {
     ...response.data.user,
     refreshToken: response.data.refreshToken,
     token: response.data.token,
+    fileToken: response.data.fileToken || '',
   };
   const myUser = await resolveUserViaMyEndpoint(response.data.token);
   return myUser
@@ -117,6 +127,7 @@ export async function loginViaJwt(clientToken: string): Promise<User> {
         ...myUser,
         refreshToken: response.data.refreshToken,
         token: response.data.token,
+        fileToken: response.data.fileToken || '',
       }
     : user;
 }

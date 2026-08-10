@@ -26,7 +26,7 @@ export function setBaseURL(newBaseURL?: string, customAppToken?: string) {
 }
 
 export function refresh(): Promise<{
-  data: { refreshToken: string; token: string };
+  data: { refreshToken: string; token: string; fileToken?: string };
 }> {
   const user = store.getState().chatSettingStore.user;
 
@@ -45,6 +45,7 @@ export function refresh(): Promise<{
         refreshTokens({
           token: response.data.token,
           refreshToken: response.data.refreshToken,
+          fileToken: response.data.fileToken,
         })
       );
 
@@ -148,6 +149,7 @@ http.interceptors.response.use(
             refreshToken:
               refreshed.refreshToken ||
               store.getState().chatSettingStore.user.refreshToken,
+            fileToken: refreshed.fileToken,
           })
         );
 
