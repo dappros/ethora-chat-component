@@ -119,7 +119,7 @@ const NewChatModal: React.FC = () => {
   const handleRoomCreation = async (
     newChat: ApiRoom,
     usersArrayLength: number
-  ) => {
+  ): Promise<string | null> => {
     try {
       const normalizedChat = createRoomFromApi(
         newChat,
@@ -135,8 +135,32 @@ const NewChatModal: React.FC = () => {
       );
 
       dispatch(setCurrentRoom({ roomJID: normalizedChat.jid }));
+
+      return normalizedChat.jid;
     } catch (error) {
       console.error('Error handling room creation:', error);
+      return null;
+    }
+  };
+
+  // Runs AFTER the room exists: uploads are scoped to a chat, so the avatar
+  // cannot be sent until there is a JID to scope it to. Same two steps
+  // ChatProfileModal uses to change the icon of an existing room.
+  const applyRoomAvatar = async (roomJid: string) => {
+    if (!profileImage) return;
+
+    try {
+      const mediaData = new FormData();
+      mediaData.append('files', profileImage);
+
+      const uploadResult = await uploadFile(mediaData, roomJid);
+      const location = uploadResult?.data?.results?.[0]?.location;
+      if (!location) return;
+
+      client.setRoomImageStanza(roomJid, location, 'icon', 'none');
+      dispatch(updateRoom({ jid: roomJid, updates: { icon: location } }));
+    } catch (error) {
+      console.error('Room avatar upload failed:', error);
     }
   };
 
@@ -150,13 +174,6 @@ const NewChatModal: React.FC = () => {
     });
     setLoading(true);
     if (isValid) {
-      let mediaData: FormData | null = new FormData();
-      mediaData.append('files', profileImage);
-
-      const uploadResult = await uploadFile(mediaData);
-
-      const location = uploadResult?.data?.results?.[0]?.location;
-
       if (config?.newArch !== false) {
         const namesArray = selectedUsers.map((user) => user.xmppUsername);
         const newChat: ApiRoom = await postRoom({
@@ -165,12 +182,16 @@ const NewChatModal: React.FC = () => {
             roomDescription && roomDescription !== ''
               ? roomDescription
               : 'No description',
-          picture: location || '',
+          picture: '',
           type: chatType.id || 'public',
           members: namesArray,
         });
 
-        handleRoomCreation(newChat, namesArray.length);
+        const newChatJid = await handleRoomCreation(newChat, namesArray.length);
+
+        if (newChatJid) {
+          await applyRoomAvatar(newChatJid);
+        }
       } else {
         const newChatJid = await client.createRoomStanza(
           roomName,
@@ -183,12 +204,7 @@ const NewChatModal: React.FC = () => {
 
         dispatch(setCurrentRoom({ roomJID: newChatJid }));
 
-        if (location) {
-          client.setRoomImageStanza(newChatJid, location, 'icon', 'none');
-          dispatch(
-            updateRoom({ jid: newChatJid, updates: { icon: location } })
-          );
-        }
+        await applyRoomAvatar(newChatJid);
       }
 
       setIsModalOpen(false);

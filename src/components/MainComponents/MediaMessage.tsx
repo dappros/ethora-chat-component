@@ -1,9 +1,12 @@
 import React from 'react';
+import { useSelector } from 'react-redux';
 import { IMessage } from '../../types/types';
+import { RootState } from '../../roomStore';
 import FileDownload from '../styled/UnsupportedType';
 import CustomMessageImage from '../styled/MessageImage';
 import CustomMessageVideo from '../styled/VideoMessage';
 import AudioMessage from '../styled/AudioMessage';
+import { appendFileToken } from '../../helpers/secureFileUrl';
 
 interface MediaMessageProps {
   mimeType?: string;
@@ -14,12 +17,24 @@ interface MediaMessageProps {
 
 const MediaMessage: React.FC<MediaMessageProps> = ({
   mimeType,
-  location,
-  locationPreview,
+  location: rawLocation,
+  locationPreview: rawLocationPreview,
   message,
 }) => {
+  // Secure (v2) file URLs are membership-gated: append the viewer's own
+  // fileToken at render time. Public (v1) URLs pass through untouched.
+  // Subscribed via useSelector so a token refresh re-renders the media
+  // with a fresh URL (recovering images that failed on an expired token).
+  const fileToken = useSelector(
+    (state: RootState) => state.chatSettingStore.user?.fileToken || ''
+  );
+  const location = appendFileToken(rawLocation, fileToken);
+  const locationPreview = appendFileToken(rawLocationPreview, fileToken);
+
   const getFilename = () => {
-    return message.originalName || location?.split('/')?.pop() || 'MediaFile';
+    return (
+      message.originalName || rawLocation?.split('/')?.pop() || 'MediaFile'
+    );
   };
 
   if (mimeType)

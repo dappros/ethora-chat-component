@@ -38,7 +38,7 @@ export async function getUserByXmppUsername(
   const request = (async (): Promise<RoomMember | null> => {
     try {
       const res = await http.get<{ result: RoomMember }>(
-        `/apps/users/${normalizedXmppUsername}`,
+        `/v1/apps/users/${normalizedXmppUsername}`,
         {
           headers: { Authorization: token },
         }
