@@ -15,6 +15,7 @@ export interface User {
   description?: string;
   token: string;
   refreshToken: string;
+  fileToken?: string;
 
   defaultWallet: {
     walletAddress: string;

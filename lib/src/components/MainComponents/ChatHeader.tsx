@@ -30,6 +30,7 @@ import { useRoomState } from '../../hooks/useRoomState';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { useT } from '../../i18n/useT';
 import { formatNumberWithCommas } from '../../helpers/formatNumberWithCommas';
+import { appendFileToken } from '../../helpers/secureFileUrl';
 import { createChatCall } from '../../networking/api-requests/rooms.api';
 import {
   setCallError,
@@ -97,6 +98,11 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const { config, user: stateUser } = useChatSettingState();
   const t = useT();
   const call = useSelector((state: RootState) => state.call);
+  // Secure room avatars need the viewer's own `?ft=` token appended at
+  // render time - see appendFileToken in helpers/secureFileUrl.
+  const fileToken = useSelector(
+    (state: RootState) => state.chatSettingStore.user?.fileToken || ''
+  );
 
   const videoCallsConfig = config?.videoCalls;
   const allowedRoomTypes = videoCallsConfig?.allowedRoomTypes || ['private'];
@@ -292,7 +298,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
               <ProfileImagePlaceholder
                 name={currentRoom.name}
                 size={40}
-                icon={currentRoom?.icon}
+                icon={appendFileToken(currentRoom?.icon, fileToken)}
                 active={true}
                 online={isPrivateRoom && peerOnline}
               />

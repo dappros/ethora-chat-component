@@ -63,6 +63,7 @@ const unpackAndTransform = (input?: User): User => {
       walletToUsername(input?.defaultWallet?.walletAddress) ||
       '',
     refreshToken: input?.refreshToken || '',
+    fileToken: input?.fileToken || '',
     firstName: input?.firstName || '',
     lastName: input?.lastName || '',
     defaultWallet: {
@@ -95,6 +96,7 @@ const initialState: ChatState = {
     walletAddress: '',
     xmppPassword: '',
     refreshToken: '',
+    fileToken: '',
     firstName: '',
     lastName: '',
     defaultWallet: {
@@ -181,10 +183,17 @@ const chatSlice = createSlice({
     },
     refreshTokens: (
       state,
-      action: PayloadAction<{ token: string; refreshToken: string }>
+      action: PayloadAction<{
+        token: string;
+        refreshToken: string;
+        fileToken?: string;
+      }>
     ) => {
       state.user.refreshToken = action.payload.refreshToken;
       state.user.token = action.payload.token;
+      if (action.payload.fileToken) {
+        state.user.fileToken = action.payload.fileToken;
+      }
       persistUserSession(state.user);
     },
     logout: (state) => {

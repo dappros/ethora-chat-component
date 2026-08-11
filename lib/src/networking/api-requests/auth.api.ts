@@ -28,8 +28,9 @@ export async function loginEmail(email: string, password: string) {
     user: User;
     refreshToken: string;
     token: string;
+    fileToken?: string;
   }>(
-    '/users/login-with-email',
+    '/v1/users/login-with-email',
     {
       email,
       password,
@@ -42,6 +43,7 @@ export async function loginEmail(email: string, password: string) {
   if (myUser) {
     res.data.user = { ...res.data.user, ...myUser };
   }
+  res.data.user = { ...res.data.user, fileToken: res.data.fileToken || '' };
 
   return res;
 }
@@ -53,7 +55,7 @@ export async function loginSocial(
   authToken: string = 'authToken'
 ) {
   const response = await http.post<any>(
-    '/users/login',
+    '/v1/users/login',
     {
       idToken,
       accessToken,
@@ -68,6 +70,12 @@ export async function loginSocial(
   if (myUser && response?.data?.user) {
     response.data.user = { ...response.data.user, ...myUser };
   }
+  if (response?.data?.user) {
+    response.data.user = {
+      ...response.data.user,
+      fileToken: response.data.fileToken || '',
+    };
+  }
 
   return response;
 }
@@ -80,7 +88,7 @@ export function registerSocial(
   signUpPlan?: string
 ) {
   return http.post(
-    '/users',
+    '/v1/users',
     {
       idToken,
       accessToken,
@@ -94,7 +102,7 @@ export function registerSocial(
 
 export function checkEmailExist(email: string) {
   return http.get(
-    '/users/checkEmail/' + email,
+    '/v1/users/checkEmail/' + email,
 
     { headers: { Authorization: appToken } }
   );
@@ -105,11 +113,13 @@ export async function loginViaJwt(clientToken: string): Promise<User> {
     user: User;
     refreshToken: string;
     token: string;
-  }>('/users/client', null, { headers: { 'x-custom-token': clientToken } });
+    fileToken?: string;
+  }>('/v1/users/client', null, { headers: { 'x-custom-token': clientToken } });
   const user = {
     ...response.data.user,
     refreshToken: response.data.refreshToken,
     token: response.data.token,
+    fileToken: response.data.fileToken || '',
   };
   const myUser = await resolveUserViaMyEndpoint(response.data.token);
   return myUser
@@ -118,6 +128,7 @@ export async function loginViaJwt(clientToken: string): Promise<User> {
         ...myUser,
         refreshToken: response.data.refreshToken,
         token: response.data.token,
+        fileToken: response.data.fileToken || '',
       }
     : user;
 }
@@ -147,9 +158,21 @@ export const signInWithGoogle = async () => {
   }
 };
 
-export function uploadFile(formData: FormData) {
+// Everything uploads through /v2/files/secure - message attachments and
+// room avatars alike. Files land on the secure-files.* host and every
+// download is gated by the viewer's personal `?ft=` token, so any URL that
+// comes back from here must be run through appendFileToken/withFileToken
+// at render time (see helpers/secureFileUrl).
+//
+// Every upload is scoped to a chat: `activeRoomJID` is required, so a file
+// can never reach the secure bucket without the chat it belongs to. The
+// new-chat modals therefore create the room first and upload the avatar
+// afterwards, with the JID the server just handed them.
+export function uploadFile(formData: FormData, activeRoomJID: string) {
   const token = store.getState().chatSettingStore.user.token;
-  return http.post('/files/', formData, {
+  const chatName = activeRoomJID.split('@')[0];
+  formData.append('chatName', chatName);
+  return http.post('/v2/files/secure', formData, {
     headers: {
       Authorization: token,
       Accept: '*/*',

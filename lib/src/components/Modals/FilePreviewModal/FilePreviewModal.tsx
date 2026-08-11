@@ -14,6 +14,12 @@ import { setActiveFile } from '../../../roomStore/chatSettingsSlice';
 import PdfViewer from './PdfView';
 import { ethoraLogger } from '../../../helpers/ethoraLogger';
 import { useT } from '../../../i18n/useT';
+import {
+  appendFileToken,
+  isSecureFileUrl,
+  requestFileTokenRecovery,
+  withFileToken,
+} from '../../../helpers/secureFileUrl';
 
 interface FilePreviewModalProps {
   handleCloseModal: any;
@@ -27,9 +33,12 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
   const { activeFile } = useSelector(
     (state: RootState) => state.chatSettingStore
   );
+  const fileToken = useSelector(
+    (state: RootState) => state.chatSettingStore.user?.fileToken || ''
+  );
 
   const saveClick = () => {
-    fetch(activeFile.fileURL, {
+    fetch(withFileToken(activeFile.fileURL), {
       method: 'GET',
       headers: {},
     })
@@ -76,11 +85,14 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
         return (
           <FullScreenImage
             src={
-              activeFile.fileURL ||
+              appendFileToken(activeFile.fileURL, fileToken) ||
               'https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg'
             }
             alt={activeFile.fileName}
             onError={(e) => {
+              if (isSecureFileUrl(activeFile.fileURL)) {
+                requestFileTokenRecovery();
+              }
               (e.target as HTMLImageElement).src =
                 'https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg';
             }}
@@ -88,10 +100,14 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
         );
       case activeFile.mimetype.startsWith('video/'):
         return (
-          <FullScreenVideo src={activeFile.fileURL} controls autoPlay={false} />
+          <FullScreenVideo
+            src={appendFileToken(activeFile.fileURL, fileToken)}
+            controls
+            autoPlay={false}
+          />
         );
       case activeFile.mimetype.includes('/pdf'):
-        return <PdfViewer pdfUrl={activeFile.fileURL} />;
+        return <PdfViewer pdfUrl={appendFileToken(activeFile.fileURL, fileToken)} />;
       default:
         return (
           <div
@@ -118,7 +134,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
           </div>
         );
     }
-  }, [activeFile]);
+  }, [activeFile, fileToken]);
 
   return (
     <ModalContainerFullScreen>

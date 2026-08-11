@@ -16,6 +16,7 @@ import { useRoomPresence } from '../../../hooks/useRoomPresence';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, getActiveRoom } from '../../../roomStore';
 import { uploadFile } from '../../../networking/api-requests/auth.api';
+import { appendFileToken } from '../../../helpers/secureFileUrl';
 import { useXmppClient } from '../../../context/xmppProvider';
 import { updateRoom } from '../../../roomStore/roomsSlice';
 import Loader from '../../styled/Loader';
@@ -73,6 +74,11 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   const activeRoom = useSelector((state: RootState) => getActiveRoom(state));
   const onlineUsers = useRoomPresence(activeRoom?.jid);
   const usersSet = useSelector((state: RootState) => state.rooms.usersSet);
+  // Secure room avatars need the viewer's own `?ft=` token appended at
+  // render time - see appendFileToken in helpers/secureFileUrl.
+  const fileToken = useSelector(
+    (state: RootState) => state.chatSettingStore.user?.fileToken || ''
+  );
 
   // XMPP affiliation responses populate activeRoom.members with bare
   // xmppUsername-only entries (firstName/lastName/profileImage are blank). The
@@ -102,7 +108,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
       let mediaData: FormData | null = new FormData();
       mediaData.append('files', file);
 
-      const uploadResult = await uploadFile(mediaData);
+      const uploadResult = await uploadFile(mediaData, activeRoom.jid);
 
       const location = uploadResult?.data?.results?.[0]?.location;
 
@@ -228,7 +234,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
       <CenterContainer>
         <ProfileImagePlaceholder
           name={activeRoom.name}
-          icon={activeRoom.icon}
+          icon={appendFileToken(activeRoom.icon, fileToken)}
           upload={{
             onUpload,
             active: activeRoom?.role !== 'participant' ? true : false,

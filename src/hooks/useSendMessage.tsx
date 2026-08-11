@@ -598,7 +598,7 @@ export const useSendMessage = () => {
         const mediaData = new FormData();
         mediaData.append('files', data);
 
-        const response = await uploadFile(mediaData);
+        const response = await uploadFile(mediaData, activeRoomJID);
 
         for (const item of response.data.results) {
           const messagePayload = {

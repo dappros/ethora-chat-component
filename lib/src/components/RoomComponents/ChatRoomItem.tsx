@@ -20,6 +20,7 @@ import OnlineUsersPopover from './OnlineUsersPopover';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
 import { formatCallLogLabel } from '../../helpers/callLogMessage';
+import { appendFileToken } from '../../helpers/secureFileUrl';
 
 interface ChatRoomItemProps {
   chat: IRoom;
@@ -64,6 +65,11 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
   // reading `user.name` alone left this line showing a raw JID after every
   // refresh.
   const usersSet = useSelector((state: RootState) => state.rooms.usersSet);
+  // Secure room avatars need the viewer's own `?ft=` token appended at
+  // render time - see appendFileToken in helpers/secureFileUrl.
+  const fileToken = useSelector(
+    (state: RootState) => state.chatSettingStore.user?.fileToken || ''
+  );
 
   const withAuthorFallback = useCallback(
     (message?: IMessage): IMessage | undefined => {
@@ -171,7 +177,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
     >
       <ProfileImagePlaceholder
         name={displayName}
-        icon={chat?.icon}
+        icon={appendFileToken(chat?.icon, fileToken)}
         online={peerOnline}
       />
       <div
