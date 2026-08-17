@@ -1,6 +1,5 @@
 import { store } from '../roomStore';
-import { refresh } from '../networking/apiClient';
-import { refreshTokens } from '../roomStore/chatSettingsSlice';
+import { refreshAuthTokens } from '../networking/authRefresh';
 
 // Files uploaded via /v2/files/secure are served from the secure-files.*
 // domain and every download is gated by chat membership: the server needs
@@ -70,25 +69,15 @@ export const requestFileTokenRecovery = (): Promise<boolean> => {
   if (!refreshConfig?.enabled) return Promise.resolve(false);
 
   const run = async (): Promise<boolean> => {
-    if (refreshConfig.refreshFunction) {
-      const refreshed = await refreshConfig.refreshFunction();
-      if (!refreshed?.accessToken) return false;
-      store.dispatch(
-        refreshTokens({
-          token: refreshed.accessToken,
-          refreshToken: refreshed.refreshToken || user?.refreshToken || '',
-          fileToken: refreshed.fileToken,
-        })
-      );
-      return Boolean(refreshed.fileToken);
-    }
+    if (!refreshConfig.refreshFunction && !user?.refreshToken) return false;
 
-    if (!user?.refreshToken) return false;
-    // refresh() dispatches refreshTokens (fileToken included) itself and
-    // dispatches logout() if the refresh token is dead — same contract as
-    // the 401 interceptor.
-    await refresh();
-    return true;
+    // Was a fifth independent rotation path (its own consumer-function
+    // branch, its own dedupe). It now goes through the one rotation
+    // point, so it can no longer race the interceptor into presenting
+    // an already-burned refresh token. `refreshAuthTokens` persists the
+    // new tokens itself, which re-renders subscribed media.
+    const tokens = await refreshAuthTokens();
+    return Boolean(tokens.fileToken);
   };
 
   recoveryInFlight = run()

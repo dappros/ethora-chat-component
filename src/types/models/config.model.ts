@@ -212,6 +212,20 @@ export interface IConfig {
   defaultRooms?: ConfigRoom[];
   refreshTokens?: {
     enabled: boolean;
+    /**
+     * Host-owned rotation. When set, the SDK calls this INSTEAD of
+     * `/v1/users/login/refresh` — always, including during bootstrap —
+     * and never rotates the Ethora refresh token itself. Serialised
+     * through the same lock (and the same Web Lock) as the built-in path.
+     *
+     * Return `refreshToken` whenever the host's flow actually rotates an
+     * Ethora refresh token: the backend now treats a re-presented one as
+     * theft, so omitting it leaves a burned token in storage that ends
+     * the session the next time it is used. It stays optional because
+     * some hosts re-mint an access token from a different authority
+     * (SuperTokens, an owner-session endpoint) and hold no Ethora
+     * refresh token at all.
+     */
     refreshFunction?: () => Promise<{
       accessToken: string;
       refreshToken?: string;

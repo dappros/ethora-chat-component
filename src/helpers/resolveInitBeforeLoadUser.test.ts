@@ -169,3 +169,60 @@ describe('resolveInitBeforeLoadUser - explicitUser still hydrates via /users/my'
     expect(result?.xmppUsername).toBe('direct');
   });
 });
+
+// ---- rotation durability -------------------------------------------
+
+import http from '../networking/apiClient';
+import { store } from '../roomStore';
+import { __resetAuthRefreshStateForTests } from '../networking/authRefresh';
+
+describe('bootstrap rotation is never dropped', () => {
+  beforeEach(() => {
+    getMyUserMock.mockReset();
+    getStoredUserMock.mockReset();
+    getStateMock.mockReset();
+    (http.post as ReturnType<typeof vi.fn>).mockReset();
+    (store.dispatch as ReturnType<typeof vi.fn>).mockReset();
+    __resetAuthRefreshStateForTests();
+  });
+
+  it('persists the rotated refreshToken even when /users/my fails afterwards', async () => {
+    // The regression this guards: the bootstrap path used to hold the
+    // rotated token in a local variable and only write it on the happy
+    // path, so a /users/my failure right after the refresh silently
+    // discarded it. The next load would then present an already-burned
+    // token — which the backend reads as reuse.
+    getStateMock.mockReturnValue({
+      chatSettingStore: { user: emptyUser(), config: {} },
+    });
+    getMyUserMock
+      .mockRejectedValueOnce({ response: { status: 401 } })
+      .mockRejectedValueOnce({ response: { status: 401 } });
+    (http.post as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      data: { token: 'access-2', refreshToken: 'refresh-2' },
+    });
+
+    await resolveInitBeforeLoadUser({
+      config: {
+        userLogin: {
+          enabled: true,
+          user: {
+            ...emptyUser(),
+            token: 'stale-access',
+            refreshToken: 'refresh-1',
+          },
+        },
+      } as never,
+    });
+
+    expect(http.post).toHaveBeenCalledWith(
+      '/v1/users/login/refresh',
+      {},
+      { headers: { Authorization: 'refresh-1' } }
+    );
+    const persisted = (store.dispatch as ReturnType<typeof vi.fn>).mock.calls
+      .map(([action]) => action)
+      .filter((action) => action?.payload?.refreshToken === 'refresh-2');
+    expect(persisted.length).toBeGreaterThan(0);
+  });
+});
