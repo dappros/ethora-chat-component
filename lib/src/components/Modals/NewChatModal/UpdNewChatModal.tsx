@@ -5,7 +5,7 @@ import { resolveIconColor } from '../../../helpers/resolveIconColor';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../../roomStore';
 import { useXmppClient } from '../../../context/xmppProvider';
-import { addRoom, setCurrentRoom } from '../../../roomStore/roomsSlice';
+import { addRoom, setCurrentRoom, updateRoom } from '../../../roomStore/roomsSlice';
 import { ApiRoom, ChatAccessOption } from '../../../types/types';
 import { uploadFile } from '../../../networking/api-requests/auth.api';
 import { createRoomFromApi } from '../../../helpers/createRoomFromApi';
@@ -67,17 +67,10 @@ const NewChatModal: React.FC = () => {
 
   const handleCreateRoom = async () => {
     if (isValid) {
-      let mediaData: FormData | null = new FormData();
-      mediaData.append('files', profileImage);
-
-      const uploadResult = await uploadFile(mediaData);
-      const location = uploadResult?.data?.results?.[0]?.location;
-
       const namesArray = selectedUsers.map((user) => user.xmppUsername);
       const newChat: ApiRoom = await postRoom({
         title: roomName,
         description: roomDescription || 'No description',
-        picture: location || '',
         type: chatType.id || 'public',
         members: namesArray,
       });
@@ -91,6 +84,23 @@ const NewChatModal: React.FC = () => {
       dispatch(addRoom({ roomData: normalizedChat }));
       dispatch(setCurrentRoom({ roomJID: normalizedChat.jid }));
       client.presenceInRoomStanza(normalizedChat.jid);
+
+      // uploadFile needs the room's JID (server derives chatName from it),
+      // which doesn't exist until the room itself does - so the picture
+      // upload happens as a follow-up icon update instead of being part
+      // of the create payload.
+      if (profileImage instanceof File) {
+        const mediaData = new FormData();
+        mediaData.append('files', profileImage);
+        const uploadResult = await uploadFile(mediaData, normalizedChat.jid);
+        const location = uploadResult?.data?.results?.[0]?.location;
+        if (location) {
+          client.setRoomImageStanza(normalizedChat.jid, location, 'icon', 'none');
+          dispatch(
+            updateRoom({ jid: normalizedChat.jid, updates: { icon: location } })
+          );
+        }
+      }
     }
   };
 

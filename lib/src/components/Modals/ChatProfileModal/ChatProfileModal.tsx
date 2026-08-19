@@ -98,7 +98,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
       let mediaData: FormData | null = new FormData();
       mediaData.append('files', file);
 
-      const uploadResult = await uploadFile(mediaData);
+      const uploadResult = await uploadFile(mediaData, activeRoom.jid);
 
       const location = uploadResult?.data?.results?.[0]?.location;
 

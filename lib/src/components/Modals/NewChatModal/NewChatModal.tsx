@@ -146,12 +146,23 @@ const NewChatModal: React.FC = () => {
     });
     setLoading(true);
     if (isValid) {
-      let mediaData: FormData | null = new FormData();
-      mediaData.append('files', profileImage);
-
-      const uploadResult = await uploadFile(mediaData);
-
-      const location = uploadResult?.data?.results?.[0]?.location;
+      // uploadFile now needs the room's JID (server derives chatName from
+      // it), which doesn't exist until the room itself does - so the
+      // picture upload moved from "before creation, include in the create
+      // payload" to "after creation, apply as a follow-up icon update"
+      // (already how the legacy/non-newArch branch below has always
+      // worked; the REST branch now mirrors it).
+      const applyRoomImage = async (jid: string) => {
+        if (!(profileImage instanceof File)) return;
+        const mediaData = new FormData();
+        mediaData.append('files', profileImage);
+        const uploadResult = await uploadFile(mediaData, jid);
+        const location = uploadResult?.data?.results?.[0]?.location;
+        if (location) {
+          client.setRoomImageStanza(jid, location, 'icon', 'none');
+          dispatch(updateRoom({ jid, updates: { icon: location } }));
+        }
+      };
 
       if (config?.newArch !== false) {
         const namesArray = selectedUsers.map((user) => user.xmppUsername);
@@ -161,12 +172,15 @@ const NewChatModal: React.FC = () => {
             roomDescription && roomDescription !== ''
               ? roomDescription
               : 'No description',
-          picture: location || '',
           type: chatType.id || 'public',
           members: namesArray,
         });
 
         handleRoomCreation(newChat, namesArray.length);
+
+        if (newChat?.name && config?.xmppSettings?.conference) {
+          await applyRoomImage(`${newChat.name}@${config.xmppSettings.conference}`);
+        }
       } else {
         const newChatJid = await client.createRoomStanza(
           roomName,
@@ -179,12 +193,7 @@ const NewChatModal: React.FC = () => {
 
         dispatch(setCurrentRoom({ roomJID: newChatJid }));
 
-        if (location) {
-          client.setRoomImageStanza(newChatJid, location, 'icon', 'none');
-          dispatch(
-            updateRoom({ jid: newChatJid, updates: { icon: location } })
-          );
-        }
+        await applyRoomImage(newChatJid);
       }
 
       setIsModalOpen(false);
