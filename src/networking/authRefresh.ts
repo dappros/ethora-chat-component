@@ -47,6 +47,7 @@ export interface RefreshResult {
   token: string;
   refreshToken: string;
   fileToken?: string;
+  xmppPassword?: string;
 }
 
 /**
@@ -206,6 +207,7 @@ const persistTokens = (result: RefreshResult): void => {
       token: result.token,
       refreshToken: result.refreshToken,
       fileToken: result.fileToken,
+      xmppPassword: result.xmppPassword,
     })
   );
 };
@@ -225,6 +227,7 @@ const adoptStoredTokens = (): RefreshResult | null => {
     token: stored.token,
     refreshToken: stored.refreshToken,
     fileToken: (stored as User & { fileToken?: string }).fileToken,
+    xmppPassword: stored.xmppPassword,
   };
 
   if (getStoreUser().refreshToken !== result.refreshToken) {
@@ -239,6 +242,7 @@ type ConsumerRefreshFn = () => Promise<{
   accessToken: string;
   refreshToken?: string;
   fileToken?: string;
+  xmppPassword?: string;
 } | null>;
 
 const runConsumerRefresh = async (
@@ -265,6 +269,7 @@ const runConsumerRefresh = async (
     token: refreshed.accessToken,
     refreshToken: refreshed.refreshToken || readCurrentRefreshToken(),
     fileToken: refreshed.fileToken,
+    xmppPassword: refreshed.xmppPassword,
   };
 
   persistTokens(result);
@@ -284,6 +289,7 @@ const requestRotation = async (
     token: response?.data?.token || '',
     refreshToken: response?.data?.refreshToken || '',
     fileToken: response?.data?.fileToken,
+    xmppPassword: response?.data?.xmppPassword,
   };
 
   if (!result.token || !result.refreshToken) {

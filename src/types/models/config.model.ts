@@ -230,6 +230,7 @@ export interface IConfig {
       accessToken: string;
       refreshToken?: string;
       fileToken?: string;
+      xmppPassword?: string;
     } | null>;
   };
   backgroundChat?: {

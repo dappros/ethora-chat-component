@@ -175,6 +175,58 @@ describe('happy path', () => {
   });
 });
 
+describe('rotating xmppPassword', () => {
+  // The XMPP password now expires after an hour and is re-issued by the
+  // refresh endpoint, so it has to ride along with the tokens.
+  it('persists the re-issued password with the tokens', async () => {
+    post.mockResolvedValueOnce({
+      data: {
+        token: 'access-2',
+        refreshToken: 'refresh-2',
+        xmppPassword: 'xmpp-2',
+      },
+    });
+
+    const result = await refreshAuthTokens();
+
+    expect(result.xmppPassword).toBe('xmpp-2');
+    expect(store.getState().chatSettingStore.user.xmppPassword).toBe('xmpp-2');
+    // ...and it reaches the other tabs.
+    expect(
+      localStorage.getItem('@ethora/chat-component-user-session')
+    ).toContain('xmpp-2');
+  });
+
+  it('keeps the existing password when the response carries none', async () => {
+    // Blanking it would take XMPP down until the next successful bind.
+    post.mockResolvedValueOnce({
+      data: { token: 'access-2', refreshToken: 'refresh-2' },
+    });
+
+    await refreshAuthTokens();
+
+    expect(store.getState().chatSettingStore.user.xmppPassword).toBe('pw');
+  });
+
+  it('passes a host-supplied password through the consumer path', async () => {
+    const refreshFunction = vi.fn().mockResolvedValue({
+      accessToken: 'host-access',
+      refreshToken: 'host-refresh',
+      xmppPassword: 'host-xmpp',
+    });
+    store.dispatch(
+      setConfig({ refreshTokens: { enabled: true, refreshFunction } } as never)
+    );
+
+    const result = await refreshAuthTokens();
+
+    expect(result.xmppPassword).toBe('host-xmpp');
+    expect(store.getState().chatSettingStore.user.xmppPassword).toBe(
+      'host-xmpp'
+    );
+  });
+});
+
 describe('concurrency', () => {
   it('collapses concurrent callers into a single request', async () => {
     let resolvePost: (value: unknown) => void = () => {};
@@ -539,6 +591,26 @@ describe('cross-tab token sync', () => {
       'refresh-2'
     );
     expect(store.getState().chatSettingStore.user.token).toBe('access-2');
+  });
+
+  // The seam between cross-tab sync and the rotating XMPP password: the
+  // tab that did not rotate has to pick up the re-issued password too,
+  // otherwise its next reconnect binds with a dead credential and the
+  // SASL recovery in xmppClient burns its whole retry budget.
+  it('adopts a re-issued xmppPassword along with the tokens', () => {
+    seedUser('refresh-1', 'access-1');
+    persistUserSession({
+      ...store.getState().chatSettingStore.user,
+      token: 'access-2',
+      refreshToken: 'refresh-2',
+      xmppPassword: 'xmpp-rotated',
+    });
+
+    fireStorageEvent(sessionKey, localStorage.getItem(sessionKey));
+
+    expect(store.getState().chatSettingStore.user.xmppPassword).toBe(
+      'xmpp-rotated'
+    );
   });
 
   it('ignores events for other keys', () => {
