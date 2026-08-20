@@ -85,10 +85,6 @@ const NewChatModal: React.FC = () => {
       dispatch(setCurrentRoom({ roomJID: normalizedChat.jid }));
       client.presenceInRoomStanza(normalizedChat.jid);
 
-      // uploadFile needs the room's JID (server derives chatName from it),
-      // which doesn't exist until the room itself does - so the picture
-      // upload happens as a follow-up icon update instead of being part
-      // of the create payload.
       if (profileImage instanceof File) {
         const mediaData = new FormData();
         mediaData.append('files', profileImage);

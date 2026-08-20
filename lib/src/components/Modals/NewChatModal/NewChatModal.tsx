@@ -146,12 +146,6 @@ const NewChatModal: React.FC = () => {
     });
     setLoading(true);
     if (isValid) {
-      // uploadFile now needs the room's JID (server derives chatName from
-      // it), which doesn't exist until the room itself does - so the
-      // picture upload moved from "before creation, include in the create
-      // payload" to "after creation, apply as a follow-up icon update"
-      // (already how the legacy/non-newArch branch below has always
-      // worked; the REST branch now mirrors it).
       const applyRoomImage = async (jid: string) => {
         if (!(profileImage instanceof File)) return;
         const mediaData = new FormData();
