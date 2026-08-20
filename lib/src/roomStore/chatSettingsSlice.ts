@@ -154,12 +154,17 @@ const chatSlice = createSlice({
         token: string;
         refreshToken: string;
         fileToken?: string;
+        xmppPassword?: string;
       }>
     ) => {
       state.user.refreshToken = action.payload.refreshToken;
       state.user.token = action.payload.token;
       if (action.payload.fileToken) {
         state.user.fileToken = action.payload.fileToken;
+      }
+      
+      if (action.payload.xmppPassword) {
+        state.user.xmppPassword = action.payload.xmppPassword;
       }
       persistUserSession(state.user);
     },
