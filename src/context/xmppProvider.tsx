@@ -6,9 +6,13 @@ import React, {
   useEffect,
   useRef,
   useCallback,
+  useMemo,
 } from 'react';
 import { Provider } from 'react-redux';
-import XmppClient from '../networking/xmppClient';
+import XmppClient, {
+  XmppCredentialsProvider,
+} from '../networking/xmppClient';
+import { refreshAuthTokensQuietly } from '../networking/authRefresh';
 import {
   buildXmppClientKey,
   getGlobalXmppClient,
@@ -174,6 +178,33 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
       checkStatus();
     });
 
+  const credentialsProvider = useMemo<XmppCredentialsProvider>(
+    () => async () => {
+      const readStoreCreds = () => {
+        const u = store.getState().chatSettingStore.user;
+        return {
+          username: u?.xmppUsername || u?.defaultWallet?.walletAddress || '',
+          password: u?.xmppPassword || '',
+        };
+      };
+
+      if (!config?.refreshTokens?.enabled) {
+        return readStoreCreds();
+      }
+
+      const rotated = await refreshAuthTokensQuietly();
+      if (rotated?.xmppPassword) {
+        return {
+          username: readStoreCreds().username,
+          password: rotated.xmppPassword,
+        };
+      }
+
+      return readStoreCreds();
+    },
+    [config?.refreshTokens?.enabled]
+  );
+
   const initializeClient = async (
     username: string,
     password: string,
@@ -242,6 +273,8 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
 
         const createInstanceStart = Date.now();
         const newClient = new XmppClient(username, password, xmppSettings);
+
+        newClient.setCredentialsProvider(credentialsProvider);
         ethoraLogger.log(
           `[InitTiming] initClient:create_instance ${Date.now() - createInstanceStart}ms`
         );

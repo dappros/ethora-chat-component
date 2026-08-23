@@ -97,6 +97,11 @@ interface HistoryInFlightEntry {
   promise: Promise<IMessage[] | undefined>;
 }
 
+export type XmppCredentialsProvider = () => Promise<{
+  username: string;
+  password: string;
+}>;
+
 export class XmppClient implements XmppClientInterface {
   client!: Client;
   devServer: string | undefined;
@@ -214,6 +219,115 @@ export class XmppClient implements XmppClientInterface {
   private pausedDueToOfflineCap: boolean = false;
   private authFailureDetected: boolean = false;
   private intentionalLogout: boolean = false;
+
+  /**
+   * Ported from the RN client (bug #17). The XMPP password now expires
+   * after an hour, so a SASL `not-authorized` is no longer a dead end -
+   * it is the normal, expected end of a credential's life.
+   *
+   * Note the shape of the failure, confirmed with the backend: an
+   * ALREADY-ESTABLISHED connection is NOT dropped when its password
+   * expires - authentication happens once, at SASL bind. So a tab that
+   * simply stays open keeps working indefinitely, and the expiry only
+   * bites on the next (re)connect: a network blip, a laptop waking from
+   * sleep, a server restart. That makes it rare, intermittent and easy
+   * to misdiagnose - and before this hook it was permanent, because the
+   * client latched `authFailureDetected` and refused to reconnect for
+   * the rest of the page's life. Only a reload brought the chat back.
+   */
+  private credentialsProvider: XmppCredentialsProvider | null = null;
+  private credentialsRefreshInFlight: Promise<void> | null = null;
+  /**
+   * Bounded so a genuinely dead session (revoked account, wrong host)
+   * can't spin refresh -> reconnect -> auth-fail forever. Reset on every
+   * successful 'online'.
+   */
+  private authRecoveryAttempts: number = 0;
+  private maxAuthRecoveryAttempts: number = 3;
+
+  /**
+   * Inject (or replace) the callback used to fetch fresh XMPP
+   * credentials after a SASL `not-authorized`. The provider refreshes
+   * whatever upstream credential is needed (the REST session, which now
+   * re-issues the hourly XMPP password) and returns username+password.
+   */
+  setCredentialsProvider(provider: XmppCredentialsProvider | null) {
+    this.credentialsProvider = provider;
+  }
+
+  updateCredentials(username: string, password: string) {
+    this.username = username;
+    this.password = password;
+  }
+
+  /**
+   * Single-flight wrapper around the provider. Several reconnect paths
+   * (error handler, watchdog, visibility) can fire at once; they share
+   * one request and update the credentials exactly once.
+   */
+  private refreshCredentialsOnce(): Promise<void> {
+    if (this.credentialsRefreshInFlight) return this.credentialsRefreshInFlight;
+    if (!this.credentialsProvider) return Promise.resolve();
+    const provider = this.credentialsProvider;
+
+    this.credentialsRefreshInFlight = (async () => {
+      try {
+        const fresh = await provider();
+        if (fresh?.username && fresh?.password) {
+          // Apply whatever comes back and retry. We deliberately do NOT
+          // compare against the current password to decide whether the
+          // session is recoverable: an unchanged password is the normal
+          // case for a transient blip, and treating it as expiry bricked
+          // recoverable sessions in the RN client.
+          this.updateCredentials(fresh.username, fresh.password);
+        }
+      } finally {
+        this.credentialsRefreshInFlight = null;
+      }
+    })();
+
+    return this.credentialsRefreshInFlight;
+  }
+
+  /**
+   * A SASL failure used to be terminal here. With an hourly XMPP
+   * password it is routine, so try to re-mint credentials and come back
+   * instead of latching the connection off for the rest of the page's
+   * life. Returns true when a retry was started.
+   */
+  private async recoverFromAuthFailure(reason: string): Promise<boolean> {
+    if (!this.credentialsProvider) return false;
+    if (this.intentionalLogout) return false;
+    if (this.authRecoveryAttempts >= this.maxAuthRecoveryAttempts) {
+      this.logStep(`auth-recovery:exhausted:${reason}`);
+      return false;
+    }
+
+    this.authRecoveryAttempts += 1;
+    this.logStep(`auth-recovery:start:${reason}:${this.authRecoveryAttempts}`);
+
+    try {
+      await this.refreshCredentialsOnce();
+    } catch (error) {
+      console.warn(`[XMPP] credential refresh failed: ${formatError(error)}`);
+      return false;
+    }
+
+    // Clear the latch ONLY once we hold new credentials, otherwise
+    // reconnect() would bail at its own auth guard.
+    this.authFailureDetected = false;
+    this.status = 'offline';
+
+    try {
+      await this.reconnect();
+      return true;
+    } catch (error) {
+      console.warn(
+        `[XMPP] reconnect after credential refresh failed: ${formatError(error)}`
+      );
+      return false;
+    }
+  }
 
   private isTerminalAuthFailure(error: unknown): boolean {
     const candidate = error as any;
@@ -462,7 +576,15 @@ export class XmppClient implements XmppClientInterface {
       this.logStep('event:disconnect');
       if (this.pingInterval) clearInterval(this.pingInterval);
       if (this.authFailureDetected) {
-        this.logStep('event:disconnect:auth-failed-no-reconnect');
+        // Same reasoning as the error handler: an expired hourly
+        // password lands here too, and the recovery attempt is bounded.
+        void this.recoverFromAuthFailure('event:disconnect').then(
+          (recovered) => {
+            if (!recovered) {
+              this.logStep('event:disconnect:auth-failed-no-reconnect');
+            }
+          }
+        );
         return;
       }
       if (this.intentionalLogout) {
@@ -478,6 +600,7 @@ export class XmppClient implements XmppClientInterface {
         ethoraLogger.log('Client is online.', new Date());
         this.status = 'online';
         this.authFailureDetected = false;
+        this.authRecoveryAttempts = 0;
         this.reconnectAttempts = 0;
         this.offlineReconnectAttempts = 0;
         this.pausedDueToOfflineCap = false;
@@ -560,7 +683,15 @@ export class XmppClient implements XmppClientInterface {
       }
       this.logStep('event:error');
       if (terminalAuthFailure) {
-        this.logStep('event:error:auth-failed-no-reconnect');
+        // The XMPP password expires hourly, so this is usually just
+        // "your credential aged out", not "your account is gone". Try to
+        // re-mint and come back; the latch above stays set if that
+        // fails, preserving the old give-up behaviour.
+        void this.recoverFromAuthFailure('event:error').then((recovered) => {
+          if (!recovered) {
+            this.logStep('event:error:auth-failed-no-reconnect');
+          }
+        });
         return;
       }
       this.scheduleReconnect('event:error');
