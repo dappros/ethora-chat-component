@@ -8,6 +8,7 @@ import {
   refreshAuthTokens,
   isRefreshFatalError,
   hasRotatableSession,
+  markCurrentSessionDead,
   RefreshResult,
 } from './authRefresh';
 
@@ -121,6 +122,7 @@ http.interceptors.response.use(
       // session alone - logging out on those is exactly the mass-logout
       // failure mode the new backend scheme would otherwise cause.
       if (isRefreshFatalError(refreshError)) {
+        markCurrentSessionDead();
         store.dispatch(logout());
       }
       return Promise.reject(refreshError);

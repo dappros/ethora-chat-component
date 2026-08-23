@@ -202,6 +202,7 @@ export const hasRotatableSession = (): boolean =>
  * the rotation - so there are none.
  */
 const persistTokens = (result: RefreshResult): void => {
+  clearDeadSessionLatch();
   store.dispatch(
     refreshTokens({
       token: result.token,
@@ -538,7 +539,33 @@ export function startCrossTabTokenSync(): () => void {
 // having to wire up a lifecycle hook.
 startCrossTabTokenSync();
 
+type CredentialLike =
+  | Partial<Pick<User, 'xmppUsername' | 'refreshToken' | 'token'>>
+  | null
+  | undefined;
+
+const credentialSignature = (u: CredentialLike): string =>
+  `${u?.xmppUsername || ''}|${u?.refreshToken || ''}|${u?.token || ''}`;
+
+let deadSessionSignature: string | null = null;
+
+export function markCurrentSessionDead(): void {
+  deadSessionSignature = credentialSignature(getStoreUser() as CredentialLike);
+}
+
+export function isSessionDead(candidate: CredentialLike): boolean {
+  return (
+    deadSessionSignature !== null &&
+    credentialSignature(candidate) === deadSessionSignature
+  );
+}
+
+export function clearDeadSessionLatch(): void {
+  deadSessionSignature = null;
+}
+
 /** Test seam: drops any shared in-flight promise between cases. */
 export function __resetAuthRefreshStateForTests(): void {
   inflight = null;
+  deadSessionSignature = null;
 }

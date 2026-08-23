@@ -73,6 +73,8 @@ import {
   isRefreshFatalError,
   hasRotatableSession,
   startCrossTabTokenSync,
+  markCurrentSessionDead,
+  isSessionDead,
   __resetAuthRefreshStateForTests,
 } from './authRefresh';
 
@@ -657,5 +659,51 @@ describe('cross-tab token sync', () => {
     await expect(rotating).resolves.toMatchObject({
       refreshToken: 'refresh-3',
     });
+  });
+});
+describe('dead-session latch', () => {
+  it('flags the credentials that were current when the session died', () => {
+    markCurrentSessionDead();
+
+    expect(
+      isSessionDead({
+        xmppUsername: 'user',
+        refreshToken: 'refresh-1',
+        token: 'access-old',
+      })
+    ).toBe(true);
+  });
+
+  it('still allows one attempt for genuinely different credentials', () => {
+    markCurrentSessionDead();
+
+    expect(
+      isSessionDead({
+        xmppUsername: 'user',
+        refreshToken: 'refresh-fresh-from-host',
+        token: 'access-fresh',
+      })
+    ).toBe(false);
+  });
+
+  it('is cleared by a successful rotation', async () => {
+    markCurrentSessionDead();
+    post.mockResolvedValueOnce({
+      data: { token: 'access-2', refreshToken: 'refresh-2' },
+    });
+
+    await refreshAuthTokens();
+
+    expect(
+      isSessionDead({
+        xmppUsername: 'user',
+        refreshToken: 'refresh-1',
+        token: 'access-old',
+      })
+    ).toBe(false);
+  });
+
+  it('stays inert until something is marked dead', () => {
+    expect(isSessionDead({})).toBe(false);
   });
 });
