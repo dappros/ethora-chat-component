@@ -633,7 +633,7 @@ export const useSendMessage = () => {
         const mediaData = new FormData();
         files.forEach((file) => mediaData.append('files', file));
 
-        const response = await uploadFile(mediaData);
+        const response = await uploadFile(mediaData, activeRoomJID);
 
         const results: any[] = Array.isArray(response?.data?.results)
           ? response.data.results

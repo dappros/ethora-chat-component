@@ -1,4 +1,8 @@
-import http, { setBaseURL } from '../networking/apiClient';
+import { setBaseURL } from '../networking/apiClient';
+import {
+  refreshAuthTokens,
+  isRefreshFatalError,
+} from '../networking/authRefresh';
 import { loginViaJwt } from '../networking/api-requests/auth.api';
 import { getMyUser } from '../networking/api-requests/user.api';
 import { getStoredUser, hasStoredSensitiveSession } from './authStorage';
@@ -49,16 +53,29 @@ const normalizeUserForXmpp = (user?: User | null): User | null => {
   };
 };
 
+/**
+ * Bootstrap rotation.
+ *
+ * Was a second, independent `/v1/users/login/refresh` caller that
+ * bypassed every lock in the SDK - and, worse, only wrote the rotated
+ * token to the store on the happy path, so several of the early-return
+ * branches below used to drop it. Under the backend's reuse detection a
+ * dropped rotation means the next load presents a burned token and the
+ * session is killed.
+ *
+ * `refreshAuthTokens` persists the new pair before it resolves, so by
+ * the time this returns the rotation is safe no matter which branch the
+ * caller takes afterwards. The explicit token is required here: during
+ * bootstrap the candidate session isn't in the store yet.
+ */
 const refreshWithToken = async (refreshToken: string) => {
-  const response = await http.post('/users/login/refresh', {}, {
-    headers: {
-      Authorization: refreshToken,
-    },
-  });
+  const result = await refreshAuthTokens({ refreshToken });
 
   return {
-    token: response?.data?.token || '',
-    refreshToken: response?.data?.refreshToken || refreshToken,
+    token: result.token,
+    refreshToken: result.refreshToken || refreshToken,
+    fileToken: result.fileToken || '',
+    xmppPassword: result.xmppPassword || '',
   };
 };
 
@@ -91,6 +108,8 @@ const tryHydrateViaMy = async (
 
   let workingToken = candidate?.token || '';
   let workingRefresh = candidate?.refreshToken || '';
+  let workingFileToken = candidate?.fileToken || '';
+  let rotatedXmppPassword = '';
 
   // /users/my is metadata-only (firstName, profileImage, etc). It must
   // never gate bootstrap when we already hold xmpp credentials — some
@@ -100,6 +119,8 @@ const tryHydrateViaMy = async (
     ...candidate,
     token: workingToken || candidate.token,
     refreshToken: workingRefresh || candidate.refreshToken,
+    fileToken: workingFileToken || candidate.fileToken,
+    xmppPassword: rotatedXmppPassword || candidate.xmppPassword,
   });
 
   const fallbackWithCreds = (): User | null => {
@@ -117,6 +138,8 @@ const tryHydrateViaMy = async (
       if (merged) {
         merged.token = workingToken || merged.token;
         merged.refreshToken = workingRefresh || merged.refreshToken;
+        merged.fileToken = workingFileToken || merged.fileToken;
+        merged.xmppPassword = rotatedXmppPassword || merged.xmppPassword;
       }
       return merged;
     } catch (error) {
@@ -151,6 +174,8 @@ const tryHydrateViaMy = async (
     const refreshed = await refreshWithToken(workingRefresh);
     workingToken = refreshed.token;
     workingRefresh = refreshed.refreshToken;
+    workingFileToken = refreshed.fileToken || workingFileToken;
+    rotatedXmppPassword = refreshed.xmppPassword || rotatedXmppPassword;
 
     try {
       const myUser = await getMyUser({ token: workingToken, endpoint: myEndpoint });
@@ -160,6 +185,8 @@ const tryHydrateViaMy = async (
       if (merged) {
         merged.token = workingToken || merged.token;
         merged.refreshToken = workingRefresh || merged.refreshToken;
+        merged.fileToken = workingFileToken || merged.fileToken;
+        merged.xmppPassword = rotatedXmppPassword || merged.xmppPassword;
       }
       return merged;
     } catch (myError) {
@@ -182,6 +209,14 @@ const tryHydrateViaMy = async (
       return null;
     }
 
+    // A fatal refresh verdict (reuse detected / token not found / stale
+    // with nothing newer around) carries no HTTP response, so it would
+    // otherwise fall through to `throw` - the session is simply dead,
+    // which for bootstrap means "nothing to restore".
+    if (isRefreshFatalError(error)) {
+      return null;
+    }
+
     if (isAuthError(error)) {
       return null;
     }
@@ -201,7 +236,7 @@ export const resolveInitBeforeLoadUser = async (
     setBaseURL(config.baseUrl, config.customAppToken);
   }
 
-  const myEndpoint = config?.initBeforeLoadAuth?.myEndpoint || '/users/my';
+  const myEndpoint = config?.initBeforeLoadAuth?.myEndpoint || '/v1/users/my';
 
   const explicitUser = config?.userLogin?.enabled ? config?.userLogin?.user : null;
   if (explicitUser) {

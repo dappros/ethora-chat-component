@@ -18,7 +18,7 @@ const LIVEKIT_URL =
 
 const APP_CHAT_BASE_CONFIG: IConfig = {
   appId: '646cc8dc96d4a4dc8f7b2f2d',
-  baseUrl: 'https://api.chat-qa.ethora.com/v1',
+  baseUrl: 'https://api.chat-qa.ethora.com',
   xmppSettings: {
     devServer: 'wss://xmpp.chat-qa.ethora.com/ws',
     host: 'xmpp.chat-qa.ethora.com',
@@ -87,9 +87,10 @@ const Apps = () => {
           CustomScrollableArea={CustomScrollableArea}
           CustomDaySeparator={CustomDaySeparator}
           config={{
-            baseUrl: 'https://api.chat-qa.ethora.com/v1',
+            baseUrl: 'https://api.chat-qa.ethora.com',
             inAppNotifications: {
               enabled: true,
+              showInContext: true, // Show in chat component context as well
             },
           }}
         />
@@ -212,7 +213,7 @@ const ChatComponent = React.memo(() => {
           //   hideInputSendButton: true,
           //   overwriteEnterClick: true,
           // },
-          disableMedia: true,
+          disableMedia: false,
           eventHandlers: {
             onMessageSent: async (event) => {
               ethoraLogger.log('✅ Message sent successfully:', event.message);

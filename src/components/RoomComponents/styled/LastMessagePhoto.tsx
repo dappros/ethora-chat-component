@@ -8,6 +8,9 @@ import {
   LastRoomMessageText,
   ShadeWrapper,
 } from './StyledRoomComponents';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../../roomStore';
+import { appendFileToken } from '../../../helpers/secureFileUrl';
 
 const PhotoContainer = styled.div`
   position: relative;
@@ -29,6 +32,9 @@ const LastMessagePhoto: FC<LastMessagePhotoProps> = ({
   locationPreview,
   originalName,
 }) => {
+  const fileToken = useSelector(
+    (state: RootState) => state.chatSettingStore.user?.fileToken || ''
+  );
   return (
     <LastRoomMessageContainer>
       <LastRoomMessageName>{user.name || ''}:</LastRoomMessageName>
@@ -41,7 +47,7 @@ const LastMessagePhoto: FC<LastMessagePhotoProps> = ({
       >
         <PhotoContainer>
           <ShadeWrapper>
-            <LastMessageImg src={locationPreview} />
+            <LastMessageImg src={appendFileToken(locationPreview, fileToken)} />
           </ShadeWrapper>
         </PhotoContainer>
         <LastRoomMessageText>{originalName || 'file'}</LastRoomMessageText>

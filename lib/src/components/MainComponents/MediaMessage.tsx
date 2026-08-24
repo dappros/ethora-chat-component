@@ -1,6 +1,9 @@
 import React, { useMemo } from 'react';
+import { useSelector } from 'react-redux';
 import { IMessage } from '../../types/types';
+import { RootState } from '../../roomStore';
 import { getMessageAttachments } from '../../helpers/attachments';
+import { appendFileToken } from '../../helpers/secureFileUrl';
 import AttachmentList from './AttachmentList';
 
 interface MediaMessageProps {
@@ -21,6 +24,21 @@ const MediaMessage: React.FC<MediaMessageProps> = ({
   locationPreview,
   message,
 }) => {
+  // Secure (v2) file URLs are membership-gated: append the viewer's own
+  // fileToken at render time. Public (v1) URLs pass through untouched.
+  // Subscribed via useSelector so a token refresh re-renders the media
+  // with a fresh URL (recovering images that failed on an expired token).
+  //
+  // Applied per attachment rather than to the legacy `location` prop the
+  // way the single-file renderer did it: a multi-file message has to
+  // token-ise every tile, not just the first one. AttachmentList renders
+  // `attachment.location` verbatim, so this is the only place that can
+  // do it. Empty stays empty, which keeps AttachmentList's
+  // "still uploading" check working.
+  const fileToken = useSelector(
+    (state: RootState) => state.chatSettingStore.user?.fileToken || ''
+  );
+
   const attachments = useMemo(
     () =>
       getMessageAttachments({
@@ -31,7 +49,13 @@ const MediaMessage: React.FC<MediaMessageProps> = ({
         originalName: message?.originalName,
         fileName: message?.fileName,
         size: message?.size,
-      }),
+      }).map((attachment) => ({
+        ...attachment,
+        location: appendFileToken(attachment.location, fileToken),
+        locationPreview: attachment.locationPreview
+          ? appendFileToken(attachment.locationPreview, fileToken)
+          : attachment.locationPreview,
+      })),
     [
       message?.attachments,
       message?.location,
@@ -43,6 +67,7 @@ const MediaMessage: React.FC<MediaMessageProps> = ({
       location,
       locationPreview,
       mimeType,
+      fileToken,
     ]
   );
 

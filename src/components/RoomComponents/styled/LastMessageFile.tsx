@@ -7,6 +7,13 @@ import {
   LastRoomMessageText,
 } from './StyledRoomComponents';
 import { FileIcon } from '../../../assets/icons';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../../roomStore';
+import {
+  appendFileToken,
+  isSecureFileUrl,
+  requestFileTokenRecovery,
+} from '../../../helpers/secureFileUrl';
 
 interface LastMessageFileProps
   extends Pick<LastMessage, 'user' | 'originalName' | 'locationPreview'> {}
@@ -16,6 +23,9 @@ const LastMessageFile: FC<LastMessageFileProps> = ({
   originalName,
   locationPreview,
 }) => {
+  const fileToken = useSelector(
+    (state: RootState) => state.chatSettingStore.user?.fileToken || ''
+  );
   return (
     <LastRoomMessageContainer>
       <LastRoomMessageName>{user.name || ''}:</LastRoomMessageName>
@@ -28,7 +38,7 @@ const LastMessageFile: FC<LastMessageFileProps> = ({
       >
         {locationPreview ? (
           <img
-            src={locationPreview}
+            src={appendFileToken(locationPreview, fileToken)}
             alt={locationPreview}
             style={{
               borderRadius: 16,
@@ -37,6 +47,9 @@ const LastMessageFile: FC<LastMessageFileProps> = ({
               maxHeight: '20px',
             }}
             onError={(e) => {
+              if (isSecureFileUrl(locationPreview)) {
+                requestFileTokenRecovery();
+              }
               (e.target as HTMLImageElement).src =
                 'https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg';
             }}

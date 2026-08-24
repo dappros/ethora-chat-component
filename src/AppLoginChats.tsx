@@ -24,7 +24,7 @@ import http, { setBaseURL } from './networking/apiClient';
 
 const BASE_CONFIG: IConfig = {
   appId: '646cc8dc96d4a4dc8f7b2f2d',
-  baseUrl: 'https://api.chat.ethora.com/v1',
+  baseUrl: 'https://api.chat.ethora.com',
   xmppSettings: {
     devServer: 'wss://xmpp.chat.ethora.com/ws',
     host: 'xmpp.chat.ethora.com',
@@ -277,7 +277,7 @@ const HomeScreen: React.FC<{
       setLoading(true);
       setError(null);
       try {
-        const response = await http.get<{ items: ApiRoom[] }>('/chats/my', {
+        const response = await http.get<{ items: ApiRoom[] }>('/v1/chats/my', {
           headers: { Authorization: token },
         });
         if (cancelled) return;

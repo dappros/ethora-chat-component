@@ -21,7 +21,9 @@ import type { ApiRoom } from './types/types';
 // XmppProvider receives `jwtLogin.token`, exchanges it via POST /users/client
 // for an Ethora user-auth token + xmpp creds, then connects. Mirrors the
 // production patient flow (see Slack thread).
-const BASE_URL = 'https://api.chat-qa.ethora.com/v1';
+// NB: no `/v1` suffix — request paths carry their own version prefix
+// (`/v1/chats`, `/v2/files/secure`), so the version must not be baked in here.
+const BASE_URL = 'https://api.chat-qa.ethora.com';
 const CONFERENCE = 'conference.xmpp.chat-qa.ethora.com';
 
 const BASE_CONFIG = {
@@ -152,7 +154,7 @@ const clearPersistedPayload = () => {
 // with no body and the raw client JWT in `x-custom-token`.
 const resolveUserFromJwt = async (jwt: string): Promise<AppUser> => {
   const res = await axios.post(
-    `${BASE_URL}/users/client`,
+    `${BASE_URL}/v1/users/client`,
     null,
     { headers: { 'x-custom-token': jwt } }
   );
@@ -174,7 +176,7 @@ const resolveUserFromEmail = async (
   appToken: string
 ): Promise<AppUser> => {
   const res = await axios.post(
-    `${BASE_URL}/users/login-with-email`,
+    `${BASE_URL}/v1/users/login-with-email`,
     { email, password },
     { headers: { Authorization: appToken } }
   );
@@ -519,7 +521,7 @@ const createChatViaApi = async (
   payload: CreateChatPayload
 ): Promise<ApiRoomItem | null> => {
   const res = await axios.post(
-    `${BASE_URL}/chats`,
+    `${BASE_URL}/v1/chats`,
     payload,
     { headers: { Authorization: token } }
   );
@@ -532,7 +534,7 @@ const addMembersViaApi = async (
   members: string[]
 ): Promise<void> => {
   await axios.post(
-    `${BASE_URL}/chats/users-access`,
+    `${BASE_URL}/v1/chats/users-access`,
     { chatName: `${chatName}`, members },
     { headers: { Authorization: token } }
   );
@@ -1141,7 +1143,7 @@ const AuthedShellInner: React.FC<{
 
   const fetchRooms = async (token: string) => {
     const res = await axios.get<{ items: ApiRoomItem[] }>(
-      `${BASE_URL}/chats/my`,
+      `${BASE_URL}/v1/chats/my`,
       { headers: { Authorization: token } }
     );
     const list = (res.data?.items || []).map(apiRoomToMeta);
@@ -1241,7 +1243,7 @@ const AuthedShellInner: React.FC<{
     //    invitee's online state and the backend's choice to emit them
     //    on REST-driven membership changes).
     const res = await axios.get<{ items: ApiRoom[] }>(
-      `${BASE_URL}/chats/my`,
+      `${BASE_URL}/v1/chats/my`,
       { headers: { Authorization: user.token } }
     );
     const freshList = res.data?.items || [];

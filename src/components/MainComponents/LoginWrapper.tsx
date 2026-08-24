@@ -12,6 +12,7 @@ import {
 } from '../../networking/api-requests/auth.api';
 import { StyledLoaderWrapper } from '../styled/StyledComponents';
 import { setBaseURL } from '../../networking/apiClient';
+import { isSessionDead } from '../../networking/authRefresh';
 import Loader from '../styled/Loader';
 import ErrorFallback from './ErrorFallback';
 import FallbackScreen from './FallbackScreen';
@@ -152,6 +153,9 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
 
       if (config?.userLogin?.enabled && config.userLogin.user) {
         const candidate = config.userLogin.user as User;
+        if (isSessionDead(candidate)) {
+          return;
+        }
         const hasXmppCreds = Boolean(
           (candidate as any)?.xmppPassword &&
             ((candidate as any)?.xmppUsername ||

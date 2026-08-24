@@ -38,3 +38,21 @@ export {
   RoomListTestIds,
   AuthTestIds,
 } from './testIds';
+
+// Auth-token rotation. Exposed so hosts can drive a refresh themselves
+// (it is deduped, and shares the SDK's Web Lock across tabs) and, more
+// importantly, so they can tell a dead session from a transient
+// failure: only `RefreshFatalError` means "log the user out". Every
+// other rejection - network, 5xx, a lost REFRESH_IN_PROGRESS race -
+// must leave the session alone.
+export {
+  refreshAuthTokens,
+  refreshAuthTokensQuietly,
+  RefreshFatalError,
+  isRefreshFatalError,
+} from './networking/authRefresh';
+export type {
+  RefreshErrorCode,
+  RefreshResult,
+  RefreshOptions,
+} from './networking/authRefresh';
