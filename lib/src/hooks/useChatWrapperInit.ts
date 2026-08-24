@@ -8,7 +8,7 @@ import { chatAutoEnterer } from '../helpers/chatAutoEnterer';
 import { initRoomsPresence } from '../helpers/initRoomsPresence';
 import { updatedChatLastTimestamps } from '../helpers/updatedChatLastTimestamps';
 import { updateMessagesTillLast } from '../helpers/updateMessagesTillLast';
-import { refresh } from '../networking/apiClient';
+import { refreshAuthTokensQuietly } from '../networking/authRefresh';
 import { setLangSource, setConfig } from '../roomStore/chatSettingsSlice';
 import {
   setCurrentRoom,
@@ -605,7 +605,7 @@ const useChatWrapperInit = ({
               runBackgroundTasks(newClient);
 
               {
-                config?.refreshTokens?.enabled && refresh();
+                config?.refreshTokens?.enabled && refreshAuthTokensQuietly();
               }
             } catch (error) {
               ethoraLogger.log('err', error);
@@ -654,7 +654,7 @@ const useChatWrapperInit = ({
 
             runBackgroundTasks(client);
             {
-              config?.refreshTokens?.enabled && refresh();
+              config?.refreshTokens?.enabled && refreshAuthTokensQuietly();
             }
           }
         }

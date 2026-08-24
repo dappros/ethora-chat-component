@@ -13,13 +13,13 @@ import { FullScreenVideo } from '../../styled/VideoMessage';
 import { setActiveFile } from '../../../roomStore/chatSettingsSlice';
 import PdfViewer from './PdfView';
 import { ethoraLogger } from '../../../helpers/ethoraLogger';
-import { useT } from '../../../i18n/useT';
 import {
   appendFileToken,
   isSecureFileUrl,
   requestFileTokenRecovery,
   withFileToken,
 } from '../../../helpers/secureFileUrl';
+import { useT } from '../../../i18n/useT';
 
 interface FilePreviewModalProps {
   handleCloseModal: any;

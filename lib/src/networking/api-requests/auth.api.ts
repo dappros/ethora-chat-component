@@ -12,8 +12,25 @@ import http, { appToken } from '../apiClient';
 import { store } from '../../roomStore';
 import { getMyUser } from './user.api';
 
-async function resolveUserViaMyEndpoint(token?: string): Promise<User | null> {
+const hasXmppCredentials = (user?: Partial<User> | null): boolean =>
+  Boolean(
+    user?.xmppPassword &&
+      (user?.xmppUsername || (user as any)?.defaultWallet?.walletAddress)
+  );
+
+// /users/my is metadata-only (firstName, profileImage, etc) enrichment on
+// top of a login response that already carries xmpp credentials — the same
+// role that reliably 403s on it in resolveInitBeforeLoadUser.ts's bootstrap
+// paths also 403s here, since it's the same endpoint. Skipping the call
+// once we already have what login actually needs (xmpp creds) means a
+// login no longer fails, stalls, or logs a forbidden request purely to
+// fetch fields nothing downstream requires.
+async function resolveUserViaMyEndpoint(
+  token?: string,
+  alreadyResolvedUser?: Partial<User> | null
+): Promise<User | null> {
   if (!token) return null;
+  if (hasXmppCredentials(alreadyResolvedUser)) return null;
 
   try {
     return await getMyUser({ token });
@@ -39,7 +56,7 @@ export async function loginEmail(email: string, password: string) {
     { headers: { Authorization: appToken } }
   );
 
-  const myUser = await resolveUserViaMyEndpoint(res.data.token);
+  const myUser = await resolveUserViaMyEndpoint(res.data.token, res.data.user);
   if (myUser) {
     res.data.user = { ...res.data.user, ...myUser };
   }
@@ -66,7 +83,7 @@ export async function loginSocial(
   );
 
   const token = response?.data?.token as string | undefined;
-  const myUser = await resolveUserViaMyEndpoint(token);
+  const myUser = await resolveUserViaMyEndpoint(token, response?.data?.user);
   if (myUser && response?.data?.user) {
     response.data.user = { ...response.data.user, ...myUser };
   }
@@ -121,7 +138,7 @@ export async function loginViaJwt(clientToken: string): Promise<User> {
     token: response.data.token,
     fileToken: response.data.fileToken || '',
   };
-  const myUser = await resolveUserViaMyEndpoint(response.data.token);
+  const myUser = await resolveUserViaMyEndpoint(response.data.token, user);
   return myUser
     ? {
         ...user,
@@ -211,7 +228,7 @@ export async function ensureUserFromMy(
 ): Promise<User | null> {
   if (!user) return null;
   const token = (user as any)?.token;
-  const myUser = await resolveUserViaMyEndpoint(token);
+  const myUser = await resolveUserViaMyEndpoint(token, user);
   if (!myUser) return user;
   return { ...user, ...myUser };
 }

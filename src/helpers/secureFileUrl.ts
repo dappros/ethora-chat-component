@@ -1,6 +1,8 @@
 import { store } from '../roomStore';
-import { refresh } from '../networking/apiClient';
-import { refreshTokens } from '../roomStore/chatSettingsSlice';
+import {
+  refreshAuthTokens,
+  hasRotatableSession,
+} from '../networking/authRefresh';
 
 // Files uploaded via /v2/files/secure are served from the secure-files.*
 // domain and every download is gated by chat membership: the server needs
@@ -65,30 +67,22 @@ export const requestFileTokenRecovery = (): Promise<boolean> => {
 
   const state = store.getState();
   const refreshConfig = state.chatSettingStore?.config?.refreshTokens;
-  const user = state.chatSettingStore?.user;
 
   if (!refreshConfig?.enabled) return Promise.resolve(false);
+  // `hasRotatableSession` consults localStorage first. The old check
+  // read `state.chatSettingStore.user.refreshToken`, which redux-persist
+  // scrubs on rehydrate: in a reloaded tab that is always empty, so
+  // broken secure images could never recover their fileToken.
+  if (!hasRotatableSession()) return Promise.resolve(false);
 
   const run = async (): Promise<boolean> => {
-    if (refreshConfig.refreshFunction) {
-      const refreshed = await refreshConfig.refreshFunction();
-      if (!refreshed?.accessToken) return false;
-      store.dispatch(
-        refreshTokens({
-          token: refreshed.accessToken,
-          refreshToken: refreshed.refreshToken || user?.refreshToken || '',
-          fileToken: refreshed.fileToken,
-        })
-      );
-      return Boolean(refreshed.fileToken);
-    }
-
-    if (!user?.refreshToken) return false;
-    // refresh() dispatches refreshTokens (fileToken included) itself and
-    // dispatches logout() if the refresh token is dead — same contract as
-    // the 401 interceptor.
-    await refresh();
-    return true;
+    // Was a fifth independent rotation path (its own consumer-function
+    // branch, its own dedupe). It now goes through the one rotation
+    // point, so it can no longer race the interceptor into presenting
+    // an already-burned refresh token. `refreshAuthTokens` persists the
+    // new tokens itself, which re-renders subscribed media.
+    const tokens = await refreshAuthTokens();
+    return Boolean(tokens.fileToken);
   };
 
   recoveryInFlight = run()

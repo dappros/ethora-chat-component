@@ -3,11 +3,33 @@ import { store } from '../roomStore';
 import { appToken as betaAppToken } from '../api.config';
 import { VITE_APP_API_URL } from '../config';
 
-import { logout, refreshTokens } from '../roomStore/chatSettingsSlice';
+import { logout } from '../roomStore/chatSettingsSlice';
+import {
+  refreshAuthTokens,
+  isRefreshFatalError,
+  hasRotatableSession,
+  markCurrentSessionDead,
+  RefreshResult,
+} from './authRefresh';
 
-let baseURL =
-  store.getState().chatSettingStore?.config?.baseUrl ||
-  VITE_APP_API_URL;
+/**
+ * The API version belongs to the endpoint, not to the base URL: every
+ * path in this SDK carries its own `/v1/` or `/v2/` prefix, because the
+ * file endpoints now live on v2 while everything else is still v1.
+ *
+ * Hosts configured against the older docs still pass
+ * `baseUrl: 'https://api.chat.ethora.com/v1'`, which used to be right
+ * and now silently produces `/v1/v1/users/...`. Strip it instead of
+ * letting every request 404.
+ */
+const stripApiVersionSuffix = (url?: string): string => {
+  if (!url) return '';
+  return url.replace(/\/+(v[12])\/*$/i, '');
+};
+
+let baseURL = stripApiVersionSuffix(
+  store.getState().chatSettingStore?.config?.baseUrl || VITE_APP_API_URL
+);
 
 const http = axios.create({
   baseURL,
@@ -17,75 +39,30 @@ let appToken = betaAppToken;
 
 export function setBaseURL(newBaseURL?: string, customAppToken?: string) {
   if (newBaseURL) {
-    baseURL = newBaseURL;
-    http.defaults.baseURL = newBaseURL;
+    baseURL = stripApiVersionSuffix(newBaseURL);
+    http.defaults.baseURL = baseURL;
   }
   if (customAppToken) {
     appToken = customAppToken;
   }
 }
 
-export function refresh(): Promise<{
-  data: { refreshToken: string; token: string; fileToken?: string };
-}> {
-  const user = store.getState().chatSettingStore.user;
-
-  if (!user.refreshToken) {
-    return Promise.reject(new Error('Refresh token is missing'));
-  }
-
-  return http
-    .post(
-      '/v1/users/login/refresh',
-      {},
-      { headers: { Authorization: user.refreshToken } }
-    )
-    .then((response) => {
-      store.dispatch(
-        refreshTokens({
-          token: response.data.token,
-          refreshToken: response.data.refreshToken,
-          fileToken: response.data.fileToken,
-        })
-      );
-
-      return response;
-    })
-    .catch((error) => {
-      store.dispatch(logout());
-      return Promise.reject(error);
-    });
+/**
+ * @deprecated Import `refreshAuthTokens` from `./authRefresh` instead.
+ *
+ * Kept as a thin forwarder so existing call sites keep working while
+ * they migrate. Declared as a function (not `const refresh =
+ * refreshAuthTokens`) on purpose: this module and `authRefresh` import
+ * each other, and a const would capture the binding before the other
+ * module finished evaluating.
+ *
+ * Behaviour change vs. the old implementation: it no longer dispatches
+ * `logout()` on every failure. Only a fatal verdict from the backend
+ * ends the session - see the interceptor below.
+ */
+export function refresh(): Promise<RefreshResult> {
+  return refreshAuthTokens();
 }
-
-let isRefreshing = false;
-let failedQueue: Array<{
-  resolve: (value: unknown) => void;
-  reject: (reason?: unknown) => void;
-  config: any;
-}> = [];
-
-const addRequestToQueue = (config: any) => {
-  return new Promise((resolve, reject) => {
-    failedQueue.push({ resolve, reject, config });
-  });
-};
-
-const processQueue = (error: unknown, newAccessToken?: string) => {
-  for (const request of failedQueue) {
-    if (error) {
-      request.reject(error);
-      continue;
-    }
-
-    if (newAccessToken) {
-      request.config.headers['Authorization'] = newAccessToken;
-    }
-
-    request.resolve(http(request.config));
-  }
-
-  failedQueue = [];
-};
 
 http.interceptors.response.use(
   (response) => response,
@@ -117,59 +94,38 @@ http.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    const hasRefreshableSession = Boolean(
-      refreshConfig.refreshFunction ||
-        store.getState().chatSettingStore.user?.refreshToken
-    );
-    if (!hasRefreshableSession) {
+    // Storage-backed, not redux-backed: a second tab rehydrated by
+    // redux-persist has its tokens scrubbed out of the store, so the
+    // old redux-only check made it give up on every 401 instead of
+    // rotating with the token it does have in localStorage.
+    if (!hasRotatableSession()) {
       return Promise.reject(error);
     }
 
     originalRequest._retry = true;
 
-    if (isRefreshing) {
-      return addRequestToQueue(originalRequest);
-    }
-
-    isRefreshing = true;
-
     try {
-      let nextToken = '';
-
-      if (refreshConfig.refreshFunction) {
-        const refreshed = await refreshConfig.refreshFunction();
-
-        if (!refreshed?.accessToken) {
-          throw new Error('Custom refresh function did not return an access token');
-        }
-
-        store.dispatch(
-          refreshTokens({
-            token: refreshed.accessToken,
-            refreshToken:
-              refreshed.refreshToken ||
-              store.getState().chatSettingStore.user.refreshToken,
-            fileToken: refreshed.fileToken,
-          })
-        );
-
-        nextToken = refreshed.accessToken;
-      } else {
-        const tokens = await refresh();
-        nextToken = tokens.data.token;
-      }
+      // One shared rotation for every 401 in flight - and, via the Web
+      // Lock inside `refreshAuthTokens`, one across every tab too. This
+      // replaces the old isRefreshing/failedQueue machinery, and the
+      // consumer `refreshFunction` branch now lives in there as well so
+      // both paths get the same serialisation.
+      const tokens = await refreshAuthTokens();
 
       originalRequest.headers = originalRequest.headers || {};
-      originalRequest.headers['Authorization'] = nextToken;
-      processQueue(null, nextToken);
+      originalRequest.headers['Authorization'] = tokens.token;
 
       return http(originalRequest);
     } catch (refreshError) {
-      processQueue(refreshError);
-      store.dispatch(logout());
+      // Only a genuinely dead session logs the user out. A network
+      // blip, a 5xx, or a REFRESH_IN_PROGRESS race must leave the
+      // session alone - logging out on those is exactly the mass-logout
+      // failure mode the new backend scheme would otherwise cause.
+      if (isRefreshFatalError(refreshError)) {
+        markCurrentSessionDead();
+        store.dispatch(logout());
+      }
       return Promise.reject(refreshError);
-    } finally {
-      isRefreshing = false;
     }
   }
 );

@@ -90,6 +90,7 @@ const Apps = () => {
             baseUrl: 'https://api.chat-qa.ethora.com',
             inAppNotifications: {
               enabled: true,
+              showInContext: true, // Show in chat component context as well
             },
           }}
         />
@@ -212,7 +213,7 @@ const ChatComponent = React.memo(() => {
           //   hideInputSendButton: true,
           //   overwriteEnterClick: true,
           // },
-          disableMedia: true,
+          disableMedia: false,
           eventHandlers: {
             onMessageSent: async (event) => {
               ethoraLogger.log('✅ Message sent successfully:', event.message);
