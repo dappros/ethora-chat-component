@@ -1,5 +1,8 @@
 import React from 'react';
-import { Container } from './StyledInputComponents/MediaComponents';
+import {
+  Container,
+  MediaLoadingSkeleton,
+} from './StyledInputComponents/MediaComponents';
 import { useDispatch } from 'react-redux';
 import {
   setActiveFile,
@@ -55,17 +58,7 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
           }}
         />
       ) : (
-        <img
-          src="https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg"
-          alt={fileName}
-          onClick={handleOpen}
-          style={{
-            borderRadius: 16,
-            cursor: 'pointer',
-            maxWidth: '150px',
-            maxHeight: '200px',
-          }}
-        />
+        <MediaLoadingSkeleton $width={150} $height={200} />
       )}
     </Container>
   );
