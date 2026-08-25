@@ -6,6 +6,7 @@ import {
   setActiveFile,
   setActiveModal,
 } from '../../roomStore/chatSettingsSlice';
+import { MediaLoadingSkeleton } from './StyledInputComponents/MediaComponents';
 
 interface CustomMessageVideoProps {
   fileName: string;
@@ -75,6 +76,14 @@ const CustomMessageVideo: React.FC<CustomMessageVideoProps> = ({
     e.preventDefault();
     e.stopPropagation();
   };
+
+  if (!fileURL) {
+    return (
+      <Container>
+        <MediaLoadingSkeleton $width={300} $height={200} />
+      </Container>
+    );
+  }
 
   return (
     <Container>
