@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 import { useDispatch } from 'react-redux';
@@ -69,6 +69,33 @@ const CustomMessageVideo: React.FC<CustomMessageVideoProps> = ({
   mimetype,
 }) => {
   const dispatch = useDispatch();
+  // Preload off-DOM, same pattern as CustomMessageImage: the skeleton stays
+  // up until the first frame is actually decoded, so there's no blank gap
+  // between skeleton-hides and video-paints while it's still downloading.
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    setReady(false);
+    if (!fileURL) return;
+    let cancelled = false;
+    const preloader = document.createElement('video');
+    preloader.preload = 'auto';
+    preloader.muted = true;
+    preloader.onloadeddata = () => {
+      if (!cancelled) setReady(true);
+    };
+    preloader.onerror = () => {
+      // Can't recover a broken video URL the way images retry with a fresh
+      // fileToken - just stop waiting and let the real <video> element
+      // surface the error itself (native controls show it).
+      if (!cancelled) setReady(true);
+    };
+    preloader.src = fileURL;
+    return () => {
+      cancelled = true;
+      preloader.src = '';
+    };
+  }, [fileURL]);
 
   const handleOpen = (e: React.MouseEvent<HTMLVideoElement, MouseEvent>) => {
     dispatch(setActiveFile({ fileName, fileURL, mimetype }));
@@ -77,7 +104,7 @@ const CustomMessageVideo: React.FC<CustomMessageVideoProps> = ({
     e.stopPropagation();
   };
 
-  if (!fileURL) {
+  if (!fileURL || !ready) {
     return (
       <Container>
         <MediaLoadingSkeleton $width={300} $height={200} />

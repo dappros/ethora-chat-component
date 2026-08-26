@@ -24,7 +24,7 @@ interface CustomMessageImageProps {
   locationPreview?: string;
 }
 
-type LoadFailure = 'none' | 'recovering' | 'failed';
+type LoadState = 'loading' | 'recovering' | 'loaded' | 'failed';
 
 const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
   fileURL,
@@ -34,36 +34,51 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
 }) => {
   const dispatch = useDispatch();
 
-  // Load-failure state instead of mutating the <img> src in onError: a
-  // secure URL that 403s (expired fileToken) shows the loading skeleton
-  // while the token rotation runs, and the rotation changing
-  // `locationPreview` resets this and lets the <img> retry with the fresh
-  // signed URL. Only a URL that cannot recover shows the placeholder.
-  const [failure, setFailure] = useState<LoadFailure>('none');
+  // Preload off-DOM with a bare Image(), so the skeleton stays up for the
+  // whole fetch and we only ever mount the visible <img> once the bytes are
+  // already in the browser cache - a straight skeleton -> image swap, no
+  // blank gap while it decodes and no layout double-booking from stacking
+  // a hidden <img> under the skeleton.
+  const [state, setState] = useState<LoadState>('loading');
 
   useEffect(() => {
-    setFailure('none');
-  }, [locationPreview]);
-
-  const handleError = () => {
-    if (isSecureFileUrl(locationPreview)) {
-      setFailure('recovering');
-      requestFileTokenRecovery().then((gotToken) => {
-        // On success the fresh token re-renders us with a new
-        // locationPreview and the effect above resets the state.
-        if (!gotToken) setFailure('failed');
-      });
-    } else {
-      setFailure('failed');
+    if (!locationPreview) {
+      setState('loading');
+      return;
     }
-  };
+    setState('loading');
+    let cancelled = false;
+    const preloader = new Image();
+    preloader.onload = () => {
+      if (!cancelled) setState('loaded');
+    };
+    preloader.onerror = () => {
+      if (cancelled) return;
+      if (isSecureFileUrl(locationPreview)) {
+        setState('recovering');
+        // Expired fileToken: kick the refresh flow. On success the store
+        // update produces a fresh `locationPreview` prop, which re-runs
+        // this effect and retries; on failure we fall through to the
+        // static placeholder.
+        requestFileTokenRecovery().then((gotToken) => {
+          if (!cancelled && !gotToken) setState('failed');
+        });
+      } else {
+        setState('failed');
+      }
+    };
+    preloader.src = locationPreview;
+    return () => {
+      cancelled = true;
+    };
+  }, [locationPreview]);
 
   const handleOpen = () => {
     dispatch(setActiveFile({ fileName, fileURL, mimetype }));
     dispatch(setActiveModal(MODAL_TYPES.FILE_PREVIEW));
   };
 
-  if (!fileURL || failure === 'recovering') {
+  if (!fileURL || state === 'loading' || state === 'recovering') {
     return (
       <Container>
         <MediaLoadingSkeleton $width={150} $height={200} />
@@ -74,16 +89,15 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
   return (
     <Container>
       <img
-        src={failure === 'failed' ? NO_IMAGE_PLACEHOLDER : locationPreview}
+        src={state === 'failed' ? NO_IMAGE_PLACEHOLDER : locationPreview}
         alt={fileName}
-        onClick={failure === 'failed' ? undefined : handleOpen}
+        onClick={state === 'failed' ? undefined : handleOpen}
         style={{
           borderRadius: 16,
-          cursor: failure === 'failed' ? 'default' : 'pointer',
+          cursor: state === 'failed' ? 'default' : 'pointer',
           maxWidth: '150px',
           maxHeight: '200px',
         }}
-        onError={failure === 'failed' ? undefined : handleError}
       />
     </Container>
   );
