@@ -1,6 +1,6 @@
 {
   "name": "@ethora/chat-component",
-  "version": "26.7.3",
+  "version": "26.7.4",
   "type": "module",
   "main": "dist/main.js",
   "types": "dist/main.d.ts",
@@ -40,8 +40,6 @@
     "js-sha256": "^0.11.1",
     "livekit-client": "^2.18.3",
     "ltx": "^3.1.2",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
     "react-markdown": "^10.1.0",
     "react-qr-code": "^2.0.16",
     "react-redux": "^9.2.0",
@@ -55,6 +53,10 @@
     "styled-components": "^6.1.19",
     "uuid": "^11.1.0",
     "wavesurfer.js": "^7.9.6"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1 || ^19.0.0",
+    "react-dom": "^18.3.1 || ^19.0.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.4.6",
@@ -74,6 +76,8 @@
     "eslint-plugin-react-refresh": "^0.4.20",
     "jsdom": "^24.1.0",
     "prettier": "3.6.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "typescript": "^5.8.3",
     "vite": "^7.0.0",
     "vite-plugin-dts": "^4.5.4",
