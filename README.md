@@ -7,6 +7,12 @@
 
 [![Discord](https://img.shields.io/badge/%3Cethora%3E-%237289DA.svg?style=flat&logo=discord&logoColor=white)](https://discord.gg/Sm6bAHA3ZC) [![Twitter URL](https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2Fdappros%2Fethora)](https://twitter.com/intent/tweet?url=https%3A%2F%2Fgithub.com%2Fdappros%2Fethora%2F&via=tarasfilatov&text=check%20out%20Ethora%20%23web3%20%23social%20app%20engine&hashtags=lowcode%2Creactnative%2Copensource%2Cnocode) [![Website](https://img.shields.io/website?url=https%3A%2F%2Fethora.com%2F)](https://ethora.com/) [![YouTube Channel Subscribers](https://img.shields.io/youtube/channel/subscribers/UCRvrXwMOU0WBkRZyFlU7V_g)](https://www.youtube.com/channel/UCRvrXwMOU0WBkRZyFlU7V_g)
 
+## Try it
+
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-playground.chat.ethora.com-brightgreen?style=for-the-badge)](https://playground.chat.ethora.com)
+[![Open in CodeSandbox](https://img.shields.io/badge/Open%20in-CodeSandbox-040404?style=for-the-badge&logo=codesandbox&logoColor=white)](https://codesandbox.io/p/github/dappros/ethora-chat-component/main)
+[![Open in StackBlitz](https://img.shields.io/badge/Open%20in-StackBlitz-1389FD?style=for-the-badge&logo=stackblitz&logoColor=white)](https://stackblitz.com/github/dappros/ethora-chat-component)
+
 React + TypeScript chat UI component powered by Ethora backend APIs and XMPP.  
 Use it as a standalone chat page, as an embedded widget in your existing app, or as a customizable chat foundation with your own auth and UI.
 
