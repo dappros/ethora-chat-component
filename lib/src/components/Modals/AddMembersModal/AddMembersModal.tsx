@@ -54,7 +54,9 @@ const AddMembersModal: React.FC = () => {
       handleCloseModal();
       await client.inviteRoomRequestStanza(userName, activeRoom.jid);
 
-      const room = await getRoomByName(activeRoom.jid);
+      // The endpoint expects the bare chat name, not the full JID (a full
+      // JID guaranteed a wasted 404 round trip here).
+      const room = await getRoomByName(activeRoom.jid.split('@')[0]);
       dispatch(
         addRoomViaApi({
           room: createRoomFromApi(room, config?.xmppSettings?.conference),

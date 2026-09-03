@@ -74,6 +74,11 @@ interface MamRequestState {
   startedAt: number;
   timeout: NodeJS.Timeout;
   resolve: (messages: IMessage[] | undefined) => void;
+  // Set when the request timed out client-side but the server may still be
+  // streaming the page: the entry is kept as a tombstone so late <result>
+  // stanzas are consumed (and dropped) by routeMamStanza instead of hitting
+  // the generic per-message handler one by one.
+  abandoned?: boolean;
 }
 
 interface HistoryQueueTask {
@@ -735,6 +740,14 @@ export class XmppClient implements XmppClientInterface {
     this.idlePingTimeout = setTimeout(() => {
       if (this.status !== 'online' || this.pingInFlight) return;
 
+      // Every stanza refreshes lastActivityTs; if the connection saw traffic
+      // recently there is nothing to probe — re-arm instead of spending a
+      // ping/pong round trip on a provably alive connection.
+      if (Date.now() - this.lastActivityTs < this.idleThresholdMs) {
+        this.scheduleAdaptivePing();
+        return;
+      }
+
       this.pingInFlight = true;
       const pingId = sendPing(this.client, this.host);
       this.lastPingId = pingId;
@@ -773,6 +786,13 @@ export class XmppClient implements XmppClientInterface {
 
     this.idlePingTimeout = setTimeout(() => {
       if (this.status === 'online') {
+        // Same idle guard as scheduleAdaptivePing: skip the very first ping
+        // when the post-connect burst (presence sweep, history preload) is
+        // already proving the connection alive.
+        if (Date.now() - this.lastActivityTs < this.idleThresholdMs) {
+          this.scheduleAdaptivePing();
+          return;
+        }
         this.pingInFlight = true;
         const pingId = sendPing(this.client, this.host);
         this.lastPingId = pingId;
@@ -1087,7 +1107,9 @@ export class XmppClient implements XmppClientInterface {
     if (hasQueuedHighPriority) return true;
 
     const hasMamInFlight = Array.from(this.mamRequestRegistry.values()).some(
-      (entry) => String(entry.chatJID || '').split('/')[0] === activeRoomJid
+      (entry) =>
+        !entry.abandoned &&
+        String(entry.chatJID || '').split('/')[0] === activeRoomJid
     );
     if (hasMamInFlight) return true;
 
@@ -1331,6 +1353,20 @@ export class XmppClient implements XmppClientInterface {
           waitForJoin: false,
           source: isActiveRoomTask ? 'active_room' : 'send',
         }).catch(() => {});
+      } else {
+        // Background preload used to skip presence entirely and query MAM
+        // for rooms it had never joined - the server then answers with an
+        // empty page, so the room sat in the sidebar with no preview until
+        // the user opened it by hand (which does join first). ensureRoomPresence
+        // returns immediately for already-joined rooms, so this only costs
+        // anything the first time. Waiting for the join here is what makes
+        // the following MAM query actually return the archive.
+        await this.ensureRoomPresence(task.chatJID, {
+          settleDelay: 0,
+          timeoutMs: 2000,
+          waitForJoin: true,
+          source: 'background',
+        }).catch(() => {});
       }
 
       const messages = await this.requestMamHistory(
@@ -1420,6 +1456,10 @@ export class XmppClient implements XmppClientInterface {
       const request = this.mamRequestRegistry.get(queryId);
       if (!request) return false;
 
+      // Late result for a timed-out request: swallow it, its promise has
+      // already resolved undefined.
+      if (request.abandoned) return true;
+
       const messageEl = result?.getChild('forwarded')?.getChild('message');
       if (messageEl) {
         request.messages.push(messageEl as Element);
@@ -1505,7 +1545,19 @@ export class XmppClient implements XmppClientInterface {
 
     return new Promise<IMessage[] | undefined>((resolve) => {
       const timeout = setTimeout(() => {
-        this.mamRequestRegistry.delete(requestId);
+        const entry = this.mamRequestRegistry.get(requestId);
+        if (entry) {
+          // Keep a short-lived tombstone (see MamRequestState.abandoned) so
+          // the server's late page is still routed here and dropped quietly.
+          entry.abandoned = true;
+          entry.messages.length = 0;
+          setTimeout(() => {
+            const current = this.mamRequestRegistry.get(requestId);
+            if (current?.abandoned) {
+              this.mamRequestRegistry.delete(requestId);
+            }
+          }, 15_000);
+        }
         resolve(undefined);
       }, timeoutMs);
 
@@ -2069,9 +2121,12 @@ export class XmppClient implements XmppClientInterface {
   };
 
   getRoomInfoStanza = (roomJID: string) => {
+    // Fire-and-forget: swallow the rejection here, otherwise a call made
+    // while the client is still connecting surfaces as an uncaught
+    // "Connection timeout" (callers never consume this promise).
     this.wrapWithConnectionCheck(async () => {
       getRoomInfo(roomJID, this.client);
-    });
+    }).catch(() => {});
   };
 
   getRoomMembersStanza = (roomJID: string) => {

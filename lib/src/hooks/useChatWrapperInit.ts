@@ -199,7 +199,9 @@ const useChatWrapperInit = ({
         }
         const hasMessages = (room.messages?.length || 0) > 0;
         const preloadFinished =
-          room.historyPreloadState === 'done' || room.historyPreloadState === 'error';
+          room.historyPreloadState === 'done' ||
+          room.historyPreloadState === 'partial' ||
+          room.historyPreloadState === 'error';
         if (!room.isLoading || hasMessages || preloadFinished) {
           resolve(true);
           return;
@@ -334,6 +336,10 @@ const useChatWrapperInit = ({
             roomLimit: preloadTopKRooms,
             selectedRoomJid: store.getState().rooms.activeRoomJID || null,
             defaultRoomJids,
+            // Teaser pass: mark rooms 'partial' so the second pass below
+            // still fetches the real page (marking them 'done' here made
+            // the second pass skip every room, leaving 1-message rooms).
+            completionState: 'partial',
           });
 
           await runHistoryPreloadScheduler({

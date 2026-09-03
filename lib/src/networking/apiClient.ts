@@ -33,6 +33,10 @@ let baseURL = stripApiVersionSuffix(
 
 const http = axios.create({
   baseURL,
+  // Axios defaults to no timeout; a stalled request (captive portal, dead
+  // LB) would otherwise hang bootstrap forever. The auth-refresh layer
+  // already treats network errors as non-fatal, so timing out is safe.
+  timeout: 20_000,
 });
 
 let appToken = betaAppToken;

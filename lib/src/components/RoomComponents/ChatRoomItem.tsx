@@ -20,6 +20,7 @@ import OnlineUsersPopover from './OnlineUsersPopover';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
 import { formatCallLogLabel } from '../../helpers/callLogMessage';
+import { appendFileToken } from '../../helpers/secureFileUrl';
 
 interface ChatRoomItemProps {
   chat: IRoom;
@@ -62,15 +63,30 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
   // a message restored from the persist cache carries only `user.id` (the
   // wire identity isn't cached - see PERSISTED_MESSAGE_USER_FIELDS), so
   // reading `user.name` alone left this line showing a raw JID after every
-  // refresh.
-  const usersSet = useSelector((state: RootState) => state.rooms.usersSet);
+  // refresh. Only the LAST message's sender entry is selected - subscribing
+  // to the whole usersSet map re-rendered every room row on every
+  // insertUsers dispatch.
+  const previewSenderRawId = String(
+    chat?.messages?.[(chat?.messages?.length ?? 0) - 1]?.user?.id || ''
+  );
+  const previewSenderLocalId = previewSenderRawId.split('@')[0];
+  const previewSenderEntry = useSelector(
+    (state: RootState) =>
+      state.rooms.usersSet?.[previewSenderLocalId] ??
+      state.rooms.usersSet?.[previewSenderRawId]
+  );
+  // Secure room avatars need the viewer's own `?ft=` token appended at
+  // render time - see appendFileToken in helpers/secureFileUrl.
+  const fileToken = useSelector(
+    (state: RootState) => state.chatSettingStore.user?.fileToken || ''
+  );
 
   const withAuthorFallback = useCallback(
     (message?: IMessage): IMessage | undefined => {
       if (!message) return message;
       const rawUserId = String(message?.user?.id || '');
       const localId = rawUserId.split('@')[0];
-      const entry = usersSet?.[localId] ?? usersSet?.[rawUserId];
+      const entry = previewSenderEntry;
       const fromUsersSet = entry
         ? `${entry.firstName ?? ''} ${entry.lastName ?? ''}`.trim()
         : '';
@@ -101,7 +117,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
         },
       };
     },
-    [usersSet, t]
+    [previewSenderEntry, t]
   );
 
   const lastRawMessage = chat?.messages?.[(chat?.messages?.length ?? 0) - 1];
@@ -171,7 +187,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
     >
       <ProfileImagePlaceholder
         name={displayName}
-        icon={chat?.icon}
+        icon={appendFileToken(chat?.icon, fileToken)}
         online={peerOnline}
       />
       <div
@@ -253,6 +269,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
             // a terminal preload state (done/error) covers those too.
             (chat?.historyComplete ||
               chat?.historyPreloadState === 'done' ||
+              chat?.historyPreloadState === 'partial' ||
               chat?.historyPreloadState === 'error') ? (
             <LastRoomMessageText>{t('room.created')}</LastRoomMessageText>
           ) : undefined}

@@ -25,15 +25,28 @@ export const initRoomsPresence = async (
   // sequential fallback loop, on top of a wasted stanza round-trip.
   const jids = Object.keys(rooms || {}).filter(isLikelyMucJid);
   if (!jids.length) return null;
+  // Bounded concurrency instead of a strictly serial walk: worst case used
+  // to be rooms x (5000ms timeout + 35ms), i.e. minutes of background
+  // presence work on a degraded connection. ensureRoomPresence dedupes
+  // per-room, so parallel workers are safe.
+  const CONCURRENCY = 5;
+  const queue = [...jids];
   const run = (async () => {
-    for (const jid of jids) {
-      try {
-        await client.presenceInRoomStanza(jid, 0, 5000, true);
-      } catch (e) {
-        // ignore individual failures
+    const worker = async () => {
+      while (queue.length) {
+        const jid = queue.shift();
+        if (!jid) break;
+        try {
+          await client.presenceInRoomStanza(jid, 0, 5000, true);
+        } catch (e) {
+          // ignore individual failures
+        }
+        await new Promise((resolve) => setTimeout(resolve, 35));
       }
-      await new Promise((resolve) => setTimeout(resolve, 35));
-    }
+    };
+    await Promise.all(
+      Array.from({ length: Math.min(CONCURRENCY, jids.length) }, worker)
+    );
   })();
   inFlightByClient.set(clientKey, run);
   try {

@@ -51,7 +51,7 @@ import { createRoomFromApi } from '../../../helpers/createRoomFromApi';
 import { createChatCall } from '../../../networking/api-requests/rooms.api';
 import { setCallError, startOutgoingCall } from '../../../roomStore/callSlice';
 import { sendCallInviteSignal } from '../../../networking/callTokenStanza';
-import { useRoomState } from '../../../hooks/useRoomState';
+import { useUsersSet } from '../../../hooks/useRoomState';
 import { useAppDispatch } from '../../../hooks/hooks';
 import { logoutService } from '../../../hooks/useLogout';
 import { useT } from '../../../i18n/useT';
@@ -66,7 +66,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const dispatch = useAppDispatch();
 
   const { client } = useXmppClient();
-  const { usersSet } = useRoomState();
+  const usersSet = useUsersSet();
   const { showToast } = useToast();
   const t = useT();
 

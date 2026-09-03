@@ -111,6 +111,8 @@ export const useUnreadMessagesCounter = (): UnreadMessagesStats => {
   const lastCountsSigRef = useRef<string>('');
   const lastEmittedRef = useRef<string>('');
   const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastRoomsObjRef = useRef<unknown>(null);
+  const lastHiddenObjRef = useRef<unknown>(null);
 
   const refreshLoadedOnce = (): boolean => {
     const rs = store.getState().rooms;
@@ -155,11 +157,24 @@ export const useUnreadMessagesCounter = (): UnreadMessagesStats => {
     };
 
     const onChange = () => {
+      // Identity fast path: store.subscribe fires on EVERY dispatched
+      // action. Once settled, if neither the rooms map nor the config
+      // changed identity, no unread signature can have changed either —
+      // skip the O(rooms) signature build entirely.
+      const roomsObj = store.getState().rooms.rooms;
+      const hiddenObj = getHiddenRoomsConfig();
+      if (
+        settledRef.current &&
+        roomsObj === lastRoomsObjRef.current &&
+        hiddenObj === lastHiddenObjRef.current
+      ) {
+        return;
+      }
+      lastRoomsObjRef.current = roomsObj;
+      lastHiddenObjRef.current = hiddenObj;
+
       const loadedOnce = refreshLoadedOnce();
-      const countsSig = buildCountsSignature(
-        store.getState().rooms.rooms,
-        getHiddenRoomsConfig()
-      );
+      const countsSig = buildCountsSignature(roomsObj, hiddenObj);
 
       if (settledRef.current) {
         // Already settled — reflect live count changes immediately.

@@ -78,13 +78,14 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
     stanza?.attrs?.id !== 'deleteMessageStanza' &&
     !stanza?.attrs?.id?.includes('message-reaction')
   ) {
+    let parsed: Awaited<ReturnType<typeof getDataFromXml>>;
     try {
-      const { data } = await getDataFromXml(stanza);
+      parsed = await getDataFromXml(stanza);
     } catch (error) {
       handleErrorMessageStanza(stanza);
       return;
     }
-    const { data, id, body, ...rest } = await getDataFromXml(stanza);
+    const { data, id, body, ...rest } = parsed;
 
     if (!data) {
       ethoraLogger.log('No data in stanza');
@@ -111,19 +112,22 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
       return;
     }
 
-    const fixedUser = await checkSingleUser(
-      store.getState().rooms.usersSet,
-      message.user.id
-    );
-    if (fixedUser) {
-      store.dispatch(insertUsers({ newUsers: [fixedUser] }));
-    }
+    // Render the message immediately; the sender-profile lookup is a display
+    // enrichment (name upgrade via insertUsers) and must not gate insertion
+    // on an HTTP round trip for a not-yet-cached sender.
     store.dispatch(
       addRoomMessage({
         roomJID: stanza.attrs.from.split('/')[0],
         message,
       })
     );
+    void checkSingleUser(store.getState().rooms.usersSet, message.user.id)
+      .then((fixedUser) => {
+        if (fixedUser) {
+          store.dispatch(insertUsers({ newUsers: [fixedUser] }));
+        }
+      })
+      .catch(() => {});
     const removeId = message?.xmppId || message?.id;
     const roomJID = stanza.attrs.from.split('/')[0];
     const rawHeapBeforeRemove = store.getState().roomHeapSlice.messageHeap as
@@ -345,21 +349,21 @@ const onMessageHistory = async (stanza: any) => {
       store.getState().chatSettingStore.user?.xmppUsername || ''
     );
 
-    const fixedUser = await checkSingleUser(
-      store.getState().rooms.usersSet,
-      message.user.id
-    );
-
-    if (fixedUser) {
-      store.dispatch(insertUsers({ newUsers: [fixedUser] }));
-    }
-
+    // Same as the live path: insert first, enrich the sender name async so a
+    // cold profile lookup never delays history rendering.
     store.dispatch(
       addRoomMessage({
         roomJID: stanza.attrs.from,
         message,
       })
     );
+    void checkSingleUser(store.getState().rooms.usersSet, message.user.id)
+      .then((fixedUser) => {
+        if (fixedUser) {
+          store.dispatch(insertUsers({ newUsers: [fixedUser] }));
+        }
+      })
+      .catch(() => {});
   }
 };
 
@@ -719,8 +723,16 @@ const onGetChatRooms = (stanza: Element, xmpp: any) => {
             store.dispatch(setCurrentRoom({ roomJID: roomData.jid }));
           }
 
-          if (roomData.jid) {
-            xmpp.presenceInRoomStanza(roomData.jid);
+          if (roomData.jid && xmpp.presencesReady) {
+            // Join only rooms discovered AFTER the startup presence sweep
+            // finished. The sweep (allRoomPresences) sends its own presence
+            // per room and matches the server's echo by stanza id; a second,
+            // concurrent presence for the same room makes the server answer
+            // the join once, so the sweep's own wait expires and every room
+            // reports presence_timeout even though the join succeeded.
+            // The sweep owns joining while it runs - this is only the
+            // follow-up path for later arrivals.
+            xmpp.presenceInRoomStanza(roomData.jid, 0, 5000, false);
           }
         } catch (error) {
           // Ignore malformed room payloads and continue processing remaining rooms.

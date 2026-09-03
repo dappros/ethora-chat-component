@@ -36,7 +36,6 @@ export const useRoomState = (roomJID?: string) => {
   const loadingText = useSelector(
     (state: RootState) => state.rooms.loadingText
   );
-  const usersSet = useSelector((state: RootState) => state.rooms.usersSet);
 
   const roomMessages = useMemo(
     () =>
@@ -55,6 +54,11 @@ export const useRoomState = (roomJID?: string) => {
     loadingText,
     loading,
     roomMessages,
-    usersSet,
   };
 };
+
+// Separate hook: usersSet changes on every insertUsers dispatch, so bundling
+// it into useRoomState re-rendered every consumer (ChatRoom, MessageList,
+// ChatHeader, ...) on each roster update. Only user-directory views need it.
+export const useUsersSet = () =>
+  useSelector((state: RootState) => state.rooms.usersSet);

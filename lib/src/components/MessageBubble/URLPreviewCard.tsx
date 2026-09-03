@@ -57,65 +57,85 @@ interface PreviewData {
   image?: string;
 }
 
+// Module-level cache + in-flight dedup (same pattern as roomMembers.api.ts).
+// Message bubbles remount constantly (scroll, room switches); without this,
+// every remount of every link-bearing message re-hit the rate-limited
+// linkpreview.net API. Failures are cached too so a dead URL is not retried
+// on each remount.
+const previewCache = new Map<string, PreviewData | null>();
+const previewInflight = new Map<string, Promise<PreviewData | null>>();
+
+const fetchPreviewData = (url: string): Promise<PreviewData | null> => {
+  if (previewCache.has(url)) {
+    return Promise.resolve(previewCache.get(url) ?? null);
+  }
+  const existing = previewInflight.get(url);
+  if (existing) return existing;
+
+  const apiKey = '55b9e7f85f2b4e94505e96ef71c55a0e';
+  const request = axios
+    .get(
+      `https://api.linkpreview.net/?key=${apiKey}&q=${encodeURIComponent(url)}`
+    )
+    .then((response) => {
+      if (
+        response.data &&
+        (response.data.title ||
+          response.data.description ||
+          response.data.image)
+      ) {
+        const data: PreviewData = {
+          title: response.data.title,
+          description: response.data.description,
+          image: response.data.image,
+        };
+        previewCache.set(url, data);
+        return data;
+      }
+      previewCache.set(url, null);
+      return null;
+    })
+    .catch((err) => {
+      console.error('Error fetching URL preview via linkpreview.net:', err);
+      previewCache.set(url, null);
+      return null;
+    })
+    .finally(() => {
+      previewInflight.delete(url);
+    });
+
+  previewInflight.set(url, request);
+  return request;
+};
+
 const URLPreviewCard: React.FC<URLPreviewCardProps> = ({ url }) => {
   const [previewData, setPreviewData] = useState<PreviewData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchPreview = async () => {
+    let mounted = true;
+
+    if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
       setLoading(true);
       setError(null);
       setPreviewData(null);
-
-      try {
-        const apiKey = '55b9e7f85f2b4e94505e96ef71c55a0e';
-        if (!apiKey) {
-          throw new Error(
-            'Linkpreview API key is missing. Please set REACT_APP_LINKPREVIEW_API_KEY in your .env file.'
-          );
-        }
-
-        const response = await axios.get(
-          `https://api.linkpreview.net/?key=${apiKey}&q=${encodeURIComponent(url)}`
-        );
-
-        if (
-          response.data &&
-          (response.data.title ||
-            response.data.description ||
-            response.data.image)
-        ) {
-          setPreviewData({
-            title: response.data.title,
-            description: response.data.description,
-            image: response.data.image,
-          });
+      fetchPreviewData(url).then((data) => {
+        if (!mounted) return;
+        if (data) {
+          setPreviewData(data);
         } else {
           setError('Preview data not found');
         }
-      } catch (err: any) {
-        console.error('Error fetching URL preview via linkpreview.net:', err);
-
-        let errorMessage = 'Could not load preview';
-        if (axios.isAxiosError(err)) {
-          errorMessage =
-            err.response?.data?.description || err.message || errorMessage;
-        } else if (err instanceof Error) {
-          errorMessage = err.message;
-        }
-        setError(errorMessage);
-        setPreviewData(null);
-      } finally {
         setLoading(false);
-      }
-    };
-
-    if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
-      fetchPreview();
+      });
     } else {
       setLoading(false);
     }
+
+    return () => {
+      mounted = false;
+    };
   }, [url]);
 
   if (loading || error || !previewData) {

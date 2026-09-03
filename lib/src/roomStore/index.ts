@@ -190,7 +190,10 @@ export const getRoomActivityTimestamp = (room: IRoom): number =>
 // Dropping it costs nothing: createRoomFromApi repopulates members from
 // /chats/my on every load (see loadRooms), and `usersCnt` - which the
 // header actually reads - is its own scalar field and is preserved below.
-const REFETCHED_ROOM_FIELDS = ['members'] as const;
+// `composing`/`composingList` are live typing state: restoring them paints a
+// "typing..." indicator nobody is typing, and they churn the persisted blob
+// on every typing stanza. `members` re-syncs from the server on room open.
+const REFETCHED_ROOM_FIELDS = ['members', 'composing', 'composingList'] as const;
 
 // What a persisted message is FOR: instantly painting a recent transcript
 // on reload before MAM catches up. That needs the fields the bubbles and
@@ -438,6 +441,12 @@ export const sanitizeRoomsStateTransform = createTransform<
 );
 
 const PERSIST_THROTTLE_MS = 500;
+// The rooms snapshot is the expensive one: compact + serialize + AES-encrypt
+// of up to ~1MB, synchronously on the main thread, so it gets a lazier
+// cadence than settings. Kept at 1s rather than several seconds: this blob
+// IS the instant-paint cache on reload, and every extra second widens the
+// window where closing the tab loses the newest messages from it.
+const ROOMS_PERSIST_THROTTLE_MS = 1000;
 
 const chatSettingPersistConfig = {
   key: 'chatSettingStore',
@@ -459,7 +468,7 @@ const chatSettingPersistConfig = {
 const roomsPersistConfig = {
   key: 'roomMessages',
   storage,
-  throttle: PERSIST_THROTTLE_MS,
+  throttle: ROOMS_PERSIST_THROTTLE_MS,
   blacklist: [
     'editAction',
     'activeRoomJID',

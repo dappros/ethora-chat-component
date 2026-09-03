@@ -36,6 +36,16 @@ import { useLoaderDebug } from '../../hooks/useLoaderDebug';
 // things go quiet — not one write per message.
 const MARK_READ_DEBOUNCE_MS = 1000;
 
+// Windowed rendering: only the newest RENDER_WINDOW_INITIAL messages are
+// mounted; scrolling to the top first widens the window (in
+// RENDER_WINDOW_STEP increments, with the same scroll-height compensation
+// the server prepend path uses) and only asks the server for older history
+// once every locally-known message is already rendered. This bounds the DOM
+// for long transcripts (each Message is a heavy subtree) without touching
+// the battle-tested scroll/load-more machinery below.
+const RENDER_WINDOW_INITIAL = 120;
+const RENDER_WINDOW_STEP = 60;
+
 interface MessageListProps<TMessage extends IMessage> {
   CustomMessage?: React.ComponentType<{
     message: IMessage;
@@ -80,17 +90,26 @@ const MessageList = <TMessage extends IMessage>({
   const isFirstLoad = useRef<boolean>(true);
 
   const addReplyMessages = useMemo(() => {
-    return messages.map((message) => {
-      const newMessage = {
-        ...message,
-        reply: messages.filter(
-          (mess) => parseMessageReference(mess.mainMessage)?.id === message.id
-        ),
-      };
+    // O(n) reply join: index replies by their parent id once instead of
+    // filtering the whole list per message (was O(n²) with a reference-string
+    // parse in the inner loop).
+    const repliesByParentId = new Map<string, IMessage[]>();
+    for (const mess of messages) {
+      const parentId = parseMessageReference(mess.mainMessage)?.id;
+      if (!parentId) continue;
+      const bucket = repliesByParentId.get(parentId);
+      if (bucket) {
+        bucket.push(mess);
+      } else {
+        repliesByParentId.set(parentId, [mess]);
+      }
+    }
 
-      return newMessage;
+    return messages.map((message) => {
+      const reply = repliesByParentId.get(message.id) ?? [];
+      return { ...message, reply };
     });
-  }, [messages, messages.length]);
+  }, [messages]);
 
   const memoizedMessages = useMemo(() => {
     if (isReply) {
@@ -109,7 +128,7 @@ const MessageList = <TMessage extends IMessage>({
           ((!item.isReply || item.isReply === 'false') && !item.mainMessage)
       );
     }
-  }, [messages, messages.length]);
+  }, [addReplyMessages, isReply, roomJID, activeMessage?.id]);
 
   const isUserMessage = useMemo(
     () =>
@@ -117,6 +136,20 @@ const MessageList = <TMessage extends IMessage>({
       messages[messages.length - 1].user.id === user.xmppUsername,
     [messages.length, user.xmppUsername]
   );
+
+  // The component remounts per room (keyed by activeRoomJID upstream), so
+  // the window resets naturally on room switch. The initializer makes sure
+  // the "new messages" delimiter is inside the first window, so the
+  // first-load scroll-to-delimiter still finds its DOM node.
+  const [renderWindow, setRenderWindow] = useState<number>(() => {
+    const delimiterIndex = memoizedMessages.findIndex(
+      (msg) => msg.id === 'delimiter-new'
+    );
+    if (delimiterIndex === -1) return RENDER_WINDOW_INITIAL;
+    const neededFromEnd = memoizedMessages.length - delimiterIndex + 10;
+    return Math.max(RENDER_WINDOW_INITIAL, neededFromEnd);
+  });
+  const isExpandingWindowRef = useRef<boolean>(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);
@@ -166,7 +199,9 @@ const MessageList = <TMessage extends IMessage>({
     if (!latestTs || latestTs <= lastFlushedMessageTsRef.current) return;
 
     lastFlushedMessageTsRef.current = latestTs;
-    client.actionSetTimestampToPrivateStoreStanza(roomJID, Date.now());
+    client
+      .actionSetTimestampToPrivateStoreStanza(roomJID, Date.now())
+      ?.catch?.(() => {});
   }, [config?.disableLastRead, isTabVisible, client, roomJID, messages]);
 
   const scheduleMarkRead = useCallback(() => {
@@ -287,6 +322,17 @@ const MessageList = <TMessage extends IMessage>({
 
     if (params.top >= 150 || isLoadingMore.current) return;
 
+    // Older messages are already in the store but outside the render
+    // window: widen the window (scroll position is compensated in the
+    // effect below) instead of asking the server.
+    if (memoizedMessages.length > renderWindow) {
+      if (isExpandingWindowRef.current) return;
+      isExpandingWindowRef.current = true;
+      scrollParams.current = getScrollParams();
+      setRenderWindow((current) => current + RENDER_WINDOW_STEP);
+      return;
+    }
+
     const [firstMessage, secondMessage] = memoizedMessages;
     const firstMessageId =
       firstMessage?.id === 'delimiter-new'
@@ -306,7 +352,43 @@ const MessageList = <TMessage extends IMessage>({
         lastMessageRef.current = memoizedMessages[memoizedMessages.length - 1];
       }
     );
-  }, [loadMoreMessages, memoizedMessages.length]);
+  }, [loadMoreMessages, memoizedMessages.length, renderWindow]);
+
+  // Messages actually mounted in the DOM: the newest `renderWindow` ones,
+  // always widened far enough to include the unread delimiter (history can
+  // arrive after mount, so the initial window can't be the only guard - the
+  // first-load scroll looks the delimiter up in the DOM).
+  const visibleMessages = useMemo(() => {
+    if (memoizedMessages.length <= renderWindow) return memoizedMessages;
+
+    const delimiterIndex = memoizedMessages.findIndex(
+      (msg) => msg.id === 'delimiter-new'
+    );
+    const effectiveWindow =
+      delimiterIndex === -1
+        ? renderWindow
+        : Math.max(renderWindow, memoizedMessages.length - delimiterIndex + 10);
+
+    return effectiveWindow >= memoizedMessages.length
+      ? memoizedMessages
+      : memoizedMessages.slice(-effectiveWindow);
+  }, [memoizedMessages, renderWindow]);
+
+  // While the user is reading older messages, keep the window's top edge
+  // stable as new messages append (otherwise each arrival would slide a row
+  // out of the top and shift the content under them).
+  const prevMemoizedLengthRef = useRef<number>(memoizedMessages.length);
+  useEffect(() => {
+    const appended = memoizedMessages.length - prevMemoizedLengthRef.current;
+    prevMemoizedLengthRef.current = memoizedMessages.length;
+    if (
+      appended > 0 &&
+      isUserScrolledUp.current &&
+      memoizedMessages.length > renderWindow
+    ) {
+      setRenderWindow((current) => current + appended);
+    }
+  }, [memoizedMessages.length, renderWindow]);
 
   const scrollToBottom = useCallback((): void => {
     const content = containerRef.current;
@@ -388,7 +470,7 @@ const MessageList = <TMessage extends IMessage>({
   }, []);
 
   useEffect(() => {
-    if (memoizedMessages.length > 30) {
+    if (visibleMessages.length > 30) {
       const content = containerRef.current;
       if (content && scrollParams.current) {
         const newScrollTop =
@@ -398,7 +480,8 @@ const MessageList = <TMessage extends IMessage>({
       }
       scrollParams.current = null;
     }
-  }, [memoizedMessages.length, composing]);
+    isExpandingWindowRef.current = false;
+  }, [visibleMessages.length, composing]);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -442,16 +525,30 @@ const MessageList = <TMessage extends IMessage>({
     waitForImagesLoaded,
   ]);
 
-  const decoratedMessages = useMemo<DecoratedMessage[]>(() => {
+  const decorateMessages = (list: IMessage[]): DecoratedMessage[] => {
     let lastDateLabel: string | null = null;
-    return memoizedMessages.map((message) => {
+    return list.map((message) => {
       const messageDate = new Date(message.date).toDateString();
       const showDateLabel = messageDate !== lastDateLabel;
       lastDateLabel = messageDate;
 
       return { message, showDateLabel };
     });
-  }, [memoizedMessages]);
+  };
+
+  // Full list for the CustomScrollableArea contract; windowed slice for the
+  // default renderer below.
+  const decoratedMessages = useMemo<DecoratedMessage[]>(
+    () => decorateMessages(memoizedMessages),
+    [memoizedMessages]
+  );
+  const visibleDecoratedMessages = useMemo<DecoratedMessage[]>(
+    () =>
+      visibleMessages === memoizedMessages
+        ? decoratedMessages
+        : decorateMessages(visibleMessages),
+    [visibleMessages, memoizedMessages, decoratedMessages]
+  );
 
   const renderDecoratedMessage = useCallback(
     (decorated: DecoratedMessage) => {
@@ -562,7 +659,7 @@ const MessageList = <TMessage extends IMessage>({
             />
           </React.Fragment>
         )}
-        {decoratedMessages.map((decorated) =>
+        {visibleDecoratedMessages.map((decorated) =>
           renderDecoratedMessage(decorated)
         )}
         {typingIndicatorNode}

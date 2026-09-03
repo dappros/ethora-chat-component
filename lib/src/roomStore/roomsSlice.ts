@@ -127,7 +127,7 @@ interface PreloadRoomUpdate {
   jid: string;
   messages?: IMessage[];
   unreadCapped?: boolean;
-  historyPreloadState?: 'idle' | 'loading' | 'done' | 'error';
+  historyPreloadState?: 'idle' | 'loading' | 'partial' | 'done' | 'error';
 }
 
 const initialState: RoomMessagesState = {
@@ -241,13 +241,29 @@ const compareMessageOrder = (a: IMessage, b: IMessage): number => {
 const enrichMessageAuthor = (
   message: IMessage,
   usersSet: Record<string, RoomMember>
-): IMessage => ({
-  ...message,
-  user: {
-    ...message.user,
-    name: resolveSenderDisplayName(message, usersSet),
-  },
-});
+): IMessage => {
+  const name = resolveSenderDisplayName(message, usersSet);
+  // Identity-preserving fast path: when the resolved name is already what the
+  // message carries, return the same object so memoized message rows don't
+  // re-render on every history merge.
+  if (message.user && message.user.name === name) return message;
+  return {
+    ...message,
+    user: {
+      ...message.user,
+      name,
+    },
+  };
+};
+
+// Cheap O(n) check so hot paths can skip a full O(n log n) re-sort when the
+// transcript is already in order (the common case for live messages).
+const isSortedByMessageOrder = (messages: IMessage[]): boolean => {
+  for (let i = 1; i < messages.length; i++) {
+    if (compareMessageOrder(messages[i - 1], messages[i]) > 0) return false;
+  }
+  return true;
+};
 
 const mergeRoomMessages = (
   existing: IMessage[],
@@ -280,9 +296,11 @@ const mergeRoomMessages = (
   // A persisted local call-log fallback (id "calllog-<callId>") and its
   // server MAM copy have different ids, so the byId pass keeps both — collapse
   // them into the canonical server entry.
-  return collapseCallLogDuplicates(
-    [...byId.values()].sort(compareMessageOrder)
-  );
+  const merged = [...byId.values()];
+  if (!isSortedByMessageOrder(merged)) {
+    merged.sort(compareMessageOrder);
+  }
+  return collapseCallLogDuplicates(merged);
 };
 
 const normalizeDelimiterPosition = (
@@ -452,7 +470,9 @@ const roomsStore = createSlice({
         const enriched = stripCallSignals(messages).map((message) =>
           enrichMessageAuthor(message, state.usersSet)
         );
-        const sorted = [...enriched].sort(compareMessageOrder);
+        const sorted = isSortedByMessageOrder(enriched)
+          ? enriched
+          : [...enriched].sort(compareMessageOrder);
         const effectiveLastViewed =
           state.activeRoomJID === roomJID
             ? 0
@@ -579,8 +599,7 @@ const roomsStore = createSlice({
 
       const roomMessages = state.rooms[roomJID]?.messages;
 
-      const roomsExist =
-        Object.keys(JSON.parse(JSON.stringify(state.rooms))).length > 0;
+      const roomsExist = Object.keys(state.rooms).length > 0;
 
       const roomExist = !!state?.rooms[roomJID];
       if (!roomsExist || !roomExist) {
@@ -676,8 +695,15 @@ const roomsStore = createSlice({
         );
       }
 
+      // insertMessageWithDelimiter already places the message in order, so a
+      // full O(n log n) re-sort is only needed when something is actually out
+      // of order (rare: e.g. server echo with a corrected archive id).
+      const currentMessages = state.rooms[roomJID].messages;
+      const ordered = isSortedByMessageOrder(currentMessages)
+        ? currentMessages
+        : [...currentMessages].sort(compareMessageOrder);
       state.rooms[roomJID].messages = normalizeDelimiterPosition(
-        [...state.rooms[roomJID].messages].sort(compareMessageOrder),
+        ordered,
         state.activeRoomJID === roomJID
           ? 0
           : state.rooms[roomJID].lastViewedTimestamp
@@ -690,9 +716,25 @@ const roomsStore = createSlice({
       const { newUsers } = action.payload;
       if (!newUsers || newUsers.length === 0) return;
 
+      // Detect whether this batch actually changes any display name before
+      // walking every message of every room below (that walk is
+      // O(rooms x messages) through the Immer draft and insertUsers fires
+      // once per stanza on the hot path). If every user is already cached
+      // with the same name fields, messages were already enriched on insert
+      // and the walk can't change anything.
+      let hasNameChanges = false;
       newUsers.forEach((user) => {
+        const existing = state.usersSet[user.xmppUsername];
+        if (
+          !existing ||
+          existing.firstName !== user.firstName ||
+          existing.lastName !== user.lastName
+        ) {
+          hasNameChanges = true;
+        }
         state.usersSet[user.xmppUsername] = user;
       });
+      if (!hasNameChanges) return;
 
       const updatedUsernames = new Set(newUsers.map((u) => u.xmppUsername));
       Object.values(state.rooms).forEach((room) => {

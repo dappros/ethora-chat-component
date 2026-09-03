@@ -26,10 +26,10 @@ export async function subscribeToRoomMessages(
     const finish = (cb: (value?: any) => void, value?: any) => {
       if (settled) return;
       settled = true;
-      setTimeout(() => {
-        unsubscribe();
-        cb(value);
-      }, 500);
+      // Settle immediately: the matching iq result is final, and a delay
+      // here used to add 500ms per room to the startup subscription sweep.
+      unsubscribe();
+      cb(value);
     };
 
     // <iq xmlns='jabber:client' xml:lang='en' to='646cc8dc96d4a4dc8f7b2f2d_69a6358f66cb3e74bcbcd6b2@xmpp.chat.ethora.com/515555070583875399454338' from='646cc8dc96d4a4dc8f7b2f2d_69a6376b66cb3e74bcbcda9f@conference.xmpp.chat.ethora.com' type='result' id='newSubscription:1772618245224'><subscribe nick='646cc8dc96d4a4dc8f7b2f2d_69a6358f66cb3e74bcbcd6b2' xmlns='urn:xmpp:mucsub:0'><event node='urn:xmpp:mucsub:nodes:messages'/></subscribe></iq>

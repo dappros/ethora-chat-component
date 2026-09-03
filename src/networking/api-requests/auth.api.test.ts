@@ -5,7 +5,9 @@ vi.mock('firebase/auth', () => ({
   GoogleAuthProvider: vi.fn(() => ({ addScope: vi.fn() })),
   signInWithPopup: vi.fn(),
 }));
-vi.mock('../../firebase-config', () => ({ app: null }));
+vi.mock('../../firebase-config', () => ({
+  getFirebaseApp: vi.fn(async () => null),
+}));
 
 const httpPostMock = vi.fn();
 vi.mock('../apiClient', () => ({

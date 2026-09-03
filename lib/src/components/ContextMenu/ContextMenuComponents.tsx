@@ -1,5 +1,4 @@
 import styled from 'styled-components';
-import Picker from '@emoji-mart/react';
 
 export const ContainerInteractions = styled.div`
   position: absolute;
@@ -37,12 +36,6 @@ export const ArrowButton = styled.div<{ isRotated: boolean }>`
 
   transform: ${({ isRotated }) =>
     isRotated ? 'rotate(180deg)' : 'rotate(0deg)'};
-`;
-
-export const StyledPicker = styled(Picker)`
-  .emoji-mart-preview {
-    display: none;
-  }
 `;
 
 export const ContextMenu = styled.div`

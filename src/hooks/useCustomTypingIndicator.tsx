@@ -13,11 +13,9 @@ import { RootState } from '../roomStore';
  */
 export const useCustomTypingIndicator = (roomJID: string) => {
   const { config } = useChatSettingState();
-  const { rooms } = useSelector((state: RootState) => ({
-    rooms: state.rooms.rooms,
-  }));
-
-  const room = rooms[roomJID];
+  // Select the single room: an object-literal selector never bails out and
+  // re-rendered the consumer on every store action.
+  const room = useSelector((state: RootState) => state.rooms.rooms[roomJID]);
   const isComposing = room?.composing || false;
   const composingList = room?.composingList || [];
 

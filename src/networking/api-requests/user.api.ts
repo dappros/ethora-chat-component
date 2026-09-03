@@ -49,21 +49,43 @@ export async function updateProfile(fd: FormData): Promise<{ user: User }> {
   }
 }
 
+// /users/my is hit from several concurrent bootstrap paths (initBeforeLoad
+// resolution, LoginWrapper enrichment, login helpers). A short-TTL cache +
+// in-flight dedup collapses that fan-out to one request per token.
+const MY_USER_CACHE_TTL_MS = 10_000;
+const myUserInflight = new Map<string, Promise<User>>();
+const myUserCache = new Map<string, { user: User; ts: number }>();
+
 export async function getMyUser(
   options?: GetMyUserOptions
 ): Promise<User> {
   const token = options?.token || store.getState().chatSettingStore.user.token || '';
   const endpoint = options?.endpoint || '/v1/users/my';
+  const key = `${token}|${endpoint}`;
 
-  const response = await http.get(endpoint, {
-    headers: {
-      Authorization: token,
-    },
-  });
-
-  if (response?.data?.user) {
-    return response.data.user as User;
+  const cached = myUserCache.get(key);
+  if (cached && Date.now() - cached.ts < MY_USER_CACHE_TTL_MS) {
+    return cached.user;
   }
 
-  return response.data as User;
+  const inflight = myUserInflight.get(key);
+  if (inflight) return inflight;
+
+  const request = http
+    .get(endpoint, {
+      headers: {
+        Authorization: token,
+      },
+    })
+    .then((response) => {
+      const user = (response?.data?.user || response.data) as User;
+      myUserCache.set(key, { user, ts: Date.now() });
+      return user;
+    })
+    .finally(() => {
+      myUserInflight.delete(key);
+    });
+
+  myUserInflight.set(key, request);
+  return request;
 }

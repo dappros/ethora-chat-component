@@ -17,8 +17,8 @@ import {
 } from '../../helpers/constants/MESSAGE_INTERACTIONS';
 import { IMessage } from '../../types/types';
 import { DownArrowIcon } from '../../assets/icons';
-import Picker from '@emoji-mart/react';
-import emojiData, { Emoji as EmojiData } from '@emoji-mart/data';
+import Picker from '../EmojiPicker/LazyEmojiPicker';
+import { getEmojiNativeById, useEmojiData } from '../../helpers/lazyEmoji';
 
 import '../../index.css';
 
@@ -51,6 +51,7 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
 }) => {
   const { roomsList, activeRoomJID } = useRoomState();
   const [showPicker, setShowPicker] = useState(false);
+  useEmojiData();
 
   const config = useSelector(
     (state: RootState) => state.chatSettingStore.config
@@ -93,16 +94,12 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
 
   const handleReactionClick = (reaction: string, e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
-      const emoji: EmojiData = (emojiData as any).emojis[reaction];
       handleReactionMessage(reaction);
       closeMenu();
     }
   };
 
-  const getEmojiById = (id: string) => {
-    const emoji = (emojiData as any).emojis[id];
-    return emoji ? emoji.skins[0].native : '';
-  };
+  const getEmojiById = getEmojiNativeById;
 
   const calculatePickerPosition = (x: number, y: number) => {
     const pickerWidth = 320;

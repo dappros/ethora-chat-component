@@ -4,6 +4,7 @@ import React, {
   useContext,
   useState,
   useCallback,
+  useMemo,
   ReactNode,
   useEffect,
 } from 'react';
@@ -329,8 +330,16 @@ export const MessageNotificationProvider: React.FC<{
     };
   }, [config?.useStoreConsoleEnabled, isEnabled, isLoggedIn, showMessageNotification]);
 
+  // Stable context value: this provider sits above the whole chat tree, so a
+  // fresh object per render (every notification tick) re-rendered all
+  // consumers.
+  const contextValue = useMemo(
+    () => ({ showMessageNotification }),
+    [showMessageNotification]
+  );
+
   return (
-    <MessageNotificationContext.Provider value={{ showMessageNotification }}>
+    <MessageNotificationContext.Provider value={contextValue}>
       {children}
       {shouldRender && (
         <div style={containerStyles} {...containerProps}>

@@ -17,6 +17,10 @@ interface HistoryPreloadSchedulerOptions {
   selectedRoomJid?: string | null;
   defaultRoomJids?: string[];
   forceReload?: boolean;
+  // State stamped on successfully preloaded rooms. The staged flow's first
+  // (teaser) pass uses 'partial' so the second, bigger-page pass still
+  // processes those rooms; only 'done' short-circuits future preloads.
+  completionState?: 'done' | 'partial';
 }
 
 interface QueueItem {
@@ -30,6 +34,10 @@ interface QueueItem {
 const DEFAULT_CONCURRENCY = 3;
 const DEFAULT_PAGE_SIZE = 10;
 const DEFAULT_RETRY_LIMIT = 2;
+
+// Marker for "MAM returned an empty page for a room the server hasn't
+// declared complete" - retried like a failure, but never terminal.
+const EMPTY_PAGE_ERROR = 'history_empty_page';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -82,7 +90,42 @@ const shouldPauseForVisibility = (): boolean => {
   return document.visibilityState === 'hidden';
 };
 
-export const runHistoryPreloadScheduler = async (
+// Serialized per client: two independent bootstrap paths (xmppProvider's
+// initBeforeLoad sweep and useChatWrapperInit's staged sweep) can both start
+// a preload for the same connection. Running them concurrently made them
+// fetch the same rooms twice, so they are chained instead.
+//
+// They must be CHAINED, not deduped onto one shared promise: each caller
+// carries its own pageSize/completionState (the staged flow's teaser pass vs
+// its real pass), so handing a late caller someone else's promise would
+// silently skip that caller's work entirely. Chaining keeps every caller's
+// own sweep, and the per-room historyPreloadState guard inside the sweep
+// makes the follow-up cheap wherever the earlier one already did the job.
+const preloadChainByClient = new Map<string, Promise<void>>();
+
+const getClientKey = (client: XmppClient): string =>
+  client?.client?.jid?.toString() || (client as any)?.username || 'xmpp-client';
+
+export const runHistoryPreloadScheduler = (
+  options: HistoryPreloadSchedulerOptions
+): Promise<void> => {
+  const clientKey = getClientKey(options.client);
+  const previous = preloadChainByClient.get(clientKey) || Promise.resolve();
+
+  const run = previous
+    .catch(() => {})
+    .then(() => runHistoryPreloadSweep(options));
+
+  const tracked = run.finally(() => {
+    if (preloadChainByClient.get(clientKey) === tracked) {
+      preloadChainByClient.delete(clientKey);
+    }
+  });
+  preloadChainByClient.set(clientKey, tracked);
+  return run;
+};
+
+const runHistoryPreloadSweep = async (
   options: HistoryPreloadSchedulerOptions
 ): Promise<void> => {
   const {
@@ -95,6 +138,7 @@ export const runHistoryPreloadScheduler = async (
     selectedRoomJid = null,
     defaultRoomJids = [],
     forceReload = false,
+    completionState = 'done',
   } = options;
 
   if (signal?.aborted) return;
@@ -230,6 +274,25 @@ export const runHistoryPreloadScheduler = async (
               pageSize
             );
 
+            // An empty page for a room the server hasn't declared complete
+            // is almost always "not joined / archive not ready yet", not
+            // "this room has no messages". Marking it 'done' froze the room
+            // with an empty transcript forever: the sidebar preview stayed
+            // blank and no later pass retried it, while opening the room by
+            // hand still worked (getHistoryStanza's skipIfPreloaded gate
+            // also requires messages.length, so the manual path refetched).
+            // Leave such rooms 'partial' - retryable - and don't overwrite
+            // whatever messages they already have with an empty array.
+            const isInconclusiveEmptyPage =
+              fetchedMessages.length === 0 && nextRoom?.historyComplete !== true;
+
+            if (isInconclusiveEmptyPage) {
+              // Retry within this sweep (the room is usually just not
+              // joined yet); EMPTY_PAGE_ERROR keeps the final state
+              // retryable instead of the terminal 'error'.
+              throw new Error(EMPTY_PAGE_ERROR);
+            }
+
             store.dispatch(
               applyRoomsPreloadBatch({
                 rooms: [
@@ -237,13 +300,15 @@ export const runHistoryPreloadScheduler = async (
                     jid: item.jid,
                     messages: fetchedMessages,
                     unreadCapped,
-                    historyPreloadState: 'done',
+                    historyPreloadState: completionState,
                   },
                 ],
               })
             );
             consecutiveErrorCount = 0;
-          } catch {
+          } catch (error) {
+            const isEmptyPage =
+              (error as Error)?.message === EMPTY_PAGE_ERROR;
             const retries = item.attempts + 1;
             const canRetry = retries <= retryLimit;
 
@@ -262,13 +327,20 @@ export const runHistoryPreloadScheduler = async (
                   rooms: [
                     {
                       jid: item.jid,
-                      historyPreloadState: 'error',
+                      // An empty page is inconclusive, not a failure: keep
+                      // it retryable so a later pass (or opening the room)
+                      // can still fill it in, and so the sidebar doesn't
+                      // settle on the "Room created" placeholder.
+                      historyPreloadState: isEmptyPage ? 'partial' : 'error',
                     },
                   ],
                 })
               );
             }
 
+            // An empty page says nothing about connection health - only
+            // real failures should trip the circuit breaker below.
+            if (isEmptyPage) return;
             consecutiveErrorCount += 1;
             if (consecutiveErrorCount >= 3) {
               await sleep(300);

@@ -1,5 +1,5 @@
 import { FC, useMemo } from 'react';
-import emojiData from '@emoji-mart/data';
+import { getEmojiNativeById, useEmojiData } from '../../helpers/lazyEmoji';
 import { styled } from 'styled-components';
 import { ReactionMessage } from '../../types/types';
 
@@ -62,10 +62,8 @@ export const MessageReaction: FC<MessageReactionProps> = ({
   changeReaction,
   userName,
 }) => {
-  const memoEmoji = (id: string) => {
-    const emoji = (emojiData as any).emojis[id];
-    return emoji ? emoji.skins[0].native : '';
-  };
+  useEmojiData();
+  const memoEmoji = getEmojiNativeById;
 
   const reactionDetails = useMemo(() => {
     if (!reaction) {

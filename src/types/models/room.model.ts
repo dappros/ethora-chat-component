@@ -62,7 +62,10 @@ export interface IRoom {
     firstMessageTimestamp?: number;
   };
   historyComplete?: boolean;
-  historyPreloadState?: 'idle' | 'loading' | 'done' | 'error';
+  // 'partial' = a staged first pass fetched a teaser page (e.g. 1 message
+  // for the sidebar preview); a follow-up pass with a bigger page size still
+  // has work to do. Only 'done' short-circuits preloading.
+  historyPreloadState?: 'idle' | 'loading' | 'partial' | 'done' | 'error';
   unreadCapped?: boolean;
 }
 

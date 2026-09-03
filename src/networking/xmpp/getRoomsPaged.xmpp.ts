@@ -19,7 +19,9 @@ export const getRoomsPaged = async (
 
   return new Promise((resolve, reject) => {
     stanzaHdlrPointer = (stanza) => {
-      if (stanza.is('iq') && stanza.attrs.id === 'getUserRooms') {
+      // Must match the id the request below is actually sent with —
+      // 'getUserRoomsPaged' — or this promise can only ever time out.
+      if (stanza.is('iq') && stanza.attrs.id === 'getUserRoomsPaged') {
         unsubscribe();
         resolve(stanza);
       }

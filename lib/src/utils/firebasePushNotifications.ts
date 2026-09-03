@@ -1,13 +1,9 @@
 import { getFirebaseMessaging, defaultConfig } from '../firebase-config';
 import { ethoraLogger } from '../helpers/ethoraLogger';
 import { getStoredFcmToken, setStoredFcmToken } from './pushStorage';
-import {
-  deleteToken,
-  getToken,
-  onMessage,
-  MessagePayload,
-  Messaging,
-} from 'firebase/messaging';
+// Type-only: the real firebase/messaging module is loaded on demand so the
+// SDK stays out of the host bundle until push is actually used.
+import type { MessagePayload } from 'firebase/messaging';
 
 /**
  * requestNotificationPermission()
@@ -185,7 +181,7 @@ async function registerFirebaseServiceWorker(
  */
 export async function getFCMToken(options: FcmRegistrationOptions = {}): Promise<string | null> {
   try {
-    const messaging = getFirebaseMessaging(options.firebaseConfig);
+    const messaging = await getFirebaseMessaging(options.firebaseConfig);
     if (!messaging) return null;
 
     const swRegistration = await registerFirebaseServiceWorker(options);
@@ -196,6 +192,7 @@ export async function getFCMToken(options: FcmRegistrationOptions = {}): Promise
       return null;
     }
 
+    const { getToken } = await import('firebase/messaging');
     const token = await getToken(messaging, {
       vapidKey:
         options.vapidPublicKey || (import.meta as any).env?.VITE_VAPID_PUBLIC_KEY,
@@ -252,9 +249,25 @@ export function listenForForegroundMessages(
   handler: (payload: MessagePayload) => void,
   firebaseConfig?: any
 ): () => void {
-  const messaging = getFirebaseMessaging(firebaseConfig);
-  if (!messaging) return () => {};
-  return onMessage(messaging, handler);
+  // Firebase loads lazily, so the subscription is wired up asynchronously;
+  // the returned unsubscribe stays valid either way.
+  let unsubscribe: (() => void) | null = null;
+  let cancelled = false;
+
+  (async () => {
+    const messaging = await getFirebaseMessaging(firebaseConfig);
+    if (!messaging || cancelled) return;
+    const { onMessage } = await import('firebase/messaging');
+    if (cancelled) return;
+    unsubscribe = onMessage(messaging, handler);
+  })().catch((error) => {
+    console.warn('[PushNotifications] Failed to subscribe to foreground messages:', error);
+  });
+
+  return () => {
+    cancelled = true;
+    unsubscribe?.();
+  };
 }
 
 /**
@@ -292,9 +305,10 @@ export async function disablePushNotifications(_authToken?: string): Promise<voi
     return;
   }
 
-  const messaging = getFirebaseMessaging(defaultConfig);
+  const messaging = await getFirebaseMessaging(defaultConfig);
   if (messaging) {
     try {
+      const { deleteToken } = await import('firebase/messaging');
       await deleteToken(messaging);
     } catch {
       // Ignore 

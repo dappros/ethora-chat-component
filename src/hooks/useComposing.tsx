@@ -7,7 +7,9 @@ import { IConfig } from '../types/types';
 
 const useComposing = (config?: IConfig) => {
   const { client } = useXmppClient();
-  const { activeRoomJID } = useSelector((state: RootState) => state.rooms);
+  const activeRoomJID = useSelector(
+    (state: RootState) => state.rooms.activeRoomJID
+  );
   const { user } = useChatSettingState();
 
   const sendStartComposing = useCallback(() => {

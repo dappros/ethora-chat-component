@@ -115,7 +115,9 @@ const RoomList: React.FC<RoomListProps> = ({
   const { config } = useChatSettingState();
   const t = useT();
 
-  const { activeRoomJID } = useSelector((state: RootState) => state.rooms);
+  const activeRoomJID = useSelector(
+    (state: RootState) => state.rooms.activeRoomJID
+  );
 
   const containerRef = useRef<HTMLDivElement>(null);
 

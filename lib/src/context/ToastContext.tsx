@@ -1,5 +1,12 @@
 // src/context/ToastContext.tsx
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+  ReactNode,
+} from 'react';
 import { ToastType, Toast } from '../components/Toast';
 
 interface ToastContextType {
@@ -13,7 +20,10 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({
 }) => {
   const [toasts, setToasts] = useState<ToastType[]>([]);
 
-  const showToast = (toast: ToastType) => {
+  // Stable callback + memoized context value: this provider wraps the whole
+  // chat tree, so a fresh value object per render (and per toast appearing/
+  // disappearing) forced every context consumer below to re-render.
+  const showToast = useCallback((toast: ToastType) => {
     setToasts((prev) => {
       const next = [...prev, toast];
       return next.length > 5 ? next.slice(1) : next;
@@ -22,10 +32,12 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== toast.id));
     }, toast.duration || 3000);
-  };
+  }, []);
+
+  const contextValue = useMemo(() => ({ showToast }), [showToast]);
 
   return (
-    <ToastContext.Provider value={{ showToast }}>
+    <ToastContext.Provider value={contextValue}>
       {children}
       <div
         style={{

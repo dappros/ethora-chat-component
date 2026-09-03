@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import WaveSurfer from 'wavesurfer.js';
+import type WaveSurfer from 'wavesurfer.js';
 import Button from './Button';
 import { PauseIcon, PlayIcon } from '../../assets/icons';
 import { useSelector } from 'react-redux';
@@ -15,45 +15,58 @@ const AudioMessage: React.FC<AudioMessageProps> = ({ src }) => {
   );
 
   const waveformRef = useRef(null);
-  const wavesurfer = useRef(null);
+  const wavesurfer = useRef<WaveSurfer | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
 
   useEffect(() => {
-    wavesurfer.current = WaveSurfer.create({
-      container: waveformRef.current,
-      waveColor: '#C4C4C4',
-      progressColor: config?.colors?.primary || '#0052CD',
-      cursorColor: 'transparent',
-      height: 32,
-      barWidth: 3,
-      barHeight: 7,
-      barGap: 2,
-      barRadius: 1000,
-    });
+    // wavesurfer.js is loaded on demand: audio messages are rare enough
+    // that the library shouldn't sit in the initial bundle.
+    let disposed = false;
 
-    wavesurfer.current.load(src);
+    import('wavesurfer.js').then(({ default: WaveSurferLib }) => {
+      if (disposed || !waveformRef.current) return;
 
-    wavesurfer.current.on('seek', () => {
-      wavesurfer.current.play();
-      setIsPlaying(true);
-    });
+      const instance = WaveSurferLib.create({
+        container: waveformRef.current,
+        waveColor: '#C4C4C4',
+        progressColor: config?.colors?.primary || '#0052CD',
+        cursorColor: 'transparent',
+        height: 32,
+        barWidth: 3,
+        barHeight: 7,
+        barGap: 2,
+        barRadius: 1000,
+      });
+      wavesurfer.current = instance;
 
-    wavesurfer.current.on('finish', () => {
-      setIsPlaying(false);
+      instance.load(src);
+
+      instance.on('seek' as any, () => {
+        instance.play();
+        setIsPlaying(true);
+      });
+
+      instance.on('finish', () => {
+        setIsPlaying(false);
+      });
     });
 
     return () => {
-      wavesurfer.current.destroy();
+      disposed = true;
+      wavesurfer.current?.destroy();
+      wavesurfer.current = null;
     };
   }, [src]);
 
   const togglePlayPause = () => {
+    if (!wavesurfer.current) return;
     setIsPlaying((prev) => !prev);
     wavesurfer.current.playPause();
   };
 
   const changeSpeed = () => {
+    if (!wavesurfer.current) return;
     const newRate = playbackRate === 1 ? 1.5 : playbackRate === 1.5 ? 2 : 1;
     setPlaybackRate(newRate);
     wavesurfer.current.setPlaybackRate(newRate);

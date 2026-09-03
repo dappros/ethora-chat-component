@@ -13,7 +13,10 @@ export default defineConfig({
     }),
   ],
   build: {
-    sourcemap: true,
+    // No sourcemaps in the published package: they added 12+ MB to every
+    // npm install for a library consumers bundle themselves. Flip locally
+    // when debugging the built output.
+    sourcemap: false,
     lib: {
       entry: resolve(__dirname, 'src/main.ts'),
       formats: ['es'],

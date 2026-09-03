@@ -1,5 +1,8 @@
-import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { getMessaging, Messaging } from 'firebase/messaging';
+// Firebase is loaded lazily (dynamic import) so the SDK never lands in the
+// host app's initial bundle: hosts that don't use push/Google-login pay
+// zero bytes for it, and hosts that do only load it on first use.
+import type { FirebaseApp } from 'firebase/app';
+import type { Messaging } from 'firebase/messaging';
 import { sha256 } from 'js-sha256';
 
 export const defaultConfig = {
@@ -48,7 +51,9 @@ const hasRequiredFirebaseConfig = (config: Record<string, any> | undefined): boo
   );
 };
 
-export const getFirebaseApp = (customConfig?: any): FirebaseApp | null => {
+export const getFirebaseApp = async (
+  customConfig?: any
+): Promise<FirebaseApp | null> => {
   try {
     const config = getFirebaseConfig(customConfig);
     if (!hasRequiredFirebaseConfig(config)) {
@@ -60,6 +65,8 @@ export const getFirebaseApp = (customConfig?: any): FirebaseApp | null => {
     if (cached) {
       return cached;
     }
+
+    const { initializeApp, getApps } = await import('firebase/app');
 
     const existing = getApps().find((candidate) => candidate.name === appName);
     if (existing) {
@@ -76,11 +83,13 @@ export const getFirebaseApp = (customConfig?: any): FirebaseApp | null => {
   }
 };
 
-export const getFirebaseMessaging = (customConfig?: any): Messaging | null => {
+export const getFirebaseMessaging = async (
+  customConfig?: any
+): Promise<Messaging | null> => {
   if (typeof window === 'undefined') return null;
 
   try {
-    const app = getFirebaseApp(customConfig);
+    const app = await getFirebaseApp(customConfig);
     if (!app) return null;
 
     const cached = messagingByAppName.get(app.name);
@@ -88,6 +97,7 @@ export const getFirebaseMessaging = (customConfig?: any): Messaging | null => {
       return cached;
     }
 
+    const { getMessaging } = await import('firebase/messaging');
     const messaging = getMessaging(app);
     messagingByAppName.set(app.name, messaging);
 
@@ -97,9 +107,3 @@ export const getFirebaseMessaging = (customConfig?: any): Messaging | null => {
     return null;
   }
 };
-
-// Legacy exports for backward compatibility.
-// Important: avoid creating the Firebase [DEFAULT] app to prevent duplicate-app
-// when runtime push config differs from env defaults.
-export const app = getFirebaseApp(defaultConfig);
-export const messaging = getFirebaseMessaging(defaultConfig);

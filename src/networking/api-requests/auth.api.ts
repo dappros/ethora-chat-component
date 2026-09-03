@@ -1,12 +1,9 @@
 import { User } from '../../types/types';
 
-import {
-  getAuth,
-  GoogleAuthProvider,
-  signInWithPopup,
-  User as FirebaseUser,
-} from 'firebase/auth';
-import { app } from '../../firebase-config';
+// Firebase auth is only needed for Google sign-in, so it's loaded on demand
+// inside signInWithGoogle() instead of shipping in the host's initial bundle.
+import type { User as FirebaseUser } from 'firebase/auth';
+import { getFirebaseApp } from '../../firebase-config';
 
 import http, { appToken } from '../apiClient';
 import { store } from '../../roomStore';
@@ -151,10 +148,14 @@ export async function loginViaJwt(clientToken: string): Promise<User> {
 }
 
 export const signInWithGoogle = async () => {
+  const app = await getFirebaseApp();
   if (!app) {
     console.warn('Firebase app is not configured for Google sign-in');
     return {};
   }
+  const { getAuth, GoogleAuthProvider, signInWithPopup } = await import(
+    'firebase/auth'
+  );
   const auth = getAuth(app);
   const googleProvider = new GoogleAuthProvider();
   googleProvider.addScope('https://www.googleapis.com/auth/userinfo.email');

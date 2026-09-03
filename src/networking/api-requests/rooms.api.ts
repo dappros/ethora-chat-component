@@ -67,19 +67,34 @@ export async function getRooms(): Promise<{ items: ApiRoom[] }> {
   }
 }
 
+// In-flight dedup: onMembersRefreshSignal can fire once per broadcast
+// stanza for the same room, and each occupant would otherwise issue an
+// uncoalesced GET per stanza.
+const roomByNameInflight = new Map<string, Promise<ApiRoom>>();
+
 export async function getRoomByName(chatName: string): Promise<ApiRoom> {
   const token = store.getState().chatSettingStore.user.token || '';
+  const key = `${token}|${chatName}`;
 
-  try {
-    const response = await http.get(`/v1/chats/my/${chatName}`, {
+  const inflight = roomByNameInflight.get(key);
+  if (inflight) return inflight;
+
+  const request = http
+    .get(`/v1/chats/my/${chatName}`, {
       headers: {
         Authorization: token,
       },
+    })
+    .then((response) => response.data as ApiRoom)
+    .catch(() => {
+      throw new Error('Error updating profile');
+    })
+    .finally(() => {
+      roomByNameInflight.delete(key);
     });
-    return response.data;
-  } catch (error) {
-    throw new Error('Error updating profile');
-  }
+
+  roomByNameInflight.set(key, request);
+  return request;
 }
 
 export async function postRoom(data: PostRoom) {

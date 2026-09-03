@@ -17,7 +17,7 @@ import { RootState } from '../../roomStore';
 import { RoomMember } from '../../types/types';
 import { debounce } from '../../helpers/debounce';
 import { StyledInput } from '../styled/StyledInputComponents/StyledInputComponents';
-import { useRoomState } from '../../hooks/useRoomState';
+import { useUsersSet } from '../../hooks/useRoomState';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { useT } from '../../i18n/useT';
 
@@ -36,7 +36,7 @@ const UsersList: React.FC<UsersListProps> = ({
   headerElement,
   filter,
 }) => {
-  const { usersSet } = useRoomState();
+  const usersSet = useUsersSet();
   const { config } = useChatSettingState();
   const t = useT();
   const [searchTerm, setSearchTerm] = useState('');

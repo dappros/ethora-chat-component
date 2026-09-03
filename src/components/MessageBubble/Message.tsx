@@ -76,10 +76,14 @@ const Message: React.FC<MessageProps> = forwardRef<
   );
 
   // Read sender name live from usersSet so user-update stanzas trigger immediate re-render.
-  const usersSet = useSelector((state: RootState) => state.rooms.usersSet);
+  // Select ONLY this sender's entry: subscribing to the whole usersSet map
+  // re-rendered every mounted bubble on every insertUsers dispatch.
   const senderUserId = message.user?.id ?? '';
   const senderLocal = senderUserId.split('@')[0];
-  const senderEntry = usersSet[senderLocal] ?? usersSet[senderUserId];
+  const senderEntry = useSelector(
+    (state: RootState) =>
+      state.rooms.usersSet[senderLocal] ?? state.rooms.usersSet[senderUserId]
+  );
   const senderDisplayName = senderEntry
     ? `${senderEntry.firstName ?? ''} ${senderEntry.lastName ?? ''}`.trim() || senderLocal
     : message.user?.name || senderLocal || 'Unknown';
@@ -436,4 +440,8 @@ const Message: React.FC<MessageProps> = forwardRef<
   );
 });
 
-export { Message };
+// Memoized: with the reducers now preserving message identity, rows whose
+// message object didn't change skip re-rendering entirely.
+const MemoizedMessage = React.memo(Message);
+
+export { MemoizedMessage as Message };

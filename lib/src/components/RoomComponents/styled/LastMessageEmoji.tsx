@@ -5,15 +5,16 @@ import {
   LastRoomMessageText,
 } from './StyledRoomComponents';
 import { LastMessage } from '../../../types/types';
-import emojiData from '@emoji-mart/data';
+import {
+  getEmojiNativeById,
+  useEmojiData,
+} from '../../../helpers/lazyEmoji';
 
 interface LastMessageEmojiProps extends Pick<LastMessage, 'user' | 'emoji'> {}
 
 const LastMessageEmoji: FC<LastMessageEmojiProps> = ({ user, emoji }) => {
-  const memoEmoji = (id: string) => {
-    const emoji = (emojiData as any).emojis[id];
-    return emoji ? emoji.skins[0].native : '';
-  };
+  useEmojiData();
+  const memoEmoji = getEmojiNativeById;
 
   return (
     <LastRoomMessageContainer>

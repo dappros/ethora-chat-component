@@ -29,7 +29,7 @@ interface MessageContainerProps {
   className?: string;
 }
 
-export const MessageContainer: FC<MessageContainerProps> = ({
+const MessageContainerBase: FC<MessageContainerProps> = ({
   CustomMessage,
   message,
   activeMessage,
@@ -43,7 +43,10 @@ export const MessageContainer: FC<MessageContainerProps> = ({
   const t = useT();
   const isUser = message.user.id === xmppUsername;
 
-  const messageDate = new Date(message.date);
+  const messageDate = useMemo(() => new Date(message.date), [message.date]);
+  // Key the memo on the raw date value: a `new Date()` instance created per
+  // render used as the dep defeated the memo, so the (expensive)
+  // Intl.DateTimeFormat construction ran on every render of every row.
   const formattedDate = useMemo(() => {
     try {
       return new Intl.DateTimeFormat(undefined, {
@@ -55,7 +58,7 @@ export const MessageContainer: FC<MessageContainerProps> = ({
     } catch {
       return messageDate.toDateString();
     }
-  }, [messageDate]);
+  }, [message.date]);
 
   const renderDaySeparator = () => {
     if (!showDateLabel) {
@@ -143,3 +146,7 @@ export const MessageContainer: FC<MessageContainerProps> = ({
     </Fragment>
   );
 };
+
+// Memoized so unchanged rows skip re-rendering once message identities are
+// stable (the reducers preserve object identity for untouched messages).
+export const MessageContainer = React.memo(MessageContainerBase);

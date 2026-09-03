@@ -112,10 +112,11 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       return () => {
         const exitTs = Date.now();
         if (client && !config?.disableLastRead) {
-          client.actionSetTimestampToPrivateStoreStanza(
-            activeRoomJID,
-            exitTs
-          );
+          // Unmount can happen mid-(re)connect; a rejected write here must
+          // not surface as an uncaught promise error.
+          client
+            .actionSetTimestampToPrivateStoreStanza(activeRoomJID, exitTs)
+            ?.catch?.(() => {});
         }
         dispatch(
           setLastViewedTimestamp({

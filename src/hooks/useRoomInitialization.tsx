@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { setIsLoading } from '../roomStore/roomsSlice';
 import { useXmppClient } from '../context/xmppProvider';
 import { IConfig, IMessage, IRoom } from '../types/types';
@@ -189,55 +189,70 @@ export const useRoomInitialization = (
       initialPresenceAndHistory();
     }
 
-    if (client && activeRoomJID && typeof window !== 'undefined') {
-      const pendingMessageId =
-        typeof localStorage !== 'undefined'
-          ? localStorage.getItem(PUSH_MESSAGE_ID_KEY)
-          : null;
-      const pendingRoomJID =
-        typeof localStorage !== 'undefined'
-          ? localStorage.getItem(PUSH_ROOM_JID_KEY)
-          : null;
-
-      if (pendingMessageId && (!pendingRoomJID || pendingRoomJID === activeRoomJID)) {
-        client
-          .getHistoryStanza(activeRoomJID, 30, undefined, undefined, {
-            source: 'active',
-            coalesceRoom: true,
-          })
-          .catch(() => {})
-          .finally(() => {
-            setTimeout(() => scrollToMessage(pendingMessageId), 200);
-            if (typeof localStorage !== 'undefined') {
-              localStorage.removeItem(PUSH_MESSAGE_ID_KEY);
-              localStorage.removeItem(PUSH_ROOM_JID_KEY);
-            }
-          });
-      }
-    }
-
-    const defaultRooms = Array.isArray(config?.defaultRooms)
-      ? config.defaultRooms
-      : [];
-    if (client && defaultRooms.length) {
-      const allExist = defaultRooms.every(
-        (room) => roomsList[room.jid] !== undefined
-      );
-      if (roomsList && !allExist) {
-        defaultRooms.forEach((room) => {
-          client.presenceInRoomStanza(room.jid, 0, 1200, false);
-        });
-        if (config?.newArch === false) {
-          client.getRoomsStanza();
-        } else {
-          // syncRooms(client, config);
-        }
-      }
-    }
   }, [
     activeRoomJID,
     Object.keys(roomsList).length,
     messageLength,
     roomsList?.[activeRoomJID]?.messages?.length,
   ]);
+
+  // Push-notification deep link: runs on room activation only. It used to
+  // live in the effect above, which re-runs on every incoming message and
+  // re-read localStorage each time.
+  useEffect(() => {
+    if (!client || !activeRoomJID || typeof window === 'undefined') return;
+
+    const pendingMessageId =
+      typeof localStorage !== 'undefined'
+        ? localStorage.getItem(PUSH_MESSAGE_ID_KEY)
+        : null;
+    const pendingRoomJID =
+      typeof localStorage !== 'undefined'
+        ? localStorage.getItem(PUSH_ROOM_JID_KEY)
+        : null;
+
+    if (pendingMessageId && (!pendingRoomJID || pendingRoomJID === activeRoomJID)) {
+      client
+        .getHistoryStanza(activeRoomJID, 30, undefined, undefined, {
+          source: 'active',
+          coalesceRoom: true,
+        })
+        .catch(() => {})
+        .finally(() => {
+          setTimeout(() => scrollToMessage(pendingMessageId), 200);
+          if (typeof localStorage !== 'undefined') {
+            localStorage.removeItem(PUSH_MESSAGE_ID_KEY);
+            localStorage.removeItem(PUSH_ROOM_JID_KEY);
+          }
+        });
+    }
+  }, [client, activeRoomJID]);
+
+  // Default-rooms bootstrap. Previously part of the message-count-keyed
+  // effect above: while any default room was missing from roomsList, it
+  // re-sent a presence stanza to EVERY default room on EVERY incoming
+  // message. Now it reacts only to the room set changing, and each JID is
+  // attempted once per mount.
+  const attemptedDefaultRoomJoins = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const defaultRooms = Array.isArray(config?.defaultRooms)
+      ? config.defaultRooms
+      : [];
+    if (!client || !defaultRooms.length || !roomsList) return;
+
+    const missing = defaultRooms.filter(
+      (room) =>
+        roomsList[room.jid] === undefined &&
+        !attemptedDefaultRoomJoins.current.has(room.jid)
+    );
+    if (!missing.length) return;
+
+    missing.forEach((room) => {
+      attemptedDefaultRoomJoins.current.add(room.jid);
+      client.presenceInRoomStanza(room.jid, 0, 1200, false);
+    });
+    if (config?.newArch === false) {
+      client.getRoomsStanza();
+    }
+  }, [client, config?.defaultRooms, Object.keys(roomsList).length]);
 };
