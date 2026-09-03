@@ -1,5 +1,6 @@
 import React, { FC } from 'react';
-import styled, { keyframes } from 'styled-components';
+import styled, { css, keyframes } from 'styled-components';
+import { reducedMotion } from '../../../styles/motion';
 
 interface CustomTypingIndicatorProps {
   usersTyping: string[];
@@ -26,56 +27,57 @@ const pulseAnimation = keyframes`
   100% { transform: scale(1); opacity: 0.8; }
 `;
 
-const BaseWrapper = styled.div<{ position: string }>`
+const BaseWrapper = styled.div<{ $position: string }>`
   display: flex;
   align-items: center;
   font-size: 14px;
-  color: #555;
+  color: var(--ethora-color-text-secondary, #555);
   z-index: 1000;
   transition: all 0.3s ease-in-out;
 
-  ${({ position }) => {
-    switch (position) {
+  ${({ $position }) => {
+    switch ($position) {
       case 'top':
-        return `
+        return css`
           position: absolute;
           top: 8px;
           left: 16px;
           right: 16px;
-          background: rgba(255, 255, 255, 0.95);
+          background: var(--ethora-color-bg, #fff);
           padding: 8px 12px;
-          border-radius: 8px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-          backdrop-filter: blur(10px);
+          border-radius: var(--ethora-radius-sm, 8px);
+          box-shadow: var(--ethora-shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.1));
+          border: 1px solid var(--ethora-color-border, #e6e8ec);
         `;
       case 'overlay':
-        return `
+        return css`
           position: fixed;
           top: 50%;
           left: 50%;
           transform: translate(-50%, -50%);
           background: rgba(0, 0, 0, 0.8);
-          color: white;
+          color: var(--ethora-color-text-on-primary, #fff);
           padding: 16px 24px;
-          border-radius: 12px;
+          border-radius: var(--ethora-radius-md, 12px);
           animation: ${pulseAnimation} 2s infinite;
-          backdrop-filter: blur(10px);
+          ${reducedMotion}
         `;
       case 'floating':
-        return `
+        return css`
           position: fixed;
           bottom: 80px;
           right: 20px;
-          background: rgba(255, 255, 255, 0.95);
+          background: var(--ethora-color-bg, #fff);
           padding: 12px 16px;
-          border-radius: 20px;
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-          backdrop-filter: blur(10px);
+          border-radius: var(--ethora-radius-full, 20px);
+          box-shadow: var(--ethora-shadow-md, 0 4px 16px rgba(0, 0, 0, 0.15));
+          border: 1px solid var(--ethora-color-border, #e6e8ec);
           animation: ${pulseAnimation} 2s infinite;
+          ${reducedMotion}
         `;
       case 'bottom':
       default:
-        return `
+        return css`
           position: static;
           bottom: 4px;
           left: 16px;
@@ -95,6 +97,7 @@ const Dot = styled.span`
   line-height: 0;
   animation: ${dotAnimation} 1.5s infinite;
   margin-right: 2px;
+  ${reducedMotion}
 
   &:nth-child(2) {
     animation-delay: 0.2s;
@@ -175,7 +178,7 @@ const CustomTypingIndicator: FC<CustomTypingIndicatorProps> = ({
   }
 
   return (
-    <BaseWrapper position={position} style={styles}>
+    <BaseWrapper $position={position} style={styles}>
       <UserTypingText>{displayText}</UserTypingText>
       <Dot>.</Dot>
       <Dot>.</Dot>

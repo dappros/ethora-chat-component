@@ -66,7 +66,7 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
               <Button
                 variant="default"
                 style={{
-                  minHeight: '40px',
+                  minHeight: '48px',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '2px',

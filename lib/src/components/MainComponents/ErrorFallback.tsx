@@ -1,4 +1,5 @@
 import React from 'react';
+import { useT } from '../../i18n/useT';
 import Button from '../styled/Button';
 import { OrDelimiter } from '../styled/StyledComponents';
 
@@ -15,6 +16,7 @@ const ErrorFallback: React.FC<ErrorFallbackProps> = ({
   buttonLabel = 'Enter with default account',
   onButtonClick,
 }) => {
+  const t = useT();
   return (
     <div
       style={{
@@ -23,9 +25,9 @@ const ErrorFallback: React.FC<ErrorFallbackProps> = ({
         justifyContent: 'center',
         alignItems: 'center',
         flexDirection: 'column',
-        padding: '20px',
-        gap: '8px',
-        fontSize: '14px',
+        padding: 'var(--ethora-space-5, 20px)',
+        gap: 'var(--ethora-space-2, 8px)',
+        fontSize: 'var(--ethora-font-size-sm, 14px)',
       }}
     >
       <p
@@ -33,16 +35,20 @@ const ErrorFallback: React.FC<ErrorFallbackProps> = ({
           fontFamily:
             'var(--ethora-font-family, Inter, Arial, sans-serif)',
           fontSize: 'var(--ethora-font-size-sm, 14px)',
+          color: 'var(--ethora-color-text-secondary, #5A5F66)',
+          textAlign: 'center',
         }}
       >
         {message}
       </p>
 
-      <OrDelimiter>Or</OrDelimiter>
+      <OrDelimiter>{t('common.or')}</OrDelimiter>
       <Button
+        variant="filled"
         onClick={onButtonClick}
         style={{
           width: '100%',
+          borderRadius: 'var(--ethora-radius-sm, 8px)',
           fontFamily:
             'var(--ethora-font-family, Inter, Arial, sans-serif)',
           fontSize: 'var(--ethora-font-size-sm, 14px)',

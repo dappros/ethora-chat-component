@@ -82,7 +82,7 @@ const ManageDataModal: React.FC<ManageDataModalProps> = ({
             </LabelData>
           </SharedSettingsSectionContainer>
           <SharedSettingsStyledButton
-            borderColor={config?.colors?.primary || '#0052CD'}
+            borderColor={config?.colors?.primary || 'var(--ethora-color-primary, #0052CD)'}
             onClick={handleDownloadClick}
           >
             {t('settings.manageData.downloadLabel')}
@@ -98,7 +98,7 @@ const ManageDataModal: React.FC<ManageDataModalProps> = ({
             </SharedSettingsLabelData>
           </SharedSettingsSectionContainer>
           <SharedSettingsInfoPanel
-            bgColor={config?.colors?.secondary || '#F3F6FC'}
+            bgColor={config?.colors?.secondary || 'var(--ethora-color-primary-soft, #F3F6FC)'}
           >
             <div>
               <InfoIcon color={resolveIconColor(config)} />
@@ -107,7 +107,10 @@ const ManageDataModal: React.FC<ManageDataModalProps> = ({
               {t('settings.manageData.deleteDisclosure')}
             </SharedSettingsInfoText>
           </SharedSettingsInfoPanel>
-          <SharedSettingsStyledButton borderColor="#E53935">
+          <SharedSettingsStyledButton
+            borderColor="var(--ethora-color-danger, #D92D20)"
+            style={{ color: 'var(--ethora-color-danger, #D92D20)' }}
+          >
             {t('action.deleteMyAccount')}
           </SharedSettingsStyledButton>
         </SharedSettingsColumnContainer>

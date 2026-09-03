@@ -27,9 +27,21 @@ const AudioMessage: React.FC<AudioMessageProps> = ({ src }) => {
     import('wavesurfer.js').then(({ default: WaveSurferLib }) => {
       if (disposed || !waveformRef.current) return;
 
+      // Reads the resolved colour off the DOM rather than hardcoding a hex:
+      // wavesurfer's canvas can't consume a CSS var string directly, so this
+      // is the one place a literal fallback still needs to match the
+      // `--ethora-color-*` tokens' own defaults.
+      const rootStyle =
+        typeof window !== 'undefined'
+          ? getComputedStyle(document.documentElement)
+          : null;
+      const waveColor =
+        rootStyle?.getPropertyValue('--ethora-color-border')?.trim() ||
+        '#C4C4C4';
+
       const instance = WaveSurferLib.create({
         container: waveformRef.current,
-        waveColor: '#C4C4C4',
+        waveColor,
         progressColor: config?.colors?.primary || '#0052CD',
         cursorColor: 'transparent',
         height: 32,
@@ -85,9 +97,9 @@ const AudioMessage: React.FC<AudioMessageProps> = ({ src }) => {
       <Button
         onClick={togglePlayPause}
         style={{
-          color: '#141414',
+          color: 'var(--ethora-color-text-on-primary, #ffffff)',
           backgroundColor: config?.colors?.primary || '#0052CD',
-          borderRadius: 1000,
+          borderRadius: 'var(--ethora-radius-full, 999px)',
         }}
         EndIcon={isPlaying ? <PauseIcon /> : <PlayIcon />}
       />
@@ -100,7 +112,11 @@ const AudioMessage: React.FC<AudioMessageProps> = ({ src }) => {
       />
       <Button
         onClick={changeSpeed}
-        style={{ color: '#141414', fontSize: 14, zIndex: 0 }}
+        style={{
+          color: 'var(--ethora-color-text-secondary, #141414)',
+          fontSize: 14,
+          zIndex: 0,
+        }}
         text={`${playbackRate}X`}
       />
     </div>

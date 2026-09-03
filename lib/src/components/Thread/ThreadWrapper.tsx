@@ -161,7 +161,7 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
         onClick={() => setIsChecked((prev) => !prev)}
       >
         <AlsoCheckbox
-          accentColor={config?.colors?.primary || '#0052CD'}
+          accentColor={config?.colors?.primary || 'var(--ethora-color-primary, #0052CD)'}
           type="checkbox"
           checked={isChecked}
           onChange={(e) => setIsChecked(e.target.checked)}
@@ -169,7 +169,7 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
         <span>Also send to</span>
         <a
           style={{
-            color: config?.colors?.primary || '#0052CD',
+            color: config?.colors?.primary || 'var(--ethora-color-primary, #0052CD)',
             fontWeight: 500,
             cursor: 'pointer',
             borderBottom: '1px solid',

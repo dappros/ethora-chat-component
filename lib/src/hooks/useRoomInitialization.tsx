@@ -53,24 +53,37 @@ export const useRoomInitialization = (
 
   const syncRooms = useGetNewArchRoom();
 
+  // Both effects below want to make sure we've joined activeRoomJID before
+  // doing their own work. Without coordination each one calls
+  // presenceInRoomStanza independently, which sends a duplicate <presence>
+  // join for the same room on every activation. Share the in-flight (or
+  // settled) join promise for the *current* activeRoomJID across effects so
+  // only one join attempt happens per activation; getDefaultHistory awaits
+  // it instead of starting a second one.
+  const activeJoinRef = useRef<{ jid: string; promise: Promise<boolean> } | null>(
+    null
+  );
+
   useEffect(() => {
     if (client && activeRoomJID) {
       client.setActiveRoomJid(activeRoomJID);
       client.promoteRoomHistory(activeRoomJID);
       // Try fast explicit join for active room right after selection/login.
-      client
-        .presenceInRoomStanza(
-          activeRoomJID,
-          0,
-          ACTIVE_ROOM_FAST_PRESENCE_TIMEOUT_MS,
-          true
-        )
+      const joinPromise = client.presenceInRoomStanza(
+        activeRoomJID,
+        0,
+        ACTIVE_ROOM_FAST_PRESENCE_TIMEOUT_MS,
+        true
+      );
+      activeJoinRef.current = { jid: activeRoomJID, promise: joinPromise };
+      joinPromise
         .catch(() => {
           client.prioritizeRoomPresence(activeRoomJID).catch(() => {});
+          return false;
         })
         .finally(() => {
           // Pull authoritative room metadata (name, occupant count) via
-          // disco#info — this guards against the API/disco#items race that
+          // disco#info - this guards against the API/disco#items race that
           // leaves the header showing a raw JID and "0 users".
           try {
             client.getRoomInfoStanza(activeRoomJID);
@@ -97,9 +110,23 @@ export const useRoomInitialization = (
       // approach is functionally equivalent for the migrated-rooms case
       // (the empty-result branch below also calls prioritizeRoomPresence)
       // but cleaner. Verify behaviour with a slow-joining room before merge.
-      const joined = await client
-        .presenceInRoomStanza(activeRoomJID, 0, ACTIVE_ROOM_PRESENCE_TIMEOUT_MS, true)
-        .catch(() => false);
+      //
+      // Reuse the join kicked off by the sibling effect for this same
+      // activation instead of issuing a second presenceInRoomStanza call
+      // (see activeJoinRef above).
+      const sharedJoin =
+        activeJoinRef.current?.jid === activeRoomJID
+          ? activeJoinRef.current.promise
+          : null;
+      const joined = await (
+        sharedJoin ||
+        client.presenceInRoomStanza(
+          activeRoomJID,
+          0,
+          ACTIVE_ROOM_PRESENCE_TIMEOUT_MS,
+          true
+        )
+      ).catch(() => false);
       if (!joined) {
         client.prioritizeRoomPresence(activeRoomJID).catch(() => {});
       }

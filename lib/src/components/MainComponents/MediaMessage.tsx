@@ -1,10 +1,18 @@
 import React, { useMemo } from 'react';
+import { useT } from '../../i18n/useT';
+import styled from 'styled-components';
 import { useSelector } from 'react-redux';
 import { IMessage } from '../../types/types';
 import { RootState } from '../../roomStore';
 import { getMessageAttachments } from '../../helpers/attachments';
 import { appendFileToken } from '../../helpers/secureFileUrl';
 import AttachmentList from './AttachmentList';
+
+const UnsupportedMedia = styled.div`
+  color: var(--ethora-color-text-muted, #8c8c8c);
+  font-size: var(--ethora-font-size-sm, 13px);
+  font-style: italic;
+`;
 
 interface MediaMessageProps {
   /**
@@ -24,6 +32,7 @@ const MediaMessage: React.FC<MediaMessageProps> = ({
   locationPreview,
   message,
 }) => {
+  const t = useT();
   // Secure (v2) file URLs are membership-gated: append the viewer's own
   // fileToken at render time. Public (v1) URLs pass through untouched.
   // Subscribed via useSelector so a token refresh re-renders the media
@@ -72,7 +81,7 @@ const MediaMessage: React.FC<MediaMessageProps> = ({
   );
 
   if (attachments.length === 0) {
-    return <div>Unsupported media type</div>;
+    return <UnsupportedMedia>{t('media.unsupported')}</UnsupportedMedia>;
   }
 
   return <AttachmentList attachments={attachments} />;

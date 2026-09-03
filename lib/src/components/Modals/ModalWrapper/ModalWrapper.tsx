@@ -4,6 +4,7 @@ import { TextareaInput } from '../../styled/StyledInputComponents/StyledInputCom
 import Button from '../../styled/Button';
 import { useChatSettingState } from '../../../hooks/useChatSettingState';
 import { useT } from '../../../i18n/useT';
+import { useModalDismiss } from '../../../hooks/useModalDismiss';
 
 
 interface ModalWrapperProps {
@@ -36,7 +37,9 @@ export const ModalWrapper: FC<ModalWrapperProps> = ({
   const textareaRef = useRef(null);
   const { config } = useChatSettingState();
   const t = useT();
+  useModalDismiss({ onClose: handleCloseModal });
   const resolvedCancelText = cancelText ?? t('action.cancel');
+  const resolvedCloseLabel = t('action.close');
 
   const handleInput = () => {
     const textarea = textareaRef.current;
@@ -49,7 +52,11 @@ export const ModalWrapper: FC<ModalWrapperProps> = ({
   return (
     <ModalBackground>
       <ModalContainer style={{maxWidth: '640px'}}>
-        <CloseButton onClick={handleCloseModal} style={{ fontSize: 24 }}>
+        <CloseButton
+          onClick={handleCloseModal}
+          style={{ fontSize: 24 }}
+          aria-label={resolvedCloseLabel}
+        >
           &times;
         </CloseButton>
         {IconTitle

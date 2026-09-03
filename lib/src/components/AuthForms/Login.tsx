@@ -163,71 +163,77 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
   return (
     <FormContainer>
       <Form onSubmit={handleSubmit}>
-        <div
-          style={{
-            height: 40,
-            width: '100%',
-            display: 'flex',
-            gap: '4px',
-            flexDirection: 'column',
-          }}
-        >
+        <FieldGroup>
+          <FieldLabel htmlFor="ethora-login-email">
+            {t('field.email')}
+          </FieldLabel>
           <MessageInput
+            id="ethora-login-email"
             type="email"
             value={email}
             placeholder={t('field.email')}
             autoComplete="email"
             data-testid="auth_email_input"
+            aria-invalid={!!errors.email}
+            aria-describedby={errors.email ? 'ethora-login-email-error' : undefined}
             onChange={(e) => setEmail(e.target.value)}
             style={{
               border: `1px solid ${
-                config ? config.colors?.primary : '#3498db'
+                errors.email
+                  ? 'var(--ethora-color-danger, #D92D20)'
+                  : `var(--ethora-color-border, #E6E8EC)`
               }`,
+              borderRadius: 'var(--ethora-radius-sm, 8px)',
             }}
           />
           {errors.email && (
-            <ErrorMessage data-testid="auth_email_error">
+            <ErrorMessage id="ethora-login-email-error" data-testid="auth_email_error">
               {errors.email}
             </ErrorMessage>
           )}
-        </div>
+        </FieldGroup>
 
-        <div
-          style={{
-            height: 40,
-            width: '100%',
-            display: 'flex',
-            gap: '4px',
-            flexDirection: 'column',
-          }}
-        >
+        <FieldGroup>
+          <FieldLabel htmlFor="ethora-login-password">
+            {t('field.password')}
+          </FieldLabel>
           <MessageInput
+            id="ethora-login-password"
             type="password"
             value={password}
             placeholder={t('field.password')}
             autoComplete="current-password"
             data-testid="auth_password_input"
+            aria-invalid={!!errors.password}
+            aria-describedby={
+              errors.password ? 'ethora-login-password-error' : undefined
+            }
             onChange={(e) => setPassword(e.target.value)}
             style={{
               border: `1px solid ${
-                config ? config.colors?.primary : '#3498db'
+                errors.password
+                  ? 'var(--ethora-color-danger, #D92D20)'
+                  : `var(--ethora-color-border, #E6E8EC)`
               }`,
+              borderRadius: 'var(--ethora-radius-sm, 8px)',
             }}
           />
           {errors.password && (
-            <ErrorMessage data-testid="auth_password_error">
+            <ErrorMessage id="ethora-login-password-error" data-testid="auth_password_error">
               {errors.password}
             </ErrorMessage>
           )}
-        </div>
+        </FieldGroup>
 
         <Button
           type="submit"
+          variant="filled"
           text={t('auth.loginButton')}
           data-testid="auth_submit_button"
           style={{
             width: '100%',
-            height: '40px',
+            height: '44px',
+            borderRadius: 'var(--ethora-radius-sm, 8px)',
             backgroundColor: config?.colors?.primary || '#0052CD',
             color: 'white',
           }}
@@ -239,7 +245,12 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
             <Delimiter>{t('auth.orDelimiter')}</Delimiter>
             <Button
               onClick={handleGoogleLogin}
-              style={{ width: '100%', height: '40px' }}
+              variant="outlined"
+              style={{
+                width: '100%',
+                height: '44px',
+                borderRadius: 'var(--ethora-radius-sm, 8px)',
+              }}
               text={<>{t('auth.loginWithGoogle')}</>}
               EndIcon={<GoogleIcon style={{ height: '24px' }} />}
               disabled={isLoading}
@@ -251,8 +262,8 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
           <div
             style={{
               textDecoration: 'underline',
-              color: '#0052CD',
-              fontSize: '14px',
+              color: 'var(--ethora-color-primary, #0052CD)',
+              fontSize: 'var(--ethora-font-size-sm, 14px)',
               display: 'inline',
               cursor: 'pointer',
               fontWeight: '400',
@@ -282,32 +293,45 @@ const FormContainer = styled.div`
   align-items: center;
   width: 100%;
   height: 100%;
-  background-color: #f5f5f5;
+  background-color: var(--ethora-color-bg-subtle, #f5f7fa);
 `;
 
 const Form = styled.form`
   display: flex;
   flex-direction: column;
-  align-items: center;
-  background-color: white;
-  padding: 30px;
-  border-radius: 8px;
-  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
-  width: 300px;
+  align-items: stretch;
+  background-color: var(--ethora-color-bg, #fff);
+  padding: 32px;
+  border-radius: var(--ethora-radius-lg, 16px);
+  box-shadow: var(--ethora-shadow-md, 0 4px 12px rgba(16, 24, 40, 0.1));
+  width: 320px;
   gap: 16px;
 `;
+
+const FieldGroup = styled.div`
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+
+const FieldLabel = styled.label`
+  font-size: var(--ethora-font-size-xs, 12px);
+  font-weight: 500;
+  color: var(--ethora-color-text-secondary, #5a5f66);
+`;
+
 const ErrorMessage = styled.span`
-  color: red;
-  font-size: 12px;
-  margin-bottom: 10px;
+  color: var(--ethora-color-danger, #d92d20);
+  font-size: var(--ethora-font-size-xs, 12px);
 `;
 
 const Delimiter = styled.div`
   text-align: center;
   position: relative;
   width: 100%;
-  font-size: 14px;
-  color: #999;
+  font-size: var(--ethora-font-size-sm, 14px);
+  color: var(--ethora-color-text-muted, #8c8c8c);
 
   &::before,
   &::after {
@@ -316,7 +340,7 @@ const Delimiter = styled.div`
     top: 50%;
     width: 45%;
     height: 1px;
-    background: #ccc;
+    background: var(--ethora-color-border, #e6e8ec);
   }
 
   &::before {

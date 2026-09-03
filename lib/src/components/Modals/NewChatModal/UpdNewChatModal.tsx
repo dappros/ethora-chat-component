@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useModalDismiss } from '../../../hooks/useModalDismiss';
 import Button from '../../styled/Button';
 import { AddNewIcon } from '../../../assets/icons';
 import { resolveIconColor } from '../../../helpers/resolveIconColor';
@@ -18,6 +19,7 @@ import { RoomMember } from '../../../types/types';
 
 import ModalContent from './ModalContent';
 import { ModalBackground } from '../styledModalComponents';
+import { useT } from '../../../i18n/useT';
 
 const NewChatModal: React.FC = () => {
   const config = useSelector(
@@ -25,6 +27,7 @@ const NewChatModal: React.FC = () => {
   );
   const dispatch = useDispatch();
   const { client } = useXmppClient();
+  const t = useT();
 
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'0' | '1' | null>('0');
@@ -52,6 +55,7 @@ const NewChatModal: React.FC = () => {
     setRoomName('');
     setSelectedUsers([]);
   };
+  useModalDismiss({ enabled: isModalOpen, onClose: handleCloseModal });
 
   const validateRoomName = (name: string) => {
     if (name.trim().length < 3) {
@@ -121,12 +125,13 @@ const NewChatModal: React.FC = () => {
         style={{
           color: 'black',
           padding: 8,
-          borderRadius: '16px',
+          borderRadius: 'var(--ethora-radius-lg, 16px)',
           backgroundColor: 'transparent',
         }}
         unstyled
         EndIcon={<AddNewIcon color={resolveIconColor(config)} />}
         onClick={handleOpenModal}
+        aria-label={t('action.newChat')}
       />
       {isModalOpen && (
         <ModalBackground>

@@ -69,6 +69,25 @@ export const resolveExternalReaderLocaleLangSource = (
 ): Iso639_1Codes | undefined =>
   readerLocale ? toBaseLanguage(readerLocale) : undefined;
 
+// XmppClient.status is a plain mutable property (set imperatively inside
+// the class, e.g. from the underlying @xmpp/client's 'connecting' /
+// 'offline' / 'error' / 'online' events, or scheduleReconnect, or the
+// browser online/offline listeners) - mutating it does NOT trigger a React
+// re-render on its own. `isConnectionLost` used to only ever flip during
+// the initial-connect try/catch below and never again, so once a session
+// connected successfully the "Connection lost. Retrying..." banner could
+// never come back even if the client later went offline/errored and
+// reconnected (e.g. a laptop sleeping, wifi drop, or a mid-session SASL
+// not-authorized recovery). This maps every status XmppClient can report
+// to whether the banner should show.
+export const isStatusConnectionLost = (
+  status?: string | null
+): boolean =>
+  status === 'connecting' ||
+  status === 'offline' ||
+  status === 'error' ||
+  status === 'auth_failed';
+
 const useChatWrapperInit = ({
   roomJID,
   wasAutoSelected,
@@ -700,6 +719,25 @@ const useChatWrapperInit = ({
       logDuration('initClient:wait_online', 'initClient:wait_online:start');
     }
   }, [client?.status]);
+
+  // Poll client.status while a client exists so isConnectionLost (and the
+  // ConnectionBanner it drives) reflects every transition for the rest of
+  // the session, not just the initial connect attempt. See
+  // isStatusConnectionLost's comment above for why polling is needed
+  // instead of a dependency array - client.status mutates in place and
+  // scheduleReconnect / the browser online-offline handlers in
+  // xmppClient.ts never dispatch anything React would re-render on.
+  useEffect(() => {
+    if (!client) return;
+    setConnectionLost(isStatusConnectionLost(client.status));
+    const intervalId = setInterval(() => {
+      setConnectionLost((prev) => {
+        const next = isStatusConnectionLost(client.status);
+        return prev === next ? prev : next;
+      });
+    }, 1000);
+    return () => clearInterval(intervalId);
+  }, [client]);
 
   useEffect(() => {
     ensureActiveRoomSelected(Object.values(roomsList) as any);

@@ -386,6 +386,7 @@ const SendInput: React.FC<SendInputProps> = ({
               <Button
                 onClick={handleAttachClick}
                 disabled={false}
+                aria-label={t('action.attachFile')}
                 EndIcon={<AttachIcon color={resolveIconColor(config)} bgcolor={resolveIconBgColor(config)} />}
               />
             )}
@@ -437,14 +438,19 @@ const SendInput: React.FC<SendInputProps> = ({
                 disabled={
                   isMessageProcessing || (!message && filePreviews.length === 0)
                 }
+                aria-label={
+                  typeof config?.secondarySendButton?.label === 'string'
+                    ? config.secondarySendButton.label
+                    : t('action.send')
+                }
                 style={{
                   color:
                     filePreviews.length > 0
-                      ? '#fff'
+                      ? 'var(--ethora-color-text-on-primary, #fff)'
                       : !message || message === ''
-                        ? '#D4D4D8'
-                        : '#fff',
-                  borderRadius: '100px',
+                        ? 'var(--ethora-color-text-muted, #D4D4D8)'
+                        : 'var(--ethora-color-text-on-primary, #fff)',
+                  borderRadius: 'var(--ethora-radius-full, 100px)',
                   backgroundColor:
                     filePreviews.length > 0
                       ? resolveIconColor(config)
@@ -458,10 +464,10 @@ const SendInput: React.FC<SendInputProps> = ({
                     bgcolor={resolveIconBgColor(config)}
                     color={
                       filePreviews.length > 0
-                        ? '#fff'
+                        ? 'var(--ethora-color-text-on-primary, #fff)'
                         : !message || message === ''
-                          ? '#D4D4D8'
-                          : '#fff'
+                          ? 'var(--ethora-color-text-muted, #D4D4D8)'
+                          : 'var(--ethora-color-text-on-primary, #fff)'
                     }
                   />
                 }
@@ -476,18 +482,19 @@ const SendInput: React.FC<SendInputProps> = ({
                   (message === '' && filePreviews.length === 0) ||
                   isMessageProcessing
                 }
+                aria-label={t('action.send')}
                 EndIcon={
                   <SendIcon
                     bgcolor={resolveIconBgColor(config)}
                     color={
                       message === '' && filePreviews.length === 0
-                        ? '#D4D4D8' // empty/disabled → muted grey
+                        ? 'var(--ethora-color-text-muted, #D4D4D8)' // empty/disabled → muted grey
                         : 'var(--ethora-icon-color, #0052CD)' // active → colors.icons (locked by the icon-tint rule)
                     }
                   />
                 }
                 style={{
-                  borderRadius: '100px',
+                  borderRadius: 'var(--ethora-radius-full, 100px)',
                   backgroundColor: 'transparent',
                 }}
               />
@@ -505,12 +512,12 @@ const SendInput: React.FC<SendInputProps> = ({
       {multiline && showPreview && message && (
         <div
           style={{
-            marginTop: 8,
-            padding: 12,
-            backgroundColor: '#fafafa',
-            border: '1px solid #E4E4E7',
-            borderRadius: 12,
-            color: '#141414',
+            marginTop: 'var(--ethora-space-2, 8px)',
+            padding: 'var(--ethora-space-3, 12px)',
+            backgroundColor: 'var(--ethora-color-bg-subtle, #fafafa)',
+            border: '1px solid var(--ethora-color-border, #E4E4E7)',
+            borderRadius: 'var(--ethora-radius-md, 12px)',
+            color: 'var(--ethora-color-text, #141414)',
           }}
         >
           {

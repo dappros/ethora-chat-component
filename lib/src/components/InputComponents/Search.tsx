@@ -14,12 +14,22 @@ const SearchInputWrapper = styled.div.withConfig({ shouldForwardProp })<{
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: ${({ $colorBg }) => ($colorBg ? $colorBg : '#f5f7f9')};
-  border-radius: 16px;
+  background-color: ${({ $colorBg }) => ($colorBg ? $colorBg : 'var(--ethora-color-bg-subtle, #f5f7f9)')};
+  border: 1px solid var(--ethora-color-border, #e6e8ec);
+  border-radius: var(--ethora-radius-md, 16px);
   height: 48px;
   padding: 0 16px;
-  transition: width 0.7s ease-in-out;
+  transition:
+    width 0.7s ease-in-out,
+    border-color var(--ethora-motion-fast, 150ms) var(--ethora-motion-ease, ease);
   width: 100%;
+
+  &:focus-within {
+    border-color: var(--ethora-color-primary, #0052cd);
+    outline: 2px solid var(--ethora-color-primary, #0052cd);
+    outline-offset: 1px;
+  }
+
   ${({ animated, expanded }) =>
     animated &&
     css`
@@ -35,7 +45,7 @@ const SearchIcon = styled.div.withConfig({ shouldForwardProp })<{
   expanded?: boolean;
 }>`
   padding: 3.5px;
-  color: #999;
+  color: var(--ethora-color-text-muted, #999);
   cursor: pointer;
 `;
 
@@ -48,9 +58,9 @@ const StyledInput = styled.input.withConfig({ shouldForwardProp })<{
   outline: none;
   width: ${({ animated, expanded }) =>
     animated ? (expanded ? '100%' : '0px') : '100%'};
-  font-size: 16px;
+  font-size: var(--ethora-font-size, 16px);
   height: 48px;
-  color: #000;
+  color: var(--ethora-color-text, #000);
   transition:
     width 0.7s ease-in-out,
     padding 0.7s ease-in-out;

@@ -133,7 +133,7 @@ const tryHydrateViaMy = async (
 
   if (workingToken) {
     try {
-      const myUser = await getMyUser({ token: workingToken, endpoint: myEndpoint });
+      const myUser = await getMyUser({ token: workingToken, endpoint: myEndpoint, signal });
       const merged = normalizeUserForXmpp(mergeUsers(candidate, myUser));
       if (merged) {
         merged.token = workingToken || merged.token;
@@ -178,7 +178,7 @@ const tryHydrateViaMy = async (
     rotatedXmppPassword = refreshed.xmppPassword || rotatedXmppPassword;
 
     try {
-      const myUser = await getMyUser({ token: workingToken, endpoint: myEndpoint });
+      const myUser = await getMyUser({ token: workingToken, endpoint: myEndpoint, signal });
       const merged = normalizeUserForXmpp(
         mergeUsers(candidateWithCurrentTokens(), myUser)
       );

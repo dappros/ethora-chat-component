@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { store } from '../../roomStore';
 import {
   ApiRoom,
@@ -8,6 +9,7 @@ import {
   RoomMember,
 } from '../../types/types';
 import http from '../apiClient';
+import { createSharedRequest, SharedRequest } from '../sharedRequest';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
 
 // 60s, not 1.5s. Provider bootstrap fires /chats/my early; chat mount can
@@ -15,7 +17,7 @@ import { ethoraLogger } from '../../helpers/ethoraLogger';
 // the UI fires a second /chats/my just to refetch the same data — and the
 // user sees a "0 rooms" flash while the second request is in flight.
 const GET_ROOMS_CACHE_MS = 60_000;
-let getRoomsInFlight: Promise<{ items: ApiRoom[] }> | null = null;
+let getRoomsInFlight: SharedRequest<{ items: ApiRoom[] }> | null = null;
 let getRoomsInFlightToken = '';
 let lastGetRoomsResponse: { items: ApiRoom[] } | null = null;
 let lastGetRoomsResponseAt = 0;
@@ -27,7 +29,13 @@ export function invalidateRoomsCache() {
   lastGetRoomsResponseToken = '';
 }
 
-export async function getRooms(): Promise<{ items: ApiRoom[] }> {
+// An aborted request (AbortSignal fired) must never poison the cache or the
+// in-flight dedup: axios rejects it with a CanceledError, which we treat
+// like any other transport failure below - lastGetRoomsResponse is only
+// written on the success path, and the in-flight entry is always cleared in
+// the finally so the next (non-aborted) caller gets a fresh request instead
+// of hanging on a promise that will never resolve for them.
+export async function getRooms(signal?: AbortSignal): Promise<{ items: ApiRoom[] }> {
   const token = store.getState().chatSettingStore.user.token || '';
   const now = Date.now();
 
@@ -40,25 +48,33 @@ export async function getRooms(): Promise<{ items: ApiRoom[] }> {
   }
 
   if (getRoomsInFlight && getRoomsInFlightToken === token) {
-    return getRoomsInFlight;
+    return getRoomsInFlight.join(signal);
   }
 
   getRoomsInFlightToken = token;
-  getRoomsInFlight = (async () => {
+  const shared = createSharedRequest(async (sharedSignal) => {
     const response = await http.get('/v1/chats/my', {
       headers: {
         Authorization: token,
       },
+      signal: sharedSignal,
     });
     lastGetRoomsResponse = response.data;
     lastGetRoomsResponseAt = Date.now();
     lastGetRoomsResponseToken = token;
-    return response.data;
-  })();
+    return response.data as { items: ApiRoom[] };
+  });
+  getRoomsInFlight = shared;
 
   try {
-    return await getRoomsInFlight;
+    return await shared.join(signal);
   } catch (error) {
+    if (axios.isCancel(error)) {
+      // Let the caller see the cancellation instead of silently returning
+      // an empty list - a caller that aborted its own request already
+      // knows why and will decide whether to retry.
+      throw error;
+    }
     ethoraLogger.log('Error loading rooms');
     return { items: [] };
   } finally {
@@ -70,31 +86,40 @@ export async function getRooms(): Promise<{ items: ApiRoom[] }> {
 // In-flight dedup: onMembersRefreshSignal can fire once per broadcast
 // stanza for the same room, and each occupant would otherwise issue an
 // uncoalesced GET per stanza.
-const roomByNameInflight = new Map<string, Promise<ApiRoom>>();
+const roomByNameInflight = new Map<string, SharedRequest<ApiRoom>>();
 
-export async function getRoomByName(chatName: string): Promise<ApiRoom> {
+export async function getRoomByName(
+  chatName: string,
+  signal?: AbortSignal
+): Promise<ApiRoom> {
   const token = store.getState().chatSettingStore.user.token || '';
   const key = `${token}|${chatName}`;
 
   const inflight = roomByNameInflight.get(key);
-  if (inflight) return inflight;
+  if (inflight) return inflight.join(signal);
 
-  const request = http
-    .get(`/v1/chats/my/${chatName}`, {
-      headers: {
-        Authorization: token,
-      },
-    })
-    .then((response) => response.data as ApiRoom)
-    .catch(() => {
-      throw new Error('Error updating profile');
-    })
-    .finally(() => {
-      roomByNameInflight.delete(key);
-    });
+  const shared = createSharedRequest((sharedSignal) =>
+    http
+      .get(`/v1/chats/my/${chatName}`, {
+        headers: {
+          Authorization: token,
+        },
+        signal: sharedSignal,
+      })
+      .then((response) => response.data as ApiRoom)
+      .catch((error) => {
+        if (axios.isCancel(error)) {
+          throw error;
+        }
+        throw new Error('Error updating profile');
+      })
+      .finally(() => {
+        roomByNameInflight.delete(key);
+      })
+  );
 
-  roomByNameInflight.set(key, request);
-  return request;
+  roomByNameInflight.set(key, shared);
+  return shared.join(signal);
 }
 
 export async function postRoom(data: PostRoom) {

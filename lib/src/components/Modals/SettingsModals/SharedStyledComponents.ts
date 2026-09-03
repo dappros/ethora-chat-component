@@ -39,7 +39,7 @@ export const RowWrapper = styled.div`
 export const SharedSettingsLabelData = styled(Label)`
   font-size: 12px;
   text-align: start;
-  color: #8c8c8c;
+  color: var(--ethora-color-text-muted, #8c8c8c);
 `;
 
 export const SharedSettingsStyledButton = styled(Button)<{
@@ -54,6 +54,7 @@ export const SharedSettingsStyledButton = styled(Button)<{
   text-align: center;
   width: 100%;
   padding: 8px;
+  border-radius: var(--ethora-radius-sm, 8px);
   border: 1px solid ${({ borderColor }) => borderColor};
 `;
 
@@ -62,13 +63,13 @@ export const SharedSettingsInfoPanel = styled.div<{ bgColor: string }>`
   align-items: flex-start;
   background-color: ${({ bgColor }) => bgColor};
   padding: 16px;
-  border-radius: 8px;
+  border-radius: var(--ethora-radius-sm, 8px);
   gap: 8px;
 `;
 
 export const SharedSettingsInfoText = styled.div`
   font-size: 12px;
-  color: #141414;
+  color: var(--ethora-color-text, #141414);
   display: flex;
   text-align: start;
 `;

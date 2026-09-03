@@ -16,6 +16,7 @@ import usePushNotifications from '../../hooks/usePushNotifications';
 import NotificationPermissionBanner from '../Notification/NotificationPermissionBanner';
 import { useTypography } from '../../hooks/useTypography';
 import { applyThemeColors } from '../../helpers/resolveIconColor';
+import { ThemeTokens } from '../../styles/tokens';
 
 interface ChatWrapperProps
   extends Pick<
@@ -137,6 +138,7 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
                 <Chat> would double-handle every incoming message. */}
             <NotificationEnabler />
             <ConfigEnabler config={memoizedConfig} />
+            <ThemeTokens config={memoizedConfig} />
             <TypographyEnabler config={memoizedConfig} />
             <ThemeColorsEnabler config={memoizedConfig} />
             <PushNotificationsEnabler config={memoizedConfig} />

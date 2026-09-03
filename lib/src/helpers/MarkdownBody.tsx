@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 
-// Loaded lazily via parseMessageBody.tsx — the markdown pipeline
+// Loaded lazily via parseMessageBody.tsx, the markdown pipeline
 // (react-markdown + remark-gfm + rehype-raw/parse5) is heavy, so it lives
 // in its own chunk instead of the host's initial bundle.
 const MarkdownBody = ({ text }: { text: string }) => {
@@ -14,9 +14,9 @@ const MarkdownBody = ({ text }: { text: string }) => {
       style={{
         fontFamily:
           'var(--ethora-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif)',
-        fontSize: 'var(--ethora-font-size, 16px)',
-        color: '#24292f',
-        lineHeight: 1.6,
+        fontSize: 'var(--ethora-font-size, 15px)',
+        color: 'var(--ethora-color-text, #24292f)',
+        lineHeight: 1.45,
       }}
     >
       <ReactMarkdown
@@ -28,7 +28,10 @@ const MarkdownBody = ({ text }: { text: string }) => {
               href={href!}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ color: '#0a66c2', textDecoration: 'none' }}
+              style={{
+                color: 'var(--ethora-color-primary, #0a66c2)',
+                textDecoration: 'none',
+              }}
             >
               {children}
             </a>
@@ -41,9 +44,9 @@ const MarkdownBody = ({ text }: { text: string }) => {
                 <code
                   {...props}
                   style={{
-                    backgroundColor: '#f1f3f4',
+                    backgroundColor: 'var(--ethora-color-bg-subtle, #f1f3f4)',
                     padding: '2px 4px',
-                    borderRadius: 3,
+                    borderRadius: 'var(--ethora-radius-sm, 3px)',
                     fontFamily: 'monospace',
                     fontSize: '0.9em',
                   }}
@@ -56,11 +59,11 @@ const MarkdownBody = ({ text }: { text: string }) => {
             return (
               <pre
                 style={{
-                  backgroundColor: '#f6f8fa',
+                  backgroundColor: 'var(--ethora-color-bg-subtle, #f6f8fa)',
                   padding: '12px',
-                  borderRadius: '6px',
+                  borderRadius: 'var(--ethora-radius-sm, 6px)',
                   overflowX: 'auto',
-                  border: '1px solid #e1e4e8',
+                  border: '1px solid var(--ethora-color-border, #e1e4e8)',
                   fontSize: '14px',
                   lineHeight: '1.45',
                 }}
@@ -80,7 +83,7 @@ const MarkdownBody = ({ text }: { text: string }) => {
                   width: '100%',
                   minWidth: '600px',
                   fontSize: '14px',
-                  border: '1px solid #d0d7de',
+                  border: '1px solid var(--ethora-color-border, #d0d7de)',
                 }}
               >
                 {children}
@@ -90,9 +93,9 @@ const MarkdownBody = ({ text }: { text: string }) => {
           th: ({ children }) => (
             <th
               style={{
-                border: '1px solid #d0d7de',
+                border: '1px solid var(--ethora-color-border, #d0d7de)',
                 padding: '12px 16px',
-                background: '#f6f8fa',
+                background: 'var(--ethora-color-bg-subtle, #f6f8fa)',
                 textAlign: 'left',
                 fontWeight: 600,
               }}
@@ -103,7 +106,7 @@ const MarkdownBody = ({ text }: { text: string }) => {
           td: ({ children }) => (
             <td
               style={{
-                border: '1px solid #d0d7de',
+                border: '1px solid var(--ethora-color-border, #d0d7de)',
                 padding: '12px 16px',
                 verticalAlign: 'top',
               }}
@@ -170,7 +173,7 @@ const MarkdownBody = ({ text }: { text: string }) => {
               style={{
                 margin: '20px 0',
                 border: 'none',
-                borderTop: '1px solid #e1e4e8',
+                borderTop: '1px solid var(--ethora-color-border, #e1e4e8)',
               }}
             />
           ),

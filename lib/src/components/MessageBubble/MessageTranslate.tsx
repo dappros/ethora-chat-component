@@ -15,13 +15,18 @@ interface MessageTranslateProps {
 const TranslateLink = styled.span<{ $color?: string }>`
   display: inline-block;
   margin-top: 4px;
-  font-size: 12px;
+  font-size: var(--ethora-font-size-xs, 12px);
   font-weight: 600;
   cursor: pointer;
   user-select: none;
-  color: ${(p) => p.$color || '#0052CD'};
+  color: ${(p) => p.$color || 'var(--ethora-color-primary, #0052CD)'};
   &:hover {
     text-decoration: underline;
+  }
+  &:focus-visible {
+    outline: 2px solid var(--ethora-color-primary, #0052cd);
+    outline-offset: 2px;
+    border-radius: var(--ethora-radius-sm, 4px);
   }
 `;
 

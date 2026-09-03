@@ -11,6 +11,7 @@ import {
   resolveIconBgColor,
   resolveIconColor,
 } from '../../helpers/resolveIconColor';
+import { useT } from '../../i18n/useT';
 
 interface AudioRecorderProps {
   setIsRecording: (state: boolean) => void;
@@ -23,6 +24,7 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
   isRecording,
   handleSendClick,
 }) => {
+  const t = useT();
   const { config } = useChatSettingState();
   const iconColor = resolveIconColor(config);
   const iconBgColor = resolveIconBgColor(config);
@@ -126,16 +128,26 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({
       </div>
 
       <div style={{ display: 'flex', gap: '8px' }}>
-        <Button onClick={stopRecording} EndIcon={<RemoveIcon />} unstyled />
+        <Button
+          onClick={stopRecording}
+          aria-label={t('action.stopRecording')}
+          EndIcon={<RemoveIcon />}
+          unstyled
+        />
         <Button
           onClick={sendAudio}
+          aria-label={t('action.sendRecording')}
           EndIcon={<SendIcon color={iconColor} bgcolor={iconBgColor} />}
           unstyled
         />
       </div>
     </RecordContainer>
   ) : (
-    <Button onClick={startRecording} EndIcon={<RecordIcon color={iconColor} bgcolor={iconBgColor} />} />
+    <Button
+      onClick={startRecording}
+      aria-label={t('action.startRecording')}
+      EndIcon={<RecordIcon color={iconColor} bgcolor={iconBgColor} />}
+    />
   );
 };
 

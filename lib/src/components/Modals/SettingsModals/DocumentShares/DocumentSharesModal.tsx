@@ -97,7 +97,9 @@ const DocumentSharesModal: React.FC<DocumentSharesModalProps> = ({
                   </Button>
                 </div>
               </div>
-              <SharedSettingsInfoPanel bgColor={config?.colors?.secondary}>
+              <SharedSettingsInfoPanel
+                bgColor={config?.colors?.secondary || 'var(--ethora-color-bg-subtle, #F5F7FA)'}
+              >
                 <SharedSettingsInfoText>
                   {t('settings.documentShares.emptyState')}
                 </SharedSettingsInfoText>

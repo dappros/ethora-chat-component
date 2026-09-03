@@ -3,12 +3,13 @@ import styled from 'styled-components';
 export const InputContainer = styled.div`
   display: flex;
   flex-direction: column;
-  border-radius: 15px 15px 0px 0px;
+  border-radius: var(--ethora-radius-lg, 15px) var(--ethora-radius-lg, 15px) 0
+    0;
   padding: 16px;
   background-color: var(--ethora-input-bg, #fff);
+  border-top: 1px solid var(--ethora-color-border, #e6e8ec);
   z-index: 1;
-  box-shadow: 0px 0px 8px -4px #12121908;
-  box-shadow: 0px 0px 24px -4px #12121914;
+  box-shadow: var(--ethora-shadow-sm, 0px 0px 24px -4px #12121914);
   max-width: 100%;
   /* Composer sits as a flex sibling after the message list - keep it at
      its natural height instead of letting the column flex layout shrink
@@ -26,15 +27,19 @@ export const MessageInputContainer = styled.div`
 
 export const MessageInput = styled.input<{ $color?: string, $colorBg?: string }>`
   flex-grow: 1;
-  padding: 10px;
-  border-radius: 12px;
-  border: none;
-  color: #141414;
-  background-color: ${({$colorBg}) => $colorBg? $colorBg : '#f5f7f9'};
+  padding: 10px 12px;
+  border-radius: var(--ethora-radius-md, 12px);
+  border: 1px solid var(--ethora-color-border, #e6e8ec);
+  color: var(--ethora-color-text, #141414);
+  background-color: ${({$colorBg}) => $colorBg? $colorBg : 'var(--ethora-color-bg-subtle, #f5f7f9)'};
   max-height: 40px;
+  transition: border-color var(--ethora-motion-fast, 150ms)
+    var(--ethora-motion-ease, ease);
+
   &:focus {
-    border: 1px solid ${(props) => (props.$color ? props.$color : '#0052CD')};
-    outline: none;
+    border-color: ${(props) => (props.$color ? props.$color : 'var(--ethora-color-primary, #0052CD)')};
+    outline: 2px solid ${(props) => (props.$color ? props.$color : 'var(--ethora-color-primary, #0052CD)')};
+    outline-offset: 1px;
   }
 `;
 
@@ -49,13 +54,14 @@ export const Timer = styled.div`
   font-size: 18px;
   font-weight: bold;
   margin-left: 10px;
-  color: #000;
+  color: var(--ethora-color-text, #000);
 `;
 
 export const WaveformContainer = styled.canvas`
   width: 100%;
   height: 40px;
-  background: #f1f1f1;
+  background: var(--ethora-color-bg-subtle, #f1f1f1);
+  border-radius: var(--ethora-radius-sm, 8px);
 `;
 
 export const RecordContainer = styled.div`
@@ -71,8 +77,8 @@ export const FilePreviewContainer = styled.div`
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 10px;
+  gap: var(--ethora-space-2, 8px);
+  margin-top: var(--ethora-space-2, 8px);
 `;
 
 export const FilePreview = styled.div`
@@ -83,10 +89,11 @@ export const FilePreview = styled.div`
   justify-content: center;
   width: 100px;
   height: 100px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
+  border: 1px solid var(--ethora-color-border, #e6e8ec);
+  border-radius: var(--ethora-radius-md, 12px);
   overflow: hidden;
-  background-color: #f9f9f9;
+  background-color: var(--ethora-color-bg-subtle, #f9f9f9);
+  box-shadow: var(--ethora-shadow-sm, 0 1px 2px rgba(16, 24, 40, 0.06));
 `;
 
 export const ImagePreview = styled.img`
@@ -125,27 +132,34 @@ export const FilePreviewName = styled.span`
 
 /** Why a pick was rejected (too many files, file too large). */
 export const AttachmentNotice = styled.div`
-  margin-top: 8px;
+  margin-top: var(--ethora-space-2, 8px);
   padding: 6px 10px;
-  border-radius: 8px;
+  border-radius: var(--ethora-radius-sm, 8px);
   font-size: 12px;
-  color: #9f0000;
+  color: var(--ethora-color-danger, #9f0000);
   background-color: #fdecec;
 `;
 
 export const StyledInput = styled.input<{ $colorBg?: string }>`
   padding: 16px 12px;
-  background-color: ${({$colorBg}) => $colorBg? $colorBg : '#f5f7f9'};
-  border: none;
+  background-color: ${({$colorBg}) => $colorBg? $colorBg : 'var(--ethora-color-bg-subtle, #f5f7f9)'};
+  border: 1px solid var(--ethora-color-border, #e6e8ec);
   outline: none;
-  font-size: 16px;
-  color: #000;
+  font-size: var(--ethora-font-size, 16px);
+  color: var(--ethora-color-text, #000);
   transition:
     width 0.7s ease-in-out,
-    padding 0.7s ease-in-out;
+    padding 0.7s ease-in-out,
+    border-color var(--ethora-motion-fast, 150ms) var(--ethora-motion-ease, ease);
   opacity: 1;
   z-index: 1;
-  border-radius: 16px;
+  border-radius: var(--ethora-radius-md, 16px);
+
+  &:focus {
+    border-color: var(--ethora-color-primary, #0052cd);
+    outline: 2px solid var(--ethora-color-primary, #0052cd);
+    outline-offset: 1px;
+  }
 
   &::placeholder {
     opacity: 1;
@@ -161,18 +175,26 @@ export const TextareaWrapper = styled.div<{
 }>`
   flex-grow: 1;
   position: relative;
-  border-radius: 12px;
-  background-color: ${({$colorBg}) => $colorBg? $colorBg : '#f5f7f9'};
+  border-radius: var(--ethora-radius-md, 12px);
+  background-color: ${({$colorBg}) => $colorBg? $colorBg : 'var(--ethora-color-bg-subtle, #f5f7f9)'};
   padding: 2px;
   height: ${(props) => props.$dynamicHeight || 40}px;
   max-height: ${(props) => props.$dynamicHeight || 40}px;
   min-height: 40px;
   box-sizing: border-box;
-  transition: height 0.2s ease-in-out;
-  border: ${(props) =>
+  transition:
+    height 0.2s ease-in-out,
+    border-color var(--ethora-motion-fast, 150ms) var(--ethora-motion-ease, ease);
+  border: 1px solid
+    ${(props) =>
+      props.$isFocused
+        ? props.$color || 'var(--ethora-color-primary, #0052CD)'
+        : 'var(--ethora-color-border, #e6e8ec)'};
+  outline: ${(props) =>
     props.$isFocused
-      ? `1px solid ${props.$color || '#0052CD'}`
-      : '1px solid transparent'};
+      ? `2px solid ${props.$color || 'var(--ethora-color-primary, #0052CD)'}`
+      : 'none'};
+  outline-offset: 1px;
 `;
 
 export const TextareaInput = styled.textarea<{
@@ -183,10 +205,10 @@ export const TextareaInput = styled.textarea<{
   width: 100%;
   height: 100%;
   padding: 8px 10px;
-  border-radius: 10px;
+  border-radius: var(--ethora-radius-sm, 10px);
   border: none;
-  color: #141414;
-  background-color: ${({$colorBg}) => $colorBg? $colorBg : '#f5f7f9'};
+  color: var(--ethora-color-text, #141414);
+  background-color: ${({$colorBg}) => $colorBg? $colorBg : 'var(--ethora-color-bg-subtle, #f5f7f9)'};
   line-height: 20px;
   font-size: inherit;
   font-family: inherit;
@@ -214,12 +236,12 @@ export const TextareaInput = styled.textarea<{
   }
 
   &::-webkit-scrollbar-thumb {
-    background-color: ${(props) => (props.$color ? props.$color : '#0052CD')};
+    background-color: ${(props) => (props.$color ? props.$color : 'var(--ethora-color-primary, #0052CD)')};
     border-radius: 2px;
   }
 
   &::-webkit-scrollbar-thumb:hover {
-    background-color: ${(props) => (props.$color ? props.$color : '#0052CD')};
+    background-color: ${(props) => (props.$color ? props.$color : 'var(--ethora-color-primary, #0052CD)')};
   }
 
   &::-webkit-scrollbar-corner {
@@ -231,6 +253,6 @@ export const TextareaInput = styled.textarea<{
     props.$dynamicHeight && props.$dynamicHeight > 40 ? 'thin' : 'none'};
   scrollbar-color: ${(props) =>
       props.$dynamicHeight && props.$dynamicHeight > 40
-        ? `${props.$color ? props.$color : '#0052CD'} transparent`
+        ? `${props.$color ? props.$color : 'var(--ethora-color-primary, #0052CD)'} transparent`
         : 'transparent transparent'};
 `;

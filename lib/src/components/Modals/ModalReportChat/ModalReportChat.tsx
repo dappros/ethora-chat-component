@@ -16,8 +16,19 @@ export const Report = styled.button`
   border: none;
   cursor: pointer;
   width: 100%;
-  border-radius: 12px;
+  min-height: 48px;
+  border-radius: var(--ethora-radius-md, 12px);
   background: transparent;
+  transition: background-color var(--ethora-motion-fast, 150ms);
+
+  &:hover {
+    background-color: var(--ethora-color-bg-hover, #f0f2f5);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ethora-color-primary, #0052cd);
+    outline-offset: -2px;
+  }
 `;
 
 // `id` is what's sent to postReportRoom as `category` (an API contract, not
@@ -162,9 +173,10 @@ export const ModalReportChat: FC = () => {
           <Button
             onClick={handleReport}
             text={t('action.report')}
-            style={{ width: '100%', backgroundColor: 'red' }}
+            style={{ width: '100%' }}
             unstyled
             variant="filled"
+            tone="danger"
           />
         </div>
       ) : (

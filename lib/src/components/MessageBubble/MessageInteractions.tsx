@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import styled from 'styled-components';
 import {
   ArrowButton,
   ContainerInteractions,
@@ -19,8 +20,25 @@ import { IMessage } from '../../types/types';
 import { DownArrowIcon } from '../../assets/icons';
 import Picker from '../EmojiPicker/LazyEmojiPicker';
 import { getEmojiNativeById, useEmojiData } from '../../helpers/lazyEmoji';
+import { fadeInAnimation, scaleInAnimation } from '../../styles/motion';
+import { useT } from '../../i18n/useT';
 
 import '../../index.css';
+
+// Local overrides on top of the shared ContextMenu primitives: fade/scale-in
+// on open instead of the hard show/hide the plain conditional render gives
+// it, and a tokenized surface so the menu matches the rest of the polished
+// bubble instead of a flat white card.
+const AnimatedOverlay = styled(Overlay)`
+  ${fadeInAnimation}
+`;
+
+const StyledContextMenu = styled(ContextMenu)`
+  background-color: var(--ethora-color-bg, #ffffff);
+  border-radius: var(--ethora-radius-md, 12px);
+  box-shadow: var(--ethora-shadow-md, 0 4px 12px rgba(16, 24, 40, 0.1));
+  ${scaleInAnimation}
+`;
 
 const fixedEmojiIds = ['joy', 'heart', 'fire', '+1', 'smile', 'scream'];
 import { useRoomState } from '../../hooks/useRoomState';
@@ -52,6 +70,7 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
   const { roomsList, activeRoomJID } = useRoomState();
   const [showPicker, setShowPicker] = useState(false);
   useEmojiData();
+  const t = useT();
 
   const config = useSelector(
     (state: RootState) => state.chatSettingStore.config
@@ -155,7 +174,7 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
   return (
     <>
       {!message.isDeleted && (
-        <Overlay onClick={closeContextMenu}>
+        <AnimatedOverlay onClick={closeContextMenu}>
           <ContainerInteractions
             style={{ top: contextMenu.y, left: contextMenu.x }}
           >
@@ -170,7 +189,17 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
                 </ReactionBadge>
               ))}
               <ArrowButton
+                role="button"
+                tabIndex={0}
+                aria-label={t('action.moreOptions')}
+                aria-expanded={showPicker}
                 isRotated={showPicker}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    (e.currentTarget as HTMLElement).click();
+                  }
+                }}
                 onClick={(e) => {
                   e.stopPropagation();
                   const { adjustedX, adjustedY } = calculatePickerPosition(
@@ -206,7 +235,7 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
               />
             )}
 
-            <ContextMenu onClick={closeContextMenu}>
+            <StyledContextMenu onClick={closeContextMenu}>
               {/* <MenuItem onClick={() => ethoraLogger.log(MESSAGE_INTERACTIONS.SEND_COINS)}>
             {MESSAGE_INTERACTIONS.SEND_COINS}
             <MESSAGE_INTERACTIONS_ICONS.SEND_COINS />{' '}
@@ -251,9 +280,9 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
             {MESSAGE_INTERACTIONS.REPORT}
             <MESSAGE_INTERACTIONS_ICONS.REPORT />{' '}
           </MenuItem> */}
-            </ContextMenu>
+            </StyledContextMenu>
           </ContainerInteractions>
-        </Overlay>
+        </AnimatedOverlay>
       )}
     </>
   );

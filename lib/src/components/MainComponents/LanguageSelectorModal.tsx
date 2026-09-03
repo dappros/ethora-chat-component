@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useThemeTokenStyle } from '../../styles/tokens';
+import { useModalDismiss } from '../../hooks/useModalDismiss';
 import styled from 'styled-components';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
@@ -55,7 +57,7 @@ const IconButton = styled.button`
   flex-shrink: 0;
 
   &:hover {
-    background: rgba(0, 0, 0, 0.06);
+    background: var(--ethora-color-bg-hover, #f0f2f5);
   }
 `;
 
@@ -85,17 +87,18 @@ const LanguageRow = styled.button<{ $selected: boolean; $accent: string }>`
   width: 100%;
   min-height: 48px;
   padding: 0 14px;
-  border-radius: 10px;
+  border-radius: var(--ethora-radius-sm, 10px);
   border: none;
   background: ${({ $selected, $accent }) => ($selected ? `${$accent}1a` : 'transparent')};
-  color: ${({ $selected, $accent }) => ($selected ? $accent : '#141414')};
+  color: ${({ $selected, $accent }) => ($selected ? $accent : 'var(--ethora-color-text, #141414)')};
   font-size: 15px;
   font-weight: ${({ $selected }) => ($selected ? 600 : 400)};
   text-align: left;
   cursor: pointer;
+  transition: background var(--ethora-motion-fast, 150ms);
 
   &:hover {
-    background: ${({ $selected, $accent }) => ($selected ? `${$accent}1a` : 'rgba(0, 0, 0, 0.04)')};
+    background: ${({ $selected, $accent }) => ($selected ? `${$accent}1a` : 'var(--ethora-color-bg-hover, #f0f2f5)')};
   }
 `;
 
@@ -114,19 +117,19 @@ const TranslateToggleRow = styled.div`
 
 const TranslateToggleLabel = styled.span`
   font-size: 15px;
-  color: #141414;
+  color: var(--ethora-color-text, #141414);
 `;
 
 const TranslateDisclaimer = styled.p`
   margin: -8px 14px 4px;
   font-size: 12px;
   line-height: 1.4;
-  color: #8c8c8c;
+  color: var(--ethora-color-text-muted, #8c8c8c);
 `;
 
 const Divider = styled.div`
   height: 1px;
-  background: rgba(0, 0, 0, 0.08);
+  background: var(--ethora-color-border, #e6e8ec);
   margin: 4px 0;
 `;
 
@@ -139,17 +142,18 @@ const ModeSwitchRow = styled.div`
 const ModeButton = styled.button<{ $selected: boolean; $accent: string }>`
   flex: 1;
   padding: 8px 0;
-  border-radius: 8px;
+  border-radius: var(--ethora-radius-sm, 8px);
   border: 1px solid
-    ${({ $selected, $accent }) => ($selected ? $accent : 'rgba(0, 0, 0, 0.12)')};
+    ${({ $selected, $accent }) => ($selected ? $accent : 'var(--ethora-color-border, #e6e8ec)')};
   background: ${({ $selected, $accent }) => ($selected ? `${$accent}1a` : 'transparent')};
-  color: ${({ $selected, $accent }) => ($selected ? $accent : '#141414')};
+  color: ${({ $selected, $accent }) => ($selected ? $accent : 'var(--ethora-color-text, #141414)')};
   font-size: 14px;
   font-weight: ${({ $selected }) => ($selected ? 600 : 400)};
   cursor: pointer;
+  transition: background var(--ethora-motion-fast, 150ms);
 
   &:hover {
-    background: ${({ $selected, $accent }) => ($selected ? `${$accent}1a` : 'rgba(0, 0, 0, 0.04)')};
+    background: ${({ $selected, $accent }) => ($selected ? `${$accent}1a` : 'var(--ethora-color-bg-hover, #f0f2f5)')};
   }
 `;
 
@@ -162,6 +166,10 @@ export const LanguageSelectorButton: React.FC = () => {
     (state: RootState) => state.chatSettingStore.langSource
   );
   const accentColor = config?.colors?.primary || '#0052CD';
+  // The portal mounts on document.body, outside the chat root that carries
+  // the design tokens inline, so re-apply them on the portal container.
+  const portalTokenStyle = useThemeTokenStyle(config?.colors, config?.typography);
+  useModalDismiss({ enabled: isOpen, onClose: () => setIsOpen(false) });
   const translatesEnabled = !!config?.translates?.enabled;
   // Undefined (reader never touched the toggle) reads as ON - matches the
   // send-path default in useSendMessage, so the switch shows the state
@@ -195,7 +203,10 @@ export const LanguageSelectorButton: React.FC = () => {
       {isOpen &&
         typeof document !== 'undefined' &&
         createPortal(
-          <LanguageModalBackground onClick={() => setIsOpen(false)}>
+          <LanguageModalBackground
+            onClick={() => setIsOpen(false)}
+            style={portalTokenStyle}
+          >
             <LanguageModalContainer onClick={(e) => e.stopPropagation()}>
               <CloseButton onClick={() => setIsOpen(false)} aria-label={t('action.cancel')}>
                 &times;

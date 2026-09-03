@@ -131,7 +131,7 @@ export class XmppClient implements XmppClientInterface {
   // useChatWrapperInit.ts, and xmppProvider.tsx's initBeforeLoad path) with
   // no coordination between them. Observed live: 2-3 full presence sweeps
   // for the same ~10 rooms firing back-to-back, each its own concurrency
-  // worker-pool competing for the same WS connection — turning a ~1.6s sweep
+  // worker-pool competing for the same WS connection, turning a ~1.6s sweep
   // into an 8-11s one and dragging the whole catchup phase down with it
   // (13-14.5s total instead of the ~6.5s a single clean sweep gets). This
   // in-flight promise makes every caller share the same underlying sweep.
@@ -152,7 +152,7 @@ export class XmppClient implements XmppClientInterface {
   private inFlightIds: Set<string> = new Set();
   private processingQueue: boolean = false;
   private currentlyProcessingQueueId: string | null = null;
-  // Resolves the in-flight send to `false` when called — used on disconnect
+  // Resolves the in-flight send to `false` when called, used on disconnect
   // so a stuck send (e.g. laptop sleep killed the WS) doesn't pin processQueue
   // forever. The queue then unshifts the entry and resumes after reconnect.
   private currentSendCancel: (() => void) | null = null;
@@ -385,7 +385,7 @@ export class XmppClient implements XmppClientInterface {
     this.username = username;
     this.password = password;
     this.pingOnSendEnabled = xmppSettings?.xmppPingOnSendEnabled === true;
-    // Was 2, tighter than historyPreloadScheduler's own concurrency=3 — the
+    // Was 2, tighter than historyPreloadScheduler's own concurrency=3, the
     // two gates disagreeing meant the scheduler could never actually run 3
     // rooms in parallel, it always serialized down to 2. A background
     // preload burst of N rooms round-trips to the server sequentially in
@@ -565,7 +565,7 @@ export class XmppClient implements XmppClientInterface {
       this.roomPresenceBlockedUntil.clear();
       this.clearMamRegistry();
       this.clearHistoryQueue();
-      // Don't clear pendingSendById — the messageQueue entries survive disconnect
+      // Don't clear pendingSendById, the messageQueue entries survive disconnect
       // and we need their metadata so reconnect can resume them. Just unstick
       // any in-flight send so processQueue can exit and retry on reconnect.
       this.sendIsActiveById.clear();
@@ -741,7 +741,7 @@ export class XmppClient implements XmppClientInterface {
       if (this.status !== 'online' || this.pingInFlight) return;
 
       // Every stanza refreshes lastActivityTs; if the connection saw traffic
-      // recently there is nothing to probe — re-arm instead of spending a
+      // recently there is nothing to probe, re-arm instead of spending a
       // ping/pong round trip on a provably alive connection.
       if (Date.now() - this.lastActivityTs < this.idleThresholdMs) {
         this.scheduleAdaptivePing();
@@ -798,14 +798,14 @@ export class XmppClient implements XmppClientInterface {
         this.lastPingId = pingId;
 
         // Match scheduleAdaptivePing's floor: pongTimeoutMs alone (1000ms) is
-        // too tight for THIS, the very first ping after connect — it fires
+        // too tight for THIS, the very first ping after connect, it fires
         // while the connection is busiest (presence sweep + history preload
         // racing for the same WS), so any round-trip over 1s would read as a
         // dead connection and force a reconnect that wipes joinedRooms and
         // restarts the whole presence sweep from zero. (The actual cause of
         // the mid-load slowdowns observed live turned out to be a duplicate
-        // presence sweep — see sendAllPresencesAndMarkReady's in-flight guard
-        // — not this timeout; keeping the floor here regardless, since 1s is
+        // presence sweep, see sendAllPresencesAndMarkReady's in-flight guard
+        //, not this timeout; keeping the floor here regardless, since 1s is
         // still an unreasonably tight window for the busiest ping.)
         const pongWait = Math.max(this.pongTimeoutMs, 4000);
         this.pingTimeout = setTimeout(() => {
@@ -836,7 +836,7 @@ export class XmppClient implements XmppClientInterface {
     if (this.sendAllPresencesInFlight) {
       return this.sendAllPresencesInFlight;
     }
-    // A prior sweep already confirmed presence for the current room set —
+    // A prior sweep already confirmed presence for the current room set,
     // one of the three independent callers just arrived late. `reconnect()`
     // explicitly resets presencesReady to false before the next online
     // cycle, so this never suppresses a sweep that's actually needed again.
@@ -857,6 +857,7 @@ export class XmppClient implements XmppClientInterface {
       success: 0,
       failed: 0,
       failedRooms: [] as string[],
+      sweptRooms: [] as string[],
       failures: [],
     };
     try {
@@ -867,8 +868,12 @@ export class XmppClient implements XmppClientInterface {
       );
     }
     if (summary.total > 0) {
-      const allRooms = Object.keys(store.getState().rooms.rooms || {});
-      allRooms.forEach((jid) => {
+      // Only rooms the sweep actually sent a presence for count as joined.
+      // Reading the store here instead would also mark rooms that were
+      // discovered DURING the sweep (onGetChatRooms skips presence while a
+      // sweep runs), and ensureRoomPresence would then short-circuit for
+      // them forever: MAM queried unjoined, empty pages, blank rooms.
+      summary.sweptRooms.forEach((jid) => {
         if (!summary.failedRooms.includes(jid)) {
           this.joinedRooms.add(jid);
         }
@@ -928,7 +933,14 @@ export class XmppClient implements XmppClientInterface {
   async allRoomPresencesStanza(): Promise<AllRoomPresenceSummary> {
     const start = Date.now();
     try {
-      const summary = await allRoomPresences(this.client);
+      const summary = await allRoomPresences(this.client, (roomJid) =>
+        this.ensureRoomPresence(roomJid, {
+          settleDelay: 0,
+          timeoutMs: 5000,
+          waitForJoin: true,
+          source: 'background',
+        })
+      );
       ethoraLogger.log(
         `[InitTiming] xmpp:allRoomPresencesStanza ${Date.now() - start}ms`
       );
@@ -942,6 +954,7 @@ export class XmppClient implements XmppClientInterface {
         success: 0,
         failed: 0,
         failedRooms: [],
+        sweptRooms: [],
         failures: [],
       };
     }
@@ -1456,10 +1469,8 @@ export class XmppClient implements XmppClientInterface {
       const request = this.mamRequestRegistry.get(queryId);
       if (!request) return false;
 
-      // Late result for a timed-out request: swallow it, its promise has
-      // already resolved undefined.
-      if (request.abandoned) return true;
-
+      // Late result for a timed-out request: keep collecting; the <fin>
+      // branch merges the page into the store since nobody awaits it.
       const messageEl = result?.getChild('forwarded')?.getChild('message');
       if (messageEl) {
         request.messages.push(messageEl as Element);
@@ -1506,6 +1517,17 @@ export class XmppClient implements XmppClientInterface {
         this.mamRequestRegistry.delete(requestId);
         this.parseMamMessages(request.messages)
           .then((messages) => {
+            if (request.abandoned) {
+              // The caller already gave up (resolved undefined on timeout),
+              // but the archive page is real: merge it so a slow server
+              // still fills the room instead of the data being dropped.
+              if (messages.length && request.chatJID) {
+                store.dispatch(
+                  setRoomMessages({ roomJID: request.chatJID, messages })
+                );
+              }
+              return;
+            }
             request.resolve(messages);
           })
           .catch(() => {
@@ -1550,7 +1572,6 @@ export class XmppClient implements XmppClientInterface {
           // Keep a short-lived tombstone (see MamRequestState.abandoned) so
           // the server's late page is still routed here and dropped quietly.
           entry.abandoned = true;
-          entry.messages.length = 0;
           setTimeout(() => {
             const current = this.mamRequestRegistry.get(requestId);
             if (current?.abandoned) {
@@ -2304,7 +2325,7 @@ export class XmppClient implements XmppClientInterface {
 
   sendTypingRequestStanza(chatId: string, fullName: string, start: boolean) {
     // Don't send chatstates before we have a fully-bound session and have
-    // joined the target room — server returns "User session not found" or
+    // joined the target room, server returns "User session not found" or
     // routes the message to nowhere if `to` is empty/invalid.
     if (!chatId || !this.isValidMucRoomJid(chatId)) {
       return;

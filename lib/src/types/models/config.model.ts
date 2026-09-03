@@ -235,6 +235,14 @@ export interface IConfig {
   setRoomJidInPath?: boolean;
   disableRoomMenu?: boolean;
   defaultRooms?: ConfigRoom[];
+  /**
+   * The "Files" tab shown in the sidebar alongside "Chats". Enabled by
+   * default; set `enabled: false` to hide the tab switcher entirely and
+   * keep the sidebar showing only the room list, as before this existed.
+   */
+  filesTab?: {
+    enabled?: boolean;
+  };
   refreshTokens?: {
     enabled: boolean;
     /**

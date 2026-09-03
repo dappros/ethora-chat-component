@@ -186,7 +186,16 @@ const cloneFormData = (formData: FormData): FormData => {
   return copy;
 };
 
+// Only a real rejection of the secure endpoint (404/5xx and friends) means
+// "not available on this backend". A timeout, a dropped connection or a
+// caller-side cancel says nothing about the endpoint, and treating it as
+// unavailable latched secureUploadUnavailable for the whole session and
+// silently downgraded every later upload to the legacy path.
+const TRANSPORT_ERROR_CODES = new Set(['ECONNABORTED', 'ERR_NETWORK', 'ERR_CANCELED', 'ETIMEDOUT']);
+
 const canFallBackToLegacyUpload = (error: unknown): boolean => {
+  const code = (error as { code?: string })?.code;
+  if (code && TRANSPORT_ERROR_CODES.has(code)) return false;
   const status = (error as { response?: { status?: number } })?.response
     ?.status;
   if (typeof status !== 'number') return true;
@@ -199,6 +208,9 @@ const postUpload = (endpoint: string, formData: FormData, token: string) =>
       Authorization: token,
       Accept: '*/*',
     },
+    // Uploads are bounded by the file size and the user's link, not by
+    // latency: opt out of the instance-wide 20s timeout.
+    timeout: 0,
   });
 
 export async function uploadFile(formData: FormData, activeRoomJID: string) {

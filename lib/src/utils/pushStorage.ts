@@ -18,6 +18,8 @@ export const setStoredFcmToken = (token: string): void => {
       window.localStorage.removeItem(FCM_TOKEN_STORAGE_KEY);
     }
   } catch {
+    // Storage can be unavailable (private mode, quota); losing the cached
+    // token is harmless, it is re-fetched on the next registration.
   }
 };
 

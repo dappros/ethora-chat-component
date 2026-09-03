@@ -5,11 +5,12 @@ export const Container = styled.div``;
 export const Title = styled.div`
   font-size: 16px;
   font-weight: bold;
+  color: var(--ethora-color-text, #141414);
 `;
 
 export const Description = styled.p`
   font-size: 14px;
-  color: #6b7280;
+  color: var(--ethora-color-text-muted, #6b7280);
   margin-bottom: 32px;
 `;
 
@@ -27,6 +28,6 @@ export const RadioLabel = styled.label`
 `;
 
 export const RadioInput = styled.input<{ radioColor?: string }>`
-  accent-color: ${({ radioColor }) => radioColor || '#0052CD'};
+  accent-color: ${({ radioColor }) => radioColor || 'var(--ethora-color-primary, #0052CD)'};
   margin: 0px;
 `;

@@ -8,17 +8,27 @@ export interface AllRoomPresenceSummary {
   success: number;
   failed: number;
   failedRooms: string[];
+  // Every JID this sweep sent a presence for (snapshot taken at start).
+  sweptRooms: string[];
   failures?: Array<{ roomJid: string; reason: string }>;
 }
 
+// `join` lets the owner route each room through its dedup layer
+// (XmppClient.ensureRoomPresence) so the sweep shares an in-flight join with
+// background history tasks instead of sending a second <presence> for the
+// same room: the server answers a duplicate join once, one waiter would time
+// out and the room got a failure backoff while actually being joined.
+export type RoomJoiner = (roomJid: string) => Promise<boolean>;
+
 export async function allRoomPresences(
-  client: Client
+  client: Client,
+  join?: RoomJoiner
 ): Promise<AllRoomPresenceSummary> {
   const rooms = store.getState().rooms.rooms;
   const allKeys = rooms && typeof rooms === 'object' ? Object.keys(rooms) : [];
   const roomJids = allKeys.filter(isLikelyMucJid);
   if (!roomJids.length) {
-    return { total: 0, success: 0, failed: 0, failedRooms: [], failures: [] };
+    return { total: 0, success: 0, failed: 0, failedRooms: [], sweptRooms: [], failures: [] };
   }
 
   const settled: PromiseSettledResult<any>[] = new Array(roomJids.length);
@@ -36,7 +46,12 @@ export async function allRoomPresences(
       const { roomJid, index } = next;
       // Critical: delay must be lower than timeout to avoid deterministic timeout.
       const result = await Promise.allSettled([
-        presenceInRoom(client, roomJid, 0, 5000),
+        join
+          ? join(roomJid).then((joined) => {
+              if (!joined) throw new Error(`presence_failed:${roomJid}`);
+              return joined;
+            })
+          : presenceInRoom(client, roomJid, 0, 5000),
       ]);
       settled[index] = result[0];
       await new Promise((resolve) => setTimeout(resolve, 30));
@@ -71,6 +86,7 @@ export async function allRoomPresences(
     success,
     failed: failedRooms.length,
     failedRooms,
+    sweptRooms: roomJids,
     failures,
   };
 }

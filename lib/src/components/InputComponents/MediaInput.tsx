@@ -7,6 +7,7 @@ import {
   FilePreviewContainer,
   HiddenFileInput,
 } from '../styled/StyledInputComponents/StyledInputComponents';
+import { useT } from '../../i18n/useT';
 
 interface MediaInputProps {
   filePreviews: File[];
@@ -21,6 +22,7 @@ const MediaInput: React.FC<MediaInputProps> = ({
   handleSendClick,
   config,
 }) => {
+  const t = useT();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleAttachClick = useCallback(() => {
@@ -67,6 +69,7 @@ const MediaInput: React.FC<MediaInputProps> = ({
       <Button
         onClick={handleAttachClick}
         disabled={config?.disableMedia}
+        aria-label={t('action.attachFile')}
         EndIcon={<AttachIcon />}
       />
       <HiddenFileInput
@@ -81,13 +84,17 @@ const MediaInput: React.FC<MediaInputProps> = ({
               {renderFilePreview(file)}
               <Button
                 onClick={() => handleRemoveFile(file)}
+                aria-label={t('attachment.remove')}
                 EndIcon={<RemoveIcon />}
                 style={{
                   position: 'absolute',
                   top: 4,
                   right: 4,
-                  height: 16,
-                  width: 16,
+                  height: 20,
+                  width: 20,
+                  borderRadius: 'var(--ethora-radius-full, 999px)',
+                  backgroundColor: 'var(--ethora-color-bg, #fff)',
+                  boxShadow: 'var(--ethora-shadow-sm, 0 1px 3px rgba(16, 24, 40, 0.12))',
                 }}
               />
             </FilePreview>

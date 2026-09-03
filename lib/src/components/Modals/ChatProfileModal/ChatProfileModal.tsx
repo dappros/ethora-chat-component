@@ -9,6 +9,7 @@ import {
   BorderedContainer,
   LabelData,
   Divider,
+  ModalListRow,
 } from '../styledModalComponents';
 import ModalHeaderComponent from '../ModalHeaderComponent';
 import { ProfileImagePlaceholder } from '../../MainComponents/ProfileImagePlaceholder';
@@ -38,6 +39,10 @@ import SelectUsersModal from '../SelectUsersModal/SelectUsersModal';
 import { useToast } from '../../../context/ToastContext';
 import { ethoraLogger } from '../../../helpers/ethoraLogger';
 import { useT } from '../../../i18n/useT';
+import { useMyFiles } from '../../../hooks/useMyFiles';
+import FilesList from '../../Files/FilesList';
+import { ApiFile } from '../../../types/types';
+import { withFileToken } from '../../../helpers/secureFileUrl';
 
 interface ChatProfileModalProps {
   handleCloseModal: any;
@@ -61,11 +66,13 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         onClick: () => {
           setIsModalOpen(true);
         },
-        styles: { color: 'red' },
+        styles: { color: 'var(--ethora-color-danger, #D92D20)' },
       },
     ],
     [t]
   );
+
+  const [filesExpanded, setFilesExpanded] = useState<boolean>(false);
 
   const dispatch = useDispatch();
 
@@ -102,6 +109,45 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
       };
     });
   }, [activeRoom?.members, usersSet]);
+
+  // Files uploaded through this room, filtered client-side (the /v2/files
+  // list endpoint has no server-side room filter) by matching the room's
+  // local JID part - the same value handleDeleteUser already sends as
+  // `roomId` when calling /v1/chats/users-access.
+  const roomLocalName = activeRoom?.jid
+    ? activeRoom.jid.split('@')[0]
+    : undefined;
+  const {
+    items: roomFiles,
+    loading: filesLoading,
+    error: filesError,
+    remove: removeFile,
+  } = useMyFiles({ roomName: roomLocalName });
+  const visibleRoomFiles = filesExpanded ? roomFiles : roomFiles.slice(0, 6);
+
+  const handleFilePreview = (file: ApiFile) => {
+    const url = withFileToken(file.location);
+    if (url && typeof window !== 'undefined') {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const handleFileDownload = (file: ApiFile) => {
+    const url = withFileToken(file.location);
+    if (!url || typeof document === 'undefined') return;
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = file.originalname || 'file';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
+  const handleFileDelete = (file: ApiFile) => {
+    removeFile(file._id).catch(() => {
+      // Error surfaced via the hook's `error` state; nothing else to do here.
+    });
+  };
 
   const onUpload = async (file: File) => {
     try {
@@ -211,7 +257,11 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         rightMenu={
           <>
             {activeRoom?.type === 'public' && (
-              <Button EndIcon={<QrIcon />} onClick={() => setVisible(true)} />
+              <Button
+                EndIcon={<QrIcon />}
+                onClick={() => setVisible(true)}
+                aria-label={t('action.showQr')}
+              />
             )}
             {activeRoom.role === 'moderator' &&
               activeRoom.type !== 'private' &&
@@ -224,6 +274,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                       style={{ padding: 8, maxHeight: '40px' }}
                       EndIcon={<MoreIcon />}
                       unstyled
+                      aria-label={t('action.moreOptions')}
                     />
                   }
                 />
@@ -310,12 +361,9 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                     boxSizing: 'border-box',
                   }}
                 >
-                  <div
+                  <ModalListRow
                     style={{
-                      display: 'flex',
                       justifyContent: 'space-between',
-                      padding: '8px 0px',
-                      alignItems: 'center',
                       width: '100%',
                     }}
                   >
@@ -363,14 +411,14 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                         style={{
                           backgroundColor:
                             user.ban_status !== 'banned'
-                              ? '#F3F6FC'
-                              : '#FFEBEE',
+                              ? 'var(--ethora-color-primary-soft, #E7EDF9)'
+                              : 'rgba(217, 45, 32, 0.1)',
                           color:
                             user.ban_status !== 'banned'
-                              ? '#0052CD'
-                              : '#F44336',
+                              ? 'var(--ethora-color-primary, #0052CD)'
+                              : 'var(--ethora-color-danger, #D92D20)',
                           padding: '5px 8px',
-                          borderRadius: '16px',
+                          borderRadius: 'var(--ethora-radius-lg, 16px)',
                           fontSize: '12px',
                         }}
                       >
@@ -394,13 +442,56 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                           onClose={() => ethoraLogger.log('Dropdown closed')}
                         />
                       )}
-                  </div>
+                  </ModalListRow>
                   {index < enrichedMembers.length - 1 && <Divider />}
                 </div>
               ))
             )}
           </BorderedContainer>
         )}
+        <BorderedContainer style={{ padding: '8px 16px' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              cursor: 'pointer',
+            }}
+            onClick={() => setFilesExpanded((prev) => !prev)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setFilesExpanded((prev) => !prev);
+              }
+            }}
+            role="button"
+            tabIndex={0}
+            aria-expanded={filesExpanded}
+          >
+            <LabelData>{t('modal.chatProfile.filesTitle')}</LabelData>
+            {roomFiles.length > 6 && (
+              <Label style={{ color: 'var(--ethora-color-primary, #0052CD)', fontSize: '13px' }}>
+                {t('modal.chatProfile.filesShowAll')}
+              </Label>
+            )}
+          </div>
+          {filesLoading && roomFiles.length === 0 ? (
+            <Loader />
+          ) : filesError && roomFiles.length === 0 ? (
+            <Label>{t('files.error.title')}</Label>
+          ) : roomFiles.length === 0 ? (
+            <Label>{t('modal.chatProfile.filesEmpty')}</Label>
+          ) : (
+            <FilesList
+              items={visibleRoomFiles}
+              fileToken={fileToken}
+              onPreview={handleFilePreview}
+              onDownload={handleFileDownload}
+              onDelete={handleFileDelete}
+              compact
+            />
+          )}
+        </BorderedContainer>
       </CenterContainer>
       <OperationalModal
         isVisible={visible}

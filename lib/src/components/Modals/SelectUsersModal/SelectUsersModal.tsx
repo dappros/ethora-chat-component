@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useModalDismiss } from '../../../hooks/useModalDismiss';
 import { useDispatch, useSelector } from 'react-redux';
 import { getActiveRoom, RootState } from '../../../roomStore';
 import {
@@ -32,6 +33,7 @@ const SelectUsersModal: React.FC = () => {
     setIsModalOpen(false);
     setSelectedUsers([]);
   };
+  useModalDismiss({ enabled: isModalOpen, onClose: handleCloseModal });
 
   const handleAdd = async () => {
     setIsLoading(true);
@@ -88,7 +90,11 @@ const SelectUsersModal: React.FC = () => {
       {isModalOpen && (
         <ModalBackground>
           <ModalContainer>
-            <CloseButton onClick={handleCloseModal} style={{ fontSize: 24 }}>
+            <CloseButton
+              onClick={handleCloseModal}
+              style={{ fontSize: 24 }}
+              aria-label={t('action.close')}
+            >
               &times;
             </CloseButton>
             <GroupContainer

@@ -77,7 +77,13 @@ const UsersList: React.FC<UsersListProps> = ({
       {headerElement ? (
         <ModalTitle>{t('modal.selectUsers.title')}</ModalTitle>
       ) : (
-        <div style={{ fontSize: '14px', fontWeight: 600 }}>
+        <div
+          style={{
+            fontSize: 'var(--ethora-font-size-sm, 14px)',
+            fontWeight: 600,
+            color: 'var(--ethora-color-text, #141414)',
+          }}
+        >
           {t('modal.selectUsers.title')}
         </div>
       )}
@@ -96,7 +102,6 @@ const UsersList: React.FC<UsersListProps> = ({
           <UserItem
             key={user._id}
             onClick={() => handleUserSelect(user)}
-            style={{ cursor: 'pointer' }}
           >
             <Checkbox
               type="checkbox"
