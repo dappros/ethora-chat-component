@@ -1,5 +1,5 @@
 import React, { FC } from 'react';
-import styled, { keyframes } from 'styled-components';
+import styled, { css, keyframes } from 'styled-components';
 import { reducedMotion } from '../../../styles/motion';
 
 interface CustomTypingIndicatorProps {
@@ -27,7 +27,7 @@ const pulseAnimation = keyframes`
   100% { transform: scale(1); opacity: 0.8; }
 `;
 
-const BaseWrapper = styled.div<{ position: string }>`
+const BaseWrapper = styled.div<{ $position: string }>`
   display: flex;
   align-items: center;
   font-size: 14px;
@@ -35,10 +35,10 @@ const BaseWrapper = styled.div<{ position: string }>`
   z-index: 1000;
   transition: all 0.3s ease-in-out;
 
-  ${({ position }) => {
-    switch (position) {
+  ${({ $position }) => {
+    switch ($position) {
       case 'top':
-        return `
+        return css`
           position: absolute;
           top: 8px;
           left: 16px;
@@ -50,7 +50,7 @@ const BaseWrapper = styled.div<{ position: string }>`
           border: 1px solid var(--ethora-color-border, #e6e8ec);
         `;
       case 'overlay':
-        return `
+        return css`
           position: fixed;
           top: 50%;
           left: 50%;
@@ -63,7 +63,7 @@ const BaseWrapper = styled.div<{ position: string }>`
           ${reducedMotion}
         `;
       case 'floating':
-        return `
+        return css`
           position: fixed;
           bottom: 80px;
           right: 20px;
@@ -77,7 +77,7 @@ const BaseWrapper = styled.div<{ position: string }>`
         `;
       case 'bottom':
       default:
-        return `
+        return css`
           position: static;
           bottom: 4px;
           left: 16px;
@@ -178,7 +178,7 @@ const CustomTypingIndicator: FC<CustomTypingIndicatorProps> = ({
   }
 
   return (
-    <BaseWrapper position={position} style={styles}>
+    <BaseWrapper $position={position} style={styles}>
       <UserTypingText>{displayText}</UserTypingText>
       <Dot>.</Dot>
       <Dot>.</Dot>
