@@ -49,6 +49,43 @@ function normalizeGetMyFilesResponse(data: any, fallback: GetMyFilesOptions): Ge
 let getMyFilesInFlight: SharedRequest<GetMyFilesResult> | null = null;
 let getMyFilesInFlightKey = '';
 
+// Not every backend the SDK talks to ships /v2/files yet (it's a newer
+// endpoint). Rather than probing for it on every mount - which would 404 on
+// every consumer that never opens the Files tab - we treat the FIRST real
+// list request (i.e. the user actually opening the tab) as the probe, and
+// remember the verdict per auth token so a second render of the tab (or a
+// second component instance) doesn't re-probe. RoomList reads this via
+// useFilesEndpointSupport() to decide whether to keep showing the tab.
+export type FilesEndpointSupport = 'unknown' | 'supported' | 'unsupported';
+
+const filesEndpointSupport = new Map<string, FilesEndpointSupport>();
+const filesEndpointSupportListeners = new Set<() => void>();
+
+function setFilesEndpointSupport(
+  token: string,
+  support: FilesEndpointSupport
+): void {
+  if (filesEndpointSupport.get(token) === support) return;
+  filesEndpointSupport.set(token, support);
+  filesEndpointSupportListeners.forEach((listener) => listener());
+}
+
+export function getFilesEndpointSupport(token: string): FilesEndpointSupport {
+  return filesEndpointSupport.get(token) || 'unknown';
+}
+
+export function subscribeFilesEndpointSupport(listener: () => void): () => void {
+  filesEndpointSupportListeners.add(listener);
+  return () => filesEndpointSupportListeners.delete(listener);
+}
+
+// Test-only escape hatch: the support map is module-level (intentionally -
+// it needs to survive component unmount/remount), which means it also
+// survives across test cases in the same file unless explicitly cleared.
+export function __resetFilesEndpointSupportForTests(): void {
+  filesEndpointSupport.clear();
+}
+
 export async function getMyFiles(
   options: GetMyFilesOptions
 ): Promise<GetMyFilesResult> {
@@ -62,14 +99,27 @@ export async function getMyFiles(
 
   getMyFilesInFlightKey = key;
   const shared = createSharedRequest(async (sharedSignal) => {
-    const response = await http.get('/v2/files', {
-      headers: {
-        Authorization: token,
-      },
-      params: { limit, offset },
-      signal: sharedSignal,
-    });
-    return normalizeGetMyFilesResponse(response.data, { limit, offset });
+    try {
+      const response = await http.get('/v2/files', {
+        headers: {
+          Authorization: token,
+        },
+        params: { limit, offset },
+        signal: sharedSignal,
+      });
+      setFilesEndpointSupport(token, 'supported');
+      return normalizeGetMyFilesResponse(response.data, { limit, offset });
+    } catch (err: any) {
+      // 404 = route doesn't exist on this backend; 501 = deliberately not
+      // implemented. Either way, this token's backend doesn't have the
+      // endpoint - remember it so the Files tab hides itself instead of
+      // repeatedly 404ing.
+      const status = err?.response?.status;
+      if (status === 404 || status === 501) {
+        setFilesEndpointSupport(token, 'unsupported');
+      }
+      throw err;
+    }
   });
   getMyFilesInFlight = shared;
 

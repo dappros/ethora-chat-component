@@ -40,6 +40,7 @@ import { ethoraLogger } from '../../helpers/ethoraLogger';
 import { deleteRoom, setCurrentRoom } from '../../roomStore/roomsSlice';
 import { RoomListTestIds } from '../../testIds';
 import FilesPanel from '../Files/FilesPanel';
+import { useFilesEndpointSupport } from '../../hooks/useFilesEndpointSupport';
 
 const SKELETON_ROW_COUNT = 6;
 
@@ -137,7 +138,15 @@ const RoomList: React.FC<RoomListProps> = ({
     (state: RootState) => state.rooms.isLoading
   );
 
-  const filesTabEnabled = config?.filesTab?.enabled !== false;
+  // Explicit `true` always shows the tab (the host takes responsibility for
+  // it existing). Explicit `false` always hides it. When left unset, the tab
+  // is shown optimistically until the backend proves it doesn't have
+  // /v2/files - see useFilesEndpointSupport / files.api.ts for the probe.
+  const filesEndpointSupport = useFilesEndpointSupport();
+  const filesTabConfigured = config?.filesTab?.enabled;
+  const filesTabEnabled =
+    filesTabConfigured === true ||
+    (filesTabConfigured !== false && filesEndpointSupport !== 'unsupported');
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -162,6 +171,15 @@ const RoomList: React.FC<RoomListProps> = ({
       dispatch(setCurrentRoom({ roomJID: nextRoomJID }));
     }
   }, [activeRoomJID, chats, dispatch]);
+
+  useEffect(() => {
+    // If the Files tab was active and then gets hidden (config flips, or the
+    // endpoint probe comes back unsupported), don't leave the user staring
+    // at a dead tab panel - fall back to Chats.
+    if (!filesTabEnabled && activeTab === 'files') {
+      setActiveTab('chats');
+    }
+  }, [filesTabEnabled, activeTab]);
 
   const handleClickOutside = useCallback((event: MouseEvent) => {
     if (

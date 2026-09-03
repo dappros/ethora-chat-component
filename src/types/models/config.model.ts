@@ -236,9 +236,16 @@ export interface IConfig {
   disableRoomMenu?: boolean;
   defaultRooms?: ConfigRoom[];
   /**
-   * The "Files" tab shown in the sidebar alongside "Chats". Enabled by
-   * default; set `enabled: false` to hide the tab switcher entirely and
-   * keep the sidebar showing only the room list, as before this existed.
+   * The "Files" tab shown in the sidebar alongside "Chats". Backed by
+   * `GET /v2/files`, which not every backend has yet, so this defaults to
+   * an auto-detecting mode rather than always-on:
+   *  - `enabled: true` always shows the tab - use this once you know your
+   *    backend has /v2/files.
+   *  - `enabled: false` always hides it.
+   *  - omitted (default): the tab shows optimistically and only hides
+   *    itself if the first files list request (when the user opens the tab)
+   *    comes back 404/501, meaning this backend doesn't have the endpoint.
+   *    No extra probe request is made just to decide this up front.
    */
   filesTab?: {
     enabled?: boolean;
