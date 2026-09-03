@@ -23,10 +23,10 @@ interface UnreadMessagesStats {
    * hook keeps `loading` true until the per-room counts have stopped changing
    * for a short window, then latches it to false. After that first settle,
    * live message increments update the counts immediately and never flip
-   * `loading` back on — it's a first-load indicator, not a per-update one.
+   * `loading` back on, it's a first-load indicator, not a per-update one.
    */
   loading: boolean;
-  /** Alias of `loading` — matches the React Native SDK field name. */
+  /** Alias of `loading`, matches the React Native SDK field name. */
   isLoading: boolean;
 }
 
@@ -81,7 +81,7 @@ const buildUnreadStats = (
   };
 };
 
-// Signature of just the unread COUNTS of visible rooms — used to detect when
+// Signature of just the unread COUNTS of visible rooms, used to detect when
 // the counts have stopped changing (so we can settle `loading`).
 const buildCountsSignature = (
   rooms: Record<string, IRoom>,
@@ -102,7 +102,7 @@ export const useUnreadMessagesCounter = (): UnreadMessagesStats => {
   // after, so live increments don't re-trigger the spinner.
   const settledRef = useRef<boolean>(false);
   // True once rooms have appeared (cache/API) or a full "Loading chats…"
-  // cycle finished even with zero rooms — we only start the settle timer
+  // cycle finished even with zero rooms, we only start the settle timer
   // after this, so the initial empty store doesn't settle prematurely.
   const loadedOnceRef = useRef<boolean>(
     Object.keys(store.getState().rooms.rooms || {}).length > 0
@@ -159,7 +159,7 @@ export const useUnreadMessagesCounter = (): UnreadMessagesStats => {
     const onChange = () => {
       // Identity fast path: store.subscribe fires on EVERY dispatched
       // action. Once settled, if neither the rooms map nor the config
-      // changed identity, no unread signature can have changed either —
+      // changed identity, no unread signature can have changed either,
       // skip the O(rooms) signature build entirely.
       const roomsObj = store.getState().rooms.rooms;
       const hiddenObj = getHiddenRoomsConfig();
@@ -177,7 +177,7 @@ export const useUnreadMessagesCounter = (): UnreadMessagesStats => {
       const countsSig = buildCountsSignature(roomsObj, hiddenObj);
 
       if (settledRef.current) {
-        // Already settled — reflect live count changes immediately.
+        // Already settled, reflect live count changes immediately.
         if (countsSig !== lastCountsSigRef.current) {
           lastCountsSigRef.current = countsSig;
           emit();
@@ -186,7 +186,7 @@ export const useUnreadMessagesCounter = (): UnreadMessagesStats => {
       }
 
       if (!loadedOnce) {
-        // Room list still loading — keep the spinner, don't start settling.
+        // Room list still loading, keep the spinner, don't start settling.
         emit();
         return;
       }

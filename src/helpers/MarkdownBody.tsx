@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 
-// Loaded lazily via parseMessageBody.tsx — the markdown pipeline
+// Loaded lazily via parseMessageBody.tsx, the markdown pipeline
 // (react-markdown + remark-gfm + rehype-raw/parse5) is heavy, so it lives
 // in its own chunk instead of the host's initial bundle.
 const MarkdownBody = ({ text }: { text: string }) => {

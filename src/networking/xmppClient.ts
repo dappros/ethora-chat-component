@@ -131,7 +131,7 @@ export class XmppClient implements XmppClientInterface {
   // useChatWrapperInit.ts, and xmppProvider.tsx's initBeforeLoad path) with
   // no coordination between them. Observed live: 2-3 full presence sweeps
   // for the same ~10 rooms firing back-to-back, each its own concurrency
-  // worker-pool competing for the same WS connection — turning a ~1.6s sweep
+  // worker-pool competing for the same WS connection, turning a ~1.6s sweep
   // into an 8-11s one and dragging the whole catchup phase down with it
   // (13-14.5s total instead of the ~6.5s a single clean sweep gets). This
   // in-flight promise makes every caller share the same underlying sweep.
@@ -152,7 +152,7 @@ export class XmppClient implements XmppClientInterface {
   private inFlightIds: Set<string> = new Set();
   private processingQueue: boolean = false;
   private currentlyProcessingQueueId: string | null = null;
-  // Resolves the in-flight send to `false` when called — used on disconnect
+  // Resolves the in-flight send to `false` when called, used on disconnect
   // so a stuck send (e.g. laptop sleep killed the WS) doesn't pin processQueue
   // forever. The queue then unshifts the entry and resumes after reconnect.
   private currentSendCancel: (() => void) | null = null;
@@ -385,7 +385,7 @@ export class XmppClient implements XmppClientInterface {
     this.username = username;
     this.password = password;
     this.pingOnSendEnabled = xmppSettings?.xmppPingOnSendEnabled === true;
-    // Was 2, tighter than historyPreloadScheduler's own concurrency=3 — the
+    // Was 2, tighter than historyPreloadScheduler's own concurrency=3, the
     // two gates disagreeing meant the scheduler could never actually run 3
     // rooms in parallel, it always serialized down to 2. A background
     // preload burst of N rooms round-trips to the server sequentially in
@@ -565,7 +565,7 @@ export class XmppClient implements XmppClientInterface {
       this.roomPresenceBlockedUntil.clear();
       this.clearMamRegistry();
       this.clearHistoryQueue();
-      // Don't clear pendingSendById — the messageQueue entries survive disconnect
+      // Don't clear pendingSendById, the messageQueue entries survive disconnect
       // and we need their metadata so reconnect can resume them. Just unstick
       // any in-flight send so processQueue can exit and retry on reconnect.
       this.sendIsActiveById.clear();
@@ -741,7 +741,7 @@ export class XmppClient implements XmppClientInterface {
       if (this.status !== 'online' || this.pingInFlight) return;
 
       // Every stanza refreshes lastActivityTs; if the connection saw traffic
-      // recently there is nothing to probe — re-arm instead of spending a
+      // recently there is nothing to probe, re-arm instead of spending a
       // ping/pong round trip on a provably alive connection.
       if (Date.now() - this.lastActivityTs < this.idleThresholdMs) {
         this.scheduleAdaptivePing();
@@ -798,14 +798,14 @@ export class XmppClient implements XmppClientInterface {
         this.lastPingId = pingId;
 
         // Match scheduleAdaptivePing's floor: pongTimeoutMs alone (1000ms) is
-        // too tight for THIS, the very first ping after connect — it fires
+        // too tight for THIS, the very first ping after connect, it fires
         // while the connection is busiest (presence sweep + history preload
         // racing for the same WS), so any round-trip over 1s would read as a
         // dead connection and force a reconnect that wipes joinedRooms and
         // restarts the whole presence sweep from zero. (The actual cause of
         // the mid-load slowdowns observed live turned out to be a duplicate
-        // presence sweep — see sendAllPresencesAndMarkReady's in-flight guard
-        // — not this timeout; keeping the floor here regardless, since 1s is
+        // presence sweep, see sendAllPresencesAndMarkReady's in-flight guard
+        //, not this timeout; keeping the floor here regardless, since 1s is
         // still an unreasonably tight window for the busiest ping.)
         const pongWait = Math.max(this.pongTimeoutMs, 4000);
         this.pingTimeout = setTimeout(() => {
@@ -836,7 +836,7 @@ export class XmppClient implements XmppClientInterface {
     if (this.sendAllPresencesInFlight) {
       return this.sendAllPresencesInFlight;
     }
-    // A prior sweep already confirmed presence for the current room set —
+    // A prior sweep already confirmed presence for the current room set,
     // one of the three independent callers just arrived late. `reconnect()`
     // explicitly resets presencesReady to false before the next online
     // cycle, so this never suppresses a sweep that's actually needed again.
@@ -2304,7 +2304,7 @@ export class XmppClient implements XmppClientInterface {
 
   sendTypingRequestStanza(chatId: string, fullName: string, start: boolean) {
     // Don't send chatstates before we have a fully-bound session and have
-    // joined the target room — server returns "User session not found" or
+    // joined the target room, server returns "User session not found" or
     // routes the message to nowhere if `to` is empty/invalid.
     if (!chatId || !this.isValidMucRoomJid(chatId)) {
       return;

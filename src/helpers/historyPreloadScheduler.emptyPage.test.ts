@@ -30,14 +30,14 @@ const makeClient = (getHistoryStanza: any) =>
 
 const stateOf = (jid: string) => store.getState().rooms.rooms[jid];
 
-describe('historyPreloadScheduler — an empty MAM page is inconclusive, not done', () => {
+describe('historyPreloadScheduler, an empty MAM page is inconclusive, not done', () => {
   beforeEach(() => {
     store.dispatch(deleteAllRooms());
   });
 
   // Live-observed: rooms whose background preload got an empty page were
   // marked 'done' with an empty transcript, so the sidebar preview stayed
-  // blank forever and nothing ever retried them — yet opening the room by
+  // blank forever and nothing ever retried them, yet opening the room by
   // hand loaded the history fine.
   it('leaves a room retryable (not done) when the server returns an empty page', async () => {
     seedRoom(ROOM_A);
