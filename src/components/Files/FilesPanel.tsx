@@ -9,6 +9,11 @@ import { withFileToken } from '../../helpers/secureFileUrl';
 import FilesList from './FilesList';
 import { SearchIcon, FileIcon } from '../../assets/icons';
 import { useT } from '../../i18n/useT';
+import { useChatSettingState } from '../../hooks/useChatSettingState';
+import {
+  resolveIconColor,
+  resolveIconBgColor,
+} from '../../helpers/resolveIconColor';
 import { setActiveFile, setActiveModal } from '../../roomStore/chatSettingsSlice';
 import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 
@@ -170,6 +175,7 @@ const FILTERS: { key: 'all' | FileCategory; labelKey: string }[] = [
 
 const FilesPanel: React.FC = () => {
   const t = useT();
+  const { config } = useChatSettingState();
   const dispatch = useDispatch();
   const [filter, setFilter] = useState<'all' | FileCategory>('all');
   const [search, setSearch] = useState('');
@@ -272,7 +278,10 @@ const FilesPanel: React.FC = () => {
         </StateContainer>
       ) : visibleItems.length === 0 ? (
         <StateContainer>
-          <FileIcon color="#0052CD" />
+          <FileIcon
+            color={resolveIconColor(config)}
+            fill={resolveIconBgColor(config)}
+          />
           <StateTitle>
             {items.length === 0
               ? t('files.empty.title')

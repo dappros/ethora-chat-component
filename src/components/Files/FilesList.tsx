@@ -6,6 +6,11 @@ import { appendFileToken } from '../../helpers/secureFileUrl';
 import { FileIcon, DownloadIcon, DeleteIcon } from '../../assets/icons';
 import { useT } from '../../i18n/useT';
 import { useUiLocale } from '../../i18n/useT';
+import { useChatSettingState } from '../../hooks/useChatSettingState';
+import {
+  resolveIconColor,
+  resolveIconBgColor,
+} from '../../helpers/resolveIconColor';
 
 const Grid = styled.div`
   display: grid;
@@ -267,6 +272,7 @@ const FilesList: React.FC<FilesListProps> = ({
   compact,
 }) => {
   const t = useT();
+  const { config } = useChatSettingState();
   const locale = useUiLocale();
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
@@ -365,7 +371,10 @@ const FilesList: React.FC<FilesListProps> = ({
           {otherItems.map((file) => (
             <Row key={file._id}>
               <RowIconWrap>
-                <FileIcon color="#0052CD" />
+                <FileIcon
+                  color={resolveIconColor(config)}
+                  fill={resolveIconBgColor(config)}
+                />
               </RowIconWrap>
               <RowMain
                 onClick={() => onPreview(file)}
