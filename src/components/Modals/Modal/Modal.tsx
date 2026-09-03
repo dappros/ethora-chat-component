@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { useModalDismiss } from '../../../hooks/useModalDismiss';
 import { ModalBackground } from '../styledModalComponents';
 import { ModalType } from '../../../types/types';
@@ -48,7 +48,14 @@ const Modal: React.FC<ModalProps> = ({ children, modal, setOpenModal }) => {
         ? handleBackButtonClick
         : handleCloseModal;
 
-    return <ModalComponent handleCloseModal={handleClose} />;
+    // Lazy chunk: the backdrop is already painted by the parent, so an
+    // empty fallback reads as the modal appearing a beat later, not as a
+    // flash of wrong content.
+    return (
+      <Suspense fallback={null}>
+        <ModalComponent handleCloseModal={handleClose} />
+      </Suspense>
+    );
   };
   return (
     modal && (

@@ -1,13 +1,5 @@
-import ChatProfileModal from './ChatProfileModal/ChatProfileModal';
-import FilePreviewModal from './FilePreviewModal/FilePreviewModal';
-import BlockedUsersModal from './SettingsModals/BlockedUsers/BlockedUsersModal';
-import DocumentSharesModal from './SettingsModals/DocumentShares/DocumentSharesModal';
-import ManageDataModal from './SettingsModals/ManageDataModal/ManageDataModal';
-import ProfileSharesModal from './SettingsModals/ProfileShares/ProfileShares';
-import ReferralsModal from './SettingsModals/Referrals/Referrals';
-import VisibilityModal from './SettingsModals/Visibility/VisibilityModal';
-import UserProfileModal from './UserProfileModal/UserProfileModal';
-import UserSettingsModal from './UserSettingsModal/UserSettingsModal';
+import { lazy } from 'react';
+import type React from 'react';
 import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 
 // Split out of helpers/constants/MODAL_TYPES.ts to break an import cycle:
@@ -17,18 +9,45 @@ import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 // initialization" under Vite HMR. This module is one-way: it imports the
 // modal components and MODAL_TYPES, and nothing imports this module back
 // from inside a modal component.
+//
+// Every entry is loaded lazily: none of these modals is referenced
+// anywhere except through this table, and together they were the largest
+// first-party slice of the main chunk while being needed only after an
+// explicit user action. Modal.tsx wraps the rendered entry in Suspense.
+type ModalComponent = React.FC<{ handleCloseModal: () => void }>;
+
 export const MODAL_COMPONENTS: Record<
   string,
-  React.FC<{ handleCloseModal: () => void }>
+  React.LazyExoticComponent<ModalComponent>
 > = {
-  [MODAL_TYPES.SETTINGS]: UserSettingsModal,
-  [MODAL_TYPES.PROFILE]: UserProfileModal,
-  [MODAL_TYPES.CHAT_PROFILE]: ChatProfileModal,
-  [MODAL_TYPES.MANAGE_DATA]: ManageDataModal,
-  [MODAL_TYPES.VISIBILITY]: VisibilityModal,
-  [MODAL_TYPES.REFERRALS]: ReferralsModal,
-  [MODAL_TYPES.DOCUMENT_SHARES]: DocumentSharesModal,
-  [MODAL_TYPES.PROFILE_SHARES]: ProfileSharesModal,
-  [MODAL_TYPES.BLOCKED_USERS]: BlockedUsersModal,
-  [MODAL_TYPES.FILE_PREVIEW]: FilePreviewModal,
+  [MODAL_TYPES.SETTINGS]: lazy(
+    () => import('./UserSettingsModal/UserSettingsModal')
+  ),
+  [MODAL_TYPES.PROFILE]: lazy(
+    () => import('./UserProfileModal/UserProfileModal')
+  ),
+  [MODAL_TYPES.CHAT_PROFILE]: lazy(
+    () => import('./ChatProfileModal/ChatProfileModal')
+  ),
+  [MODAL_TYPES.MANAGE_DATA]: lazy(
+    () => import('./SettingsModals/ManageDataModal/ManageDataModal')
+  ),
+  [MODAL_TYPES.VISIBILITY]: lazy(
+    () => import('./SettingsModals/Visibility/VisibilityModal')
+  ),
+  [MODAL_TYPES.REFERRALS]: lazy(
+    () => import('./SettingsModals/Referrals/Referrals')
+  ),
+  [MODAL_TYPES.DOCUMENT_SHARES]: lazy(
+    () => import('./SettingsModals/DocumentShares/DocumentSharesModal')
+  ),
+  [MODAL_TYPES.PROFILE_SHARES]: lazy(
+    () => import('./SettingsModals/ProfileShares/ProfileShares')
+  ),
+  [MODAL_TYPES.BLOCKED_USERS]: lazy(
+    () => import('./SettingsModals/BlockedUsers/BlockedUsersModal')
+  ),
+  [MODAL_TYPES.FILE_PREVIEW]: lazy(
+    () => import('./FilePreviewModal/FilePreviewModal')
+  ),
 };
