@@ -38,6 +38,10 @@ import SelectUsersModal from '../SelectUsersModal/SelectUsersModal';
 import { useToast } from '../../../context/ToastContext';
 import { ethoraLogger } from '../../../helpers/ethoraLogger';
 import { useT } from '../../../i18n/useT';
+import { useMyFiles } from '../../../hooks/useMyFiles';
+import FilesList from '../../Files/FilesList';
+import { ApiFile } from '../../../types/types';
+import { withFileToken } from '../../../helpers/secureFileUrl';
 
 interface ChatProfileModalProps {
   handleCloseModal: any;
@@ -66,6 +70,8 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
     ],
     [t]
   );
+
+  const [filesExpanded, setFilesExpanded] = useState<boolean>(false);
 
   const dispatch = useDispatch();
 
@@ -102,6 +108,45 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
       };
     });
   }, [activeRoom?.members, usersSet]);
+
+  // Files uploaded through this room, filtered client-side (the /v2/files
+  // list endpoint has no server-side room filter) by matching the room's
+  // local JID part - the same value handleDeleteUser already sends as
+  // `roomId` when calling /v1/chats/users-access.
+  const roomLocalName = activeRoom?.jid
+    ? activeRoom.jid.split('@')[0]
+    : undefined;
+  const {
+    items: roomFiles,
+    loading: filesLoading,
+    error: filesError,
+    remove: removeFile,
+  } = useMyFiles({ roomName: roomLocalName });
+  const visibleRoomFiles = filesExpanded ? roomFiles : roomFiles.slice(0, 6);
+
+  const handleFilePreview = (file: ApiFile) => {
+    const url = withFileToken(file.location);
+    if (url && typeof window !== 'undefined') {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const handleFileDownload = (file: ApiFile) => {
+    const url = withFileToken(file.location);
+    if (!url || typeof document === 'undefined') return;
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = file.originalname || 'file';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
+  const handleFileDelete = (file: ApiFile) => {
+    removeFile(file._id).catch(() => {
+      // Error surfaced via the hook's `error` state; nothing else to do here.
+    });
+  };
 
   const onUpload = async (file: File) => {
     try {
@@ -401,6 +446,42 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
             )}
           </BorderedContainer>
         )}
+        <BorderedContainer style={{ padding: '8px 16px' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              cursor: 'pointer',
+            }}
+            onClick={() => setFilesExpanded((prev) => !prev)}
+            role="button"
+            aria-expanded={filesExpanded}
+          >
+            <LabelData>{t('modal.chatProfile.filesTitle')}</LabelData>
+            {roomFiles.length > 6 && (
+              <Label style={{ color: '#0052CD', fontSize: '13px' }}>
+                {t('modal.chatProfile.filesShowAll')}
+              </Label>
+            )}
+          </div>
+          {filesLoading && roomFiles.length === 0 ? (
+            <Loader />
+          ) : filesError && roomFiles.length === 0 ? (
+            <Label>{t('files.error.title')}</Label>
+          ) : roomFiles.length === 0 ? (
+            <Label>{t('modal.chatProfile.filesEmpty')}</Label>
+          ) : (
+            <FilesList
+              items={visibleRoomFiles}
+              fileToken={fileToken}
+              onPreview={handleFilePreview}
+              onDownload={handleFileDownload}
+              onDelete={handleFileDelete}
+              compact
+            />
+          )}
+        </BorderedContainer>
       </CenterContainer>
       <OperationalModal
         isVisible={visible}
