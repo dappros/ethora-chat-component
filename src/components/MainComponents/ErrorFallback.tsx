@@ -1,4 +1,5 @@
 import React from 'react';
+import { useT } from '../../i18n/useT';
 import Button from '../styled/Button';
 import { OrDelimiter } from '../styled/StyledComponents';
 
@@ -15,6 +16,7 @@ const ErrorFallback: React.FC<ErrorFallbackProps> = ({
   buttonLabel = 'Enter with default account',
   onButtonClick,
 }) => {
+  const t = useT();
   return (
     <div
       style={{
@@ -40,7 +42,7 @@ const ErrorFallback: React.FC<ErrorFallbackProps> = ({
         {message}
       </p>
 
-      <OrDelimiter>Or</OrDelimiter>
+      <OrDelimiter>{t('common.or')}</OrDelimiter>
       <Button
         variant="filled"
         onClick={onButtonClick}

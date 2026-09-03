@@ -194,26 +194,36 @@ export function useThemeTokenStyle(
 }
 
 /**
- * Mirrors the token map onto `document.documentElement` as an effect.
+ * Publishes the token map on `document.documentElement` for content that
+ * lives outside the chat subtree (portals) and for hosts that read
+ * `--ethora-*` themselves.
  *
- * Why the document root and not just the chat root: content rendered through
- * `createPortal` (e.g. `LanguageSelectorModal`) mounts directly on
- * `document.body`, outside the chat's own DOM subtree, so an inline style on
- * the chat root alone would not reach it. This mirrors the same pattern this
- * codebase already uses for the equivalent problem (see
- * `helpers/applyTypography.ts` and `helpers/resolveIconColor.ts`'s
- * `applyThemeColors`, both of which publish their variables on
- * `document.documentElement`): every variable here is prefixed
- * `--ethora-*` and only ever read back by this chat's own styled components,
- * so declaring it on the document root cannot visually affect the host page
- * - it cannot leak unless the host happens to consume an identically named
- * `--ethora-*` variable itself, which is exactly the situation
- * `applyTypography`/`applyThemeColors` already accept.
- *
- * `ThemeTokens` renders nothing; mount it once near the top of the tree
- * (see `ReduxWrapper.tsx`) alongside the other config-driven "Enabler"
- * components.
+ * The chat root (ChatWrapperBox) carries the same variables inline, so this
+ * global copy is a convenience layer, not the source of truth. It is kept
+ * multi-instance safe: every mounted ThemeTokens registers its map, the most
+ * recently mounted instance's tokens are the ones written, and on unmount
+ * the entry is dropped and the remaining latest instance (if any) is
+ * re-applied; with no instances left the variables are removed. Every name
+ * is prefixed `--ethora-*`, so the host page is unaffected unless it reads
+ * those names on purpose.
  */
+const tokenInstances = new Map<number, ThemeTokenMap>();
+let nextTokenInstanceId = 1;
+let appliedTokenNames: string[] = [];
+
+const syncDocumentTokens = () => {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  appliedTokenNames.forEach((name) => root.style.removeProperty(name));
+  appliedTokenNames = [];
+  const latest = Array.from(tokenInstances.values()).pop();
+  if (!latest) return;
+  Object.entries(latest).forEach(([name, value]) => {
+    root.style.setProperty(name, value);
+  });
+  appliedTokenNames = Object.keys(latest);
+};
+
 export function ThemeTokens({
   config,
 }: {
@@ -230,17 +240,16 @@ export function ThemeTokens({
       JSON.stringify(config?.typography?.weights ?? {}),
     ]
   );
+  const instanceId = useMemo(() => nextTokenInstanceId++, []);
 
   useEffect(() => {
-    if (typeof document === 'undefined') return;
-    const root = document.documentElement;
-    Object.entries(tokens).forEach(([name, value]) => {
-      root.style.setProperty(name, value);
-    });
-    // Intentionally not removed on unmount: the chat is typically mounted
-    // for the app's lifetime, and other Enablers (applyTypography,
-    // applyThemeColors) follow the same "set, don't tear down" contract.
-  }, [tokens]);
+    tokenInstances.set(instanceId, tokens);
+    syncDocumentTokens();
+    return () => {
+      tokenInstances.delete(instanceId);
+      syncDocumentTokens();
+    };
+  }, [instanceId, tokens]);
 
   return null;
 }

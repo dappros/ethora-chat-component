@@ -1,8 +1,10 @@
 import { NoMessagesIllustration } from '../../assets/illustrations/NoMessagesIllustration';
+import { useT } from '../../i18n/useT';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { resolveIconColor } from '../../helpers/resolveIconColor';
 
 const NoMessagesPlaceholder = () => {
+  const t = useT();
   const { config } = useChatSettingState();
 
   return (
@@ -39,7 +41,7 @@ const NoMessagesPlaceholder = () => {
               color: 'var(--ethora-color-text, #141414)',
             }}
           >
-            This chat is empty
+            {t('room.empty')}
           </div>
           <div
             style={{
@@ -48,7 +50,7 @@ const NoMessagesPlaceholder = () => {
               color: 'var(--ethora-color-text-secondary, #5A5F66)',
             }}
           >
-            Be the first one to start it.
+            {t('room.empty.hint')}
           </div>
         </div>
       </div>

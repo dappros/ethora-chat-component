@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useThemeTokenStyle } from '../../styles/tokens';
+import { useModalDismiss } from '../../hooks/useModalDismiss';
 import styled from 'styled-components';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
@@ -164,6 +166,10 @@ export const LanguageSelectorButton: React.FC = () => {
     (state: RootState) => state.chatSettingStore.langSource
   );
   const accentColor = config?.colors?.primary || '#0052CD';
+  // The portal mounts on document.body, outside the chat root that carries
+  // the design tokens inline, so re-apply them on the portal container.
+  const portalTokenStyle = useThemeTokenStyle(config?.colors, config?.typography);
+  useModalDismiss({ enabled: isOpen, onClose: () => setIsOpen(false) });
   const translatesEnabled = !!config?.translates?.enabled;
   // Undefined (reader never touched the toggle) reads as ON - matches the
   // send-path default in useSendMessage, so the switch shows the state
@@ -197,7 +203,10 @@ export const LanguageSelectorButton: React.FC = () => {
       {isOpen &&
         typeof document !== 'undefined' &&
         createPortal(
-          <LanguageModalBackground onClick={() => setIsOpen(false)}>
+          <LanguageModalBackground
+            onClick={() => setIsOpen(false)}
+            style={portalTokenStyle}
+          >
             <LanguageModalContainer onClick={(e) => e.stopPropagation()}>
               <CloseButton onClick={() => setIsOpen(false)} aria-label={t('action.cancel')}>
                 &times;

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useModalDismiss } from '../../../hooks/useModalDismiss';
 import Button from '../../styled/Button';
 import { useDispatch, useSelector } from 'react-redux';
 import { getActiveRoom, RootState } from '../../../roomStore';
@@ -30,6 +31,7 @@ const DeleteChatModal: React.FC<DeleteChatModalProps> = ({
 
   const handleOpenModal = () => setIsModalOpen(true);
   const handleCloseModal = () => setIsModalOpen(false);
+  useModalDismiss({ onClose: handleCloseModal });
 
   const handleDeleteChat = async () => {
     try {

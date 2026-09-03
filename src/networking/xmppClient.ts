@@ -857,6 +857,7 @@ export class XmppClient implements XmppClientInterface {
       success: 0,
       failed: 0,
       failedRooms: [] as string[],
+      sweptRooms: [] as string[],
       failures: [],
     };
     try {
@@ -867,8 +868,12 @@ export class XmppClient implements XmppClientInterface {
       );
     }
     if (summary.total > 0) {
-      const allRooms = Object.keys(store.getState().rooms.rooms || {});
-      allRooms.forEach((jid) => {
+      // Only rooms the sweep actually sent a presence for count as joined.
+      // Reading the store here instead would also mark rooms that were
+      // discovered DURING the sweep (onGetChatRooms skips presence while a
+      // sweep runs), and ensureRoomPresence would then short-circuit for
+      // them forever: MAM queried unjoined, empty pages, blank rooms.
+      summary.sweptRooms.forEach((jid) => {
         if (!summary.failedRooms.includes(jid)) {
           this.joinedRooms.add(jid);
         }
@@ -928,7 +933,14 @@ export class XmppClient implements XmppClientInterface {
   async allRoomPresencesStanza(): Promise<AllRoomPresenceSummary> {
     const start = Date.now();
     try {
-      const summary = await allRoomPresences(this.client);
+      const summary = await allRoomPresences(this.client, (roomJid) =>
+        this.ensureRoomPresence(roomJid, {
+          settleDelay: 0,
+          timeoutMs: 5000,
+          waitForJoin: true,
+          source: 'background',
+        })
+      );
       ethoraLogger.log(
         `[InitTiming] xmpp:allRoomPresencesStanza ${Date.now() - start}ms`
       );
@@ -942,6 +954,7 @@ export class XmppClient implements XmppClientInterface {
         success: 0,
         failed: 0,
         failedRooms: [],
+        sweptRooms: [],
         failures: [],
       };
     }
@@ -1456,10 +1469,8 @@ export class XmppClient implements XmppClientInterface {
       const request = this.mamRequestRegistry.get(queryId);
       if (!request) return false;
 
-      // Late result for a timed-out request: swallow it, its promise has
-      // already resolved undefined.
-      if (request.abandoned) return true;
-
+      // Late result for a timed-out request: keep collecting; the <fin>
+      // branch merges the page into the store since nobody awaits it.
       const messageEl = result?.getChild('forwarded')?.getChild('message');
       if (messageEl) {
         request.messages.push(messageEl as Element);
@@ -1506,6 +1517,17 @@ export class XmppClient implements XmppClientInterface {
         this.mamRequestRegistry.delete(requestId);
         this.parseMamMessages(request.messages)
           .then((messages) => {
+            if (request.abandoned) {
+              // The caller already gave up (resolved undefined on timeout),
+              // but the archive page is real: merge it so a slow server
+              // still fills the room instead of the data being dropped.
+              if (messages.length && request.chatJID) {
+                store.dispatch(
+                  setRoomMessages({ roomJID: request.chatJID, messages })
+                );
+              }
+              return;
+            }
             request.resolve(messages);
           })
           .catch(() => {
@@ -1550,7 +1572,6 @@ export class XmppClient implements XmppClientInterface {
           // Keep a short-lived tombstone (see MamRequestState.abandoned) so
           // the server's late page is still routed here and dropped quietly.
           entry.abandoned = true;
-          entry.messages.length = 0;
           setTimeout(() => {
             const current = this.mamRequestRegistry.get(requestId);
             if (current?.abandoned) {

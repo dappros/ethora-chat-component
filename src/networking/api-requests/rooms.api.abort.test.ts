@@ -34,9 +34,11 @@ describe('rooms.api abort handling', () => {
 
     await getRooms(controller.signal);
 
+    // Shared internal signal (sharedRequest.ts): the caller's signal only
+    // detaches that caller, so axios sees the shared controller's signal.
     expect(httpGetMock).toHaveBeenCalledWith(
       '/v1/chats/my',
-      expect.objectContaining({ signal: controller.signal })
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
   });
 
@@ -85,7 +87,7 @@ describe('rooms.api abort handling', () => {
     );
     expect(httpGetMock).toHaveBeenCalledWith(
       '/v1/chats/my/room1',
-      expect.objectContaining({ signal: controller.signal })
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
   });
 });

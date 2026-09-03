@@ -1,6 +1,7 @@
 import { store } from '../../roomStore';
 import { ApiFile } from '../../types/types';
 import http from '../apiClient';
+import { createSharedRequest, SharedRequest } from '../sharedRequest';
 
 export interface GetMyFilesResult {
   items: ApiFile[];
@@ -22,7 +23,11 @@ interface GetMyFilesOptions {
 // callers always get a flat `{ items, total, limit, offset }` regardless of
 // which of those duplicate shapes the backend happens to answer with.
 function normalizeGetMyFilesResponse(data: any, fallback: GetMyFilesOptions): GetMyFilesResult {
-  const items: ApiFile[] = data?.items || data?.results || [];
+  // Coerce defensively: a non-array here would throw inside FilesPanel's
+  // render (.filter on the list) with no error boundary above the sidebar,
+  // taking the whole room list down with it.
+  const rawItems = data?.items ?? data?.results;
+  const items: ApiFile[] = Array.isArray(rawItems) ? rawItems : [];
   const pagination = data?.pagination || {};
   return {
     items,
@@ -41,7 +46,7 @@ function normalizeGetMyFilesResponse(data: any, fallback: GetMyFilesOptions): Ge
 // Same dedup shape as getRooms in rooms.api.ts: two callers asking for the
 // same page (token+limit+offset) while a request is already in flight share
 // the one response instead of firing a second identical GET.
-let getMyFilesInFlight: Promise<GetMyFilesResult> | null = null;
+let getMyFilesInFlight: SharedRequest<GetMyFilesResult> | null = null;
 let getMyFilesInFlightKey = '';
 
 export async function getMyFiles(
@@ -52,23 +57,24 @@ export async function getMyFiles(
   const key = `${token}:${limit}:${offset}`;
 
   if (getMyFilesInFlight && getMyFilesInFlightKey === key) {
-    return getMyFilesInFlight;
+    return getMyFilesInFlight.join(signal);
   }
 
   getMyFilesInFlightKey = key;
-  getMyFilesInFlight = (async () => {
+  const shared = createSharedRequest(async (sharedSignal) => {
     const response = await http.get('/v2/files', {
       headers: {
         Authorization: token,
       },
       params: { limit, offset },
-      signal,
+      signal: sharedSignal,
     });
     return normalizeGetMyFilesResponse(response.data, { limit, offset });
-  })();
+  });
+  getMyFilesInFlight = shared;
 
   try {
-    return await getMyFilesInFlight;
+    return await shared.join(signal);
   } finally {
     getMyFilesInFlight = null;
     getMyFilesInFlightKey = '';

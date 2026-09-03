@@ -243,11 +243,11 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     canCall && videoCallsConfig?.enableAudioCalls === true;
 
   const callDisabledReason = !isRoomAllowed
-    ? 'Video calls are available only in 1:1 rooms for v1'
+    ? t('call.disabled.roomType')
     : !hasLivekitUrl
-      ? 'Video calls unavailable: missing config.videoCalls.livekitUrl'
+      ? t('call.disabled.noLivekit')
       : isCallBusy
-        ? 'Another call is already in progress'
+        ? t('call.disabled.busy')
         : '';
 
   const handleReportClick = () => {
@@ -410,6 +410,18 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
               config?.disableChatInfo?.disableHeader
                 ? undefined
                 : () => dispatch(setActiveModal(MODAL_TYPES.CHAT_PROFILE))
+            }
+            role={config?.disableChatInfo?.disableHeader ? undefined : 'button'}
+            tabIndex={config?.disableChatInfo?.disableHeader ? undefined : 0}
+            onKeyDown={
+              config?.disableChatInfo?.disableHeader
+                ? undefined
+                : (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      dispatch(setActiveModal(MODAL_TYPES.CHAT_PROFILE));
+                    }
+                  }
             }
             style={
               config?.disableChatInfo?.disableHeader

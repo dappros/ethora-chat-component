@@ -44,7 +44,7 @@ export const CloseButton = styled.button`
   }
 `;
 
-export const ModalContainer = styled.div`
+export const ModalContainer = styled.div.attrs({ role: 'dialog', 'aria-modal': 'true' })`
   background: var(--ethora-color-bg, #fff);
   border-radius: var(--ethora-radius-lg, 16px);
   padding: 32px 64px;

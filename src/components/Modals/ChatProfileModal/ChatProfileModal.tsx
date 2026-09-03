@@ -458,7 +458,14 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
               cursor: 'pointer',
             }}
             onClick={() => setFilesExpanded((prev) => !prev)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setFilesExpanded((prev) => !prev);
+              }
+            }}
             role="button"
+            tabIndex={0}
             aria-expanded={filesExpanded}
           >
             <LabelData>{t('modal.chatProfile.filesTitle')}</LabelData>

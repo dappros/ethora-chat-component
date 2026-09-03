@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useModalDismiss } from '../../../hooks/useModalDismiss';
 import { useDispatch, useSelector } from 'react-redux';
 import { getActiveRoom, RootState } from '../../../roomStore';
 import {
@@ -32,6 +33,7 @@ const SelectUsersModal: React.FC = () => {
     setIsModalOpen(false);
     setSelectedUsers([]);
   };
+  useModalDismiss({ enabled: isModalOpen, onClose: handleCloseModal });
 
   const handleAdd = async () => {
     setIsLoading(true);

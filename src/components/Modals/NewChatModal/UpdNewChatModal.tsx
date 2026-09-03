@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useModalDismiss } from '../../../hooks/useModalDismiss';
 import Button from '../../styled/Button';
 import { AddNewIcon } from '../../../assets/icons';
 import { resolveIconColor } from '../../../helpers/resolveIconColor';
@@ -54,6 +55,7 @@ const NewChatModal: React.FC = () => {
     setRoomName('');
     setSelectedUsers([]);
   };
+  useModalDismiss({ enabled: isModalOpen, onClose: handleCloseModal });
 
   const validateRoomName = (name: string) => {
     if (name.trim().length < 3) {

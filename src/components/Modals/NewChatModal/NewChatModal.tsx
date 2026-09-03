@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useModalDismiss } from '../../../hooks/useModalDismiss';
 import Button from '../../styled/Button';
 import { AddNewIcon, AddPhotoIcon } from '../../../assets/icons';
 import { resolveIconColor } from '../../../helpers/resolveIconColor';
@@ -107,6 +108,7 @@ const NewChatModal: React.FC = () => {
     setRoomName('');
     setSelectedUsers([]);
   };
+  useModalDismiss({ enabled: isModalOpen, onClose: handleCloseModal });
 
   const onUpload = async (file: File) => {
     setProfileImage(file);

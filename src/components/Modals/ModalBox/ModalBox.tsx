@@ -6,6 +6,7 @@ import {
   ModalTitle,
 } from '../styledModalComponents.tsx';
 import { useT } from '../../../i18n/useT';
+import { useModalDismiss } from '../../../hooks/useModalDismiss';
 
 interface ModalBoxProps {
   title: string;
@@ -19,6 +20,7 @@ export const ModalBox: FC<ModalBoxProps> = ({
   children,
 }) => {
   const t = useT();
+  useModalDismiss({ onClose: handleCloseModal });
   return (
     <ModalBackground>
       <ModalContainer>

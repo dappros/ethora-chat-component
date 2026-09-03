@@ -190,8 +190,16 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
               ))}
               <ArrowButton
                 role="button"
+                tabIndex={0}
                 aria-label={t('action.moreOptions')}
+                aria-expanded={showPicker}
                 isRotated={showPicker}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    (e.currentTarget as HTMLElement).click();
+                  }
+                }}
                 onClick={(e) => {
                   e.stopPropagation();
                   const { adjustedX, adjustedY } = calculatePickerPosition(

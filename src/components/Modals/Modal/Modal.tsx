@@ -1,4 +1,5 @@
 import React from 'react';
+import { useModalDismiss } from '../../../hooks/useModalDismiss';
 import { ModalBackground } from '../styledModalComponents';
 import { ModalType } from '../../../types/types';
 import { useDispatch } from 'react-redux';
@@ -19,6 +20,20 @@ const Modal: React.FC<ModalProps> = ({ children, modal, setOpenModal }) => {
   const handleCloseModal = () => setOpenModal();
   const handleBackButtonClick = () =>
     dispatch(setActiveModal(MODAL_TYPES.SETTINGS));
+
+  // Escape dismisses whichever store-driven modal is open (the settings
+  // sub-modals step back to Settings, matching their own close button).
+  const isSubSettingsModal =
+    modal === MODAL_TYPES.MANAGE_DATA ||
+    modal === MODAL_TYPES.VISIBILITY ||
+    modal === MODAL_TYPES.REFERRALS ||
+    modal === MODAL_TYPES.DOCUMENT_SHARES ||
+    modal === MODAL_TYPES.PROFILE_SHARES ||
+    modal === MODAL_TYPES.BLOCKED_USERS;
+  useModalDismiss({
+    enabled: Boolean(modal),
+    onClose: isSubSettingsModal ? handleBackButtonClick : handleCloseModal,
+  });
 
   const renderModalContent = () => {
     const ModalComponent = MODAL_COMPONENTS[modal];

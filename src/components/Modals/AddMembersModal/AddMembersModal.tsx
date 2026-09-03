@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useModalDismiss } from '../../../hooks/useModalDismiss';
 import Button from '../../styled/Button';
 import { useSelector } from 'react-redux';
 import { getActiveRoom, RootState } from '../../../roomStore';
@@ -37,6 +38,7 @@ const AddMembersModal: React.FC = () => {
 
   const handleOpenModal = () => setIsModalOpen(true);
   const handleCloseModal = () => setIsModalOpen(false);
+  useModalDismiss({ enabled: isModalOpen, onClose: handleCloseModal });
 
   const validateRoomName = (name: string) => {
     if (name.trim().length < 3) {

@@ -303,12 +303,28 @@ const RoomList: React.FC<RoomListProps> = ({
         {(open || !burgerMenu) && (
           <ScollableContainer>
             {filesTabEnabled && (
-              <TabsContainer role="tablist" aria-label={t('tabs.chats')}>
+              <TabsContainer
+                role="tablist"
+                aria-label={t('tabs.label')}
+                onKeyDown={(e) => {
+                  // Roving tabindex: arrows move between tabs, Tab leaves the list.
+                  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+                  e.preventDefault();
+                  const next = activeTab === 'chats' ? 'files' : 'chats';
+                  setActiveTab(next);
+                  (
+                    e.currentTarget.querySelector(`#ethora-${next}-tab`) as HTMLElement | null
+                  )?.focus();
+                }}
+              >
                 <TabIndicator $index={activeTab === 'chats' ? 0 : 1} $count={2} />
                 <TabButton
                   type="button"
                   role="tab"
+                  id="ethora-chats-tab"
+                  aria-controls="ethora-chats-tabpanel"
                   aria-selected={activeTab === 'chats'}
+                  tabIndex={activeTab === 'chats' ? 0 : -1}
                   active={activeTab === 'chats'}
                   onClick={() => setActiveTab('chats')}
                 >
@@ -317,7 +333,10 @@ const RoomList: React.FC<RoomListProps> = ({
                 <TabButton
                   type="button"
                   role="tab"
+                  id="ethora-files-tab"
+                  aria-controls="ethora-files-tabpanel"
                   aria-selected={activeTab === 'files'}
+                  tabIndex={activeTab === 'files' ? 0 : -1}
                   active={activeTab === 'files'}
                   onClick={() => setActiveTab('files')}
                 >
@@ -327,11 +346,21 @@ const RoomList: React.FC<RoomListProps> = ({
             )}
 
             {activeTab === 'files' && filesTabEnabled ? (
-              <TabContent key="files">
+              <TabContent
+                key="files"
+                role="tabpanel"
+                id="ethora-files-tabpanel"
+                aria-labelledby="ethora-files-tab"
+              >
                 <FilesPanel />
               </TabContent>
             ) : (
-              <TabContent key="chats">
+              <TabContent
+                key="chats"
+                role="tabpanel"
+                id="ethora-chats-tabpanel"
+                aria-labelledby="ethora-chats-tab"
+              >
                 {!config?.chatHeaderSettings?.hide && (
                   <SearchContainer>
                     {!config?.disableRoomMenu &&

@@ -65,6 +65,10 @@ export function useMyFiles(options?: UseMyFilesOptions): UseMyFilesResult {
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
+      // An aborted (superseded) request must not touch state in its finally:
+      // it used to clear the loading flags of the request that replaced it,
+      // re-enabling loadMore mid-flight.
+      const isCurrent = () => abortRef.current === controller;
 
       if (replace) {
         setLoading(true);
@@ -90,10 +94,13 @@ export function useMyFiles(options?: UseMyFilesOptions): UseMyFilesResult {
         writeCache({ items: nextItems, total: result.total, hasMore: nextHasMore });
       } catch (err: any) {
         if (err?.name === 'CanceledError' || err?.name === 'AbortError') return;
+        if (!isCurrent()) return;
         setError(err?.message || 'Failed to load files');
       } finally {
-        setLoading(false);
-        setLoadingMore(false);
+        if (isCurrent()) {
+          setLoading(false);
+          setLoadingMore(false);
+        }
       }
     },
     [writeCache]

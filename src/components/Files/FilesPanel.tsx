@@ -290,6 +290,17 @@ const FilesPanel: React.FC = () => {
           {items.length === 0 && (
             <StateSubtitle>{t('files.empty.subtitle')}</StateSubtitle>
           )}
+          {items.length > 0 && hasMore && (
+            <>
+              {/* Filtering is client-side over the pages loaded so far, so
+                  "nothing matches" is only true for what we have; offer the
+                  next page instead of a confidently wrong empty state. */}
+              <StateSubtitle>{t('files.noResults.moreAvailable')}</StateSubtitle>
+              <LoadMoreButton onClick={loadMore} disabled={loadingMore}>
+                {t('files.action.loadMore')}
+              </LoadMoreButton>
+            </>
+          )}
         </StateContainer>
       ) : (
         <>
@@ -300,7 +311,7 @@ const FilesPanel: React.FC = () => {
             onDownload={handleDownload}
             onDelete={handleDelete}
           />
-          {hasMore && filter === 'all' && !search && (
+          {hasMore && (
             <LoadMoreButton onClick={loadMore} disabled={loadingMore}>
               {t('files.action.loadMore')}
             </LoadMoreButton>

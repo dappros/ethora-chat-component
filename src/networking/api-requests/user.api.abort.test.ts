@@ -31,10 +31,33 @@ describe('getMyUser abort handling', () => {
 
     await getMyUser({ token: 'tok-1', signal: controller.signal });
 
+    // The request runs on a shared internal signal (see sharedRequest.ts)
+    // so several callers can piggyback on one GET; the caller's own signal
+    // only detaches that caller.
     expect(httpGetMock).toHaveBeenCalledWith(
       '/v1/users/my',
-      expect.objectContaining({ signal: controller.signal })
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
+  });
+
+  it('aborts the underlying request once its only subscriber aborts', async () => {
+    const controller = new AbortController();
+    let forwardedSignal: AbortSignal | undefined;
+    httpGetMock.mockImplementationOnce((_url: string, config: { signal?: AbortSignal }) => {
+      forwardedSignal = config.signal;
+      // Behave like axios: reject with CanceledError once the signal fires,
+      // which is what lets the in-flight entry clear itself.
+      return new Promise((_, reject) => {
+        config.signal?.addEventListener('abort', () =>
+          reject(Object.assign(new Error('canceled'), { name: 'CanceledError', code: 'ERR_CANCELED' }))
+        );
+      });
+    });
+
+    const pending = getMyUser({ token: 'tok-1', signal: controller.signal });
+    controller.abort();
+    await expect(pending).rejects.toMatchObject({ name: 'CanceledError' });
+    expect(forwardedSignal?.aborted).toBe(true);
   });
 
   it('propagates a cancellation error to the caller', async () => {
@@ -47,5 +70,6 @@ describe('getMyUser abort handling', () => {
     await expect(
       getMyUser({ token: 'tok-1', signal: controller.signal })
     ).rejects.toBe(canceledError);
+    void controller;
   });
 });
