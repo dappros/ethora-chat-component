@@ -41,10 +41,17 @@ export const IconButton = styled.button`
   background: none;
   border: none;
   cursor: pointer;
-  color: gray;
+  color: var(--ethora-color-icons, gray);
   font-size: 36px;
   display: flex;
   align-items: center;
   gap: 5px;
   pointer-events: auto;
+  border-radius: var(--ethora-radius-sm, 8px);
+  transition: background-color var(--ethora-motion-fast, 150ms)
+    var(--ethora-motion-ease, ease);
+
+  &:hover {
+    background-color: var(--ethora-color-bg-hover, rgba(0, 0, 0, 0.06));
+  }
 `;

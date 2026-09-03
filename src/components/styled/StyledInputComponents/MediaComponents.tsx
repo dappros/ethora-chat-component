@@ -1,9 +1,5 @@
-import styled, { keyframes } from 'styled-components';
-
-const shimmer = keyframes`
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
-`;
+import styled from 'styled-components';
+import { shimmerBackground } from '../../../styles/motion';
 
 export const MediaLoadingSkeleton = styled.div<{
   $width?: number | string;
@@ -12,9 +8,8 @@ export const MediaLoadingSkeleton = styled.div<{
   width: ${({ $width }) => (typeof $width === 'number' ? `${$width}px` : $width || '150px')};
   height: ${({ $height }) => (typeof $height === 'number' ? `${$height}px` : $height || '150px')};
   max-width: 100%;
-  border-radius: 16px;
-  background-color: #f3f6fc;
-  animation: ${shimmer} 1.4s ease-in-out infinite;
+  border-radius: var(--ethora-radius-md, 16px);
+  ${shimmerBackground}
 `;
 
 export const Container = styled.div`
@@ -52,12 +47,19 @@ export const ButtonContainer = styled.div`
 export const IconButton = styled.button`
   border: none;
   cursor: pointer;
-  color: gray;
+  color: var(--ethora-color-icons, gray);
   font-size: 36px;
   display: flex;
   align-items: center;
   gap: 5px;
   pointer-events: auto;
+  border-radius: var(--ethora-radius-sm, 8px);
+  transition: background-color var(--ethora-motion-fast, 150ms)
+    var(--ethora-motion-ease, ease);
+
+  &:hover {
+    background-color: var(--ethora-color-bg-hover, rgba(0, 0, 0, 0.06));
+  }
 `;
 
 export const UnsupportedContainer = styled.button`
@@ -65,19 +67,19 @@ export const UnsupportedContainer = styled.button`
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  border-radius: 8px;
+  border-radius: var(--ethora-radius-sm, 8px);
   padding: 8px 10px;
   cursor: pointer;
   gap: 8px;
-  background-color: #f3f6fc;
-  border: none;
+  background-color: var(--ethora-color-bg-subtle, #f3f6fc);
+  border: 1px solid var(--ethora-color-border, transparent);
 `;
 
 export const BackgroundFile = styled.div`
-  border-radius: 8px;
+  border-radius: var(--ethora-radius-sm, 8px);
   width: 100%;
   height: 100%;
-  background-color: #fff;
+  background-color: var(--ethora-color-bg, #fff);
 `;
 
 export const FileInformation = styled.div`
@@ -92,7 +94,7 @@ export const FileName = styled.span`
   font-size: 14px;
   font-weight: 500;
   flex-grow: 1;
-  color: #141414;
+  color: var(--ethora-color-text, #141414);
   overflow: hidden;
   min-width: 100px;
   text-align: start;
@@ -103,13 +105,13 @@ export const FileName = styled.span`
 export const FileSizeContainer = styled.div`
   align-items: flex-start;
   flex-direction: row;
-  background-color: #fff;
+  background-color: var(--ethora-color-bg, #fff);
   padding: 2px 8px;
-  border-radius: 40px;
+  border-radius: var(--ethora-radius-full, 40px);
 `;
 
 export const FileSize = styled.span`
-  color: #53575a;
+  color: var(--ethora-color-text-secondary, #53575a);
   overflow: hidden;
   text-align: left;
   font-weight: 500;
@@ -138,11 +140,11 @@ export const AttachmentGrid = styled.div<{ $columns: number }>`
 export const AttachmentTile = styled.button`
   position: relative;
   padding: 0;
-  border: none;
+  border: 1px solid var(--ethora-color-border, transparent);
   cursor: pointer;
   overflow: hidden;
-  border-radius: 12px;
-  background-color: rgba(0, 0, 0, 0.04);
+  border-radius: var(--ethora-radius-md, 12px);
+  background-color: var(--ethora-color-bg-subtle, rgba(0, 0, 0, 0.04));
   aspect-ratio: 1 / 1;
   width: 100%;
 
@@ -166,10 +168,10 @@ export const PdfContainer = styled.button<{ $compact: boolean }>`
   gap: 10px;
   width: 100%;
   padding: ${({ $compact }) => ($compact ? '6px 8px' : '8px 10px')};
-  border: none;
-  border-radius: 8px;
+  border: 1px solid var(--ethora-color-border, transparent);
+  border-radius: var(--ethora-radius-sm, 8px);
   cursor: pointer;
-  background-color: #f3f6fc;
+  background-color: var(--ethora-color-bg-subtle, #f3f6fc);
   text-align: start;
 `;
 
@@ -180,9 +182,9 @@ export const PdfThumbnailFrame = styled.div<{ $compact: boolean }>`
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  border-radius: 6px;
-  background-color: #fff;
-  border: 1px solid #e4e9f2;
+  border-radius: var(--ethora-radius-sm, 6px);
+  background-color: var(--ethora-color-bg, #fff);
+  border: 1px solid var(--ethora-color-border, #e4e9f2);
   width: ${({ $compact }) => ($compact ? '44px' : '84px')};
   height: ${({ $compact }) => ($compact ? '56px' : '110px')};
 
@@ -199,22 +201,7 @@ export const PdfThumbnailFrame = styled.div<{ $compact: boolean }>`
 export const PdfThumbnailSkeleton = styled.div`
   width: 100%;
   height: 100%;
-  background: linear-gradient(100deg, #f2f4f8 30%, #e7ebf2 50%, #f2f4f8 70%);
-  background-size: 200% 100%;
-  animation: ethora-pdf-shimmer 1.2s ease-in-out infinite;
-
-  @keyframes ethora-pdf-shimmer {
-    from {
-      background-position: 160% 0;
-    }
-    to {
-      background-position: -60% 0;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    animation: none;
-  }
+  ${shimmerBackground}
 `;
 
 export const PdfInformation = styled.div`
@@ -238,8 +225,8 @@ export const PdfBadge = styled.span`
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: #d93025;
+  color: var(--ethora-color-danger, #d93025);
   background-color: #fdecec;
-  border-radius: 4px;
+  border-radius: var(--ethora-radius-sm, 4px);
   padding: 1px 5px;
 `;

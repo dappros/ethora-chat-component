@@ -56,9 +56,18 @@ const TextInput: React.FC<TextInputProps> = ({
       />
       <Button
         onClick={handleSendClick}
-        EndIcon={<SendIcon color={!/\S/.test(String(message || '')) ? '#D4D4D8' : '#fff'} />}
+        aria-label={t('action.send')}
+        EndIcon={
+          <SendIcon
+            color={
+              !/\S/.test(String(message || ''))
+                ? 'var(--ethora-color-text-muted, #D4D4D8)'
+                : 'var(--ethora-color-text-on-primary, #fff)'
+            }
+          />
+        }
         style={{
-          borderRadius: '100px',
+          borderRadius: 'var(--ethora-radius-full, 100px)',
           backgroundColor: !/\S/.test(String(message || ''))
             ? 'transparent'
             : config?.colors?.primary,
