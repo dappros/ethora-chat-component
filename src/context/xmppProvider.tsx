@@ -123,7 +123,11 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
     targetClient: XmppClient | null,
     signal?: AbortSignal
   ) => {
-    const roomsResponse = await getRooms().catch(() => ({ items: [] }));
+    // Forward the bootstrap AbortController's signal so a superseded
+    // prefetch (e.g. login retried, provider unmounted) actually cancels
+    // the in-flight request instead of finishing pointlessly and racing a
+    // newer one into the rooms cache.
+    const roomsResponse = await getRooms(signal).catch(() => ({ items: [] }));
     const items = roomsResponse?.items || [];
     if (signal?.aborted || !items.length) return [];
 

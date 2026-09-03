@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { store } from '../../roomStore';
 import {
   ApiRoom,
@@ -27,7 +28,13 @@ export function invalidateRoomsCache() {
   lastGetRoomsResponseToken = '';
 }
 
-export async function getRooms(): Promise<{ items: ApiRoom[] }> {
+// An aborted request (AbortSignal fired) must never poison the cache or the
+// in-flight dedup: axios rejects it with a CanceledError, which we treat
+// like any other transport failure below - lastGetRoomsResponse is only
+// written on the success path, and the in-flight entry is always cleared in
+// the finally so the next (non-aborted) caller gets a fresh request instead
+// of hanging on a promise that will never resolve for them.
+export async function getRooms(signal?: AbortSignal): Promise<{ items: ApiRoom[] }> {
   const token = store.getState().chatSettingStore.user.token || '';
   const now = Date.now();
 
@@ -49,6 +56,7 @@ export async function getRooms(): Promise<{ items: ApiRoom[] }> {
       headers: {
         Authorization: token,
       },
+      signal,
     });
     lastGetRoomsResponse = response.data;
     lastGetRoomsResponseAt = Date.now();
@@ -59,6 +67,12 @@ export async function getRooms(): Promise<{ items: ApiRoom[] }> {
   try {
     return await getRoomsInFlight;
   } catch (error) {
+    if (axios.isCancel(error)) {
+      // Let the caller see the cancellation instead of silently returning
+      // an empty list - a caller that aborted its own request already
+      // knows why and will decide whether to retry.
+      throw error;
+    }
     ethoraLogger.log('Error loading rooms');
     return { items: [] };
   } finally {
@@ -67,7 +81,10 @@ export async function getRooms(): Promise<{ items: ApiRoom[] }> {
   }
 }
 
-export async function getRoomByName(chatName: string): Promise<ApiRoom> {
+export async function getRoomByName(
+  chatName: string,
+  signal?: AbortSignal
+): Promise<ApiRoom> {
   const token = store.getState().chatSettingStore.user.token || '';
 
   try {
@@ -75,9 +92,13 @@ export async function getRoomByName(chatName: string): Promise<ApiRoom> {
       headers: {
         Authorization: token,
       },
+      signal,
     });
     return response.data;
   } catch (error) {
+    if (axios.isCancel(error)) {
+      throw error;
+    }
     throw new Error('Error updating profile');
   }
 }

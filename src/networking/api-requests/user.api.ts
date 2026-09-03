@@ -5,6 +5,7 @@ import { User } from '../../types/types';
 interface GetMyUserOptions {
   token?: string;
   endpoint?: string;
+  signal?: AbortSignal;
 }
 
 export function getDocuments(walletAddress: string) {
@@ -59,6 +60,7 @@ export async function getMyUser(
     headers: {
       Authorization: token,
     },
+    signal: options?.signal,
   });
 
   if (response?.data?.user) {
