@@ -1,5 +1,5 @@
 import { Client, xml } from '@xmpp/client';
-import { createTimeoutPromise } from './createTimeoutPromise.xmpp';
+import { createCancelableTimeoutPromise } from './createTimeoutPromise.xmpp';
 import { Element } from '@xmpp/xml';
 
 const isValidMucJid = (jid: unknown): jid is string => {
@@ -32,10 +32,15 @@ export const presenceInRoom = async (
 
   return new Promise((resolve, reject) => {
     let settled = false;
+    // Cleared as soon as the promise settles by any other path (success or
+    // a presence error stanza), so the timeout timer doesn't linger and
+    // fire pointlessly after we already know the outcome.
+    let cancelTimeout: (() => void) | null = null;
 
     const finish = (cb: (value?: any) => void, value?: any) => {
       if (settled) return;
       settled = true;
+      cancelTimeout?.();
 
       setTimeout(() => {
         unsubscribe();
@@ -64,6 +69,7 @@ export const presenceInRoom = async (
                       : errEl.attrs?.type || 'unknown')) ||
             'unknown';
           settled = true;
+          cancelTimeout?.();
           unsubscribe();
           reject(new Error(`presence_error:${code}:${roomJID}`));
           return;
@@ -87,7 +93,14 @@ export const presenceInRoom = async (
     client
       .send(presence)
       .then(() => {
-        void createTimeoutPromise(timeoutMs, unsubscribe).catch(() => {
+        const { promise, cancel } = createCancelableTimeoutPromise(
+          timeoutMs,
+          unsubscribe
+        );
+        cancelTimeout = cancel;
+        promise.catch(() => {
+          if (settled) return;
+          settled = true;
           reject(new Error(`presence_timeout:${roomJID}`));
         });
       })

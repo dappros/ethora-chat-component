@@ -1,5 +1,5 @@
 import { Client, xml } from '@xmpp/client';
-import { createTimeoutPromise } from './createTimeoutPromise.xmpp';
+import { createCancelableTimeoutPromise } from './createTimeoutPromise.xmpp';
 import { Element } from '@xmpp/xml';
 
 export const getRoomsPaged = async (
@@ -18,8 +18,17 @@ export const getRoomsPaged = async (
   };
 
   return new Promise((resolve, reject) => {
+    let settled = false;
+    let cancelTimeout: (() => void) | null = null;
+
     stanzaHdlrPointer = (stanza) => {
-      if (stanza.is('iq') && stanza.attrs.id === 'getUserRooms') {
+      // Must match the id we actually send below ('getUserRoomsPaged') -
+      // this used to check for the unrelated literal 'getUserRooms', which
+      // the server's response id never matches, so every call fell through
+      // to the 2s timeout instead of resolving on the real reply.
+      if (stanza.is('iq') && stanza.attrs.id === 'getUserRoomsPaged') {
+        settled = true;
+        cancelTimeout?.();
         unsubscribe();
         resolve(stanza);
       }
@@ -54,6 +63,14 @@ export const getRoomsPaged = async (
       reject(err);
     }
 
-    void createTimeoutPromise(2000, unsubscribe).catch(reject);
+    const { promise: timeoutPromise, cancel } = createCancelableTimeoutPromise(
+      2000,
+      unsubscribe
+    );
+    cancelTimeout = cancel;
+    void timeoutPromise.catch((err) => {
+      if (settled) return;
+      reject(err);
+    });
   });
 };

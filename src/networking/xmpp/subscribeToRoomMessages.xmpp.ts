@@ -1,6 +1,6 @@
 import { Client, xml } from '@xmpp/client';
 import { Element } from '@xmpp/xml';
-import { createTimeoutPromise } from './createTimeoutPromise.xmpp';
+import { createCancelableTimeoutPromise } from './createTimeoutPromise.xmpp';
 
 export type SubscribeResult =
   | { ok: true }
@@ -22,10 +22,15 @@ export async function subscribeToRoomMessages(
 
   return new Promise((resolve, reject) => {
     let settled = false;
+    // Cleared once the promise settles via the success/error stanza path,
+    // so the 5s timeout timer below doesn't stay alive (and fire a no-op)
+    // after the real answer already arrived.
+    let cancelTimeout: (() => void) | null = null;
 
     const finish = (cb: (value?: any) => void, value?: any) => {
       if (settled) return;
       settled = true;
+      cancelTimeout?.();
       setTimeout(() => {
         unsubscribe();
         cb(value);
@@ -84,7 +89,12 @@ export async function subscribeToRoomMessages(
       return;
     }
 
-    createTimeoutPromise(5000, unsubscribe).catch(() => {
+    const { promise: timeoutPromise, cancel } = createCancelableTimeoutPromise(
+      5000,
+      unsubscribe
+    );
+    cancelTimeout = cancel;
+    timeoutPromise.catch(() => {
       if (!settled) {
         finish(resolve, { ok: false, reason: 'timeout' });
       }
