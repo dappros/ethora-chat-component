@@ -5,6 +5,7 @@ import { User } from '../../types/types';
 interface GetMyUserOptions {
   token?: string;
   endpoint?: string;
+  signal?: AbortSignal;
 }
 
 export function getDocuments(walletAddress: string) {
@@ -56,6 +57,12 @@ const MY_USER_CACHE_TTL_MS = 10_000;
 const myUserInflight = new Map<string, Promise<User>>();
 const myUserCache = new Map<string, { user: User; ts: number }>();
 
+// Mirrors invalidateRoomsCache: drop the short-TTL /users/my snapshot, e.g.
+// on logout or when a test needs a cold cache.
+export function invalidateMyUserCache() {
+  myUserCache.clear();
+}
+
 export async function getMyUser(
   options?: GetMyUserOptions
 ): Promise<User> {
@@ -71,11 +78,15 @@ export async function getMyUser(
   const inflight = myUserInflight.get(key);
   if (inflight) return inflight;
 
+  // An aborted request rejects with CanceledError: nothing is cached (the
+  // cache is written only on success) and the in-flight entry is cleared in
+  // finally, so the next caller issues a fresh request.
   const request = http
     .get(endpoint, {
       headers: {
         Authorization: token,
       },
+      signal: options?.signal,
     })
     .then((response) => {
       const user = (response?.data?.user || response.data) as User;

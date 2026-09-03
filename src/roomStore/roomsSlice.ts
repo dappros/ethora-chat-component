@@ -352,6 +352,34 @@ export const addRoomViaApi = createAsyncThunk(
   }
 );
 
+// Shared by the updateRoom and updateRooms reducers so the batched form
+// behaves identically to dispatching updateRoom once per room.
+const applyRoomUpdate = (
+  state: RoomMessagesState,
+  jid: string,
+  updates: Partial<IRoom>
+) => {
+  const existingRoom = state.rooms[jid];
+  if (!existingRoom) return;
+
+  const merged: IRoom = {
+    ...existingRoom,
+    ...updates,
+  };
+
+  if (typeof updates.usersCnt === 'number') {
+    const incoming = updates.usersCnt;
+    const newMembers = Array.isArray(updates.members)
+      ? updates.members
+      : existingRoom.members;
+    const floor = Array.isArray(newMembers) ? newMembers.length : 0;
+    merged.usersCnt = Math.max(incoming, floor);
+  } else if (Array.isArray(updates.members)) {
+    merged.usersCnt = updates.members.length;
+  }
+  state.rooms[jid] = merged;
+};
+
 const roomsStore = createSlice({
   name: 'roomMessages',
   initialState,
@@ -419,25 +447,18 @@ const roomsStore = createSlice({
       action: PayloadAction<{ jid: string; updates: Partial<IRoom> }>
     ) {
       const { jid, updates } = action.payload;
-      const existingRoom = state.rooms[jid];
-
-      if (existingRoom) {
-        const merged: IRoom = {
-          ...existingRoom,
-          ...updates,
-        };
-      
-        if (typeof updates.usersCnt === 'number') {
-          const incoming = updates.usersCnt;
-          const newMembers = Array.isArray(updates.members)
-            ? updates.members
-            : existingRoom.members;
-          const floor = Array.isArray(newMembers) ? newMembers.length : 0;
-          merged.usersCnt = Math.max(incoming, floor);
-        } else if (Array.isArray(updates.members)) {
-          merged.usersCnt = updates.members.length;
-        }
-        state.rooms[jid] = merged;
+      applyRoomUpdate(state, jid, updates);
+    },
+    // Batched form of updateRoom - one dispatch (and one Redux notification)
+    // for many rooms instead of a dispatch-per-room loop. Used by
+    // stanzaHandlers' onUserUpdate, which can touch every room a user is a
+    // member of from a single headline stanza.
+    updateRooms(
+      state,
+      action: PayloadAction<Array<{ jid: string; updates: Partial<IRoom> }>>
+    ) {
+      for (const { jid, updates } of action.payload) {
+        applyRoomUpdate(state, jid, updates);
       }
     },
     setRoomMessages(
@@ -1119,6 +1140,7 @@ export const {
   setCloseActiveMessage,
   deleteRoom,
   updateRoom,
+  updateRooms,
   updateUsersSet,
   setOpenReportModal,
   insertUsers,

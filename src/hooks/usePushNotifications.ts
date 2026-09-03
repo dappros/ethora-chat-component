@@ -24,6 +24,7 @@ import { IMessage } from '../types/models/message.model';
 import { pushSubscriptionService } from '../utils/pushSubscriptionService';
 import { getGlobalXmppClient } from '../utils/clientRegistry';
 import { isLikelyMucJid } from '../helpers/isLikelyMucJid';
+import { sweepPushSubscriptions } from './pushSubscriptionSweep';
 import {
   setCurrentRoom,
   setPushSubscriptionStatus,
@@ -618,57 +619,37 @@ const usePushNotifications = (
     const processSubscriptions = async () => {
       try {
         if (roomProcessRunningRef.current) return;
-      roomProcessRunningRef.current = true;
-      try {
-      for (const roomJID of roomJIDs) {
-          const currentStatus = pushSubscriptionStatus[roomJID];
-          
-          if (
-            currentStatus === 'subscribed' ||
-            currentStatus === 'pending' ||
-            currentStatus === 'blocked' ||
-            currentStatus === 'error'
-          ) {
-            continue;
-          }
-
-        const retryAt = roomRetryAtRef.current.get(roomJID);
-        if (retryAt && retryAt > Date.now()) {
-          continue;
-        }
-
-        if (roomSubscribeInFlightRef.current.has(roomJID)) {
-          continue;
-        }
-
-        dispatch(setPushSubscriptionStatus({ jid: roomJID, status: 'pending' }));
-        
+        roomProcessRunningRef.current = true;
         try {
-          const result = await pushSubscriptionService.subscribeToRoom(roomJID, client);
-          if (result.ok === true) {
-            dispatch(setPushSubscriptionStatus({ jid: roomJID, status: 'subscribed' }));
-            if (config?.useStoreConsoleEnabled) {
-              ethoraLogger.log(`[PushNotifications] ✅ Subscribed to ${roomJID}`);
-            }
-          } else {
-            const status = result.reason === 'forbidden' ? 'blocked' : 'error';
-            dispatch(setPushSubscriptionStatus({ jid: roomJID, status }));
-            if (config?.useStoreConsoleEnabled) {
-              console.warn(`[PushNotifications] ❌ Failed to subscribe to ${roomJID}:`, result.message);
-            }
-          }
-        } catch (error) {
-          dispatch(setPushSubscriptionStatus({ jid: roomJID, status: 'error' }));
-          if (config?.useStoreConsoleEnabled) {
-            console.error(`[PushNotifications] Error subscribing to ${roomJID}:`, error);
-          }
+          await sweepPushSubscriptions(roomJIDs, {
+            getStatus: (jid) => pushSubscriptionStatus[jid],
+            getRetryAt: (jid) => roomRetryAtRef.current.get(jid),
+            isInFlight: (jid) => roomSubscribeInFlightRef.current.has(jid),
+            markInFlight: (jid) => roomSubscribeInFlightRef.current.add(jid),
+            clearInFlight: (jid) => roomSubscribeInFlightRef.current.delete(jid),
+            setStatus: (jid, status) =>
+              dispatch(
+                setPushSubscriptionStatus({ jid, status: status as any })
+              ),
+            subscribe: (jid) =>
+              pushSubscriptionService.subscribeToRoom(jid, client),
+            onSubscribed: (jid) => {
+              if (config?.useStoreConsoleEnabled) {
+                ethoraLogger.log(`[PushNotifications] Subscribed to ${jid}`);
+              }
+            },
+            onFailed: (jid, message) => {
+              if (config?.useStoreConsoleEnabled) {
+                console.warn(
+                  `[PushNotifications] Failed to subscribe to ${jid}:`,
+                  message
+                );
+              }
+            },
+          });
+        } finally {
+          isSyncingRef.current = false;
         }
-
-          await new Promise((resolve) => setTimeout(resolve, 100));
-        }
-      } finally {
-        isSyncingRef.current = false;
-      }
       } finally {
         roomProcessRunningRef.current = false;
       }
