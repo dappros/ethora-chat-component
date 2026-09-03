@@ -176,26 +176,52 @@ export const signInWithGoogle = async () => {
   }
 };
 
-// export function uploadFile(formData: FormData) {
-//   const token = store.getState().chatSettingStore.user.token;
-//   return http.post('/v1/files/', formData, {
-//     headers: {
-//       Authorization: token,
-//       Accept: '*/*',
-//     },
-//   });
-// }
+const SECURE_UPLOAD_ENDPOINT = '/v2/files/secure';
+const LEGACY_UPLOAD_ENDPOINT = '/v1/files/';
+let secureUploadUnavailable = false;
 
-export function uploadFile(formData: FormData, activeRoomJID: string) {
-  const token = store.getState().chatSettingStore.user.token;
-  const chatName = activeRoomJID.split('@')[0];
-  formData.append('chatName', chatName);
-  return http.post('/v2/files/secure', formData, {
+const cloneFormData = (formData: FormData): FormData => {
+  const copy = new FormData();
+  formData.forEach((value, key) => copy.append(key, value as string | Blob));
+  return copy;
+};
+
+const canFallBackToLegacyUpload = (error: unknown): boolean => {
+  const status = (error as { response?: { status?: number } })?.response
+    ?.status;
+  if (typeof status !== 'number') return true;
+  return status !== 401 && status !== 413;
+};
+
+const postUpload = (endpoint: string, formData: FormData, token: string) =>
+  http.post(endpoint, formData, {
     headers: {
       Authorization: token,
       Accept: '*/*',
     },
   });
+
+export async function uploadFile(formData: FormData, activeRoomJID: string) {
+  const token = store.getState().chatSettingStore.user.token;
+
+  if (!secureUploadUnavailable) {
+    const secureData = cloneFormData(formData);
+    secureData.append('chatName', activeRoomJID.split('@')[0]);
+
+    try {
+      return await postUpload(SECURE_UPLOAD_ENDPOINT, secureData, token);
+    } catch (error) {
+      if (!canFallBackToLegacyUpload(error)) throw error;
+
+      secureUploadUnavailable = true;
+      console.warn(
+        `[chat] ${SECURE_UPLOAD_ENDPOINT} unavailable, falling back to ${LEGACY_UPLOAD_ENDPOINT} for this session`,
+        error
+      );
+    }
+  }
+
+  return postUpload(LEGACY_UPLOAD_ENDPOINT, formData, token);
 }
 
 export async function ensureUserFromMy(

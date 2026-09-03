@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import { renderWithProviders } from '../../test/renderWithProviders';
 import MediaMessage from './MediaMessage';
@@ -30,7 +30,26 @@ const renderMessage = (message: Partial<IMessage>) =>
   );
 
 describe('MediaMessage', () => {
-  it('renders a legacy single-file image message unchanged', () => {
+  // MessageImage holds a loading skeleton until the preview has actually
+  // decoded (it preloads through `new Image()`), and jsdom never loads
+  // images on its own. Stub the preloader so setting `src` resolves like a
+  // successful network fetch would.
+  const RealImage = globalThis.Image;
+  beforeEach(() => {
+    class FakeImage {
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      set src(_value: string) {
+        setTimeout(() => this.onload?.(), 0);
+      }
+    }
+    globalThis.Image = FakeImage as unknown as typeof Image;
+  });
+  afterEach(() => {
+    globalThis.Image = RealImage;
+  });
+
+  it('renders a legacy single-file image message unchanged', async () => {
     renderMessage({
       mimetype: 'image/png',
       location: 'https://files.example/a.png',
@@ -38,7 +57,7 @@ describe('MediaMessage', () => {
       originalName: 'a.png',
     });
 
-    const image = screen.getByAltText('a.png') as HTMLImageElement;
+    const image = (await screen.findByAltText('a.png')) as HTMLImageElement;
     expect(image.src).toBe('https://files.example/a-thumb.png');
   });
 

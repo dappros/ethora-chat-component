@@ -1,4 +1,21 @@
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
+
+const shimmer = keyframes`
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+`;
+
+export const MediaLoadingSkeleton = styled.div<{
+  $width?: number | string;
+  $height?: number | string;
+}>`
+  width: ${({ $width }) => (typeof $width === 'number' ? `${$width}px` : $width || '150px')};
+  height: ${({ $height }) => (typeof $height === 'number' ? `${$height}px` : $height || '150px')};
+  max-width: 100%;
+  border-radius: 16px;
+  background-color: #f3f6fc;
+  animation: ${shimmer} 1.4s ease-in-out infinite;
+`;
 
 export const Container = styled.div`
   margin: 0;

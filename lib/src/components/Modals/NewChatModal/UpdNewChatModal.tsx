@@ -5,7 +5,11 @@ import { resolveIconColor } from '../../../helpers/resolveIconColor';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../../roomStore';
 import { useXmppClient } from '../../../context/xmppProvider';
-import { addRoom, setCurrentRoom, updateRoom } from '../../../roomStore/roomsSlice';
+import {
+  addRoom,
+  setCurrentRoom,
+  updateRoom,
+} from '../../../roomStore/roomsSlice';
 import { ApiRoom, ChatAccessOption } from '../../../types/types';
 import { uploadFile } from '../../../networking/api-requests/auth.api';
 import { createRoomFromApi } from '../../../helpers/createRoomFromApi';
@@ -65,12 +69,34 @@ const NewChatModal: React.FC = () => {
     }));
   };
 
+  // Runs AFTER the room exists: uploads are scoped to a chat, so the avatar
+  // cannot be sent until there is a JID to scope it to. Same two steps
+  // ChatProfileModal uses to change the icon of an existing room.
+  const applyRoomAvatar = async (roomJid: string) => {
+    if (!profileImage) return;
+
+    try {
+      const mediaData = new FormData();
+      mediaData.append('files', profileImage);
+
+      const uploadResult = await uploadFile(mediaData, roomJid);
+      const location = uploadResult?.data?.results?.[0]?.location;
+      if (!location) return;
+
+      client.setRoomImageStanza(roomJid, location, 'icon', 'none');
+      dispatch(updateRoom({ jid: roomJid, updates: { icon: location } }));
+    } catch (error) {
+      console.error('Room avatar upload failed:', error);
+    }
+  };
+
   const handleCreateRoom = async () => {
     if (isValid) {
       const namesArray = selectedUsers.map((user) => user.xmppUsername);
       const newChat: ApiRoom = await postRoom({
         title: roomName,
         description: roomDescription || 'No description',
+        picture: '',
         type: chatType.id || 'public',
         members: namesArray,
       });
@@ -85,18 +111,7 @@ const NewChatModal: React.FC = () => {
       dispatch(setCurrentRoom({ roomJID: normalizedChat.jid }));
       client.presenceInRoomStanza(normalizedChat.jid);
 
-      if (profileImage instanceof File) {
-        const mediaData = new FormData();
-        mediaData.append('files', profileImage);
-        const uploadResult = await uploadFile(mediaData, normalizedChat.jid);
-        const location = uploadResult?.data?.results?.[0]?.location;
-        if (location) {
-          client.setRoomImageStanza(normalizedChat.jid, location, 'icon', 'none');
-          dispatch(
-            updateRoom({ jid: normalizedChat.jid, updates: { icon: location } })
-          );
-        }
-      }
+      await applyRoomAvatar(normalizedChat.jid);
     }
   };
 
