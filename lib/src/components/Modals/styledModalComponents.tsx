@@ -116,7 +116,7 @@ export const GroupContainer = styled.div`
   padding: 0;
 `;
 
-export const ModalContainerFullScreen = styled.div`
+export const ModalContainerFullScreen = styled.div.attrs({ role: 'dialog', 'aria-modal': 'true' })`
   width: 100%;
   height: 100%;
   background-color: var(--ethora-color-bg, #fff);
