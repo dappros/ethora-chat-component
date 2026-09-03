@@ -20,7 +20,6 @@ const toneColor = ($tone: 'default' | 'danger' | undefined) =>
 const CustomButton = styled.button<{
   disabled: boolean;
   $backgroundColor?: string;
-  $unstyled?: boolean;
   $variant?: 'default' | 'filled' | 'outlined' | 'ghost';
   $tone?: 'default' | 'danger';
 }>`
@@ -103,6 +102,14 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   EndIcon?: ReactElement;
   StartIcon?: ReactElement;
   loading?: boolean;
+  /**
+   * @deprecated No-op. `CustomButton`'s styles never actually read this
+   * prop, so it has had no visual effect for as long as it's existed - many
+   * call sites pass it expecting the default (unstyled-looking) button they
+   * already get from `variant="default"`. Kept accepted here only so those
+   * call sites keep compiling/rendering exactly as before; implementing it
+   * for real would change their visuals. Use `variant` instead.
+   */
   unstyled?: boolean;
   variant?: 'default' | 'filled' | 'outlined' | 'ghost';
   /** Recolors the button around the danger token for destructive actions. Optional, defaults to the existing brand-blue styling. */
@@ -115,6 +122,9 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
   EndIcon,
   loading = false,
   disabled = false,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- accepted
+  // for backward compatibility only, see the deprecated ButtonProps.unstyled
+  // doc comment; destructured here so it isn't spread onto the DOM button.
   unstyled = false,
   variant = 'default',
   tone = 'default',
@@ -127,7 +137,6 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
       ref={ref}
       disabled={disabled}
       $backgroundColor={props?.style?.backgroundColor}
-      $unstyled={unstyled}
       $variant={variant}
       $tone={tone}
       {...props}
