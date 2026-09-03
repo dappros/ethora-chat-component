@@ -14,7 +14,10 @@ const Grid = styled.div`
   margin-bottom: 8px;
 `;
 
-const Thumb = styled.button`
+// Rendered as a <div role="button"> rather than a native <button> because it
+// wraps its own delete/confirm <button> children - nesting an interactive
+// button inside another button is invalid DOM and React warns on it.
+const Thumb = styled.div`
   position: relative;
   border: 1px solid var(--ethora-color-border, #e6e8ec);
   border-radius: var(--ethora-radius-sm, 8px);
@@ -112,15 +115,25 @@ const RowsContainer = styled.div`
   flex-direction: column;
 `;
 
+// Row height/radius/hover match RoomList's ChatItem (see
+// src/components/styled/RoomListComponents/index.tsx) so the Files tab
+// reads as the same list surface as the room list rows above it.
 const Row = styled.div`
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 4px;
-  border-bottom: 1px solid var(--ethora-color-border, #e6e8ec);
+  min-height: 56px;
+  border-radius: var(--ethora-radius-md, 12px);
+  padding: 8px;
+  transition: background-color var(--ethora-motion-fast, 150ms)
+    var(--ethora-motion-ease, ease);
 
-  &:last-child {
-    border-bottom: none;
+  &:hover {
+    background-color: var(--ethora-color-bg-hover, #f0f2f5);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
   }
 `;
 
@@ -285,7 +298,15 @@ const FilesList: React.FC<FilesListProps> = ({
           {mediaItems.map((file) => (
             <Thumb
               key={file._id}
+              role="button"
+              tabIndex={0}
               onClick={() => onPreview(file)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onPreview(file);
+                }
+              }}
               aria-label={file.originalname}
               title={file.originalname}
             >

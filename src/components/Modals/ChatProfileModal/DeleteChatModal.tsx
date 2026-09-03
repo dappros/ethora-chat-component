@@ -49,7 +49,11 @@ const DeleteChatModal: React.FC<DeleteChatModalProps> = ({
     isModalOpen && (
       <ModalBackground>
         <ModalContainer>
-          <CloseButton onClick={handleCloseModal} style={{ fontSize: 24 }}>
+          <CloseButton
+            onClick={handleCloseModal}
+            style={{ fontSize: 24 }}
+            aria-label={t('action.close')}
+          >
             &times;
           </CloseButton>
           <ModalTitle>{t('modal.deleteChat.title')}</ModalTitle>
@@ -60,14 +64,15 @@ const DeleteChatModal: React.FC<DeleteChatModalProps> = ({
               text={t('action.cancel')}
               style={{ width: '100%' }}
               unstyled
-              variant="filled"
+              variant="outlined"
             />
             <Button
               onClick={handleDeleteChat}
               text={t('action.delete')}
-              style={{ width: '100%', border: '1px solid red', color: 'red' }}
+              style={{ width: '100%' }}
               unstyled
-              variant="outlined"
+              variant="filled"
+              tone="danger"
             />
           </GroupContainer>
         </ModalContainer>

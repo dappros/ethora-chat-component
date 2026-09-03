@@ -12,19 +12,19 @@ export const CustomSystemMessageText = styled.div<{
   secondary?: string;
 }>`
   margin: 0;
-  color: ${(props) => props.primary || '#0052cd'};
-  border-radius: 12px;
+  color: ${(props) => props.primary || 'var(--ethora-color-text-secondary, #5A5F66)'};
+  border-radius: var(--ethora-radius-full, 999px);
   padding: 5px 10px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: var(--ethora-font-size-xs, 12px);
   line-height: 16px;
   font-weight: 600;
   /* Light chip to match the date separator. Was bound to 'secondary', which
      hosts set to a near-black text colour (#141414) -> rendered as a harsh
      black pill. */
-  background-color: #e7edf9;
+  background-color: var(--ethora-color-bg-subtle, #e7edf9);
   min-height: 24px;
   max-width: min(90%, 2000px);
   white-space: normal;

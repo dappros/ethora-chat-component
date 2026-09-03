@@ -1,5 +1,6 @@
 import React, { FC } from 'react';
 import styled, { keyframes } from 'styled-components';
+import { reducedMotion } from '../../../styles/motion';
 
 // Define props
 interface ComposingProps {
@@ -19,7 +20,7 @@ const Wrapper = styled.div`
   display: flex;
   align-items: center;
   font-size: 14px;
-  color: #555;
+  color: var(--ethora-color-text-secondary, #555);
   z-index: 1000;
   position: static;
   bottom: 4px;
@@ -34,6 +35,7 @@ const Dot = styled.span`
   font-size: 24px;
   line-height: 0;
   animation: ${dotAnimation} 1.5s infinite;
+  ${reducedMotion}
 
   &:nth-child(2) {
     animation-delay: 0.2s;

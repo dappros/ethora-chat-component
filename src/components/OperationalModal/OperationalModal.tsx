@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import styled from 'styled-components';
 import QRCode from 'react-qr-code';
 import { CloseButton } from '../Modals/styledModalComponents';
 import { Overlay, StyledModal } from '../styled/MediaModal';
@@ -7,6 +8,22 @@ import Button from '../styled/Button';
 import { QRCODE_URL } from '../../helpers/constants/PLATFORM_CONSTANTS';
 import { handleCopyClick } from '../../helpers/handleCopyClick';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { fadeInAnimation, scaleInAnimation } from '../../styles/motion';
+
+// Local wrappers (not shared) so the modal picks up the token-driven radius/
+// shadow and an entrance animation without touching the shared MediaModal
+// primitives, which other modal surfaces also consume as-is.
+const AnimatedOverlay = styled(Overlay)`
+  background-color: rgba(16, 24, 40, 0.45);
+  ${fadeInAnimation}
+`;
+
+const AnimatedModal = styled(StyledModal)`
+  border-radius: var(--ethora-radius-lg, 16px);
+  box-shadow: var(--ethora-shadow-lg, 0 12px 32px rgba(16, 24, 40, 0.18));
+  background: var(--ethora-color-bg, #fff);
+  ${scaleInAnimation}
+`;
 
 interface OperationalModalProps {
   isVisible: boolean;
@@ -38,16 +55,15 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
 
   return (
     isVisible && (
-      <Overlay
+      <AnimatedOverlay
         style={{
           position: 'fixed',
           inset: 0,
           zIndex: 1000,
         }}
       >
-        <StyledModal
+        <AnimatedModal
           style={{
-            borderRadius: '16px',
             width: 'auto',
             height: 'auto',
             padding: '32px 64px',
@@ -109,8 +125,8 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
               />
             </div>
           </div>
-        </StyledModal>
-      </Overlay>
+        </AnimatedModal>
+      </AnimatedOverlay>
     )
   );
 };

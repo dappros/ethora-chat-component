@@ -105,7 +105,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
         onClick: () => {
           handleLogout();
         },
-        styles: { color: 'red' },
+        styles: { color: 'var(--ethora-color-danger, #D92D20)' },
       },
     ],
     [handleLogout, t]
@@ -356,8 +356,8 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
           rightMenu={
             !selectedUser && (
               <>
-                <Button onClick={EditClick}>
-                  <EditIcon color="#8C8C8C" />
+                <Button onClick={EditClick} aria-label={t('action.editProfile')}>
+                  <EditIcon color="var(--ethora-color-text-muted, #8C8C8C)" />
                 </Button>
                 <DropdownMenu
                   options={menuOptions}
@@ -414,7 +414,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 </ActionButton>
                 {canCall && (
                   <ActionButton
-                    StartIcon={<VideoCallIcon color="#FFFFFF" />}
+                    StartIcon={<VideoCallIcon color="var(--ethora-color-text-on-primary, #FFFFFF)" />}
                     onClick={() => void handleCall('video')}
                     disabled={isCallBusy}
                     variant="filled"
@@ -424,7 +424,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 )}
                 {isAudioCallsEnabled && (
                   <ActionButton
-                    StartIcon={<AudioCallIcon color="#FFFFFF" />}
+                    StartIcon={<AudioCallIcon color="var(--ethora-color-text-on-primary, #FFFFFF)" />}
                     onClick={() => void handleCall('audio')}
                     disabled={isCallBusy}
                     variant="filled"

@@ -1,4 +1,5 @@
 import styled, { keyframes } from 'styled-components';
+import { reducedMotion } from '../../styles/motion';
 
 // Keyframes for pulsing animation
 const pulse = keyframes`
@@ -28,24 +29,26 @@ const RecordingIndicatorWrapper = styled.div`
 const OuterCircle = styled.div`
   width: 18px;
   height: 18px;
-  border-radius: 50%;
-  background-color: rgba(255, 0, 0, 0.6);
+  border-radius: var(--ethora-radius-full, 50%);
+  background-color: var(--ethora-color-danger, rgba(255, 0, 0, 0.6));
   position: absolute;
   animation: ${pulse} 1.5s infinite ease-in-out;
+  ${reducedMotion}
 `;
 
 // Inner circle (red static dot)
 const InnerCircle = styled.div`
   width: 16px;
   height: 16px;
-  border-radius: 50%;
-  background-color: red;
+  border-radius: var(--ethora-radius-full, 50%);
+  background-color: var(--ethora-color-danger, red);
   position: relative;
 `;
 
 const RecordingIndicator = () => {
+  // Purely decorative - the adjacent Timer already conveys "recording" in text.
   return (
-    <RecordingIndicatorWrapper>
+    <RecordingIndicatorWrapper aria-hidden="true">
       <OuterCircle />
       <InnerCircle />
     </RecordingIndicatorWrapper>

@@ -1,10 +1,17 @@
 import React, { useMemo } from 'react';
+import styled from 'styled-components';
 import { useSelector } from 'react-redux';
 import { IMessage } from '../../types/types';
 import { RootState } from '../../roomStore';
 import { getMessageAttachments } from '../../helpers/attachments';
 import { appendFileToken } from '../../helpers/secureFileUrl';
 import AttachmentList from './AttachmentList';
+
+const UnsupportedMedia = styled.div`
+  color: var(--ethora-color-text-muted, #8c8c8c);
+  font-size: var(--ethora-font-size-sm, 13px);
+  font-style: italic;
+`;
 
 interface MediaMessageProps {
   /**
@@ -72,7 +79,7 @@ const MediaMessage: React.FC<MediaMessageProps> = ({
   );
 
   if (attachments.length === 0) {
-    return <div>Unsupported media type</div>;
+    return <UnsupportedMedia>Unsupported media type</UnsupportedMedia>;
   }
 
   return <AttachmentList attachments={attachments} />;

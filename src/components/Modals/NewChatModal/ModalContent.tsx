@@ -13,6 +13,7 @@ import UsersList from '../../UsersList/UsersList';
 import { ProfileImagePlaceholder } from '../../MainComponents/ProfileImagePlaceholder';
 import { ChatAccessOption } from '../../../types/types';
 import { AddPhotoIcon } from '../../../assets/icons';
+import { useT } from '../../../i18n/useT';
 
 type ModalContentProps = {
   activeTab: '0' | '1' | null;
@@ -53,14 +54,19 @@ const ModalContent: React.FC<ModalContentProps> = ({
   options,
 }) => {
   const { config } = useChatSettingState();
+  const t = useT();
   return (
     <ModalContainer>
-      <CloseButton onClick={handleCloseModal} style={{ fontSize: 24 }}>
+      <CloseButton
+        onClick={handleCloseModal}
+        style={{ fontSize: 24 }}
+        aria-label={t('action.close')}
+      >
         &times;
       </CloseButton>
       {activeTab === '0' && (
         <>
-          <ModalTitle>Create New Chat</ModalTitle>
+          <ModalTitle>{t('modal.newChat.title')}</ModalTitle>
           <ProfileImagePlaceholder
             size={120}
             upload={{ active: true, onUpload: setProfileImage }}
@@ -86,7 +92,7 @@ const ModalContent: React.FC<ModalContentProps> = ({
               id="roomName"
               value={roomName}
               onChange={handleRoomNameChange}
-              placeholder="Enter Room Name"
+              placeholder={t('modal.newChat.roomNamePlaceholder')}
               helperText={errors.name}
               error={!!errors.name}
             />
@@ -94,7 +100,7 @@ const ModalContent: React.FC<ModalContentProps> = ({
               options={options}
               onSelect={setChatType}
               selectedValue={chatType}
-              placeholder={'Select room type'}
+              placeholder={t('modal.newChat.chatTypePlaceholder')}
             />
           </GroupContainer>
           {chatType.id === 'group' && (
@@ -104,20 +110,20 @@ const ModalContent: React.FC<ModalContentProps> = ({
               variant="outlined"
               unstyled
             >
-              Add users
+              {t('action.addUsers')}
             </Button>
           )}
           <GroupContainer>
             <Button
               onClick={handleCloseModal}
-              text={'Cancel'}
+              text={t('action.cancel')}
               style={{ width: '100%' }}
               unstyled
               variant="outlined"
             />
             <Button
               onClick={handleCreateRoom}
-              text={'Create'}
+              text={t('action.create')}
               style={{ width: '100%' }}
               variant="filled"
             />
@@ -126,7 +132,7 @@ const ModalContent: React.FC<ModalContentProps> = ({
       )}
       {activeTab === '1' && (
         <>
-          <ModalTitle>Select users to add to Chat</ModalTitle>
+          <ModalTitle>{t('modal.newChat.selectUsersTitle')}</ModalTitle>
           <UsersList
             selectedUsers={selectedUsers}
             setSelectedUsers={setSelectedUsers}
@@ -142,7 +148,7 @@ const ModalContent: React.FC<ModalContentProps> = ({
             variant="outlined"
             unstyled
           >
-            Back to creation
+            {t('action.backToCreation')}
           </Button>
         </>
       )}

@@ -8,14 +8,14 @@ interface URLPreviewCardProps {
 }
 
 const PreviewContainer = styled.div`
-  border: 1px solid #e1e1e1;
-  border-radius: 8px;
+  border: 1px solid var(--ethora-color-border, #e1e1e1);
+  border-radius: var(--ethora-radius-sm, 8px);
   padding: 8px;
-  background-color: #ffffff;
+  background-color: var(--ethora-color-bg, #ffffff);
   display: flex;
   flex-direction: column;
   text-align: left;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--ethora-shadow-sm, 0 1px 2px rgba(16, 24, 40, 0.06));
   margin: 4px 0px;
 `;
 
@@ -24,30 +24,34 @@ const PreviewImage = styled.img`
   height: auto;
   max-height: 120px;
   object-fit: cover;
-  border-radius: 4px;
-  background-color: #f0f0f0;
-  border-bottom: 1px solid #eee;
+  border-radius: var(--ethora-radius-sm, 4px);
+  background-color: var(--ethora-color-bg-subtle, #f0f0f0);
+  border-bottom: 1px solid var(--ethora-color-border, #eee);
 `;
 
 const PreviewTitle = styled.div`
   font-weight: 600;
   font-size: 0.9em;
-  color: #1a1a1a;
+  color: var(--ethora-color-text, #1a1a1a);
 `;
 
 const PreviewDescription = styled.div`
   font-size: 0.85em;
-  color: #555;
+  color: var(--ethora-color-text-secondary, #555);
   line-height: 1.4;
 `;
 
 const PreviewUrl = styled.a`
   font-size: 0.75em;
-  color: #888;
+  color: var(--ethora-color-text-muted, #888);
   text-decoration: none;
   margin-top: 3px;
   &:hover {
     text-decoration: underline;
+  }
+  &:focus-visible {
+    outline: 2px solid var(--ethora-color-primary, #0052cd);
+    outline-offset: 2px;
   }
 `;
 

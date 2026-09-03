@@ -2,30 +2,46 @@ import { FC, useMemo } from 'react';
 import { getEmojiNativeById, useEmojiData } from '../../helpers/lazyEmoji';
 import { styled } from 'styled-components';
 import { ReactionMessage } from '../../types/types';
+import { fadeInAnimation } from '../../styles/motion';
 
 const ReactionContainer = styled.div`
-  gap: 8px;
+  gap: 6px;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   border: none;
   background: transparent;
   z-index: 1;
+  ${fadeInAnimation}
 `;
 
+// Rounded pill chip, tokenized border instead of a drop-shadow ring so it
+// reads as a chip rather than a floating card.
 const ReactionBox = styled.button<{ color: string }>`
-  box-shadow: 0px 0px 8px 0px rgba(185, 198, 199, 1);
-  background-color: #ffffff;
-  font-size: 14px;
+  background-color: var(--ethora-color-bg, #ffffff);
+  border: 1px solid var(--ethora-color-border, #e6e8ec);
+  font-size: var(--ethora-font-size-sm, 13px);
   padding: 4px 8px;
-  border-radius: 20px;
+  border-radius: var(--ethora-radius-full, 999px);
   display: flex;
   align-items: center;
+  gap: 4px;
   justify-content: center;
-  color: ${({ color }) => color || '#8C8C8C'};
+  color: ${({ color }) => color || 'var(--ethora-color-text-secondary, #8C8C8C)'};
   font-weight: 600;
-  border: none;
   cursor: pointer;
   position: relative;
+  transition: background-color var(--ethora-motion-fast, 150ms)
+    var(--ethora-motion-ease, cubic-bezier(0.2, 0.8, 0.2, 1));
+
+  &:hover {
+    background-color: var(--ethora-color-bg-hover, #f0f2f5);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ethora-color-primary, #0052cd);
+    outline-offset: 2px;
+  }
 
   &:hover .tooltip {
     visibility: visible;
@@ -36,15 +52,15 @@ const ReactionBox = styled.button<{ color: string }>`
 const Tooltip = styled.div`
   visibility: hidden;
   opacity: 0;
-  transition: opacity 0.3s;
+  transition: opacity var(--ethora-motion-base, 220ms);
   position: absolute;
   bottom: 120%;
   left: 50%;
   transform: translateX(-50%);
-  background-color: #333;
-  color: #fff;
+  background-color: var(--ethora-color-text, #333);
+  color: var(--ethora-color-text-on-primary, #fff);
   padding: 6px 10px;
-  border-radius: 6px;
+  border-radius: var(--ethora-radius-sm, 6px);
   font-size: 12px;
   white-space: nowrap;
 `;

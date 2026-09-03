@@ -1,14 +1,16 @@
 import React, { useMemo, useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import styled, { keyframes } from 'styled-components';
 import { RootState } from '../../roomStore';
 import { useMyFiles } from '../../hooks/useMyFiles';
 import { ApiFile } from '../../types/types';
-import { getFileCategory, FileCategory } from './fileCategory';
+import { getFileCategory, isPreviewable, FileCategory } from './fileCategory';
 import { withFileToken } from '../../helpers/secureFileUrl';
 import FilesList from './FilesList';
 import { SearchIcon, FileIcon } from '../../assets/icons';
 import { useT } from '../../i18n/useT';
+import { setActiveFile, setActiveModal } from '../../roomStore/chatSettingsSlice';
+import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 
 const Container = styled.div`
   display: flex;
@@ -168,6 +170,7 @@ const FILTERS: { key: 'all' | FileCategory; labelKey: string }[] = [
 
 const FilesPanel: React.FC = () => {
   const t = useT();
+  const dispatch = useDispatch();
   const [filter, setFilter] = useState<'all' | FileCategory>('all');
   const [search, setSearch] = useState('');
 
@@ -192,6 +195,22 @@ const FilesPanel: React.FC = () => {
   }, [items, filter, search]);
 
   const handlePreview = (file: ApiFile) => {
+    // Images/videos/PDFs open through the same in-app preview modal used
+    // for message attachments (see MessageImage.tsx's handleOpen) - the
+    // modal handles the fileToken itself, so it gets the raw location, not
+    // a pre-tokened URL. Anything else (docx, zip, ...) isn't renderable by
+    // that modal, so it keeps opening in a new tab.
+    if (isPreviewable(file)) {
+      dispatch(
+        setActiveFile({
+          fileName: file.originalname,
+          fileURL: file.location,
+          mimetype: file.mimetype || '',
+        })
+      );
+      dispatch(setActiveModal(MODAL_TYPES.FILE_PREVIEW));
+      return;
+    }
     const url = withFileToken(file.location);
     if (url && typeof window !== 'undefined') {
       window.open(url, '_blank', 'noopener,noreferrer');

@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect, ReactElement } from 'react';
-import styled, { keyframes } from 'styled-components';
+import styled from 'styled-components';
 import { BurgerMenuIcon } from '../../assets/icons';
 import Button from '../styled/Button';
+import { scaleInAnimation } from '../../styles/motion';
 
 interface MenuOption {
   label: string;
@@ -88,22 +89,11 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
 
 export default DropdownMenu;
 
-// Styling (unchanged)
+// Styling
 const Divider = styled.div`
   height: 1px;
   width: 100%;
-  background-color: #0052cd0d;
-`;
-
-const fadeIn = keyframes`
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  background-color: var(--ethora-color-border, #e6e8ec);
 `;
 
 const Container = styled.div`
@@ -113,30 +103,33 @@ const Container = styled.div`
 
 const Menu = styled.div`
   position: absolute;
-  background-color: #fcfcfc;
-  border-radius: 8px;
-  padding: 16px;
+  background-color: var(--ethora-color-bg, #fff);
+  border-radius: var(--ethora-radius-md, 12px);
+  padding: var(--ethora-space-2, 8px);
   min-width: 150px;
-  animation: ${fadeIn} 0.2s ease-out;
+  transform-origin: top right;
+  ${scaleInAnimation}
   z-index: 1000;
 
-  box-shadow: 0px 0px 6px -2px #12121908;
-  box-shadow: 0px 0px 16px -4px #12121914;
+  box-shadow: var(--ethora-shadow-md, 0 4px 12px rgba(16, 24, 40, 0.1));
 `;
 
 const MenuItem = styled.div`
   display: flex;
   align-items: center;
   cursor: pointer;
-  transition: background 0.2s;
-  padding: 8px;
-  &:hover {
-    background-color: #f0f0f0;
-  }
+  transition: background var(--ethora-motion-fast, 150ms);
+  padding: var(--ethora-space-2, 8px);
+  border-radius: var(--ethora-radius-sm, 8px);
   gap: 8px;
+
+  &:hover {
+    background-color: var(--ethora-color-bg-hover, #f0f2f5);
+  }
 `;
 
 const Label = styled.span`
-  margin-left: 10px;
-  font-size: 16px;
+  margin-left: 2px;
+  font-size: var(--ethora-font-size, 14px);
+  color: var(--ethora-color-text, #141414);
 `;

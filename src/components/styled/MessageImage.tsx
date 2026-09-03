@@ -93,7 +93,7 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
         alt={fileName}
         onClick={state === 'failed' ? undefined : handleOpen}
         style={{
-          borderRadius: 16,
+          borderRadius: 'var(--ethora-radius-lg, 16px)',
           cursor: state === 'failed' ? 'default' : 'pointer',
           maxWidth: '150px',
           maxHeight: '200px',

@@ -37,6 +37,7 @@ export const ModalWrapper: FC<ModalWrapperProps> = ({
   const { config } = useChatSettingState();
   const t = useT();
   const resolvedCancelText = cancelText ?? t('action.cancel');
+  const resolvedCloseLabel = t('action.close');
 
   const handleInput = () => {
     const textarea = textareaRef.current;
@@ -49,7 +50,11 @@ export const ModalWrapper: FC<ModalWrapperProps> = ({
   return (
     <ModalBackground>
       <ModalContainer style={{maxWidth: '640px'}}>
-        <CloseButton onClick={handleCloseModal} style={{ fontSize: 24 }}>
+        <CloseButton
+          onClick={handleCloseModal}
+          style={{ fontSize: 24 }}
+          aria-label={resolvedCloseLabel}
+        >
           &times;
         </CloseButton>
         {IconTitle

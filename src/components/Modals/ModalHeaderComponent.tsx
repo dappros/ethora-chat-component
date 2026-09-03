@@ -6,6 +6,7 @@ import {
 } from './styledModalComponents';
 import { BackIcon, MoreIcon, QrIcon } from '../../assets/icons';
 import Button from '../styled/Button';
+import { useT } from '../../i18n/useT';
 
 interface ModalHeaderComponentProps {
   handleCloseModal?: any;
@@ -20,6 +21,8 @@ const ModalHeaderComponent: React.FC<ModalHeaderComponentProps> = ({
   rightMenu,
   leftMenu,
 }) => {
+  const t = useT();
+  const resolvedTitle = headerTitle ?? t('action.back');
   return (
     <HeaderContainer>
       <HeaderLeft>
@@ -27,8 +30,12 @@ const ModalHeaderComponent: React.FC<ModalHeaderComponentProps> = ({
           leftMenu
         ) : (
           <>
-            <Button EndIcon={<BackIcon />} onClick={handleCloseModal} />
-            {headerTitle ?? 'Go back'}
+            <Button
+              EndIcon={<BackIcon />}
+              onClick={handleCloseModal}
+              aria-label={t('action.back')}
+            />
+            {resolvedTitle}
           </>
         )}
       </HeaderLeft>

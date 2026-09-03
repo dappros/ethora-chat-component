@@ -4,18 +4,28 @@ import { Avatar } from './Avatar';
 import { styled } from 'styled-components';
 
 const ReplyContainer = styled.button<{ $isUser: boolean; $color: string }>`
-  box-shadow: 0px 0px 8px 0px rgba(185, 198, 199, 1);
-  background-color: #ffffff;
-  font-size: 14px;
+  background-color: var(--ethora-color-bg, #ffffff);
+  border: 1px solid var(--ethora-color-border, #e6e8ec);
+  font-size: var(--ethora-font-size-sm, 13px);
   padding: 4px 8px 4px 16px;
-  border-radius: 20px;
+  border-radius: var(--ethora-radius-full, 999px);
   display: flex;
   align-items: center;
   gap: 6px;
-  color: ${({ $color }) => $color || '#0052cd'};
+  color: ${({ $color }) => $color || 'var(--ethora-color-primary, #0052cd)'};
   font-weight: 600;
-  border: none;
   cursor: pointer;
+  transition: background-color var(--ethora-motion-fast, 150ms)
+    var(--ethora-motion-ease, cubic-bezier(0.2, 0.8, 0.2, 1));
+
+  &:hover {
+    background-color: var(--ethora-color-bg-hover, #f0f2f5);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ethora-color-primary, #0052cd);
+    outline-offset: 2px;
+  }
 `;
 
 const AvatarCircle = styled.div`
@@ -35,10 +45,10 @@ const CircleCurrent = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--ethora-color-border, #f0f0f0);
   border-radius: 50%;
-  background-color: #ffffff;
-  color: #8c8c8c;
+  background-color: var(--ethora-color-bg, #ffffff);
+  color: var(--ethora-color-text-secondary, #8c8c8c);
   font-size: 11px;
   font-weight: 100;
 `;

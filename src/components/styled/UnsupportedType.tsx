@@ -54,7 +54,7 @@ const FileDownload: React.FC<FileDownloadProps> = ({
             src={locationPreview}
             alt={fileName}
             style={{
-              borderRadius: 16,
+              borderRadius: 'var(--ethora-radius-sm, 8px)',
               cursor: 'pointer',
               maxWidth: '100px',
               maxHeight: '60px',

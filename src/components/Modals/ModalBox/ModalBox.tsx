@@ -5,6 +5,7 @@ import {
   ModalContainer,
   ModalTitle,
 } from '../styledModalComponents.tsx';
+import { useT } from '../../../i18n/useT';
 
 interface ModalBoxProps {
   title: string;
@@ -17,10 +18,15 @@ export const ModalBox: FC<ModalBoxProps> = ({
   handleCloseModal,
   children,
 }) => {
+  const t = useT();
   return (
     <ModalBackground>
       <ModalContainer>
-        <CloseButton onClick={handleCloseModal} style={{ fontSize: 24 }}>
+        <CloseButton
+          onClick={handleCloseModal}
+          style={{ fontSize: 24 }}
+          aria-label={t('action.close')}
+        >
           &times;
         </CloseButton>
         <ModalTitle>{title}</ModalTitle>

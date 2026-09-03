@@ -32,6 +32,7 @@ export const FixedSizeVideo = styled.video`
   width: 300px;
   height: 200px;
   object-fit: cover;
+  border-radius: var(--ethora-radius-lg, 16px);
 `;
 
 export const ModalContent = styled.div`

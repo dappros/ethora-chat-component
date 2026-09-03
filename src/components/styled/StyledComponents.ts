@@ -1,4 +1,5 @@
 import styled from 'styled-components';
+import { fadeInAnimation, scaleInAnimation } from '../../styles/motion';
 
 export const ChatContainer = styled.div`
   display: flex;
@@ -76,18 +77,20 @@ export const MessagesScroll = styled.div<{ color?: string }>`
   }
 
   ::-webkit-scrollbar-thumb {
-    background-color: ${(props) => (props?.color ? props?.color : '#0052CD')};
-    border-radius: 6px; /* Rounded corners for the thumb */
+    background-color: ${(props) =>
+      props?.color ? props?.color : 'var(--ethora-color-border, #E6E8EC)'};
+    border-radius: var(--ethora-radius-full, 999px); /* Rounded corners for the thumb */
   }
 
   ::-webkit-scrollbar-track {
-    background-color: #f0f0f0; /* Background color of the track */
+    background-color: transparent; /* Background color of the track */
   }
 
   /* Firefox */
   scrollbar-width: thin; /* Make the scrollbar thinner */
-  scrollbar-color: ${(props) => (props?.color ? props?.color : '#0052CD')}
-    #f0f0f0; /* Color of the thumb and track */
+  scrollbar-color: ${(props) =>
+      props?.color ? props?.color : 'var(--ethora-color-border, #E6E8EC)'}
+    transparent; /* Color of the thumb and track */
 `;
 
 export const MessagesList = styled.div`
@@ -175,6 +178,11 @@ export const CustomMessageContainer = styled.div<{
     props.$reply || props.$reaction ? '40px' : '10px'};
 `;
 
+// 16px radius, with a smaller radius on the corner nearest the avatar (the
+// "tail" side) so the bubble reads as pointing at its sender, iMessage/
+// Telegram-style. Own-message background defaults to the primary-soft token;
+// other-message gets a neutral surface plus a 1px border since it no longer
+// has a tint of its own to separate it from the page background.
 export const CustomMessageBubble = styled.div<{
   $isUser: boolean;
   $deleted: boolean;
@@ -183,18 +191,23 @@ export const CustomMessageBubble = styled.div<{
   min-width: 15%;
   padding: 8px 16px;
   border-radius: ${(props) =>
-    props.$isUser ? '15px 15px 0px 15px' : '15px 15px 15px 0px'};
-  background-color: #ffffff;
-  color: #000000;
+    props.$isUser
+      ? 'var(--ethora-radius-lg, 16px) var(--ethora-radius-lg, 16px) var(--ethora-radius-sm, 8px) var(--ethora-radius-lg, 16px)'
+      : 'var(--ethora-radius-lg, 16px) var(--ethora-radius-lg, 16px) var(--ethora-radius-lg, 16px) var(--ethora-radius-sm, 8px)'};
+  color: var(--ethora-color-text, #141414);
   text-align: left;
   display: flex;
   flex-direction: column;
   background-color: ${(props) =>
     props.$deleted
-      ? '#dfdfdf'
+      ? 'var(--ethora-color-bg-subtle, #dfdfdf)'
       : props.$isUser
-        ? 'var(--ethora-own-message-bg, #E7EDF9)'
-        : 'var(--ethora-other-message-bg, #FFFFFF)'};
+        ? 'var(--ethora-own-message-bg, var(--ethora-color-primary-soft, #E7EDF9))'
+        : 'var(--ethora-other-message-bg, var(--ethora-color-bg, #FFFFFF))'};
+  border: ${(props) =>
+    !props.$deleted && !props.$isUser
+      ? '1px solid var(--ethora-color-border, #E6E8EC)'
+      : '1px solid transparent'};
   position: relative;
 `;
 
@@ -202,21 +215,22 @@ export const CustomMessageText = styled.div`
   margin: 0px;
   word-wrap: break-word;
   font-family: var(--ethora-font-family, 'Open Sans', sans-serif);
-  font-size: var(--ethora-font-size, 16px);
+  font-size: var(--ethora-font-size, 15px);
+  line-height: 1.45;
 `;
 
 export const CustomUserName = styled.span<{ $isUser: boolean; $color?: string }>`
   font-family: var(--ethora-font-family, 'Open Sans', sans-serif);
   font-weight: 600;
   font-size: var(--ethora-font-size-lg, 18px);
-  color: ${(props) => props?.$color || '#0052CD'};
+  color: ${(props) => props?.$color || 'var(--ethora-color-primary, #0052CD)'};
   margin-bottom: 8px;
 `;
 
 export const CustomMessageTimestamp = styled.span`
   font-size: var(--ethora-font-size-xs, 0.75rem);
   align-self: flex-end;
-  color: #8f8f8f;
+  color: var(--ethora-color-text-muted, #8f8f8f);
   display: flex;
   gap: 4px;
   align-items: center;
@@ -229,12 +243,13 @@ export const CustomMessagePhoto = styled.img`
   display: block;
   margin-left: auto;
   margin-right: auto;
-  border-radius: 100px;
+  border-radius: var(--ethora-radius-full, 999px);
 
-  transition: box-shadow 0.2s ease-in-out;
+  transition: box-shadow var(--ethora-motion-fast, 150ms)
+    var(--ethora-motion-ease, cubic-bezier(0.2, 0.8, 0.2, 1));
 
   &:hover {
-    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--ethora-shadow-sm, 0 1px 2px rgba(16, 24, 40, 0.06));
   }
 `;
 
@@ -283,6 +298,7 @@ export const MessageFooter = styled.div<{ $isUser: boolean }>`
   bottom: -25px;
   left: ${(props) => !props.$isUser && '50px'};
   right: ${(props) => props.$isUser && '10px'};
+  ${fadeInAnimation}
 
   @media (max-width: 675px) {
     font-size: 12px;
@@ -296,7 +312,7 @@ export const Line = styled.div`
   justify-content: center;
   width: 100%;
   background-color: transparent;
-  border: 1px solid var(--colors-background-bg-prymary-5, #0052cd0d);
+  border: 1px solid var(--ethora-color-border, #e6e8ec);
 `;
 
 export const StyledLoaderWrapper = styled.div`
@@ -443,29 +459,36 @@ export const ScrollToBottomButton = styled.button<{ color?: string }>`
   right: 20px;
   color: white;
   border: none;
-  border-radius: 50%;
+  border-radius: var(--ethora-radius-full, 999px);
   width: 40px;
   height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-  transition: all 0.2s ease;
+  box-shadow: var(--ethora-shadow-md, 0 4px 12px rgba(16, 24, 40, 0.1));
+  transition: transform var(--ethora-motion-fast, 150ms)
+    var(--ethora-motion-ease, cubic-bezier(0.2, 0.8, 0.2, 1));
   z-index: 1000;
   background-color: ${({ color }) => color || '#fff'};
+  ${scaleInAnimation}
 
   &:hover {
     transform: scale(1.1);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ethora-color-primary, #0052cd);
+    outline-offset: 2px;
   }
 
   .count {
     position: absolute;
     top: -8px;
     right: -8px;
-    background-color: #ff4444;
+    background-color: var(--ethora-color-danger, #ff4444);
     color: white;
-    border-radius: 50%;
+    border-radius: var(--ethora-radius-full, 999px);
     width: 20px;
     height: 20px;
     font-size: 12px;

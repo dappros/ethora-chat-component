@@ -5,17 +5,26 @@ export const StyledMessageReply = styled.div<{
   $isUser: boolean;
   $configColor: string;
 }>`
-  background-color: ${(props) => (props.$isUser ? '#ffffff' : '#E7EDF9')};
+  background-color: ${(props) =>
+    props.$isUser
+      ? 'var(--ethora-color-bg, #ffffff)'
+      : 'var(--ethora-color-primary-soft, #E7EDF9)'};
   padding: 8px 16px;
-  font-size: 14px;
-  border-radius: 4px;
+  font-size: var(--ethora-font-size-sm, 13px);
+  line-height: 1.45;
+  border-radius: var(--ethora-radius-sm, 8px);
   border-left: ${(props) =>
-    props.$isUser ? `4px solid ${props.$configColor}` : ''};
+    props.$isUser ? `3px solid ${props.$configColor}` : ''};
   border-right: ${(props) =>
-    !props.$isUser ? `4px solid ${props.$configColor}` : ''};
+    !props.$isUser ? `3px solid ${props.$configColor}` : ''};
   overflow: hidden;
   text-overflow: ellipsis;
   cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--ethora-color-primary, #0052cd);
+    outline-offset: 2px;
+  }
 `;
 
 interface MessageReplyProps {
@@ -29,7 +38,7 @@ export const MessageReply: FC<MessageReplyProps> = ({
   isUser,
   text,
   handleReplyMessage,
-  color = '#0052CD',
+  color = 'var(--ethora-color-primary, #0052CD)',
 }) => {
   return (
     <StyledMessageReply

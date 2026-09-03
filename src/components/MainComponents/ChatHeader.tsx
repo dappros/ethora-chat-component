@@ -1,10 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import {
-  ChatContainerHeader,
-  ChatContainerHeaderBoxInfo,
-  ChatContainerHeaderInfo,
-  ChatContainerHeaderLabel,
-} from '../styled/StyledComponents';
+import styled from 'styled-components';
 import RoomList from './RoomList';
 import { IConfig, IRoom } from '../../types/types';
 import { ProfileImagePlaceholder } from './ProfileImagePlaceholder';
@@ -44,6 +39,126 @@ interface ChatHeaderProps {
   currentRoom: IRoom;
   handleBackClick?: (value: boolean) => void;
 }
+
+// Local styling for the header row only - kept out of the shared
+// StyledComponents.ts because ThreadHeader.tsx also consumes those
+// components and this workstream restyles ChatHeader alone. Height/border
+// follow the "56-64px, 1px bottom border" spec; colors are tokens with the
+// pre-token literals as fallback so an un-themed host renders identically.
+const HeaderBar = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 56px;
+  max-height: 64px;
+  padding: 8px 16px;
+  box-sizing: border-box;
+  background-color: var(--ethora-color-bg, #fff);
+  border-bottom: 1px solid var(--ethora-color-border, #e6e8ec);
+  z-index: 1;
+`;
+
+const HeaderInfo = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+`;
+
+const HeaderTextCol = styled.div`
+  text-align: start;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+`;
+
+const HeaderTitle = styled.div`
+  color: var(--ethora-color-text, #141414);
+  font-weight: 600;
+  font-size: var(--ethora-font-size, 16px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const HeaderSubtitle = styled.div`
+  color: var(--ethora-color-text-secondary, #5a5f66);
+  font-size: 14px;
+`;
+
+const HeaderOnlineText = styled.span`
+  color: var(--ethora-color-online, #12b76a);
+`;
+
+const HeaderActions = styled.div`
+  display: flex;
+  gap: 4px;
+  align-items: center;
+`;
+
+// Round icon-only action buttons (call, menu) - hover/focus states match
+// the tokenized language of RoomList's ChatItem and LanguageSelectorModal's
+// IconButton so the header reads as the same design system.
+const HeaderIconButton = styled.button<{ $tint?: 'success' | 'primary' }>`
+  width: 40px;
+  height: 40px;
+  border-radius: var(--ethora-radius-full, 999px);
+  border: none;
+  background-color: transparent;
+  color: var(--ethora-color-icons, #5a5f66);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color var(--ethora-motion-fast, 150ms)
+    var(--ethora-motion-ease, ease);
+
+  &:hover:not(:disabled) {
+    background-color: var(--ethora-color-bg-hover, #f0f2f5);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ethora-color-primary, #0052cd);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+`;
+
+// Audio/video call buttons stay filled (not just an icon glyph) so they
+// remain a clear tap target and read as "primary" actions, matching the
+// filled call buttons already shipped for message bubbles elsewhere.
+const HeaderCallButton = styled(HeaderIconButton)<{
+  $kind: 'audio' | 'video';
+}>`
+  background-color: ${({ $kind, disabled }) =>
+    disabled
+      ? 'var(--ethora-color-bg-subtle, #f5f7fa)'
+      : $kind === 'video'
+        ? 'var(--ethora-color-success, #12b76a)'
+        : 'var(--ethora-color-primary, #0052cd)'};
+  color: ${({ disabled }) =>
+    disabled
+      ? 'var(--ethora-color-text-muted, #8c8c8c)'
+      : 'var(--ethora-color-text-on-primary, #fff)'};
+
+  &:hover:not(:disabled) {
+    background-color: ${({ $kind }) =>
+      $kind === 'video'
+        ? 'var(--ethora-color-success, #12b76a)'
+        : 'var(--ethora-color-primary-hover, #0047b3)'};
+    filter: brightness(1.08);
+  }
+`;
 
 const UUID_LIKE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
@@ -264,15 +379,23 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     [placeCall]
   );
 
+  const audioCallLabel = callDisabledReason
+    ? callDisabledReason
+    : t('header.action.startAudioCall');
+  const videoCallLabel = callDisabledReason
+    ? callDisabledReason
+    : t('header.action.startVideoCall');
+
   return (
     <>
-      <ChatContainerHeader>
+      <HeaderBar>
         {/* todo add here list of rooms */}
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', minWidth: 0 }}>
           {!config?.disableRooms && handleBackClick && (
             <Button
               EndIcon={<BackIcon />}
               onClick={() => handleBackClick(false)}
+              aria-label={t('header.action.back')}
             />
           )}
           {config?.chatHeaderBurgerMenu && roomsList && (
@@ -282,7 +405,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
               onRoomClick={handleChangeChat}
             />
           )}
-          <ChatContainerHeaderBoxInfo
+          <HeaderInfo
             onClick={
               config?.disableChatInfo?.disableHeader
                 ? undefined
@@ -303,22 +426,18 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                 online={isPrivateRoom && peerOnline}
               />
             </div>
-            <ChatContainerHeaderInfo>
-              <ChatContainerHeaderLabel>
-                {currentRoom?.title}
-              </ChatContainerHeaderLabel>
-              <ChatContainerHeaderLabel
-                style={{ color: '#8C8C8C', fontSize: '14px' }}
-              >
+            <HeaderTextCol>
+              <HeaderTitle>{currentRoom?.title}</HeaderTitle>
+              <HeaderSubtitle>
                 {(() => {
                   if (composing) {
                     return <Composing usersTyping={currentRoom?.composingList} />;
                   }
                   if (isPrivateRoom) {
-                    return (
-                      <span style={{ color: peerOnline ? '#22c55e' : '#8C8C8C' }}>
-                        {peerOnline ? t('presence.online') : t('presence.offline')}
-                      </span>
+                    return peerOnline ? (
+                      <HeaderOnlineText>{t('presence.online')}</HeaderOnlineText>
+                    ) : (
+                      <span>{t('presence.offline')}</span>
                     );
                   }
                   const displayCount = getDisplayCount(currentRoom);
@@ -341,14 +460,14 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                     </>
                   );
                 })()}
-              </ChatContainerHeaderLabel>
-            </ChatContainerHeaderInfo>
-          </ChatContainerHeaderBoxInfo>
+              </HeaderSubtitle>
+            </HeaderTextCol>
+          </HeaderInfo>
         </div>
 
         {!config?.disableRoomMenu &&
           !config?.disableChatInfo?.disableChatHeaderMenu && (
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <HeaderActions>
             {shouldShowLanguageSelector(config?.translates) && (
               <LanguageSelectorButton />
             )}
@@ -362,64 +481,38 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                   message that lands before the relayed token).
                 */}
                 {isAudioCallsEnabled && (
-                  <button
+                  <HeaderCallButton
+                    $kind="audio"
                     onClick={() => {
                       void handleAudioCallClick();
                     }}
                     disabled={!canCall || isCallBusy}
-                    title={callDisabledReason || 'Start audio call'}
-                    aria-label="Start audio call"
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 999,
-                      border: 'none',
-                      background:
-                        !canCall || isCallBusy ? '#D1D5DB' : '#0EA5E9',
-                      color: '#FFFFFF',
-                      cursor:
-                        !canCall || isCallBusy ? 'not-allowed' : 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
+                    title={audioCallLabel}
+                    aria-label={audioCallLabel}
                   >
                     <AudioCallIcon />
-                  </button>
+                  </HeaderCallButton>
                 )}
-                <button
+                <HeaderCallButton
+                  $kind="video"
                   onClick={() => {
                     void handleVideoCallClick();
                   }}
                   disabled={!canCall || isCallBusy}
-                  title={callDisabledReason || 'Start video call'}
-                  aria-label="Start video call"
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 999,
-                    border: 'none',
-                    background:
-                      !canCall || isCallBusy ? '#D1D5DB' : '#10B981',
-                    color: '#FFFFFF',
-                    cursor:
-                      !canCall || isCallBusy ? 'not-allowed' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
+                  title={videoCallLabel}
+                  aria-label={videoCallLabel}
                 >
                   <VideoCallIcon />
-                </button>
+                </HeaderCallButton>
               </>
             )}
             <RoomMenu
               handleLeaveClick={handleLeaveClick}
               handleReportClick={handleReportClick}
             />
-          </div>
+          </HeaderActions>
           )}
-      </ChatContainerHeader>
+      </HeaderBar>
       {isLeaveModalOpen && (
         <ModalWrapper
           title={t('modal.leaveChat.title')}
