@@ -1,14 +1,15 @@
-import ChatProfileModal from '../../components/Modals/ChatProfileModal/ChatProfileModal';
-import FilePreviewModal from '../../components/Modals/FilePreviewModal/FilePreviewModal';
-import BlockedUsersModal from '../../components/Modals/SettingsModals/BlockedUsers/BlockedUsersModal';
-import DocumentSharesModal from '../../components/Modals/SettingsModals/DocumentShares/DocumentSharesModal';
-import ManageDataModal from '../../components/Modals/SettingsModals/ManageDataModal/ManageDataModal';
-import ProfileSharesModal from '../../components/Modals/SettingsModals/ProfileShares/ProfileShares';
-import ReferralsModal from '../../components/Modals/SettingsModals/Referrals/Referrals';
-import VisibilityModal from '../../components/Modals/SettingsModals/Visibility/VisibilityModal';
-import UserProfileModal from '../../components/Modals/UserProfileModal/UserProfileModal';
-import UserSettingsModal from '../../components/Modals/UserSettingsModal/UserSettingsModal';
-
+// MODAL_TYPES is imported by many modal components themselves (e.g.
+// ChatProfileModal reads MODAL_TYPES.CHAT_PROFILE) as well as by anything
+// that opens a modal (RoomList, ChatHeader, Message, ...). This file used to
+// ALSO import every one of those modal components (to build MODAL_COMPONENTS
+// below), which created an import cycle: MODAL_TYPES -> ChatProfileModal ->
+// MODAL_TYPES. Under Vite's module evaluation order that cycle surfaced as
+// "Cannot access 'ChatProfileModal' before initialization" during HMR.
+//
+// The fix is this split: MODAL_TYPES stays here with zero component
+// imports, and the id -> component lookup table lives in
+// ./modalComponents.ts (which is free to import the modal components,
+// since none of them import IT back). Import MODAL_COMPONENTS from there.
 export const MODAL_TYPES = {
   SETTINGS: 'settings',
   PROFILE: 'profile',
@@ -34,20 +35,4 @@ export const MODAL_TYPES = {
   // DOCUMENT_SHARES: 'Document Shares',
   // BLOCKED_USERS: 'Blocked Users',
   // REFERRALS: 'Referrals',
-};
-
-export const MODAL_COMPONENTS: Record<
-  string,
-  React.FC<{ handleCloseModal: () => void }>
-> = {
-  [MODAL_TYPES.SETTINGS]: UserSettingsModal,
-  [MODAL_TYPES.PROFILE]: UserProfileModal,
-  [MODAL_TYPES.CHAT_PROFILE]: ChatProfileModal,
-  [MODAL_TYPES.MANAGE_DATA]: ManageDataModal,
-  [MODAL_TYPES.VISIBILITY]: VisibilityModal,
-  [MODAL_TYPES.REFERRALS]: ReferralsModal,
-  [MODAL_TYPES.DOCUMENT_SHARES]: DocumentSharesModal,
-  [MODAL_TYPES.PROFILE_SHARES]: ProfileSharesModal,
-  [MODAL_TYPES.BLOCKED_USERS]: BlockedUsersModal,
-  [MODAL_TYPES.FILE_PREVIEW]: FilePreviewModal,
 };

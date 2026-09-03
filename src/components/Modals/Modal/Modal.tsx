@@ -4,10 +4,8 @@ import { ModalBackground } from '../styledModalComponents';
 import { ModalType } from '../../../types/types';
 import { useDispatch } from 'react-redux';
 import { setActiveModal } from '../../../roomStore/chatSettingsSlice';
-import {
-  MODAL_COMPONENTS,
-  MODAL_TYPES,
-} from '../../../helpers/constants/MODAL_TYPES';
+import { MODAL_TYPES } from '../../../helpers/constants/MODAL_TYPES';
+import { MODAL_COMPONENTS } from '../modalComponents';
 
 interface ModalProps {
   children?: React.ReactNode;
