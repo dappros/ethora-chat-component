@@ -21,10 +21,10 @@ const FallbackScreen: React.FC<FallbackScreenProps> = ({ content, style }) => {
           alignItems: 'center',
           justifyContent: 'center',
           textAlign: 'center',
-          padding: '24px',
+          padding: 'var(--ethora-space-6, 24px)',
           boxSizing: 'border-box',
-          color: '#141414',
-          fontSize: '16px',
+          color: 'var(--ethora-color-text, #141414)',
+          fontSize: 'var(--ethora-font-size, 16px)',
           ...style,
         }}
       >

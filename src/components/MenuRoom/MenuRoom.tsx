@@ -21,7 +21,7 @@ export const RoomMenu: FC<RoomMenuProps> = ({ handleLeaveClick, handleReportClic
           handleReportClick();
           ethoraLogger.log('Report clicked');
         },
-        styles: { color: 'red' },
+        styles: { color: 'var(--ethora-color-danger, #D92D20)' },
       },
       {
         label: t('action.leave'),
@@ -29,7 +29,7 @@ export const RoomMenu: FC<RoomMenuProps> = ({ handleLeaveClick, handleReportClic
         onClick: () => {
           handleLeaveClick();
         },
-        styles: { color: 'red' },
+        styles: { color: 'var(--ethora-color-danger, #D92D20)' },
       },
     ],
     [handleLeaveClick, handleReportClick, t]

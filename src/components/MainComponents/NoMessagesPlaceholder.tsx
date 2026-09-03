@@ -14,7 +14,7 @@ const NoMessagesPlaceholder = () => {
         alignItems: 'center',
       }}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ethora-space-4, 16px)' }}>
         {/* Vector illustration (traced from the legacy NoMessages raster): its
             accent uses `currentColor`, so the empty state follows
             config.colors.icons/primary. */}
@@ -26,8 +26,8 @@ const NoMessagesPlaceholder = () => {
           style={{
             display: 'flex',
             flexDirection: 'column',
-            gap: 8,
-            padding: 16,
+            gap: 'var(--ethora-space-2, 8px)',
+            padding: 'var(--ethora-space-4, 16px)',
             justifyContent: 'center',
             textAlign: 'center',
           }}
@@ -36,6 +36,7 @@ const NoMessagesPlaceholder = () => {
             style={{
               fontSize: 'var(--ethora-font-size, 16px)',
               fontWeight: 600,
+              color: 'var(--ethora-color-text, #141414)',
             }}
           >
             This chat is empty
@@ -44,6 +45,7 @@ const NoMessagesPlaceholder = () => {
             style={{
               fontSize: 'var(--ethora-font-size-sm, 14px)',
               fontWeight: 400,
+              color: 'var(--ethora-color-text-secondary, #5A5F66)',
             }}
           >
             Be the first one to start it.
