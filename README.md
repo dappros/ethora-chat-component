@@ -343,8 +343,8 @@ Below is a grouped reference for all `config` options.
 | --- | --- | --- |
 | `disableHeader` | `boolean` | Hide chat header. |
 | `disableMedia` | `boolean` | Disable media sending/processing paths. |
-| `attachments` | `{ maxFiles?; maxFileSizeMb?; accept? }` | Composer attachment limits. `maxFiles` defaults to `5` (hard cap `10` — the stanza payload size); `maxFileSizeMb` adds a client-side per-file check (omit for none); `accept` is passed straight to the file picker. Picking several files sends them as **one** message. |
-| `pdfPreview` | `{ enabled?; workerSrc?; maxFileSizeMb? }` | First-page PDF thumbnails inside bubbles and in the composer tray. On by default; `enabled: false` keeps the static document card. pdf.js is code-split and only fetched when a PDF actually shows up. By default it runs on the main thread, which needs no bundler asset wiring — set `workerSrc` to a pdf.js worker URL you host to move parsing off it. `maxFileSizeMb` (default `25`) is the size past which a document is not auto-rendered. |
+| `attachments` | `{ maxFiles?; maxFileSizeMb?; accept? }` | Composer attachment limits. `maxFiles` defaults to `5` (hard cap `10`, the stanza payload size); `maxFileSizeMb` adds a client-side per-file check (omit for none); `accept` is passed straight to the file picker. Picking several files sends them as **one** message. |
+| `pdfPreview` | `{ enabled?; workerSrc?; maxFileSizeMb? }` | First-page PDF thumbnails inside bubbles and in the composer tray. On by default; `enabled: false` keeps the static document card. pdf.js is code-split and only fetched when a PDF actually shows up. By default it runs on the main thread, which needs no bundler asset wiring: set `workerSrc` to a pdf.js worker URL you host to move parsing off it. `maxFileSizeMb` (default `25`) is the size past which a document is not auto-rendered. |
 | `disableRooms` | `boolean` | Hide/disable room list area. |
 | `disableRoomMenu` | `boolean` | Disable room menu controls. |
 | `disableRoomConfig` | `boolean` | Disable room configuration actions. |
