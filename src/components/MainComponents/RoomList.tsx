@@ -14,11 +14,20 @@ import DropdownMenu from '../DropdownMenu/DropdownMenu';
 import { setActiveModal } from '../../roomStore/chatSettingsSlice';
 import NewChatModal from '../Modals/NewChatModal/NewChatModal';
 import {
+  AnimatedRow,
   BurgerButton,
   Container,
   Divider,
   ScollableContainer,
   SearchContainer,
+  SkeletonAvatar,
+  SkeletonLine,
+  SkeletonLines,
+  SkeletonRow,
+  TabButton,
+  TabContent,
+  TabIndicator,
+  TabsContainer,
 } from '../styled/RoomListComponents';
 import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 import { useXmppClient } from '../../context/xmppProvider';
@@ -29,6 +38,10 @@ import { isRoomHidden } from '../../helpers/hiddenRooms';
 import { logoutService } from '../../hooks/useLogout';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
 import { deleteRoom, setCurrentRoom } from '../../roomStore/roomsSlice';
+import { RoomListTestIds } from '../../testIds';
+import FilesPanel from '../Files/FilesPanel';
+
+const SKELETON_ROW_COUNT = 6;
 
 interface RoomListProps {
   chats: IRoom[];
@@ -109,6 +122,8 @@ const RoomList: React.FC<RoomListProps> = ({
   const { client, setClient } = useXmppClient();
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  // Persisted in component state only, per spec - not synced to redux/config.
+  const [activeTab, setActiveTab] = useState<'chats' | 'files'>('chats');
 
   const dispatch = useDispatch();
 
@@ -116,6 +131,11 @@ const RoomList: React.FC<RoomListProps> = ({
   const t = useT();
 
   const { activeRoomJID } = useSelector((state: RootState) => state.rooms);
+  const isRoomsLoading = useSelector(
+    (state: RootState) => state.rooms.isLoading
+  );
+
+  const filesTabEnabled = config?.filesTab?.enabled !== false;
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -280,45 +300,98 @@ const RoomList: React.FC<RoomListProps> = ({
       >
         {(open || !burgerMenu) && (
           <ScollableContainer>
-            {!config?.chatHeaderSettings?.hide && (
-              <SearchContainer>
-                {!config?.disableRoomMenu &&
-                  !config?.chatHeaderSettings?.disableMenu && (
-                    <DropdownMenu
-                      options={menuOptions}
-                      // onClose={dispatch(setActiveModal())}
-                    />
-                  )}
-                {!config?.chatHeaderSettings?.hideSearch && (
-                  <SearchInput
-                    icon={<SearchIcon height={'20px'} />}
-                    colorBg={config?.colors?.colorInput}
-                    value={searchTerm}
-                    onChange={handleSearchChange}
-                    placeholder={t('search.placeholder')}
-                    // animated={true}
-                  />
-                )}
-
-                {!config?.chatHeaderSettings?.disableCreate && <NewChatModal />}
-              </SearchContainer>
+            {filesTabEnabled && (
+              <TabsContainer role="tablist" aria-label={t('tabs.chats')}>
+                <TabIndicator index={activeTab === 'chats' ? 0 : 1} count={2} />
+                <TabButton
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === 'chats'}
+                  active={activeTab === 'chats'}
+                  onClick={() => setActiveTab('chats')}
+                >
+                  {t('tabs.chats')}
+                </TabButton>
+                <TabButton
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === 'files'}
+                  active={activeTab === 'files'}
+                  onClick={() => setActiveTab('files')}
+                >
+                  {t('tabs.files')}
+                </TabButton>
+              </TabsContainer>
             )}
-            <div
-              style={{ flexGrow: 1, overflowY: 'auto', scrollbarGutter: 'stable', padding: '16px 0px' }}
-            >
-              {filteredChats.map((chat: IRoom, index: number) => (
-                <React.Fragment key={chat.jid || `${chat.id}-${index}`}>
-                  <ChatRoomItem
-                    chat={chat}
-                    index={index}
-                    isChatActive={isChatActive(chat)}
-                    performClick={performClick}
-                    config={config}
-                  />
-                  {index < filteredChats.length - 1 && <Divider />}
-                </React.Fragment>
-              ))}
-            </div>
+
+            {activeTab === 'files' && filesTabEnabled ? (
+              <TabContent key="files">
+                <FilesPanel />
+              </TabContent>
+            ) : (
+              <TabContent key="chats">
+                {!config?.chatHeaderSettings?.hide && (
+                  <SearchContainer>
+                    {!config?.disableRoomMenu &&
+                      !config?.chatHeaderSettings?.disableMenu && (
+                        <DropdownMenu
+                          options={menuOptions}
+                          // onClose={dispatch(setActiveModal())}
+                        />
+                      )}
+                    {!config?.chatHeaderSettings?.hideSearch && (
+                      <SearchInput
+                        icon={<SearchIcon height={'20px'} />}
+                        colorBg={config?.colors?.colorInput}
+                        value={searchTerm}
+                        onChange={handleSearchChange}
+                        placeholder={t('search.placeholder')}
+                        data-testid={RoomListTestIds.searchInput}
+                        // animated={true}
+                      />
+                    )}
+
+                    {!config?.chatHeaderSettings?.disableCreate && (
+                      <NewChatModal />
+                    )}
+                  </SearchContainer>
+                )}
+                <div
+                  data-testid={RoomListTestIds.roomsList}
+                  style={{
+                    flexGrow: 1,
+                    overflowY: 'auto',
+                    scrollbarGutter: 'stable',
+                    padding: '16px 0px',
+                  }}
+                >
+                  {isRoomsLoading && filteredChats.length === 0
+                    ? Array.from({ length: SKELETON_ROW_COUNT }).map((_, i) => (
+                        <SkeletonRow key={`skeleton-${i}`}>
+                          <SkeletonAvatar />
+                          <SkeletonLines>
+                            <SkeletonLine width="45%" />
+                            <SkeletonLine width="70%" />
+                          </SkeletonLines>
+                        </SkeletonRow>
+                      ))
+                    : filteredChats.map((chat: IRoom, index: number) => (
+                        <React.Fragment key={chat.jid || `${chat.id}-${index}`}>
+                          <AnimatedRow delay={index * 24}>
+                            <ChatRoomItem
+                              chat={chat}
+                              index={index}
+                              isChatActive={isChatActive(chat)}
+                              performClick={performClick}
+                              config={config}
+                            />
+                          </AnimatedRow>
+                          {index < filteredChats.length - 1 && <Divider />}
+                        </React.Fragment>
+                      ))}
+                </div>
+              </TabContent>
+            )}
           </ScollableContainer>
         )}
       </Container>
