@@ -11,12 +11,41 @@ import CustomScrollableArea from './examples/customComponents/CustomScrollableAr
 import CustomDaySeparator from './examples/customComponents/CustomDaySeparator';
 import CustomMessageBubble from './examples/customComponents/CustomMessageBubble';
 import { ethoraLogger } from './helpers/ethoraLogger';
+import { loginEmail } from './networking/api-requests/auth.api';
 
 const LIVEKIT_URL =
   (((import.meta as unknown as { env?: Record<string, string | undefined> }).env) || {})
     .VITE_LIVEKIT_URL || 'https://livekit.ethora-qa.com';
 
+// Dev-harness only: auto-login with a QA account from `.env.local`
+// (gitignored via `*.local`). Lets the preview browser and automated
+// verification land in a real chat without anyone typing credentials.
+// Never read by the published package - this file is not part of the
+// library entry (src/main.ts).
+const DEV_ENV =
+  (((import.meta as unknown as { env?: Record<string, string | undefined> }).env) || {});
+const DEV_LOGIN_EMAIL = DEV_ENV.VITE_DEV_LOGIN_EMAIL || '';
+const DEV_LOGIN_PASSWORD = DEV_ENV.VITE_DEV_LOGIN_PASSWORD || '';
+const DEV_AUTOLOGIN: Pick<IConfig, 'customLogin'> =
+  DEV_LOGIN_EMAIL && DEV_LOGIN_PASSWORD
+    ? {
+        customLogin: {
+          enabled: true,
+          loginFunction: async () => {
+            const res = await loginEmail(DEV_LOGIN_EMAIL, DEV_LOGIN_PASSWORD);
+            if (!res?.data?.user) return null;
+            return {
+              ...res.data.user,
+              token: res.data.token,
+              refreshToken: res.data.refreshToken,
+            };
+          },
+        },
+      }
+    : {};
+
 const APP_CHAT_BASE_CONFIG: IConfig = {
+  ...DEV_AUTOLOGIN,
   appId: '646cc8dc96d4a4dc8f7b2f2d',
   baseUrl: 'https://api.chat-qa.ethora.com',
   xmppSettings: {
