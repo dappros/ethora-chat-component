@@ -146,9 +146,9 @@ export const ProfileImagePlaceholder: React.FC<
             bottom: 0,
             width: Math.max(8, Math.round(size * 0.28)),
             height: Math.max(8, Math.round(size * 0.28)),
-            borderRadius: '50%',
-            backgroundColor: '#22c55e',
-            border: '2px solid #fff',
+            borderRadius: 'var(--ethora-radius-full, 999px)',
+            backgroundColor: 'var(--ethora-color-online, #12B76A)',
+            border: '2px solid var(--ethora-color-bg, #fff)',
             boxSizing: 'border-box',
           }}
         />

@@ -1,5 +1,10 @@
 import styled, { css } from 'styled-components';
-import { getTintedColor } from '../../../helpers/getTintedColor';
+import {
+  fadeInAnimation,
+  fadeInUpAnimation,
+  reducedMotion,
+  shimmerBackground,
+} from '../../../styles/motion';
 
 export const Container = styled.div.withConfig({
   shouldForwardProp: (prop) => prop !== 'burgerMenu' && prop !== 'open',
@@ -13,15 +18,17 @@ export const Container = styled.div.withConfig({
           width: 300px;
           height: 100%;
           transform: ${open ? 'translateX(0)' : 'translateX(-100%)'};
-          transition: transform 0.3s ease-in-out;
+          transition: transform var(--ethora-motion-base, 220ms)
+            var(--ethora-motion-ease, cubic-bezier(0.2, 0.8, 0.2, 1));
           z-index: 2;
           display: flex;
           flex-direction: column;
-          background-color: #fff;
+          background-color: var(--ethora-color-bg, #fff);
           padding: 16px;
           padding-top: 0px;
           z-index: 1000;
-          border-right: 1px solid var(--Colors-Border-border-primary, #f0f0f0);
+          border-right: 1px solid var(--ethora-color-border, #e6e8ec);
+          ${reducedMotion}
         `
       : css`
           box-sizing: border-box;
@@ -30,9 +37,9 @@ export const Container = styled.div.withConfig({
           overflow: auto;
           display: relative;
           z-index: 2;
-          background-color: #fff;
+          background-color: var(--ethora-color-bg, #fff);
           min-width: 343px;
-          border-right: 1px solid var(--Colors-Border-border-primary, #f0f0f0);
+          border-right: 1px solid var(--ethora-color-border, #e6e8ec);
 
           /* Adapt to narrow viewports: a fixed min-width pushed the list
              wider than the screen and produced a horizontal scrollbar on
@@ -51,33 +58,55 @@ export const BurgerButton = styled.button`
   /* position: fixed; */
   left: 10px;
   top: 10px;
-  color: #333;
+  color: var(--ethora-color-text-secondary, #333);
   border: none;
+  background: transparent;
   padding: 10px;
   cursor: pointer;
   z-index: 1000;
+
+  &:focus-visible {
+    outline: 2px solid var(--ethora-color-primary, #0052cd);
+    outline-offset: 2px;
+    border-radius: var(--ethora-radius-sm, 8px);
+  }
 `;
 
+// Row: 56-64px tall, active/hover use soft tokenized backgrounds rather than
+// a solid brand fill so the (always-dark) text stays legible in both states.
 export const ChatItem = styled.div.withConfig({
   shouldForwardProp: (prop) => prop !== 'active',
 })<{ active: boolean; bg?: string }>`
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  border-radius: 16px;
+  min-height: 60px;
+  border-radius: var(--ethora-radius-md, 12px);
   gap: 16px;
   padding: 8px;
   cursor: pointer;
-  background-color: ${({ active, bg }) =>
-    active ? (bg ? bg : '#0052CD') : '#fff'};
+  background-color: ${({ active }) =>
+    active ? 'var(--ethora-color-primary-soft, #E7EDF9)' : 'transparent'};
+  color: var(--ethora-color-text, #141414);
   transition:
-    background-color 0.3s ease,
-    transform 0.3s ease;
+    background-color var(--ethora-motion-fast, 150ms)
+      var(--ethora-motion-ease, cubic-bezier(0.2, 0.8, 0.2, 1)),
+    transform var(--ethora-motion-fast, 150ms)
+      var(--ethora-motion-ease, cubic-bezier(0.2, 0.8, 0.2, 1));
 
   &:hover {
-    background-color: ${({ active, bg }) =>
-      active ? getTintedColor(bg ? bg : '#0052CD') : 'rgba(0, 0, 0, 0.05)'};
+    background-color: ${({ active }) =>
+      active
+        ? 'var(--ethora-color-primary-soft, #E7EDF9)'
+        : 'var(--ethora-color-bg-hover, #F0F2F5)'};
   }
-  color: #141414;
+
+  &:focus-visible {
+    outline: 2px solid var(--ethora-color-primary, #0052cd);
+    outline-offset: 2px;
+  }
+
+  ${reducedMotion}
 `;
 
 export const SearchContainer = styled.div<{}>`
@@ -114,14 +143,14 @@ export const ChatInfo = styled.div`
 `;
 
 export const ChatName = styled.div`
-  font-weight: bold;
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 `;
 
 export const LastMessage = styled.div`
-  color: #999;
+  color: var(--ethora-color-text-secondary, #5a5f66);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -130,12 +159,118 @@ export const LastMessage = styled.div`
 export const UserCount = styled.div.withConfig({
   shouldForwardProp: (prop) => prop !== 'active',
 })<{ active: boolean }>`
-  color: ${({ active }) => (!active ? '#000' : '#fff')};
+  color: var(--ethora-color-text-muted, #8c8c8c);
   margin-left: auto;
 `;
 
 export const Divider = styled.div`
   height: 1px;
   width: 100%;
-  background-color: #0052cd0d;
+  background-color: var(--ethora-color-border, #e6e8ec);
+  opacity: 0.6;
+`;
+
+// Row appears with a subtle rise+fade on first mount (initial room list load).
+export const AnimatedRow = styled.div<{ delay?: number }>`
+  ${fadeInUpAnimation}
+  animation-delay: ${({ delay }) => (delay ? `${Math.min(delay, 240)}ms` : '0ms')};
+`;
+
+// --- Tab switcher (segmented control): "Chats" | "Files" -------------------
+
+export const TabsContainer = styled.div`
+  position: relative;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--ethora-color-bg-subtle, #f5f7fa);
+  border-radius: var(--ethora-radius-md, 12px);
+  margin-bottom: 8px;
+`;
+
+export const TabIndicator = styled.div<{ index: number; count: number }>`
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: ${({ count }) => `calc((100% - 8px) / ${count})`};
+  border-radius: var(--ethora-radius-sm, 8px);
+  background: var(--ethora-color-bg, #fff);
+  box-shadow: var(--ethora-shadow-sm, 0 1px 2px rgba(16, 24, 40, 0.06));
+  transform: ${({ index }) => `translateX(${index * 100}%)`};
+  transition: transform var(--ethora-motion-base, 220ms)
+    var(--ethora-motion-ease, cubic-bezier(0.2, 0.8, 0.2, 1));
+  ${reducedMotion}
+`;
+
+export const TabButton = styled.button.withConfig({
+  shouldForwardProp: (prop) => prop !== 'active',
+})<{ active: boolean }>`
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 8px 12px;
+  border-radius: var(--ethora-radius-sm, 8px);
+  font-size: var(--ethora-font-size-sm, 14px);
+  font-weight: ${({ active }) => (active ? 600 : 500)};
+  color: ${({ active }) =>
+    active
+      ? 'var(--ethora-color-text, #141414)'
+      : 'var(--ethora-color-text-secondary, #5A5F66)'};
+  cursor: pointer;
+  transition: color var(--ethora-motion-fast, 150ms)
+    var(--ethora-motion-ease, cubic-bezier(0.2, 0.8, 0.2, 1));
+
+  &:focus-visible {
+    outline: 2px solid var(--ethora-color-primary, #0052cd);
+    outline-offset: 2px;
+  }
+
+  ${reducedMotion}
+`;
+
+// Cross-fade wrapper for tab content (Chats <-> Files).
+export const TabContent = styled.div`
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  ${fadeInAnimation}
+`;
+
+// --- Loading skeleton --------------------------------------------------
+
+export const SkeletonRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 60px;
+  padding: 8px;
+  box-sizing: border-box;
+`;
+
+export const SkeletonAvatar = styled.div`
+  width: 44px;
+  height: 44px;
+  border-radius: var(--ethora-radius-full, 999px);
+  flex-shrink: 0;
+  ${shimmerBackground}
+`;
+
+export const SkeletonLines = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+`;
+
+export const SkeletonLine = styled.div<{ width?: string }>`
+  height: 10px;
+  border-radius: var(--ethora-radius-sm, 8px);
+  width: ${({ width }) => width || '60%'};
+  ${shimmerBackground}
 `;

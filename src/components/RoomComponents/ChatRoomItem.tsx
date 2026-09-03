@@ -21,6 +21,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
 import { formatCallLogLabel } from '../../helpers/callLogMessage';
 import { appendFileToken } from '../../helpers/secureFileUrl';
+import { RoomListTestIds } from '../../testIds';
 
 interface ChatRoomItemProps {
   chat: IRoom;
@@ -184,11 +185,23 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
       active={isChatActive}
       onClick={() => performClick(chat)}
       bg={config?.colors?.primary}
+      data-testid={RoomListTestIds.roomRow}
+      role="button"
+      tabIndex={0}
+      aria-current={isChatActive ? 'true' : undefined}
+      aria-label={displayName}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          performClick(chat);
+        }
+      }}
     >
       <ProfileImagePlaceholder
         name={displayName}
         icon={appendFileToken(chat?.icon, fileToken)}
         online={peerOnline}
+        size={44}
       />
       <div
         style={{
@@ -237,7 +250,6 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
 
           <UserCount
             style={{
-              color: !isChatActive ? '#8C8C8C' : '#fff',
               fontSize: 'var(--ethora-font-size-xs, 12px)',
             }}
             active={isChatActive}
@@ -257,7 +269,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
           {chat.composing ? (
             <Composing
               usersTyping={chat.composingList}
-              style={{ color: !isChatActive ? '#141414' : '#fff' }}
+              style={{ color: 'var(--ethora-color-text, #141414)' }}
             />
           ) : lastMessage?.body || lastMessage?.isDeleted ? (
             <LastMessageItem lastMessage={lastMessage} />
@@ -287,12 +299,11 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
               (chat?.messages?.length ?? 0) === 0
             ) && (
               <NewMessageMarker
-                style={{
-                  backgroundColor: isChatActive
-                    ? '#fff'
-                    : config?.colors?.primary || '#0052CD',
-                  color: isChatActive ? '#141414' : '#fff',
-                }}
+                style={
+                  config?.colors?.primary
+                    ? { backgroundColor: config.colors.primary }
+                    : undefined
+                }
               >
                 {chat.unreadCapped
                   ? `${Math.max(chat.unreadMessages, 10)}+`

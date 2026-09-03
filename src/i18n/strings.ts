@@ -14,6 +14,9 @@
 export type UiStringTable = Record<string, string>;
 
 const en: UiStringTable = {
+  'tabs.chats': 'Chats',
+  'tabs.files': 'Files',
+  'files.empty': 'No files yet',
   'search.placeholder': 'Search...',
   'input.placeholder': 'Type message',
   'room.created': 'Room created',
@@ -211,6 +214,9 @@ const en: UiStringTable = {
 };
 
 const fr: UiStringTable = {
+  'tabs.chats': 'Discussions',
+  'tabs.files': 'Fichiers',
+  'files.empty': 'Aucun fichier pour le moment',
   'search.placeholder': 'Rechercher...',
   'input.placeholder': 'Écrire un message',
   'room.created': 'Salon créé',
@@ -408,6 +414,9 @@ const fr: UiStringTable = {
 };
 
 const es: UiStringTable = {
+  'tabs.chats': 'Chats',
+  'tabs.files': 'Archivos',
+  'files.empty': 'Aun no hay archivos',
   'search.placeholder': 'Buscar...',
   'input.placeholder': 'Escribe un mensaje',
   'room.created': 'Sala creada',
@@ -605,6 +614,9 @@ const es: UiStringTable = {
 };
 
 const pt: UiStringTable = {
+  'tabs.chats': 'Conversas',
+  'tabs.files': 'Arquivos',
+  'files.empty': 'Ainda sem arquivos',
   'search.placeholder': 'Pesquisar...',
   'input.placeholder': 'Escreva uma mensagem',
   'room.created': 'Sala criada',
@@ -802,6 +814,9 @@ const pt: UiStringTable = {
 };
 
 const ht: UiStringTable = {
+  'tabs.chats': 'Chat',
+  'tabs.files': 'Fichye',
+  'files.empty': 'Poko gen fichye',
   'search.placeholder': 'Chèche...',
   'input.placeholder': 'Ekri yon mesaj',
   'room.created': 'Sal la kreye',
@@ -999,6 +1014,9 @@ const ht: UiStringTable = {
 };
 
 const zh: UiStringTable = {
+  'tabs.chats': '聊天',
+  'tabs.files': '文件',
+  'files.empty': '暂无文件',
   'search.placeholder': '搜索...',
   'input.placeholder': '输入消息',
   'room.created': '聊天室已创建',

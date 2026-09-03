@@ -24,19 +24,26 @@ export const LastRoomMessageText = styled.div`
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 190px;
+  color: var(--ethora-color-text-secondary, #5a5f66);
 `;
 
+// Unread-count pill. Always solid `primary` + on-primary text regardless of
+// the row's active state, since the row background is now a soft tint
+// rather than a solid fill (see styled/RoomListComponents ChatItem).
 export const NewMessageMarker = styled.div`
-  border-radius: 8px;
-  padding: 2px 2px;
+  border-radius: var(--ethora-radius-full, 999px);
+  padding: 2px 7px;
   font-weight: 600;
-  min-width: 24px;
-  min-height: 24px;
-  font-size: var(--ethora-font-size-sm, 14px);
+  min-width: 20px;
+  height: 20px;
+  box-sizing: border-box;
+  font-size: var(--ethora-font-size-xs, 12px);
   display: flex;
   justify-content: center;
   align-items: center;
   margin-left: auto;
+  background-color: var(--ethora-color-primary, #0052cd);
+  color: var(--ethora-color-text-on-primary, #fff);
 `;
 
 export const LastMessageImg = styled.img`
