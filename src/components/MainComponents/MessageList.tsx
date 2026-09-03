@@ -483,7 +483,14 @@ const MessageList = <TMessage extends IMessage>({
       scrollParams.current = null;
     }
     isExpandingWindowRef.current = false;
-  }, [visibleMessages.length, composing]);
+    // `renderWindow` has to be a dependency, not just `visibleMessages.length`:
+    // `visibleMessages` clamps itself to at least the unread delimiter's
+    // distance from the end, so a `renderWindow` bump that stays under that
+    // clamp leaves the slice length unchanged. Keyed only on the length, this
+    // effect would then never re-run, `isExpandingWindowRef` would stay latched
+    // at `true`, and every later top-scroll would bail out before it could
+    // reach the server load-more - pagination died for the room until remount.
+  }, [visibleMessages.length, composing, renderWindow]);
 
   useEffect(() => {
     if (messages.length > 0) {
