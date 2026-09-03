@@ -171,9 +171,10 @@ export const Divider = styled.div`
 `;
 
 // Row appears with a subtle rise+fade on first mount (initial room list load).
-export const AnimatedRow = styled.div<{ delay?: number }>`
+export const AnimatedRow = styled.div<{ $delay?: number }>`
   ${fadeInUpAnimation}
-  animation-delay: ${({ delay }) => (delay ? `${Math.min(delay, 240)}ms` : '0ms')};
+  animation-delay: ${({ $delay }) =>
+    $delay ? `${Math.min($delay, 240)}ms` : '0ms'};
 `;
 
 // --- Tab switcher (segmented control): "Chats" | "Files" -------------------
@@ -188,16 +189,16 @@ export const TabsContainer = styled.div`
   margin-bottom: 8px;
 `;
 
-export const TabIndicator = styled.div<{ index: number; count: number }>`
+export const TabIndicator = styled.div<{ $index: number; $count: number }>`
   position: absolute;
   top: 4px;
   bottom: 4px;
   left: 4px;
-  width: ${({ count }) => `calc((100% - 8px) / ${count})`};
+  width: ${({ $count }) => `calc((100% - 8px) / ${$count})`};
   border-radius: var(--ethora-radius-sm, 8px);
   background: var(--ethora-color-bg, #fff);
   box-shadow: var(--ethora-shadow-sm, 0 1px 2px rgba(16, 24, 40, 0.06));
-  transform: ${({ index }) => `translateX(${index * 100}%)`};
+  transform: ${({ $index }) => `translateX(${$index * 100}%)`};
   transition: transform var(--ethora-motion-base, 220ms)
     var(--ethora-motion-ease, cubic-bezier(0.2, 0.8, 0.2, 1));
   ${reducedMotion}
@@ -268,9 +269,9 @@ export const SkeletonLines = styled.div`
   min-width: 0;
 `;
 
-export const SkeletonLine = styled.div<{ width?: string }>`
+export const SkeletonLine = styled.div<{ $width?: string }>`
   height: 10px;
   border-radius: var(--ethora-radius-sm, 8px);
-  width: ${({ width }) => width || '60%'};
+  width: ${({ $width }) => $width || '60%'};
   ${shimmerBackground}
 `;

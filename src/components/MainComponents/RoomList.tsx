@@ -304,7 +304,7 @@ const RoomList: React.FC<RoomListProps> = ({
           <ScollableContainer>
             {filesTabEnabled && (
               <TabsContainer role="tablist" aria-label={t('tabs.chats')}>
-                <TabIndicator index={activeTab === 'chats' ? 0 : 1} count={2} />
+                <TabIndicator $index={activeTab === 'chats' ? 0 : 1} $count={2} />
                 <TabButton
                   type="button"
                   role="tab"
@@ -372,14 +372,14 @@ const RoomList: React.FC<RoomListProps> = ({
                         <SkeletonRow key={`skeleton-${i}`}>
                           <SkeletonAvatar />
                           <SkeletonLines>
-                            <SkeletonLine width="45%" />
-                            <SkeletonLine width="70%" />
+                            <SkeletonLine $width="45%" />
+                            <SkeletonLine $width="70%" />
                           </SkeletonLines>
                         </SkeletonRow>
                       ))
                     : filteredChats.map((chat: IRoom, index: number) => (
                         <React.Fragment key={chat.jid || `${chat.id}-${index}`}>
-                          <AnimatedRow delay={index * 24}>
+                          <AnimatedRow $delay={index * 24}>
                             <ChatRoomItem
                               chat={chat}
                               index={index}
