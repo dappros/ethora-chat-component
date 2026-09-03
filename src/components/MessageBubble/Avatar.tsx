@@ -23,10 +23,11 @@ const AvatarCircle = styled.div<{ $bgColor: string; $textColor?: string }>`
   font-weight: bold;
   cursor: pointer;
 
-  transition: box-shadow 0.2s ease-in-out;
+  transition: box-shadow var(--ethora-motion-fast, 150ms)
+    var(--ethora-motion-ease, cubic-bezier(0.2, 0.8, 0.2, 1));
 
   &:hover {
-    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--ethora-shadow-sm, 0 1px 2px rgba(16, 24, 40, 0.06));
   }
 `;
 

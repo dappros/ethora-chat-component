@@ -6,13 +6,13 @@ const Container = styled.div`
   align-items: center;
   gap: 6px;
   padding: 4px 8px;
-  border-radius: 8px;
-  background-color: rgba(140, 140, 140, 0.08);
-  border: 1px dashed rgba(140, 140, 140, 0.35);
-  color: #8c8c8c;
+  border-radius: var(--ethora-radius-sm, 8px);
+  background-color: var(--ethora-color-bg-subtle, rgba(140, 140, 140, 0.08));
+  border: 1px dashed var(--ethora-color-border, rgba(140, 140, 140, 0.35));
+  color: var(--ethora-color-text-muted, #8c8c8c);
   font-style: italic;
-  font-size: 13px;
-  line-height: 1.2;
+  font-size: var(--ethora-font-size-sm, 13px);
+  line-height: 1.45;
   user-select: none;
 
   @media (max-width: 399px) {

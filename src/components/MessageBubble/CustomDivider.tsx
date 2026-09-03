@@ -9,6 +9,6 @@ export const CustomDivider = styled.div<{
   width: 100%;
   background-color: ${(props) =>
     props.isUser
-      ? props.configColorUser || '#0052CD'
-      : props.configColor || '#0052CD'};
+      ? props.configColorUser || 'var(--ethora-color-primary, #0052CD)'
+      : props.configColor || 'var(--ethora-color-primary, #0052CD)'};
 `;

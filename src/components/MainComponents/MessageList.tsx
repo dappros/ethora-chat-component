@@ -27,6 +27,7 @@ import { useCustomComponents } from '../../context/CustomComponentsContext';
 import { DecoratedMessage } from '../../types/models/customComponents.model';
 import { parseMessageReference } from '../../helpers/parseMessageReference';
 import { useLoaderDebug } from '../../hooks/useLoaderDebug';
+import { useT } from '../../i18n/useT';
 
 // How long the active room must sit quiet (no new "mark as read" trigger)
 // before we persist the read-state to the server's private store. Each new
@@ -78,6 +79,7 @@ const MessageList = <TMessage extends IMessage>({
   const { composing, messages, composingList } =
     useRoomState(roomJID).room ?? {};
   const { user } = useChatSettingState();
+  const t = useT();
   const { client } = useXmppClient();
   const isTabVisible = useTabVisibility();
   useLoaderDebug('chat-room-load-more-loader', loading);
@@ -668,6 +670,7 @@ const MessageList = <TMessage extends IMessage>({
         <ScrollToBottomButton
           onClick={scrollToBottom}
           color={config?.colors?.iconsBg || config?.colors?.primary}
+          aria-label={t('action.scrollToBottom')}
         >
           <DownArrowIcon
             color={
