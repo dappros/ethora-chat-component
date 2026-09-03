@@ -13,6 +13,7 @@ import {
   setMemberOnline,
   setMemberOffline,
   updateRoom,
+  updateRooms,
   updateUsersSet,
   deleteRoom,
   insertUsers,
@@ -988,6 +989,11 @@ const onUserUpdate = async (stanza: Element) => {
       store.dispatch(insertUsers({ newUsers: [newUser] }));
     }
 
+    // Collect every affected room's update and dispatch them all in one
+    // action instead of one updateRoom dispatch per room - a headline
+    // stanza for a user in many rooms used to trigger a Redux
+    // notification/re-render per room.
+    const roomUpdates: Array<{ jid: string; updates: Partial<IRoom> }> = [];
     (Object.values(state.rooms.rooms) as IRoom[]).forEach((room) => {
       if (!room.members?.length) return;
 
@@ -1008,9 +1014,13 @@ const onUserUpdate = async (stanza: Element) => {
       );
 
       if (hasChanges) {
-        store.dispatch(updateRoom({ jid: room.jid, updates: { members: updatedMembers } }));
+        roomUpdates.push({ jid: room.jid, updates: { members: updatedMembers } });
       }
     });
+
+    if (roomUpdates.length > 0) {
+      store.dispatch(updateRooms(roomUpdates));
+    }
 
     ethoraLogger.log(
       `[UserUpdate] xmppUsername=${xmppUsername} firstName=${attrs.firstName ?? '-'} lastName=${attrs.lastName ?? '-'} matched=${matchedUsers.length}`
