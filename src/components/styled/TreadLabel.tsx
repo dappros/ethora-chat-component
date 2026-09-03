@@ -17,11 +17,12 @@ const Container = styled.div`
 `;
 
 export const StyledDateLabel = styled.div<{
-  primary?: string;
-  secondary?: string;
+  $primary?: string;
+  $secondary?: string;
 }>`
   margin: 0;
-  color: ${(props) => props.primary || 'var(--ethora-color-text-secondary, #5A5F66)'};
+  color: ${(props) =>
+    props.$primary || 'var(--ethora-color-text-secondary, #5A5F66)'};
   border-radius: var(--ethora-radius-full, 999px);
   padding: 5px 10px;
   display: flex;
@@ -31,7 +32,7 @@ export const StyledDateLabel = styled.div<{
   line-height: 14px;
   font-weight: 600;
   background-color: ${(props) =>
-    props.secondary || 'var(--ethora-color-bg-subtle, #e7edf9)'};
+    props.$secondary || 'var(--ethora-color-bg-subtle, #e7edf9)'};
   height: 24px;
   white-space: nowrap;
 `;
@@ -41,7 +42,10 @@ const TreadLabel: React.FC<DateLabelProps> = ({ reply, colors }) => {
   return (
     <Container>
       <Line />
-        <StyledDateLabel {...colors}>
+        <StyledDateLabel
+          $primary={colors?.primary}
+          $secondary={colors?.secondary}
+        >
           {reply} {reply > 1 ? 'replies' : "reply"}
         </StyledDateLabel>
       <Line />

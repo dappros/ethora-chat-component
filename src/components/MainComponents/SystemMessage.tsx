@@ -8,11 +8,11 @@ interface SystemMessageProps {
 }
 
 export const CustomSystemMessageText = styled.div<{
-  primary?: string;
-  secondary?: string;
+  $primary?: string;
 }>`
   margin: 0;
-  color: ${(props) => props.primary || 'var(--ethora-color-text-secondary, #5A5F66)'};
+  color: ${(props) =>
+    props.$primary || 'var(--ethora-color-text-secondary, #5A5F66)'};
   border-radius: var(--ethora-radius-full, 999px);
   padding: 5px 10px;
   display: inline-flex;
@@ -40,7 +40,7 @@ const SystemMessage: React.FC<SystemMessageProps> = ({
 }) => {
   return (
     <CustomSystemMessage>
-      <CustomSystemMessageText {...colors}>
+      <CustomSystemMessageText $primary={colors?.primary}>
         {messageText}
       </CustomSystemMessageText>
     </CustomSystemMessage>
