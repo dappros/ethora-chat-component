@@ -21,18 +21,23 @@ describe('buildThemeTokens', () => {
     // Hover is a shade (darker) of primary, distinct from primary itself.
     expect(tokens['--ethora-color-primary-hover']).not.toBe('#123456');
     expect(tokens['--ethora-color-primary-hover']).toBe(shadeColor('#123456', 0.08));
-    // Soft tint (lighter) derived from primary when ownMessageBackground unset.
+    // Soft tint (lighter) derived from primary.
     expect(tokens['--ethora-color-primary-soft']).toBe(tintColor('#123456', 0.88));
   });
 
-  it('prefers ownMessageBackground for the soft primary tint when provided', () => {
+  it('does NOT derive the soft primary tint from ownMessageBackground', () => {
+    // ownMessageBackground themes the own-message bubble only (via the
+    // separate --ethora-own-message-bg variable in resolveIconColor.ts).
+    // It must not retint every other "soft" surface (selected room row,
+    // reply-quote panel, file chips, ...) that reads --ethora-color-primary-soft.
     const tokens = buildThemeTokens({
       primary: '#0052CD',
       secondary: '#000',
       ownMessageBackground: '#FFEECC',
     });
 
-    expect(tokens['--ethora-color-primary-soft']).toBe('#FFEECC');
+    expect(tokens['--ethora-color-primary-soft']).not.toBe('#FFEECC');
+    expect(tokens['--ethora-color-primary-soft']).toBe(tintColor('#0052CD', 0.88));
   });
 
   it('resolves icons/iconsBg with the documented fallback chain', () => {

@@ -31,7 +31,11 @@ const DeleteChatModal: React.FC<DeleteChatModalProps> = ({
 
   const handleOpenModal = () => setIsModalOpen(true);
   const handleCloseModal = () => setIsModalOpen(false);
-  useModalDismiss({ onClose: handleCloseModal });
+  // Gate on isModalOpen: ChatProfileModal mounts this component
+  // unconditionally (it renders nothing until isModalOpen), so an ungated
+  // hook would sit on top of the modal stack the whole time Chat Profile is
+  // open and swallow every Escape into a no-op setIsModalOpen(false).
+  useModalDismiss({ enabled: isModalOpen, onClose: handleCloseModal });
 
   const handleDeleteChat = async () => {
     try {

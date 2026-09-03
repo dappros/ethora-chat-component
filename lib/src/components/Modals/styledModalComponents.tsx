@@ -79,15 +79,6 @@ export const ModalTitle = styled.h2`
   }
 `;
 
-/** Muted uppercase section label used for group headers inside settings modals. */
-export const SectionLabel = styled.div`
-  font-size: 12px;
-  font-weight: var(--ethora-font-weight-medium, 500);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ethora-color-text-muted, #8c8c8c);
-`;
-
 /** 48px-min-height row used for members/blocked-users/etc. lists inside modals. */
 export const ModalListRow = styled.div`
   display: flex;

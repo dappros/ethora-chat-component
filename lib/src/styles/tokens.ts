@@ -110,12 +110,16 @@ export function buildThemeTokens(
       : DEFAULTS.primary;
   const primaryHover = isValidHex(primary) ? shadeColor(primary, 0.08) : primary;
   const customPrimary = colors?.primary && isValidHex(colors.primary);
-  const primarySoft =
-    colors?.ownMessageBackground && isValidHex(colors.ownMessageBackground)
-      ? colors.ownMessageBackground
-      : customPrimary
-        ? tintColor(primary, 0.88)
-        : DEFAULTS.primarySoft;
+  // Derived from `primary` alone - NOT `ownMessageBackground`. This token
+  // backs unrelated "soft" surfaces across the UI (the selected room row,
+  // reply-quote panels, file chips, profile/settings accents), so a host
+  // that sets only `ownMessageBackground` (to retint message bubbles) must
+  // not also retint all of those. Own message bubbles get their background
+  // from the separate `--ethora-own-message-bg` variable (see
+  // resolveIconColor.ts's applyThemeColors), which is set directly from
+  // `ownMessageBackground` and takes priority over this token in
+  // CustomMessageBubble - so bubbles are unaffected by this change.
+  const primarySoft = customPrimary ? tintColor(primary, 0.88) : DEFAULTS.primarySoft;
 
   const icons = colors?.icons || primary;
   const iconsBg = colors?.iconsBg || colors?.secondary || DEFAULTS.iconsBg;

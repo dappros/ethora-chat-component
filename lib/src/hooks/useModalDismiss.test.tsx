@@ -13,6 +13,12 @@ const Dialog: React.FC<{ onClose: () => void; label: string }> = ({ onClose, lab
   );
 };
 
+// Mounted all the time, renders nothing until its own open flag flips.
+const ClosedDialog: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  useModalDismiss({ enabled: false, onClose });
+  return null;
+};
+
 describe('useModalDismiss', () => {
   it('closes only the topmost modal on Escape', () => {
     const closeOuter = vi.fn();
@@ -26,6 +32,24 @@ describe('useModalDismiss', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(closeInner).toHaveBeenCalledTimes(1);
     expect(closeOuter).not.toHaveBeenCalled();
+  });
+
+  it('does not let a mounted-but-closed modal swallow Escape', () => {
+    // Regression: ChatProfileModal mounts DeleteChatModal unconditionally
+    // (it renders nothing until opened). An ungated useModalDismiss there
+    // sat on top of the stack and ate every Escape, so Chat Profile itself
+    // could never be closed with the keyboard.
+    const closeOpen = vi.fn();
+    const closeClosed = vi.fn();
+    render(
+      <>
+        <Dialog onClose={closeOpen} label="open" />
+        <ClosedDialog onClose={closeClosed} />
+      </>
+    );
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(closeOpen).toHaveBeenCalledTimes(1);
+    expect(closeClosed).not.toHaveBeenCalled();
   });
 
   it('moves focus into the dialog and restores it on unmount', () => {

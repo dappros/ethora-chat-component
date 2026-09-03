@@ -83,6 +83,9 @@ export function useMyFiles(options?: UseMyFilesOptions): UseMyFilesResult {
           offset,
           signal: controller.signal,
         });
+        // A superseded request can still resolve before its abort lands;
+        // only the current one may write items/cache.
+        if (!isCurrent()) return;
         const nextItems = replace
           ? result.items
           : [...itemsRef.current, ...result.items];
