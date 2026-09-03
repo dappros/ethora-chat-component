@@ -94,7 +94,11 @@ const AddMembersModal: React.FC = () => {
       {isModalOpen && (
         <ModalBackground>
           <ModalContainer>
-            <CloseButton onClick={handleCloseModal} style={{ fontSize: 24 }}>
+            <CloseButton
+              onClick={handleCloseModal}
+              style={{ fontSize: 24 }}
+              aria-label={t('action.close')}
+            >
               &times;
             </CloseButton>
             <ModalTitle>{t('modal.addMembers.title')}</ModalTitle>

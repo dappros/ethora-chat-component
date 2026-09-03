@@ -125,20 +125,19 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
             <FileIcon style={{ minWidth: '100px', minHeight: '100px' }} />
             <div
               style={{
-                backgroundColor: '#FFF8ED',
-                borderRadius: '16px',
+                backgroundColor: 'var(--ethora-color-bg-subtle, #F5F7FA)',
+                borderRadius: 'var(--ethora-radius-lg, 16px)',
                 display: 'flex',
                 padding: '16px',
+                color: 'var(--ethora-color-text, #141414)',
               }}
             >
-              Unable to open the uploaded document. The file format is not
-              supported by the system. Please upload a file in a compatible
-              format. You still can download this file.
+              {t('modal.filePreview.unsupported')}
             </div>
           </div>
         );
     }
-  }, [activeFile, fileToken]);
+  }, [activeFile, fileToken, t]);
 
   return (
     <ModalContainerFullScreen>
@@ -147,7 +146,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
         headerTitle={t('modal.filePreview.title')}
         rightMenu={
           <>
-            <Button onClick={saveClick}>
+            <Button onClick={saveClick} aria-label={t('action.save')}>
               <SaveIcon />
             </Button>
             {/* <Button onClick={deleteCLick}>

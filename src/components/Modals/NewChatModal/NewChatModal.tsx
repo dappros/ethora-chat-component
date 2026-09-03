@@ -236,6 +236,7 @@ const NewChatModal: React.FC = () => {
         unstyled
         EndIcon={<AddNewIcon color={resolveIconColor(config)} />}
         onClick={handleOpenModal}
+        aria-label={t('action.newChat')}
       />
       )}
 
@@ -243,7 +244,11 @@ const NewChatModal: React.FC = () => {
         <ModalBackground>
           {activeTab === '0' && (
             <ModalContainer>
-              <CloseButton onClick={handleCloseModal} style={{ fontSize: 24 }}>
+              <CloseButton
+                onClick={handleCloseModal}
+                style={{ fontSize: 24 }}
+                aria-label={t('action.close')}
+              >
                 &times;
               </CloseButton>
               <ModalTitle>{t('modal.newChat.title')}</ModalTitle>
@@ -325,7 +330,11 @@ const NewChatModal: React.FC = () => {
           )}
           {activeTab === '1' && (
             <ModalContainer style={{ minHeight: '500px' }}>
-              <CloseButton onClick={handleCloseModal} style={{ fontSize: 24 }}>
+              <CloseButton
+                onClick={handleCloseModal}
+                style={{ fontSize: 24 }}
+                aria-label={t('action.close')}
+              >
                 &times;
               </CloseButton>
               <ModalTitle>{t('modal.newChat.selectUsersTitle')}</ModalTitle>

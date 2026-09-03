@@ -44,7 +44,7 @@ const Pager = styled.div`
   gap: 12px;
   flex: 0 0 auto;
   font-size: 14px;
-  color: #141414;
+  color: var(--ethora-color-text, #141414);
 `;
 
 const PagerButton = styled(Button)`
@@ -59,13 +59,13 @@ const FallbackBox = styled.div`
   align-items: center;
   gap: 12px;
   padding: 16px;
-  border-radius: 16px;
-  background-color: #fff8ed;
-  color: #141414;
+  border-radius: var(--ethora-radius-lg, 16px);
+  background-color: var(--ethora-color-bg-subtle, #f5f7fa);
+  color: var(--ethora-color-text, #141414);
   text-align: center;
 
   a {
-    color: #0052cd;
+    color: var(--ethora-color-primary, #0052cd);
   }
 `;
 
@@ -223,6 +223,7 @@ const PdfViewer: React.FC<PdfViewerProps> = ({ pdfUrl }) => {
             onClick={goPrevious}
             disabled={pageNumber <= 1}
             text="‹"
+            aria-label={t('modal.filePreview.previousPage')}
           />
           <span>
             {pageNumber} / {pageCount}
@@ -231,6 +232,7 @@ const PdfViewer: React.FC<PdfViewerProps> = ({ pdfUrl }) => {
             onClick={goNext}
             disabled={pageNumber >= pageCount}
             text="›"
+            aria-label={t('modal.filePreview.nextPage')}
           />
         </Pager>
       )}

@@ -9,6 +9,7 @@ import {
   BorderedContainer,
   LabelData,
   Divider,
+  ModalListRow,
 } from '../styledModalComponents';
 import ModalHeaderComponent from '../ModalHeaderComponent';
 import { ProfileImagePlaceholder } from '../../MainComponents/ProfileImagePlaceholder';
@@ -65,7 +66,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         onClick: () => {
           setIsModalOpen(true);
         },
-        styles: { color: 'red' },
+        styles: { color: 'var(--ethora-color-danger, #D92D20)' },
       },
     ],
     [t]
@@ -256,7 +257,11 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         rightMenu={
           <>
             {activeRoom?.type === 'public' && (
-              <Button EndIcon={<QrIcon />} onClick={() => setVisible(true)} />
+              <Button
+                EndIcon={<QrIcon />}
+                onClick={() => setVisible(true)}
+                aria-label={t('action.showQr')}
+              />
             )}
             {activeRoom.role === 'moderator' &&
               activeRoom.type !== 'private' &&
@@ -269,6 +274,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                       style={{ padding: 8, maxHeight: '40px' }}
                       EndIcon={<MoreIcon />}
                       unstyled
+                      aria-label={t('action.moreOptions')}
                     />
                   }
                 />
@@ -355,12 +361,9 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                     boxSizing: 'border-box',
                   }}
                 >
-                  <div
+                  <ModalListRow
                     style={{
-                      display: 'flex',
                       justifyContent: 'space-between',
-                      padding: '8px 0px',
-                      alignItems: 'center',
                       width: '100%',
                     }}
                   >
@@ -408,14 +411,14 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                         style={{
                           backgroundColor:
                             user.ban_status !== 'banned'
-                              ? '#F3F6FC'
-                              : '#FFEBEE',
+                              ? 'var(--ethora-color-primary-soft, #E7EDF9)'
+                              : 'rgba(217, 45, 32, 0.1)',
                           color:
                             user.ban_status !== 'banned'
-                              ? '#0052CD'
-                              : '#F44336',
+                              ? 'var(--ethora-color-primary, #0052CD)'
+                              : 'var(--ethora-color-danger, #D92D20)',
                           padding: '5px 8px',
-                          borderRadius: '16px',
+                          borderRadius: 'var(--ethora-radius-lg, 16px)',
                           fontSize: '12px',
                         }}
                       >
@@ -439,7 +442,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                           onClose={() => ethoraLogger.log('Dropdown closed')}
                         />
                       )}
-                  </div>
+                  </ModalListRow>
                   {index < enrichedMembers.length - 1 && <Divider />}
                 </div>
               ))
@@ -460,7 +463,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
           >
             <LabelData>{t('modal.chatProfile.filesTitle')}</LabelData>
             {roomFiles.length > 6 && (
-              <Label style={{ color: '#0052CD', fontSize: '13px' }}>
+              <Label style={{ color: 'var(--ethora-color-primary, #0052CD)', fontSize: '13px' }}>
                 {t('modal.chatProfile.filesShowAll')}
               </Label>
             )}

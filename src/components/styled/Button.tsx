@@ -1,27 +1,42 @@
 import React, { ReactElement } from 'react';
-import styled from 'styled-components';
+import styled, { css } from 'styled-components';
 import Loader from './Loader';
 import { getTintedColor } from '../../helpers/getTintedColor';
+
+/**
+ * `$tone` layers on top of the existing `$variant` prop without changing
+ * what any existing `$variant` value renders for callers that don't pass a
+ * tone. 'danger' recolors filled/outlined/ghost around
+ * --ethora-color-danger instead of the brand primary - used for destructive
+ * modal actions (delete chat, block user, remove member, ...). 'ghost' is a
+ * new ADDITIVE variant value (text-only, no border/background until hover);
+ * it does not replace 'default'.
+ */
+const toneColor = ($tone: 'default' | 'danger' | undefined) =>
+  $tone === 'danger'
+    ? 'var(--ethora-color-danger, #D92D20)'
+    : 'var(--ethora-color-primary, #0052CD)';
 
 const CustomButton = styled.button<{
   disabled: boolean;
   $backgroundColor?: string;
   $unstyled?: boolean;
-  $variant?: 'default' | 'filled' | 'outlined';
+  $variant?: 'default' | 'filled' | 'outlined' | 'ghost';
+  $tone?: 'default' | 'danger';
 }>`
-  border: ${({ $variant, $backgroundColor }) =>
+  border: ${({ $variant, $backgroundColor, $tone }) =>
     $variant === 'outlined'
-      ? `1px solid ${$backgroundColor || '#0052CD'}`
+      ? `1px solid ${$backgroundColor || toneColor($tone)}`
       : 'none'};
-  border-radius: 16px;
+  border-radius: var(--ethora-radius-lg, 16px);
   background-size: contain;
-  background-color: ${({ $variant, $backgroundColor }) =>
-    $variant === 'filled' ? $backgroundColor || '#0052CD' : 'transparent'};
-  color: ${({ $variant, $backgroundColor }) =>
+  background-color: ${({ $variant, $backgroundColor, $tone }) =>
+    $variant === 'filled' ? $backgroundColor || toneColor($tone) : 'transparent'};
+  color: ${({ $variant, $backgroundColor, $tone }) =>
     $variant === 'filled'
-      ? '#FFFFFF'
-      : $variant === 'outlined'
-        ? $backgroundColor || '#0052CD'
+      ? 'var(--ethora-color-text-on-primary, #FFFFFF)'
+      : $variant === 'outlined' || $variant === 'ghost'
+        ? $backgroundColor || toneColor($tone)
         : 'inherit'};
   cursor: pointer;
   height: 40px;
@@ -32,8 +47,8 @@ const CustomButton = styled.button<{
   align-items: center;
   gap: 4px;
   transition:
-    background-color 0.3s,
-    box-shadow 0.3s;
+    background-color var(--ethora-motion-fast, 150ms),
+    box-shadow var(--ethora-motion-fast, 150ms);
 
   ${({ $variant, $backgroundColor }) =>
     $variant === 'default' &&
@@ -43,15 +58,30 @@ const CustomButton = styled.button<{
       color: inherit;
   `}
 
+  ${({ $variant }) =>
+    $variant === 'ghost' &&
+    css`
+      background-color: transparent;
+    `}
+
   &:hover {
-    background-color: ${({ $variant, $backgroundColor }) =>
+    background-color: ${({ $variant, $backgroundColor, $tone }) =>
       $variant === 'filled'
-        ? getTintedColor($backgroundColor || '#0052CD')
-        : $variant === 'outlined'
-          ? 'rgba(0, 82, 205, 0.1)'
+        ? getTintedColor($backgroundColor || toneColor($tone))
+        : $variant === 'outlined' || $variant === 'ghost'
+          ? $tone === 'danger'
+            ? 'rgba(217, 45, 32, 0.1)'
+            : 'rgba(0, 82, 205, 0.1)'
           : $backgroundColor || 'rgba(202, 202, 202, 0.1)'};
     box-shadow: ${({ $variant }) =>
-      $variant !== 'default' ? '0 4px 8px rgba(0, 0, 0, 0.2)' : 'none'};
+      $variant !== 'default' && $variant !== 'ghost'
+        ? '0 4px 8px rgba(0, 0, 0, 0.2)'
+        : 'none'};
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ethora-color-primary, #0052cd);
+    outline-offset: 2px;
   }
 
   &:disabled {
@@ -74,7 +104,9 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   StartIcon?: ReactElement;
   loading?: boolean;
   unstyled?: boolean;
-  variant?: 'default' | 'filled' | 'outlined';
+  variant?: 'default' | 'filled' | 'outlined' | 'ghost';
+  /** Recolors the button around the danger token for destructive actions. Optional, defaults to the existing brand-blue styling. */
+  tone?: 'default' | 'danger';
   children?: React.ReactNode;
 }
 
@@ -85,6 +117,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
   disabled = false,
   unstyled = false,
   variant = 'default',
+  tone = 'default',
   children,
   StartIcon,
   ...props
@@ -96,6 +129,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
       $backgroundColor={props?.style?.backgroundColor}
       $unstyled={unstyled}
       $variant={variant}
+      $tone={tone}
       {...props}
     >
       {!loading && StartIcon}

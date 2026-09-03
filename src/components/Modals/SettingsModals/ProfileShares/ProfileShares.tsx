@@ -50,7 +50,9 @@ const ProfileSharesModal: React.FC<ProfileSharesModalProps> = ({
             {t('settings.profileShares.description')}
           </SharedSettingsLabelData>
           <BorderedContainer>
-            <SharedSettingsInfoPanel bgColor={config?.colors?.secondary}>
+            <SharedSettingsInfoPanel
+              bgColor={config?.colors?.secondary || 'var(--ethora-color-bg-subtle, #F5F7FA)'}
+            >
               <SharedSettingsInfoText>
                 {t('settings.documentShares.emptyState')}
               </SharedSettingsInfoText>

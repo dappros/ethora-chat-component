@@ -18,6 +18,7 @@ import { RoomMember } from '../../../types/types';
 
 import ModalContent from './ModalContent';
 import { ModalBackground } from '../styledModalComponents';
+import { useT } from '../../../i18n/useT';
 
 const NewChatModal: React.FC = () => {
   const config = useSelector(
@@ -25,6 +26,7 @@ const NewChatModal: React.FC = () => {
   );
   const dispatch = useDispatch();
   const { client } = useXmppClient();
+  const t = useT();
 
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'0' | '1' | null>('0');
@@ -121,12 +123,13 @@ const NewChatModal: React.FC = () => {
         style={{
           color: 'black',
           padding: 8,
-          borderRadius: '16px',
+          borderRadius: 'var(--ethora-radius-lg, 16px)',
           backgroundColor: 'transparent',
         }}
         unstyled
         EndIcon={<AddNewIcon color={resolveIconColor(config)} />}
         onClick={handleOpenModal}
+        aria-label={t('action.newChat')}
       />
       {isModalOpen && (
         <ModalBackground>
