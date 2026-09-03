@@ -66,15 +66,16 @@ const slideOutMobile = keyframes`
 
 const ToastContainer = styled.div<{ $isClosing: boolean }>`
   position: relative;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  padding: 12px;
+  background: var(--ethora-color-bg, #fff);
+  border: 1px solid var(--ethora-color-border, #e6e8ec);
+  border-radius: var(--ethora-radius-md, 12px);
+  box-shadow: var(--ethora-shadow-lg, 0 12px 32px rgba(16, 24, 40, 0.18));
+  padding: var(--ethora-space-3, 12px);
   margin-bottom: 8px;
   width: 320px;
   cursor: pointer;
-  animation: ${({ $isClosing }) => ($isClosing ? slideOut : slideIn)} 0.3s ease-out;
-  transition: transform 0.2s ease;
+  animation: ${({ $isClosing }) => ($isClosing ? slideOut : slideIn)} 0.3s var(--ethora-motion-ease, cubic-bezier(.2,.8,.2,1));
+  transition: transform var(--ethora-motion-fast, 150ms);
 
   &:hover {
     transform: translateX(4px);
@@ -84,9 +85,9 @@ const ToastContainer = styled.div<{ $isClosing: boolean }>`
     width: calc(100vw - 40px);
     max-width: 320px;
     padding: 10px;
-    border-radius: 10px;
-    animation: ${({ $isClosing }) => ($isClosing ? slideOutMobile : slideInMobile)} 0.3s ease-out;
-    
+    border-radius: var(--ethora-radius-sm, 10px);
+    animation: ${({ $isClosing }) => ($isClosing ? slideOutMobile : slideInMobile)} 0.3s var(--ethora-motion-ease, cubic-bezier(.2,.8,.2,1));
+
     &:hover {
       transform: translateY(-2px);
     }
@@ -107,14 +108,14 @@ const CloseButton = styled.button`
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  color: #757575;
+  color: var(--ethora-color-text-muted, #8c8c8c);
   font-size: 16px;
   line-height: 1;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition: background-color var(--ethora-motion-fast, 150ms), color var(--ethora-motion-fast, 150ms);
 
   &:hover {
-    background-color: rgba(0, 0, 0, 0.05);
-    color: #212121;
+    background-color: var(--ethora-color-bg-hover, #f0f2f5);
+    color: var(--ethora-color-text, #141414);
   }
 
   &:active {
@@ -132,8 +133,8 @@ const Header = styled.div`
 
 const RoomName = styled.div`
   font-weight: 600;
-  font-size: 14px;
-  color: #212121;
+  font-size: var(--ethora-font-size-sm, 14px);
+  color: var(--ethora-color-text, #141414);
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -147,7 +148,7 @@ const RoomName = styled.div`
 
 const Timestamp = styled.div`
   font-size: 11px;
-  color: #757575;
+  color: var(--ethora-color-text-muted, #8c8c8c);
   margin-left: 8px;
   flex-shrink: 0;
 
@@ -169,7 +170,7 @@ const Avatar = styled.div<{ photoURL?: string }>`
   background: ${({ photoURL }) =>
     photoURL
       ? `url(${photoURL}) center/cover`
-      : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'};
+      : 'var(--ethora-color-icons-bg, #E7EDF9)'};
   flex-shrink: 0;
 
   @media (max-width: 768px) {
@@ -186,7 +187,7 @@ const MessageBody = styled.div`
 const SenderName = styled.div`
   font-weight: 500;
   font-size: 13px;
-  color: #212121;
+  color: var(--ethora-color-text, #141414);
   margin-bottom: 4px;
 
   @media (max-width: 768px) {
@@ -197,7 +198,7 @@ const SenderName = styled.div`
 
 const MessageText = styled.div`
   font-size: 13px;
-  color: #616161;
+  color: var(--ethora-color-text-secondary, #5a5f66);
   line-height: 1.4;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -213,7 +214,7 @@ const MessageText = styled.div`
 
 const MediaIndicator = styled.div`
   font-size: 12px;
-  color: #757575;
+  color: var(--ethora-color-text-muted, #8c8c8c);
   font-style: italic;
 
   @media (max-width: 768px) {
