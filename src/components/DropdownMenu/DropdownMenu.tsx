@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { BurgerMenuIcon } from '../../assets/icons';
 import Button from '../styled/Button';
 import { scaleInAnimation } from '../../styles/motion';
+import { useT } from '../../i18n/useT';
 
 interface MenuOption {
   label: string;
@@ -25,6 +26,7 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
   position = 'right',
   menuIcon,
 }) => {
+  const t = useT();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -63,7 +65,14 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
           onClick: toggleMenu,
         } as any)
       ) : (
-        <Button onClick={toggleMenu}>{menuIcon ?? <BurgerMenuIcon />}</Button>
+        <Button
+          onClick={toggleMenu}
+          aria-label={t('action.moreOptions')}
+          aria-haspopup="menu"
+          aria-expanded={isOpen}
+        >
+          {menuIcon ?? <BurgerMenuIcon />}
+        </Button>
       )}
       {isOpen && (
         <Menu ref={menuRef} style={menuPosition}>

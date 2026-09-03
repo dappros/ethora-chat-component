@@ -42,6 +42,7 @@ export const RoomMenu: FC<RoomMenuProps> = ({ handleLeaveClick, handleReportClic
       openButton={
         <Button
           style={{ padding: 8, maxHeight: '40px' }}
+          aria-label={t('action.moreOptions')}
           EndIcon={<MoreIcon />}
           unstyled
         />
