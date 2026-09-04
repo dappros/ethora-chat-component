@@ -58,11 +58,18 @@ export const ModalContainer = styled.div.attrs({ role: 'dialog', 'aria-modal': '
   width: 50%;
   max-width: 400px;
   box-sizing: border-box;
+  /* Content is no longer a fixed-height single step - e.g. NewChatModal's
+     inline "Private" user picker can push this taller than the viewport on
+     short/mobile screens. Cap to the viewport and let the card itself
+     scroll instead of overflowing past the screen edges. */
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
   ${scaleInAnimation}
 
   @media (max-width: 480px) {
     width: 100%;
     max-width: 100%;
+    max-height: calc(100vh - 32px);
     padding: 24px 20px;
     gap: 20px;
   }
