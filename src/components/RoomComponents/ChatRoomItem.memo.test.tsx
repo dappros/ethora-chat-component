@@ -110,7 +110,7 @@ describe('ChatRoomItem — React.memo skips re-render for unrelated updates', ()
   });
 });
 
-describe('RoomList — reordering one row does not re-render other rows', () => {
+describe('RoomList - reordering one row does not re-render other rows', () => {
   it('does not re-execute an unaffected row when a different room becomes more active and moves above it', () => {
     // Regression for the "list looks completely broken on every incoming
     // message" bug: RoomList used to pass `index={index}` into the memoized
