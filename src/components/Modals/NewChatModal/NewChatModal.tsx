@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useModalDismiss } from '../../../hooks/useModalDismiss';
 import Button from '../../styled/Button';
 import { AddNewIcon, AddPhotoIcon } from '../../../assets/icons';
@@ -24,7 +24,6 @@ import { ProfileImagePlaceholder } from '../../MainComponents/ProfileImagePlaceh
 import { createRoomFromApi } from '../../../helpers/createRoomFromApi';
 import { postRoom } from '../../../networking/api-requests/rooms.api';
 import { ApiRoom, ChatAccessOption } from '../../../types/types';
-import Select from '../../MainComponents/Select';
 import { RoomMember } from '../../../types/types';
 import UsersList from '../../UsersList/UsersList';
 import { useToast } from '../../../context/ToastContext';
@@ -34,6 +33,13 @@ import { useAppDispatch } from '../../../hooks/hooks';
 import { useChatSettingState } from '../../../hooks/useChatSettingState';
 import { useIsMobileViewport } from '../../../hooks/useIsMobileViewport';
 import { useT } from '../../../i18n/useT';
+import {
+  ChatTypeGroup,
+  ChatTypeIndicator,
+  ChatTypeOption,
+  InlineUsersInner,
+  InlineUsersWrapper,
+} from './styledNewChatComponents';
 
 const NewChatModal: React.FC = () => {
   const config = useSelector(
@@ -48,10 +54,19 @@ const NewChatModal: React.FC = () => {
   const t = useT();
 
   const DEFAULT_CHAT_TYPE: ChatAccessOption = { name: 'Public', id: 'public' };
+  // CHAT_TYPES' wire-level `id`s are unchanged ('public' / 'group') - only
+  // the on-screen label for 'group' now reads "Private" (via i18n below)
+  // instead of "Members-only".
+  const PUBLIC_TYPE =
+    CHAT_TYPES.find((option) => option.id === 'public') || DEFAULT_CHAT_TYPE;
+  const PRIVATE_TYPE =
+    CHAT_TYPES.find((option) => option.id === 'group') || {
+      name: 'Members-only',
+      id: 'group',
+    };
 
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<'0' | '1' | null>('0');
 
   const [roomName, setRoomName] = useState<string>('');
   const [roomDescription, setRoomDescription] = useState<string>('');
@@ -60,6 +75,25 @@ const NewChatModal: React.FC = () => {
   const [errors, setErrors] = useState({ name: '', description: '' });
   const [selectedUsers, setSelectedUsers] = useState<RoomMember[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const isPrivate = chatType.id === 'group';
+
+  // Drives the inline user-picker's expand animation: stays false for the
+  // render where the picker first mounts, then flips true a frame later so
+  // the height/opacity transition in InlineUsersWrapper actually has
+  // something to animate from instead of appearing already open. Collapsing
+  // back to Public unmounts the picker outright (see JSX below) - a "reveal"
+  // that grows in is the effect asked for; there's no requirement (and no
+  // existing precedent in this codebase) for a matching close animation.
+  const [userPickerExpanded, setUserPickerExpanded] = useState(false);
+  useEffect(() => {
+    if (!isPrivate) {
+      setUserPickerExpanded(false);
+      return;
+    }
+    const frame = requestAnimationFrame(() => setUserPickerExpanded(true));
+    return () => cancelAnimationFrame(frame);
+  }, [isPrivate]);
 
   const isValid = useMemo(
     // () => roomName.length >= 3 && roomDescription.length >= 5,
@@ -103,7 +137,6 @@ const NewChatModal: React.FC = () => {
 
   const handleOpenModal = () => setIsModalOpen(true);
   const handleCloseModal = () => {
-    setActiveTab('0');
     setIsModalOpen(false);
     setRoomName('');
     setRoomDescription('');
@@ -112,12 +145,10 @@ const NewChatModal: React.FC = () => {
     setErrors({ name: '', description: '' });
     setSelectedUsers([]);
   };
-  // containerRef (declared above, attached to the backdrop and both
-  // alternate step containers) is anchored on the backdrop because this
-  // modal swaps between two alternate containers (the details step and the
-  // select-users step); the backdrop is the one element that spans both, and
-  // it holds no focusable children of its own, so the first focusable
-  // element found inside it is always in the step currently on screen.
+  // containerRef is attached to both the backdrop and the single
+  // ModalContainer step below - the modal is one screen now (the "Private"
+  // user picker expands inline instead of navigating to a second step), so
+  // there's no longer an alternate container to anchor across.
   // Rendered synchronously (same as ModalBox/ModalWrapper - no lazy/Suspense
   // boundary here), so the container already exists in the DOM by the time
   // useModalDismiss's mount effect runs - no MutationObserver needed.
@@ -261,44 +292,43 @@ const NewChatModal: React.FC = () => {
 
       {isModalOpen && (
         <ModalBackground ref={containerRef}>
-          {activeTab === '0' && (
-            <ModalContainer ref={containerRef}>
-              <CloseButton
-                onClick={handleCloseModal}
-                style={{ fontSize: 24 }}
-                aria-label={t('action.close')}
-              >
-                &times;
-              </CloseButton>
-              <ModalTitle>{t('modal.newChat.title')}</ModalTitle>
-              <ProfileImagePlaceholder
-                size={isMobileViewport ? 80 : 120}
-                upload={{ active: true, onUpload }}
-                remove={{ enabled: true, onRemoveClick }}
-                placeholderIcon={<AddPhotoIcon />}
-                icon={profileImage}
-                disableOverlay={!profileImage}
-                role="user"
+          <ModalContainer ref={containerRef}>
+            <CloseButton
+              onClick={handleCloseModal}
+              style={{ fontSize: 24 }}
+              aria-label={t('action.close')}
+            >
+              &times;
+            </CloseButton>
+            <ModalTitle>{t('modal.newChat.title')}</ModalTitle>
+            <ProfileImagePlaceholder
+              size={isMobileViewport ? 80 : 120}
+              upload={{ active: true, onUpload }}
+              remove={{ enabled: true, onRemoveClick }}
+              placeholderIcon={<AddPhotoIcon />}
+              icon={profileImage}
+              disableOverlay={!profileImage}
+              role="user"
+            />
+            <GroupContainer
+              style={{
+                flexDirection: 'column',
+                position: 'relative',
+                boxSizing: 'border-box',
+                width: '100%',
+              }}
+            >
+              <InputWithLabel
+                style={{ flex: 1 }}
+                colorBg={config?.colors?.colorInput}
+                id="roomName"
+                value={roomName}
+                onChange={handleRoomNameChange}
+                placeholder={t('modal.newChat.roomNamePlaceholder')}
+                helperText={errors.name}
+                error={!!errors.name}
               />
-              <GroupContainer
-                style={{
-                  flexDirection: 'column',
-                  position: 'relative',
-                  boxSizing: 'border-box',
-                  width: '100%',
-                }}
-              >
-                <InputWithLabel
-                  style={{ flex: 1 }}
-                  colorBg={config?.colors?.colorInput}
-                  id="roomName"
-                  value={roomName}
-                  onChange={handleRoomNameChange}
-                  placeholder={t('modal.newChat.roomNamePlaceholder')}
-                  helperText={errors.name}
-                  error={!!errors.name}
-                />
-                {/* {chatType.id === 'group' && (
+              {/* {chatType.id === 'group' && (
                 <InputWithLabel
                   style={{ flex: 1 }}
                   id="roomDescription"
@@ -309,90 +339,105 @@ const NewChatModal: React.FC = () => {
                   error={!!errors.description}
                 />
               )} */}
-                <Select
-                  options={CHAT_TYPES}
-                  placeholder={t('modal.newChat.chatTypePlaceholder')}
-                  onSelect={(type: ChatAccessOption) => setChatType(type)}
-                  accentColor={config?.colors?.primary}
-                  selectedValue={chatType}
-                />
-              </GroupContainer>
-
-              {chatType.id === 'group' && (
-                <Button
-                  onClick={() => setActiveTab('1')}
-                  style={{ width: '100%' }}
-                  variant="outlined"
-                  unstyled
-                >
-                  {selectedUsers.length > 0
-                    ? t('action.addUsersCount', { count: selectedUsers.length })
-                    : t('action.addUsers')}
-                </Button>
-              )}
-              <GroupContainer>
-                <Button
-                  onClick={handleCloseModal}
-                  text={t('action.cancel')}
-                  style={{ width: '100%' }}
-                  unstyled
-                  variant="outlined"
-                />
-                <Button
-                  onClick={handleCreateRoom}
-                  text={!loading ? t('action.create') : undefined}
-                  style={{ width: '100%' }}
-                  variant="filled"
-                  disabled={!isValid || loading}
-                  EndIcon={loading ? <Loader size={16} /> : undefined}
-                />
-              </GroupContainer>
-            </ModalContainer>
-          )}
-          {activeTab === '1' && (
-            <ModalContainer ref={containerRef} style={{ minHeight: '500px' }}>
-              <CloseButton
-                onClick={handleCloseModal}
-                style={{ fontSize: 24 }}
-                aria-label={t('action.close')}
-              >
-                &times;
-              </CloseButton>
-              <ModalTitle>{t('modal.newChat.selectUsersTitle')}</ModalTitle>
-              <GroupContainer
-                style={{
-                  flexDirection: 'column',
-                  position: 'relative',
-                  boxSizing: 'border-box',
-                  width: '100%',
+              {/* Segmented control replaces the old dropdown - two options,
+                  no menu to open. Wire-level `id` sent to the backend is
+                  unchanged (chatType.id stays 'public' | 'group'); only the
+                  displayed label for 'group' now reads "Private". */}
+              <ChatTypeGroup
+                role="radiogroup"
+                aria-label={t('modal.newChat.chatTypePlaceholder')}
+                onKeyDown={(e) => {
+                  // Roving tabindex: arrows move between the two options,
+                  // Tab leaves the group - same pattern as the sidebar's
+                  // Chats/Files tab switcher.
+                  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+                  e.preventDefault();
+                  const next = isPrivate ? PUBLIC_TYPE : PRIVATE_TYPE;
+                  setChatType(next);
+                  (
+                    e.currentTarget.querySelector(
+                      `#ethora-chattype-${next.id}`
+                    ) as HTMLElement | null
+                  )?.focus();
                 }}
               >
-                {/* No fixed minHeight here - the scrollable list below already
-                caps its own height (maxHeight 340px + internal scroll), so
-                letting this wrapper size to its actual content (label +
-                search + list) keeps it from visually overflowing past its
-                own box into the "Back to creation" button underneath. */}
-                <UsersList
-                  selectedUsers={selectedUsers}
-                  setSelectedUsers={setSelectedUsers}
-                  style={{
-                    minWidth: '100%',
-                    width: '100%',
-                    maxHeight: '340px',
-                  }}
-                  headerElement={false}
-                />
-              </GroupContainer>
+                <ChatTypeIndicator $index={isPrivate ? 1 : 0} $count={2} />
+                <ChatTypeOption
+                  type="button"
+                  role="radio"
+                  id="ethora-chattype-public"
+                  aria-checked={!isPrivate}
+                  tabIndex={!isPrivate ? 0 : -1}
+                  active={!isPrivate}
+                  onClick={() => setChatType(PUBLIC_TYPE)}
+                >
+                  {t('modal.newChat.typePublic')}
+                </ChatTypeOption>
+                <ChatTypeOption
+                  type="button"
+                  role="radio"
+                  id="ethora-chattype-group"
+                  aria-checked={isPrivate}
+                  tabIndex={isPrivate ? 0 : -1}
+                  active={isPrivate}
+                  onClick={() => setChatType(PRIVATE_TYPE)}
+                >
+                  {t('modal.newChat.typePrivate')}
+                </ChatTypeOption>
+              </ChatTypeGroup>
+            </GroupContainer>
+
+            {/* Inline reveal: selecting "Private" expands the user picker
+                below instead of navigating to a separate full-screen step. */}
+            {isPrivate && (
+              <InlineUsersWrapper $expanded={userPickerExpanded}>
+                <InlineUsersInner>
+                  <GroupContainer
+                    style={{
+                      flexDirection: 'column',
+                      position: 'relative',
+                      boxSizing: 'border-box',
+                      width: '100%',
+                    }}
+                  >
+                    {/* No fixed minHeight here - the scrollable list below
+                    already caps its own height (maxHeight 280px + internal
+                    scroll), so letting this wrapper size to its actual
+                    content (label + search + list) keeps it from visually
+                    overflowing past its own box into the buttons below. */}
+                    <UsersList
+                      selectedUsers={selectedUsers}
+                      setSelectedUsers={setSelectedUsers}
+                      style={{
+                        minWidth: '100%',
+                        width: '100%',
+                        maxHeight: '280px',
+                      }}
+                      headerElement={false}
+                    />
+                  </GroupContainer>
+                </InlineUsersInner>
+              </InlineUsersWrapper>
+            )}
+
+            <GroupContainer>
               <Button
-                onClick={() => setActiveTab('0')}
+                onClick={handleCloseModal}
+                text={t('action.cancel')}
                 style={{ width: '100%' }}
-                variant="outlined"
                 unstyled
-              >
-                {t('action.backToCreation')}
-              </Button>
-            </ModalContainer>
-          )}
+                variant="outlined"
+              />
+              <Button
+                onClick={handleCreateRoom}
+                text={!loading ? t('action.create') : undefined}
+                style={{ width: '100%' }}
+                variant="filled"
+                disabled={!isValid || loading}
+                EndIcon={loading ? <Loader size={16} /> : undefined}
+              />
+            </GroupContainer>
+          </ModalContainer>
         </ModalBackground>
       )}
     </>
