@@ -100,6 +100,136 @@ describe('RoomList - tab switcher', () => {
   });
 });
 
+describe('RoomList - entrance animation', () => {
+  // filteredChats is sorted by activity, so one room getting a new message
+  // shifts every other room's array index - and AnimatedRow's $delay used
+  // to be computed straight from that index. styled-components regenerates
+  // an element's class whenever a prop it's keyed on changes, and swapping
+  // an element's class re-declares the `animation` shorthand, which the CSS
+  // spec restarts from the beginning even if it's the same keyframe - so a
+  // single resort used to replay the fade-in-up on every row whose index
+  // merely shifted, not just the row that changed. RoomList now assigns the
+  // stagger delay once per jid (first render only) and renders every later
+  // occurrence with $skipAnimation, so this asserts the fix at the DOM
+  // level: the AnimatedRow wrapper's class for a settled row must stay
+  // byte-for-byte identical across a resort.
+  const roomRowWrapperClass = (title: string) =>
+    screen.getByRole('button', { name: title }).parentElement?.className;
+
+  it('does not re-trigger the entrance class on a resort, but still animates a genuinely new row', () => {
+    const roomA = room({
+      jid: 'a@conference.example.com',
+      title: 'Room A',
+      messages: [{ id: '1', date: '2024-01-01T00:00:00.000Z' } as any],
+    });
+    const roomB = room({
+      jid: 'b@conference.example.com',
+      title: 'Room B',
+      messages: [{ id: '2', date: '2024-01-02T00:00:00.000Z' } as any],
+    });
+
+    const { rerender } = renderWithProviders(
+      <RoomList chats={[roomA, roomB]} />
+    );
+
+    // Render #1 (mount): both rows are seen for the very first time, so
+    // both legitimately play the entrance animation here - that's the
+    // intended one-time behavior, not the bug under test.
+
+    // Render #2: same rooms, unchanged order/content. Both jids are
+    // already recorded, so both settle into their non-animating class.
+    // This is the "already played" state every subsequent render must
+    // preserve - captured here rather than at mount, since mount-to-settled
+    // is the expected one-time transition, not a replay.
+    rerender(<RoomList chats={[roomA, roomB]} />);
+    const settledClassA = roomRowWrapperClass('Room A');
+    const settledClassB = roomRowWrapperClass('Room B');
+
+    // Render #3: Room A gets a new (later) message and resorts to the top.
+    // Room B's content is untouched - only its index shifted. Neither
+    // should replay the entrance animation.
+    const roomANewMessage = room({
+      jid: 'a@conference.example.com',
+      title: 'Room A',
+      messages: [{ id: '3', date: '2024-01-03T00:00:00.000Z' } as any],
+    });
+    rerender(<RoomList chats={[roomANewMessage, roomB]} />);
+
+    expect(roomRowWrapperClass('Room A')).toBe(settledClassA);
+    expect(roomRowWrapperClass('Room B')).toBe(settledClassB);
+
+    // Render #4: a genuinely new room (never rendered before) is added.
+    // It must still get the entrance treatment - a fresh, non-settled
+    // class distinct from the already-settled rows.
+    const roomC = room({
+      jid: 'c@conference.example.com',
+      title: 'Room C',
+      messages: [{ id: '4', date: '2024-01-04T00:00:00.000Z' } as any],
+    });
+    rerender(<RoomList chats={[roomC, roomANewMessage, roomB]} />);
+
+    expect(roomRowWrapperClass('Room A')).toBe(settledClassA);
+    expect(roomRowWrapperClass('Room B')).toBe(settledClassB);
+    expect(roomRowWrapperClass('Room C')).not.toBe(settledClassA);
+
+    // Render #5: Room C, having now been seen once, settles too and stays
+    // stable through a further resort - same guarantee applied to it.
+    const roomCNewMessage = room({
+      jid: 'c@conference.example.com',
+      title: 'Room C',
+      messages: [{ id: '5', date: '2024-01-05T00:00:00.000Z' } as any],
+    });
+    rerender(<RoomList chats={[roomCNewMessage, roomANewMessage, roomB]} />);
+    const settledClassC = roomRowWrapperClass('Room C');
+
+    rerender(<RoomList chats={[roomB, roomANewMessage, roomCNewMessage]} />);
+    expect(roomRowWrapperClass('Room A')).toBe(settledClassA);
+    expect(roomRowWrapperClass('Room B')).toBe(settledClassB);
+    expect(roomRowWrapperClass('Room C')).toBe(settledClassC);
+  });
+
+  it('does not re-animate a row that search filtering temporarily hid and then re-showed', () => {
+    const roomA = room({
+      jid: 'a@conference.example.com',
+      title: 'Room A',
+      messages: [{ id: '1', date: '2024-01-01T00:00:00.000Z' } as any],
+    });
+    const roomB = room({
+      jid: 'b@conference.example.com',
+      title: 'Room B',
+      messages: [{ id: '2', date: '2024-01-02T00:00:00.000Z' } as any],
+    });
+
+    renderWithProviders(<RoomList chats={[roomA, roomB]} />);
+
+    // Settle both rows the same way as above.
+    fireEvent.change(screen.getByTestId('rooms_search_input'), {
+      target: { value: 'zzz-no-match' },
+    });
+    expect(screen.queryByText('Room A')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByTestId('rooms_search_input'), {
+      target: { value: '' },
+    });
+    const settledClassA = roomRowWrapperClass('Room A');
+    const settledClassB = roomRowWrapperClass('Room B');
+
+    // Filter Room A out again, then back in - it was already in the DOM
+    // once before, so re-showing it must not replay the entrance.
+    fireEvent.change(screen.getByTestId('rooms_search_input'), {
+      target: { value: 'Room B' },
+    });
+    expect(screen.queryByText('Room A')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByTestId('rooms_search_input'), {
+      target: { value: '' },
+    });
+
+    expect(roomRowWrapperClass('Room A')).toBe(settledClassA);
+    expect(roomRowWrapperClass('Room B')).toBe(settledClassB);
+  });
+});
+
 describe('RoomList - loading skeleton', () => {
   it('renders skeleton rows instead of an empty list while rooms are loading', () => {
     renderWithProviders(<RoomList chats={[]} />, {

@@ -177,11 +177,21 @@ export const Divider = styled.div`
   opacity: 0.6;
 `;
 
-// Row appears with a subtle rise+fade on first mount (initial room list load).
-export const AnimatedRow = styled.div<{ $delay?: number }>`
-  ${fadeInUpAnimation}
-  animation-delay: ${({ $delay }) =>
-    $delay ? `${Math.min($delay, 240)}ms` : '0ms'};
+// Row appears with a subtle rise+fade the first time it's ever rendered
+// (initial room list load, or a genuinely new room). `$skipAnimation` is set
+// for rows that have already played their entrance once - resorting the
+// list (new message bumps a room to the top, search filters rows in/out)
+// must never re-trigger it. Note: re-declaring the `animation` shorthand -
+// even to the same keyframe/duration - restarts a CSS animation from the
+// start, so this has to be a distinct, static rule branch rather than a
+// dynamic `animation-delay` on an otherwise-identical declaration.
+export const AnimatedRow = styled.div<{
+  $delay?: number;
+  $skipAnimation?: boolean;
+}>`
+  ${({ $skipAnimation }) => ($skipAnimation ? '' : fadeInUpAnimation)}
+  animation-delay: ${({ $delay, $skipAnimation }) =>
+    !$skipAnimation && $delay ? `${Math.min($delay, 240)}ms` : '0ms'};
 `;
 
 // --- Tab switcher (segmented control): "Chats" | "Files" -------------------
