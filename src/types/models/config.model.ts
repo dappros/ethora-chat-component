@@ -60,7 +60,7 @@ export interface FBConfig {
 
 /**
  * A single self-hosted font file to register via an injected `@font-face`
- * rule. Use this for fonts that are not on Google Fonts — e.g. the Ukrainian
+ * rule. Use this for fonts that are not on Google Fonts - e.g. the Ukrainian
  * government "e-Ukraine" family distributed from thedigital.gov.ua. Host the
  * `.woff2`/`.ttf` somewhere reachable and point `src` at it.
  */

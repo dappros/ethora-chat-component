@@ -26,7 +26,7 @@ export type {
   FontFaceSource,
 } from './types/models/config.model';
 
-// Stable `data-testid` constants — exposed so host apps that consume
+// Stable `data-testid` constants - exposed so host apps that consume
 // this package (e.g. ethora-app-reactjs) can resolve chat-component
 // nodes in their own Playwright / Cypress tests without re-typing
 // magic strings, and so the values stay in lockstep with Android's

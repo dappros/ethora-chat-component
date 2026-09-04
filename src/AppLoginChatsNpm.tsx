@@ -6,7 +6,7 @@ import axios from 'axios';
 //   import { XmppProvider, Chat, useUnread, logoutService } from '@ethora/chat-component';
 // (after `npm install @ethora/chat-component@26.3.21`). The local src
 // already matches 26.3.21
-// identical — using local lets HMR pick up further fixes without a reinstall.
+// identical - using local lets HMR pick up further fixes without a reinstall.
 import { XmppProvider, useXmppClient } from './context/xmppProvider';
 import { ReduxWrapper as Chat } from './components/MainComponents/ReduxWrapper';
 import { useUnread } from './hooks/useUnreadMessagesCounter';
@@ -17,11 +17,11 @@ import { createRoomFromApi } from './helpers/createRoomFromApi';
 import { invalidateRoomsCache } from './networking/api-requests/rooms.api';
 import type { ApiRoom } from './types/types';
 
-// JWT-based bootstrap — no email/password login screen, no customAppToken.
+// JWT-based bootstrap - no email/password login screen, no customAppToken.
 // XmppProvider receives `jwtLogin.token`, exchanges it via POST /users/client
 // for an Ethora user-auth token + xmpp creds, then connects. Mirrors the
 // production patient flow (see Slack thread).
-// NB: no `/v1` suffix — request paths carry their own version prefix
+// NB: no `/v1` suffix - request paths carry their own version prefix
 // (`/v1/chats`, `/v2/files/secure`), so the version must not be baked in here.
 const BASE_URL = 'https://api.chat-qa.ethora.com';
 const CONFERENCE = 'conference.xmpp.chat-qa.ethora.com';
@@ -101,7 +101,7 @@ type AppUser = {
   _id?: string;
 };
 
-// JWT mode keeps the raw JWT — XmppProvider does its own /users/client
+// JWT mode keeps the raw JWT - XmppProvider does its own /users/client
 // exchange via `jwtLogin.token`. The wrapper does a *separate* exchange
 // purely for /chats/my.
 //
@@ -251,7 +251,7 @@ const JwtInputScreen: React.FC<{ onSubmit: (p: LoginPayload) => void }> = ({
           gap: 12,
         }}
       >
-        <strong>Test app — paste a custom client JWT</strong>
+        <strong>Test app - paste a custom client JWT</strong>
         <div style={{ fontSize: 12, color: '#71717A', lineHeight: 1.5 }}>
           The XmppProvider will POST this token to <code>/users/client</code>{' '}
           (jwtLogin flow) and use the returned creds to connect to XMPP. No
@@ -320,7 +320,7 @@ export const LoginScreen: React.FC<{ onSubmit: (p: LoginPayload) => void }> = ({
       return;
     }
 
-    // mode === 'email' — resolve the user up-front so we can hand it
+    // mode === 'email' - resolve the user up-front so we can hand it
     // straight to `userLogin.user` for both <Chat> and XmppProvider.
     const trimmedAppToken = appToken.trim();
     const trimmedEmail = email.trim();
@@ -366,7 +366,7 @@ export const LoginScreen: React.FC<{ onSubmit: (p: LoginPayload) => void }> = ({
           gap: 12,
         }}
       >
-        <strong>Test app — choose a login mode</strong>
+        <strong>Test app - choose a login mode</strong>
 
         <div
           style={{
@@ -639,7 +639,7 @@ const CreateChatModal: React.FC<{
         </label>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <span style={{ fontSize: 12, color: '#52525B' }}>
-            Members (optional) — xmppUsername, comma or newline separated
+            Members (optional) - xmppUsername, comma or newline separated
             {parsedMembers.length > 0 && (
               <span style={{ color: PRIMARY, fontWeight: 600 }}>
                 {' '}
@@ -948,7 +948,7 @@ const DescriptionTab: React.FC<{ meta?: RoomMeta }> = ({ meta }) => (
   <div style={{ padding: 24, fontSize: 14, color: '#27272A' }}>
     <h3 style={{ margin: '0 0 12px' }}>Description</h3>
     {!meta ? (
-      <div>—</div>
+      <div>-</div>
     ) : (
       <div style={{ display: 'grid', gap: 6 }}>
         <div>
@@ -961,10 +961,10 @@ const DescriptionTab: React.FC<{ meta?: RoomMeta }> = ({ meta }) => (
           <strong>Members from API:</strong> {meta.membersCount}
         </div>
         <div>
-          <strong>Type:</strong> {meta.type || '—'}
+          <strong>Type:</strong> {meta.type || '-'}
         </div>
         <div>
-          <strong>Created:</strong> {meta.createdAt || '—'}
+          <strong>Created:</strong> {meta.createdAt || '-'}
         </div>
       </div>
     )}
@@ -999,7 +999,7 @@ const ChatTab: React.FC<{ payload: LoginPayload; roomJid: string }> = ({
   payload,
   roomJid,
 }) => {
-  // XmppProvider above already ran initBeforeLoad — ChatWrapper plugs
+  // XmppProvider above already ran initBeforeLoad - ChatWrapper plugs
   // into the existing XMPP client. Email mode mirrors `userLogin` /
   // `customAppToken` onto <Chat>'s own config too, so if it ever mounts
   // standalone (no XmppProvider parent) it can still bootstrap.
@@ -1123,7 +1123,7 @@ const RoomView: React.FC<{
   </div>
 );
 
-// Inner shell — must live UNDER <XmppProvider> so it can consume the XMPP
+// Inner shell - must live UNDER <XmppProvider> so it can consume the XMPP
 // client via useXmppClient. The outer AuthedShell mounts the provider.
 const AuthedShellInner: React.FC<{
   payload: LoginPayload;
@@ -1200,7 +1200,7 @@ const AuthedShellInner: React.FC<{
 
     // 2. XMPP courtesy invite, so the invitee gets a MUC <invite/> they
     //    can act on. This does NOT, on its own, update other occupants'
-    //    member counts — invitations are forwarded to the invitee, the
+    //    member counts - invitations are forwarded to the invitee, the
     //    server does not auto-emit an affiliation-change broadcast in
     //    response. So we don't rely on it for the display refresh; the
     //    deterministic update happens in step 3 below.
@@ -1215,7 +1215,7 @@ const AuthedShellInner: React.FC<{
 
       // One groupchat "members changed, refetch please" signal per
       // add operation (the receivers refetch /chats/my, which already
-      // returns the full new member list — so per-user signals would
+      // returns the full new member list - so per-user signals would
       // just multiply identical refetches). Receivers' stanza
       // handler (onMembersRefreshSignal) pulls authoritative member
       // data from REST and dispatches into the package's redux,
@@ -1223,7 +1223,7 @@ const AuthedShellInner: React.FC<{
       // currently-connected users without depending on (a) the
       // invitee actually coming online and joining via presence, or
       // (b) the backend emitting its own MUC affiliation broadcast
-      // on REST-driven /chats/users-access — neither is guaranteed.
+      // on REST-driven /chats/users-access - neither is guaranteed.
       try {
         await client.notifyMembersChangedStanza(target.jid);
       } catch (e) {
@@ -1400,7 +1400,7 @@ export default function AppLoginChatsNpm() {
   // for any consumer that reads through identity, and was a plausible
   // trigger for downstream effect re-runs in the WS reconnect path.
   const handleLogout = useCallback(async () => {
-    // Tear down the chat component first — disconnects the XMPP client,
+    // Tear down the chat component first - disconnects the XMPP client,
     // clears redux user/rooms/heap, purges redux-persist, clears stored
     // creds and push subscriptions. Without this, a re-login in the same
     // tab inherits the dead socket and previous user from persisted state.
