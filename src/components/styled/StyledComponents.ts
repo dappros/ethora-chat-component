@@ -357,12 +357,12 @@ export const AlsoContainer = styled.div`
   text-align: start;
 `;
 
-export const AlsoCheckbox = styled.input<{ accentColor: string }>`
+export const AlsoCheckbox = styled.input<{ $accentColor: string }>`
   width: 16px;
   height: 16px;
   border-radius: #0052cd;
   accent-color: #5e3fde;
-  accent-color: ${(props) => props.accentColor};
+  accent-color: ${(props) => props.$accentColor};
 `;
 
 export const Wrapper = styled.div.withConfig({

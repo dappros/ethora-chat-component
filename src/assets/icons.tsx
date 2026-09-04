@@ -571,8 +571,8 @@ export const AddPhotoIcon = ({ color = '#fff', ...props }) => (
         y2="31"
         gradientUnits="userSpaceOnUse"
       >
-        <stop stop-color="#0052CD" />
-        <stop offset="1" stop-color="#99B4E6" />
+        <stop stopColor="#0052CD" />
+        <stop offset="1" stopColor="#99B4E6" />
       </linearGradient>
     </defs>
   </svg>

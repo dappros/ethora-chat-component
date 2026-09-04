@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 
-const SwitchContainer = styled.div<{ isOn: boolean; bgColor?: string }>`
+const SwitchContainer = styled.div<{ $isOn: boolean; $bgColor?: string }>`
   width: 34px;
   height: 18px;
-  background-color: ${({ isOn, bgColor }) =>
-    isOn ? (bgColor ? bgColor : '#0056d2') : '#8C8C8C'};
+  background-color: ${({ $isOn, $bgColor }) =>
+    $isOn ? ($bgColor ? $bgColor : '#0056d2') : '#8C8C8C'};
   border-radius: 100px;
   display: flex;
   align-items: center;
@@ -14,12 +14,12 @@ const SwitchContainer = styled.div<{ isOn: boolean; bgColor?: string }>`
   padding: 2px;
 `;
 
-const Toggle = styled.div<{ isOn: boolean }>`
+const Toggle = styled.div<{ $isOn: boolean }>`
   width: 16px;
   height: 16px;
   background-color: white;
   border-radius: 100px;
-  transform: ${({ isOn }) => (isOn ? 'translateX(18px)' : 'translateX(0)')};
+  transform: ${({ $isOn }) => ($isOn ? 'translateX(18px)' : 'translateX(0)')};
   transition: transform 0.3s;
 `;
 
@@ -68,13 +68,13 @@ const Switch: React.FC<SwitchProps> = ({
 
   return (
     <SwitchContainer
-      isOn={isOn}
+      $isOn={isOn}
       onClick={toggleSwitch}
       role="button"
       aria-pressed={isOn}
-      bgColor={bgColor}
+      $bgColor={bgColor}
     >
-      <Toggle isOn={isOn} />
+      <Toggle $isOn={isOn} />
     </SwitchContainer>
   );
 };
