@@ -25,7 +25,7 @@ export const isCallLogMessage = (message: unknown): boolean => {
 // Only a call-state that actually carries log metadata (a caller and/or a
 // duration) is worth rendering. Bare client-side signaling frames
 // (state=cancelled/declined/ended with no caller/duration) must NOT become
-// chat entries — they're real-time teardown only.
+// chat entries - they're real-time teardown only.
 export const callStateHasLogData = (attrs: Record<string, any>): boolean => {
   if (!attrs) return false;
   const hasCaller = !!String(attrs.callerXmppUsername || '').trim();

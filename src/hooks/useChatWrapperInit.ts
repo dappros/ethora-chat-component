@@ -244,7 +244,7 @@ const useChatWrapperInit = ({
     // finishing (up to a 12s poll) before fetching a single message. MAM
     // history fetches don't actually require the room to be joined first
     // (getHistoryStanza never checks `joinedRooms`), so the two are
-    // independent XMPP operations sharing one connection — no reason to
+    // independent XMPP operations sharing one connection - no reason to
     // serialize them. Presence readiness now runs as its own fire-and-forget
     // branch; the private-store + history-preload branch below starts
     // immediately once the client is online.
@@ -260,7 +260,7 @@ const useChatWrapperInit = ({
           // Dedup: sendAllPresencesAndMarkReady (fired from xmppClient `online`
           // event) already joins every room from the persisted store and
           // populates `joinedRooms`. If that pass completed, skip the legacy
-          // initRoomsPresence sweep — it would re-iterate the same JIDs and
+          // initRoomsPresence sweep - it would re-iterate the same JIDs and
           // (for already-joined rooms) just no-op via the joinedRooms guard,
           // but still adds an N*35ms serial walk and listener churn.
           // Rooms that failed in the all-presences pass will be retried
@@ -473,7 +473,7 @@ const useChatWrapperInit = ({
     const available = (loadedRooms || []).map(resolveRoomJid).filter(Boolean);
     if (available.length === 0) return;
 
-    // Consumer-provided roomJID prop is authoritative — covers the
+    // Consumer-provided roomJID prop is authoritative - covers the
     // "patient switcher" case where a single mounted <Chat roomJID={x} />
     // swaps room without unmount/remount. Without this, a prop change is
     // silently ignored because the activeRoomJID early-return below wins
@@ -592,7 +592,7 @@ const useChatWrapperInit = ({
                 setInited(true);
                 // Rooms came from redux-persist or a prior bootstrap.
                 // Still refresh from /chats/my in the background so the
-                // sidebar reflects the current server state — without it,
+                // sidebar reflects the current server state - without it,
                 // a re-login (or a multi-tenant App Switcher hop) keeps
                 // showing stale rooms or, when the cache turned out
                 // empty, never loads any rooms at all.
@@ -655,7 +655,7 @@ const useChatWrapperInit = ({
               } else {
                 ensureActiveRoomSelected(Object.values(roomsList) as any);
                 currentRooms = Object.values(roomsList);
-                // Background-refresh rehydrated rooms — see comment in the
+                // Background-refresh rehydrated rooms - see comment in the
                 // first-time init branch above.
                 void loadRooms(client, true).catch((error) => {
                   ethoraLogger.log('background loadRooms failed', error);

@@ -28,7 +28,7 @@ export const updateMessagesTillLast = async (
       const message = room.messages[i];
       if (!message || message.id === 'delimiter-new' || message.pending) continue;
       // Client-side call-log fallbacks (id "calllog-<callId>") exist only in
-      // this client's store — the server can never return them, so anchoring
+      // this client's store - the server can never return them, so anchoring
       // on one guarantees an anchor-miss and a full room_cache_reset after
       // EVERY call. Anchor on the newest real server message instead.
       if (String(message.id || '').startsWith('calllog-')) continue;
@@ -97,7 +97,7 @@ export const updateMessagesTillLast = async (
 
   // Skip non-JID entries that can leak into `rooms.rooms` from corrupted/
   // legacy persisted state (root-slice keys like `activeRoomJID`,
-  // `usersSet`, `subscribedRooms`) — otherwise each one queues a MAM fetch
+  // `usersSet`, `subscribedRooms`) - otherwise each one queues a MAM fetch
   // for a garbage "room", wasting a concurrency slot real rooms are waiting on.
   const roomEntries = Object.keys(rooms).filter(isLikelyMucJid);
   if (roomEntries.length > 0) {

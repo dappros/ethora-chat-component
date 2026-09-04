@@ -114,7 +114,7 @@ const usePushNotifications = (
     (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_VAPID_PUBLIC_KEY) ||
     '';
 
-  // Read the user token from Redux — we only run push setup once the user is logged in
+  // Read the user token from Redux - we only run push setup once the user is logged in
   const userToken = useSelector((state: RootState) => state.chatSettingStore.user.token);
   const userXmppUsername = useSelector(
     (state: RootState) => state.chatSettingStore.user.xmppUsername
@@ -220,7 +220,7 @@ const usePushNotifications = (
         return;
       }
 
-      // No token in the payload — bring the user to the room and let the live
+      // No token in the payload - bring the user to the room and let the live
       // XMPP call-token (if the caller is still ringing) raise the overlay.
       if (roomJid) {
         dispatch(setCurrentRoom({ roomJID: roomJid }));
@@ -588,9 +588,9 @@ const usePushNotifications = (
     if (!enabled) return;
     if (!fcmTokenReady) return;
 
-    // .filter(Boolean) alone let non-JID keys through — root-slice fields
+    // .filter(Boolean) alone let non-JID keys through - root-slice fields
     // (usersSet, subscribedRooms, etc.) that leak into rooms.rooms from
-    // corrupted/legacy persisted state — each one then hit
+    // corrupted/legacy persisted state - each one then hit
     // pushSubscriptionService.subscribeToRoom() as if it were a real room,
     // failing with errors like "Failed to subscribe to usersSet". Same class
     // of bug as the MAM-queue leak fixed in historyPreloadScheduler.ts /

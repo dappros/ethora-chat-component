@@ -2,7 +2,7 @@
 //
 // Calls normally ring via a live XMPP `call-token` stanza, which only arrives
 // while the socket is connected. When the app is backgrounded/closed that
-// stanza is missed, so the backend (will) also deliver the call over push — in
+// stanza is missed, so the backend (will) also deliver the call over push - in
 // the same `data`-payload format as message pushes. This helper lets the push
 // layer tell a call push apart from a chat push and pull the call fields out,
 // tolerating the field-name variations backends tend to use.

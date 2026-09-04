@@ -5,7 +5,7 @@ import { applyTypography } from '../helpers/applyTypography';
 /**
  * Loads and applies the host-provided font configuration whenever it changes.
  * Wired into the chat root (ReduxWrapper) so the font is in place before the
- * UI paints. No-op when `typography` is undefined — the default system font
+ * UI paints. No-op when `typography` is undefined - the default system font
  * stack is kept, so existing integrations are unaffected.
  */
 export function useTypography(typography?: TypographyConfig): void {
