@@ -47,3 +47,12 @@ export const ChatWrapperBox = forwardRef<HTMLDivElement, ChatWrapperBoxProps>(
   }
 );
 ChatWrapperBox.displayName = 'ChatWrapperBox';
+
+// Plain (non-`ethora-chat-root`) variant of the same box for layout wrappers
+// that need to sit INSIDE an existing `ethora-chat-root` element (e.g. a
+// nested layout div in ChatWrapper.tsx). It does not carry the class or
+// recompute the design-token inline style - the CSS custom properties set on
+// the outer `ethora-chat-root` element already inherit down through the DOM,
+// so a second copy would only be redundant, and a second `.ethora-chat-root`
+// match would break any host CSS that expects exactly one per chat instance.
+export const ChatWrapperInnerBox = ChatWrapperBoxBase;
