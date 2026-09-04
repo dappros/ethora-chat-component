@@ -73,6 +73,17 @@ const OnlineUsersPopover: React.FC<OnlineUsersPopoverProps> = ({
       <Trigger
         onClick={(e) => {
           e.stopPropagation();
+          // This span isn't itself focusable, so clicking it re-targets
+          // browser focus to the row (its nearest focusable ancestor - see
+          // ChatRoomItem's `role="button" tabIndex={0}`). If the row was
+          // already keyboard-focused (Tab into it, then a mouse click here
+          // without tabbing away first), no focus actually *changes*, so
+          // the browser never clears :focus-visible on it - the row's blue
+          // outline stays drawn while this dropdown opens right on top of
+          // it, reading as one broken, "bled" shape instead of two separate
+          // elements. Blur explicitly so the ring clears the moment the
+          // popover - not the row - owns the interaction.
+          (document.activeElement as HTMLElement | null)?.blur();
           setIsOpen((prev) => !prev);
         }}
       >
