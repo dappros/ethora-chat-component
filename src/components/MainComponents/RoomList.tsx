@@ -424,19 +424,32 @@ const RoomList: React.FC<RoomListProps> = ({
                           </SkeletonLines>
                         </SkeletonRow>
                       ))
-                    : filteredChats.map((chat: IRoom, index: number) => (
-                        <React.Fragment key={chat.jid || `${chat.id}-${index}`}>
-                          <AnimatedRow $delay={index * 24}>
-                            <ChatRoomItem
-                              chat={chat}
-                              isChatActive={isChatActive(chat)}
-                              performClick={performClick}
-                              config={config}
-                            />
-                          </AnimatedRow>
-                          {index < filteredChats.length - 1 && <Divider />}
-                        </React.Fragment>
-                      ))}
+                    : filteredChats.map((chat: IRoom, index: number) => {
+                        const isLast = index === filteredChats.length - 1;
+                        // The active row has its own rounded, tinted
+                        // highlight box; a straight hairline divider flush
+                        // against its top/bottom edge cut across the
+                        // rounded corners and looked like it was leaking out
+                        // of the row. Skip the divider on either side of the
+                        // active row - the highlight itself already
+                        // separates it from its neighbors.
+                        const adjacentToActiveRow =
+                          isChatActive(chat) ||
+                          (!isLast && isChatActive(filteredChats[index + 1]));
+                        return (
+                          <React.Fragment key={chat.jid || `${chat.id}-${index}`}>
+                            <AnimatedRow $delay={index * 24}>
+                              <ChatRoomItem
+                                chat={chat}
+                                isChatActive={isChatActive(chat)}
+                                performClick={performClick}
+                                config={config}
+                              />
+                            </AnimatedRow>
+                            {!isLast && !adjacentToActiveRow && <Divider />}
+                          </React.Fragment>
+                        );
+                      })}
                 </div>
               </TabContent>
             )}

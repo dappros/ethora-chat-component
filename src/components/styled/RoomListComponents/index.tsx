@@ -84,6 +84,13 @@ export const ChatItem = styled.div.withConfig({
   border-radius: var(--ethora-radius-md, 12px);
   gap: 16px;
   padding: 8px;
+  /* Breathing room from the hairline divider between rows: the divider is a
+     plain straight-edged rectangle, and without a gap it sat flush against
+     this row's rounded corners - on hover/active (a tinted, rounded
+     highlight box) that read as the divider "leaking out" past the curve.
+     A couple pixels of margin decouples the divider from the highlight in
+     every state, not just the ones a script can detect. */
+  margin: 2px 0;
   cursor: pointer;
   background-color: ${({ active }) =>
     active ? 'var(--ethora-color-primary-soft, #E7EDF9)' : 'transparent'};
