@@ -8,14 +8,14 @@ import {
   Label,
   BorderedContainer,
   LabelData,
-  Divider,
-  ModalListRow,
 } from '../styledModalComponents';
 import ModalHeaderComponent from '../ModalHeaderComponent';
 import { ProfileImagePlaceholder } from '../../MainComponents/ProfileImagePlaceholder';
 import { useRoomPresence } from '../../../hooks/useRoomPresence';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch, useSelector, useStore } from 'react-redux';
 import { RootState, getActiveRoom } from '../../../roomStore';
+import { SearchInput } from '../../InputComponents/Search';
+import { SearchIcon } from '../../../assets/icons';
 import { uploadFile } from '../../../networking/api-requests/auth.api';
 import { appendFileToken } from '../../../helpers/secureFileUrl';
 import { useXmppClient } from '../../../context/xmppProvider';
@@ -43,10 +43,19 @@ import { useMyFiles } from '../../../hooks/useMyFiles';
 import FilesList from '../../Files/FilesList';
 import { ApiFile } from '../../../types/types';
 import { withFileToken } from '../../../helpers/secureFileUrl';
+import ChatProfileMemberRow from './ChatProfileMemberRow';
 
 interface ChatProfileModalProps {
   handleCloseModal: any;
 }
+
+// Windowed rendering, same idea as MessageList.tsx's RENDER_WINDOW_INITIAL/
+// STEP: a room can have ~3,500 members, and mounting every row as a full DOM
+// subtree (avatar + name + online dot + role chip) at once is what made this
+// modal lag. Only the first MEMBER_RENDER_WINDOW_INITIAL rows are mounted;
+// "Show more" grows the window by MEMBER_RENDER_WINDOW_STEP at a time.
+const MEMBER_RENDER_WINDOW_INITIAL = 150;
+const MEMBER_RENDER_WINDOW_STEP = 150;
 
 const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   handleCloseModal,
@@ -73,42 +82,83 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   );
 
   const [filesExpanded, setFilesExpanded] = useState<boolean>(false);
+  const [visibleMemberCount, setVisibleMemberCount] = useState<number>(
+    MEMBER_RENDER_WINDOW_INITIAL
+  );
+  const [memberQuery, setMemberQuery] = useState<string>('');
 
   const dispatch = useDispatch();
+  const store = useStore<RootState>();
 
   const { client } = useXmppClient();
   const { user: stateUser, config } = useChatSettingState();
   const activeRoom = useSelector((state: RootState) => getActiveRoom(state));
   const onlineUsers = useRoomPresence(activeRoom?.jid);
-  const usersSet = useSelector((state: RootState) => state.rooms.usersSet);
   // Secure room avatars need the viewer's own `?ft=` token appended at
   // render time - see appendFileToken in helpers/secureFileUrl.
   const fileToken = useSelector(
     (state: RootState) => state.chatSettingStore.user?.fileToken || ''
   );
 
+  // `onlineUsers` is an array (see useRoomPresence). Checking membership with
+  // .includes() inside a .map() over up to ~3,500 members made the online-dot
+  // lookup O(n*m) for the whole list; a Set gives each row an O(1) check.
+  const onlineUsersSet = useMemo(() => new Set(onlineUsers), [onlineUsers]);
+
   // XMPP affiliation responses populate activeRoom.members with bare
-  // xmppUsername-only entries (firstName/lastName/profileImage are blank). The
-  // user dictionary `usersSet` is populated separately from <data> stamps on
-  // incoming messages and from API enrichment calls, so it carries the actual
-  // names + avatars. Merge them at render time so the chat-details members list
-  // doesn't fall back to initials for participants who already have an avatar
-  // visible in inline message bubbles.
+  // xmppUsername-only entries (firstName/lastName/profileImage are blank).
+  // Enriching each member with the real name/avatar from the app-wide
+  // `usersSet` dictionary now happens INSIDE ChatProfileMemberRow (each row
+  // selects only its own usersSet entry) instead of here: this modal used to
+  // subscribe to the whole usersSet map and remap all ~3,500 members on every
+  // insertUsers dispatch anywhere in the app (live stanzas, roster sync,
+  // etc.), which re-rendered the entire modal on every such dispatch even
+  // when none of it touched this room. Not depending on usersSet at all here
+  // means this modal only re-renders when the room's own member list changes.
   const enrichedMembers = useMemo(() => {
-    const members = Array.isArray(activeRoom?.members) ? activeRoom.members : [];
-    return members.map((m) => {
+    return Array.isArray(activeRoom?.members) ? activeRoom.members : [];
+  }, [activeRoom?.members]);
+
+  // The search box has to match against the ENRICHED name (a bare XMPP
+  // affiliation entry usually has empty firstName/lastName - see the note
+  // above), so it needs the same usersSet lookup ChatProfileMemberRow does.
+  // Reading it here via useSelector would put the whole-map subscription
+  // right back on the modal (the exact bug this file was just fixed for).
+  // Instead, pull a ONE-TIME snapshot from the store with `store.getState()`
+  // inside this useMemo: it only runs when the query text or the member
+  // list itself changes, never on an unrelated insertUsers dispatch, so a
+  // room the user isn't actively searching stays fully decoupled from the
+  // app-wide user dictionary.
+  const filteredMembers = useMemo(() => {
+    const query = memberQuery.trim().toLowerCase();
+    if (!query) return enrichedMembers;
+    const usersSet = store.getState().rooms.usersSet;
+    return enrichedMembers.filter((m) => {
       const key = String(m?.xmppUsername || '');
       const localKey = key.split('@')[0];
-      const enriched = (usersSet as any)?.[key] || (usersSet as any)?.[localKey];
-      if (!enriched) return m;
-      return {
-        ...m,
-        firstName: m.firstName || enriched.firstName || '',
-        lastName: m.lastName || enriched.lastName || '',
-        profileImage: (m as any).profileImage || enriched.profileImage || (enriched as any).photoURL || '',
-      };
+      const entry = (usersSet as any)?.[key] || (usersSet as any)?.[localKey];
+      const firstName = m.firstName || entry?.firstName || '';
+      const lastName = m.lastName || entry?.lastName || '';
+      return `${firstName} ${lastName}`.toLowerCase().includes(query);
     });
-  }, [activeRoom?.members, usersSet]);
+  }, [enrichedMembers, memberQuery, store]);
+
+  const visibleMembers = useMemo(
+    () => filteredMembers.slice(0, visibleMemberCount),
+    [filteredMembers, visibleMemberCount]
+  );
+  const hasMoreMembers = visibleMemberCount < filteredMembers.length;
+
+  const handleMemberQueryChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ): void => {
+    setMemberQuery(e.target.value);
+    // A new query changes which/how-many members match, so the old
+    // window position no longer means anything - start from the top of
+    // the (new) filtered list, same as MessageList resets its window on
+    // a fresh search.
+    setVisibleMemberCount(MEMBER_RENDER_WINDOW_INITIAL);
+  };
 
   // Files uploaded through this room, filtered client-side (the /v2/files
   // list endpoint has no server-side room filter) by matching the room's
@@ -348,104 +398,77 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         </BorderedContainer> */}
         {!config?.disableChatInfo?.hideMembers && (
           <BorderedContainer style={{ padding: '8px 16px' }}>
+            {enrichedMembers.length > 0 && (
+              <div style={{ padding: '4px 0 12px' }}>
+                <SearchInput
+                  icon={<SearchIcon height={'20px'} />}
+                  value={memberQuery}
+                  onChange={handleMemberQueryChange}
+                  placeholder={t('modal.chatProfile.searchMembers')}
+                  aria-label={t('modal.chatProfile.searchMembers')}
+                />
+              </div>
+            )}
             {loading ? (
               <Loader />
             ) : (
-              enrichedMembers.map((user, index) => (
-                <div
-                  key={user.xmppUsername}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'start',
-                    boxSizing: 'border-box',
-                  }}
-                >
-                  <ModalListRow
-                    style={{
-                      justifyContent: 'space-between',
-                      width: '100%',
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: 'flex',
-                        gap: '8px',
-                        cursor: config?.disableChatInfo?.disableMembers
-                          ? 'default'
-                          : 'pointer',
-                      }}
-                      onClick={
-                        config?.disableChatInfo?.disableMembers
-                          ? undefined
-                          : () => handleUserAvatarClick(user)
-                      }
-                    >
-                      <ProfileImagePlaceholder
-                        name={`${user.firstName} ${user.lastName}`}
-                        icon={(user as any).profileImage || (user as any).photoURL}
-                        size={40}
-                        online={onlineUsers.includes(user.xmppUsername)}
-                      />
-                      <div
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '2px',
-                          alignItems: 'start',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <Label style={{ fontSize: '16px', fontWeight: 600 }}>
-                          {user.firstName} {user.lastName}
-                        </Label>
-                        {user.last_active && (
-                          <LabelData>
-                            {new Date(user.last_active * 1000).toLocaleString()}
-                          </LabelData>
-                        )}
-                      </div>
-                    </div>
-                    {user.role && user.role !== 'none' && (
-                      <div
-                        style={{
-                          backgroundColor:
-                            user.ban_status !== 'banned'
-                              ? 'var(--ethora-color-primary-soft, #E7EDF9)'
-                              : 'rgba(217, 45, 32, 0.1)',
-                          color:
-                            user.ban_status !== 'banned'
-                              ? 'var(--ethora-color-primary, #0052CD)'
-                              : 'var(--ethora-color-danger, #D92D20)',
-                          padding: '5px 8px',
-                          borderRadius: 'var(--ethora-radius-lg, 16px)',
-                          fontSize: '12px',
-                        }}
-                      >
-                        {user.role}
-                      </div>
-                    )}
-                    {stateUser.xmppUsername !== user.xmppUsername &&
+              <>
+                {visibleMembers.map((user, index) => (
+                  <ChatProfileMemberRow
+                    key={user.xmppUsername}
+                    member={user}
+                    isLast={
+                      index === visibleMembers.length - 1 && !hasMoreMembers
+                    }
+                    disableClick={!!config?.disableChatInfo?.disableMembers}
+                    online={onlineUsersSet.has(user.xmppUsername)}
+                    showMenu={
+                      stateUser.xmppUsername !== user.xmppUsername &&
                       activeRoom.role === 'moderator' &&
-                      activeRoom.type !== 'private' && (
-                        <DropdownMenu
-                          options={menuOptions(user.xmppUsername)}
-                          openButton={
-                            <Button
-                              onClick={(e) => {
-                                e.preventDefault();
-                              }}
-                            >
-                              {t('action.moreOptions')}
-                            </Button>
-                          }
-                          onClose={() => ethoraLogger.log('Dropdown closed')}
-                        />
-                      )}
-                  </ModalListRow>
-                  {index < enrichedMembers.length - 1 && <Divider />}
-                </div>
-              ))
+                      activeRoom.type !== 'private'
+                    }
+                    menuOptions={menuOptions(user.xmppUsername)}
+                    moreOptionsLabel={t('action.moreOptions')}
+                    onAvatarClick={handleUserAvatarClick}
+                  />
+                ))}
+                {hasMoreMembers && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      padding: '12px 0',
+                      cursor: 'pointer',
+                    }}
+                    onClick={() =>
+                      setVisibleMemberCount(
+                        (count) => count + MEMBER_RENDER_WINDOW_STEP
+                      )
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setVisibleMemberCount(
+                          (count) => count + MEMBER_RENDER_WINDOW_STEP
+                        );
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <Label
+                      style={{
+                        color: 'var(--ethora-color-primary, #0052CD)',
+                        fontSize: '13px',
+                      }}
+                    >
+                      {t('modal.chatProfile.membersShowMore', {
+                        count: filteredMembers.length - visibleMemberCount,
+                      })}
+                    </Label>
+                  </div>
+                )}
+              </>
             )}
           </BorderedContainer>
         )}
