@@ -14,7 +14,7 @@ import { ethoraLogger } from '../../helpers/ethoraLogger';
 
 // 60s, not 1.5s. Provider bootstrap fires /chats/my early; chat mount can
 // happen many seconds later (route transition, lazy chunk). Without this
-// the UI fires a second /chats/my just to refetch the same data — and the
+// the UI fires a second /chats/my just to refetch the same data - and the
 // user sees a "0 rooms" flash while the second request is in flight.
 const GET_ROOMS_CACHE_MS = 60_000;
 let getRoomsInFlight: SharedRequest<{ items: ApiRoom[] }> | null = null;
@@ -238,7 +238,7 @@ export async function deleteRoom(name: string) {
 }
 
 // POST /v1/chats/call/create/{chatName}
-// Swagger documents the body as `additionalProperties: true` — we forward
+// Swagger documents the body as `additionalProperties: true` - we forward
 // `kind: 'audio' | 'video'` so the server can stamp it on the broadcast
 // call-token stanza for the callee. When the server doesn't recognize the
 // field both sides still fall through to a video call (the default), which

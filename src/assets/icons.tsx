@@ -331,7 +331,7 @@ export const AudioCallIcon = ({ color = '#FFFFFF', ...props }) => (
   </svg>
 );
 
-// Classic "hang up" glyph — phone receiver tilted down-right with motion
+// Classic "hang up" glyph - phone receiver tilted down-right with motion
 // ticks, the universal end-call symbol. Use this instead of a rotated
 // leave/arrow icon for call controls.
 export const HangUpIcon = ({ color = '#FFFFFF', ...props }) => (

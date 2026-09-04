@@ -12,7 +12,7 @@ import { callStateHasLogData } from '../helpers/callLogMessage';
 import { ethoraLogger } from '../helpers/ethoraLogger';
 
 // Backend currently doesn't propagate `kind` on the broadcast call-token
-// stanza — both ends default to video unless we tell them otherwise. We
+// stanza - both ends default to video unless we tell them otherwise. We
 // work around it by having the dialer send a separate `<data type=
 // "call-invite" kind="..." ... />` direct-chat to the peer right before
 // POST /v1/chats/call/create. The invite arrives over ~50ms direct chat,
@@ -32,7 +32,7 @@ const stashKindHint = (
   kind: 'audio' | 'video'
 ) => {
   if (!key) return;
-  // Cheap cleanup pass — drop expired entries before inserting.
+  // Cheap cleanup pass - drop expired entries before inserting.
   const now = Date.now();
   for (const [k, v] of kindHints) {
     if (v.expiresAt < now) kindHints.delete(k);
@@ -58,7 +58,7 @@ const consumeKindHint = (
 const MAX_CALL_TOKEN_AGE_MS = 5000;
 
 // Pull the JWT payload out of the call-token. We only read non-sensitive
-// claims (`sub` = caller display name; `metadata.callId`, `video.room`) —
+// claims (`sub` = caller display name; `metadata.callId`, `video.room`) -
 // no signature verification, which is fine because the server has already
 // vetted the token and LiveKit will reject anything tampered with on
 // connect. Returns null when the token isn't a parseable JWT.
@@ -88,7 +88,7 @@ const extractCallId = (data: Element, jwtPayload: Record<string, any> | null) =>
       const parsed = JSON.parse(metadata);
       if (parsed?.callId) return String(parsed.callId);
     } catch {
-      // metadata isn't JSON — ignore
+      // metadata isn't JSON - ignore
     }
   } else if (metadata && typeof metadata === 'object' && metadata.callId) {
     return String(metadata.callId);
@@ -168,7 +168,7 @@ const isFreshCallToken = (stanza: Element): boolean => {
 // Match a call-token stanza's `room` attribute against the local rooms map.
 // The server sends the bare room name (e.g. "${appId}_<uuid>"), but our
 // store keys rooms by full JID, and IRoom.name actually holds the display
-// title (see createRoomFromApi — the API's `name` is mapped onto the JID
+// title (see createRoomFromApi - the API's `name` is mapped onto the JID
 // localpart). So lookup order is: full JID match → JID-localpart match →
 // last-resort display-title match (only useful when the server ever decides
 // to send a fully-qualified JID or a title verbatim).
@@ -194,7 +194,7 @@ const resolveRoomByStanzaRoom = (roomAttr: string) => {
 };
 
 // Mirror of handleStanzas.unwrapMucsubMessage so we can look at the real
-// payload that the server pushed into the room — mucsub wraps the inner
+// payload that the server pushed into the room - mucsub wraps the inner
 // <message> inside <event><items><item>.
 const unwrapMucsub = (stanza: Element): Element => {
   const inner = stanza
@@ -278,7 +278,7 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
   const inner = unwrapMucsub(stanza);
 
   // 2. Anything carrying a `<data type="call-*">` element is signaling, no
-  //    matter the message type (chat / groupchat / headline) — swallow it
+  //    matter the message type (chat / groupchat / headline) - swallow it
   //    before any chat / history / notification handler touches it.
   const data = findCallData(inner);
   if (data) {
@@ -311,7 +311,7 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
       // flow on to onRealtimeMessage / onMessageHistory where they become
       // a friendly "Outgoing call · 12 sec" entry. Bare client-side
       // signaling frames (state=cancelled/declined, no log data) are
-      // swallowed — they exist only to tear the overlay down.
+      // swallowed - they exist only to tear the overlay down.
       if (callStateHasLogData(data.attrs || {})) {
         return false;
       }
@@ -397,7 +397,7 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
       const roomJid =
         resolvedRoom?.jid || (stanzaRoom.includes('@') ? stanzaRoom : '');
       // Prefer the JWT `sub` claim as the display name on the incoming
-      // ring screen — the server populates it with the caller's full name
+      // ring screen - the server populates it with the caller's full name
       // ("Roman Test") which is far more useful than the resolved room
       // title (which for stale / deleted-peer chats reads "deleted").
       const jwtPayload = decodeJwtPayload(token);
@@ -447,13 +447,13 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
       return true;
     }
 
-    // Unknown `call-*` signaling — swallow so it never lands in chat.
+    // Unknown `call-*` signaling - swallow so it never lands in chat.
     return true;
   }
 
   // 3. Backstop for legacy servers / clients that broadcast the signal as
   //    plain body text (no `<data>` element). The body literally reads
-  //    "call-state" / "call-token" / etc. — drop these so the chat list
+  //    "call-state" / "call-token" / etc. - drop these so the chat list
   //    and the notification toast never display them.
   const bodyText = getBodyText(inner).toLowerCase();
   if (bodyText && CALL_BODY_KEYWORDS.has(bodyText)) {
@@ -479,7 +479,7 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
 // dangling on a phantom "incoming call" or "calling…" screen.
 //
 // We address the peer directly (`<message type="chat" to="<peer>@<host>">`)
-// — going through the room JID isn't reliable because the callee may not
+// - going through the room JID isn't reliable because the callee may not
 // have joined the MUC yet during the ring window. The receiving client's
 // onCallTokenMessage handler picks up the same `<data type="call-state">`
 // it would receive from the server and dispatches `endCall()`.
@@ -531,13 +531,13 @@ export const sendCallStateSignal = (
     );
     (xmppClient as any).client?.send?.(stanza);
   } catch {
-    // Swallow — signaling is best-effort. The LiveKit room disconnect
+    // Swallow - signaling is best-effort. The LiveKit room disconnect
     // also serves as an implicit "call ended" once both sides are in.
   }
 };
 
 // Tell the peer what KIND of call we're starting before the server-side
-// call-token stanza reaches them — the backend currently drops the kind
+// call-token stanza reaches them - the backend currently drops the kind
 // attribute on its broadcast, so without this the callee always lands on
 // the video UI even when the dialer chose audio.
 //

@@ -19,7 +19,7 @@ import { getTimestampFromUnknown } from '../helpers/timestamp';
 
 // Body strings the server uses for call signaling broadcasts (call-token,
 // call-state ringing/ended, etc). These should never reach the chat
-// transcript or the sidebar "last message" preview — they're control
+// transcript or the sidebar "last message" preview - they're control
 // frames, not user-visible content. The XMPP handler (onCallTokenMessage)
 // already swallows them in the live stream, but they can still arrive via
 // MAM history, mucsub catchup, or be present in persisted state from
@@ -55,7 +55,7 @@ const isLocalCallLogEntry = (message: IMessage | undefined | null): boolean =>
   String(message?.id || '').startsWith('calllog-');
 
 // Merge two log entries for the SAME callId into one. Identity (id/date/
-// xmppId) comes from the server copy when one side is the local fallback —
+// xmppId) comes from the server copy when one side is the local fallback -
 // the server archive id is what MAM pages and the catch-up anchor will match
 // against later. Display (body/callLog) comes from whichever copy saw the
 // larger duration, so partial per-participant call-states don't shrink it.
@@ -186,7 +186,7 @@ const getNormalizedSubscribedRooms = (subscribedRooms: unknown): string[] =>
 // as room entries) corrupt the rooms map. The persist transform filters them on
 // rehydrate, but reducers can still write a non-JID key if upstream code passes
 // a malformed object. Guard at reducer entry so corrupt state can't be created
-// in-memory either — without this, the next persist round would re-serialize
+// in-memory either - without this, the next persist round would re-serialize
 // the bad keys and presence/MAM keep targeting them.
 const isValidRoomJid = (jid: unknown): jid is string => {
   if (typeof jid !== 'string' || !jid) return false;
@@ -294,7 +294,7 @@ const mergeRoomMessages = (
   });
 
   // A persisted local call-log fallback (id "calllog-<callId>") and its
-  // server MAM copy have different ids, so the byId pass keeps both — collapse
+  // server MAM copy have different ids, so the byId pass keeps both - collapse
   // them into the canonical server entry.
   const merged = [...byId.values()];
   if (!isSortedByMessageOrder(merged)) {
@@ -614,7 +614,7 @@ const roomsStore = createSlice({
       if (!message?.body) return;
       // Call signaling broadcasts ("call-token", "call-state", etc.)
       // sometimes slip past the live XMPP filter (e.g. MAM history,
-      // mucsub catch-up) — drop them here so they never land in the
+      // mucsub catch-up) - drop them here so they never land in the
       // transcript or the sidebar "last message" preview.
       if (isCallSignalMessage(message)) return;
 

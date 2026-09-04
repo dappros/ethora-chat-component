@@ -16,7 +16,7 @@ const hasXmppCredentials = (user?: Partial<User> | null): boolean =>
   );
 
 // /users/my is metadata-only (firstName, profileImage, etc) enrichment on
-// top of a login response that already carries xmpp credentials — the same
+// top of a login response that already carries xmpp credentials - the same
 // role that reliably 403s on it in resolveInitBeforeLoadUser.ts's bootstrap
 // paths also 403s here, since it's the same endpoint. Skipping the call
 // once we already have what login actually needs (xmpp creds) means a
