@@ -344,6 +344,9 @@ export const useSendMessage = () => {
                   pending: true,
                   xmppFrom: `${activeRoomJID}/${user.xmppUsername}`,
                   id: id,
+                  isReply: (isReply ? 'true' : 'false') as any,
+                  showInChannel: (isChecked ? 'true' : 'false') as any,
+                  mainMessage: mainMessage || '',
                 },
               })
             );
@@ -422,6 +425,9 @@ export const useSendMessage = () => {
                   roomJid: activeRoomJID,
                   xmppFrom: `${activeRoomJID}/${user.xmppUsername}`,
                   pending: true,
+                  isReply: (isReply ? 'true' : 'false') as any,
+                  showInChannel: (isChecked ? 'true' : 'false') as any,
+                  mainMessage: mainMessage || '',
                 },
               })
             );
