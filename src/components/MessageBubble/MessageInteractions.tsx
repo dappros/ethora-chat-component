@@ -259,7 +259,10 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
                 {MESSAGE_INTERACTIONS.COPY}
                 <MESSAGE_INTERACTIONS_ICONS.COPY />
               </MenuItem>
-              <Delimeter />
+              {(isUser ||
+                roomsList?.[activeRoomJID].role === 'moderator') && (
+                <Delimeter />
+              )}
               {isUser && (
                 <>
                   <MenuItem onClick={handleEditMessage}>
