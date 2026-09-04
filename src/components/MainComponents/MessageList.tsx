@@ -34,7 +34,7 @@ import { useT } from '../../i18n/useT';
 // qualifying event (message arrives while at bottom, or the user jumps to
 // the latest via the scroll button) resets this timer, so a fast burst of
 // messages produces exactly one write, sent for the last message once
-// things go quiet — not one write per message.
+// things go quiet - not one write per message.
 const MARK_READ_DEBOUNCE_MS = 1000;
 
 // Windowed rendering: only the newest RENDER_WINDOW_INITIAL messages are

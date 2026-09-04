@@ -274,7 +274,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
             // Show "Room created" once the history attempt has settled, not only
             // when the MAM <fin complete> arrived. Newly created / empty rooms
             // often time out the MAM query (no fin, presence/affiliation race
-            // after refresh) so historyComplete never flips true — settling on
+            // after refresh) so historyComplete never flips true - settling on
             // a terminal preload state (done/error) covers those too.
             (chat?.historyComplete ||
               chat?.historyPreloadState === 'done' ||
@@ -284,12 +284,12 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
           ) : undefined}
           {chat.unreadMessages > 0 &&
             // Hide only while a room with NO locally loaded messages is doing
-            // its first-ever history fetch — the count could still be
+            // its first-ever history fetch - the count could still be
             // mid-climb (0 -> 1 -> 2 ...) there. A background catch-up
             // refetch (e.g. on every app refresh, for a room that already has
             // a correct persisted unreadMessages count) must NOT hide an
             // already-stable badge just because historyPreloadState flips to
-            // 'loading' for that refetch — that made every room's badge
+            // 'loading' for that refetch - that made every room's badge
             // blink off and back on for ~1-2s on every refresh.
             !(
               chat.historyPreloadState === 'loading' &&
@@ -316,7 +316,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
 // The room list re-renders on every dispatch that touches ANY room (Immer
 // gives `state.rooms.rooms` a new top-level reference whenever one nested
 // room changes), so without memo every row's component function re-ran on
-// every single per-room update anywhere in the account — not just the one
+// every single per-room update anywhere in the account - not just the one
 // row that actually changed. `chat` keeps its own reference stable across
 // unrelated updates (Immer only replaces the specific room object that
 // changed), and `performClick`/`config` are already stable from RoomList, so

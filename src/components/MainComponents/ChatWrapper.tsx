@@ -304,7 +304,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     return null;
   }
 
-  // No rooms exist for this user after init finished — the shell would just
+  // No rooms exist for this user after init finished - the shell would just
   // show an empty list, so let the host swap in an explanation instead.
   if (
     config?.fallbackScreens?.noRoom != null &&
