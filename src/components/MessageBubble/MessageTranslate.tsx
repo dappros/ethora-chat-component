@@ -131,9 +131,9 @@ const MessageTranslate: FC<MessageTranslateProps> = ({
   return (
     <>
       <CustomDivider
-        isUser={isUser}
-        configColorUser={config?.colors?.secondary}
-        configColor={config?.colors?.primary}
+        $isUser={isUser}
+        $configColorUser={config?.colors?.secondary}
+        $configColor={config?.colors?.primary}
       />
       <CustomMessageText>
         {showOriginal ? originalText : translated}

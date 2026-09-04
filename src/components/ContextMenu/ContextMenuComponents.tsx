@@ -29,15 +29,17 @@ export const ReactionBadge = styled.span`
   }
 `;
 
-export const ArrowButton = styled.div<{ isRotated: boolean }>`
+// `$`-prefixed so styled-components treats it as a transient prop and does
+// not forward it to the underlying <div>, which React warns about.
+export const ArrowButton = styled.div<{ $isRotated: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: transform 0.3s ease;
 
-  transform: ${({ isRotated }) =>
-    isRotated ? 'rotate(180deg)' : 'rotate(0deg)'};
+  transform: ${({ $isRotated }) =>
+    $isRotated ? 'rotate(180deg)' : 'rotate(0deg)'};
 `;
 
 export const ContextMenu = styled.div`
