@@ -290,7 +290,19 @@ const mergeRoomMessages = (
     if (message.pending && echoedClientIds.has(String(message.id))) return;
     const key = getMessageKey(message);
     if (!key) return;
-    byId.set(key, enrichMessageAuthor(message, usersSet));
+    const enriched = enrichMessageAuthor(message, usersSet);
+    // `activeMessage` is a purely client-side UI flag (stamped by the
+    // setActiveMessage reducer to mark which message's thread is open) -
+    // it is never present on a wire-parsed stanza. A background merge
+    // (history catch-up, preload) can deliver a fresh copy of the same
+    // message id with no `activeMessage` field at all; a blind overwrite
+    // here would silently clear the flag and kick the user out of an
+    // open thread. Carry it forward from whichever copy already has it.
+    const previous = byId.get(key);
+    if (previous?.activeMessage && enriched.activeMessage === undefined) {
+      enriched.activeMessage = true;
+    }
+    byId.set(key, enriched);
   });
 
   // A persisted local call-log fallback (id "calllog-<callId>") and its
