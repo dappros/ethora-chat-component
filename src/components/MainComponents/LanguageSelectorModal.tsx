@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useThemeTokenStyle } from '../../styles/tokens';
 import { useModalDismiss } from '../../hooks/useModalDismiss';
@@ -169,7 +169,15 @@ export const LanguageSelectorButton: React.FC = () => {
   // The portal mounts on document.body, outside the chat root that carries
   // the design tokens inline, so re-apply them on the portal container.
   const portalTokenStyle = useThemeTokenStyle(config?.colors, config?.typography);
-  useModalDismiss({ enabled: isOpen, onClose: () => setIsOpen(false) });
+  // Anchors initial focus inside the dialog on open (and hands focus back to
+  // the globe button on close). Rendered synchronously, so the container is
+  // already in the DOM when useModalDismiss's mount effect runs.
+  const containerRef = useRef<HTMLDivElement>(null);
+  useModalDismiss({
+    enabled: isOpen,
+    onClose: () => setIsOpen(false),
+    containerRef,
+  });
   const translatesEnabled = !!config?.translates?.enabled;
   // Undefined (reader never touched the toggle) reads as ON - matches the
   // send-path default in useSendMessage, so the switch shows the state
@@ -207,7 +215,10 @@ export const LanguageSelectorButton: React.FC = () => {
             onClick={() => setIsOpen(false)}
             style={portalTokenStyle}
           >
-            <LanguageModalContainer onClick={(e) => e.stopPropagation()}>
+            <LanguageModalContainer
+              ref={containerRef}
+              onClick={(e) => e.stopPropagation()}
+            >
               <CloseButton onClick={() => setIsOpen(false)} aria-label={t('action.cancel')}>
                 &times;
               </CloseButton>

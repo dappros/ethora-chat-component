@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import { useModalDismiss } from '../../../hooks/useModalDismiss';
 import Button from '../../styled/Button';
 import { AddNewIcon, AddPhotoIcon } from '../../../assets/icons';
@@ -108,7 +108,17 @@ const NewChatModal: React.FC = () => {
     setRoomName('');
     setSelectedUsers([]);
   };
-  useModalDismiss({ enabled: isModalOpen, onClose: handleCloseModal });
+  // Anchored on the backdrop rather than on a ModalContainer because this
+  // modal swaps between two alternate containers (the details step and the
+  // select-users step); the backdrop is the one element that spans both, and
+  // it holds no focusable children of its own, so the first focusable
+  // element found inside it is always in the step currently on screen.
+  const containerRef = useRef<HTMLDivElement>(null);
+  useModalDismiss({
+    enabled: isModalOpen,
+    onClose: handleCloseModal,
+    containerRef,
+  });
 
   const onUpload = async (file: File) => {
     setProfileImage(file);
@@ -243,7 +253,7 @@ const NewChatModal: React.FC = () => {
       )}
 
       {isModalOpen && (
-        <ModalBackground>
+        <ModalBackground ref={containerRef}>
           {activeTab === '0' && (
             <ModalContainer>
               <CloseButton
