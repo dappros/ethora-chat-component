@@ -161,7 +161,7 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
         onClick={() => setIsChecked((prev) => !prev)}
       >
         <AlsoCheckbox
-          accentColor={config?.colors?.primary || 'var(--ethora-color-primary, #0052CD)'}
+          $accentColor={config?.colors?.primary || 'var(--ethora-color-primary, #0052CD)'}
           type="checkbox"
           checked={isChecked}
           onChange={(e) => setIsChecked(e.target.checked)}

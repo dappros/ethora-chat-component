@@ -193,7 +193,7 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
                 tabIndex={0}
                 aria-label={t('action.moreOptions')}
                 aria-expanded={showPicker}
-                isRotated={showPicker}
+                $isRotated={showPicker}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();

@@ -78,7 +78,7 @@ const VisibilityModal: React.FC<VisibilityModalProps> = ({
           <RadioGroup>
             <RadioLabel>
               <RadioInput
-                radioColor={config?.colors?.primary}
+                $radioColor={config?.colors?.primary}
                 type="radio"
                 checked={isProfileOpen === true}
                 onChange={() => setIsProfileOpen(true)}
@@ -90,7 +90,7 @@ const VisibilityModal: React.FC<VisibilityModalProps> = ({
             </SharedSettingsLabelData>
             <RadioLabel>
               <RadioInput
-                radioColor={config?.colors?.primary}
+                $radioColor={config?.colors?.primary}
                 type="radio"
                 checked={isProfileOpen === false}
                 onChange={() => setIsProfileOpen(false)}
@@ -109,7 +109,7 @@ const VisibilityModal: React.FC<VisibilityModalProps> = ({
           <RadioGroup>
             <RadioLabel>
               <RadioInput
-                radioColor={config?.colors?.primary}
+                $radioColor={config?.colors?.primary}
                 type="radio"
                 checked={isAssetsOpen === true}
                 onChange={() => setIsAssetsOpen(true)}
@@ -121,7 +121,7 @@ const VisibilityModal: React.FC<VisibilityModalProps> = ({
             </SharedSettingsLabelData>
             <RadioLabel>
               <RadioInput
-                radioColor={config?.colors?.primary}
+                $radioColor={config?.colors?.primary}
                 type="radio"
                 checked={isAssetsOpen === false}
                 onChange={() => setIsAssetsOpen(false)}

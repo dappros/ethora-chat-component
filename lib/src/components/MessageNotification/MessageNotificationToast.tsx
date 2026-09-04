@@ -163,13 +163,13 @@ const MessageContent = styled.div`
   gap: 10px;
 `;
 
-const Avatar = styled.div<{ photoURL?: string }>`
+const Avatar = styled.div<{ $photoURL?: string }>`
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: ${({ photoURL }) =>
-    photoURL
-      ? `url(${photoURL}) center/cover`
+  background: ${({ $photoURL }) =>
+    $photoURL
+      ? `url(${$photoURL}) center/cover`
       : 'var(--ethora-color-icons-bg, #E7EDF9)'};
   flex-shrink: 0;
 
@@ -331,7 +331,7 @@ const MessageNotificationToast: React.FC<MessageNotificationToastProps> = ({
         <Timestamp>{formatTime(timestamp)}</Timestamp>
       </Header>
       <MessageContent>
-        <Avatar photoURL={userPhotoURL} data-testid="notification-avatar" />
+        <Avatar $photoURL={userPhotoURL} data-testid="notification-avatar" />
         <MessageBody>
           <SenderName>{senderName}</SenderName>
           {message.isMediafile === 'true' ? (

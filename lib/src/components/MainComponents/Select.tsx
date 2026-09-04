@@ -25,9 +25,9 @@ const SelectWrapper = styled.div`
   width: 100%;
 `;
 
-const SelectBox = styled.div<{ isOpen: boolean; borderColor?: string }>`
-  border: ${({ borderColor }) =>
-    borderColor ? `1px solid ${borderColor}` : '1px solid #ccc'};
+const SelectBox = styled.div<{ $isOpen: boolean; $borderColor?: string }>`
+  border: ${({ $borderColor }) =>
+    $borderColor ? `1px solid ${$borderColor}` : '1px solid #ccc'};
   padding: 10px;
   display: flex;
   justify-content: space-between;
@@ -36,7 +36,7 @@ const SelectBox = styled.div<{ isOpen: boolean; borderColor?: string }>`
   background-color: #fff;
   border-radius: 5px;
   box-shadow: ${(props) =>
-    props.isOpen ? '0px 4px 8px rgba(0, 0, 0, 0.1)' : 'none'};
+    props.$isOpen ? '0px 4px 8px rgba(0, 0, 0, 0.1)' : 'none'};
   transition: box-shadow 0.3s ease;
 `;
 
@@ -44,10 +44,10 @@ const Placeholder = styled.span`
   color: #aaa;
 `;
 
-const Icon = styled.span<{ isOpen: boolean }>`
+const Icon = styled.span<{ $isOpen: boolean }>`
   margin-left: 10px;
   display: inline-block;
-  animation: ${(props) => (props.isOpen ? rotateUp : rotateDown)} 0.3s ease
+  animation: ${(props) => (props.$isOpen ? rotateUp : rotateDown)} 0.3s ease
     forwards;
 `;
 
@@ -144,16 +144,16 @@ const Select: React.FC<SelectProps> = ({
   return (
     <SelectWrapper ref={wrapperRef}>
       <SelectBox
-        isOpen={isOpen}
+        $isOpen={isOpen}
         onClick={toggleDropdown}
-        borderColor={accentColor}
+        $borderColor={accentColor}
       >
         {selected ? (
           <span>{selected.name}</span>
         ) : (
           <Placeholder>{placeholder}</Placeholder>
         )}
-        <Icon style={{ color: accentColor }} isOpen={isOpen}>
+        <Icon style={{ color: accentColor }} $isOpen={isOpen}>
           {'▼'}
         </Icon>
       </SelectBox>

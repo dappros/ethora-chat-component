@@ -27,7 +27,8 @@ export const RadioLabel = styled.label`
   gap: 8px;
 `;
 
-export const RadioInput = styled.input<{ radioColor?: string }>`
-  accent-color: ${({ radioColor }) => radioColor || 'var(--ethora-color-primary, #0052CD)'};
+export const RadioInput = styled.input<{ $radioColor?: string }>`
+  accent-color: ${({ $radioColor }) =>
+    $radioColor || 'var(--ethora-color-primary, #0052CD)'};
   margin: 0px;
 `;

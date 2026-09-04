@@ -5,7 +5,7 @@ import {
   setActiveModal,
   setDeleteModal,
 } from '../../roomStore/chatSettingsSlice';
-import { ChatWrapperBox } from '../styled/ChatWrapperBox';
+import { ChatWrapperBox, ChatWrapperInnerBox } from '../styled/ChatWrapperBox';
 import { Message } from '../MessageBubble/Message';
 import { IConfig, IRoom, ModalType } from '../../types/types';
 import LoginForm from '../AuthForms/Login';
@@ -103,6 +103,12 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     Boolean(state.rooms?.reportRoom?.isOpen)
   );
   const { loadingText } = useRoomState();
+
+  // Memoized so ChatWrapper re-renders that don't touch `rooms` (typing
+  // indicators, activeRoomJID changes, etc.) don't hand RoomList a brand-new
+  // array reference each time, which otherwise forces its `filteredChats`
+  // useMemo (keyed on `chats`) to re-run and re-sort for no reason.
+  const roomsList = useMemo<IRoom[]>(() => Object.values(rooms), [rooms]);
 
   const activeMessage = useMemo(() => {
     if (activeRoomJID) {
@@ -321,7 +327,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             ...MainComponentStyles,
           }}
         >
-          <ChatWrapperBox
+          <ChatWrapperInnerBox
             style={{
               ...MainComponentStyles,
             }}
@@ -331,14 +337,14 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
               (isSmallScreen ? (
                 !isChatVisible && (
                   <RoomList
-                    chats={Object.values(rooms)}
+                    chats={roomsList}
                     onRoomClick={handleChangeChat}
                     isSmallScreen={isSmallScreen}
                   />
                 )
               ) : (
                 <RoomList
-                  chats={Object.values(rooms)}
+                  chats={roomsList}
                   onRoomClick={handleChangeChat}
                 />
               ))}
@@ -380,7 +386,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             {/* VideoCallOverlay now lives in XmppProvider (see xmppProvider.tsx)
                 so an incoming call still rings while the user is on a
                 different in-app page, not just while <Chat> is mounted. */}
-          </ChatWrapperBox>
+          </ChatWrapperInnerBox>
         </ChatWrapperBox>
       ) : (
         <StyledLoaderWrapper
