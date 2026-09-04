@@ -35,9 +35,14 @@ export const ModalWrapper: FC<ModalWrapperProps> = ({
   handleClick,
 }) => {
   const textareaRef = useRef(null);
+  // Rendered synchronously (no lazy/Suspense boundary here, unlike Modal.tsx),
+  // so ModalContainer already exists in the DOM by the time useModalDismiss's
+  // mount effect runs; passing containerRef is enough to move initial focus
+  // into the dialog without needing a MutationObserver.
+  const containerRef = useRef<HTMLDivElement>(null);
   const { config } = useChatSettingState();
   const t = useT();
-  useModalDismiss({ onClose: handleCloseModal });
+  useModalDismiss({ onClose: handleCloseModal, containerRef });
   const resolvedCancelText = cancelText ?? t('action.cancel');
   const resolvedCloseLabel = t('action.close');
 
@@ -51,7 +56,7 @@ export const ModalWrapper: FC<ModalWrapperProps> = ({
   
   return (
     <ModalBackground>
-      <ModalContainer style={{maxWidth: '640px'}}>
+      <ModalContainer ref={containerRef} style={{maxWidth: '640px'}}>
         <CloseButton
           onClick={handleCloseModal}
           style={{ fontSize: 24 }}
