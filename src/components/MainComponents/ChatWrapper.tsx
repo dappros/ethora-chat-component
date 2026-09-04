@@ -104,6 +104,12 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   );
   const { loadingText } = useRoomState();
 
+  // Memoized so ChatWrapper re-renders that don't touch `rooms` (typing
+  // indicators, activeRoomJID changes, etc.) don't hand RoomList a brand-new
+  // array reference each time, which otherwise forces its `filteredChats`
+  // useMemo (keyed on `chats`) to re-run and re-sort for no reason.
+  const roomsList = useMemo<IRoom[]>(() => Object.values(rooms), [rooms]);
+
   const activeMessage = useMemo(() => {
     if (activeRoomJID) {
       return rooms[activeRoomJID]?.messages?.find(
@@ -331,14 +337,14 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
               (isSmallScreen ? (
                 !isChatVisible && (
                   <RoomList
-                    chats={Object.values(rooms)}
+                    chats={roomsList}
                     onRoomClick={handleChangeChat}
                     isSmallScreen={isSmallScreen}
                   />
                 )
               ) : (
                 <RoomList
-                  chats={Object.values(rooms)}
+                  chats={roomsList}
                   onRoomClick={handleChangeChat}
                 />
               ))}

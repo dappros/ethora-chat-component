@@ -429,7 +429,6 @@ const RoomList: React.FC<RoomListProps> = ({
                           <AnimatedRow $delay={index * 24}>
                             <ChatRoomItem
                               chat={chat}
-                              index={index}
                               isChatActive={isChatActive(chat)}
                               performClick={performClick}
                               config={config}

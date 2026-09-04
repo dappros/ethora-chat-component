@@ -25,7 +25,6 @@ import { RoomListTestIds } from '../../testIds';
 
 interface ChatRoomItemProps {
   chat: IRoom;
-  index: number;
   isChatActive: boolean;
   performClick: (chat: IRoom) => void;
   config: IConfig;
@@ -33,7 +32,6 @@ interface ChatRoomItemProps {
 
 const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
   chat,
-  index,
   isChatActive,
   performClick,
   config,
@@ -181,7 +179,6 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
 
   return (
     <ChatItem
-      key={index}
       active={isChatActive}
       onClick={() => performClick(chat)}
       bg={config?.colors?.primary}
