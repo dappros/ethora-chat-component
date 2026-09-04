@@ -46,34 +46,33 @@ const Modal: React.FC<ModalProps> = ({ children, modal, setOpenModal }) => {
   // actually mounted, move focus onto its first focusable element.
   useEffect(() => {
     if (!modal) return;
-    let cancelled = false;
+    const container = containerRef.current;
+    if (!container) return;
 
+    let done = false;
     const focusFirst = () => {
-      const container = containerRef.current;
-      const first = container?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
-      if (first) {
-        first.focus();
-        return true;
-      }
-      return false;
+      if (done) return true;
+      const first = container.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+      if (!first) return false;
+      done = true;
+      first.focus();
+      return true;
     };
 
-    // First rAF: give the lazy chunk's promise (already in flight since
-    // Modal started rendering) a chance to resolve and commit. If it hasn't
-    // yet, a second rAF gives it one more frame before giving up.
-    const raf1 = requestAnimationFrame(() => {
-      if (cancelled) return;
-      if (focusFirst()) return;
-      requestAnimationFrame(() => {
-        if (cancelled) return;
-        focusFirst();
-      });
+    // Fast path: content already committed (chunk was cached / preloaded).
+    if (focusFirst()) return;
+
+    // Otherwise wait for the commit that inserts the chunk's DOM. A
+    // MutationObserver fires whenever that actually happens, however long
+    // the chunk takes; a fixed window of one or two animation frames would
+    // silently give up on a slow network (or a cold dev-server transform)
+    // and leave focus stranded on the element that opened the modal.
+    const observer = new MutationObserver(() => {
+      if (focusFirst()) observer.disconnect();
     });
+    observer.observe(container, { childList: true, subtree: true });
 
-    return () => {
-      cancelled = true;
-      cancelAnimationFrame(raf1);
-    };
+    return () => observer.disconnect();
   }, [modal]);
 
   const renderModalContent = () => {
