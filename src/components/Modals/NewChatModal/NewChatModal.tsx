@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useModalDismiss } from '../../../hooks/useModalDismiss';
 import Button from '../../styled/Button';
 import { AddNewIcon, AddPhotoIcon } from '../../../assets/icons';
@@ -47,19 +47,19 @@ const NewChatModal: React.FC = () => {
   const isMobileViewport = useIsMobileViewport();
   const t = useT();
 
+  const DEFAULT_CHAT_TYPE: ChatAccessOption = { name: 'Public', id: 'public' };
+
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'0' | '1' | null>('0');
 
   const [roomName, setRoomName] = useState<string>('');
   const [roomDescription, setRoomDescription] = useState<string>('');
-  const [chatType, setChatType] = useState<ChatAccessOption>({
-    name: 'Public',
-    id: 'public',
-  });
+  const [chatType, setChatType] = useState<ChatAccessOption>(DEFAULT_CHAT_TYPE);
   const [profileImage, setProfileImage] = useState<string | File | null>(null);
   const [errors, setErrors] = useState({ name: '', description: '' });
   const [selectedUsers, setSelectedUsers] = useState<RoomMember[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const isValid = useMemo(
     // () => roomName.length >= 3 && roomDescription.length >= 5,
@@ -106,9 +106,21 @@ const NewChatModal: React.FC = () => {
     setActiveTab('0');
     setIsModalOpen(false);
     setRoomName('');
+    setRoomDescription('');
+    setChatType(DEFAULT_CHAT_TYPE);
+    setProfileImage(null);
+    setErrors({ name: '', description: '' });
     setSelectedUsers([]);
   };
-  useModalDismiss({ enabled: isModalOpen, onClose: handleCloseModal });
+  // Rendered synchronously (same as ModalBox/ModalWrapper - no lazy/Suspense
+  // boundary here), so ModalContainer already exists in the DOM by the time
+  // useModalDismiss's mount effect runs; containerRef is enough to move
+  // initial focus into the dialog without a MutationObserver.
+  useModalDismiss({
+    enabled: isModalOpen,
+    onClose: handleCloseModal,
+    containerRef,
+  });
 
   const onUpload = async (file: File) => {
     setProfileImage(file);
@@ -245,7 +257,7 @@ const NewChatModal: React.FC = () => {
       {isModalOpen && (
         <ModalBackground>
           {activeTab === '0' && (
-            <ModalContainer>
+            <ModalContainer ref={containerRef}>
               <CloseButton
                 onClick={handleCloseModal}
                 style={{ fontSize: 24 }}
@@ -308,7 +320,9 @@ const NewChatModal: React.FC = () => {
                   variant="outlined"
                   unstyled
                 >
-                  {t('action.addUsers')}
+                  {selectedUsers.length > 0
+                    ? t('action.addUsersCount', { count: selectedUsers.length })
+                    : t('action.addUsers')}
                 </Button>
               )}
               <GroupContainer>
@@ -331,7 +345,7 @@ const NewChatModal: React.FC = () => {
             </ModalContainer>
           )}
           {activeTab === '1' && (
-            <ModalContainer style={{ minHeight: '500px' }}>
+            <ModalContainer ref={containerRef} style={{ minHeight: '500px' }}>
               <CloseButton
                 onClick={handleCloseModal}
                 style={{ fontSize: 24 }}
@@ -346,9 +360,13 @@ const NewChatModal: React.FC = () => {
                   position: 'relative',
                   boxSizing: 'border-box',
                   width: '100%',
-                  minHeight: '400px',
                 }}
               >
+                {/* No fixed minHeight here - the scrollable list below already
+                caps its own height (maxHeight 340px + internal scroll), so
+                letting this wrapper size to its actual content (label +
+                search + list) keeps it from visually overflowing past its
+                own box into the "Back to creation" button underneath. */}
                 <UsersList
                   selectedUsers={selectedUsers}
                   setSelectedUsers={setSelectedUsers}
