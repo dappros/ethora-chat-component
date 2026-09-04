@@ -12,8 +12,10 @@ import {
 import ModalHeaderComponent from '../ModalHeaderComponent';
 import { ProfileImagePlaceholder } from '../../MainComponents/ProfileImagePlaceholder';
 import { useRoomPresence } from '../../../hooks/useRoomPresence';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch, useSelector, useStore } from 'react-redux';
 import { RootState, getActiveRoom } from '../../../roomStore';
+import { SearchInput } from '../../InputComponents/Search';
+import { SearchIcon } from '../../../assets/icons';
 import { uploadFile } from '../../../networking/api-requests/auth.api';
 import { appendFileToken } from '../../../helpers/secureFileUrl';
 import { useXmppClient } from '../../../context/xmppProvider';
@@ -83,8 +85,10 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   const [visibleMemberCount, setVisibleMemberCount] = useState<number>(
     MEMBER_RENDER_WINDOW_INITIAL
   );
+  const [memberQuery, setMemberQuery] = useState<string>('');
 
   const dispatch = useDispatch();
+  const store = useStore<RootState>();
 
   const { client } = useXmppClient();
   const { user: stateUser, config } = useChatSettingState();
@@ -115,11 +119,46 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
     return Array.isArray(activeRoom?.members) ? activeRoom.members : [];
   }, [activeRoom?.members]);
 
+  // The search box has to match against the ENRICHED name (a bare XMPP
+  // affiliation entry usually has empty firstName/lastName - see the note
+  // above), so it needs the same usersSet lookup ChatProfileMemberRow does.
+  // Reading it here via useSelector would put the whole-map subscription
+  // right back on the modal (the exact bug this file was just fixed for).
+  // Instead, pull a ONE-TIME snapshot from the store with `store.getState()`
+  // inside this useMemo: it only runs when the query text or the member
+  // list itself changes, never on an unrelated insertUsers dispatch, so a
+  // room the user isn't actively searching stays fully decoupled from the
+  // app-wide user dictionary.
+  const filteredMembers = useMemo(() => {
+    const query = memberQuery.trim().toLowerCase();
+    if (!query) return enrichedMembers;
+    const usersSet = store.getState().rooms.usersSet;
+    return enrichedMembers.filter((m) => {
+      const key = String(m?.xmppUsername || '');
+      const localKey = key.split('@')[0];
+      const entry = (usersSet as any)?.[key] || (usersSet as any)?.[localKey];
+      const firstName = m.firstName || entry?.firstName || '';
+      const lastName = m.lastName || entry?.lastName || '';
+      return `${firstName} ${lastName}`.toLowerCase().includes(query);
+    });
+  }, [enrichedMembers, memberQuery, store]);
+
   const visibleMembers = useMemo(
-    () => enrichedMembers.slice(0, visibleMemberCount),
-    [enrichedMembers, visibleMemberCount]
+    () => filteredMembers.slice(0, visibleMemberCount),
+    [filteredMembers, visibleMemberCount]
   );
-  const hasMoreMembers = visibleMemberCount < enrichedMembers.length;
+  const hasMoreMembers = visibleMemberCount < filteredMembers.length;
+
+  const handleMemberQueryChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ): void => {
+    setMemberQuery(e.target.value);
+    // A new query changes which/how-many members match, so the old
+    // window position no longer means anything - start from the top of
+    // the (new) filtered list, same as MessageList resets its window on
+    // a fresh search.
+    setVisibleMemberCount(MEMBER_RENDER_WINDOW_INITIAL);
+  };
 
   // Files uploaded through this room, filtered client-side (the /v2/files
   // list endpoint has no server-side room filter) by matching the room's
@@ -359,6 +398,17 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         </BorderedContainer> */}
         {!config?.disableChatInfo?.hideMembers && (
           <BorderedContainer style={{ padding: '8px 16px' }}>
+            {enrichedMembers.length > 0 && (
+              <div style={{ padding: '4px 0 12px' }}>
+                <SearchInput
+                  icon={<SearchIcon height={'20px'} />}
+                  value={memberQuery}
+                  onChange={handleMemberQueryChange}
+                  placeholder={t('modal.chatProfile.searchMembers')}
+                  aria-label={t('modal.chatProfile.searchMembers')}
+                />
+              </div>
+            )}
             {loading ? (
               <Loader />
             ) : (
@@ -413,7 +463,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                       }}
                     >
                       {t('modal.chatProfile.membersShowMore', {
-                        count: enrichedMembers.length - visibleMemberCount,
+                        count: filteredMembers.length - visibleMemberCount,
                       })}
                     </Label>
                   </div>
