@@ -239,7 +239,6 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
                   onlineUsernames={onlineUsers}
                   members={chat?.members}
                   myXmppUsername={myXmppUsername}
-                  isChatActive={isChatActive}
                 />
               )}
             </div>
