@@ -2,6 +2,7 @@ import React, {
   useState,
   useRef,
   useEffect,
+  useLayoutEffect,
   useCallback,
   useMemo,
 } from 'react';
@@ -162,6 +163,52 @@ const RoomList: React.FC<RoomListProps> = ({
   // whether a search filter temporarily hid it.
   const animatedJidsRef = useRef<Map<string, number>>(new Map());
 
+  // FLIP (First-Last-Invert-Play) repositioning: when a room's rank changes
+  // (a new message bumps it up, or a neighbor's bump pushes it down), the
+  // row should slide to its new spot instead of snapping. `rowElementsRef`
+  // holds the live DOM node per jid, `rowPositionsRef` holds each jid's
+  // viewport-relative top from the LAST time we measured, and `roomsListRef`
+  // + `prevScrollTopRef` let us discount plain scrolling (which shifts every
+  // row's bounding rect by the same amount and must never be read as a
+  // reorder). `hasMeasuredRef` skips the very first measurement - there is
+  // no "previous position" to FLIP from on initial mount.
+  const rowElementsRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  const rowPositionsRef = useRef<Map<string, number>>(new Map());
+  const roomsListRef = useRef<HTMLDivElement>(null);
+  const prevScrollTopRef = useRef(0);
+  const hasMeasuredRef = useRef(false);
+  // A row's release (the animated return to translateY(0)) is scheduled via
+  // rAF, which can be delayed well past the next resort - a backgrounded
+  // tab throttles rAF, and two messages arriving close together can each
+  // trigger their own resort inside that window. Tracking the pending
+  // frame per jid lets a new resort cancel a stale release before it fires
+  // - otherwise that stale callback can clobber a newer, still-animating
+  // invert and snap the row to rest mid-flight.
+  const pendingReleaseFramesRef = useRef<Map<string, number>>(new Map());
+
+  // Cache one stable ref-callback per jid (rather than a fresh closure every
+  // render) so React doesn't churn rowElementsRef's entries - detach then
+  // reattach the same node - on every re-render that doesn't actually
+  // change which row a jid maps to.
+  const rowRefCallbacksRef = useRef<Map<string, (el: HTMLDivElement | null) => void>>(
+    new Map()
+  );
+
+  const getRowElementRef = useCallback((jid: string) => {
+    let cb = rowRefCallbacksRef.current.get(jid);
+    if (!cb) {
+      cb = (el: HTMLDivElement | null) => {
+        if (el) {
+          rowElementsRef.current.set(jid, el);
+        } else {
+          rowElementsRef.current.delete(jid);
+        }
+      };
+      rowRefCallbacksRef.current.set(jid, cb);
+    }
+    return cb;
+  }, []);
+
   useEffect(() => {
     const invalidRoomJids = (chats || [])
       .filter((chat) => !isValidRoomRecord(chat))
@@ -257,6 +304,84 @@ const RoomList: React.FC<RoomListProps> = ({
 
     return chatsMap.get(lowerCaseSearchTerm) || [];
   }, [chats, searchTerm, config?.hiddenRooms]);
+
+  // Runs after the DOM has committed the new sort order. Measures each
+  // row's new position, compares it against where it was last measured, and
+  // - for rows that were already on screen (not a fresh entrance) - snaps
+  // it back to the old spot with no transition, then releases it into a
+  // transitioned translateY(0) on the next frame so the browser animates
+  // the slide. Only jids present in BOTH the previous and current position
+  // maps are FLIPped: a genuinely new row has no previous position to FLIP
+  // from, so it naturally falls through to the entrance animation instead.
+  useLayoutEffect(() => {
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    const previousPositions = rowPositionsRef.current;
+    const nextPositions = new Map<string, number>();
+
+    const currentScrollTop = roomsListRef.current?.scrollTop ?? 0;
+    const scrollDelta = currentScrollTop - prevScrollTopRef.current;
+
+    filteredChats.forEach((chat, index) => {
+      const jid = chat.jid || `${chat.id}-${index}`;
+      const el = rowElementsRef.current.get(jid);
+      if (!el) return;
+
+      // A previous resort's release may not have run yet (rAF can lag well
+      // behind a fast-arriving second message). If we measured while that
+      // stale invert transform was still applied, getBoundingClientRect()
+      // would report a wildly wrong position (the row's real layout spot
+      // shifted by whatever transform is still sitting on it), and every
+      // delta computed from it would compound that error. Cancel any
+      // not-yet-fired release and snap the row back to its neutral layout
+      // position first, so this measurement is always the true post-layout
+      // top - exactly what FLIP's "Last" measurement is supposed to be.
+      const pendingFrame = pendingReleaseFramesRef.current.get(jid);
+      if (pendingFrame !== undefined) {
+        cancelAnimationFrame(pendingFrame);
+        pendingReleaseFramesRef.current.delete(jid);
+      }
+      if (el.style.transform || el.style.transition) {
+        el.style.transition = 'none';
+        el.style.transform = '';
+      }
+
+      const newTop = el.getBoundingClientRect().top;
+      nextPositions.set(jid, newTop);
+
+      if (!hasMeasuredRef.current || prefersReducedMotion) return;
+
+      const oldTop = previousPositions.get(jid);
+      if (oldTop === undefined) return;
+
+      // Discount pure scrolling: a scroll shifts every row's bounding rect
+      // by the same amount, which isn't a reorder.
+      const delta = oldTop - newTop - scrollDelta;
+      if (!delta) return;
+
+      el.style.transition = 'none';
+      el.style.transform = `translateY(${delta}px)`;
+      // Force layout so the browser commits the inverted position above
+      // before the rAF below flips it back with a transition - otherwise
+      // both style writes get batched into one paint and nothing animates.
+      el.getBoundingClientRect();
+
+      const frameId = requestAnimationFrame(() => {
+        pendingReleaseFramesRef.current.delete(jid);
+        el.style.transition =
+          'transform var(--ethora-motion-base, 220ms) var(--ethora-motion-ease, cubic-bezier(.2,.8,.2,1))';
+        el.style.transform = '';
+      });
+      pendingReleaseFramesRef.current.set(jid, frameId);
+    });
+
+    rowPositionsRef.current = nextPositions;
+    prevScrollTopRef.current = currentScrollTop;
+    hasMeasuredRef.current = true;
+  }, [filteredChats]);
 
   useEffect(() => {
     if (burgerMenu) {
@@ -418,6 +543,7 @@ const RoomList: React.FC<RoomListProps> = ({
                   </SearchContainer>
                 )}
                 <div
+                  ref={roomsListRef}
                   data-testid={RoomListTestIds.roomsList}
                   style={{
                     flexGrow: 1,
@@ -468,6 +594,7 @@ const RoomList: React.FC<RoomListProps> = ({
                         return (
                           <React.Fragment key={jid}>
                             <AnimatedRow
+                              ref={getRowElementRef(jid)}
                               $delay={delay}
                               $skipAnimation={skipAnimation}
                             >

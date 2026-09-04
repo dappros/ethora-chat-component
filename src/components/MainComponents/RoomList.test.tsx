@@ -230,6 +230,165 @@ describe('RoomList - entrance animation', () => {
   });
 });
 
+describe('RoomList - FLIP reposition on resort', () => {
+  // jsdom has no real layout engine - getBoundingClientRect() always
+  // reports zeros - so this can't assert real pixel positions or a visible
+  // slide the way a browser test could. Instead it stubs
+  // getBoundingClientRect() per row (keyed by the row's own text) to stand
+  // in for "the row moved on screen", and asserts the FLIP code path
+  // actually runs: an already-settled row that changes position gets an
+  // inverted transform applied synchronously (no transition) during the
+  // resort's layout effect, then - once the rAF callback fires - the
+  // transform is released with a transition so the browser can animate it
+  // back to rest. This guards the mechanism (measure -> invert -> play)
+  // without depending on jsdom producing real coordinates.
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const rowWrapper = (title: string) =>
+    screen.getByRole('button', { name: title }).parentElement as HTMLElement;
+
+  it('inverts then releases a transform on a row that resorts, and leaves a freshly-mounted row alone', () => {
+    const tops: Record<string, number> = { 'Room A': 64, 'Room B': 0 };
+    vi.spyOn(
+      HTMLElement.prototype,
+      'getBoundingClientRect'
+    ).mockImplementation(function (this: HTMLElement) {
+      const label = this.textContent?.includes('Room A')
+        ? 'Room A'
+        : this.textContent?.includes('Room B')
+          ? 'Room B'
+          : 'other';
+      return {
+        top: tops[label] ?? 0,
+        bottom: 0,
+        left: 0,
+        right: 0,
+        width: 0,
+        height: 0,
+        x: 0,
+        y: 0,
+        toJSON: () => {},
+      } as DOMRect;
+    });
+
+    const rafCallbacks: FrameRequestCallback[] = [];
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      rafCallbacks.push(cb);
+      return rafCallbacks.length;
+    });
+    const flushRaf = () => {
+      const pending = rafCallbacks.splice(0, rafCallbacks.length);
+      pending.forEach((cb) => cb(0));
+    };
+
+    const roomA = room({
+      jid: 'a@conference.example.com',
+      title: 'Room A',
+      messages: [{ id: '1', date: '2024-01-01T00:00:00.000Z' } as any],
+    });
+    const roomB = room({
+      jid: 'b@conference.example.com',
+      title: 'Room B',
+      messages: [{ id: '2', date: '2024-01-02T00:00:00.000Z' } as any],
+    });
+
+    // Mount: Room B is newer, so it sorts first (top:0), Room A second
+    // (top:64) - matches the `tops` stub above. The mount render only
+    // records these as the baseline; it must not apply a FLIP transform
+    // (there's nothing to FLIP from yet).
+    const { rerender } = renderWithProviders(
+      <RoomList chats={[roomB, roomA]} />
+    );
+    expect(rowWrapper('Room A').style.transform).toBe('');
+    expect(rowWrapper('Room B').style.transform).toBe('');
+
+    // Room A gets a newer message and resorts to the top, swapping places
+    // with Room B - simulate the resulting layout shift via the stub.
+    const roomANewMessage = room({
+      jid: 'a@conference.example.com',
+      title: 'Room A',
+      messages: [{ id: '3', date: '2024-01-03T00:00:00.000Z' } as any],
+    });
+    tops['Room A'] = 0;
+    tops['Room B'] = 64;
+
+    rerender(<RoomList chats={[roomANewMessage, roomB]} />);
+
+    // Both rows moved (A: 64 -> 0, B: 0 -> 64), so the layout effect should
+    // have inverted each one back to its old visual spot with no
+    // transition, ready to be released into an animated return on the next
+    // frame.
+    expect(rowWrapper('Room A').style.transition).toBe('none');
+    expect(rowWrapper('Room A').style.transform).toBe('translateY(64px)');
+    expect(rowWrapper('Room B').style.transition).toBe('none');
+    expect(rowWrapper('Room B').style.transform).toBe('translateY(-64px)');
+
+    flushRaf();
+
+    // Released: transform cleared and a transition declared so the browser
+    // animates the row back to rest instead of snapping.
+    expect(rowWrapper('Room A').style.transform).toBe('');
+    expect(rowWrapper('Room A').style.transition).toContain('transform');
+    expect(rowWrapper('Room B').style.transform).toBe('');
+    expect(rowWrapper('Room B').style.transition).toContain('transform');
+  });
+
+  it('does not FLIP a genuinely new row (no previous position to invert from)', () => {
+    const tops: Record<string, number> = { 'Room A': 0 };
+    vi.spyOn(
+      HTMLElement.prototype,
+      'getBoundingClientRect'
+    ).mockImplementation(function (this: HTMLElement) {
+      const label = this.textContent?.includes('Room A')
+        ? 'Room A'
+        : this.textContent?.includes('Room C')
+          ? 'Room C'
+          : 'other';
+      return {
+        top: tops[label] ?? 0,
+        bottom: 0,
+        left: 0,
+        right: 0,
+        width: 0,
+        height: 0,
+        x: 0,
+        y: 0,
+        toJSON: () => {},
+      } as DOMRect;
+    });
+
+    const roomA = room({
+      jid: 'a@conference.example.com',
+      title: 'Room A',
+      messages: [{ id: '1', date: '2024-01-01T00:00:00.000Z' } as any],
+    });
+
+    const { rerender } = renderWithProviders(<RoomList chats={[roomA]} />);
+
+    // A brand-new room joins the top of the list, pushing Room A down. Room
+    // C has no entry in `rowPositionsRef` from a prior render, so it must
+    // not receive a FLIP transform - it plays its entrance animation
+    // instead (covered by the entrance-animation describe block above).
+    const roomC = room({
+      jid: 'c@conference.example.com',
+      title: 'Room C',
+      messages: [{ id: '2', date: '2024-01-02T00:00:00.000Z' } as any],
+    });
+    tops['Room A'] = 64;
+    tops['Room C'] = 0;
+
+    rerender(<RoomList chats={[roomC, roomA]} />);
+
+    expect(rowWrapper('Room C').style.transform).toBe('');
+    // Room A did move (0 -> 64) and was already on screen, so it still
+    // gets FLIPped even though a new row was inserted above it.
+    expect(rowWrapper('Room A').style.transition).toBe('none');
+    expect(rowWrapper('Room A').style.transform).toBe('translateY(-64px)');
+  });
+});
+
 describe('RoomList - loading skeleton', () => {
   it('renders skeleton rows instead of an empty list while rooms are loading', () => {
     renderWithProviders(<RoomList chats={[]} />, {
