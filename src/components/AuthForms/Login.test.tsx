@@ -4,7 +4,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 
 // Mock the network surface BEFORE importing Login so the component
 // picks up our stubs at import time. axios.create() in apiClient.ts
-// reads from the redux store at module-load — we don't want a real
+// reads from the redux store at module-load - we don't want a real
 // HTTP request firing during a test.
 vi.mock('../../networking/api-requests/auth.api', () => ({
   loginEmail: vi.fn(),
@@ -14,7 +14,7 @@ vi.mock('../../networking/api-requests/auth.api', () => ({
   checkEmailExist: vi.fn().mockResolvedValue({ data: { success: false } }),
 }));
 
-// Toast provider's own showToast is fine — we just don't want
+// Toast provider's own showToast is fine - we just don't want
 // it routing toast actions through redux-saga in tests.
 import Login from './Login';
 import { renderWithProviders } from '../../test/renderWithProviders';
@@ -48,7 +48,7 @@ describe('<Login />', () => {
     // Submit via the form element rather than clicking the type=submit
     // button. fireEvent.click would route through HTML5 native form
     // validation, which rejects an `<input type="email">` with a value
-    // that has no '@' — the browser intercepts before our handleSubmit
+    // that has no '@' - the browser intercepts before our handleSubmit
     // runs. fireEvent.submit fires the synthetic submit event React
     // listens to, exercising our custom validateForm directly.
     fireEvent.submit(
@@ -60,7 +60,7 @@ describe('<Login />', () => {
         'Invalid email format'
       );
     });
-    // Submit should not have called the network — validation gates it.
+    // Submit should not have called the network - validation gates it.
     expect(loginEmailMock).not.toHaveBeenCalled();
   });
 

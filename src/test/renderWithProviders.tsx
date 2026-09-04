@@ -9,8 +9,8 @@ import roomsSlice from '../roomStore/roomsSlice';
 import roomHeapSlice from '../roomStore/roomHeapSlice';
 
 /**
- * Renders a component with the providers it expects in production —
- * Redux Provider + ToastProvider — without pulling in the real
+ * Renders a component with the providers it expects in production -
+ * Redux Provider + ToastProvider - without pulling in the real
  * persisted store, sagas, or XMPP middleware. Each test gets its own
  * store so state doesn't leak between tests.
  *
@@ -42,7 +42,7 @@ export function renderWithProviders(
       roomHeapSlice,
     },
     preloadedState,
-    // No saga / persist middleware in tests — each one is pure and
+    // No saga / persist middleware in tests - each one is pure and
     // wraps a single render. Silences the "non-serializable value"
     // warning that fires when persisted state shapes are mocked.
     middleware: (getDefault) =>

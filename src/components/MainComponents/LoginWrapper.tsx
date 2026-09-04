@@ -269,8 +269,8 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
       ) : config?.fallbackScreens?.noUser != null ? (
         // Host opted out of the built-in Ethora login screen (e.g. they drive
         // auth themselves and just logged the user out). This branch is the
-        // one that actually renders on logout — ChatWrapper never mounts when
-        // there's no user — so the noUser fallback must be honored here too.
+        // one that actually renders on logout - ChatWrapper never mounts when
+        // there's no user - so the noUser fallback must be honored here too.
         <FallbackScreen content={config.fallbackScreens.noUser} />
       ) : (
         <LoginForm {...props} />

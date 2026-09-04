@@ -1,6 +1,6 @@
 // Real MUC room JIDs always look like `<localpart>@conference.<host>`. Various
 // state-map iterations over `rooms.rooms` (history preload, presence sweeps,
-// catch-up sync) can encounter non-room entries — corrupted/legacy persisted
+// catch-up sync) can encounter non-room entries - corrupted/legacy persisted
 // state where root-slice keys (`activeRoomJID`, `usersSet`, `subscribedRooms`,
 // `pushSubscriptionStatus`, `rooms` itself) leaked into the rooms map, or a
 // bare app ID without the conference suffix. Treating those as room JIDs sends

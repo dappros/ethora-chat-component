@@ -150,7 +150,7 @@ const runHistoryPreloadSweep = async (
   const sortedQueue: QueueItem[] = Object.entries(rooms)
     // Skip non-JID entries that can leak into `rooms.rooms` from corrupted/
     // legacy persisted state (root-slice keys like `activeRoomJID`,
-    // `usersSet`) — otherwise they queue as fake "rooms", wasting concurrency
+    // `usersSet`) - otherwise they queue as fake "rooms", wasting concurrency
     // slots and network round-trips that real rooms are waiting on.
     .filter(([jid]) => isLikelyMucJid(jid))
     .map(([jid, room]: [string, IRoom]) => ({

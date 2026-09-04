@@ -81,7 +81,7 @@ describe('server call-state survives into history (user repro)', () => {
     const message = await parseServerCallState();
     let state = stateWithRoom();
 
-    // The local fallback entry written at hangup (cb89d37) — persisted across
+    // The local fallback entry written at hangup (cb89d37) - persisted across
     // refresh by redux-persist.
     const local = buildLocalCallLogMessage({
       callId: '6a329e6b45e80c7cdf067e52',

@@ -4,7 +4,7 @@ import { IRoom } from '../types/types';
 
 const room = (jid: string): IRoom => ({ jid, name: jid, messages: [] }) as IRoom;
 
-describe('updateMessagesTillLast — skips non-JID keys (live-observed bug)', () => {
+describe('updateMessagesTillLast - skips non-JID keys (live-observed bug)', () => {
   it('only fetches history for real MUC JIDs, never for leaked root-state keys', async () => {
     // Exact shape observed on a live account: real rooms mixed with root-slice
     // keys (activeRoomJID, usersSet, subscribedRooms, pushSubscriptionStatus,

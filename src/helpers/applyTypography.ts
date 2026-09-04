@@ -33,7 +33,7 @@ const FALLBACK_STACK =
  * The family the chat should actually render in. Prefer an explicit
  * `fontFamily`, but fall back to `googleFontsFamily` so that hosts which only
  * pass `googleFontsFamily` (a common shorthand) still get the font applied to
- * message text and sender names — not just loaded.
+ * message text and sender names - not just loaded.
  */
 function resolveEffectiveFamily(cfg: TypographyConfig): string | undefined {
   return cfg.fontFamily?.trim() || cfg.googleFontsFamily?.trim() || undefined;

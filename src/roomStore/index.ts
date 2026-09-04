@@ -52,7 +52,7 @@ const debugMiddleware = (storeAPI) => (next) => (action) => {
 };
 
 // Body strings the server uses for call signaling broadcasts. These
-// should never reach the transcript / sidebar preview — keep this set in
+// should never reach the transcript / sidebar preview - keep this set in
 // sync with the same constant in roomsSlice.ts.
 const CALL_SIGNAL_BODIES = new Set([
   'call-token',
@@ -71,7 +71,7 @@ const normalizeMessageList = (messages: unknown): IMessage[] =>
   Array.isArray(messages)
     ? messages.filter((message): message is IMessage => {
         if (!message || typeof message !== 'object') return false;
-        // Strip call-signal messages from rehydrated state — older
+        // Strip call-signal messages from rehydrated state - older
         // builds wrote them into the transcript before the live filter
         // existed, and they survive in encrypted persisted blobs.
         const body = String((message as any).body || '')

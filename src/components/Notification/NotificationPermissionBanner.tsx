@@ -97,7 +97,7 @@ const NotificationPermissionBanner: React.FC<
           status.onchange = sync;
         })
         .catch(() => {
-          /* Permissions API not available for notifications — focus covers it. */
+          /* Permissions API not available for notifications - focus covers it. */
         });
     }
 
@@ -113,7 +113,7 @@ const NotificationPermissionBanner: React.FC<
     try {
       await requestPermission();
     } catch {
-      /* swallow — permission state update below reflects the outcome */
+      /* swallow - permission state update below reflects the outcome */
     } finally {
       setPermission(readPermission());
       setBusy(false);
@@ -125,7 +125,7 @@ const NotificationPermissionBanner: React.FC<
     try {
       window.sessionStorage.setItem(DISMISS_KEY, '1');
     } catch {
-      /* sessionStorage unavailable (private mode) — dismiss for this mount. */
+      /* sessionStorage unavailable (private mode) - dismiss for this mount. */
     }
   }, []);
 

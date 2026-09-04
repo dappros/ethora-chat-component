@@ -142,7 +142,7 @@ export const resolveTouchedRooms = (
       // Fires once per room during initial room-list sync (see
       // useGetNewArchRoom.tsx). Touching only the added room (not every room
       // added so far) turns what used to be an O(N^2) unread recompute over
-      // the whole account into O(N) — the previous "touch all rooms" here
+      // the whole account into O(N) - the previous "touch all rooms" here
       // meant room 1 recomputed 1 room, room 2 recomputed 2, ... room N
       // recomputed N, ~N^2/2 recomputes total for an N-room account.
       const jid = action?.payload?.room?.jid;
@@ -151,7 +151,7 @@ export const resolveTouchedRooms = (
     }
     // addRoomViaApi is a createAsyncThunk: dispatching it never fires the
     // bare 'roomMessages/addRoomViaApi' type, only the /pending, /fulfilled,
-    // /rejected lifecycle actions (which don't mutate rooms.rooms at all —
+    // /rejected lifecycle actions (which don't mutate rooms.rooms at all -
     // the thunk's actual room write happens via the addRoomFromApi dispatch
     // above). Without these no-op cases they'd fall through to the generic
     // 'roomMessages/*' default below and touch every room for nothing.

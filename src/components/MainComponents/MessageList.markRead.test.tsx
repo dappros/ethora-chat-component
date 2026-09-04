@@ -5,7 +5,7 @@ import { renderWithProviders } from '../../test/renderWithProviders';
 import { setComposing } from '../../roomStore/roomsSlice';
 import MessageList from './MessageList';
 
-// MessageList reads the xmpp client via context — sidestep mounting a real
+// MessageList reads the xmpp client via context - sidestep mounting a real
 // XmppProvider (and its connection setup) by mocking just the client it
 // needs for the realtime private-store write under test.
 const actionSetTimestampToPrivateStoreStanza = vi.fn();
@@ -24,7 +24,7 @@ const PEER = 'peer_5678@example.com';
 // setPrivateStore sync (added to keep the server's read-marker current
 // while a room stays open) also re-dispatched setLastViewedTimestamp into
 // Redux. That advanced the room's local lastViewedTimestamp mid-visit,
-// which normalizeDelimiterPosition uses as the delimiter cutoff — moving it
+// which normalizeDelimiterPosition uses as the delimiter cutoff - moving it
 // to "just now" (after all the genuinely-old unread messages) erased the
 // delimiter. The fix: the debounced flush must talk to the server ONLY: it
 // must never touch local room state, which stays owned by ChatRoom's
@@ -33,7 +33,7 @@ describe('MessageList real-time mark-read', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     actionSetTimestampToPrivateStoreStanza.mockClear();
-    // jsdom doesn't implement scrollTo — MessageList calls it unconditionally
+    // jsdom doesn't implement scrollTo - MessageList calls it unconditionally
     // when following the conversation to the bottom.
     window.HTMLElement.prototype.scrollTo = vi.fn();
   });
@@ -103,7 +103,7 @@ describe('MessageList real-time mark-read', () => {
     );
 
     // A composing-indicator update while the room is open (deliberately NOT
-    // an addRoomMessage/setRoomMessages dispatch — those already collapse
+    // an addRoomMessage/setRoomMessages dispatch - those already collapse
     // the delimiter for the active room by design, via a lastViewed-cutoff
     // of 0, which would confound this test). This is just the "user is
     // actively here" signal the auto-follow effect reacts to.
@@ -116,7 +116,7 @@ describe('MessageList real-time mark-read', () => {
     await act(async () => {
       // waitForImagesLoaded()'s promise chain (which sets up the debounce
       // timer via scrollToBottom -> scheduleMarkRead) runs on the
-      // microtask queue, independent of the faked macrotask clock —
+      // microtask queue, independent of the faked macrotask clock -
       // runAllTimersAsync interleaves both so the timer actually gets
       // scheduled before it's advanced.
       await vi.runAllTimersAsync();
@@ -128,10 +128,10 @@ describe('MessageList real-time mark-read', () => {
     );
 
     const room = storeRef.current.getState().rooms.rooms[ROOM_JID];
-    // Local read-state must be untouched by the realtime flush — only
+    // Local read-state must be untouched by the realtime flush - only
     // ChatRoom's enter/leave effects are allowed to move it.
     expect(room.lastViewedTimestamp).toBe(enteredAt);
-    // The delimiter must still be exactly where it was — not erased, not
+    // The delimiter must still be exactly where it was - not erased, not
     // shifted past the old unread message.
     expect(room.messages.find((m: any) => m.id === 'delimiter-new')).toBeTruthy();
   });

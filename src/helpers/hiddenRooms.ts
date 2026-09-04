@@ -9,7 +9,7 @@ const normalizeTitle = (value: unknown): string =>
 
 /**
  * True when the room is listed in `config.hiddenRooms` (by JID or by
- * case-insensitive title). Hidden rooms stay joined — they are only
+ * case-insensitive title). Hidden rooms stay joined - they are only
  * suppressed from the room list and the unread counters.
  */
 export const isRoomHidden = (

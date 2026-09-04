@@ -317,7 +317,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
       );
 
       // The server drops `kind` on the relayed call-token, so signal the peer
-      // directly first (fast chat message) — mirrors ChatHeader.placeCall.
+      // directly first (fast chat message) - mirrors ChatHeader.placeCall.
       if (room.peerXmppUsername) {
         sendCallInviteSignal(kind, {
           peerXmppUsername: room.peerXmppUsername,
