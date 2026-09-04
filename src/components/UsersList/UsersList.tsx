@@ -5,12 +5,14 @@ import React, {
   useMemo,
   useEffect,
 } from 'react';
-import { ModalTitle, LabelData } from '../Modals/styledModalComponents';
+import { ModalTitle, ModalSectionLabel } from '../Modals/styledModalComponents';
 import {
   ScrollableContainer,
   UserItem,
+  UserItemInfo,
   Checkbox,
   Label,
+  EmptyState,
 } from './StyledComponents';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
@@ -20,6 +22,7 @@ import { StyledInput } from '../styled/StyledInputComponents/StyledInputComponen
 import { useUsersSet } from '../../hooks/useRoomState';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { useT } from '../../i18n/useT';
+import { ProfileImagePlaceholder } from '../MainComponents/ProfileImagePlaceholder';
 
 interface UsersListProps {
   selectedUsers: RoomMember[];
@@ -45,6 +48,11 @@ const UsersList: React.FC<UsersListProps> = ({
   const handleUserSelect = (user: RoomMember) => {
     setSelectedUsers((prev) => {
       const isSelected = prev.some((u) => u._id === user._id);
+      // Enforce the "max 20" cap shown in the copy below: without this
+      // guard the row's disabled checkbox was purely cosmetic - the click
+      // handler lives on the whole row, not the (disabled) checkbox, so a
+      // click still added a 21st+ user before this fix.
+      if (!isSelected && prev.length >= 20) return prev;
       return isSelected
         ? prev.filter((u) => u._id !== user._id)
         : [...prev, user];
@@ -72,20 +80,21 @@ const UsersList: React.FC<UsersListProps> = ({
     setFilteredUsers(Object.values(usersSet) as RoomMember[]);
   }, [usersSet]);
 
+  // `style` (maxHeight, width, ...) is meant for the scrollable rows list
+  // below - applying it here too (as this wrapper used to) let its maxHeight
+  // and no-overflow combination clip this whole block shorter than its real
+  // content (label + search + list), so the list's last rows visually spilled
+  // out past this box and collided with whatever the caller renders next
+  // (e.g. NewChatModal's "Back to creation" button). Only pass through the
+  // width so the wrapper still matches the caller's intended footprint.
+  const { width, minWidth } = (style || {}) as React.CSSProperties;
+
   return (
-    <div style={{ maxHeight: '100px', ...style }}>
+    <div style={{ width, minWidth }}>
       {headerElement ? (
         <ModalTitle>{t('modal.selectUsers.title')}</ModalTitle>
       ) : (
-        <div
-          style={{
-            fontSize: 'var(--ethora-font-size-sm, 14px)',
-            fontWeight: 600,
-            color: 'var(--ethora-color-text, #141414)',
-          }}
-        >
-          {t('modal.selectUsers.title')}
-        </div>
+        <ModalSectionLabel>{t('modal.selectUsers.title')}</ModalSectionLabel>
       )}
 
       <StyledInput
@@ -94,27 +103,51 @@ const UsersList: React.FC<UsersListProps> = ({
         placeholder={t('modal.selectUsers.searchPlaceholder')}
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
-        style={{ width: '100%' }}
+        style={{ width: '100%', marginTop: 8 }}
       />
 
       <ScrollableContainer style={{ ...style }}>
-        {filteredUsers.map((user) => (
-          <UserItem
-            key={user._id}
-            onClick={() => handleUserSelect(user)}
-          >
-            <Checkbox
-              type="checkbox"
-              checked={selectedUsers.some((u) => u._id === user._id)}
-              readOnly
-              disabled={selectedUsers.length === 20}
-            />
-            <div>
-              <Label>{`${user.firstName} ${user.lastName}`}</Label>
-              {/* <LabelData>{user.xmppUsername}</LabelData> */}
-            </div>
-          </UserItem>
-        ))}
+        {filteredUsers.length === 0 ? (
+          <EmptyState>{t('modal.selectUsers.empty')}</EmptyState>
+        ) : (
+          filteredUsers.map((user) => {
+            const isSelected = selectedUsers.some((u) => u._id === user._id);
+            const fullName = `${user.firstName} ${user.lastName}`.trim();
+            return (
+              <UserItem
+                key={user._id}
+                onClick={() => handleUserSelect(user)}
+                $selected={isSelected}
+                role="option"
+                aria-selected={isSelected}
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleUserSelect(user);
+                  }
+                }}
+              >
+                <ProfileImagePlaceholder
+                  name={fullName}
+                  icon={(user as any).profileImage || (user as any).photoURL}
+                  size={36}
+                />
+                <UserItemInfo>
+                  <Label>{fullName || user.xmppUsername}</Label>
+                </UserItemInfo>
+                <Checkbox
+                  type="checkbox"
+                  checked={isSelected}
+                  readOnly
+                  tabIndex={-1}
+                  aria-label={fullName || user.xmppUsername}
+                  disabled={!isSelected && selectedUsers.length >= 20}
+                />
+              </UserItem>
+            );
+          })
+        )}
       </ScrollableContainer>
     </div>
   );
