@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 // unreadMidlleware.tsx imports isSameXmppUsername, which reads the live
 // `store` (for appId-prefix normalization) and so transitively imports
-// roomStore/index.ts — which itself imports unreadMiddleware FROM this same
+// roomStore/index.ts - which itself imports unreadMiddleware FROM this same
 // module. That circular pair resolves fine when the app boots normally or
 // when another test reaches it via a different entry point, but importing
 // unreadMidlleware.tsx as this test's own entry point hits the cycle in
@@ -20,7 +20,7 @@ const { resolveTouchedRooms } = await import('./unreadMidlleware');
 
 const room = (jid: string) => ({ jid, name: jid });
 
-describe('resolveTouchedRooms — room bootstrap (O(N) not O(N^2))', () => {
+describe('resolveTouchedRooms - room bootstrap (O(N) not O(N^2))', () => {
   it('addRoomFromApi touches only the newly added room, not every room added so far', () => {
     // Simulate the exact bootstrap loop in useGetNewArchRoom.tsx: one
     // addRoomFromApi dispatch per room, added one at a time.
@@ -40,7 +40,7 @@ describe('resolveTouchedRooms — room bootstrap (O(N) not O(N^2))', () => {
 
       const touched = resolveTouchedRooms(action, prevState, nextState);
       // The regression this guards against: touching ALL rooms added so far
-      // (1, then 2, then 3, then 4 — O(N^2) total) instead of just the one
+      // (1, then 2, then 3, then 4 - O(N^2) total) instead of just the one
       // room this action actually added.
       expect(touched.size).toBe(1);
       expect(touched.has(jid)).toBe(true);

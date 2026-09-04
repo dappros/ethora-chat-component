@@ -47,7 +47,7 @@ const visuallyHidden: React.CSSProperties = {
   border: 0,
 };
 
-// Floating panel shown when the call is minimized — non-blocking so the user
+// Floating panel shown when the call is minimized - non-blocking so the user
 // can keep chatting. Dark rounded bar, draggable, bottom-right by default.
 const floatingPanelBase: React.CSSProperties = {
   position: 'fixed',
@@ -186,7 +186,7 @@ const ringingCardStyle: React.CSSProperties = {
 };
 
 // 56px circle (between the chat's default 40px square Button and the
-// classic phone-call 64px circle) — feels native without breaking the
+// classic phone-call 64px circle) - feels native without breaking the
 // chat's restrained scale.
 const circleActionStyle = (background: string): React.CSSProperties => ({
   width: 56,
@@ -232,7 +232,7 @@ const RingingCard: React.FC<RingingCardProps> = ({
   onHangup,
   onDismiss,
 }) => {
-  // Sub-bar above the avatar — matches the chat's small grey LabelData
+  // Sub-bar above the avatar - matches the chat's small grey LabelData
   // type used on profile / chat-info screens.
   return (
     <div style={ringingCardStyle}>
@@ -426,7 +426,7 @@ export const VideoCallOverlay: React.FC = () => {
       return;
     }
     const timer = window.setTimeout(() => {
-      dispatch(setCallError('No answer — call timed out'));
+      dispatch(setCallError('No answer - call timed out'));
     }, OUTGOING_CALL_TIMEOUT_MS);
     return () => window.clearTimeout(timer);
   }, [call.phase, call.direction, call.startedAt, dispatch]);
@@ -582,7 +582,7 @@ export const VideoCallOverlay: React.FC = () => {
     if (call.phase === 'idle') setMinimized(false);
   }, [call.phase]);
 
-  // Esc = hang up (full modal only — a minimized panel shouldn't swallow Esc).
+  // Esc = hang up (full modal only - a minimized panel shouldn't swallow Esc).
   useEffect(() => {
     if (!isOpen || isMinimized) return;
     const onKey = (e: KeyboardEvent) => {

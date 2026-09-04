@@ -183,7 +183,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     // produce rooms: provider bootstrap is in flight, WS is connecting, or
     // we're between mount and the first dispatch flush. Without this the
     // user sees "No room. Let's create one!" the instant they navigate to
-    // chat, then rooms pop in a frame later — looks like a stuck/broken UI.
+    // chat, then rooms pop in a frame later - looks like a stuck/broken UI.
     const providerStillBootstrapping =
       initMode === 'provider' &&
       providerBootstrapStatus !== 'ready' &&

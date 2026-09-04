@@ -443,7 +443,7 @@ const onPresenceInRoom = (stanza: Element | any) => {
     typeof mucUserX?.getChild === 'function' ? mucUserX.getChild('item') : null;
 
   if (isOwn) {
-    // Server-echoed presence for our own join — keep the prior behavior of
+    // Server-echoed presence for our own join - keep the prior behavior of
     // recording our role in the room. Gate on the id we send out from the
     // wrapper so we don't conflate broadcast frames the server happened to
     // forward with the same id prefix.
@@ -464,7 +464,7 @@ const onPresenceInRoom = (stanza: Element | any) => {
   // (in addition to the <message><x muc#user> path covered by
   // onRoomMembershipChange, which not every server sends on REST-driven
   // additions). Reflecting the change in members[] here is what makes the
-  // ChatHeader count update LIVE for all currently-connected occupants —
+  // ChatHeader count update LIVE for all currently-connected occupants -
   // not just for the inviter, who already got the count from their own
   // explicit /chats/my refetch + redux dispatch.
   if (!item) return;
@@ -481,7 +481,7 @@ const onPresenceInRoom = (stanza: Element | any) => {
 
   if (!isKickedOut && !isPersistentMember) {
     // affiliation=none on a join (transient guest), unrelated role-only
-    // change, etc. — nothing to write to members[].
+    // change, etc. - nothing to write to members[].
     return;
   }
 
@@ -792,7 +792,7 @@ const onRoomMembershipChange = (stanza: Element) => {
 // via REST /chats/users-access) and is asking everyone else in the room
 // to pull the authoritative state. We refetch /chats/my/<name>, build
 // an IRoom from it, and push it through addRoomViaApi → addRoomFromApi
-// — the same path /chats/my load uses — so members[] gains the new
+// - the same path /chats/my load uses - so members[] gains the new
 // user with full firstName/lastName/_id and usersCnt is recomputed
 // from members.length (see addRoomFromApi reducer fix).
 //
@@ -817,7 +817,7 @@ const onMembersRefreshSignal = (stanza: Element, xmpp: XmppClient) => {
   const roomName = roomJid.slice(0, atIdx);
   const conference = roomJid.slice(atIdx + 1);
 
-  // /chats/my has a 60s in-memory cache — drop it so anything later in
+  // /chats/my has a 60s in-memory cache - drop it so anything later in
   // the package that calls getRooms() also sees the post-mutation state.
   invalidateRoomsCache();
 
@@ -830,7 +830,7 @@ const onMembersRefreshSignal = (stanza: Element, xmpp: XmppClient) => {
     })
     .catch(() => {
       // Refetch can legitimately fail (the receiver may not be a
-      // member of the room anymore, network blip, etc.). Swallow —
+      // member of the room anymore, network blip, etc.). Swallow -
       // count just won't update for this client until the next sync.
     });
 };
@@ -990,7 +990,7 @@ const onUserUpdate = async (stanza: Element) => {
     if (matchedUsers.length > 0) {
       store.dispatch(insertUsers({ newUsers: matchedUsers }));
     } else {
-      // User not yet in the set — create a minimal entry so future renders pick up the name.
+      // User not yet in the set - create a minimal entry so future renders pick up the name.
       const newUser: RoomMember = {
         firstName: attrs.firstName || '',
         lastName: attrs.lastName || '',
@@ -1095,7 +1095,7 @@ const onChatUpdate = async (stanza: Element) => {
     const roomUpdates: Partial<IRoom> = {};
 
     // Reject server "deleted" / "unknown" / empty title pushes for private
-    // chats — those overwrite the peer-name we derived in createRoomFromApi
+    // chats - those overwrite the peer-name we derived in createRoomFromApi
     // and make the sidebar read "deleted". Other room types still accept
     // any non-empty title.
     if (attrs.title !== undefined) {

@@ -248,14 +248,14 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
         }
 
         // We only reach this point because the earlier
-        // getReusableXmppClientByKey(clientKey) guard returned null —
+        // getReusableXmppClientByKey(clientKey) guard returned null -
         // i.e. either there is no global client, or the one in the
         // registry is bound to a DIFFERENT clientKey (different identity
         // or host). In both "different key but still online" and
         // "same instance held in React state" cases the previous
         // condition (`staleGlobalClient !== client && !isXmppClientReusable`)
         // silently skipped the disconnect and we ended up with two
-        // XmppClient instances racing the same JID resource — the XMPP
+        // XmppClient instances racing the same JID resource - the XMPP
         // server responded with `<stream:error><conflict/>Replaced by
         // new connection`, both sides re-scheduled their reconnect, and
         // the WS loop never settled (each successful `online` event
@@ -396,7 +396,7 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
       // Stamp the cache scope marker BEFORE we start writing rooms into
       // redux-persist. Without this, the first <ChatWrapper> mount after
       // login sees `previousScope === null` + freshly-persisted rooms in
-      // localStorage and treats them as legacy/foreign data — wiping all the
+      // localStorage and treats them as legacy/foreign data - wiping all the
       // rooms the bootstrap just loaded. Legacy data for a different scope
       // is still cleared inside ensureScopedChatCache.
       try {
@@ -455,7 +455,7 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
 
       void runHistoryPreloadScheduler({
         client: targetClient,
-        // intentionally no signal — see comment above
+        // intentionally no signal - see comment above
         concurrency: 3,
         pageSize: 10,
         retryLimit: 2,

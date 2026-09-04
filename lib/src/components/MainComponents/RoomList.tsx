@@ -150,6 +150,18 @@ const RoomList: React.FC<RoomListProps> = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Rows animate in once, ever, per jid - not once per position. Sorting by
+  // activity means a single incoming message can shift every other row's
+  // index, and styled-components regenerates the AnimatedRow class whenever
+  // its computed $delay changes, which restarts the CSS animation on any
+  // element whose class swaps - even ones whose content didn't change. So
+  // the stagger delay is assigned once, the first time a jid is ever seen
+  // (using an incrementing "first-seen" counter, not the current sort
+  // index), and recorded here; every later render for that jid renders with
+  // $skipAnimation regardless of where it now sits in the sorted list or
+  // whether a search filter temporarily hid it.
+  const animatedJidsRef = useRef<Map<string, number>>(new Map());
+
   useEffect(() => {
     const invalidRoomJids = (chats || [])
       .filter((chat) => !isValidRoomRecord(chat))
@@ -424,19 +436,52 @@ const RoomList: React.FC<RoomListProps> = ({
                           </SkeletonLines>
                         </SkeletonRow>
                       ))
-                    : filteredChats.map((chat: IRoom, index: number) => (
-                        <React.Fragment key={chat.jid || `${chat.id}-${index}`}>
-                          <AnimatedRow $delay={index * 24}>
-                            <ChatRoomItem
-                              chat={chat}
-                              isChatActive={isChatActive(chat)}
-                              performClick={performClick}
-                              config={config}
-                            />
-                          </AnimatedRow>
-                          {index < filteredChats.length - 1 && <Divider />}
-                        </React.Fragment>
-                      ))}
+                    : filteredChats.map((chat: IRoom, index: number) => {
+                        const isLast = index === filteredChats.length - 1;
+                        // The active row has its own rounded, tinted
+                        // highlight box; a straight hairline divider flush
+                        // against its top/bottom edge cut across the
+                        // rounded corners and looked like it was leaking out
+                        // of the row. Skip the divider on either side of the
+                        // active row - the highlight itself already
+                        // separates it from its neighbors.
+                        const adjacentToActiveRow =
+                          isChatActive(chat) ||
+                          (!isLast && isChatActive(filteredChats[index + 1]));
+
+                        const jid = chat.jid || `${chat.id}-${index}`;
+                        const animatedJids = animatedJidsRef.current;
+                        let skipAnimation = true;
+                        let delay = 0;
+                        if (animatedJids.has(jid)) {
+                          delay = animatedJids.get(jid) as number;
+                        } else {
+                          // First time this jid has ever been rendered:
+                          // assign it the next stagger slot and remember it
+                          // so future renders (resorts, filter changes)
+                          // never animate it again.
+                          delay = animatedJids.size * 24;
+                          animatedJids.set(jid, delay);
+                          skipAnimation = false;
+                        }
+
+                        return (
+                          <React.Fragment key={jid}>
+                            <AnimatedRow
+                              $delay={delay}
+                              $skipAnimation={skipAnimation}
+                            >
+                              <ChatRoomItem
+                                chat={chat}
+                                isChatActive={isChatActive(chat)}
+                                performClick={performClick}
+                                config={config}
+                              />
+                            </AnimatedRow>
+                            {!isLast && !adjacentToActiveRow && <Divider />}
+                          </React.Fragment>
+                        );
+                      })}
                 </div>
               </TabContent>
             )}

@@ -29,7 +29,7 @@ export function isChatIdPresentInArray(
     //     display TITLE (the API's `name` was clobbered), and the actual
     //     local-part lives in `jid` ("local@conference.host").
     // Old logic only checked `chatObject.name === localPart`, which never
-    // matches when an IRoom is passed in — the "Connecting…" stuck via
+    // matches when an IRoom is passed in - the "Connecting…" stuck via
     // enableRoomsRetry (75s retry loop) was that mismatch firing every time.
     const candidateJid =
       typeof (chatObject as IRoom).jid === 'string'

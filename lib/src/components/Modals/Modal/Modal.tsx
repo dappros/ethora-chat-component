@@ -29,6 +29,15 @@ const Modal: React.FC<ModalProps> = ({ children, modal, setOpenModal }) => {
     modal === MODAL_TYPES.PROFILE_SHARES ||
     modal === MODAL_TYPES.BLOCKED_USERS;
   const containerRef = useRef<HTMLDivElement>(null);
+  // Bumped once per run of the focus effect below; a MutationObserver
+  // callback (or a resolved focusFirst() call) only actually applies focus
+  // if this still matches the token it captured when it started. Needed
+  // because React 18 can keep the PREVIOUS modal's Suspense content mounted
+  // (just hidden) while the next lazy chunk is still loading, so a callback
+  // queued for the outgoing modal can still fire after the effect for the
+  // incoming modal has already started - without this guard it could grab
+  // the outgoing modal's stale content instead of the new one's.
+  const focusTokenRef = useRef(0);
 
   useModalDismiss({
     enabled: Boolean(modal),
@@ -49,13 +58,57 @@ const Modal: React.FC<ModalProps> = ({ children, modal, setOpenModal }) => {
     const container = containerRef.current;
     if (!container) return;
 
+    // Claim this run's token before doing anything else, so any callback
+    // that captures `myToken` can tell later whether it's still the most
+    // recent request or has been superseded by a subsequent modal change.
+    focusTokenRef.current += 1;
+    const myToken = focusTokenRef.current;
+
+    // An element found via querySelector can still belong to a Suspense
+    // subtree React is keeping mounted-but-hidden (the outgoing modal,
+    // while the incoming one's lazy chunk is still loading) rather than to
+    // content that's actually on screen. React's Offscreen mechanism hides
+    // such a subtree by setting `display: none` on its root, so walking up
+    // to `container` looking for that (or `visibility: hidden`, or the
+    // `hidden` attribute) catches it without depending on layout having
+    // run yet - unlike offsetParent/getClientRects, which report "not
+    // visible" for every element before layout, hidden or not.
+    const isVisible = (el: HTMLElement) => {
+      if (!el.isConnected) return false;
+      let node: HTMLElement | null = el;
+      while (node) {
+        if (node.hidden) return false;
+        const style = getComputedStyle(node);
+        if (style.display === 'none' || style.visibility === 'hidden') {
+          return false;
+        }
+        if (node === container) break;
+        node = node.parentElement;
+      }
+      return true;
+    };
+
     let done = false;
     const focusFirst = () => {
       if (done) return true;
-      const first = container.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+      // A newer effect run has already claimed the token - stop looking,
+      // there's nothing left for this run to do.
+      if (focusTokenRef.current !== myToken) return true;
+      const candidates = container.querySelectorAll<HTMLElement>(
+        FOCUSABLE_SELECTOR
+      );
+      const first = Array.from(candidates).find(isVisible);
       if (!first) return false;
       done = true;
-      first.focus();
+      // Re-check right before focusing rather than trusting the check
+      // above: this callback can run a tick after it was scheduled (a
+      // MutationObserver callback is a queued microtask), during which a
+      // later effect run may have claimed the token, or the element found
+      // a moment ago may have gone hidden/been removed as React finishes
+      // settling the new content in.
+      if (focusTokenRef.current === myToken && isVisible(first)) {
+        first.focus();
+      }
       return true;
     };
 

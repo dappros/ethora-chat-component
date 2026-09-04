@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useModalDismiss } from '../../../hooks/useModalDismiss';
 import Button from '../../styled/Button';
 import { useSelector } from 'react-redux';
@@ -38,7 +38,15 @@ const AddMembersModal: React.FC = () => {
 
   const handleOpenModal = () => setIsModalOpen(true);
   const handleCloseModal = () => setIsModalOpen(false);
-  useModalDismiss({ enabled: isModalOpen, onClose: handleCloseModal });
+  // Anchors initial focus inside the dialog on open (and restores it to the
+  // trigger on close). Rendered synchronously, so the container is already in
+  // the DOM by the time useModalDismiss's mount effect runs.
+  const containerRef = useRef<HTMLDivElement>(null);
+  useModalDismiss({
+    enabled: isModalOpen,
+    onClose: handleCloseModal,
+    containerRef,
+  });
 
   const validateRoomName = (name: string) => {
     if (name.trim().length < 3) {
@@ -95,7 +103,7 @@ const AddMembersModal: React.FC = () => {
 
       {isModalOpen && (
         <ModalBackground>
-          <ModalContainer>
+          <ModalContainer ref={containerRef}>
             <CloseButton
               onClick={handleCloseModal}
               style={{ fontSize: 24 }}

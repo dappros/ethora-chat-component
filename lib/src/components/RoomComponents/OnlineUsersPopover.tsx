@@ -11,7 +11,6 @@ interface OnlineUsersPopoverProps {
   onlineUsernames: string[];
   members?: RoomMember[];
   myXmppUsername: string;
-  isChatActive?: boolean;
 }
 
 const resolveDisplayName = (
@@ -26,7 +25,6 @@ const OnlineUsersPopover: React.FC<OnlineUsersPopoverProps> = ({
   onlineUsernames,
   members,
   myXmppUsername,
-  isChatActive,
 }) => {
   const t = useT();
   const [isOpen, setIsOpen] = useState(false);
@@ -73,9 +71,19 @@ const OnlineUsersPopover: React.FC<OnlineUsersPopoverProps> = ({
   return (
     <Container ref={containerRef}>
       <Trigger
-        active={!!isChatActive}
         onClick={(e) => {
           e.stopPropagation();
+          // This span isn't itself focusable, so clicking it re-targets
+          // browser focus to the row (its nearest focusable ancestor - see
+          // ChatRoomItem's `role="button" tabIndex={0}`). If the row was
+          // already keyboard-focused (Tab into it, then a mouse click here
+          // without tabbing away first), no focus actually *changes*, so
+          // the browser never clears :focus-visible on it - the row's blue
+          // outline stays drawn while this dropdown opens right on top of
+          // it, reading as one broken, "bled" shape instead of two separate
+          // elements. Blur explicitly so the ring clears the moment the
+          // popover - not the row - owns the interaction.
+          (document.activeElement as HTMLElement | null)?.blur();
           setIsOpen((prev) => !prev);
         }}
       >
@@ -108,12 +116,14 @@ const Container = styled.div`
   flex-shrink: 0;
 `;
 
-const Trigger = styled.span.withConfig({
-  shouldForwardProp: (prop) => prop !== 'active',
-})<{ active: boolean }>`
+const Trigger = styled.span`
   font-size: var(--ethora-font-size-xs, 12px);
   font-weight: 400;
-  color: ${({ active }) => (active ? 'rgba(255, 255, 255, 0.85)' : '#22c55e')};
+  /* Always the online-green token, regardless of the row's active state:
+     the active row is a light primary-soft tint (not a solid dark fill),
+     so a color that only worked against a dark background (previously
+     near-white) read as invisible/washed-out text on it. */
+  color: var(--ethora-color-online, #12b76a);
   cursor: pointer;
   white-space: nowrap;
 
@@ -131,12 +141,11 @@ const Popover = styled.div`
   max-width: 260px;
   max-height: 280px;
   overflow-y: auto;
-  background-color: #fff;
-  border-radius: 12px;
+  background-color: var(--ethora-color-bg, #fff);
+  border: 1px solid var(--ethora-color-border, #e6e8ec);
+  border-radius: var(--ethora-radius-md, 12px);
   padding: 8px;
-  box-shadow:
-    0px 0px 6px -2px #12121908,
-    0px 0px 16px -4px #12121914;
+  box-shadow: var(--ethora-shadow-md, 0 4px 12px rgba(16, 24, 40, 0.1));
   animation: ${fadeIn} 0.15s ease-out;
   cursor: default;
 `;
@@ -146,10 +155,10 @@ const Row = styled.div`
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  border-radius: 8px;
+  border-radius: var(--ethora-radius-sm, 8px);
 
   &:hover {
-    background-color: #f5f5f5;
+    background-color: var(--ethora-color-bg-hover, #f5f5f5);
   }
 `;
 
@@ -158,12 +167,12 @@ const Dot = styled.span`
   height: 8px;
   min-width: 8px;
   border-radius: 50%;
-  background-color: #22c55e;
+  background-color: var(--ethora-color-online, #12b76a);
 `;
 
 const Name = styled.span`
   font-size: 14px;
-  color: #141414;
+  color: var(--ethora-color-text, #141414);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -6,7 +6,7 @@
  * Kotlin objects (in `chat-ui/src/main/.../components/*Kt`) and iOS's
  * `*AccessibilityID` Swift enums (in `XMPPChatUI/AccessibilityIdentifiers.swift`),
  * so a single Maestro YAML flow exercises the same intent on either
- * mobile platform — and Playwright tests in host apps using this
+ * mobile platform - and Playwright tests in host apps using this
  * component (e.g. `ethora-app-reactjs`) can resolve the same nodes
  * via `data-testid`.
  *

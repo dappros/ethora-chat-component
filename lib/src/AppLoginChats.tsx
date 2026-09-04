@@ -128,23 +128,23 @@ const DescriptionTabContent: React.FC<{ roomJid: string }> = ({ roomJid }) => {
       <h3 style={{ margin: '0 0 12px' }}>Description</h3>
       <div style={{ display: 'grid', gap: 6 }}>
         <div>
-          <strong>Title:</strong> {room?.title || room?.name || '—'}
+          <strong>Title:</strong> {room?.title || room?.name || '-'}
         </div>
         <div style={{ wordBreak: 'break-all' }}>
           <strong>JID:</strong> {roomJid}
         </div>
         <div>
           <strong>Members in store:</strong>{' '}
-          {Array.isArray(room?.members) ? room.members.length : '—'}
+          {Array.isArray(room?.members) ? room.members.length : '-'}
         </div>
         <div>
-          <strong>usersCnt:</strong> {room?.usersCnt ?? '—'}
+          <strong>usersCnt:</strong> {room?.usersCnt ?? '-'}
         </div>
         <div>
-          <strong>Type:</strong> {room?.type || '—'}
+          <strong>Type:</strong> {room?.type || '-'}
         </div>
         <div>
-          <strong>Created:</strong> {room?.createdAt || '—'}
+          <strong>Created:</strong> {room?.createdAt || '-'}
         </div>
       </div>
     </div>

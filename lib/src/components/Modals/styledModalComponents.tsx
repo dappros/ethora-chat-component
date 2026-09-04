@@ -73,10 +73,19 @@ export const ModalTitle = styled.h2`
   margin: 0;
   font-weight: 400;
   color: var(--ethora-color-text, #141414);
+  text-align: center;
 
   @media (max-width: 480px) {
     font-size: 1.2em;
   }
+`;
+
+/** Small uppercase-weight label above a field/list inside a modal - e.g. "Select Users (max 20)". */
+export const ModalSectionLabel = styled.div`
+  width: 100%;
+  font-size: var(--ethora-font-size-sm, 14px);
+  font-weight: var(--ethora-font-weight-semibold, 600);
+  color: var(--ethora-color-text, #141414);
 `;
 
 /** 48px-min-height row used for members/blocked-users/etc. lists inside modals. */

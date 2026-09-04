@@ -279,7 +279,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     client.leaveTheRoomStanza(activeRoomJID);
     dispatch(deleteRoom({ jid: activeRoomJID }));
 
-    // After leaving, don't auto-jump into another (often empty) room — that
+    // After leaving, don't auto-jump into another (often empty) room - that
     // showed a jarring "This chat is empty". Clear the selection so the pane
     // renders the neutral "choose a chat" screen instead.
     if (typeof window !== 'undefined') {
@@ -304,7 +304,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       if (!chatName) return;
 
       // Resolve the peer xmpp localpart so we can XMPP-signal them when
-      // we hang up / cancel — without this they'd keep ringing forever.
+      // we hang up / cancel - without this they'd keep ringing forever.
       const selfLocal = String(stateUser?.xmppUsername || '').split('@')[0];
       const peer = (currentRoom.members || []).find((member) => {
         const mLocal = String(member?.xmppUsername || '').split('@')[0];

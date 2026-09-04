@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useModalDismiss } from '../../../hooks/useModalDismiss';
 import Button from '../../styled/Button';
 import { AddNewIcon } from '../../../assets/icons';
@@ -55,7 +55,13 @@ const NewChatModal: React.FC = () => {
     setRoomName('');
     setSelectedUsers([]);
   };
-  useModalDismiss({ enabled: isModalOpen, onClose: handleCloseModal });
+  // Rendered synchronously (no lazy/Suspense boundary here, unlike
+  // Modal.tsx), so ModalContent's ModalContainer already exists in the DOM
+  // by the time useModalDismiss's mount effect runs - no MutationObserver
+  // needed. ModalContent doesn't take a ref prop, so anchor on a
+  // display:contents wrapper around it instead (same trick Modal.tsx uses).
+  const containerRef = useRef<HTMLDivElement>(null);
+  useModalDismiss({ enabled: isModalOpen, onClose: handleCloseModal, containerRef });
 
   const validateRoomName = (name: string) => {
     if (name.trim().length < 3) {
@@ -135,25 +141,27 @@ const NewChatModal: React.FC = () => {
       />
       {isModalOpen && (
         <ModalBackground>
-          <ModalContent
-            activeTab={activeTab}
-            roomName={roomName}
-            roomDescription={roomDescription}
-            chatType={chatType}
-            profileImage={profileImage}
-            setActiveTab={setActiveTab}
-            handleRoomNameChange={handleRoomNameChange}
-            setRoomDescription={setRoomDescription}
-            setChatType={setChatType}
-            setProfileImage={setProfileImage}
-            selectedUsers={selectedUsers}
-            setSelectedUsers={setSelectedUsers}
-            handleCreateRoom={handleCreateRoom}
-            handleCloseModal={handleCloseModal}
-            errors={errors}
-            setErrors={setErrors}
-            options={options}
-          />
+          <div ref={containerRef} style={{ display: 'contents' }}>
+            <ModalContent
+              activeTab={activeTab}
+              roomName={roomName}
+              roomDescription={roomDescription}
+              chatType={chatType}
+              profileImage={profileImage}
+              setActiveTab={setActiveTab}
+              handleRoomNameChange={handleRoomNameChange}
+              setRoomDescription={setRoomDescription}
+              setChatType={setChatType}
+              setProfileImage={setProfileImage}
+              selectedUsers={selectedUsers}
+              setSelectedUsers={setSelectedUsers}
+              handleCreateRoom={handleCreateRoom}
+              handleCloseModal={handleCloseModal}
+              errors={errors}
+              setErrors={setErrors}
+              options={options}
+            />
+          </div>
         </ModalBackground>
       )}
     </>

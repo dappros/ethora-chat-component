@@ -1977,10 +1977,23 @@ export class XmppClient implements XmppClientInterface {
 
     const existing = this.roomPresenceInFlight.get(roomJID);
     if (existing) {
-      if (waitForJoin) {
-        return existing;
-      }
-      return true;
+      if (!waitForJoin) return true;
+      // Piggyback on someone else's in-flight join, but never wait past OUR
+      // OWN declared budget. That join may have been started with a much
+      // longer timeout than this caller wants (the startup presence sweep
+      // uses 5000ms, background history preload uses 2000ms, while a send
+      // only wants to wait 900ms) - blindly awaiting `existing` here means
+      // a send arriving while one of those longer background joins is
+      // in-flight would inherit ITS timeout instead of its own, so the
+      // optimistic-send fallback below never gets a chance to kick in on
+      // schedule. Race against our own timeoutMs instead; the original join
+      // keeps running in the background regardless of which caller races it.
+      const OWN_TIMEOUT = Symbol('ensureRoomPresence_own_timeout');
+      const ownTimeout = new Promise<typeof OWN_TIMEOUT>((resolve) => {
+        setTimeout(() => resolve(OWN_TIMEOUT), timeoutMs);
+      });
+      const result = await Promise.race([existing, ownTimeout]);
+      return result === OWN_TIMEOUT ? false : result;
     }
 
     const promise = this.wrapWithConnectionCheck(async () => {

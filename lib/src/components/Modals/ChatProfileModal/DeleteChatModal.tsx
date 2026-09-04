@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useModalDismiss } from '../../../hooks/useModalDismiss';
 import Button from '../../styled/Button';
 import { useDispatch, useSelector } from 'react-redux';
@@ -35,7 +35,15 @@ const DeleteChatModal: React.FC<DeleteChatModalProps> = ({
   // unconditionally (it renders nothing until isModalOpen), so an ungated
   // hook would sit on top of the modal stack the whole time Chat Profile is
   // open and swallow every Escape into a no-op setIsModalOpen(false).
-  useModalDismiss({ enabled: isModalOpen, onClose: handleCloseModal });
+  // Anchors initial focus inside the dialog on open (and restores it to the
+  // trigger on close). Rendered synchronously, so the container is already in
+  // the DOM by the time useModalDismiss's mount effect runs.
+  const containerRef = useRef<HTMLDivElement>(null);
+  useModalDismiss({
+    enabled: isModalOpen,
+    onClose: handleCloseModal,
+    containerRef,
+  });
 
   const handleDeleteChat = async () => {
     try {
@@ -54,7 +62,7 @@ const DeleteChatModal: React.FC<DeleteChatModalProps> = ({
   return (
     isModalOpen && (
       <ModalBackground>
-        <ModalContainer>
+        <ModalContainer ref={containerRef}>
           <CloseButton
             onClick={handleCloseModal}
             style={{ fontSize: 24 }}

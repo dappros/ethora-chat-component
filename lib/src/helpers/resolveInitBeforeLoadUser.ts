@@ -112,7 +112,7 @@ const tryHydrateViaMy = async (
   let rotatedXmppPassword = '';
 
   // /users/my is metadata-only (firstName, profileImage, etc). It must
-  // never gate bootstrap when we already hold xmpp credentials — some
+  // never gate bootstrap when we already hold xmpp credentials - some
   // server configurations 403 this endpoint for non-admin roles even
   // though the user is authenticated for chat.
   const candidateWithCurrentTokens = (): User => ({
@@ -155,7 +155,7 @@ const tryHydrateViaMy = async (
         }
         // fall through to refresh path
       } else {
-        // Non-auth failure (network, etc.). Refresh won't help — keep
+        // Non-auth failure (network, etc.). Refresh won't help - keep
         // existing tokens and proceed if we have xmpp creds.
         const fallback = fallbackWithCreds();
         if (fallback) {
@@ -193,7 +193,7 @@ const tryHydrateViaMy = async (
       if (signal?.aborted || isAbortError(myError)) {
         return null;
       }
-      // /users/my still failing post-refresh — proceed with refreshed
+      // /users/my still failing post-refresh - proceed with refreshed
       // tokens if the candidate already has xmpp creds.
       const fallback = fallbackWithCreds();
       if (fallback) {

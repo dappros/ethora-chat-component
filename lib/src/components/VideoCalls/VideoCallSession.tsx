@@ -60,8 +60,8 @@ const DANGER = '#E53935';
 // ---------- inline icon set ---------------------------------------------
 
 // Clean, cohesive call-control glyphs (24px). The off variants overlay a
-// two-tone diagonal slash — a thick `cutColor` line (matches the red muted
-// button) under a thin icon-color line — so the slash reads clearly against
+// two-tone diagonal slash - a thick `cutColor` line (matches the red muted
+// button) under a thin icon-color line - so the slash reads clearly against
 // the glyph on any background. `cutColor` defaults to the danger red used by
 // the muted buttons.
 const MicOnIcon: React.FC<{ color?: string }> = ({ color = '#FFFFFF' }) => (
@@ -233,7 +233,7 @@ const hexToRgba = (hex: string, alpha: number): string => {
 
 // Elapsed call seconds anchored to a value BOTH sides agree on: the moment
 // the last participant joined (= when the call truly connected). LiveKit sets
-// `joinedAt` server-side, so every client reads the same timestamp — unlike
+// `joinedAt` server-side, so every client reads the same timestamp - unlike
 // the old "start a local timer when I first see the peer" approach, where the
 // caller and callee began counting at different local moments and drifted.
 // Returns null until the peer is present (caller still sees "Ringing…").
@@ -308,7 +308,7 @@ const controlButtonBase: React.CSSProperties = {
   transition: 'background 200ms ease, transform 120ms ease',
 };
 
-// Audio-call pulse keyframes — same animation, light surface.
+// Audio-call pulse keyframes - same animation, light surface.
 const AUDIO_PULSE_STYLE_ID = 'ethora-audio-call-pulse-keyframes';
 const ensureAudioPulseKeyframes = () => {
   if (typeof document === 'undefined') return;
@@ -481,7 +481,7 @@ const VideoCallContent: React.FC<{
 
   // A TrackReference exists even when the camera is muted/off. We render our
   // OWN <VideoTrack> (not LiveKit's ParticipantTile) so there's no built-in
-  // grey-silhouette placeholder, name label or connection bars — and we only
+  // grey-silhouette placeholder, name label or connection bars - and we only
   // mount the <video> for a live, unmuted track so the layout never jumps
   // between an avatar and a video of a different size/position.
   const hasLiveVideo = (t: typeof remoteCamera): boolean =>
@@ -509,13 +509,13 @@ const VideoCallContent: React.FC<{
         position: 'relative',
         width: '100%',
         height: '100%',
-        // Video stage stays dark — that's the convention for video tiles
+        // Video stage stays dark - that's the convention for video tiles
         // (high contrast for skin tones), but the rest of the chrome
         // (top bar, controls tray) uses the chat's light tokens.
         background: '#0B1220',
       }}
     >
-      {/* Top header strip — matches the chat header pattern */}
+      {/* Top header strip - matches the chat header pattern */}
       <div
         style={{
           position: 'absolute',
@@ -640,7 +640,7 @@ const VideoCallContent: React.FC<{
         )}
       </div>
 
-      {/* Local self-view — draggable picture-in-picture. Only mount the tile
+      {/* Local self-view - draggable picture-in-picture. Only mount the tile
           when our camera is actually producing video; otherwise a small
           avatar instead of a black rectangle. */}
       <div
@@ -1199,7 +1199,7 @@ const getErrorMessage = (error: unknown): string => {
 };
 
 // A device error during enable (vs. a connect failure). Permission denial must
-// NOT fail the call — the user can still talk/hear once they re-allow — so we
+// NOT fail the call - the user can still talk/hear once they re-allow - so we
 // surface a dismissible hint instead of tearing the call down.
 const humanizeDeviceError = (error: unknown): string => {
   const name = (error as { name?: string })?.name || '';
@@ -1233,7 +1233,7 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
 }) => {
   const isAudioOnly = kind === 'audio';
   // Read the initial device state from refs so the connect effect stays
-  // dependency-stable (it must run exactly once — see the callback refs below).
+  // dependency-stable (it must run exactly once - see the callback refs below).
   const startCameraRef = useRef(startWithCameraOn);
   const startMicRef = useRef(startWithMicOn);
 
@@ -1258,11 +1258,11 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
 
   // Keep the latest callbacks in refs so the connect effect below does NOT
   // depend on their identity. The parent (VideoCallOverlay) passes inline
-  // arrows that change on every render — and onConnected itself dispatches a
+  // arrows that change on every render - and onConnected itself dispatches a
   // redux action that re-renders the parent. If those were in the dep array
   // the effect would re-run, its cleanup would `room.disconnect()` the call
   // we JUST joined, the server would see the participant leave and broadcast
-  // a "call ended" log — so accepting a call instantly tore it down.
+  // a "call ended" log - so accepting a call instantly tore it down.
   const onConnectedRef = useRef(onConnected);
   const onErrorRef = useRef(onError);
   useEffect(() => {
@@ -1270,7 +1270,7 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
     onErrorRef.current = onError;
   }, [onConnected, onError]);
 
-  // Device (camera/mic) permission/availability problems — shown as a
+  // Device (camera/mic) permission/availability problems - shown as a
   // dismissible hint, never fail the whole call.
   const [deviceError, setDeviceError] = useState<string | null>(null);
   useEffect(() => {
@@ -1323,7 +1323,7 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
       mounted = false;
       room.disconnect();
     };
-    // Connect exactly once per (room, url, token, kind) — callbacks are read
+    // Connect exactly once per (room, url, token, kind) - callbacks are read
     // from refs so their changing identity can't retrigger a disconnect.
   }, [room, livekitUrl, token, connectOptions, isAudioOnly]);
 
@@ -1331,7 +1331,7 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
     <RoomContext.Provider value={room}>
       <PeerLeaveWatcher onPeerLeft={onHangup} />
       {/* Audio renders its own in-flow banner (below, inside AudioCallContent)
-          — this overlay-on-canvas style only makes sense for video's
+          - this overlay-on-canvas style only makes sense for video's
           full-bleed dark stage. */}
       {deviceError && !minimized && !isAudioOnly && (
         <div

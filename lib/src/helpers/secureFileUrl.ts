@@ -7,7 +7,7 @@ import {
 // Files uploaded via /v2/files/secure are served from the secure-files.*
 // domain and every download is gated by chat membership: the server needs
 // `?ft=<fileToken>` (or a fileToken cookie) to identify the requester.
-// The fileToken is personal — it must be appended at render time from the
+// The fileToken is personal - it must be appended at render time from the
 // viewer's own session, never baked into the URL sent over XMPP.
 const SECURE_FILES_HOST_PREFIX = 'secure-files.';
 

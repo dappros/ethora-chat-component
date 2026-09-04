@@ -1,4 +1,4 @@
-import React, { FC, ReactNode } from 'react';
+import React, { FC, ReactNode, useRef } from 'react';
 import {
   CloseButton,
   ModalBackground,
@@ -20,10 +20,14 @@ export const ModalBox: FC<ModalBoxProps> = ({
   children,
 }) => {
   const t = useT();
-  useModalDismiss({ onClose: handleCloseModal });
+  // Rendered synchronously (no lazy/Suspense boundary here, unlike
+  // Modal.tsx), so ModalContainer already exists in the DOM by the time
+  // useModalDismiss's mount effect runs - no MutationObserver needed.
+  const containerRef = useRef<HTMLDivElement>(null);
+  useModalDismiss({ onClose: handleCloseModal, containerRef });
   return (
     <ModalBackground>
-      <ModalContainer>
+      <ModalContainer ref={containerRef}>
         <CloseButton
           onClick={handleCloseModal}
           style={{ fontSize: 24 }}
