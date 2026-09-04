@@ -8,7 +8,10 @@ import { useEffect, useRef } from 'react';
 // the shared containers closes that gap without a dependency.
 const openModalStack: symbol[] = [];
 
-const FOCUSABLE_SELECTOR =
+// Exported so callers that need to detect/focus the first focusable element
+// themselves (e.g. Modal.tsx, once a lazy-loaded modal's content actually
+// mounts) use the exact same definition instead of drifting out of sync.
+export const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export interface UseModalDismissOptions {
