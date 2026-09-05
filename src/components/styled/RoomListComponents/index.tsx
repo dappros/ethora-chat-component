@@ -170,11 +170,19 @@ export const UserCount = styled.div.withConfig({
   margin-left: auto;
 `;
 
-export const Divider = styled.div`
+// `$hidden` keeps the divider's layout footprint (height + surrounding
+// spacing) reserved even when it shouldn't be visible - e.g. flanking the
+// active row's own highlight box, where a visible hairline would cut across
+// its rounded corners. Using visibility:hidden (not display:none, and not
+// skipping the element) means selecting a different room never changes the
+// total stacked height of the rows below it - only which dividers are
+// painted, never how many take up space.
+export const Divider = styled.div<{ $hidden?: boolean }>`
   height: 1px;
   width: 100%;
   background-color: var(--ethora-color-border, #e6e8ec);
   opacity: 0.6;
+  visibility: ${({ $hidden }) => ($hidden ? 'hidden' : 'visible')};
 `;
 
 // Row appears with a subtle rise+fade the first time it's ever rendered

@@ -291,7 +291,7 @@ const NewChatModal: React.FC = () => {
       )}
 
       {isModalOpen && (
-        <ModalBackground ref={containerRef}>
+        <ModalBackground ref={containerRef} $anchorTop>
           <ModalContainer ref={containerRef}>
             <CloseButton
               onClick={handleCloseModal}
