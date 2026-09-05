@@ -568,9 +568,13 @@ const RoomList: React.FC<RoomListProps> = ({
                         // highlight box; a straight hairline divider flush
                         // against its top/bottom edge cut across the
                         // rounded corners and looked like it was leaking out
-                        // of the row. Skip the divider on either side of the
-                        // active row - the highlight itself already
-                        // separates it from its neighbors.
+                        // of the row. Hide (not skip - see Divider's
+                        // $hidden) the divider on either side of the active
+                        // row - the highlight itself already separates it
+                        // from its neighbors, and hiding rather than
+                        // omitting the divider keeps every row pair's
+                        // stacked height identical, so switching the active
+                        // room never shifts the rows below it.
                         const adjacentToActiveRow =
                           isChatActive(chat) ||
                           (!isLast && isChatActive(filteredChats[index + 1]));
@@ -605,7 +609,7 @@ const RoomList: React.FC<RoomListProps> = ({
                                 config={config}
                               />
                             </AnimatedRow>
-                            {!isLast && !adjacentToActiveRow && <Divider />}
+                            {!isLast && <Divider $hidden={adjacentToActiveRow} />}
                           </React.Fragment>
                         );
                       })}

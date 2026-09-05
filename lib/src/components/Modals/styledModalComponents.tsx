@@ -1,8 +1,20 @@
-import styled from 'styled-components';
+import styled, { css } from 'styled-components';
 import Button, { ButtonProps } from '../styled/Button';
 import { fadeInAnimation, scaleInAnimation } from '../../styles/motion';
 
-export const ModalBackground = styled.div`
+// `$anchorTop`: most modals here are a fixed-height single step, so
+// vertically centering them (the default) is fine - their height never
+// changes while open. NewChatModal's inline "Private" user picker is the
+// exception: it grows/collapses the card's content height live, and a
+// vertically-centered card visibly repositions its ENTIRE chrome (close
+// button, title, avatar) on every frame of that reveal, because the
+// centering math re-runs against a new height each frame - that's what
+// read as "broken" during the toggle. Anchoring the card near the top
+// instead means growth only ever extends downward from a fixed top edge,
+// so the existing chrome never moves. Scoped to a per-instance prop
+// (rather than changing the default) so every other modal keeps its
+// current centered look untouched.
+export const ModalBackground = styled.div<{ $anchorTop?: boolean }>`
   position: fixed;
   top: 0;
   left: 0;
@@ -11,13 +23,28 @@ export const ModalBackground = styled.div`
   background: rgba(16, 24, 40, 0.45);
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: ${({ $anchorTop }) => ($anchorTop ? 'flex-start' : 'center')};
   z-index: 1000;
   ${fadeInAnimation}
 
+  ${({ $anchorTop }) =>
+    $anchorTop &&
+    css`
+      overflow-y: auto;
+      padding-top: max(5vh, 32px);
+      padding-bottom: 32px;
+      box-sizing: border-box;
+    `}
+
   @media (max-width: 480px) {
-    padding: 0 16px;
+    padding-left: 16px;
+    padding-right: 16px;
     box-sizing: border-box;
+    ${({ $anchorTop }) =>
+      $anchorTop &&
+      css`
+        padding-top: 16px;
+      `}
   }
 `;
 

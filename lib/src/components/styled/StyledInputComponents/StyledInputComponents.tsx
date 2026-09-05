@@ -154,6 +154,17 @@ export const StyledInput = styled.input<{ $colorBg?: string }>`
   opacity: 1;
   z-index: 1;
   border-radius: var(--ethora-radius-md, 16px);
+  /* Callers set width:100% expecting to match their container's content
+     box (this is how the sibling room-name InputWithLabel is already
+     built - see StyledInput.tsx). Without box-sizing:border-box, the
+     12px/16px padding + 1px border add ON TOP of that 100%, so the input
+     renders ~26px wider than its slot. ModalContainer sets overflow-y:auto
+     with overflow-x otherwise 'visible', which the spec computes to 'auto'
+     for the other axis too - so that overflow silently became a hidden
+     horizontal scroll region instead of an obviously-wrong overflowing box,
+     and the right edge (border/focus ring) of this search input got
+     clipped inside the modal. */
+  box-sizing: border-box;
 
   &:focus {
     border-color: var(--ethora-color-primary, #0052cd);

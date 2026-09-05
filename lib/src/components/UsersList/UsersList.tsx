@@ -24,6 +24,15 @@ import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { useT } from '../../i18n/useT';
 import { ProfileImagePlaceholder } from '../MainComponents/ProfileImagePlaceholder';
 
+// Windowed rendering, same idea (and same constants) as ChatProfileModal's
+// member list: a room's user directory can run to ~3,500 entries, and
+// mounting every row (avatar + name + checkbox) unconditionally - as this
+// list used to - is what made the New Chat modal's "Private" picker lag.
+// Only the first USERS_RENDER_WINDOW_INITIAL rows are mounted; "Show more"
+// grows the window by USERS_RENDER_WINDOW_STEP at a time.
+const USERS_RENDER_WINDOW_INITIAL = 150;
+const USERS_RENDER_WINDOW_STEP = 150;
+
 interface UsersListProps {
   selectedUsers: RoomMember[];
   setSelectedUsers: Dispatch<SetStateAction<RoomMember[]>>;
@@ -44,6 +53,9 @@ const UsersList: React.FC<UsersListProps> = ({
   const t = useT();
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredUsers, setFilteredUsers] = useState<RoomMember[]>([]);
+  const [visibleCount, setVisibleCount] = useState<number>(
+    USERS_RENDER_WINDOW_INITIAL
+  );
 
   const handleUserSelect = (user: RoomMember) => {
     setSelectedUsers((prev) => {
@@ -74,11 +86,23 @@ const UsersList: React.FC<UsersListProps> = ({
 
   useEffect(() => {
     debouncedFilter(searchTerm);
+    // A new query changes which/how-many users match, so the old window
+    // position no longer means anything - start from the top of the (new)
+    // filtered list, same as ChatProfileModal resets its member window on
+    // a fresh search. Reset immediately (not debounced) so the window
+    // doesn't briefly show stale rows from the previous query's tail.
+    setVisibleCount(USERS_RENDER_WINDOW_INITIAL);
   }, [searchTerm, debouncedFilter]);
 
   useEffect(() => {
     setFilteredUsers(Object.values(usersSet) as RoomMember[]);
   }, [usersSet]);
+
+  const visibleUsers = useMemo(
+    () => filteredUsers.slice(0, visibleCount),
+    [filteredUsers, visibleCount]
+  );
+  const hasMoreUsers = visibleCount < filteredUsers.length;
 
   // `style` (maxHeight, width, ...) is meant for the scrollable rows list
   // below - applying it here too (as this wrapper used to) let its maxHeight
@@ -110,43 +134,79 @@ const UsersList: React.FC<UsersListProps> = ({
         {filteredUsers.length === 0 ? (
           <EmptyState>{t('modal.selectUsers.empty')}</EmptyState>
         ) : (
-          filteredUsers.map((user) => {
-            const isSelected = selectedUsers.some((u) => u._id === user._id);
-            const fullName = `${user.firstName} ${user.lastName}`.trim();
-            return (
-              <UserItem
-                key={user._id}
-                onClick={() => handleUserSelect(user)}
-                $selected={isSelected}
-                role="option"
-                aria-selected={isSelected}
-                tabIndex={0}
+          <>
+            {visibleUsers.map((user) => {
+              const isSelected = selectedUsers.some((u) => u._id === user._id);
+              const fullName = `${user.firstName} ${user.lastName}`.trim();
+              return (
+                <UserItem
+                  key={user._id}
+                  onClick={() => handleUserSelect(user)}
+                  $selected={isSelected}
+                  role="option"
+                  aria-selected={isSelected}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleUserSelect(user);
+                    }
+                  }}
+                >
+                  <ProfileImagePlaceholder
+                    name={fullName}
+                    icon={(user as any).profileImage || (user as any).photoURL}
+                    size={36}
+                  />
+                  <UserItemInfo>
+                    <Label>{fullName || user.xmppUsername}</Label>
+                  </UserItemInfo>
+                  <Checkbox
+                    type="checkbox"
+                    checked={isSelected}
+                    readOnly
+                    tabIndex={-1}
+                    aria-label={fullName || user.xmppUsername}
+                    disabled={!isSelected && selectedUsers.length >= 20}
+                  />
+                </UserItem>
+              );
+            })}
+            {hasMoreUsers && (
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  padding: '12px 0',
+                  cursor: 'pointer',
+                }}
+                onClick={() =>
+                  setVisibleCount((count) => count + USERS_RENDER_WINDOW_STEP)
+                }
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    handleUserSelect(user);
+                    setVisibleCount(
+                      (count) => count + USERS_RENDER_WINDOW_STEP
+                    );
                   }
                 }}
+                role="button"
+                tabIndex={0}
               >
-                <ProfileImagePlaceholder
-                  name={fullName}
-                  icon={(user as any).profileImage || (user as any).photoURL}
-                  size={36}
-                />
-                <UserItemInfo>
-                  <Label>{fullName || user.xmppUsername}</Label>
-                </UserItemInfo>
-                <Checkbox
-                  type="checkbox"
-                  checked={isSelected}
-                  readOnly
-                  tabIndex={-1}
-                  aria-label={fullName || user.xmppUsername}
-                  disabled={!isSelected && selectedUsers.length >= 20}
-                />
-              </UserItem>
-            );
-          })
+                <Label
+                  style={{
+                    color: 'var(--ethora-color-primary, #0052CD)',
+                    fontSize: '13px',
+                  }}
+                >
+                  {t('modal.chatProfile.membersShowMore', {
+                    count: filteredUsers.length - visibleCount,
+                  })}
+                </Label>
+              </div>
+            )}
+          </>
         )}
       </ScrollableContainer>
     </div>
