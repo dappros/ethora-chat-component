@@ -9,6 +9,13 @@ export const ScrollableContainer = styled.div`
   display: flex;
   flex-direction: column;
   gap: 2px;
+  /* Same reason StyledInput needs it: callers pass width:100% (and a
+     maxHeight) meaning "match my slot", but without border-box the 8px
+     padding is added on top, so this list rendered 16px wider and 16px
+     taller than its slot. NewChatModal's inline picker clips its overflow,
+     which cut off the rows' right edge and hid this list's own scrollbar
+     entirely. */
+  box-sizing: border-box;
 `;
 
 // Row height matches RoomList's ChatItem (56-60px) so lists across the
