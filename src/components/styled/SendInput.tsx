@@ -464,9 +464,19 @@ const SendInput: React.FC<SendInputProps> = ({
     mention,
   ]);
 
+  // The caret can sit inside an "@query" that matches nobody, in which case
+  // MentionDropdown renders nothing. Key handling has to follow what is
+  // actually on screen, not just `isDropdownOpen`, or Escape/ArrowUp/
+  // ArrowDown get swallowed by an invisible dropdown.
+  const mentionDropdownVisible =
+    mentionsEnabled &&
+    mention.isDropdownOpen &&
+    !mention.overflowOpen &&
+    (mention.visibleCandidates.length > 0 || mention.hasOverflow);
+
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      if (mentionsEnabled && mention.isDropdownOpen) {
+      if (mentionDropdownVisible) {
         if (event.key === 'Escape') {
           event.preventDefault();
           mention.closeDropdown();
@@ -541,6 +551,7 @@ const SendInput: React.FC<SendInputProps> = ({
       message,
       multiline,
       mentionsEnabled,
+      mentionDropdownVisible,
       mention,
       applyMentionSelection,
       openMentionOverflow,
