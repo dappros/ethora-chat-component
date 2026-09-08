@@ -39,6 +39,29 @@ interface UsersListProps {
   headerElement?: boolean;
   style?: any;
   filter?: RoomMember[];
+  /**
+   * When set, sources rows from this list instead of the global `usersSet`
+   * (e.g. the current room's members for the @-mention picker) rather than
+   * every user the client has ever seen.
+   */
+  members?: RoomMember[];
+  /**
+   * Excludes one user (by bare-jid local part, or the raw id) from the list -
+   * used by the mention picker to hide the current reader from their own
+   * mention candidates.
+   */
+  excludeUserId?: string;
+  /**
+   * Single-select mode: a row click calls `onSingleSelect` immediately
+   * instead of toggling the multi-select checkbox array, and no checkbox is
+   * rendered. Used by MentionPickerModal, which reuses this windowed list
+   * for a "pick one person" flow instead of building a separate one.
+   */
+  singleSelect?: boolean;
+  onSingleSelect?: (user: RoomMember) => void;
+  /** Overrides the default "Select Users (max 20)" heading - used by
+   * MentionPickerModal so the reused list reads as a mention picker. */
+  titleOverride?: string;
 }
 
 const UsersList: React.FC<UsersListProps> = ({
@@ -47,6 +70,11 @@ const UsersList: React.FC<UsersListProps> = ({
   setSelectedUsers,
   headerElement,
   filter,
+  members,
+  excludeUserId,
+  singleSelect,
+  onSingleSelect,
+  titleOverride,
 }) => {
   const usersSet = useUsersSet();
   const { config } = useChatSettingState();
@@ -57,7 +85,18 @@ const UsersList: React.FC<UsersListProps> = ({
     USERS_RENDER_WINDOW_INITIAL
   );
 
+  const sourceUsers = useMemo<RoomMember[]>(
+    () => members ?? (Object.values(usersSet) as RoomMember[]),
+    [members, usersSet]
+  );
+
+  const excludeKey = excludeUserId ? excludeUserId.split('@')[0] : undefined;
+
   const handleUserSelect = (user: RoomMember) => {
+    if (singleSelect) {
+      onSingleSelect?.(user);
+      return;
+    }
     setSelectedUsers((prev) => {
       const isSelected = prev.some((u) => u._id === user._id);
       // Enforce the "max 20" cap shown in the copy below: without this
@@ -75,13 +114,18 @@ const UsersList: React.FC<UsersListProps> = ({
     () =>
       debounce((term: string) => {
         const lower = term.toLowerCase();
-        const users = (Object.values(usersSet) as RoomMember[]).filter(
-          (user: RoomMember) =>
-            `${user.firstName} ${user.lastName}`.toLowerCase().includes(lower)
-        );
+        const users = sourceUsers.filter((user: RoomMember) => {
+          if (excludeKey) {
+            const key = (user.jid || user.xmppUsername || '').split('@')[0];
+            if (key === excludeKey) return false;
+          }
+          return `${user.firstName} ${user.lastName}`
+            .toLowerCase()
+            .includes(lower);
+        });
         setFilteredUsers(users);
       }, 100),
-    [usersSet]
+    [sourceUsers, excludeKey]
   );
 
   useEffect(() => {
@@ -95,8 +139,14 @@ const UsersList: React.FC<UsersListProps> = ({
   }, [searchTerm, debouncedFilter]);
 
   useEffect(() => {
-    setFilteredUsers(Object.values(usersSet) as RoomMember[]);
-  }, [usersSet]);
+    const users = excludeKey
+      ? sourceUsers.filter((user) => {
+          const key = (user.jid || user.xmppUsername || '').split('@')[0];
+          return key !== excludeKey;
+        })
+      : sourceUsers;
+    setFilteredUsers(users);
+  }, [sourceUsers, excludeKey]);
 
   const visibleUsers = useMemo(
     () => filteredUsers.slice(0, visibleCount),
@@ -116,9 +166,11 @@ const UsersList: React.FC<UsersListProps> = ({
   return (
     <div style={{ width, minWidth }}>
       {headerElement ? (
-        <ModalTitle>{t('modal.selectUsers.title')}</ModalTitle>
+        <ModalTitle>{titleOverride ?? t('modal.selectUsers.title')}</ModalTitle>
       ) : (
-        <ModalSectionLabel>{t('modal.selectUsers.title')}</ModalSectionLabel>
+        <ModalSectionLabel>
+          {titleOverride ?? t('modal.selectUsers.title')}
+        </ModalSectionLabel>
       )}
 
       <StyledInput
@@ -136,7 +188,9 @@ const UsersList: React.FC<UsersListProps> = ({
         ) : (
           <>
             {visibleUsers.map((user) => {
-              const isSelected = selectedUsers.some((u) => u._id === user._id);
+              const isSelected =
+                !singleSelect &&
+                selectedUsers.some((u) => u._id === user._id);
               const fullName = `${user.firstName} ${user.lastName}`.trim();
               return (
                 <UserItem
@@ -161,14 +215,16 @@ const UsersList: React.FC<UsersListProps> = ({
                   <UserItemInfo>
                     <Label>{fullName || user.xmppUsername}</Label>
                   </UserItemInfo>
-                  <Checkbox
-                    type="checkbox"
-                    checked={isSelected}
-                    readOnly
-                    tabIndex={-1}
-                    aria-label={fullName || user.xmppUsername}
-                    disabled={!isSelected && selectedUsers.length >= 20}
-                  />
+                  {!singleSelect && (
+                    <Checkbox
+                      type="checkbox"
+                      checked={isSelected}
+                      readOnly
+                      tabIndex={-1}
+                      aria-label={fullName || user.xmppUsername}
+                      disabled={!isSelected && selectedUsers.length >= 20}
+                    />
+                  )}
                 </UserItem>
               );
             })}

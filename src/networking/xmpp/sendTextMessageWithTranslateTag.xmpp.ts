@@ -1,5 +1,5 @@
 import { Client, xml } from '@xmpp/client';
-import { Iso639_1Codes } from '../../types/types';
+import { Iso639_1Codes, IMentionSpan } from '../../types/types';
 
 export const sendTextMessageWithTranslateTag = (
   client: Client,
@@ -15,6 +15,7 @@ export const sendTextMessageWithTranslateTag = (
     showInChannel?: boolean;
     mainMessage?: string;
     devServer?: string;
+    mentions?: IMentionSpan[];
   },
   source: Iso639_1Codes,
   customId?: string
@@ -27,6 +28,7 @@ export const sendTextMessageWithTranslateTag = (
     // message into their own language on their side. The message is never
     // pre-translated here: that put an HTTP round trip in front of every
     // send (see sendTextMessageWithTranslateTagStanza).
+    const { mentions, ...restStanzaMessage } = stanzaMessage;
     const message = xml(
       'message',
       {
@@ -35,7 +37,12 @@ export const sendTextMessageWithTranslateTag = (
         id: id,
       },
       xml('data', {
-        ...stanzaMessage,
+        ...restStanzaMessage,
+        // Same side-channel encoding as sendTextMessage.xmpp.ts: a JSON
+        // array of {jid, name, offset, length} spans into `userMessage`.
+        ...(mentions && mentions.length > 0
+          ? { mentions: JSON.stringify(mentions) }
+          : {}),
         push: 'true',
       }),
       xml('body', {}, stanzaMessage.userMessage),

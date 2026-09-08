@@ -25,7 +25,7 @@ import { useRoomState } from '../../hooks/useRoomState.tsx';
 import { useChatSettingState } from '../../hooks/useChatSettingState.tsx';
 import useComposing from '../../hooks/useComposing.tsx';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
-import { MessageProps } from '../../types/types';
+import { MessageProps, IMentionSpan } from '../../types/types';
 import { useLoaderDebug } from '../../hooks/useLoaderDebug';
 
 interface ChatRoomProps {
@@ -59,8 +59,8 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     const { sendStartComposing, sendEndComposing } = useComposing(config);
 
     const sendMessage = useCallback(
-      (message: string) => {
-        sendMs(message, activeRoomJID);
+      (message: string, mentions?: IMentionSpan[]) => {
+        sendMs(message, activeRoomJID, undefined, undefined, undefined, mentions);
       },
       [activeRoomJID, sendMs]
     );

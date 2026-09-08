@@ -232,6 +232,7 @@ const PERSISTED_MESSAGE_FIELDS: (keyof IMessage)[] = [
   'attachments',
   'langSource',
   'callLog',
+  'mentions',
 ];
 
 // The sender identity that rides along on every message over the wire

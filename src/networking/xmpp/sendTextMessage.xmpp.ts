@@ -1,5 +1,6 @@
 import { Client, xml } from '@xmpp/client';
 import { SERVICE } from '../../config';
+import { IMentionSpan } from '../../types/types';
 
 export const sendTextMessage = (
   client: Client,
@@ -14,7 +15,8 @@ export const sendTextMessage = (
   showInChannel?: boolean,
   mainMessage?: string,
   devServer?: string,
-  customId?: string
+  customId?: string,
+  mentions?: IMentionSpan[]
 ): boolean => {
   const id = customId
     ? customId
@@ -54,6 +56,12 @@ export const sendTextMessage = (
         showInChannel: showInChannel || false,
         isReply: isReply || false,
         mainMessage: mainMessage || '',
+        // Side-channel metadata for @-mentions in `userMessage`: a JSON array
+        // of {jid, name, offset, length}. Only stamped when non-empty so old
+        // messages/clients never see a stray empty attribute.
+        ...(mentions && mentions.length > 0
+          ? { mentions: JSON.stringify(mentions) }
+          : {}),
         push: "true",
       }),
       xml('body', {}, userMessage)

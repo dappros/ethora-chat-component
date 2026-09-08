@@ -35,7 +35,7 @@ import {
 import { sendPing } from './xmpp/sendPing.xmpp';
 import { isPong } from './xmpp/handlePong.xmpp';
 import { store } from '../roomStore';
-import { IMessage } from '../types/types';
+import { IMessage, IMentionSpan } from '../types/types';
 import { SERVICE, VITE_APP_XMPP_BASEDOMAIN, VITE_APP_XMPP_CONFERENCE } from '../config';
 import { formatError } from '../utils/formatError';
 import { toRoomJid } from '../helpers/isLikelyMucJid';
@@ -2199,7 +2199,8 @@ export class XmppClient implements XmppClientInterface {
     isReply?: boolean,
     showInChannel?: boolean,
     mainMessage?: string,
-    customId?: string
+    customId?: string,
+    mentions?: IMentionSpan[]
   ): Promise<boolean> => {
     this.onCriticalSend(roomJID, customId);
     const lane = this.getSendLane(roomJID);
@@ -2233,7 +2234,8 @@ export class XmppClient implements XmppClientInterface {
               showInChannel,
               mainMessage,
               this.devServer || SERVICE,
-              customId
+              customId,
+              mentions
             );
           });
         });
@@ -2263,7 +2265,8 @@ export class XmppClient implements XmppClientInterface {
     showInChannel?: boolean,
     mainMessage?: string,
     langSource?: Iso639_1Codes,
-    customId?: string
+    customId?: string,
+    mentions?: IMentionSpan[]
   ): Promise<boolean> => {
     this.onCriticalSend(roomJID, customId);
     const lane = this.getSendLane(roomJID);
@@ -2297,6 +2300,7 @@ export class XmppClient implements XmppClientInterface {
                 showInChannel,
                 mainMessage,
                 devServer: this.devServer || SERVICE,
+                mentions,
               },
               langSource,
               customId
@@ -2544,7 +2548,8 @@ export class XmppClient implements XmppClientInterface {
             (msg.showInChannel as any) === 'true',
             msg.mainMessage,
             (msg as any).langSource as any,
-            msg.id
+            msg.id,
+            msg.mentions
           );
           if (ok === false) break;
         } else {
@@ -2559,7 +2564,8 @@ export class XmppClient implements XmppClientInterface {
             !!msg.isReply,
             (msg.showInChannel as any) === 'true',
             msg.mainMessage,
-            msg.id
+            msg.id,
+            msg.mentions
           );
           if (ok === false) break;
         }

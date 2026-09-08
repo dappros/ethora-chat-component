@@ -2,11 +2,17 @@ import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
+import type { MentionClickHandler } from './parseMessageBody';
+
+interface MarkdownBodyProps {
+  text: string;
+  onMentionClick?: MentionClickHandler;
+}
 
 // Loaded lazily via parseMessageBody.tsx, the markdown pipeline
 // (react-markdown + remark-gfm + rehype-raw/parse5) is heavy, so it lives
 // in its own chunk instead of the host's initial bundle.
-const MarkdownBody = ({ text }: { text: string }) => {
+const MarkdownBody = ({ text, onMentionClick }: MarkdownBodyProps) => {
   if (!text) return null;
 
   return (
@@ -177,6 +183,43 @@ const MarkdownBody = ({ text }: { text: string }) => {
               }}
             />
           ),
+          // Custom tag injected by spliceMentionMarkup (helpers/mentions.ts)
+          // for each @-mention span. Falls back to plain, non-interactive
+          // text if the jid is missing/malformed (e.g. an old message with
+          // corrupt mentions data) rather than rendering a broken clickable
+          // element.
+          mention: ({ node, children, ...props }: any) => {
+            const jid = props?.['data-jid'] as string | undefined;
+            if (!jid) return <span>{children}</span>;
+
+            const name = (props?.['data-name'] as string) || '';
+            const handleClick = () => onMentionClick?.({ jid, name });
+
+            return (
+              <span
+                role={onMentionClick ? 'button' : undefined}
+                tabIndex={onMentionClick ? 0 : undefined}
+                onClick={onMentionClick ? handleClick : undefined}
+                onKeyDown={
+                  onMentionClick
+                    ? (event: React.KeyboardEvent) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          handleClick();
+                        }
+                      }
+                    : undefined
+                }
+                style={{
+                  color: 'var(--ethora-color-primary, #0052cd)',
+                  fontWeight: 600,
+                  cursor: onMentionClick ? 'pointer' : 'default',
+                }}
+              >
+                {children}
+              </span>
+            );
+          },
         }}
       >
         {text}
