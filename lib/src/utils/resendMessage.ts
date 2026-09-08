@@ -10,7 +10,7 @@ type ResendOptions = {
 };
 
 export async function resendMessage(
-  message: Pick<IMessage, 'body' | 'roomJid'> & {
+  message: Pick<IMessage, 'body' | 'roomJid' | 'mentions'> & {
     originalMessageId: string;
     isReply?: boolean;
     showInChannel?: string;
@@ -67,6 +67,7 @@ export async function resendMessage(
         isReply: message.isReply || false,
         showInChannel: (message.showInChannel as any) || ('false' as any),
         mainMessage: message.mainMessage || '',
+        mentions: message.mentions,
       },
     })
   );
@@ -89,7 +90,8 @@ export async function resendMessage(
         message.showInChannel === 'true' || false,
         message.mainMessage || '',
         (state.chatSettingStore.langSource as any) || 'en',
-        id
+        id,
+        message.mentions
       );
     } else {
       client.sendMessage(
@@ -103,7 +105,8 @@ export async function resendMessage(
         message.isReply || false,
         message.showInChannel === 'true' || false,
         message.mainMessage || '',
-        id
+        id,
+        message.mentions
       );
     }
 

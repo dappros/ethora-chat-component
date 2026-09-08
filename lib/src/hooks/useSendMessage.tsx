@@ -19,6 +19,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useEventHandlers } from './useEventHandlers';
 import { ethoraLogger } from '../helpers/ethoraLogger';
 import { scheduleAckCatchup } from '../helpers/scheduleAckCatchup';
+import { IMentionSpan } from '../types/types';
 
 const DEFAULT_TIMEOUT_MS = 300000;
 
@@ -267,7 +268,8 @@ export const useSendMessage = () => {
       activeRoomJID: string,
       isReply?: boolean,
       isChecked?: boolean,
-      mainMessage?: string
+      mainMessage?: string,
+      mentions?: IMentionSpan[]
     ) => {
       if (!/\S/.test(String(message || ''))) {
         ethoraLogger.log('Cannot send empty message');
@@ -347,6 +349,7 @@ export const useSendMessage = () => {
                   isReply: (isReply ? 'true' : 'false') as any,
                   showInChannel: (isChecked ? 'true' : 'false') as any,
                   mainMessage: mainMessage || '',
+                  mentions,
                 },
               })
             );
@@ -368,6 +371,7 @@ export const useSendMessage = () => {
                 showInChannel: (isChecked ? 'true' : 'false') as any,
                 mainMessage: mainMessage || '',
                 langSource: (langSource as any) || 'en',
+                mentions,
               })
             );
 
@@ -384,7 +388,8 @@ export const useSendMessage = () => {
                 isChecked || false,
                 mainMessage || '',
                 (langSource as any) || 'en',
-                id
+                id,
+                mentions
               )
             );
             if (sendOk) {
@@ -428,6 +433,7 @@ export const useSendMessage = () => {
                   isReply: (isReply ? 'true' : 'false') as any,
                   showInChannel: (isChecked ? 'true' : 'false') as any,
                   mainMessage: mainMessage || '',
+                  mentions,
                 },
               })
             );
@@ -447,6 +453,7 @@ export const useSendMessage = () => {
                 isReply: isReply || false,
                 showInChannel: (isChecked ? 'true' : 'false') as any,
                 mainMessage: mainMessage || '',
+                mentions,
               })
             );
 
@@ -462,7 +469,8 @@ export const useSendMessage = () => {
                 isReply || false,
                 isChecked || false,
                 mainMessage || '',
-                id
+                id,
+                mentions
               )
             );
             if (sendOk) {

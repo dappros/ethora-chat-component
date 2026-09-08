@@ -42,6 +42,9 @@ export interface IMessage {
   attachments?: IAttachment[];
   xmppId?: string;
   xmppFrom?: string;
+  // @-mentions carried by this message's body, decoded from the `mentions`
+  // JSON attribute on the stanza's <data> element (see getDataFromXml.ts).
+  mentions?: IMentionSpan[];
   // Present when this message is a call-log entry derived from a
   // `<data type="call-state">` stanza (see helpers/callLogMessage.ts).
   callLog?: {
@@ -59,6 +62,18 @@ export interface ReactionMessage {
 }
 
 export interface IReply extends IMessage {}
+
+// One @-mention span inside a message's plain-text `body`. `offset`/`length`
+// index into that same body string (UTF-16 code units, matching JS string
+// indexing) so the renderer can splice in a clickable mention element without
+// re-parsing the text for "@Name" patterns. `jid` identifies the mentioned
+// user for the profile-modal lookup on click.
+export interface IMentionSpan {
+  jid: string;
+  name: string;
+  offset: number;
+  length: number;
+}
 
 export interface MessageBubble {
   backgroundMessageUser?: string;

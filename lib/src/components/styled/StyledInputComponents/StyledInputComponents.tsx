@@ -9,6 +9,9 @@ export const InputContainer = styled.div`
   background-color: var(--ethora-input-bg, #fff);
   border-top: 1px solid var(--ethora-color-border, #e6e8ec);
   z-index: 1;
+  /* Anchors the @-mention autocomplete dropdown (position: absolute,
+     bottom: 100%) so it renders directly above the composer. */
+  position: relative;
   box-shadow: var(--ethora-shadow-sm, 0px 0px 24px -4px #12121914);
   max-width: 100%;
   /* Composer sits as a flex sibling after the message list - keep it at

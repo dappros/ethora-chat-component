@@ -1,5 +1,6 @@
 import React, { forwardRef, useEffect, useRef, useState } from 'react';
 import { IUser, MessageProps } from '../../types/types';
+import { useUsersSet } from '../../hooks/useRoomState';
 import {
   CustomMessageTimestamp,
   CustomMessageContainer,
@@ -58,6 +59,7 @@ const Message: React.FC<MessageProps> = forwardRef<
   const t = useT();
   const { user, config, langSource, translateMode } = useChatSettingState();
   const { idSet } = useMessageHeapState();
+  const usersSet = useUsersSet();
   const interactionsDisabled = Boolean(config?.disableInteractions);
   const profilesDisabled = Boolean(config?.disableProfilesInteractions);
 
@@ -181,6 +183,35 @@ const Message: React.FC<MessageProps> = forwardRef<
     if (profilesDisabled || user?.name === 'Deleted User') return;
     dispatch(setActiveModal(MODAL_TYPES.PROFILE));
     dispatch(setSelectedUser(user));
+  };
+
+  // Opens the same profile modal a message-bubble avatar click does (see
+  // handleUserAvatarClick above), for a clicked @-mention. Resolves the
+  // mentioned user's live data from usersSet when available (fresher name/
+  // avatar than whatever was true at send time), falling back to the
+  // jid/name recorded in the mention itself.
+  const handleMentionClick = (mention: { jid: string; name: string }): void => {
+    if (profilesDisabled || !mention?.jid) return;
+    const localKey = mention.jid.split('@')[0];
+    const enriched = (usersSet as any)?.[mention.jid] ?? (usersSet as any)?.[localKey];
+    const [firstName, ...rest] = (enriched
+      ? `${enriched.firstName ?? ''} ${enriched.lastName ?? ''}`.trim()
+      : mention.name
+    ).split(' ');
+
+    dispatch(setActiveModal(MODAL_TYPES.PROFILE));
+    dispatch(
+      setSelectedUser({
+        id: localKey,
+        firstName: enriched?.firstName || firstName || mention.name,
+        lastName: enriched?.lastName || rest.join(' '),
+        name: enriched
+          ? `${enriched.firstName ?? ''} ${enriched.lastName ?? ''}`.trim()
+          : mention.name,
+        userJID: mention.jid,
+        profileImage: enriched?.profileImage,
+      } as IUser)
+    );
   };
 
   const handleReplyMessage = () => {
@@ -333,14 +364,23 @@ const Message: React.FC<MessageProps> = forwardRef<
                 <DeletedMessage />
               ) : (
                 (() => {
+                  const displayText = config?.messageTextFilter?.enabled
+                    ? config.messageTextFilter.filterFunction(
+                        translationDisplay.displayText
+                      )
+                    : translationDisplay.displayText;
+                  // Mention offsets index into the ORIGINAL sent body, not a
+                  // translation - only apply them when we're actually
+                  // showing that original text, so a mismatched offset can't
+                  // splice a mention marker into the wrong spot.
+                  const mentionsForDisplay =
+                    displayText === message.body ? message.mentions : undefined;
                   const body = (
                     <div className="message-body">
                       {parseMessageBody({
-                        text: config?.messageTextFilter?.enabled
-                          ? config.messageTextFilter.filterFunction(
-                              translationDisplay.displayText
-                            )
-                          : translationDisplay.displayText,
+                        text: displayText,
+                        mentions: mentionsForDisplay,
+                        onMentionClick: handleMentionClick,
                       })}
                     </div>
                   );

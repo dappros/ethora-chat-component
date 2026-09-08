@@ -5,6 +5,10 @@ import React, {
   useMemo,
   useEffect,
 } from 'react';
+import { useSelector } from 'react-redux';
+import { useAppDispatch } from '../../hooks/hooks';
+import { getRoomByName } from '../../networking/api-requests/rooms.api';
+import { updateRoom } from '../../roomStore/roomsSlice';
 import {
   AttachmentNotice,
   FilePreviewContainer,
@@ -19,7 +23,7 @@ import {
 } from './StyledInputComponents/StyledInputComponents';
 import AudioRecorder from '../InputComponents/AudioRecorder';
 import AttachmentPreview from '../InputComponents/AttachmentPreview';
-import { IConfig } from '../../types/types';
+import { IConfig, IMentionSpan, RoomMember } from '../../types/types';
 import Button from './Button';
 import { AttachIcon, SendIcon } from '../../assets/icons';
 import {
@@ -30,6 +34,11 @@ import { parseMessageBody } from '../../helpers/parseMessageBody';
 import { useT } from '../../i18n/useT';
 import { MAX_ATTACHMENTS_PER_MESSAGE } from '../../helpers/attachments';
 import { getFileKind } from '../../helpers/fileKind';
+import { RootState, getActiveRoom } from '../../roomStore';
+import { useMentionComposer } from '../../hooks/useMentionComposer';
+import { MentionCandidate } from '../../helpers/mentions';
+import MentionDropdown from '../InputComponents/MentionDropdown';
+import MentionPickerModal from '../InputComponents/MentionPickerModal';
 
 const DEFAULT_MAX_FILES = 5;
 
@@ -38,7 +47,10 @@ const fileKey = (file: File) =>
   `${file.name}:${file.size}:${file.lastModified ?? 0}`;
 
 export interface SendInputProps {
-  sendMessage: (message: string) => void | Promise<void>;
+  sendMessage: (
+    message: string,
+    mentions?: IMentionSpan[]
+  ) => void | Promise<void>;
   /**
    * Receives a `File[]` for picked attachments (one message, N files) and a
    * `Blob` for voice notes. Single files still arrive as a one-element array.
@@ -58,12 +70,18 @@ export interface SendInputProps {
   inputHeight?: number;
   showPreview?: boolean;
   previewParser?: (text: string) => (string | JSX.Element)[];
-  onSendMessage?: (message: string) => void | Promise<void>;
+  onSendMessage?: (
+    message: string,
+    mentions?: IMentionSpan[]
+  ) => void | Promise<void>;
   onSendMedia?: (
     data: File[] | File | Blob,
     type: string
   ) => void | Promise<void>;
   placeholderText?: string;
+  /** Disables the @-mention autocomplete (e.g. for a composer variant that
+   * doesn't want it). Defaults to enabled. */
+  disableMentions?: boolean;
 }
 
 const SendInput: React.FC<SendInputProps> = ({
@@ -83,6 +101,7 @@ const SendInput: React.FC<SendInputProps> = ({
   onSendMessage,
   onSendMedia,
   placeholderText,
+  disableMentions,
 }) => {
   const t = useT();
   const [message, setMessage] = useState('');
@@ -95,6 +114,91 @@ const SendInput: React.FC<SendInputProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Whichever of the textarea/input is actually rendered (only one is, per
+  // `multiline`) - lets mention handling read/set caret position without
+  // caring which element mode is active.
+  const activeElRef = useRef<HTMLTextAreaElement | HTMLInputElement | null>(
+    null
+  );
+  const pendingCaretRef = useRef<number | null>(null);
+  const overflowCaretRef = useRef<number>(0);
+
+  // @-mention support: candidate pool is the CURRENT room's members, merged
+  // with usersSet the same way ChatProfileModal's member list is (affiliation
+  // data alone is often missing name/avatar - usersSet fills that in from
+  // <data> stamps on messages/API enrichment). See useMentionComposer.tsx
+  // for the offset-tracking/atomic-backspace logic itself.
+  const activeRoom = useSelector((state: RootState) => getActiveRoom(state));
+  const usersSet = useSelector((state: RootState) => state.rooms.usersSet);
+  const selfUser = useSelector(
+    (state: RootState) => state.chatSettingStore.user
+  );
+  const roomMembers: RoomMember[] = useMemo(() => {
+    const members = Array.isArray(activeRoom?.members)
+      ? activeRoom.members
+      : [];
+    return members.map((m) => {
+      const key = String(m?.xmppUsername || '');
+      const localKey = key.split('@')[0];
+      const enriched = (usersSet as any)?.[key] || (usersSet as any)?.[localKey];
+      if (!enriched) return m;
+      return {
+        ...m,
+        firstName: m.firstName || enriched.firstName || '',
+        lastName: m.lastName || enriched.lastName || '',
+      };
+    });
+  }, [activeRoom?.members, usersSet]);
+
+  const mention = useMentionComposer({
+    roomMembers,
+    selfId: selfUser?.xmppUsername || (selfUser as any)?.id,
+  });
+  const mentionsEnabled = !disableMentions;
+
+  // `activeRoom.members` only gets populated by a live XMPP affiliation/
+  // members-refresh event or by opening AddMembersModal/SelectUsersModal
+  // (see stanzaHandlers.ts's onMembersRefreshSignal) - a freshly opened
+  // room routinely has none yet, which would leave the mention dropdown
+  // with no candidates to show. Mirror those callers' own fetch (GET
+  // /v1/chats/my/<name>, then the same `updateRoom({ members })` dispatch
+  // SelectUsersModal/AddMembersModal use) once per room, only when
+  // mentions are enabled and the room doesn't already carry a member list.
+  const dispatch = useAppDispatch();
+  const fetchedMembersForRoomRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!mentionsEnabled) return;
+    const jid = activeRoom?.jid;
+    if (!jid) return;
+    if (Array.isArray(activeRoom?.members) && activeRoom.members.length > 0) return;
+    if (fetchedMembersForRoomRef.current === jid) return;
+    fetchedMembersForRoomRef.current = jid;
+
+    getRoomByName(jid.split('@')[0])
+      .then((room) => {
+        if (!room || !Array.isArray(room.members)) return;
+        dispatch(updateRoom({ jid, updates: { members: room.members } }));
+      })
+      .catch(() => {
+        // Best-effort: the dropdown just shows fewer/no candidates until a
+        // live membership event fills activeRoom.members in some other way.
+      });
+  }, [mentionsEnabled, activeRoom?.jid, activeRoom?.members, dispatch]);
+
+  const requestCaret = useCallback((position: number) => {
+    pendingCaretRef.current = position;
+  }, []);
+
+  useEffect(() => {
+    if (pendingCaretRef.current == null) return;
+    const el = activeElRef.current;
+    const pos = pendingCaretRef.current;
+    pendingCaretRef.current = null;
+    if (el) {
+      el.focus();
+      el.setSelectionRange(pos, pos);
+    }
+  }, [message]);
 
   const maxFiles = Math.min(
     Math.max(1, config?.attachments?.maxFiles ?? DEFAULT_MAX_FILES),
@@ -238,11 +342,33 @@ const SendInput: React.FC<SendInputProps> = ({
   const handleInputChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       const newValue = event.target.value;
+      const caret = event.target.selectionStart ?? newValue.length;
+      if (mentionsEnabled) {
+        mention.handleTextChange(message, newValue, caret);
+      }
       setMessage(newValue);
       updateTextareaHeight(newValue);
     },
-    [updateTextareaHeight]
+    [updateTextareaHeight, mentionsEnabled, mention, message]
   );
+
+  const applyMentionSelection = useCallback(
+    (candidate: MentionCandidate, caretOverride?: number) => {
+      const el = activeElRef.current;
+      const caret = caretOverride ?? el?.selectionStart ?? message.length;
+      const result = mention.selectCandidate(candidate, message, caret);
+      if (!result) return;
+      setMessage(result.text);
+      updateTextareaHeight(result.text);
+      requestCaret(result.caret);
+    },
+    [mention, message, updateTextareaHeight, requestCaret]
+  );
+
+  const openMentionOverflow = useCallback(() => {
+    overflowCaretRef.current = activeElRef.current?.selectionStart ?? message.length;
+    mention.setOverflowOpen(true);
+  }, [mention, message]);
 
   useEffect(() => {
     // `undefined` here flips the input from controlled to uncontrolled.
@@ -280,7 +406,8 @@ const SendInput: React.FC<SendInputProps> = ({
         if (!trailingText) {
           return;
         }
-        effectiveSendMessage(trailingText);
+        effectiveSendMessage(trailingText, mention.mentionSpans);
+        mention.resetMentions();
         setMessage('');
         setFilePreviews([]);
         setAttachmentNotice(null);
@@ -288,6 +415,7 @@ const SendInput: React.FC<SendInputProps> = ({
         return;
       }
 
+      mention.resetMentions();
       setMessage('');
       setFilePreviews([]);
       setAttachmentNotice(null);
@@ -301,7 +429,7 @@ const SendInput: React.FC<SendInputProps> = ({
         } catch {
           // Media sender owns its own error reporting; still emit the caption.
         }
-        effectiveSendMessage(trailingText);
+        effectiveSendMessage(trailingText, mention.mentionSpans);
       }
     },
     [
@@ -311,6 +439,7 @@ const SendInput: React.FC<SendInputProps> = ({
       formatMessage,
       hasTextContent,
       message,
+      mention,
     ]
   );
 
@@ -320,7 +449,8 @@ const SendInput: React.FC<SendInputProps> = ({
     if (!hasTextContent(outgoing)) {
       return;
     }
-    effectiveSendMessage(outgoing);
+    effectiveSendMessage(outgoing, mention.mentionSpans);
+    mention.resetMentions();
     setMessage('');
     setFilePreviews([]);
     setAttachmentNotice(null);
@@ -331,10 +461,71 @@ const SendInput: React.FC<SendInputProps> = ({
     config?.secondarySendButton?.messageEdit,
     formatMessage,
     hasTextContent,
+    mention,
   ]);
+
+  // The caret can sit inside an "@query" that matches nobody, in which case
+  // MentionDropdown renders nothing. Key handling has to follow what is
+  // actually on screen, not just `isDropdownOpen`, or Escape/ArrowUp/
+  // ArrowDown get swallowed by an invisible dropdown.
+  const mentionDropdownVisible =
+    mentionsEnabled &&
+    mention.isDropdownOpen &&
+    !mention.overflowOpen &&
+    (mention.visibleCandidates.length > 0 || mention.hasOverflow);
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      if (mentionDropdownVisible) {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          mention.closeDropdown();
+          return;
+        }
+        if (event.key === 'ArrowDown') {
+          event.preventDefault();
+          mention.moveHighlight(1);
+          return;
+        }
+        if (event.key === 'ArrowUp') {
+          event.preventDefault();
+          mention.moveHighlight(-1);
+          return;
+        }
+        if (event.key === 'Enter' || event.key === 'Tab') {
+          const overflowRowIndex = mention.visibleCandidates.length;
+          if (mention.hasOverflow && mention.highlightedIndex === overflowRowIndex) {
+            event.preventDefault();
+            openMentionOverflow();
+            return;
+          }
+          const candidate = mention.visibleCandidates[mention.highlightedIndex];
+          if (candidate) {
+            event.preventDefault();
+            applyMentionSelection(candidate);
+            return;
+          }
+        }
+      }
+
+      if (
+        mentionsEnabled &&
+        event.key === 'Backspace' &&
+        !mention.isDropdownOpen
+      ) {
+        const target = event.target as HTMLInputElement | HTMLTextAreaElement;
+        const selStart = target.selectionStart ?? 0;
+        const selEnd = target.selectionEnd ?? 0;
+        const edit = mention.handleBackspace(message, selStart, selEnd);
+        if (edit) {
+          event.preventDefault();
+          setMessage(edit.text);
+          updateTextareaHeight(edit.text);
+          requestCaret(edit.caret);
+          return;
+        }
+      }
+
       if (event.key !== 'Enter') return;
 
       const hasContent = filePreviews.length > 0 || hasTextContent(message);
@@ -359,6 +550,13 @@ const SendInput: React.FC<SendInputProps> = ({
       hasTextContent,
       message,
       multiline,
+      mentionsEnabled,
+      mentionDropdownVisible,
+      mention,
+      applyMentionSelection,
+      openMentionOverflow,
+      updateTextareaHeight,
+      requestCaret,
     ]
   );
 
@@ -379,6 +577,28 @@ const SendInput: React.FC<SendInputProps> = ({
 
   return (
     <InputContainer>
+      {mentionsEnabled && mention.isDropdownOpen && !mention.overflowOpen && (
+        <MentionDropdown
+          candidates={mention.visibleCandidates}
+          totalCount={mention.candidates.length}
+          hasOverflow={mention.hasOverflow}
+          highlightedIndex={mention.highlightedIndex}
+          onHoverIndex={mention.setHighlightedIndex}
+          onSelect={applyMentionSelection}
+          onShowAll={openMentionOverflow}
+        />
+      )}
+      {mentionsEnabled && mention.overflowOpen && (
+        <MentionPickerModal
+          members={roomMembers}
+          selfId={selfUser?.xmppUsername || (selfUser as any)?.id}
+          onSelect={(candidate) => {
+            applyMentionSelection(candidate, overflowCaretRef.current);
+            mention.setOverflowOpen(false);
+          }}
+          onClose={() => mention.closeDropdown()}
+        />
+      )}
       <MessageInputContainer>
         {!isRecording && (
           <>
@@ -398,7 +618,10 @@ const SendInput: React.FC<SendInputProps> = ({
                 $isFocused={isFocused}
               >
                 <TextareaInput
-                  ref={textareaRef}
+                  ref={(el) => {
+                    (textareaRef as React.MutableRefObject<HTMLTextAreaElement | null>).current = el;
+                    activeElRef.current = el;
+                  }}
                   placeholder={placeholderText || t('input.placeholder')}
                   value={message}
                   onChange={handleInputChange}
@@ -413,6 +636,9 @@ const SendInput: React.FC<SendInputProps> = ({
               </TextareaWrapper>
             ) : (
               <MessageInput
+                ref={(el: HTMLInputElement | null) => {
+                  activeElRef.current = el;
+                }}
                 $color={config?.colors?.primary}
                 $colorBg={config?.colors?.colorInput}
                 placeholder={placeholderText || t('input.placeholder')}

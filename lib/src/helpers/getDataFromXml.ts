@@ -120,10 +120,19 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
   // sendMediaMessage.xmpp.ts). Decode it here so every downstream consumer -
   // createMessageFromXml spreads these attrs straight onto IMessage - sees
   // the typed array rather than a string it would have to parse itself.
-  const dataAttrs =
+  const dataAttrs: { [x: string]: any } =
     'attachments' in rawDataAttrs
       ? { ...rawDataAttrs, attachments: parseAttachments(rawDataAttrs.attachments) }
-      : rawDataAttrs;
+      : { ...rawDataAttrs };
+
+  // `mentions` is stamped as a JSON string (see sendTextMessage.xmpp.ts /
+  // sendTextMessageWithTranslateTag.xmpp.ts); decode it back into an array
+  // here so every consumer of `data`/`data.data` sees real objects, mirroring
+  // how `attachments` above is decoded rather than left as a raw string.
+  if (typeof dataAttrs.mentions === 'string') {
+    const parsedMentions = safeJsonParse<unknown>(dataAttrs.mentions, []);
+    dataAttrs.mentions = Array.isArray(parsedMentions) ? parsedMentions : [];
+  }
 
   return {
     data: dataAttrs,

@@ -1,4 +1,6 @@
 import React, { Suspense } from 'react';
+import { IMentionSpan } from '../types/types';
+import { spliceMentionMarkup } from './mentions';
 
 // The actual markdown renderer (react-markdown + remark-gfm + rehype-raw)
 // lives in MarkdownBody.tsx and is code-split: it loads once, on the first
@@ -14,8 +16,28 @@ const wrapperStyle: React.CSSProperties = {
   lineHeight: 1.6,
 };
 
-export const parseMessageBody = ({ text }: { text: string }) => {
+export interface MentionClickHandler {
+  (mention: { jid: string; name: string }): void;
+}
+
+interface ParseMessageBodyArgs {
+  text: string;
+  mentions?: IMentionSpan[];
+  onMentionClick?: MentionClickHandler;
+}
+
+export const parseMessageBody = ({
+  text,
+  mentions,
+  onMentionClick,
+}: ParseMessageBodyArgs) => {
   if (!text) return null;
+
+  // Mention spans get spliced into raw `<mention>` markup BEFORE the text
+  // reaches ReactMarkdown/rehype-raw - see MarkdownBody.tsx's `mention`
+  // components-map entry, which mirrors the same "component override for a
+  // custom tag" mechanism already used there for `a`/`code`/`table`/etc.
+  const bodyWithMentions = spliceMentionMarkup(text, mentions);
 
   return (
     <Suspense
@@ -23,7 +45,7 @@ export const parseMessageBody = ({ text }: { text: string }) => {
         <div style={{ ...wrapperStyle, whiteSpace: 'pre-wrap' }}>{text}</div>
       }
     >
-      <MarkdownBody text={text} />
+      <MarkdownBody text={bodyWithMentions} onMentionClick={onMentionClick} />
     </Suspense>
   );
 };
