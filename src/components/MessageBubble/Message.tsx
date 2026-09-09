@@ -1,4 +1,4 @@
-import React, { forwardRef, useEffect, useRef, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IUser, MessageProps } from '../../types/types';
 import {
   CustomMessageTimestamp,
@@ -38,6 +38,13 @@ import { parseMessageReference } from '../../helpers/parseMessageReference';
 import { useMessageTranslation } from '../../hooks/useMessageTranslation';
 import TranslatedMessageBody from './TranslatedMessageBody';
 import { useT } from '../../i18n/useT';
+import QuickReplies from './QuickReplies';
+import {
+  parseQuickReplies,
+  hasAnsweredQuickReplies,
+  QuickReply,
+} from '../../helpers/quickReplies';
+import { useSendMessage } from '../../hooks/useSendMessage';
 import styled from 'styled-components';
 import { resolveTranslateMode } from '../../utils/translateModePolicy';
 
@@ -55,6 +62,7 @@ const Message: React.FC<MessageProps> = forwardRef<
   MessageProps
 >(({ message, isUser, isReply }, ref) => {
   const { client } = useXmppClient();
+  const { sendMessage } = useSendMessage();
   const t = useT();
   const { user, config, langSource, translateMode } = useChatSettingState();
   const { idSet } = useMessageHeapState();
@@ -261,6 +269,43 @@ const Message: React.FC<MessageProps> = forwardRef<
 
   const isPending = idSet.has(message.id) || message?.pending || false;
 
+  // Buttons the bot attached to this message. Only ever shown on incoming
+  // messages: an outgoing bubble carrying them would mean the user is
+  // offering the bot a choice, which is not a thing.
+  const quickReplies = useMemo<QuickReply[]>(
+    () => (isUser ? [] : parseQuickReplies(message.quickReplies)),
+    [isUser, message.quickReplies]
+  );
+
+  const handleQuickReply = useCallback(
+    (reply: QuickReply, questionId: string) => {
+      // The answer is an ordinary message: the bot sees it through the same
+      // path as typed input, and the transcript reads naturally. Nothing
+      // else is sent anywhere.
+      sendMessage(reply.value, message.roomJid);
+
+      // Notification only, and deliberately after the send - a host driving
+      // a scripted flow (quiz, intake) hangs off this, and a throw in its
+      // handler must not cost the user their answer.
+      try {
+        const result = config?.eventHandlers?.onQuickReply?.({
+          messageId: message.id,
+          roomJID: message.roomJid,
+          reply,
+          questionId,
+        });
+        if (result && typeof (result as Promise<void>).catch === 'function') {
+          (result as Promise<void>).catch((error) =>
+            console.error('Error in quick reply handler:', error)
+          );
+        }
+      } catch (error) {
+        console.error('Error in quick reply handler:', error);
+      }
+    },
+    [config?.eventHandlers, message.id, message.roomJid, sendMessage]
+  );
+
   return (
     <>
       <CustomMessageContainer
@@ -376,6 +421,15 @@ const Message: React.FC<MessageProps> = forwardRef<
               <DoubleTick />
             )}
           </CustomMessageTimestamp>
+          {quickReplies.length > 0 && !message.isDeleted && (
+            <QuickReplies
+              replies={quickReplies}
+              messageId={message.id}
+              accentColor={config?.colors?.primary}
+              answered={hasAnsweredQuickReplies(message.id)}
+              onSelect={handleQuickReply}
+            />
+          )}
           {previewUrl && !message.isDeleted && (
             <URLPreviewCard url={previewUrl} isUserMessage={isUser} />
           )}

@@ -34,6 +34,12 @@ export interface IMessage {
   size?: string;
   xmppId?: string;
   xmppFrom?: string;
+  // Bot-offered buttons ("Take Quiz", "Yes"/"No", ...), decoded from the
+  // `quickReplies` JSON attribute on the stanza's <data> element. Typed as
+  // `unknown` because a message restored from persist (or one that never
+  // went through getDataFromXml) can still hold the raw string - read it
+  // through `parseQuickReplies()` rather than directly.
+  quickReplies?: unknown;
   // Present when this message is a call-log entry derived from a
   // `<data type="call-state">` stanza (see helpers/callLogMessage.ts).
   callLog?: {

@@ -197,7 +197,7 @@ const REFETCHED_ROOM_FIELDS = ['members'] as const;
 // sidebar previews actually read - nothing else. Everything outside this
 // list is either wire-protocol junk that createMessageFromXml spreads
 // onto every received message (senderFirstName/senderWalletAddress/
-// tokenAmount/quickReplies/push/photo/fullName...), derived state that is
+// tokenAmount/push/photo/fullName...), derived state that is
 // recomputed on render (reply), or data that re-syncs from the server on
 // room open (reaction via the reaction-history query, translations inside
 // the MAM stanza). Whitelisting instead of blacklisting means new junk
@@ -226,6 +226,10 @@ const PERSISTED_MESSAGE_FIELDS: (keyof IMessage)[] = [
   'size',
   'langSource',
   'callLog',
+  // Bot buttons. Bounded (a handful of short labels) and load-bearing on
+  // reload: without it a message that asked a question repaints from cache
+  // with its answer options missing until MAM re-delivers the stanza.
+  'quickReplies',
 ];
 
 // The sender identity that rides along on every message over the wire
