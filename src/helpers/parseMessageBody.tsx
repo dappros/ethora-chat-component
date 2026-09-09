@@ -2,6 +2,8 @@ import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
+import rehypeSanitize from 'rehype-sanitize';
+import { markdownSanitizeSchema } from './markdownSanitizeSchema';
 
 export const parseMessageBody = ({ text }: { text: string }) => {
   if (!text) return null;
@@ -18,7 +20,11 @@ export const parseMessageBody = ({ text }: { text: string }) => {
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeRaw]}
+        // Order matters: `rehype-raw` turns author-supplied raw HTML into
+        // real nodes, so the sanitiser has to run AFTER it. Swapped
+        // round, the sanitiser would only ever see the safe markdown
+        // tree and the raw HTML would land in the DOM untouched.
+        rehypePlugins={[rehypeRaw, [rehypeSanitize, markdownSanitizeSchema]]}
         components={{
           a: ({ href, children }) => (
             <a

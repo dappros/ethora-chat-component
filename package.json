@@ -49,6 +49,7 @@
     "redux-persist": "^6.0.0",
     "redux-persist-transform-encrypt": "^5.1.1",
     "rehype-raw": "^7.0.0",
+    "rehype-sanitize": "^6.0.0",
     "remark-gfm": "^4.0.1",
     "styled-components": "^6.1.19",
     "uuid": "^11.1.0",
