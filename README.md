@@ -358,7 +358,7 @@ Below is a grouped reference for all `config` options.
 | `colors` | `{ primary; secondary; icons?; ownMessageBackground?; otherMessageBackground?; inputBackground? }` | Theme colours. `primary` drives icon colours and the sender name. `icons` themes every accent icon/icon-button (attach, mic, active send, new-chat, header, empty-state) — defaults to `primary`, so set a *distinct* value to decouple. `ownMessageBackground`/`otherMessageBackground`/`inputBackground` recolour the message bubbles and input bar. |
 | `backgroundChat` | `{ color?; image? }` | Background colour and/or image for the messages area. (`image` as a string URL; pass an object URL for a `File`.) |
 | `typography` | `TypographyConfig` | Font family + size for the chat UI: `fontFamily` (or just `googleFontsFamily`) is applied across all chat text incl. messages and sender names; `fontSize` (px) scales message text, sender names, timestamps, inputs, room names and badges. Plus loaders (`googleFontsUrl`/`fontFaces`) and weight tokens. |
-| `fallbackScreens` | `{ noUser?; noConnection?; noRoom? }` | Replace the built-in screens (Ethora login form, "Connecting...", empty room state) with your own text or React nodes. A plain string is rendered as centered text. |
+| `fallbackScreens` | `{ noUser?; noConnection?; noRoom?; error? }` | Replace the built-in screens (Ethora login form, "Connecting...", empty room state, crash screen) with your own text or React nodes. A plain string is rendered as centered text. `error` also accepts a function `({ error, componentStack, scope, reset }) => ReactNode`, see [Error handling](#error-handling-and-crash-containment). |
 | `hiddenRooms` | `{ titles?: string[]; jids?: string[] }` | Hide specific rooms from the room list and unread counters (e.g. `{ titles: ['Main chat'] }` to suppress the auto-created default room). |
 | `roomListStyles` | `React.CSSProperties` | Styles for room list pane. |
 | `chatRoomStyles` | `React.CSSProperties` | Styles for chat pane. |
@@ -398,7 +398,7 @@ Below is a grouped reference for all `config` options.
 | `secondarySendButton` | `{ enabled: boolean; messageEdit: string; label?: React.ReactNode; buttonStyles?: React.CSSProperties; hideInputSendButton?: boolean; overwriteEnterClick?: true }` | Extra send action/button config. |
 | `botMessageAutoScroll` | `boolean` | Force auto-scroll behavior on bot messages. |
 | `messageTextFilter` | `{ enabled: boolean; filterFunction: (text: string) => string }` | Transform/filter outgoing message text. |
-| `eventHandlers` | `{ onMessageSent?; onMessageFailed?; onMessageEdited? }` | Lifecycle callbacks for message operations. |
+| `eventHandlers` | `{ onMessageSent?; onMessageFailed?; onMessageEdited?; onError? }` | Lifecycle callbacks for message operations, plus `onError` for uncaught render errors caught by the SDK's error boundary, see [Error handling](#error-handling-and-crash-containment). |
 | `translates` | `{ enabled: boolean; translations?: Iso639_1Codes }` | Message translation-related options. |
 | `whitelistSystemMessage` | `string[]` | Restrict/render only selected system message types. |
 | `customSystemMessage` | `React.ComponentType<MessageProps>` | Replace system message component renderer. |
@@ -430,6 +430,62 @@ Below is a grouped reference for all `config` options.
 | `pushNotifications.badgePath` | `string` | Custom badge URL/path for OS push notifications. Falls back to `iconPath`. |
 | `pushNotifications.softAsk` | `boolean` | Do not immediately trigger browser permission prompt. |
 | `pushNotifications.onClick` | `(params) => void \| Promise<void>` | Callback invoked when the user clicks an OS push notification (including cold start via URL marker). |
+
+### Error handling and crash containment
+
+The SDK renders inside your application's React tree. Without a boundary, one
+uncaught render error inside the chat would propagate to your root and unmount
+your whole app, so `@ethora/chat-component` ships an error boundary of its own:
+
+- one boundary wraps everything `<Chat>` renders (it sits inside `<Chat>`'s
+  redux provider, above the persist gate and the whole chat tree);
+- a second one wraps the video/audio call overlay, which `<XmppProvider>`
+  renders as a sibling of your children so it can ring while the user is on
+  another page. A crash there disappears quietly instead of leaving a dead
+  panel over your UI, and is still logged and reported.
+
+The error is never swallowed: it is always written to the console together
+with React's component stack, regardless of `useStoreConsoleEnabled`.
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `fallbackScreens.error` | `React.ReactNode \| ((ctx) => React.ReactNode)` | Replaces the built-in crash screen. A plain string renders as centered text, a React node renders as-is, a function receives `{ error, componentStack, scope, reset }`. |
+| `eventHandlers.onError` | `(event: ChatErrorInfo) => void` | Called with `{ error, componentStack, scope }` when the boundary catches a crash. Wire it to your crash reporter. A throw inside your handler is caught and logged, never rethrown. |
+
+`scope` is `'chat'` for the chat tree and `'call-overlay'` for the call
+overlay. The built-in screen is themed from your `colors` / `typography` and
+translated through the same `config.i18n` locale as the rest of the UI, and it
+offers a "try again" button that clears the error and re-mounts the chat, since
+most of these failures are transient state problems.
+
+```tsx
+<Chat
+  config={{
+    eventHandlers: {
+      onError: ({ error, componentStack, scope }) =>
+        Sentry.captureException(error, { extra: { componentStack, scope } }),
+    },
+    fallbackScreens: {
+      // Simplest form: replace it with your own text.
+      // error: 'Chat is temporarily unavailable',
+
+      // Or take full control, including your own retry action:
+      error: ({ error, reset }) => (
+        <MyErrorPanel message={error.message} onRetry={reset} />
+      ),
+    },
+  }}
+/>
+```
+
+A string or node fallback is only used for the chat pane: for a crashed call
+overlay the SDK renders nothing, and only the function form (which can inspect
+`scope`) is consulted.
+
+The call overlay is rendered by `<XmppProvider>`, so pass the same config
+object to the provider as to `<Chat>` (which the [single XMPP initialization
+contract](#single-xmpp-initialization-contract) already recommends) if you want
+`'call-overlay'` crashes to reach your `onError` too.
 
 ## Custom Widgets and Overrides
 

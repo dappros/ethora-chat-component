@@ -27,8 +27,22 @@ const fakeClient = {
   acknowledgeSentMessage: () => {},
 } as any;
 
-const waitForAsyncHandlers = () =>
-  new Promise((resolve) => setTimeout(resolve, 50));
+// The stanza router finishes this work asynchronously. Waiting a flat 50ms
+// for it made this file fail whenever the machine was busy (a full-suite run
+// with every worker saturated), while it always passed on its own - a load
+// race, not a logic failure. Poll instead: fast when the handlers are quick,
+// still bounded, and a genuinely broken router just times out and fails the
+// same assertion as before.
+const waitForAsyncHandlers = async (
+  until: () => boolean = () => true,
+  timeoutMs = 2000
+) => {
+  const deadline = Date.now() + timeoutMs;
+  do {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    if (until()) return;
+  } while (Date.now() < deadline);
+};
 
 const callEntries = () =>
   (store.getState().rooms.rooms[ROOM_JID]?.messages || []).filter(
@@ -42,7 +56,7 @@ describe('live call-state through the REAL stanza router (user repro)', () => {
     );
 
     handleStanza(parse(STANZA), fakeClient);
-    await waitForAsyncHandlers();
+    await waitForAsyncHandlers(() => callEntries().length > 0);
 
     const entries = callEntries();
     expect(entries.length).toBeGreaterThan(0);
@@ -66,7 +80,11 @@ describe('live call-state through the REAL stanza router (user repro)', () => {
     );
 
     handleStanza(parse(STANZA), fakeClient);
-    await waitForAsyncHandlers();
+    await waitForAsyncHandlers(
+      () =>
+        callEntries().length === 1 &&
+        String(callEntries()[0].id) === '1781702272543611'
+    );
 
     const entries = callEntries();
     expect(entries.length).toBe(1);

@@ -43,6 +43,7 @@ import { setBaseURL } from '../networking/apiClient';
 import { ensureScopedChatCache } from '../helpers/cacheScope';
 import { ethoraLogger } from '../helpers/ethoraLogger';
 import { MessageNotificationProvider } from './MessageNotificationContext';
+import ChatErrorBoundary from '../components/MainComponents/ChatErrorBoundary';
 // Lazy for the same reason ChatWrapper.tsx used to lazy-load this: it pulls
 // in livekit-client + @livekit/components-react, a large dependency that a
 // static import would bundle into every consumer regardless of whether they
@@ -573,9 +574,19 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
               different in-app page than chat, as long as the tab itself
               is open. VideoCallOverlay reads config/call state from Redux
               itself, so it needs nothing passed in. */}
-          <React.Suspense fallback={null}>
-            <VideoCallOverlay />
-          </React.Suspense>
+          {/* Its own boundary, separate from the one inside <Chat>: this
+              overlay is a SIBLING of `children`, so the chat's boundary can
+              never see it, and a throw here (livekit, a half-built call
+              state, a device-permission edge case) would still unmount the
+              host app. `silent` because a crashed overlay must disappear,
+              not leave an error panel floating over the host's UI - the
+              error is still logged and still reported to
+              config.eventHandlers.onError with scope "call-overlay". */}
+          <ChatErrorBoundary config={config} scope="call-overlay" silent>
+            <React.Suspense fallback={null}>
+              <VideoCallOverlay />
+            </React.Suspense>
+          </ChatErrorBoundary>
         </MessageNotificationProvider>
       </Provider>
     </XmppContext.Provider>
