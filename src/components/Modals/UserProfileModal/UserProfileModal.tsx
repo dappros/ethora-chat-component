@@ -1,15 +1,17 @@
 import React, { useCallback, useMemo, useState } from 'react';
+import { ActionButton } from '../styledModalComponents';
+import SideDrawer, {
+  DrawerCard,
+  DrawerCardBody,
+  DrawerHint,
+  DrawerSection,
+  DrawerSectionTitle,
+} from '../SideDrawer/SideDrawer';
 import {
-  CenterContainer,
-  UserInfo,
-  UserName,
-  UserStatus,
-  ModalContainerFullScreen,
-  ActionButton,
-  Label,
-  BorderedContainer,
-  LabelData,
-} from '../styledModalComponents';
+  ProfileHero,
+  ProfileHeroName,
+  ProfileActions,
+} from '../SideDrawer/DrawerProfileParts';
 import {
   AudioCallIcon,
   ChatIcon,
@@ -18,7 +20,6 @@ import {
   MoreIcon,
   VideoCallIcon,
 } from '../../../assets/icons';
-import ModalHeaderComponent from '../ModalHeaderComponent';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../../roomStore';
 import { ProfileImagePlaceholder } from '../../MainComponents/ProfileImagePlaceholder';
@@ -347,101 +348,119 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     else return undefined;
   };
 
+  const headerActions = !selectedUser ? (
+    <>
+      <Button onClick={EditClick} aria-label={t('action.editProfile')}>
+        <EditIcon color="var(--ethora-color-text-muted, #8C8C8C)" />
+      </Button>
+      <DropdownMenu
+        options={menuOptions}
+        position="left"
+        menuIcon={<MoreIcon />}
+      />
+    </>
+  ) : undefined;
+
+  const showActions =
+    selectedUser &&
+    selectedUser.xmppUsername !== user.xmppUsername &&
+    !config?.disableProfilesInteractions;
+
+  // Grouped into labelled sections instead of a stack of anonymous bordered
+  // boxes: identity first (no heading - the avatar and name are the heading),
+  // then About, then the reader-language preference, then the actions you can
+  // take on someone else's profile.
   const DefaultBody = useMemo(
     () => (
       <>
-        <ModalHeaderComponent
-          handleCloseModal={handleBackClick}
-          headerTitle={t('modal.profile.title')}
-          rightMenu={
-            !selectedUser && (
-              <>
-                <Button onClick={EditClick} aria-label={t('action.editProfile')}>
-                  <EditIcon color="var(--ethora-color-text-muted, #8C8C8C)" />
-                </Button>
-                <DropdownMenu
-                  options={menuOptions}
-                  position="left"
-                  menuIcon={<MoreIcon />}
-                />
-              </>
-            )
-          }
-        />
-        <CenterContainer>
+        <ProfileHero>
           <ProfileImagePlaceholder
             icon={modalUser?.profileImage ?? null}
             name={modalUser?.name ?? modalUser?.firstName}
-            size={120}
+            size={96}
           />
-          <UserInfo>
-            <UserName>
-              {modalUser?.name
-                ? `${modalUser?.name}`
-                : `${modalUser?.firstName} ${modalUser?.lastName}`}
-            </UserName>
-            {/* <UserStatus>Status</UserStatus> */}
-          </UserInfo>
-          {!selectedUser && config?.translates?.enabled && (
-            <BorderedContainer>
-              <Select
-                options={LANGUAGE_OPTIONS}
-                placeholder={t('language.select')}
-                onSelect={handleSelect}
-                accentColor={config?.colors?.primary}
-                selectedValue={findLanguage()}
-              />
-            </BorderedContainer>
-          )}
-          <BorderedContainer>
-            <Label>{t('modal.profile.about')}</Label>
-            <LabelData>
-              {modalUser?.description && modalUser?.description?.length > 4
-                ? modalUser.description
-                : t('modal.profile.noDescription')}
-            </LabelData>
-          </BorderedContainer>
-          {selectedUser &&
-            selectedUser.xmppUsername !== user.xmppUsername &&
-            !config?.disableProfilesInteractions && (
-              <>
+          <ProfileHeroName>
+            {modalUser?.name
+              ? `${modalUser?.name}`
+              : `${modalUser?.firstName} ${modalUser?.lastName}`}
+          </ProfileHeroName>
+        </ProfileHero>
+
+        <DrawerSection>
+          <DrawerSectionTitle>{t('modal.profile.about')}</DrawerSectionTitle>
+          <DrawerCard>
+            <DrawerCardBody>
+              <DrawerHint>
+                {modalUser?.description && modalUser?.description?.length > 4
+                  ? modalUser.description
+                  : t('modal.profile.noDescription')}
+              </DrawerHint>
+            </DrawerCardBody>
+          </DrawerCard>
+        </DrawerSection>
+
+        {!selectedUser && config?.translates?.enabled && (
+          <DrawerSection>
+            <DrawerSectionTitle>
+              {t('modal.profile.preferences')}
+            </DrawerSectionTitle>
+            <DrawerCard>
+              <DrawerCardBody>
+                <DrawerHint>{t('modal.profile.languageHint')}</DrawerHint>
+                <Select
+                  options={LANGUAGE_OPTIONS}
+                  placeholder={t('language.select')}
+                  onSelect={handleSelect}
+                  accentColor={config?.colors?.primary}
+                  selectedValue={findLanguage()}
+                />
+              </DrawerCardBody>
+            </DrawerCard>
+          </DrawerSection>
+        )}
+
+        {showActions && (
+          <DrawerSection>
+            <DrawerSectionTitle>
+              {t('modal.profile.actions')}
+            </DrawerSectionTitle>
+            <ProfileActions>
+              <ActionButton
+                StartIcon={<ChatIcon />}
+                onClick={handlePrivateMessage}
+                variant="filled"
+              >
+                {t('action.message')}
+              </ActionButton>
+              {canCall && (
                 <ActionButton
-                  StartIcon={<ChatIcon />}
-                  onClick={handlePrivateMessage}
+                  StartIcon={<VideoCallIcon color="var(--ethora-color-text-on-primary, #FFFFFF)" />}
+                  onClick={() => void handleCall('video')}
+                  disabled={isCallBusy}
                   variant="filled"
                 >
-                  {t('action.message')}
+                  {isAudioCallsEnabled ? t('action.videoCall') : t('action.call')}
                 </ActionButton>
-                {canCall && (
-                  <ActionButton
-                    StartIcon={<VideoCallIcon color="var(--ethora-color-text-on-primary, #FFFFFF)" />}
-                    onClick={() => void handleCall('video')}
-                    disabled={isCallBusy}
-                    variant="filled"
-                  >
-                    {isAudioCallsEnabled ? t('action.videoCall') : t('action.call')}
-                  </ActionButton>
-                )}
-                {isAudioCallsEnabled && (
-                  <ActionButton
-                    StartIcon={<AudioCallIcon color="var(--ethora-color-text-on-primary, #FFFFFF)" />}
-                    onClick={() => void handleCall('audio')}
-                    disabled={isCallBusy}
-                    variant="filled"
-                  >
-                    {t('action.audioCall')}
-                  </ActionButton>
-                )}
+              )}
+              {isAudioCallsEnabled && (
                 <ActionButton
-                  onClick={() => handleCopyClick(selectedUser.id)}
+                  StartIcon={<AudioCallIcon color="var(--ethora-color-text-on-primary, #FFFFFF)" />}
+                  onClick={() => void handleCall('audio')}
+                  disabled={isCallBusy}
                   variant="filled"
                 >
-                  {t('action.copyUserId')}
+                  {t('action.audioCall')}
                 </ActionButton>
-              </>
-            )}
-          {/* <EmptySection /> */}
-        </CenterContainer>
+              )}
+              <ActionButton
+                onClick={() => handleCopyClick(selectedUser.id)}
+                variant="outlined"
+              >
+                {t('action.copyUserId')}
+              </ActionButton>
+            </ProfileActions>
+          </DrawerSection>
+        )}
       </>
     ),
     [
@@ -452,8 +471,10 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
       handleCall,
       handlePrivateMessage,
       selectedUser,
+      showActions,
       user,
       config,
+      langSource,
       t,
     ]
   );
@@ -470,9 +491,13 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   );
 
   return (
-    <ModalContainerFullScreen>
+    <SideDrawer
+      title={t('modal.profile.title')}
+      onClose={handleBackClick}
+      headerActions={!isEditing ? headerActions : undefined}
+    >
       {!isEditing ? DefaultBody : EditingBody}
-    </ModalContainerFullScreen>
+    </SideDrawer>
   );
 };
 
