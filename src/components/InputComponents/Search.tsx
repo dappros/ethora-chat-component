@@ -19,6 +19,12 @@ const SearchInputWrapper = styled.div.withConfig({ shouldForwardProp })<{
   border-radius: var(--ethora-radius-md, 16px);
   height: 48px;
   padding: 0 16px;
+  /* width:100% + 16px of padding either side + a 1px border is 34px wider
+     than the space it was given, so this box always overflowed its parent -
+     visible as the search field being clipped at the right edge inside the
+     room profile's members card. Sizing the padding and border INTO the
+     100% is what the layout always meant. */
+  box-sizing: border-box;
   transition:
     width 0.7s ease-in-out,
     border-color var(--ethora-motion-fast, 150ms) var(--ethora-motion-ease, ease);

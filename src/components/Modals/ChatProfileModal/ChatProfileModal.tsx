@@ -1,15 +1,20 @@
 import React, { useMemo, useState } from 'react';
+import SideDrawer, {
+  DrawerCard,
+  DrawerCardBody,
+  DrawerHint,
+  DrawerLabel,
+  DrawerRowDivider,
+  DrawerSection,
+  DrawerSectionTitle,
+  SectionHeaderRow,
+  ShowMoreButton,
+} from '../SideDrawer/SideDrawer';
 import {
-  CenterContainer,
-  UserInfo,
-  UserName,
-  UserStatus,
-  ModalContainerFullScreen,
-  Label,
-  BorderedContainer,
-  LabelData,
-} from '../styledModalComponents';
-import ModalHeaderComponent from '../ModalHeaderComponent';
+  ProfileHero,
+  ProfileHeroName,
+  ProfileHeroSubtitle,
+} from '../SideDrawer/DrawerProfileParts';
 import { ProfileImagePlaceholder } from '../../MainComponents/ProfileImagePlaceholder';
 import { useRoomPresence } from '../../../hooks/useRoomPresence';
 import { useDispatch, useSelector, useStore } from 'react-redux';
@@ -30,14 +35,12 @@ import {
   setSelectedUser,
 } from '../../../roomStore/chatSettingsSlice';
 import { MODAL_TYPES } from '../../../helpers/constants/MODAL_TYPES';
-import AddMembersModal from '../AddMembersModal/AddMembersModal';
 import { deleteRoomMember } from '../../../networking/api-requests/rooms.api';
 import DropdownMenu from '../../DropdownMenu/DropdownMenu';
 import DeleteChatModal from './DeleteChatModal';
 import { useChatSettingState } from '../../../hooks/useChatSettingState';
 import SelectUsersModal from '../SelectUsersModal/SelectUsersModal';
 import { useToast } from '../../../context/ToastContext';
-import { ethoraLogger } from '../../../helpers/ethoraLogger';
 import { useT } from '../../../i18n/useT';
 import { useMyFiles } from '../../../hooks/useMyFiles';
 import FilesList from '../../Files/FilesList';
@@ -92,10 +95,6 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
 
   const { client } = useXmppClient();
   const { user: stateUser, config } = useChatSettingState();
-  // config.disableRoomConfig turns the chat-details panel read-only: no
-  // avatar upload/remove, no "Delete chat", no add-members, no per-member
-  // moderator actions. Everything informational stays visible.
-  const roomConfigDisabled = config?.disableRoomConfig === true;
   const activeRoom = useSelector((state: RootState) => getActiveRoom(state));
   const onlineUsers = useRoomPresence(activeRoom?.jid);
   // Secure room avatars need the viewer's own `?ft=` token appended at
@@ -234,9 +233,10 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         updateRoom({
           jid: activeRoom.jid,
           updates: {
-            members: (Array.isArray(activeRoom.members) ? activeRoom.members : []).filter(
-              (user) => user.xmppUsername !== userId
-            ),
+            members: (Array.isArray(activeRoom.members)
+              ? activeRoom.members
+              : []
+            ).filter((user) => user.xmppUsername !== userId),
           },
         })
       );
@@ -258,6 +258,11 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
     }
   };
 
+  // config.disableRoomConfig turns the chat-details panel read-only: no
+  // avatar upload or removal, no room menu, no add-members, and no
+  // per-member moderator actions. Read-only details still render.
+  const roomConfigDisabled = config?.disableRoomConfig === true;
+
   const onRemoveClick = async () => {
     client.setRoomImageStanza(activeRoom.jid, null, 'icon', 'none');
     dispatch(updateRoom({ jid: activeRoom.jid, updates: { icon: null } }));
@@ -276,16 +281,12 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
     );
   };
 
+  // "Appoint as admin" used to sit at the top of this menu, but it never
+  // appointed anyone: it opened the member's profile and logged a line.
+  // There is no affiliation-change call behind it anywhere in the codebase,
+  // so it is gone rather than shipped as a button that pretends to work.
   const menuOptions = useMemo(
     () => (userId: string) => [
-      {
-        label: t('action.appointAsAdmin'),
-        icon: null,
-        onClick: () => {
-          dispatch(setActiveModal(MODAL_TYPES.PROFILE));
-          ethoraLogger.log('Profile clicked');
-        },
-      },
       {
         label: t('action.delete'),
         icon: null,
@@ -303,116 +304,114 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
     return null;
   }
 
+  const memberCountLabel = (() => {
+    const displayCount =
+      Array.isArray(activeRoom.members) && activeRoom.members.length > 0
+        ? activeRoom.members.length
+        : typeof activeRoom.usersCnt === 'number' && activeRoom.usersCnt > 0
+          ? activeRoom.usersCnt
+          : 0;
+    return displayCount === 1
+      ? t('modal.chatProfile.memberCountSingular', { count: displayCount })
+      : t('modal.chatProfile.memberCountPlural', { count: displayCount });
+  })();
+
+  const showDescription = !config?.disableChatInfo?.disableDescription;
+  const showType = !config?.disableChatInfo?.disableType;
+
   return (
-    <ModalContainerFullScreen style={{ position: 'relative' }}>
-      <ModalHeaderComponent
-        handleCloseModal={handleCloseModal}
-        headerTitle={t('modal.chatProfile.title')}
-        rightMenu={
-          <>
-            {activeRoom?.type === 'public' && (
-              <Button
-                EndIcon={<QrIcon />}
-                onClick={() => setVisible(true)}
-                aria-label={t('action.showQr')}
+    <SideDrawer
+      title={t('modal.chatProfile.title')}
+      onClose={handleCloseModal}
+      headerActions={
+        <>
+          {activeRoom?.type === 'public' && (
+            <Button
+              EndIcon={<QrIcon />}
+              onClick={() => setVisible(true)}
+              aria-label={t('action.showQr')}
+            />
+          )}
+          {activeRoom.role === 'moderator' &&
+            activeRoom.type !== 'private' &&
+            !roomConfigDisabled &&
+            !config?.disableChatInfo?.disableChatHeaderMenu && (
+              <DropdownMenu
+                position="left"
+                options={chatMenuOptions}
+                openButton={
+                  <Button
+                    style={{ padding: 8, maxHeight: '40px' }}
+                    EndIcon={<MoreIcon />}
+                    unstyled
+                    aria-label={t('action.moreOptions')}
+                  />
+                }
               />
             )}
-            {activeRoom.role === 'moderator' &&
-              activeRoom.type !== 'private' &&
-              !roomConfigDisabled &&
-              !config?.disableChatInfo?.disableChatHeaderMenu && (
-                <DropdownMenu
-                  position="left"
-                  options={chatMenuOptions}
-                  openButton={
-                    <Button
-                      style={{ padding: 8, maxHeight: '40px' }}
-                      EndIcon={<MoreIcon />}
-                      unstyled
-                      aria-label={t('action.moreOptions')}
-                    />
-                  }
-                />
-              )}
-          </>
-        }
-      />
-      <CenterContainer>
+        </>
+      }
+    >
+      <ProfileHero>
         <ProfileImagePlaceholder
           name={activeRoom.name}
           icon={appendFileToken(activeRoom.icon, fileToken)}
-          upload={
-            roomConfigDisabled
-              ? undefined
-              : {
-                  onUpload,
-                  active: activeRoom?.role !== 'participant' ? true : false,
-                }
-          }
+          upload={{
+            onUpload,
+            active: !roomConfigDisabled && activeRoom?.role !== 'participant',
+          }}
           remove={
             roomConfigDisabled ? undefined : { enabled: true, onRemoveClick }
           }
           role={activeRoom?.role}
-          size={128}
+          size={96}
         />
-        <UserInfo>
-          <UserName>{activeRoom.name}</UserName>
-          <UserStatus>
-            {(() => {
-              const displayCount =
-                Array.isArray(activeRoom.members) && activeRoom.members.length > 0
-                  ? activeRoom.members.length
-                  : typeof activeRoom.usersCnt === 'number' &&
-                      activeRoom.usersCnt > 0
-                    ? activeRoom.usersCnt
-                    : 0;
-              return displayCount === 1
-                ? t('modal.chatProfile.memberCountSingular', { count: displayCount })
-                : t('modal.chatProfile.memberCountPlural', { count: displayCount });
-            })()}
-          </UserStatus>
-        </UserInfo>
-        {activeRoom.role === 'moderator' &&
-          activeRoom.type === 'group' &&
-          !roomConfigDisabled && (
-            <>
-              {/* <AddMembersModal /> */}
-              <SelectUsersModal />
-            </>
-          )}
-        {!config?.disableChatInfo?.disableDescription && (
-          <BorderedContainer>
-            <LabelData>{t('modal.chatProfile.description')}</LabelData>
-            <Label>{activeRoom?.description}</Label>
-          </BorderedContainer>
-        )}
-        {!config?.disableChatInfo?.disableType && (
-          <BorderedContainer>
-            <LabelData>{t('modal.chatProfile.chatType')}</LabelData>
-            <Label>{activeRoom.type}</Label>
-          </BorderedContainer>
-        )}
-        {/* <BorderedContainer
-          style={{
-            justifyContent: 'space-between',
-            flexDirection: 'row',
-            alignItems: 'center',
-          }}
-        >
-          <Label>Notifications</Label>
-          <Label>
-            <Switch
-              onToggle={function (isOn: boolean): void {
-                throw new Error('Function not implemented.');
-              }}
-              bgColor={config?.colors?.primary}
-            />
-          </Label>
-        </BorderedContainer> */}
-        {!config?.disableChatInfo?.hideMembers && (
-          <BorderedContainer style={{ padding: '8px 16px' }}>
-            {enrichedMembers.length > 0 && (
-              <div style={{ padding: '4px 0 12px' }}>
+        <div>
+          <ProfileHeroName>{activeRoom.name}</ProfileHeroName>
+          <ProfileHeroSubtitle>{memberCountLabel}</ProfileHeroSubtitle>
+        </div>
+      </ProfileHero>
+
+      {activeRoom.role === 'moderator' &&
+        activeRoom.type === 'group' &&
+        !roomConfigDisabled && <SelectUsersModal />}
+
+      {/* Description and chat type used to be two separate bordered boxes with
+          no heading between them. They are one "About" card of labelled rows
+          now, so the panel reads as grouped facts rather than loose chrome. */}
+      {(showDescription || showType) && (
+        <DrawerSection>
+          <DrawerSectionTitle>
+            {t('modal.chatProfile.aboutSection')}
+          </DrawerSectionTitle>
+          <DrawerCard>
+            {showDescription && (
+              <DrawerCardBody>
+                <DrawerHint>{t('modal.chatProfile.description')}</DrawerHint>
+                <DrawerLabel>
+                  {activeRoom?.description || t('modal.profile.noDescription')}
+                </DrawerLabel>
+              </DrawerCardBody>
+            )}
+            {showDescription && showType && <DrawerRowDivider />}
+            {showType && (
+              <DrawerCardBody>
+                <DrawerHint>{t('modal.chatProfile.chatType')}</DrawerHint>
+                <DrawerLabel>{activeRoom.type}</DrawerLabel>
+              </DrawerCardBody>
+            )}
+          </DrawerCard>
+        </DrawerSection>
+      )}
+
+      {!config?.disableChatInfo?.hideMembers && (
+        <DrawerSection>
+          <DrawerSectionTitle>
+            {t('modal.chatProfile.membersSection')}
+          </DrawerSectionTitle>
+          <DrawerCard>
+            <DrawerCardBody>
+              {enrichedMembers.length > 0 && (
                 <SearchInput
                   icon={<SearchIcon height={'20px'} />}
                   value={memberQuery}
@@ -420,119 +419,91 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                   placeholder={t('modal.chatProfile.searchMembers')}
                   aria-label={t('modal.chatProfile.searchMembers')}
                 />
-              </div>
-            )}
-            {loading ? (
-              <Loader />
-            ) : (
-              <>
-                {visibleMembers.map((user, index) => (
-                  <ChatProfileMemberRow
-                    key={user.xmppUsername}
-                    member={user}
-                    isLast={
-                      index === visibleMembers.length - 1 && !hasMoreMembers
-                    }
-                    disableClick={!!config?.disableChatInfo?.disableMembers}
-                    online={onlineUsersSet.has(user.xmppUsername)}
-                    showMenu={
-                      stateUser.xmppUsername !== user.xmppUsername &&
-                      activeRoom.role === 'moderator' &&
-                      activeRoom.type !== 'private' &&
-                      // config.disableRoomConfig makes the panel read-only, so
-                      // the per-member moderator actions (appoint admin, remove
-                      // member) go with it.
-                      !roomConfigDisabled
-                    }
-                    menuOptions={menuOptions(user.xmppUsername)}
-                    moreOptionsLabel={t('action.moreOptions')}
-                    onAvatarClick={handleUserAvatarClick}
-                  />
-                ))}
-                {hasMoreMembers && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'center',
-                      padding: '12px 0',
-                      cursor: 'pointer',
-                    }}
-                    onClick={() =>
-                      setVisibleMemberCount(
-                        (count) => count + MEMBER_RENDER_WINDOW_STEP
-                      )
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
+              )}
+              {loading ? (
+                <Loader />
+              ) : (
+                <>
+                  {visibleMembers.map((user, index) => (
+                    <ChatProfileMemberRow
+                      key={user.xmppUsername}
+                      member={user}
+                      isLast={
+                        index === visibleMembers.length - 1 && !hasMoreMembers
+                      }
+                      disableClick={!!config?.disableChatInfo?.disableMembers}
+                      online={onlineUsersSet.has(user.xmppUsername)}
+                      showMenu={
+                        stateUser.xmppUsername !== user.xmppUsername &&
+                        activeRoom.role === 'moderator' &&
+                        activeRoom.type !== 'private' &&
+                        !roomConfigDisabled
+                      }
+                      menuOptions={menuOptions(user.xmppUsername)}
+                      moreOptionsLabel={t('action.moreOptions')}
+                      onAvatarClick={handleUserAvatarClick}
+                    />
+                  ))}
+                  {hasMoreMembers && (
+                    <ShowMoreButton
+                      type="button"
+                      onClick={() =>
                         setVisibleMemberCount(
                           (count) => count + MEMBER_RENDER_WINDOW_STEP
-                        );
+                        )
                       }
-                    }}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <Label
-                      style={{
-                        color: 'var(--ethora-color-primary, #0052CD)',
-                        fontSize: '13px',
-                      }}
                     >
                       {t('modal.chatProfile.membersShowMore', {
                         count: filteredMembers.length - visibleMemberCount,
                       })}
-                    </Label>
-                  </div>
-                )}
-              </>
-            )}
-          </BorderedContainer>
-        )}
-        <BorderedContainer style={{ padding: '8px 16px' }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              cursor: 'pointer',
-            }}
-            onClick={() => setFilesExpanded((prev) => !prev)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                setFilesExpanded((prev) => !prev);
-              }
-            }}
-            role="button"
-            tabIndex={0}
-            aria-expanded={filesExpanded}
-          >
-            <LabelData>{t('modal.chatProfile.filesTitle')}</LabelData>
-            {roomFiles.length > 6 && (
-              <Label style={{ color: 'var(--ethora-color-primary, #0052CD)', fontSize: '13px' }}>
-                {t('modal.chatProfile.filesShowAll')}
-              </Label>
-            )}
-          </div>
-          {filesLoading && roomFiles.length === 0 ? (
-            <Loader />
-          ) : filesError && roomFiles.length === 0 ? (
-            <Label>{t('files.error.title')}</Label>
-          ) : roomFiles.length === 0 ? (
-            <Label>{t('modal.chatProfile.filesEmpty')}</Label>
-          ) : (
-            <FilesList
-              items={visibleRoomFiles}
-              fileToken={fileToken}
-              onPreview={handleFilePreview}
-              onDownload={handleFileDownload}
-              onDelete={handleFileDelete}
-              compact
-            />
+                    </ShowMoreButton>
+                  )}
+                </>
+              )}
+            </DrawerCardBody>
+          </DrawerCard>
+        </DrawerSection>
+      )}
+
+      <DrawerSection>
+        <SectionHeaderRow>
+          <DrawerSectionTitle>
+            {t('modal.chatProfile.filesTitle')}
+          </DrawerSectionTitle>
+          {roomFiles.length > 6 && (
+            <ShowMoreButton
+              type="button"
+              onClick={() => setFilesExpanded((prev) => !prev)}
+              aria-expanded={filesExpanded}
+            >
+              {filesExpanded
+                ? t('modal.chatProfile.filesShowLess')
+                : t('modal.chatProfile.filesShowAll')}
+            </ShowMoreButton>
           )}
-        </BorderedContainer>
-      </CenterContainer>
+        </SectionHeaderRow>
+        <DrawerCard>
+          <DrawerCardBody>
+            {filesLoading && roomFiles.length === 0 ? (
+              <Loader />
+            ) : filesError && roomFiles.length === 0 ? (
+              <DrawerHint>{t('files.error.title')}</DrawerHint>
+            ) : roomFiles.length === 0 ? (
+              <DrawerHint>{t('modal.chatProfile.filesEmpty')}</DrawerHint>
+            ) : (
+              <FilesList
+                items={visibleRoomFiles}
+                fileToken={fileToken}
+                onPreview={handleFilePreview}
+                onDownload={handleFileDownload}
+                onDelete={handleFileDelete}
+                compact
+              />
+            )}
+          </DrawerCardBody>
+        </DrawerCard>
+      </DrawerSection>
+
       <OperationalModal
         isVisible={visible}
         setVisible={setVisible}
@@ -542,7 +513,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         isModalOpen={isModalOpen}
         setIsModalOpen={setIsModalOpen}
       />
-    </ModalContainerFullScreen>
+    </SideDrawer>
   );
 };
 

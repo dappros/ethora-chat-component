@@ -4,7 +4,11 @@ import { ModalBackground } from '../styledModalComponents';
 import { ModalType } from '../../../types/types';
 import { useDispatch } from 'react-redux';
 import { setActiveModal } from '../../../roomStore/chatSettingsSlice';
-import { MODAL_TYPES } from '../../../helpers/constants/MODAL_TYPES';
+import {
+  DRAWER_MODAL_TYPES,
+  MODAL_TYPES,
+  SETTINGS_SUB_MODAL_TYPES,
+} from '../../../helpers/constants/MODAL_TYPES';
 import { MODAL_COMPONENTS } from '../modalComponents';
 
 interface ModalProps {
@@ -21,13 +25,11 @@ const Modal: React.FC<ModalProps> = ({ children, modal, setOpenModal }) => {
 
   // Escape dismisses whichever store-driven modal is open (the settings
   // sub-modals step back to Settings, matching their own close button).
-  const isSubSettingsModal =
-    modal === MODAL_TYPES.MANAGE_DATA ||
-    modal === MODAL_TYPES.VISIBILITY ||
-    modal === MODAL_TYPES.REFERRALS ||
-    modal === MODAL_TYPES.DOCUMENT_SHARES ||
-    modal === MODAL_TYPES.PROFILE_SHARES ||
-    modal === MODAL_TYPES.BLOCKED_USERS;
+  const isSubSettingsModal = SETTINGS_SUB_MODAL_TYPES.includes(modal || '');
+  // The profile/settings family renders as a side drawer, so the backdrop
+  // must not be a scrim over the room list and the chat - see the `$drawer`
+  // branch of ModalBackground.
+  const isDrawerModal = DRAWER_MODAL_TYPES.includes(modal || '');
   const containerRef = useRef<HTMLDivElement>(null);
   // Bumped once per run of the focus effect below; a MutationObserver
   // callback (or a resolved focusFirst() call) only actually applies focus
@@ -133,15 +135,9 @@ const Modal: React.FC<ModalProps> = ({ children, modal, setOpenModal }) => {
 
     if (!ModalComponent) return null;
 
-    const handleClose =
-      modal === MODAL_TYPES.MANAGE_DATA ||
-      modal === MODAL_TYPES.VISIBILITY ||
-      modal === MODAL_TYPES.REFERRALS ||
-      modal === MODAL_TYPES.DOCUMENT_SHARES ||
-      modal === MODAL_TYPES.PROFILE_SHARES ||
-      modal === MODAL_TYPES.BLOCKED_USERS
-        ? handleBackButtonClick
-        : handleCloseModal;
+    const handleClose = isSubSettingsModal
+      ? handleBackButtonClick
+      : handleCloseModal;
 
     // Lazy chunk: the backdrop is already painted by the parent, so an
     // empty fallback reads as the modal appearing a beat later, not as a
@@ -158,7 +154,11 @@ const Modal: React.FC<ModalProps> = ({ children, modal, setOpenModal }) => {
   };
   return (
     modal && (
-      <ModalBackground id="modal-background" style={{ position: 'absolute' }}>
+      <ModalBackground
+        id="modal-background"
+        $drawer={isDrawerModal}
+        style={{ position: 'absolute' }}
+      >
         {renderModalContent()}
         {children}
       </ModalBackground>

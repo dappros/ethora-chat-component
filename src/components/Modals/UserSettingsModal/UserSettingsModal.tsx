@@ -1,16 +1,13 @@
 import React, { useCallback, useMemo } from 'react';
 
-import {
-  ModalContainerFullScreen,
-  Divider,
-  Label,
-  LabelData,
-  BorderedContainer,
-  CenterContainer,
-} from '../styledModalComponents';
-import ModalHeaderComponent from '../ModalHeaderComponent';
-import Button from '../../styled/Button';
 import { useDispatch } from 'react-redux';
+import SideDrawer, {
+  DrawerCard,
+  DrawerNavRow,
+  DrawerRowDivider,
+  DrawerSection,
+  DrawerSectionTitle,
+} from '../SideDrawer/SideDrawer';
 import { setActiveModal } from '../../../roomStore/chatSettingsSlice';
 import { MODAL_TYPES } from '../../../helpers/constants/MODAL_TYPES';
 import { useT } from '../../../i18n/useT';
@@ -23,70 +20,61 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
   handleCloseModal,
 }) => {
   const t = useT();
-  const options = useMemo(
+  const dispatch = useDispatch();
+
+  const handleClick = useCallback(
+    (key: string) => {
+      dispatch(setActiveModal(key));
+    },
+    [dispatch]
+  );
+
+  // Grouped rather than a flat list of two anonymous buttons: each row now
+  // says what it does, and the group says what the rows have in common. The
+  // four other entries that used to live here (profile shares, document
+  // shares, blocked users, referrals) were commented-out call sites pointing
+  // at static shells with no backing API, and have been removed.
+  const sections = useMemo(
     () => [
-      { value: t('settings.manageData.title'), key: MODAL_TYPES.MANAGE_DATA },
-      { value: t('settings.visibility.title'), key: MODAL_TYPES.VISIBILITY },
-      // { value: t('settings.profileShares.title'), key: MODAL_TYPES.PROFILE_SHARES },
-      // { value: t('settings.documentShares.title'), key: MODAL_TYPES.DOCUMENT_SHARES },
-      // { value: t('settings.blockedUsers.title'), key: MODAL_TYPES.BLOCKED_USERS },
-      // { value: t('settings.referrals.title'), key: MODAL_TYPES.REFERRALS },
+      {
+        title: t('settings.section.privacy'),
+        rows: [
+          {
+            key: MODAL_TYPES.MANAGE_DATA,
+            label: t('settings.manageData.title'),
+            hint: t('settings.manageData.rowHint'),
+          },
+          {
+            key: MODAL_TYPES.VISIBILITY,
+            label: t('settings.visibility.title'),
+            hint: t('settings.visibility.rowHint'),
+          },
+        ],
+      },
     ],
     [t]
   );
 
-  const dispatch = useDispatch();
-
-  const handleClick = useCallback((key: string) => {
-    dispatch(setActiveModal(key));
-  }, []);
-
   return (
-    <ModalContainerFullScreen>
-      <ModalHeaderComponent
-        handleCloseModal={handleCloseModal}
-        headerTitle={t('settings.menu.title')}
-      />
-      <CenterContainer
-        style={{
-          boxSizing: 'border-box',
-        }}
-      >
-        <BorderedContainer
-          style={{
-            padding: '16px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-            boxSizing: 'border-box',
-          }}
-        >
-          {options.map((option: { value: string; key: string }, index) => (
-            <>
-              <Button
-                variant="default"
-                style={{
-                  minHeight: '48px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '2px',
-                  alignItems: 'start',
-                  textAlign: 'center',
-                  width: '100%',
-                  justifyContent: 'center',
-                  borderRadius: '0px',
-                }}
-                onClick={() => handleClick(option.key)}
-              >
-                <Label>{option.value}</Label>
-                {[2, 3, 4].includes(index) && <LabelData>0</LabelData>}
-              </Button>
-              {index < 5 && <Divider />}
-            </>
-          ))}
-        </BorderedContainer>
-      </CenterContainer>
-    </ModalContainerFullScreen>
+    <SideDrawer title={t('settings.menu.title')} onClose={handleCloseModal}>
+      {sections.map((section) => (
+        <DrawerSection key={section.title}>
+          <DrawerSectionTitle>{section.title}</DrawerSectionTitle>
+          <DrawerCard>
+            {section.rows.map((row, index) => (
+              <React.Fragment key={row.key}>
+                {index > 0 && <DrawerRowDivider />}
+                <DrawerNavRow
+                  label={row.label}
+                  hint={row.hint}
+                  onClick={() => handleClick(row.key)}
+                />
+              </React.Fragment>
+            ))}
+          </DrawerCard>
+        </DrawerSection>
+      ))}
+    </SideDrawer>
   );
 };
 

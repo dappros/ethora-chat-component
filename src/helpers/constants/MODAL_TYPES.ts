@@ -17,22 +17,26 @@ export const MODAL_TYPES = {
   MANAGE_DATA: 'managedata',
   VISIBILITY: 'visibility',
 
-  PROFILE_SHARES: 'profile_shares',
-  DOCUMENT_SHARES: 'document_shares',
-  BLOCKED_USERS: 'blocked_users',
-
-  REFERRALS: 'referrals',
-
   FILE_PREVIEW: 'file_preview',
-
-  // SETTINGS: 'Settings',
-  // PROFILE: 'Profile',
-  // CHAT_PROFILE: 'Chat Profile',
-
-  // MANAGE_DATA: 'Manage Data',
-  // VISIBILITY: 'Visiblility',
-  // PROFILE_SHARES: 'Profile Shares',
-  // DOCUMENT_SHARES: 'Document Shares',
-  // BLOCKED_USERS: 'Blocked Users',
-  // REFERRALS: 'Referrals',
 };
+
+/**
+ * Panels reached from inside Settings. Their back button (and Escape) steps
+ * back to the Settings list rather than closing the drawer outright.
+ */
+export const SETTINGS_SUB_MODAL_TYPES: string[] = [
+  MODAL_TYPES.MANAGE_DATA,
+  MODAL_TYPES.VISIBILITY,
+];
+
+/**
+ * Panels that open as a right-hand side drawer instead of a centred card:
+ * the profile/settings family. Everything else (file preview) keeps the
+ * centred-dialog presentation.
+ */
+export const DRAWER_MODAL_TYPES: string[] = [
+  MODAL_TYPES.SETTINGS,
+  MODAL_TYPES.PROFILE,
+  MODAL_TYPES.CHAT_PROFILE,
+  ...SETTINGS_SUB_MODAL_TYPES,
+];
