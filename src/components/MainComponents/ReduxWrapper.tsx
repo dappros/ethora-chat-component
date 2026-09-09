@@ -17,7 +17,7 @@ import NotificationPermissionBanner from '../Notification/NotificationPermission
 import { useTypography } from '../../hooks/useTypography';
 import { applyThemeColors } from '../../helpers/resolveIconColor';
 
-interface ChatWrapperProps
+export interface ChatWrapperProps
   extends Pick<
     CustomComponentsContextValue,
     | 'CustomMessageComponent'
