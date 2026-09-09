@@ -15,10 +15,11 @@ import { persistReducer, persistStore } from 'redux-persist';
 import { createTransform } from 'redux-persist';
 import { newMessageMidlleware } from './Middleware/newMessageMidlleware';
 import { logoutMiddleware } from './Middleware/logoutMiddleware';
-import { encryptTransform } from 'redux-persist-transform-encrypt';
+import { sessionEncryptTransform } from './persistEncryption';
 import { reactionsMiddleware } from './Middleware/reactionsMiddleware';
 import { ETHORA_CHAT_COMPONENT_VERSION } from '../version';
 import { sanitizeUserForPersistentStorage } from '../helpers/authStorage';
+import { MAX_DRAFT_LENGTH, MAX_PERSISTED_DRAFTS } from './roomsSlice';
 import { ethoraLogger } from '../helpers/ethoraLogger';
 
 const debugMiddleware = (storeAPI) => (next) => (action) => {
@@ -130,6 +131,8 @@ const sanitizeRoomsSliceKey = (value: any, key: string | number) => {
   switch (key) {
     case 'rooms':
       return sanitizeRoomsMap(value);
+    case 'drafts':
+      return compactDraftsForPersist(value);
     case 'usersSet':
     case 'pushSubscriptionStatus':
       return value && typeof value === 'object' ? value : {};
@@ -144,6 +147,45 @@ const sanitizeRoomsSliceKey = (value: any, key: string | number) => {
 
 export const MAX_MESSAGES_PER_ROOM = 100;
 export const MAX_PERSISTED_ROOMS = 100;
+
+/**
+ * Composer drafts are a NEW top-level key of the rooms slice, so they are
+ * persisted deliberately rather than by accident: they are the one piece of
+ * live composer state worth surviving a reload, and unlike `members` (see
+ * REFETCHED_ROOM_FIELDS below) nothing on the server can rebuild them.
+ *
+ * They are also kept OFF the room objects on purpose. The rooms map is what
+ * the char budget fights over, and its last-resort eviction can only drop
+ * `messages` - a draft riding on a room would compete with the message
+ * cache for that budget and could not be evicted independently. As its own
+ * key it is bounded on its own terms by the caps in roomsSlice:
+ * MAX_PERSISTED_DRAFTS (30, least recently typed dropped first, using the
+ * map's insertion order as recency) x MAX_DRAFT_LENGTH (2,000 chars) =
+ * 60,000 chars, i.e. 6% of PERSISTED_ROOMS_CHAR_BUDGET even at the worst
+ * case, and typically a few hundred bytes.
+ *
+ * Applied on the way out AND on the way back in (sanitizeRoomsSliceKey), so
+ * an older or hand-edited blob cannot rehydrate an unbounded map either.
+ */
+export const compactDraftsForPersist = (
+  drafts: unknown
+): Record<string, string> => {
+  if (!drafts || typeof drafts !== 'object' || Array.isArray(drafts)) return {};
+
+  const entries = Object.entries(drafts as Record<string, unknown>)
+    .filter(
+      ([jid, text]) =>
+        typeof jid === 'string' &&
+        jid.includes('@') &&
+        typeof text === 'string' &&
+        text.length > 0
+    )
+    .map(([jid, text]) => [jid, (text as string).slice(0, MAX_DRAFT_LENGTH)]);
+
+  // Newest last (insertion order), so trimming from the front drops the
+  // least recently typed rooms.
+  return Object.fromEntries(entries.slice(-MAX_PERSISTED_DRAFTS));
+};
 
 // Budget for the rooms snapshot BEFORE encryption, in characters.
 //
@@ -397,6 +439,7 @@ export const limitMessagesTransform = createTransform<
   (inboundState, key) => {
     if (key === 'rooms') return optimizePersistedRooms(inboundState);
     if (key === 'usersSet') return compactUsersSetForPersist(inboundState);
+    if (key === 'drafts') return compactDraftsForPersist(inboundState);
     return inboundState;
   },
   (outboundState, key) => {
@@ -406,12 +449,12 @@ export const limitMessagesTransform = createTransform<
   }
 );
 
-const encryptor = encryptTransform({
-  secretKey: 'hey-this-is-dappros',
-  onError: (error) => {
-    console.error('Encryption error:', error);
-  },
-});
+// The persist encryptor. The key used to be the literal string
+// 'hey-this-is-dappros' right here, which meant it shipped inside every
+// published dist bundle - see persistEncryption.ts for what replaced it
+// (a key derived per session from the account's stable JWT claims) and
+// for the honest limits of what that buys.
+const encryptor = sessionEncryptTransform;
 
 // Same per-key bug as the rooms transforms: this used to check
 // `inboundState?.user`, but for key 'user' the inbound IS the user object
@@ -449,6 +492,25 @@ const PERSIST_THROTTLE_MS = 500;
 // window where closing the tab loses the newest messages from it.
 const ROOMS_PERSIST_THROTTLE_MS = 1000;
 
+// INVALIDATING THE OLD, HARDCODED-KEY BLOBS: deliberately NOT by
+// bumping `key` or `version`.
+//
+//  - A new `key` ('roomMessages_v2') orphans the old localStorage
+//    entry instead of replacing it. That entry is the single biggest
+//    thing on the origin - budgeted at 1M chars pre-encryption, ~2.8MB
+//    written - and nothing would ever clean it up, so every upgrading
+//    user would permanently lose that much of a ~5MB quota and start
+//    tripping QuotaExceededError on the NEW key.
+//  - `version` does not help either: redux-persist runs `migrate` only
+//    AFTER `getStoredState` resolves, and getStoredState is exactly
+//    where an undecryptable blob throws. The migration never gets a
+//    look at it.
+//
+// Reusing the same key and letting the decrypt failure discard the
+// slice is both cleaner and self-healing: the failed read rehydrates
+// the reducer's initial state, and the REHYDRATE action's own write
+// overwrites the stale blob in place with one encrypted under the new
+// key. One cold cache, no orphaned megabytes.
 const chatSettingPersistConfig = {
   key: 'chatSettingStore',
   storage,
@@ -571,11 +633,9 @@ try {
       : false;
   if (typeof window !== 'undefined' && isDev) {
     (window as any).__ethoraStore = store;
-    // eslint-disable-next-line no-console
     console.info('[ethora] redux store available as window.__ethoraStore');
   }
 } catch (e) {
-  // eslint-disable-next-line no-console
   console.warn('[ethora] failed to attach __ethoraStore bridge:', e);
 }
 

@@ -26,6 +26,15 @@ export type {
   FontFaceSource,
 } from './types/models/config.model';
 
+// Crash handling: the shape passed to `config.eventHandlers.onError` and to
+// the `config.fallbackScreens.error` render function, so hosts can type their
+// own crash reporter / replacement screen.
+export type {
+  ChatErrorInfo,
+  ChatErrorScope,
+  ChatErrorFallbackRenderer,
+} from './types/models/config.model';
+
 // Stable `data-testid` constants - exposed so host apps that consume
 // this package (e.g. ethora-app-reactjs) can resolve chat-component
 // nodes in their own Playwright / Cypress tests without re-typing
@@ -56,3 +65,70 @@ export type {
   RefreshResult,
   RefreshOptions,
 } from './networking/authRefresh';
+
+// Public type surface.
+//
+// Until now `main.ts` exported 18 runtime symbols and not a single type,
+// so a TypeScript host had no way to name `<Chat>`'s own props without
+// deep-importing `@ethora/chat-component/dist/types/...` - a path that is
+// an implementation detail and has broken before. Everything a consumer
+// needs to type the component tree is re-exported here from its real
+// source module.
+
+// The props of the exported `<Chat>` component, plus the pieces its
+// fields are made of.
+export type { ChatWrapperProps as ChatProps } from './components/MainComponents/ReduxWrapper';
+export type { IConfig } from './types/models/config.model';
+export type {
+  VideoCallsConfig,
+  VideoCallIcons,
+  FBConfig,
+} from './types/models/config.model';
+export type {
+  User,
+  IUser,
+  ConfigUser,
+  StorageUser,
+} from './types/models/user.model';
+export type {
+  IMessage,
+  IReply,
+  LastMessage,
+  MessageProps,
+  MediaMessageType,
+  ReactionMessage,
+} from './types/models/message.model';
+export type {
+  IRoom,
+  RoomMember,
+  RoomLastMessage,
+  ConfigRoom,
+  ChatAccessOption,
+} from './types/models/room.model';
+export type { MediaFile } from './types/models/media.model';
+export type {
+  Iso639_1Codes,
+  Language,
+  LanguageOptions,
+} from './types/models/language.model';
+
+// Prop types for the `Custom*Component` slots on `<Chat>`. A host that
+// passes `CustomScrollableArea` etc. has to be able to type its own
+// component against the same contract we call it with.
+export type {
+  CustomComponentsContextValue,
+  CustomScrollableAreaProps,
+  DaySeparatorProps,
+  NewMessageLabelProps,
+  DecoratedMessage,
+  ScrollControllerApi,
+} from './types/models/customComponents.model';
+export type { SendInputProps } from './components/styled/SendInput';
+
+// XMPP surface: `<XmppProvider>`'s settings shape and the client handle
+// hosts get back from it.
+export type {
+  xmppSettingsInterface,
+  XmppClientInterface,
+  MediaUploadData,
+} from './types/models/xmpp.model';

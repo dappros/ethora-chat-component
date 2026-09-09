@@ -157,7 +157,10 @@ const chatSlice = createSlice({
     setActiveModal: (state, action: PayloadAction<ModalType | undefined>) => {
       state.activeModal = action.payload;
     },
-    setActiveFile: (state, action: PayloadAction<ModalFile>) => {
+    // Nullable on purpose: closing the file preview clears the active file
+    // with `setActiveFile(undefined)`, which the old signature disallowed
+    // while `state.activeFile` was already optional.
+    setActiveFile: (state, action: PayloadAction<ModalFile | undefined>) => {
       state.activeFile = action.payload;
     },
     setDeleteModal: (state, action: PayloadAction<DeleteModal | undefined>) => {

@@ -1,9 +1,15 @@
-import React, { useState, useRef, useEffect, ReactElement } from 'react';
+import React, {
+  useState,
+  useRef,
+  useCallback,
+  ReactElement,
+} from 'react';
 import styled from 'styled-components';
 import { BurgerMenuIcon } from '../../assets/icons';
 import Button from '../styled/Button';
 import { scaleInAnimation } from '../../styles/motion';
 import { useT } from '../../i18n/useT';
+import { useModalDismiss } from '../../hooks/useModalDismiss';
 
 interface MenuOption {
   label: string;
@@ -22,12 +28,17 @@ interface DropdownMenuProps {
 
 const DropdownMenu: React.FC<DropdownMenuProps> = ({
   options,
+  onClose,
   openButton,
   position = 'right',
   menuIcon,
 }) => {
   const t = useT();
   const [isOpen, setIsOpen] = useState(false);
+  // Wraps trigger + menu. Used as the "inside" region for outside-press
+  // dismissal so pressing the trigger while the menu is open closes it once
+  // (via the toggle) instead of closing and instantly re-opening it.
+  const containerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -36,52 +47,97 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
       ? { top: '60px', right: '-140px' }
       : { top: '60px', right: '0px' };
 
+  const closeMenu = useCallback(() => {
+    setIsOpen(false);
+    onClose?.();
+  }, [onClose]);
+
   const toggleMenu = (e: { preventDefault: () => void }) => {
     e.preventDefault();
-    setIsOpen((prev) => !prev);
+    if (isOpen) {
+      closeMenu();
+    } else {
+      setIsOpen(true);
+    }
   };
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        menuRef.current &&
-        !menuRef.current.contains(event.target as Node) &&
-        buttonRef.current &&
-        !buttonRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    };
+  // Escape (topmost layer only), press-outside, single-menu-at-a-time and
+  // focus restore all come from the shared layer stack, so every consumer of
+  // DropdownMenu - and any future menu wired to the same hook - behaves the
+  // same way without per-call-site handling.
+  useModalDismiss({
+    enabled: isOpen,
+    onClose: closeMenu,
+    kind: 'menu',
+    containerRef: menuRef,
+    insideRefs: [containerRef],
+    closeOnOutsidePress: true,
+  });
 
-    if (isOpen) document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen]);
+  const triggerA11yProps = {
+    'aria-haspopup': 'menu' as const,
+    'aria-expanded': isOpen,
+  };
+
+  const focusItem = (index: number) => {
+    const items = menuRef.current?.querySelectorAll<HTMLElement>(
+      '[role="menuitem"]'
+    );
+    if (!items || items.length === 0) return;
+    const wrapped = (index + items.length) % items.length;
+    items[wrapped]?.focus();
+  };
+
+  const handleMenuKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    e.preventDefault();
+    const items = Array.from(
+      menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []
+    );
+    const current = items.indexOf(document.activeElement as HTMLElement);
+    focusItem(current + (e.key === 'ArrowDown' ? 1 : -1));
+  };
 
   return (
-    <Container>
+    <Container ref={containerRef}>
       {openButton ? (
         React.cloneElement(openButton, {
           ref: buttonRef,
           onClick: toggleMenu,
+          ...triggerA11yProps,
         } as any)
       ) : (
         <Button
+          ref={buttonRef}
           onClick={toggleMenu}
           aria-label={t('action.moreOptions')}
-          aria-haspopup="menu"
-          aria-expanded={isOpen}
+          {...triggerA11yProps}
         >
           {menuIcon ?? <BurgerMenuIcon />}
         </Button>
       )}
       {isOpen && (
-        <Menu ref={menuRef} style={menuPosition}>
+        <Menu
+          ref={menuRef}
+          style={menuPosition}
+          role="menu"
+          aria-label={t('action.moreOptions')}
+          onKeyDown={handleMenuKeyDown}
+        >
           {options.map((option, index) => (
             <React.Fragment key={`${option.label}-${index}`}>
               <MenuItem
+                role="menuitem"
+                tabIndex={0}
                 onClick={() => {
                   option.onClick();
-                  setIsOpen(false);
+                  closeMenu();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter' && e.key !== ' ') return;
+                  e.preventDefault();
+                  option.onClick();
+                  closeMenu();
                 }}
               >
                 {option.icon}

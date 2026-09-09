@@ -14,7 +14,18 @@ import { fadeInAnimation, scaleInAnimation } from '../../styles/motion';
 // so the existing chrome never moves. Scoped to a per-instance prop
 // (rather than changing the default) so every other modal keeps its
 // current centered look untouched.
-export const ModalBackground = styled.div<{ $anchorTop?: boolean }>`
+// `$drawer`: the profile/settings panels open as a right-hand side drawer on
+// desktop instead of a centred card, and the whole point of a drawer is that
+// the room list and the chat stay visible AND clickable behind it. So in this
+// mode the background stops being a scrim: it is transparent, it does not
+// swallow pointer events (the panel itself opts back in), and it parks its
+// child against the right edge at full height. Below the 768px breakpoint
+// ChatWrapper already switches to one-pane-at-a-time, so there the panel goes
+// full-screen and the background is simply the surface it sits on.
+export const ModalBackground = styled.div<{
+  $anchorTop?: boolean;
+  $drawer?: boolean;
+}>`
   position: fixed;
   top: 0;
   left: 0;
@@ -27,6 +38,16 @@ export const ModalBackground = styled.div<{ $anchorTop?: boolean }>`
   z-index: 1000;
   ${fadeInAnimation}
 
+  ${({ $drawer }) =>
+    $drawer &&
+    css`
+      background: transparent;
+      pointer-events: none;
+      justify-content: flex-end;
+      align-items: stretch;
+      animation: none;
+    `}
+
   ${({ $anchorTop }) =>
     $anchorTop &&
     css`
@@ -37,9 +58,15 @@ export const ModalBackground = styled.div<{ $anchorTop?: boolean }>`
     `}
 
   @media (max-width: 480px) {
-    padding-left: 16px;
-    padding-right: 16px;
-    box-sizing: border-box;
+    /* A drawer is edge-to-edge at this size, so it must not inherit the
+       card gutters that keep centred modals off the screen edges. */
+    ${({ $drawer }) =>
+      !$drawer &&
+      css`
+        padding-left: 16px;
+        padding-right: 16px;
+        box-sizing: border-box;
+      `}
     ${({ $anchorTop }) =>
       $anchorTop &&
       css`

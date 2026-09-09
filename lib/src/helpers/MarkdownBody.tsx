@@ -2,6 +2,8 @@ import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
+import rehypeSanitize from 'rehype-sanitize';
+import { markdownSanitizeSchema } from './markdownSanitizeSchema';
 import type { MentionClickHandler } from './parseMessageBody';
 
 interface MarkdownBodyProps {
@@ -27,7 +29,11 @@ const MarkdownBody = ({ text, onMentionClick }: MarkdownBodyProps) => {
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeRaw]}
+        // Order matters: rehypeRaw parses the author's raw HTML into real
+        // nodes, then rehypeSanitize strips anything dangerous from them.
+        // Sanitising first would leave the raw string untouched and do
+        // nothing at all.
+        rehypePlugins={[rehypeRaw, [rehypeSanitize, markdownSanitizeSchema]]}
         components={{
           a: ({ href, children }) => (
             <a

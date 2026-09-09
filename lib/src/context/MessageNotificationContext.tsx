@@ -23,6 +23,11 @@ import {
 } from '../utils/notificationPolicy';
 import { showBrowserNotification } from '../utils/notificationUtils';
 import { ethoraLogger } from '../helpers/ethoraLogger';
+import {
+  CHAT_ROOT_CLASS,
+  MESSAGE_HIGHLIGHT_CLASS,
+  NOTIFICATION_CONTAINER_CLASS,
+} from '../styles/classNames';
 
 interface MessageNotificationContextType {
   showMessageNotification: (
@@ -128,8 +133,11 @@ export const MessageNotificationProvider: React.FC<{
     containerStyles.alignItems = 'center';
   }
   
-  // Add mobile responsive styles
-  const containerClassName = 'message-notification-container';
+  // Mobile responsive styles come from index.css. This provider lives in
+  // <XmppProvider>, ABOVE <Chat>, so the container is not inside the chat's
+  // `.ethora-chat-root` wrapper - it carries the root class itself so the
+  // toasts keep the chat's typography and scrollbar styling.
+  const containerClassName = `${CHAT_ROOT_CLASS} ${NOTIFICATION_CONTAINER_CLASS}`;
   
   // Add data attributes for CSS targeting
   const containerProps = {
@@ -218,8 +226,8 @@ export const MessageNotificationProvider: React.FC<{
         const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
         if (messageElement) {
           messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          messageElement.classList.add('message-highlight');
-          setTimeout(() => messageElement.classList.remove('message-highlight'), 2000);
+          messageElement.classList.add(MESSAGE_HIGHLIGHT_CLASS);
+          setTimeout(() => messageElement.classList.remove(MESSAGE_HIGHLIGHT_CLASS), 2000);
         }
       }, 100);
     },

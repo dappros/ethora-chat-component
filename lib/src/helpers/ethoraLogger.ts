@@ -41,4 +41,14 @@ export const ethoraLogger = {
   always: (...args: unknown[]) => {
     console.log(...args);
   },
+  /**
+   * For failures that must never be silent, whatever the verbose-console
+   * setting is: today, an uncaught render error caught by the SDK's error
+   * boundary. `error` above stays gated so routine debug noise remains
+   * opt-in; this one does not, because a swallowed crash leaves the host
+   * with a replaced chat pane and no explanation anywhere.
+   */
+  criticalError: (...args: unknown[]) => {
+    console.error(...args);
+  },
 };

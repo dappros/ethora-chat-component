@@ -20,22 +20,15 @@ import { useEventHandlers } from './useEventHandlers';
 import { ethoraLogger } from '../helpers/ethoraLogger';
 import { scheduleAckCatchup } from '../helpers/scheduleAckCatchup';
 import { IMentionSpan } from '../types/types';
+import { armSendFailureWatchdog } from '../helpers/sendFailureWatchdog';
+import { shouldTagOutgoingTranslateSource as shouldTagTranslateSource } from '../utils/translateModePolicy';
 
 const DEFAULT_TIMEOUT_MS = 300000;
 
-// Whether THIS reader's outgoing messages get tagged with
-// `<translate source="xx"/>` (sendTextMessageWithTranslateTag) instead of
-// going out as a plain, untagged send. Two layers: the host must have the
-// feature enabled at all (config.translates.enabled - a build-time
-// decision), AND the reader must not have opted out via the
-// language-selector toggle (translateSendEnabled - a runtime one).
-// `undefined` means the reader never touched the toggle, which reads as
-// opted-in so existing hosts see no behaviour change until someone
-// explicitly turns it off.
-export const shouldTagOutgoingTranslateSource = (
-  translatesEnabled: boolean | undefined,
-  translateSendEnabled: boolean | undefined
-): boolean => !!translatesEnabled && translateSendEnabled !== false;
+// Moved to utils/translateModePolicy so the message bubble's retry control
+// can reuse it; re-exported here because that is where hosts and the
+// existing gate test import it from.
+export { shouldTagOutgoingTranslateSource } from '../utils/translateModePolicy';
 
 interface BlockingConfig {
   enabled: boolean;
@@ -322,7 +315,7 @@ export const useSendMessage = () => {
       } else {
         try {
           if (
-            shouldTagOutgoingTranslateSource(
+            shouldTagTranslateSource(
               config?.translates?.enabled,
               translateSendEnabled
             )
@@ -374,6 +367,18 @@ export const useSendMessage = () => {
                 mentions,
               })
             );
+
+            // Armed here, not after the await: `sendWithActiveRoomRetry`
+            // resolves only once the outbound queue actually processes the
+            // entry, and while the socket is down it never does - the exact
+            // "stuck on sending forever" report this guards against. The
+            // timer therefore runs from the moment the optimistic bubble
+            // appears, which is also the moment the user starts waiting.
+            armSendFailureWatchdog({
+              roomJID: activeRoomJID,
+              messageId: id,
+              body: message,
+            });
 
             const sendOk = await sendWithActiveRoomRetry(activeRoomJID, id, () =>
               client?.sendTextMessageWithTranslateTagStanza(
@@ -456,6 +461,13 @@ export const useSendMessage = () => {
                 mentions,
               })
             );
+
+            // Same reasoning as the translate branch above.
+            armSendFailureWatchdog({
+              roomJID: activeRoomJID,
+              messageId: id,
+              body: message,
+            });
 
             const sendOk = await sendWithActiveRoomRetry(activeRoomJID, id, () =>
               client?.sendMessage(

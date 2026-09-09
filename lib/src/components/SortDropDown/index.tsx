@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import styled from 'styled-components';
+import { useModalDismiss } from '../../hooks/useModalDismiss';
 
 interface DropdownProps {
   sortFunction: (value: string) => void;
@@ -59,19 +60,38 @@ const DropdownMenu: React.FC<DropdownProps> = ({
   values,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+
+  const closeDropdown = useCallback(() => setIsOpen(false), []);
+
+  // Shares the dismissal stack with every other menu: Escape, outside press
+  // and "only one menu open at a time" come for free.
+  useModalDismiss({
+    enabled: isOpen,
+    onClose: closeDropdown,
+    kind: 'menu',
+    containerRef: listRef,
+    insideRefs: [containerRef],
+    closeOnOutsidePress: true,
+  });
 
   const handleItemClick = (value: string) => {
     sortFunction(value);
-    setIsOpen(false);
+    closeDropdown();
   };
 
   return (
-    <DropdownContainer>
-      <DropdownButton onClick={() => setIsOpen(!isOpen)}>
+    <DropdownContainer ref={containerRef}>
+      <DropdownButton
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        onClick={() => (isOpen ? closeDropdown() : setIsOpen(true))}
+      >
         {icon && <DropdownIcon>{icon}</DropdownIcon>}
       </DropdownButton>
       {isOpen && (
-        <DropdownList>
+        <DropdownList ref={listRef} role="listbox">
           {values.map((value) => (
             <DropdownItem key={value} onClick={() => handleItemClick(value)}>
               {value}

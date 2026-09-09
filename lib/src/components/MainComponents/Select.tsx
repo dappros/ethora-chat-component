@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import styled, { css, keyframes } from 'styled-components';
 import { useT } from '../../i18n/useT';
 import { fadeInAnimation } from '../../styles/motion';
+import { useModalDismiss } from '../../hooks/useModalDismiss';
 
 const rotateUp = keyframes`
   from {
@@ -158,26 +159,19 @@ const Select: React.FC<SelectProps> = ({
     option.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleOutsideClick = (event: MouseEvent) => {
-    if (
-      wrapperRef.current &&
-      !wrapperRef.current.contains(event.target as Node)
-    ) {
-      setIsOpen(false);
-    }
-  };
+  // Dismissal (Escape on the topmost layer, outside press, and closing when
+  // any other menu or modal opens) comes from the shared layer stack instead
+  // of a private mousedown listener, so this select behaves like every other
+  // overlay in the chat UI.
+  const closeDropdown = useCallback(() => setIsOpen(false), []);
 
-  useEffect(() => {
-    if (isOpen) {
-      document.addEventListener('mousedown', handleOutsideClick);
-    } else {
-      document.removeEventListener('mousedown', handleOutsideClick);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
-    };
-  }, [isOpen]);
+  useModalDismiss({
+    enabled: isOpen,
+    onClose: closeDropdown,
+    kind: 'menu',
+    insideRefs: [wrapperRef],
+    closeOnOutsidePress: true,
+  });
 
   const handleBoxKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Enter' || event.key === ' ') {

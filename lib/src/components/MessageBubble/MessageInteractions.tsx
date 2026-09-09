@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
 import {
   ArrowButton,
@@ -22,8 +22,10 @@ import Picker from '../EmojiPicker/LazyEmojiPicker';
 import { getEmojiNativeById, useEmojiData } from '../../helpers/lazyEmoji';
 import { fadeInAnimation, scaleInAnimation } from '../../styles/motion';
 import { useT } from '../../i18n/useT';
+import { useModalDismiss } from '../../hooks/useModalDismiss';
 
 import '../../index.css';
+import { APPLE_EMOJI_CLASS } from '../../styles/classNames';
 
 // Local overrides on top of the shared ContextMenu primitives: fade/scale-in
 // on open instead of the hard show/hide the plain conditional render gives
@@ -69,6 +71,7 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
 }) => {
   const { roomsList, activeRoomJID } = useRoomState();
   const [showPicker, setShowPicker] = useState(false);
+  const menuContainerRef = useRef<HTMLDivElement>(null);
   useEmojiData();
   const t = useT();
 
@@ -169,6 +172,20 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
     };
   }, [showPicker, contextMenu?.x, contextMenu?.y]);
 
+  // Same shared layer stack the dropdowns and modals use: Escape closes this
+  // menu when it is the topmost layer, and opening any other menu or modal
+  // dismisses it, so a message context menu can never be left stranded
+  // behind a newly opened menu. Outside presses stay with the existing
+  // full-screen Overlay's onClick.
+  useModalDismiss({
+    enabled: Boolean(
+      contextMenu?.visible && !config?.disableInteractions && !message.isDeleted
+    ),
+    onClose: closeMenu,
+    kind: 'menu',
+    containerRef: menuContainerRef,
+  });
+
   if (!contextMenu || config?.disableInteractions || !contextMenu.visible) return null;
 
   return (
@@ -176,13 +193,14 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
       {!message.isDeleted && (
         <AnimatedOverlay onClick={closeContextMenu}>
           <ContainerInteractions
+            ref={menuContainerRef}
             style={{ top: contextMenu.y, left: contextMenu.x }}
           >
             <ReactionContainer>
               {fixedEmojiIds.map((id) => (
                 <ReactionBadge
                   key={id}
-                  className="apple-emoji"
+                  className={APPLE_EMOJI_CLASS}
                   onClick={(e) => handleReactionClick(id, e)}
                 >
                   {getEmojiById(id)}

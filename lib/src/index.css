@@ -1,8 +1,27 @@
-body {
-  margin: 0;
-  /* `--ethora-font-family` is published at runtime by the host-provided
-     `config.typography` (see helpers/applyTypography). When unset, the
-     default system stack below is used, so existing apps are unaffected. */
+/*
+ * Chat component stylesheet.
+ *
+ * This file ships inside an embeddable library, so it is NOT allowed to style
+ * the host page. Two rules follow from that and must be kept:
+ *
+ *   1. No selector may match `html`, `body`, `#root` or any bare element /
+ *      pseudo-element (`*`, `::-webkit-scrollbar`, ...). Everything is nested
+ *      under `.ethora-chat-root`, the marker class `<Chat>` puts on the
+ *      invisible wrapper around its whole tree (see styles/classNames.ts).
+ *      SDK UI that renders outside that tree (the notification container, the
+ *      portalled language modal) carries the same class so it stays themed.
+ *   2. Every class name is `ethora-`-prefixed so it cannot collide with a
+ *      class of the same name in the host application.
+ *
+ * Page-level layout the dev harness needs (`html, body, #root { height: 100% }`)
+ * lives in `dev.css`, which only the dev entry points import.
+ */
+
+/* Base typography for the chat subtree. `--ethora-font-family` /
+   `--ethora-font-size` are published at runtime from the host-provided
+   `config.typography` (see helpers/applyTypography). When unset, the default
+   system stack below is used, so existing apps are unaffected. */
+.ethora-chat-root {
   font-family: var(
     --ethora-font-family,
     -apple-system,
@@ -21,46 +40,57 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-code {
+.ethora-chat-root code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
 
-html,
-body,
-#root {
-  height: 100%;
-  margin: 0;
-  padding: 0;
+/*
+ * Scrollbars, chat subtree only.
+ *
+ * The colour follows the host theme: `--ethora-icon-color` is published by
+ * helpers/resolveIconColor from `config.colors.icons ?? config.colors.primary`,
+ * so a themed app gets a matching scrollbar for free. `--ethora-scrollbar-thumb`
+ * / `--ethora-scrollbar-track` are escape hatches for hosts that want the
+ * scrollbar decoupled from the icon colour. The literal fallbacks match the
+ * resolver's own defaults (#0052CD is Ethora brand blue).
+ */
+.ethora-chat-root,
+.ethora-chat-root * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ethora-scrollbar-thumb, var(--ethora-icon-color, #0052cd))
+    var(--ethora-scrollbar-track, #f0f0f0);
 }
 
-/* Target the scrollbar */
-::-webkit-scrollbar {
-  width: 4px; /* Width of the scrollbar */
+.ethora-chat-root::-webkit-scrollbar,
+.ethora-chat-root ::-webkit-scrollbar {
+  width: 4px;
 }
 
-/* Style the scrollbar thumb */
-::-webkit-scrollbar-thumb {
-  background-color: #5e3fde; /* Color of the thumb */
-  border-radius: 6px; /* Rounded corners for the thumb */
+.ethora-chat-root::-webkit-scrollbar-thumb,
+.ethora-chat-root ::-webkit-scrollbar-thumb {
+  background-color: var(
+    --ethora-scrollbar-thumb,
+    var(--ethora-icon-color, #0052cd)
+  );
+  border-radius: 6px;
 }
 
-/* Optional: Style the scrollbar track */
-::-webkit-scrollbar-track {
-  background-color: #f0f0f0; /* Background color of the track */
+.ethora-chat-root::-webkit-scrollbar-track,
+.ethora-chat-root ::-webkit-scrollbar-track {
+  background-color: var(--ethora-scrollbar-track, #f0f0f0);
 }
 
-/* Target the scrollbar thumb */
-* {
-  scrollbar-width: thin; /* Make the scrollbar thinner */
-  scrollbar-color: #5e3fde #f0f0f0; /* Color of the thumb and track */
+.ethora-apple-emoji {
+  font-family:
+    'Apple Color Emoji',
+    'Segoe UI Emoji',
+    'Noto Color Emoji',
+    sans-serif;
 }
 
-.apple-emoji {
-  font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
-}
-
-.emoji-mart {
+/* emoji-mart picker, rendered inside the chat (message reactions / input). */
+.ethora-chat-root .emoji-mart {
   max-width: 320px;
   max-height: 360px;
   overflow-y: auto;
@@ -68,13 +98,13 @@ body,
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-/* Message highlight animation for notifications */
-.message-highlight {
-  animation: messageHighlight 2s ease-out;
+/* Message highlight animation, flashed when a notification is opened. */
+.ethora-message-highlight {
+  animation: ethoraMessageHighlight 2s ease-out;
   transition: background-color 0.3s ease;
 }
 
-@keyframes messageHighlight {
+@keyframes ethoraMessageHighlight {
   0% {
     background-color: rgba(33, 150, 243, 0.4);
     transform: scale(1.02);
@@ -95,17 +125,18 @@ body,
   }
 }
 
-/* Responsive notification container */
+/* Responsive notification container. `!important` is required: the container's
+   position is set through inline styles from `config.inAppNotifications`. */
 @media (max-width: 768px) {
-  .message-notification-container {
+  .ethora-message-notification-container {
     left: 50% !important;
     right: auto !important;
     transform: translateX(-50%) !important;
     align-items: center !important;
   }
-  
-  .message-notification-container[data-position-horizontal="left"],
-  .message-notification-container[data-position-horizontal="right"] {
+
+  .ethora-message-notification-container[data-position-horizontal='left'],
+  .ethora-message-notification-container[data-position-horizontal='right'] {
     left: 50% !important;
     right: auto !important;
     transform: translateX(-50%) !important;

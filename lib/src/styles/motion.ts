@@ -47,6 +47,23 @@ export const shimmer = keyframes`
 `;
 
 /**
+ * Right-hand side drawer entrance. Travels further than `fadeInUp` (a panel
+ * sliding in from the screen edge reads as motion only if it actually
+ * covers some distance) but keeps the same duration/easing as everything
+ * else, so a drawer does not feel like a different app.
+ */
+export const slideInRight = keyframes`
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+`;
+
+/**
  * Disables all animations/transitions when the user prefers reduced motion.
  * Spread this LAST in a styled-components template so it wins the cascade,
  * e.g.:
@@ -78,6 +95,12 @@ export const fadeInAnimation = css`
 /** Convenience: scale-in animation shorthand, respecting reduced motion. */
 export const scaleInAnimation = css`
   animation: ${scaleIn} ${MOTION_FAST} ${MOTION_EASE} both;
+  ${reducedMotion}
+`;
+
+/** Convenience: side-drawer slide-in shorthand, respecting reduced motion. */
+export const slideInRightAnimation = css`
+  animation: ${slideInRight} ${MOTION_BASE} ${MOTION_EASE} both;
   ${reducedMotion}
 `;
 

@@ -1,7 +1,7 @@
 import { User } from './user.model';
 import { xmppSettingsInterface } from './xmpp.model';
-import { PartialRoomWithMandatoryKeys, ConfigRoom } from './room.model';
-import { MessageBubble, MessageProps, IMessage } from './message.model';
+import { ConfigRoom } from './room.model';
+import { MessageProps, IMessage } from './message.model';
 import { Iso639_1Codes } from './language.model';
 import React from 'react'; // Assuming React types are globally available or managed by the project's tsconfig
 
@@ -120,6 +120,28 @@ export interface TypographyConfig {
   };
 }
 
+/** Which part of the SDK an uncaught render error came from. */
+export type ChatErrorScope = 'chat' | 'call-overlay';
+
+/**
+ * What the SDK reports when its error boundary catches an uncaught render
+ * error: the error itself, React's component stack (when the runtime gives
+ * one) and which subtree crashed.
+ */
+export interface ChatErrorInfo {
+  error: Error;
+  componentStack?: string;
+  scope: ChatErrorScope;
+}
+
+/**
+ * Render-prop form of `fallbackScreens.error`. `reset()` clears the boundary
+ * and re-mounts the chat subtree, so a host can build its own "try again".
+ */
+export type ChatErrorFallbackRenderer = (
+  context: ChatErrorInfo & { reset: () => void }
+) => React.ReactNode;
+
 export interface IConfig {
   appId?: string;
   disableHeader?: boolean;
@@ -188,6 +210,25 @@ export interface IConfig {
     noConnection?: React.ReactNode;
     /** Shown when the user has no chat room to display. */
     noRoom?: React.ReactNode;
+    /**
+     * Shown when an uncaught render error inside the chat is caught by the
+     * SDK's error boundary (instead of white-screening the host app).
+     *
+     * Same shape as the screens above (string = centered text, React node =
+     * rendered as-is) plus a render-function form, which is what you want if
+     * the replacement screen needs its own retry control or wants to show
+     * something about the error:
+     *
+     *   fallbackScreens: {
+     *     error: ({ error, reset }) => (
+     *       <MyErrorPanel message={error.message} onRetry={reset} />
+     *     ),
+     *   }
+     *
+     * Omit it to keep the built-in calm, themed, translated screen with its
+     * own "try again" button.
+     */
+    error?: React.ReactNode | ChatErrorFallbackRenderer;
   };
   /**
    * Hide specific rooms from the room list and unread counters without
@@ -228,7 +269,6 @@ export interface IConfig {
   defaultLogin?: boolean;
   disableInteractions?: boolean;
   chatHeaderBurgerMenu?: boolean;
-  forceSetRoom?: boolean;
   roomListStyles?: React.CSSProperties;
   chatRoomStyles?: React.CSSProperties;
   noMessagesPlaceholder?: React.ComponentType;
@@ -277,15 +317,27 @@ export interface IConfig {
     color?: string;
     image?: string | File;
   };
-  bubleMessage?: MessageBubble;
+  /**
+   * Host logo rendered at the left of the chat header, before the back
+   * button / burger menu. A plain string is treated as an image URL and
+   * rendered as an `<img>` (32px tall, aspect preserved); any other React
+   * element is rendered as-is. Same string-or-node duality as
+   * `fallbackScreens`. Omit to render no logo (the default).
+   */
   headerLogo?: string | React.ReactElement;
+  /**
+   * Takes over the room-list burger menu. When set, the built-in
+   * Profile/Settings/Logout dropdown is not rendered at all: the same burger
+   * button just calls this handler, so the host can open its own account
+   * menu or drawer.
+   */
   headerMenu?: () => void;
+  /**
+   * Same idea for the chat header's room menu (the "more" button carrying
+   * Report and Leave). When set, that dropdown is not rendered and the
+   * button calls this handler instead.
+   */
   headerChatMenu?: () => void;
-  customRooms?: {
-    rooms: PartialRoomWithMandatoryKeys[];
-    disableGetRooms?: boolean;
-    singleRoom: boolean;
-  };
   translates?: {
     enabled: boolean;
     translations?: Iso639_1Codes;
@@ -371,10 +423,20 @@ export interface IConfig {
     locale?: string;
     strings?: Record<string, string>;
   };
+  /**
+   * Hide every control that mutates a room's configuration: the room avatar
+   * upload/remove overlay, the "Delete chat" entry in the chat-details menu,
+   * the add-members action and the per-member moderator menu (appoint as
+   * admin / remove member). Read-only room details stay visible.
+   */
   disableRoomConfig?: boolean;
   disableProfilesInteractions?: boolean;
+  /**
+   * Hide the member-count subtitle in the chat header ("N users", plus the
+   * online-users popover that hangs off it). The 1:1 online/offline line is
+   * a presence state, not a count, so it is unaffected.
+   */
   disableUserCount?: boolean;
-  clearStoreBeforeInit?: boolean;
   disableSentLogic?: boolean;
   initBeforeLoad?: boolean;
   initBeforeLoadAuth?: {
@@ -394,7 +456,6 @@ export interface IConfig {
   enableRoomsRetry?: { enabled: boolean; helperText: string };
   disableNewChatButton?: boolean;
   chatHeaderAdditional?: { enabled: boolean; element: any };
-  botMessageAutoScroll?: boolean;
   messageTextFilter?: {
     enabled: boolean;
     filterFunction: (text: string) => string;
@@ -419,6 +480,13 @@ export interface IConfig {
       roomJID: string;
       user: any;
     }) => void;
+    /**
+     * Called when the SDK's error boundary catches an uncaught render error,
+     * i.e. the crash that would otherwise have taken the host app down with
+     * it. Wire it to your own crash reporter (Sentry, Datadog, ...). A throw
+     * inside this handler is caught and logged, never rethrown.
+     */
+    onError?: (event: ChatErrorInfo) => void;
   };
 
   disableTypingIndicator?: boolean;

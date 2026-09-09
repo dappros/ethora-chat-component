@@ -38,6 +38,24 @@ export const appendFileToken = (
   }
 };
 
+/**
+ * The same URL with any `?ft=` token removed, for comparing two references
+ * to the same file. Tokens are per-viewer and short-lived, so the URL a
+ * message bubble handed the store can carry one while the copy read back
+ * from the message's attachments does not (or carries an older one). Only
+ * the token-free form is a stable identity.
+ */
+export const withoutFileToken = (url?: string | null): string => {
+  if (!url) return '';
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.delete('ft');
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+};
+
 // Imperative variant for click-time actions (download, preview open):
 // reads the current token straight from the store.
 export const withFileToken = (url?: string | null): string =>

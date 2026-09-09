@@ -35,18 +35,6 @@ export const MODAL_COMPONENTS: Record<
   [MODAL_TYPES.VISIBILITY]: lazy(
     () => import('./SettingsModals/Visibility/VisibilityModal')
   ),
-  [MODAL_TYPES.REFERRALS]: lazy(
-    () => import('./SettingsModals/Referrals/Referrals')
-  ),
-  [MODAL_TYPES.DOCUMENT_SHARES]: lazy(
-    () => import('./SettingsModals/DocumentShares/DocumentSharesModal')
-  ),
-  [MODAL_TYPES.PROFILE_SHARES]: lazy(
-    () => import('./SettingsModals/ProfileShares/ProfileShares')
-  ),
-  [MODAL_TYPES.BLOCKED_USERS]: lazy(
-    () => import('./SettingsModals/BlockedUsers/BlockedUsersModal')
-  ),
   [MODAL_TYPES.FILE_PREVIEW]: lazy(
     () => import('./FilePreviewModal/FilePreviewModal')
   ),

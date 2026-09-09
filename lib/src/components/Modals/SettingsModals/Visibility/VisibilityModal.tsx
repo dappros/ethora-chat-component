@@ -1,18 +1,17 @@
 import { useEffect, useState } from 'react';
 import { RadioGroup, RadioLabel, RadioInput } from './StyledComponents';
-import ModalHeaderComponent from '../../ModalHeaderComponent';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../../../roomStore';
 import { setUser } from '../../../../roomStore/chatSettingsSlice';
 import { updateMe } from '../../../../networking/api-requests/user.api';
 import { User } from '../../../../types/types';
-import { ModalContainerFullScreen } from '../../styledModalComponents';
-import {
-  SharedSettingsCenterContainer,
-  SharedSettingsColumnContainer,
-  SharedSettingsLabelData,
-  SharedSettingsStyledLabel,
-} from '../SharedStyledComponents';
+import SideDrawer, {
+  DrawerCard,
+  DrawerCardBody,
+  DrawerHint,
+  DrawerSection,
+  DrawerSectionTitle,
+} from '../../SideDrawer/SideDrawer';
 import { Notification } from '../../../Notification';
 import { useT } from '../../../../i18n/useT';
 
@@ -65,82 +64,93 @@ const VisibilityModal: React.FC<VisibilityModalProps> = ({
   }, [isAssetsOpen]);
 
   return (
-    <ModalContainerFullScreen>
-      <ModalHeaderComponent
-        handleCloseModal={handleCloseModal}
-        headerTitle={t('settings.visibility.title')}
-      />
-      <SharedSettingsCenterContainer>
-        <SharedSettingsColumnContainer>
-          <SharedSettingsStyledLabel>
-            {t('settings.visibility.profileLabel')}
-          </SharedSettingsStyledLabel>
-          <RadioGroup>
-            <RadioLabel>
-              <RadioInput
-                $radioColor={config?.colors?.primary}
-                type="radio"
-                checked={isProfileOpen === true}
-                onChange={() => setIsProfileOpen(true)}
-              />
-              {t('settings.visibility.open')}
-            </RadioLabel>
-            <SharedSettingsLabelData>
-              {t('settings.visibility.openDescription')}
-            </SharedSettingsLabelData>
-            <RadioLabel>
-              <RadioInput
-                $radioColor={config?.colors?.primary}
-                type="radio"
-                checked={isProfileOpen === false}
-                onChange={() => setIsProfileOpen(false)}
-              />
-              {t('settings.visibility.restricted')}
-            </RadioLabel>
-            <SharedSettingsLabelData>
-              {t('settings.visibility.restrictedDescription')}
-            </SharedSettingsLabelData>
-          </RadioGroup>
-        </SharedSettingsColumnContainer>
-        <SharedSettingsColumnContainer>
-          <SharedSettingsStyledLabel>
-            {t('settings.visibility.documentsLabel')}
-          </SharedSettingsStyledLabel>
-          <RadioGroup>
-            <RadioLabel>
-              <RadioInput
-                $radioColor={config?.colors?.primary}
-                type="radio"
-                checked={isAssetsOpen === true}
-                onChange={() => setIsAssetsOpen(true)}
-              />
-              {t('settings.visibility.full')}
-            </RadioLabel>
-            <SharedSettingsLabelData>
-              {t('settings.visibility.fullDescription')}
-            </SharedSettingsLabelData>
-            <RadioLabel>
-              <RadioInput
-                $radioColor={config?.colors?.primary}
-                type="radio"
-                checked={isAssetsOpen === false}
-                onChange={() => setIsAssetsOpen(false)}
-              />
-              {t('settings.visibility.individual')}
-            </RadioLabel>
-            <SharedSettingsLabelData>
-              {t('settings.visibility.individualDescription')}
-            </SharedSettingsLabelData>
-          </RadioGroup>
-        </SharedSettingsColumnContainer>
-      </SharedSettingsCenterContainer>
+    <SideDrawer
+      title={t('settings.visibility.title')}
+      onClose={handleCloseModal}
+      backLabel={t('action.back')}
+    >
+      <DrawerSection>
+        <DrawerSectionTitle>
+          {t('settings.visibility.profileLabel')}
+        </DrawerSectionTitle>
+        <DrawerCard>
+          <DrawerCardBody>
+            <RadioGroup>
+              <RadioLabel>
+                <RadioInput
+                  $radioColor={config?.colors?.primary}
+                  type="radio"
+                  name="ethora-profile-visibility"
+                  checked={isProfileOpen === true}
+                  onChange={() => setIsProfileOpen(true)}
+                />
+                {t('settings.visibility.open')}
+              </RadioLabel>
+              <DrawerHint>
+                {t('settings.visibility.openDescription')}
+              </DrawerHint>
+              <RadioLabel>
+                <RadioInput
+                  $radioColor={config?.colors?.primary}
+                  type="radio"
+                  name="ethora-profile-visibility"
+                  checked={isProfileOpen === false}
+                  onChange={() => setIsProfileOpen(false)}
+                />
+                {t('settings.visibility.restricted')}
+              </RadioLabel>
+              <DrawerHint>
+                {t('settings.visibility.restrictedDescription')}
+              </DrawerHint>
+            </RadioGroup>
+          </DrawerCardBody>
+        </DrawerCard>
+      </DrawerSection>
+
+      <DrawerSection>
+        <DrawerSectionTitle>
+          {t('settings.visibility.documentsLabel')}
+        </DrawerSectionTitle>
+        <DrawerCard>
+          <DrawerCardBody>
+            <RadioGroup>
+              <RadioLabel>
+                <RadioInput
+                  $radioColor={config?.colors?.primary}
+                  type="radio"
+                  name="ethora-documents-visibility"
+                  checked={isAssetsOpen === true}
+                  onChange={() => setIsAssetsOpen(true)}
+                />
+                {t('settings.visibility.full')}
+              </RadioLabel>
+              <DrawerHint>
+                {t('settings.visibility.fullDescription')}
+              </DrawerHint>
+              <RadioLabel>
+                <RadioInput
+                  $radioColor={config?.colors?.primary}
+                  type="radio"
+                  name="ethora-documents-visibility"
+                  checked={isAssetsOpen === false}
+                  onChange={() => setIsAssetsOpen(false)}
+                />
+                {t('settings.visibility.individual')}
+              </RadioLabel>
+              <DrawerHint>
+                {t('settings.visibility.individualDescription')}
+              </DrawerHint>
+            </RadioGroup>
+          </DrawerCardBody>
+        </DrawerCard>
+      </DrawerSection>
 
       {notification && (
         <Notification type={notification.type}>
           {notification.message}
         </Notification>
       )}
-    </ModalContainerFullScreen>
+    </SideDrawer>
   );
 };
 

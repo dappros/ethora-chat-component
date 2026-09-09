@@ -1,4 +1,6 @@
-import XmppClient from '../networking/xmppClient';
+// Type-only: xmppClient itself now reaches back into the send-failure
+// helpers, and a value import here would close that cycle at runtime.
+import type XmppClient from '../networking/xmppClient';
 import { store } from '../roomStore';
 
 /**
