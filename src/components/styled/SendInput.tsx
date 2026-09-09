@@ -11,6 +11,7 @@ import { getRoomByName } from '../../networking/api-requests/rooms.api';
 import { updateRoom } from '../../roomStore/roomsSlice';
 import {
   AttachmentNotice,
+  EmojiPickerPopover,
   FilePreviewContainer,
   HiddenFileInput,
   MessageInputContainer,
@@ -25,7 +26,8 @@ import AudioRecorder from '../InputComponents/AudioRecorder';
 import AttachmentPreview from '../InputComponents/AttachmentPreview';
 import { IConfig, IMentionSpan, RoomMember } from '../../types/types';
 import Button from './Button';
-import { AttachIcon, SendIcon } from '../../assets/icons';
+import LazyEmojiPicker from '../EmojiPicker/LazyEmojiPicker';
+import { AttachIcon, EmojiIcon, SendIcon } from '../../assets/icons';
 import {
   resolveIconBgColor,
   resolveIconColor,
@@ -111,8 +113,11 @@ const SendInput: React.FC<SendInputProps> = ({
 
   const [filePreviews, setFilePreviews] = useState<File[]>([]);
   const [attachmentNotice, setAttachmentNotice] = useState<string | null>(null);
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const emojiPopoverRef = useRef<HTMLDivElement>(null);
+  const emojiButtonRef = useRef<HTMLButtonElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Whichever of the textarea/input is actually rendered (only one is, per
   // `multiline`) - lets mention handling read/set caret position without
@@ -370,6 +375,73 @@ const SendInput: React.FC<SendInputProps> = ({
     mention.setOverflowOpen(true);
   }, [mention, message]);
 
+  /**
+   * Splices text in at the caret (replacing the selection if there is one)
+   * rather than appending, and leaves the caret just after what was
+   * inserted. Mention spans are offset-shifted through the same
+   * handleTextChange the typing path uses, so an emoji dropped in front of
+   * an existing mention doesn't desync its offsets.
+   */
+  const insertAtCaret = useCallback(
+    (insertion: string) => {
+      if (!insertion) return;
+      const el = activeElRef.current;
+      const start = el?.selectionStart ?? message.length;
+      const end = el?.selectionEnd ?? start;
+      const newValue = message.slice(0, start) + insertion + message.slice(end);
+      const caret = start + insertion.length;
+
+      if (mentionsEnabled) {
+        mention.handleTextChange(message, newValue, caret);
+        // The insertion is a deliberate, non-typed edit: never let it
+        // re-open the autocomplete just because the caret happens to land
+        // inside something that parses as "@query".
+        mention.closeDropdown();
+      }
+      setMessage(newValue);
+      updateTextareaHeight(newValue);
+      requestCaret(caret);
+    },
+    [message, mentionsEnabled, mention, updateTextareaHeight, requestCaret]
+  );
+
+  const toggleEmojiPicker = useCallback(() => {
+    setEmojiPickerOpen((open) => {
+      // Opening the picker gives the composer a second popover above the
+      // input; close the mention autocomplete so only one is ever anchored
+      // there, and so its key handling can't compete with the picker's.
+      if (!open && mentionsEnabled) mention.closeDropdown();
+      return !open;
+    });
+  }, [mentionsEnabled, mention]);
+
+  // Dismiss on outside click / Escape. The picker owns focus while open (it
+  // has its own search field), so Escape has to be caught at the document
+  // level rather than on the textarea.
+  useEffect(() => {
+    if (!emojiPickerOpen) return;
+
+    const onPointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (emojiPopoverRef.current?.contains(target)) return;
+      if (emojiButtonRef.current?.contains(target)) return;
+      setEmojiPickerOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setEmojiPickerOpen(false);
+      activeElRef.current?.focus();
+    };
+
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [emojiPickerOpen]);
+
   useEffect(() => {
     // `undefined` here flips the input from controlled to uncontrolled.
     setMessage(editMessage ?? '');
@@ -599,6 +671,25 @@ const SendInput: React.FC<SendInputProps> = ({
           onClose={() => mention.closeDropdown()}
         />
       )}
+      {emojiPickerOpen && (
+        <EmojiPickerPopover ref={emojiPopoverRef}>
+          <LazyEmojiPicker
+            skinTonePosition="none"
+            searchPosition="static"
+            previewPosition="none"
+            theme="light"
+            onEmojiSelect={(emoji: { native?: string }) => {
+              insertAtCaret(emoji?.native || '');
+              setEmojiPickerOpen(false);
+            }}
+            style={{
+              maxWidth: '320px',
+              maxHeight: '360px',
+              overflowY: 'auto',
+            }}
+          />
+        </EmojiPickerPopover>
+      )}
       <MessageInputContainer>
         {!isRecording && (
           <>
@@ -610,6 +701,23 @@ const SendInput: React.FC<SendInputProps> = ({
                 EndIcon={<AttachIcon color={resolveIconColor(config)} bgcolor={resolveIconBgColor(config)} />}
               />
             )}
+            <Button
+              ref={emojiButtonRef}
+              onClick={toggleEmojiPicker}
+              // Keep the caret where the user left it: without this the
+              // button steals focus on mousedown and the insertion point
+              // is lost before the picker even opens.
+              onMouseDown={(event) => event.preventDefault()}
+              disabled={isLoading || isMessageProcessing}
+              aria-label={t('action.emoji')}
+              aria-expanded={emojiPickerOpen}
+              EndIcon={
+                <EmojiIcon
+                  color={resolveIconColor(config)}
+                  bgcolor={resolveIconBgColor(config)}
+                />
+              }
+            />
             {multiline ? (
               <TextareaWrapper
                 $dynamicHeight={textareaHeight}

@@ -28,6 +28,20 @@ export const MessageInputContainer = styled.div`
   gap: 16px;
 `;
 
+/**
+ * Anchors the composer's emoji picker above the input row, inside
+ * InputContainer's positioning context (the same one MentionDropdown uses).
+ * Sits one layer above that dropdown so the two can never fight for the
+ * same pixels if both were ever open at once.
+ */
+export const EmojiPickerPopover = styled.div`
+  position: absolute;
+  bottom: 100%;
+  left: 16px;
+  margin-bottom: 8px;
+  z-index: 6;
+`;
+
 export const MessageInput = styled.input<{ $color?: string, $colorBg?: string }>`
   flex-grow: 1;
   padding: 10px 12px;

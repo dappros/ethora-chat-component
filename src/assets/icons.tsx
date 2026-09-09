@@ -69,6 +69,35 @@ export const AttachIcon = ({ color = 'var(--ethora-icon-color, #0052CD)', bgcolo
   </svg>
 );
 
+// Same 70x70 frame as AttachIcon so the composer's icon buttons line up
+// without per-icon sizing. Stroke-only face, tinted through the shared
+// icon token like every other composer icon.
+export const EmojiIcon = ({
+  color = 'var(--ethora-icon-color, #0052CD)',
+  bgcolor = 'white',
+  ...props
+}: any) => (
+  <svg
+    width="70"
+    height="70"
+    viewBox="0 0 70 70"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <rect width="70" height="70" rx="15" fill={bgcolor} />
+    <circle cx="35" cy="35" r="14" stroke={color} strokeWidth="1.6" />
+    <circle cx="30" cy="31" r="1.7" fill={color} />
+    <circle cx="40" cy="31" r="1.7" fill={color} />
+    <path
+      d="M28.5 39C29.9 41.6 32.2 43 35 43C37.8 43 40.1 41.6 41.5 39"
+      stroke={color}
+      strokeWidth="1.6"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
 export const CloseIcon = ({
   color = 'var(--ethora-icon-color, #000000)',
   ...props
