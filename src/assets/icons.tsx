@@ -895,3 +895,112 @@ export const SingleTick = ({ color = '#16A34A', ...props }) => (
     />
   </svg>
 );
+
+export const ChevronLeftIcon = ({
+  color = 'var(--ethora-icon-color, #8C8C8C)',
+  ...props
+}) => (
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <path
+      d="M15 5L8 12L15 19"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+export const ChevronRightIcon = ({
+  color = 'var(--ethora-icon-color, #8C8C8C)',
+  ...props
+}) => (
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <path
+      d="M9 5L16 12L9 19"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+export const ZoomInIcon = ({
+  color = 'var(--ethora-icon-color, #8C8C8C)',
+  ...props
+}) => (
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <circle cx="11" cy="11" r="6.5" stroke={color} strokeWidth="1.8" />
+    <path
+      d="M11 8.5V13.5M8.5 11H13.5M16 16L20.5 20.5"
+      stroke={color}
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
+export const ZoomOutIcon = ({
+  color = 'var(--ethora-icon-color, #8C8C8C)',
+  ...props
+}) => (
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <circle cx="11" cy="11" r="6.5" stroke={color} strokeWidth="1.8" />
+    <path
+      d="M8.5 11H13.5M16 16L20.5 20.5"
+      stroke={color}
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
+export const ZoomResetIcon = ({
+  color = 'var(--ethora-icon-color, #8C8C8C)',
+  ...props
+}) => (
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <path
+      d="M4 9V5.5C4 4.67157 4.67157 4 5.5 4H9M15 4H18.5C19.3284 4 20 4.67157 20 5.5V9M20 15V18.5C20 19.3284 19.3284 20 18.5 20H15M9 20H5.5C4.67157 20 4 19.3284 4 18.5V15"
+      stroke={color}
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    />
+  </svg>
+);
