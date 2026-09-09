@@ -589,6 +589,38 @@ const roomsStore = createSlice({
         });
       }
     },
+    // The send-failure watchdog gave up waiting for the MUC echo. This only
+    // flips a DISPLAY flag - the message keeps its id and stays `pending`,
+    // so a late echo still reconciles onto the same entry (addRoomMessage
+    // clears `failed` there) instead of arriving as a second message.
+    setMessageSendFailed(
+      state,
+      action: PayloadAction<{ roomJID: string; messageId: string }>
+    ) {
+      const { roomJID, messageId } = action.payload;
+      const message = state.rooms[roomJID]?.messages?.find(
+        (msg) => msg.id === messageId || msg.xmppId === messageId
+      );
+      // No entry means the user deleted it, or the echo already collapsed
+      // it into the server copy - either way there is nothing to fail.
+      if (!message || message.pending === false) return;
+      message.failed = true;
+    },
+    // Retry: put the message back into the sending state under its ORIGINAL
+    // id, so the retry send and any late echo of the first attempt land on
+    // the same entry.
+    setMessageSendRetrying(
+      state,
+      action: PayloadAction<{ roomJID: string; messageId: string }>
+    ) {
+      const { roomJID, messageId } = action.payload;
+      const message = state.rooms[roomJID]?.messages?.find(
+        (msg) => msg.id === messageId || msg.xmppId === messageId
+      );
+      if (!message) return;
+      message.failed = false;
+      message.pending = true;
+    },
     setEditAction: (state, action: PayloadAction<EditAction | undefined>) => {
       const { isEdit } = action.payload;
       if (isEdit) {
@@ -677,9 +709,16 @@ const roomsStore = createSlice({
           (msg.xmppId && msg.xmppId === message.id)
       );
       if (existingIndex !== -1) {
+        // `failed: false` alongside `pending: false`: the echo IS the
+        // server's acceptance, and it can arrive after the send-failure
+        // watchdog already gave up (slow network, a long message behind a
+        // burst). The server's word always wins over our timeout, and
+        // because the echo carries the same client id it lands on this
+        // existing entry - the sender sees one message that flips from
+        // "not delivered" back to sent, never a second copy.
         roomMessages[existingIndex] = deepMerge(
           { ...roomMessages[existingIndex] },
-          { ...message, pending: false }
+          { ...message, pending: false, failed: false }
         );
         return;
       }
@@ -712,6 +751,7 @@ const roomsStore = createSlice({
             ...updMessage,
             id: updMessage.id,
             pending: false,
+            failed: false,
           };
         } else {
           roomMessages.unshift(updMessage);
@@ -1136,6 +1176,8 @@ export const {
   deleteRoomMessage,
   removeRoomMessage,
   setEditAction,
+  setMessageSendFailed,
+  setMessageSendRetrying,
   editRoomMessage,
   setComposing,
   setIsLoading,

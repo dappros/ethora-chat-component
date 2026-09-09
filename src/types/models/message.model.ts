@@ -19,6 +19,13 @@ export interface IMessage {
   mimetype?: string;
   location?: string;
   pending?: boolean;
+  // Set by the send-failure watchdog when the MUC never reflected this
+  // message back within SEND_FAILURE_TIMEOUT_MS. It is a DISPLAY state
+  // only: the server may still have accepted the message, so a late echo
+  // clears it again (see addRoomMessage). Never treat `failed` as proof
+  // the message was not delivered - only as "we have no confirmation yet
+  // and the user should be offered a retry".
+  failed?: boolean;
   timestamp?: number;
   showInChannel?: string;
   activeMessage?: boolean;
