@@ -45,7 +45,6 @@ export default [
       // generated artifacts
       '**/*.d.ts',
       '**/*.tsbuildinfo',
-      '.eslintrc.cjs',
     ],
   },
   js.configs.recommended,
