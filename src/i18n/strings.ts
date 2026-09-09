@@ -123,6 +123,8 @@ const en: UiStringTable = {
   'action.startRecording': 'Record voice message',
   'action.stopRecording': 'Cancel recording',
   'action.sendRecording': 'Send voice message',
+  'action.emoji': 'Insert emoji',
+  'attachment.dropHint': 'Drop files here to attach',
   'modal.filePreview.openExternally': 'Open in a new tab',
   'modal.filePreview.pdfUnavailable':
     'This PDF cannot be displayed here. You can still open or download it.',
@@ -395,6 +397,8 @@ const fr: UiStringTable = {
   'action.startRecording': 'Enregistrer un message vocal',
   'action.stopRecording': "Annuler l'enregistrement",
   'action.sendRecording': 'Envoyer le message vocal',
+  'action.emoji': 'Insérer un émoji',
+  'attachment.dropHint': 'Déposez les fichiers ici pour les joindre',
   'modal.filePreview.openExternally': 'Ouvrir dans un nouvel onglet',
   'modal.filePreview.pdfUnavailable':
     'Ce PDF ne peut pas être affiché ici. Vous pouvez toujours l\u2019ouvrir ou le télécharger.',
@@ -669,6 +673,8 @@ const es: UiStringTable = {
   'action.startRecording': 'Grabar mensaje de voz',
   'action.stopRecording': 'Cancelar grabación',
   'action.sendRecording': 'Enviar mensaje de voz',
+  'action.emoji': 'Insertar emoji',
+  'attachment.dropHint': 'Suelta los archivos aquí para adjuntarlos',
   'modal.filePreview.openExternally': 'Abrir en una pestaña nueva',
   'modal.filePreview.pdfUnavailable':
     'Este PDF no se puede mostrar aquí. Aún puedes abrirlo o descargarlo.',
@@ -941,6 +947,8 @@ const pt: UiStringTable = {
   'action.startRecording': 'Gravar mensagem de voz',
   'action.stopRecording': 'Cancelar gravação',
   'action.sendRecording': 'Enviar mensagem de voz',
+  'action.emoji': 'Inserir emoji',
+  'attachment.dropHint': 'Solte os arquivos aqui para anexar',
   'modal.filePreview.openExternally': 'Abrir num novo separador',
   'modal.filePreview.pdfUnavailable':
     'Este PDF não pode ser apresentado aqui. Ainda pode abri-lo ou transferi-lo.',
@@ -1212,6 +1220,8 @@ const ht: UiStringTable = {
   'action.startRecording': 'Anrejistre yon mesaj vokal',
   'action.stopRecording': 'Anile anrejistreman an',
   'action.sendRecording': 'Voye mesaj vokal la',
+  'action.emoji': 'Mete yon emoji',
+  'attachment.dropHint': 'Lage fichye yo isit la pou tache yo',
   'modal.filePreview.openExternally': 'Louvri nan yon nouvo onglè',
   'modal.filePreview.pdfUnavailable':
     'Nou pa ka montre PDF sa a isit la. Ou toujou ka louvri l oswa telechaje l.',
@@ -1481,6 +1491,8 @@ const zh: UiStringTable = {
   'action.startRecording': '录制语音消息',
   'action.stopRecording': '取消录音',
   'action.sendRecording': '发送语音消息',
+  'action.emoji': '插入表情',
+  'attachment.dropHint': '将文件拖放到此处以添加附件',
   'modal.filePreview.openExternally': '在新标签页中打开',
   'modal.filePreview.pdfUnavailable': '此 PDF 无法在此显示，但仍可打开或下载。',
   'toast.error': '错误',

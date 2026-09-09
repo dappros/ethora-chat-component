@@ -1,4 +1,5 @@
 import styled from 'styled-components';
+import { fadeInAnimation, scaleInAnimation } from '../../../styles/motion';
 
 export const InputContainer = styled.div`
   display: flex;
@@ -26,6 +27,58 @@ export const MessageInputContainer = styled.div`
   width: 100%;
   max-height: 72px;
   gap: 16px;
+`;
+
+/**
+ * Anchors the composer's emoji picker above the input row, inside
+ * InputContainer's positioning context (the same one MentionDropdown uses).
+ * Sits one layer above that dropdown so the two can never fight for the
+ * same pixels if both were ever open at once.
+ */
+export const EmojiPickerPopover = styled.div`
+  position: absolute;
+  bottom: 100%;
+  left: 16px;
+  margin-bottom: 8px;
+  z-index: 6;
+`;
+
+/**
+ * Drop-target state for drag-and-drop attachments. Covers the whole drop
+ * zone (the message area when the host marks one, else the composer) and is
+ * pointer-events: none so it can never swallow the drop it is announcing.
+ * Motion comes from the shared primitives, which already opt out under
+ * prefers-reduced-motion.
+ */
+export const DropOverlay = styled.div`
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ethora-space-3, 12px);
+  pointer-events: none;
+  background: var(--ethora-drop-overlay-bg, rgba(255, 255, 255, 0.72));
+  ${fadeInAnimation}
+`;
+
+export const DropTarget = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: var(--ethora-space-4, 16px);
+  text-align: center;
+  border: 2px dashed var(--ethora-color-primary, #0052cd);
+  border-radius: var(--ethora-radius-lg, 16px);
+  background: var(--ethora-color-primary-soft, #e7edf9);
+  color: var(--ethora-color-primary, #0052cd);
+  font-size: var(--ethora-font-size, 16px);
+  font-weight: 600;
+  ${scaleInAnimation}
 `;
 
 export const MessageInput = styled.input<{ $color?: string, $colorBg?: string }>`

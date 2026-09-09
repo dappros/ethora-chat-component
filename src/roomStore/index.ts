@@ -19,6 +19,7 @@ import { sessionEncryptTransform } from './persistEncryption';
 import { reactionsMiddleware } from './Middleware/reactionsMiddleware';
 import { ETHORA_CHAT_COMPONENT_VERSION } from '../version';
 import { sanitizeUserForPersistentStorage } from '../helpers/authStorage';
+import { MAX_DRAFT_LENGTH, MAX_PERSISTED_DRAFTS } from './roomsSlice';
 import { ethoraLogger } from '../helpers/ethoraLogger';
 
 const debugMiddleware = (storeAPI) => (next) => (action) => {
@@ -130,6 +131,8 @@ const sanitizeRoomsSliceKey = (value: any, key: string | number) => {
   switch (key) {
     case 'rooms':
       return sanitizeRoomsMap(value);
+    case 'drafts':
+      return compactDraftsForPersist(value);
     case 'usersSet':
     case 'pushSubscriptionStatus':
       return value && typeof value === 'object' ? value : {};
@@ -144,6 +147,45 @@ const sanitizeRoomsSliceKey = (value: any, key: string | number) => {
 
 export const MAX_MESSAGES_PER_ROOM = 100;
 export const MAX_PERSISTED_ROOMS = 100;
+
+/**
+ * Composer drafts are a NEW top-level key of the rooms slice, so they are
+ * persisted deliberately rather than by accident: they are the one piece of
+ * live composer state worth surviving a reload, and unlike `members` (see
+ * REFETCHED_ROOM_FIELDS below) nothing on the server can rebuild them.
+ *
+ * They are also kept OFF the room objects on purpose. The rooms map is what
+ * the char budget fights over, and its last-resort eviction can only drop
+ * `messages` - a draft riding on a room would compete with the message
+ * cache for that budget and could not be evicted independently. As its own
+ * key it is bounded on its own terms by the caps in roomsSlice:
+ * MAX_PERSISTED_DRAFTS (30, least recently typed dropped first, using the
+ * map's insertion order as recency) x MAX_DRAFT_LENGTH (2,000 chars) =
+ * 60,000 chars, i.e. 6% of PERSISTED_ROOMS_CHAR_BUDGET even at the worst
+ * case, and typically a few hundred bytes.
+ *
+ * Applied on the way out AND on the way back in (sanitizeRoomsSliceKey), so
+ * an older or hand-edited blob cannot rehydrate an unbounded map either.
+ */
+export const compactDraftsForPersist = (
+  drafts: unknown
+): Record<string, string> => {
+  if (!drafts || typeof drafts !== 'object' || Array.isArray(drafts)) return {};
+
+  const entries = Object.entries(drafts as Record<string, unknown>)
+    .filter(
+      ([jid, text]) =>
+        typeof jid === 'string' &&
+        jid.includes('@') &&
+        typeof text === 'string' &&
+        text.length > 0
+    )
+    .map(([jid, text]) => [jid, (text as string).slice(0, MAX_DRAFT_LENGTH)]);
+
+  // Newest last (insertion order), so trimming from the front drops the
+  // least recently typed rooms.
+  return Object.fromEntries(entries.slice(-MAX_PERSISTED_DRAFTS));
+};
 
 // Budget for the rooms snapshot BEFORE encryption, in characters.
 //
@@ -397,6 +439,7 @@ export const limitMessagesTransform = createTransform<
   (inboundState, key) => {
     if (key === 'rooms') return optimizePersistedRooms(inboundState);
     if (key === 'usersSet') return compactUsersSetForPersist(inboundState);
+    if (key === 'drafts') return compactDraftsForPersist(inboundState);
     return inboundState;
   },
   (outboundState, key) => {

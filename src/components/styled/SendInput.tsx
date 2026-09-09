@@ -5,12 +5,20 @@ import React, {
   useMemo,
   useEffect,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { useSelector } from 'react-redux';
 import { useAppDispatch } from '../../hooks/hooks';
 import { getRoomByName } from '../../networking/api-requests/rooms.api';
-import { updateRoom } from '../../roomStore/roomsSlice';
+import {
+  clearRoomDraft,
+  setRoomDraft,
+  updateRoom,
+} from '../../roomStore/roomsSlice';
 import {
   AttachmentNotice,
+  DropOverlay,
+  DropTarget,
+  EmojiPickerPopover,
   FilePreviewContainer,
   HiddenFileInput,
   MessageInputContainer,
@@ -25,7 +33,8 @@ import AudioRecorder from '../InputComponents/AudioRecorder';
 import AttachmentPreview from '../InputComponents/AttachmentPreview';
 import { IConfig, IMentionSpan, RoomMember } from '../../types/types';
 import Button from './Button';
-import { AttachIcon, SendIcon } from '../../assets/icons';
+import LazyEmojiPicker from '../EmojiPicker/LazyEmojiPicker';
+import { AttachIcon, EmojiIcon, SendIcon } from '../../assets/icons';
 import {
   resolveIconBgColor,
   resolveIconColor,
@@ -41,6 +50,29 @@ import MentionDropdown from '../InputComponents/MentionDropdown';
 import MentionPickerModal from '../InputComponents/MentionPickerModal';
 
 const DEFAULT_MAX_FILES = 5;
+
+/** Typing pause after which the composer commits its text as a draft. */
+const DRAFT_SAVE_DEBOUNCE_MS = 400;
+
+/**
+ * Hosts can widen the drop area past the composer by putting this attribute
+ * on an ancestor. ChatRoom puts it on the whole message area, so a file
+ * dropped anywhere over the conversation lands in the tray; without a
+ * marked ancestor the composer itself is the drop zone (the thread
+ * composer, an embedded SendInput, ...).
+ */
+const DROP_ZONE_ATTRIBUTE = 'data-ethora-drop-zone';
+
+/**
+ * A drag only counts as an attachment drag when it actually carries files -
+ * dragging selected text, a link or an image out of the transcript must not
+ * light up the drop target.
+ */
+const dragCarriesFiles = (event: DragEvent): boolean => {
+  const types = event.dataTransfer?.types;
+  if (!types) return false;
+  return Array.from(types).includes('Files');
+};
 
 /** Identity for dedup: same name AND size AND mtime is the same pick. */
 const fileKey = (file: File) =>
@@ -82,6 +114,13 @@ export interface SendInputProps {
   /** Disables the @-mention autocomplete (e.g. for a composer variant that
    * doesn't want it). Defaults to enabled. */
   disableMentions?: boolean;
+  /**
+   * Disables per-room draft persistence. Set it on any SECOND composer
+   * that is mounted for the same room as the main one - the thread
+   * composer, for instance - since drafts are keyed by room JID and two
+   * live composers would otherwise overwrite each other's text.
+   */
+  disableDrafts?: boolean;
 }
 
 const SendInput: React.FC<SendInputProps> = ({
@@ -102,6 +141,7 @@ const SendInput: React.FC<SendInputProps> = ({
   onSendMedia,
   placeholderText,
   disableMentions,
+  disableDrafts,
 }) => {
   const t = useT();
   const [message, setMessage] = useState('');
@@ -111,8 +151,12 @@ const SendInput: React.FC<SendInputProps> = ({
 
   const [filePreviews, setFilePreviews] = useState<File[]>([]);
   const [attachmentNotice, setAttachmentNotice] = useState<string | null>(null);
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const emojiPopoverRef = useRef<HTMLDivElement>(null);
+  const emojiButtonRef = useRef<HTMLButtonElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Whichever of the textarea/input is actually rendered (only one is, per
   // `multiline`) - lets mention handling read/set caret position without
@@ -249,14 +293,15 @@ const SendInput: React.FC<SendInputProps> = ({
     }
   }, []);
 
-  const handleFileChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const picked = Array.from(event.target.files || []);
-
-      // Reset first: re-picking the same file must fire `change` again.
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+  /**
+   * The single intake path for attachments, whatever produced them: the
+   * file picker, a drop on the message area, or an image pasted into the
+   * composer. Dedup, the size limit, the per-message count limit and the
+   * notices they raise all live here so every source gets identical
+   * validation and identical feedback.
+   */
+  const addFiles = useCallback(
+    (picked: File[]) => {
       if (picked.length === 0) return;
 
       const sizeLimit = maxFileSizeMb ? maxFileSizeMb * 1024 * 1024 : null;
@@ -299,6 +344,137 @@ const SendInput: React.FC<SendInputProps> = ({
       setAttachmentNotice(notices.length > 0 ? notices.join(' ') : null);
     },
     [filePreviews, maxFiles, maxFileSizeMb, t]
+  );
+
+  const handleFileChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const picked = Array.from(event.target.files || []);
+
+      // Reset first: re-picking the same file must fire `change` again.
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      addFiles(picked);
+    },
+    [addFiles]
+  );
+
+  // ------------------------------------------------------------------
+  // Drag and drop / paste attachments
+  //
+  // The intake, limits and error paths are already there (addFiles above);
+  // only the event handlers were missing. Files can be dropped anywhere on
+  // the drop zone - the whole message area when a host marks one with
+  // DROP_ZONE_ATTRIBUTE, the composer alone otherwise - and images can be
+  // pasted straight into the input.
+  // ------------------------------------------------------------------
+  const attachmentsEnabled = !config?.disableMedia;
+  const [dropZoneEl, setDropZoneEl] = useState<HTMLElement | null>(null);
+  const [isDropTargetActive, setIsDropTargetActive] = useState(false);
+  // dragenter/dragleave fire per element crossed, so a single drag over the
+  // transcript raises a burst of them; count depth instead of toggling, or
+  // the target flickers off the moment the pointer crosses a message.
+  const dragDepthRef = useRef(0);
+
+  useEffect(() => {
+    const self = containerRef.current;
+    if (!self) return;
+    setDropZoneEl(
+      (self.closest(`[${DROP_ZONE_ATTRIBUTE}]`) as HTMLElement | null) ?? self
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!dropZoneEl || !attachmentsEnabled) return;
+
+    const endDrag = () => {
+      dragDepthRef.current = 0;
+      setIsDropTargetActive(false);
+    };
+
+    const onDragEnter = (event: DragEvent) => {
+      if (!dragCarriesFiles(event)) return;
+      event.preventDefault();
+      dragDepthRef.current += 1;
+      setIsDropTargetActive(true);
+    };
+    const onDragOver = (event: DragEvent) => {
+      if (!dragCarriesFiles(event)) return;
+      // Required: an element that doesn't cancel dragover is not a drop
+      // target at all, and the browser then navigates away to the file.
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+    };
+    const onDragLeave = (event: DragEvent) => {
+      if (!dragCarriesFiles(event)) return;
+      dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+      if (dragDepthRef.current === 0) setIsDropTargetActive(false);
+    };
+    const onDrop = (event: DragEvent) => {
+      if (!dragCarriesFiles(event)) return;
+      event.preventDefault();
+      endDrag();
+      addFiles(Array.from(event.dataTransfer?.files || []));
+    };
+
+    dropZoneEl.addEventListener('dragenter', onDragEnter);
+    dropZoneEl.addEventListener('dragover', onDragOver);
+    dropZoneEl.addEventListener('dragleave', onDragLeave);
+    dropZoneEl.addEventListener('drop', onDrop);
+    return () => {
+      dropZoneEl.removeEventListener('dragenter', onDragEnter);
+      dropZoneEl.removeEventListener('dragover', onDragOver);
+      dropZoneEl.removeEventListener('dragleave', onDragLeave);
+      dropZoneEl.removeEventListener('drop', onDrop);
+    };
+  }, [dropZoneEl, attachmentsEnabled, addFiles]);
+
+  // A file dropped anywhere the chat isn't would otherwise make the browser
+  // navigate to it, throwing away the whole session. These run in the
+  // bubble phase, after the zone handlers above, so a drop that WAS handled
+  // is already defaultPrevented and this does nothing extra; a real drop
+  // target elsewhere on the host page cancels its own events the same way
+  // and keeps working.
+  useEffect(() => {
+    const swallowStrayDrag = (event: DragEvent) => {
+      if (event.defaultPrevented) return;
+      if (!dragCarriesFiles(event)) return;
+      event.preventDefault();
+    };
+    const onWindowDrop = (event: DragEvent) => {
+      swallowStrayDrag(event);
+      dragDepthRef.current = 0;
+      setIsDropTargetActive(false);
+    };
+    const onDragEnd = () => {
+      dragDepthRef.current = 0;
+      setIsDropTargetActive(false);
+    };
+
+    window.addEventListener('dragover', swallowStrayDrag);
+    window.addEventListener('drop', onWindowDrop);
+    window.addEventListener('dragend', onDragEnd);
+    return () => {
+      window.removeEventListener('dragover', swallowStrayDrag);
+      window.removeEventListener('drop', onWindowDrop);
+      window.removeEventListener('dragend', onDragEnd);
+    };
+  }, []);
+
+  const handlePaste = useCallback(
+    (event: React.ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      if (!attachmentsEnabled) return;
+      const pasted = Array.from(event.clipboardData?.files || []);
+      const images = pasted.filter((file) =>
+        String(file.type || '').startsWith('image/')
+      );
+      // Anything else - plain text above all - falls through to the normal
+      // paste, so text still lands in the input untouched.
+      if (images.length === 0) return;
+      event.preventDefault();
+      addFiles(images);
+    },
+    [attachmentsEnabled, addFiles]
   );
 
   const handleFocus = () => {
@@ -370,6 +546,73 @@ const SendInput: React.FC<SendInputProps> = ({
     mention.setOverflowOpen(true);
   }, [mention, message]);
 
+  /**
+   * Splices text in at the caret (replacing the selection if there is one)
+   * rather than appending, and leaves the caret just after what was
+   * inserted. Mention spans are offset-shifted through the same
+   * handleTextChange the typing path uses, so an emoji dropped in front of
+   * an existing mention doesn't desync its offsets.
+   */
+  const insertAtCaret = useCallback(
+    (insertion: string) => {
+      if (!insertion) return;
+      const el = activeElRef.current;
+      const start = el?.selectionStart ?? message.length;
+      const end = el?.selectionEnd ?? start;
+      const newValue = message.slice(0, start) + insertion + message.slice(end);
+      const caret = start + insertion.length;
+
+      if (mentionsEnabled) {
+        mention.handleTextChange(message, newValue, caret);
+        // The insertion is a deliberate, non-typed edit: never let it
+        // re-open the autocomplete just because the caret happens to land
+        // inside something that parses as "@query".
+        mention.closeDropdown();
+      }
+      setMessage(newValue);
+      updateTextareaHeight(newValue);
+      requestCaret(caret);
+    },
+    [message, mentionsEnabled, mention, updateTextareaHeight, requestCaret]
+  );
+
+  const toggleEmojiPicker = useCallback(() => {
+    setEmojiPickerOpen((open) => {
+      // Opening the picker gives the composer a second popover above the
+      // input; close the mention autocomplete so only one is ever anchored
+      // there, and so its key handling can't compete with the picker's.
+      if (!open && mentionsEnabled) mention.closeDropdown();
+      return !open;
+    });
+  }, [mentionsEnabled, mention]);
+
+  // Dismiss on outside click / Escape. The picker owns focus while open (it
+  // has its own search field), so Escape has to be caught at the document
+  // level rather than on the textarea.
+  useEffect(() => {
+    if (!emojiPickerOpen) return;
+
+    const onPointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (emojiPopoverRef.current?.contains(target)) return;
+      if (emojiButtonRef.current?.contains(target)) return;
+      setEmojiPickerOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setEmojiPickerOpen(false);
+      activeElRef.current?.focus();
+    };
+
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [emojiPickerOpen]);
+
   useEffect(() => {
     // `undefined` here flips the input from controlled to uncontrolled.
     setMessage(editMessage ?? '');
@@ -377,6 +620,136 @@ const SendInput: React.FC<SendInputProps> = ({
       updateTextareaHeight(editMessage);
     }
   }, [editMessage, updateTextareaHeight]);
+
+  // ------------------------------------------------------------------
+  // Per-room drafts
+  //
+  // The composer's text is local state and SendInput is never unmounted
+  // when the active room changes, so without this every room shared one
+  // buffer. Drafts live in the rooms slice (roomsSlice `drafts`, keyed by
+  // room JID) rather than here so they survive both a room switch and,
+  // through that slice's persistence, a reload.
+  //
+  // What is NOT a draft: an edit in progress and an active reply. An edit
+  // is a rewrite of an already sent message and already has its own state
+  // (roomsSlice's `editAction`, carrying the message id it belongs to);
+  // storing it as the room's draft would clobber the unsent text it is
+  // temporarily standing in for, and restoring it later would re-attach a
+  // body to an edit that no longer exists. A reply target is likewise
+  // already per-room state (`activeMessage` on the room). Only the plain
+  // unsent buffer is stored - and when an edit ends, the room's own draft
+  // is put back into the composer.
+  // ------------------------------------------------------------------
+  const draftsEnabled = !disableDrafts;
+  const activeRoomJid = activeRoom?.jid;
+  const roomDraft = useSelector((state: RootState) =>
+    draftsEnabled && activeRoomJid
+      ? (state.rooms.drafts?.[activeRoomJid] ?? '')
+      : ''
+  );
+  // Read through a ref by the effects below: they react to the room
+  // changing, never to our own debounced write landing back in the store.
+  const roomDraftRef = useRef(roomDraft);
+  roomDraftRef.current = roomDraft;
+
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingDraftRef = useRef<{ jid: string; text: string } | null>(null);
+  const skipNextDraftSaveRef = useRef(false);
+  const draftRoomRef = useRef<string | null>(null);
+  const wasEditingRef = useRef(false);
+
+  /** Commits whatever the debounce still owes, immediately. */
+  const flushDraft = useCallback(() => {
+    if (draftTimerRef.current) {
+      clearTimeout(draftTimerRef.current);
+      draftTimerRef.current = null;
+    }
+    const pending = pendingDraftRef.current;
+    pendingDraftRef.current = null;
+    if (pending) dispatch(setRoomDraft(pending));
+  }, [dispatch]);
+
+  const restoreDraftIntoComposer = useCallback(() => {
+    const restored = roomDraftRef.current || '';
+    // Whatever is in the composer right now belongs to the room we are
+    // leaving (or to a finished edit): don't let the save effect write it
+    // under the room we are arriving at.
+    skipNextDraftSaveRef.current = true;
+    setMessage(restored);
+    updateTextareaHeight(restored);
+    if (mentionsEnabled) mention.resetMentions();
+    // Caret at the end, so the user carries on where they stopped. Only
+    // when there is something to carry on from - an empty draft must not
+    // pull focus into the composer on every room switch.
+    if (restored) requestCaret(restored.length);
+  }, [updateTextareaHeight, mentionsEnabled, mention, requestCaret]);
+
+  const clearDraftForRoom = useCallback(() => {
+    if (draftTimerRef.current) {
+      clearTimeout(draftTimerRef.current);
+      draftTimerRef.current = null;
+    }
+    pendingDraftRef.current = null;
+    if (!draftsEnabled || !activeRoomJid) return;
+    dispatch(clearRoomDraft({ jid: activeRoomJid }));
+  }, [draftsEnabled, activeRoomJid, dispatch]);
+
+  useEffect(() => {
+    if (!draftsEnabled) return;
+    if (draftRoomRef.current === (activeRoomJid ?? null)) return;
+    flushDraft();
+    draftRoomRef.current = activeRoomJid ?? null;
+    // An edit owns the composer while it runs; the transition effect below
+    // hands the draft back when it ends.
+    if (editMessage) return;
+    restoreDraftIntoComposer();
+  }, [
+    draftsEnabled,
+    activeRoomJid,
+    editMessage,
+    flushDraft,
+    restoreDraftIntoComposer,
+  ]);
+
+  // Declared after the editMessage effect above on purpose: when an edit
+  // ends that effect blanks the composer, and this one puts the room's own
+  // unsent draft back in its place.
+  useEffect(() => {
+    const editing = !!editMessage;
+    const wasEditing = wasEditingRef.current;
+    wasEditingRef.current = editing;
+    if (!draftsEnabled || !wasEditing || editing) return;
+    restoreDraftIntoComposer();
+  }, [editMessage, draftsEnabled, restoreDraftIntoComposer]);
+
+  // Saving is driven off `message` rather than from inside the change
+  // handler because the composer mutates that text from five places
+  // (typing, emoji insert, mention pick, atomic mention backspace,
+  // send/clear); a draft that silently missed one of them would be worse
+  // than no draft at all.
+  useEffect(() => {
+    if (!draftsEnabled || !activeRoomJid) return;
+    if (skipNextDraftSaveRef.current) {
+      skipNextDraftSaveRef.current = false;
+      return;
+    }
+    if (editMessage) return;
+
+    pendingDraftRef.current = { jid: activeRoomJid, text: message };
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    draftTimerRef.current = setTimeout(() => {
+      draftTimerRef.current = null;
+      const pending = pendingDraftRef.current;
+      pendingDraftRef.current = null;
+      if (pending) dispatch(setRoomDraft(pending));
+    }, DRAFT_SAVE_DEBOUNCE_MS);
+  }, [message, activeRoomJid, draftsEnabled, editMessage, dispatch]);
+
+  // Unmounting mid-debounce (the whole chat closing, a route change) must
+  // not silently drop what was typed.
+  const flushDraftRef = useRef(flushDraft);
+  flushDraftRef.current = flushDraft;
+  useEffect(() => () => flushDraftRef.current(), []);
 
   const effectiveSendMessage = onSendMessage || sendMessage;
   const effectiveSendMedia = onSendMedia || sendMedia;
@@ -408,6 +781,7 @@ const SendInput: React.FC<SendInputProps> = ({
         }
         effectiveSendMessage(trailingText, mention.mentionSpans);
         mention.resetMentions();
+        clearDraftForRoom();
         setMessage('');
         setFilePreviews([]);
         setAttachmentNotice(null);
@@ -416,6 +790,7 @@ const SendInput: React.FC<SendInputProps> = ({
       }
 
       mention.resetMentions();
+      clearDraftForRoom();
       setMessage('');
       setFilePreviews([]);
       setAttachmentNotice(null);
@@ -440,6 +815,7 @@ const SendInput: React.FC<SendInputProps> = ({
       hasTextContent,
       message,
       mention,
+      clearDraftForRoom,
     ]
   );
 
@@ -451,6 +827,7 @@ const SendInput: React.FC<SendInputProps> = ({
     }
     effectiveSendMessage(outgoing, mention.mentionSpans);
     mention.resetMentions();
+    clearDraftForRoom();
     setMessage('');
     setFilePreviews([]);
     setAttachmentNotice(null);
@@ -462,6 +839,7 @@ const SendInput: React.FC<SendInputProps> = ({
     formatMessage,
     hasTextContent,
     mention,
+    clearDraftForRoom,
   ]);
 
   // The caret can sit inside an "@query" that matches nobody, in which case
@@ -576,7 +954,15 @@ const SendInput: React.FC<SendInputProps> = ({
   );
 
   return (
-    <InputContainer>
+    <InputContainer ref={containerRef}>
+      {isDropTargetActive &&
+        dropZoneEl &&
+        createPortal(
+          <DropOverlay role="status" aria-live="polite">
+            <DropTarget>{t('attachment.dropHint')}</DropTarget>
+          </DropOverlay>,
+          dropZoneEl
+        )}
       {mentionsEnabled && mention.isDropdownOpen && !mention.overflowOpen && (
         <MentionDropdown
           candidates={mention.visibleCandidates}
@@ -599,6 +985,25 @@ const SendInput: React.FC<SendInputProps> = ({
           onClose={() => mention.closeDropdown()}
         />
       )}
+      {emojiPickerOpen && (
+        <EmojiPickerPopover ref={emojiPopoverRef}>
+          <LazyEmojiPicker
+            skinTonePosition="none"
+            searchPosition="static"
+            previewPosition="none"
+            theme="light"
+            onEmojiSelect={(emoji: { native?: string }) => {
+              insertAtCaret(emoji?.native || '');
+              setEmojiPickerOpen(false);
+            }}
+            style={{
+              maxWidth: '320px',
+              maxHeight: '360px',
+              overflowY: 'auto',
+            }}
+          />
+        </EmojiPickerPopover>
+      )}
       <MessageInputContainer>
         {!isRecording && (
           <>
@@ -610,6 +1015,23 @@ const SendInput: React.FC<SendInputProps> = ({
                 EndIcon={<AttachIcon color={resolveIconColor(config)} bgcolor={resolveIconBgColor(config)} />}
               />
             )}
+            <Button
+              ref={emojiButtonRef}
+              onClick={toggleEmojiPicker}
+              // Keep the caret where the user left it: without this the
+              // button steals focus on mousedown and the insertion point
+              // is lost before the picker even opens.
+              onMouseDown={(event) => event.preventDefault()}
+              disabled={isLoading || isMessageProcessing}
+              aria-label={t('action.emoji')}
+              aria-expanded={emojiPickerOpen}
+              EndIcon={
+                <EmojiIcon
+                  color={resolveIconColor(config)}
+                  bgcolor={resolveIconBgColor(config)}
+                />
+              }
+            />
             {multiline ? (
               <TextareaWrapper
                 $dynamicHeight={textareaHeight}
@@ -626,6 +1048,7 @@ const SendInput: React.FC<SendInputProps> = ({
                   value={message}
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
+                  onPaste={handlePaste}
                   onFocus={handleFocus}
                   onBlur={handleBlur}
                   disabled={isLoading || isMessageProcessing}
@@ -645,6 +1068,7 @@ const SendInput: React.FC<SendInputProps> = ({
                 value={message}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
                 onFocus={handleFocus}
                 onBlur={handleBlur}
                 disabled={isLoading || isMessageProcessing}

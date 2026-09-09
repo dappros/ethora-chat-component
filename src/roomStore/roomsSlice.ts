@@ -105,6 +105,23 @@ const collapseCallLogDuplicates = (messages: IMessage[]): IMessage[] => {
   });
 };
 
+/**
+ * Draft caps. Drafts ride along in the persisted rooms slice, so they have
+ * to be bounded before they are written, not after:
+ *
+ *   30 rooms x 2,000 chars = 60,000 chars worst case, ~84,000 after the
+ *   encrypt transform's ~1.4x inflation (~168 KB of the origin's ~5 MB).
+ *
+ * That is small next to PERSISTED_ROOMS_CHAR_BUDGET (1,000,000 chars) and,
+ * because drafts are their own top-level slice key, it can never squeeze
+ * the message cache the way the member roster once did. 2,000 chars is far
+ * longer than any message anyone actually leaves half-typed; anything past
+ * it is truncated rather than dropped, so the user still gets most of it
+ * back.
+ */
+export const MAX_DRAFT_LENGTH = 2000;
+export const MAX_PERSISTED_DRAFTS = 30;
+
 interface RoomMessagesState {
   rooms: { [jid: string]: IRoom };
   activeRoomJID: string;
@@ -121,6 +138,14 @@ interface RoomMessagesState {
   subscribedRooms: string[];
   pushSubscriptionStatus: Record<string, 'pending' | 'subscribed' | 'error' | 'blocked'>;
   loadingText?: string;
+  // Unsent composer text per room JID. Lives here rather than in the
+  // composer's own useState so switching rooms (which never unmounts
+  // SendInput) can hand each room back its own text, and so a reload gets
+  // it back through the rooms slice's persistence. Deliberately NOT stored
+  // on the room object: rooms carry the message cache and are the blob the
+  // persist char budget fights over, while drafts are their own small,
+  // separately capped key (see compactDraftsForPersist in roomStore/index).
+  drafts: Record<string, string>;
 }
 
 interface PreloadRoomUpdate {
@@ -149,6 +174,7 @@ const initialState: RoomMessagesState = {
   subscribedRooms: [],
   pushSubscriptionStatus: {},
   loadingText: undefined,
+  drafts: {},
 };
 
 const firstPositiveTimestamp = (...values: unknown[]): number => {
@@ -453,6 +479,49 @@ const roomsStore = createSlice({
       if (state.rooms[jid]) {
         delete state.rooms[jid];
       }
+      if (state.drafts?.[jid] !== undefined) {
+        delete state.drafts[jid];
+      }
+    },
+    /**
+     * Stores (or clears, when `text` is empty) one room's unsent composer
+     * text. The composer debounces these, so this runs on a pause in typing
+     * rather than per keystroke.
+     */
+    setRoomDraft(state, action: PayloadAction<{ jid: string; text: string }>) {
+      const jid = action.payload?.jid;
+      if (!isValidRoomJid(jid)) return;
+      if (!state.drafts) state.drafts = {};
+
+      const text = String(action.payload?.text ?? '').slice(0, MAX_DRAFT_LENGTH);
+
+      if (!text) {
+        if (state.drafts[jid] !== undefined) delete state.drafts[jid];
+        return;
+      }
+      // Unchanged text must not produce a new state object: the composer's
+      // save path can legitimately re-submit the same string (a restore, a
+      // re-render), and every state change here costs a persist write of
+      // the whole rooms slice.
+      if (state.drafts[jid] === text) return;
+
+      // Key insertion order IS the recency order the cap below trims by, so
+      // re-insert the room just typed in as the newest entry.
+      delete state.drafts[jid];
+      state.drafts[jid] = text;
+
+      const keys = Object.keys(state.drafts);
+      if (keys.length > MAX_PERSISTED_DRAFTS) {
+        keys
+          .slice(0, keys.length - MAX_PERSISTED_DRAFTS)
+          .forEach((stale) => delete state.drafts[stale]);
+      }
+    },
+    /** Drops one room's draft: what sending a message does. */
+    clearRoomDraft(state, action: PayloadAction<{ jid: string }>) {
+      const jid = action.payload?.jid;
+      if (!jid || !state.drafts) return;
+      if (state.drafts[jid] !== undefined) delete state.drafts[jid];
     },
     updateRoom(
       state,
@@ -784,6 +853,7 @@ const roomsStore = createSlice({
     },
     deleteAllRooms(state) {
       state.rooms = {};
+      state.drafts = {};
     },
     insertUsers(state, action: PayloadAction<{ newUsers: RoomMember[] }>) {
       const { newUsers } = action.payload;
@@ -971,6 +1041,9 @@ const roomsStore = createSlice({
       state.isLoading = false;
       state.usersSet = {};
       state.presenceByRoom = {};
+      // Half-typed messages are user content: logging out must not leave
+      // them behind for whoever logs in next.
+      state.drafts = {};
     },
     setActiveMessage: (
       state,
@@ -1201,6 +1274,8 @@ export const {
   setPushSubscriptionStatus,
   clearPushSubscriptions,
   applyRoomsPreloadBatch,
+  setRoomDraft,
+  clearRoomDraft,
 } = roomsStore.actions;
 
 export default roomsStore.reducer;

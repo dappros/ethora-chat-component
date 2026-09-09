@@ -184,6 +184,10 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
       )}
       <SendInput
         editMessage={editAction.text}
+        // Drafts are keyed by room JID and the thread composer is mounted
+        // for the SAME room as the main one, so leaving it enabled here
+        // would have the two overwrite each other's text.
+        disableDrafts
         sendMedia={sendMedia}
         sendMessage={editAction.isEdit ? sendEditMessage : sendMessage}
         config={config}
