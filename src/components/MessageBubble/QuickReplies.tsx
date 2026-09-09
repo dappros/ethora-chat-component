@@ -23,16 +23,11 @@ const Chip = styled.button<{ $accent: string }>`
   font-size: var(--ethora-font-size-sm, 0.8125rem);
   line-height: 1.4;
   padding: 5px 12px;
-  transition: background-color 0.15s ease, opacity 0.15s ease;
+  transition: background-color 0.15s ease;
 
-  &:hover:not(:disabled) {
+  &:hover {
     background-color: ${(props) => props.$accent};
     color: #fff;
-  }
-
-  &:disabled {
-    cursor: default;
-    opacity: 0.45;
   }
 `;
 
@@ -40,16 +35,17 @@ interface QuickRepliesProps {
   replies: QuickReply[];
   messageId: string;
   accentColor?: string;
-  /** Already answered (in this session) - chips render disabled. */
+  /** Already answered - the chips are gone for good. */
   answered?: boolean;
   onSelect: (reply: QuickReply, questionId: string) => void;
 }
 
 /**
- * Buttons offered by a bot message. Tapping one answers the message: the
- * chips lock immediately (so a double tap cannot post two answers) and stay
- * visible, which keeps the transcript readable - you can still see what the
- * options were next to the answer that was picked.
+ * Buttons offered by a bot message. Tapping one answers the message and the
+ * whole row disappears: the answer is already in the transcript as the
+ * user's own message, so leaving spent options on screen only invites a
+ * second tap on a question that is closed. Removing them is also what makes
+ * a double tap impossible rather than merely refused.
  */
 const QuickReplies: React.FC<QuickRepliesProps> = ({
   replies,
@@ -71,7 +67,8 @@ const QuickReplies: React.FC<QuickRepliesProps> = ({
     [locked, messageId, onSelect]
   );
 
-  if (!replies.length) return null;
+  // Answered: nothing left to offer.
+  if (!replies.length || locked) return null;
 
   return (
     <Row role="group" aria-label="Quick replies">
@@ -80,7 +77,6 @@ const QuickReplies: React.FC<QuickRepliesProps> = ({
           key={`${messageId}-${reply.questionId ?? index}-${reply.value}`}
           type="button"
           $accent={accent}
-          disabled={locked}
           onClick={() => handleClick(reply, index)}
         >
           {reply.name}

@@ -126,17 +126,29 @@ describe('Message - bot quick replies', () => {
   });
 
   // A double tap used to be the obvious way to submit two answers to one
-  // question.
-  it('locks every chip after the first answer', () => {
+  // question. The row is removed rather than disabled, so there is nothing
+  // left to tap.
+  it('removes every chip after the first answer', () => {
     renderMessage(makeMessage({ quickReplies: BUTTONS }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Take Quiz' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Take Quiz' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
 
+    expect(screen.queryByRole('button', { name: 'Take Quiz' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Not now' })).toBeNull();
     expect(sendMessageMock).toHaveBeenCalledTimes(1);
     expect(onQuickReply).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole('button', { name: 'Not now' })).toBeDisabled();
+  });
+
+  // The render window unmounts rows as you scroll, and a reload re-renders
+  // the whole transcript - neither may re-offer a closed question.
+  it('stays gone for a message answered earlier', () => {
+    const { unmount } = renderMessage(makeMessage({ quickReplies: BUTTONS }));
+    fireEvent.click(screen.getByRole('button', { name: 'Take Quiz' }));
+    unmount();
+
+    renderMessage(makeMessage({ quickReplies: BUTTONS }));
+
+    expect(screen.queryByRole('button', { name: 'Take Quiz' })).toBeNull();
   });
 
   it('never shows buttons on the visitor own bubble', () => {
