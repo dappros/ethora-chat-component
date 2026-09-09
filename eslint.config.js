@@ -72,9 +72,19 @@ export default [
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      // The base rule does not understand TypeScript (type-only imports,
+      // parameter properties), so it stays off in favour of the TS one.
       'no-unused-vars': 'off',
-      '@typescript-eslint/no-unused-vars': 'off',
-      'react-hooks/exhaustive-deps': 'off',
+      // Both are "warn", not "error": there is a backlog of pre-existing
+      // hits and blocking the build on them would only get the rules
+      // switched off again. Warnings keep them visible for new code.
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrors: 'none' },
+      ],
+      // Stale closures in effects are this codebase's most expensive bug
+      // class, see the 75s stall documented in useChatWrapperInit.ts.
+      'react-hooks/exhaustive-deps': 'warn',
       'react-refresh/only-export-components': 'off',
     },
   },
