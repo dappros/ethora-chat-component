@@ -39,12 +39,51 @@ import { useMessageTranslation } from '../../hooks/useMessageTranslation';
 import TranslatedMessageBody from './TranslatedMessageBody';
 import { useT } from '../../i18n/useT';
 import styled from 'styled-components';
-import { resolveTranslateMode } from '../../utils/translateModePolicy';
+import {
+  resolveTranslateMode,
+  shouldTagOutgoingTranslateSource,
+} from '../../utils/translateModePolicy';
+import { resendMessage } from '../../utils/resendMessage';
 
 // Inherits CustomMessageTimestamp's colour/size - just the WhatsApp/
 // Telegram-style italic to read as a tag, not a second timestamp.
 const EditedLabel = styled.span`
   font-style: italic;
+`;
+
+// Danger tone comes from a themable custom property so a host can retint it
+// (and so nothing here hardcodes a red). The literal is only the fallback
+// for hosts that never define the variable.
+const FailedNotice = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+  color: var(--ethora-color-danger, #d92d20);
+  font-family: var(--ethora-font-family, 'Open Sans', sans-serif);
+  font-size: var(--ethora-font-size-xs, 0.75rem);
+`;
+
+const RetryButton = styled.button`
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 10px;
+  color: inherit;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: 1.4;
+  padding: 0 8px;
+
+  &:hover:not(:disabled) {
+    opacity: 0.75;
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
 `;
 
 const firstUrlRegex =
@@ -56,7 +95,8 @@ const Message: React.FC<MessageProps> = forwardRef<
 >(({ message, isUser, isReply }, ref) => {
   const { client } = useXmppClient();
   const t = useT();
-  const { user, config, langSource, translateMode } = useChatSettingState();
+  const { user, config, langSource, translateMode, translateSendEnabled } =
+    useChatSettingState();
   const { idSet } = useMessageHeapState();
   const interactionsDisabled = Boolean(config?.disableInteractions);
   const profilesDisabled = Boolean(config?.disableProfilesInteractions);
@@ -261,6 +301,46 @@ const Message: React.FC<MessageProps> = forwardRef<
 
   const isPending = idSet.has(message.id) || message?.pending || false;
 
+  // "failed" is only ever a prompt to retry, never a claim the message was
+  // not delivered - the server may have taken it and simply not echoed yet.
+  // A late echo clears the flag (see addRoomMessage), so a message the
+  // server accepted can never stay in this state.
+  const sentLogicEnabled = !config?.disableSentLogic;
+  const isFailed = Boolean(sentLogicEnabled && isUser && message?.failed);
+
+  const handleRetrySend = () => {
+    if (!isFailed) return;
+    // The bubble flips straight back to "sending" (setMessageSendRetrying),
+    // so the button this click came from unmounts - that is the first line
+    // of defence against a double tap. resendMessage holds the second one,
+    // a per-message-id single-writer slot, for the racy cases a re-render
+    // cannot cover.
+    void resendMessage(
+      {
+        originalMessageId: message.id,
+        body: message.body,
+        roomJid: message.roomJid,
+        isReply:
+          typeof message.isReply === 'boolean'
+            ? message.isReply
+            : !!message.isReply,
+        showInChannel: message.showInChannel,
+        mainMessage: message.mainMessage,
+      },
+      {
+        preserveMessageId: true,
+        // Match whatever a fresh send would do, so a retry does not silently
+        // drop the `<translate source>` tag the first attempt carried.
+        respectTranslateConfig: shouldTagOutgoingTranslateSource(
+          config?.translates?.enabled,
+          translateSendEnabled
+        ),
+      }
+    ).catch((error) => {
+      console.error('Failed to retry message send:', error);
+    });
+  };
+
   return (
     <>
       <CustomMessageContainer
@@ -324,7 +404,10 @@ const Message: React.FC<MessageProps> = forwardRef<
               message={message}
             />
           ) : (
-            <CustomMessageText>
+            // Muted while unsent so the bubble reads as "not landed yet"
+            // without shouting - the danger tone belongs on the notice below,
+            // which is the part carrying the action.
+            <CustomMessageText style={{ opacity: isFailed ? 0.6 : 1 }}>
               {message.isDeleted && message.id !== 'delimiter-new' ? (
                 <DeletedMessage />
               ) : (
@@ -364,7 +447,7 @@ const Message: React.FC<MessageProps> = forwardRef<
             />
           )}
           <CustomMessageTimestamp>
-            {!config?.disableSentLogic && isUser && isPending && 'sending...'}
+            {sentLogicEnabled && isUser && isPending && !isFailed && 'sending...'}
             {message.isEdited && !message.isDeleted && (
               <EditedLabel>{t('message.edited')}</EditedLabel>
             )}
@@ -372,10 +455,20 @@ const Message: React.FC<MessageProps> = forwardRef<
               hour: '2-digit',
               minute: '2-digit',
             })}
-            {!config?.disableSentLogic && isUser && !isPending && (
-              <DoubleTick />
-            )}
+            {sentLogicEnabled && isUser && !isPending && <DoubleTick />}
           </CustomMessageTimestamp>
+          {isFailed && (
+            <FailedNotice>
+              <span>{t('message.notDelivered')}</span>
+              <RetryButton
+                type="button"
+                onClick={handleRetrySend}
+                aria-label={t('message.retryAriaLabel')}
+              >
+                {t('message.retry')}
+              </RetryButton>
+            </FailedNotice>
+          )}
           {previewUrl && !message.isDeleted && (
             <URLPreviewCard url={previewUrl} isUserMessage={isUser} />
           )}
@@ -400,23 +493,6 @@ const Message: React.FC<MessageProps> = forwardRef<
             />
           )}
         </MessageFooter>
-        {/* <button
-          onClick={() =>
-            resendMessage({
-              originalMessageId: message.id,
-              body: message.body,
-              roomJid: message.roomJid,
-              isReply:
-                typeof message.isReply === 'boolean'
-                  ? message.isReply
-                  : !!message.isReply,
-              showInChannel: message.showInChannel,
-              mainMessage: message.mainMessage,
-            })
-          }
-        >
-          asdasdsd
-        </button> */}
       </CustomMessageContainer>
 
       {!interactionsDisabled && (

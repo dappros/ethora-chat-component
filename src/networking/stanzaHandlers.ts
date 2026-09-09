@@ -34,6 +34,10 @@ import { MEMBERS_REFRESH_XMLNS } from './xmpp/notifyMembersChanged.xmpp';
 import XmppClient from './xmppClient';
 import { checkSingleUser } from '../helpers/checkUniqueUsers';
 import { removeMessageFromHeapById } from '../roomStore/roomHeapSlice';
+import {
+  clearSendFailureWatchdog,
+  endSendRetry,
+} from '../helpers/sendFailureWatchdog';
 import { messageNotificationManager } from '../utils/messageNotificationManager';
 import { resolveSenderDisplayName } from '../helpers/createUserNameFromSetUser';
 import {
@@ -139,6 +143,11 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
     if (removeId) {
       store.dispatch(removeMessageFromHeapById(removeId));
       xmppClient?.acknowledgeSentMessage(roomJID, removeId);
+      // The echo IS the acknowledgement, so nothing is left to time out.
+      // Disarming here (rather than only letting the timer fire and no-op)
+      // keeps a long-lived session from accumulating dead timers.
+      clearSendFailureWatchdog(removeId);
+      endSendRetry(removeId);
     }
 
     const state = store.getState();

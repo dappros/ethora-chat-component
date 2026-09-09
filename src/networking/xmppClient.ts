@@ -35,6 +35,13 @@ import {
 import { sendPing } from './xmpp/sendPing.xmpp';
 import { isPong } from './xmpp/handlePong.xmpp';
 import { store } from '../roomStore';
+import { removeMessageFromHeapById } from '../roomStore/roomHeapSlice';
+import { hasEchoLanded } from '../helpers/scheduleAckCatchup';
+import {
+  armSendFailureWatchdog,
+  isMessageMarkedFailed,
+  isSendRetryInFlight,
+} from '../helpers/sendFailureWatchdog';
 import { IMessage } from '../types/types';
 import { SERVICE, VITE_APP_XMPP_BASEDOMAIN, VITE_APP_XMPP_CONFERENCE } from '../config';
 import { formatError } from '../utils/formatError';
@@ -2424,6 +2431,19 @@ export class XmppClient implements XmppClientInterface {
     this.scheduleReconnect('ping-timeout');
   }
 
+  /**
+   * Is this message id already owned by another outbound path?
+   *
+   * The reconnect drain, the send queue and the manual retry can all reach
+   * for the same message. Only one of them may put it on the wire, or the
+   * ROOM (not just our local list) ends up with two copies - the duplicate
+   * half of React Native defect #31.
+   */
+  isSendPending(messageId?: string): boolean {
+    if (!messageId) return false;
+    return this.pendingSendById.has(messageId) || this.inFlightIds.has(messageId);
+  }
+
   private async drainHeap(): Promise<void> {
     try {
       const state = store.getState();
@@ -2437,6 +2457,24 @@ export class XmppClient implements XmppClientInterface {
 
       const start = Date.now();
       for (const msg of heap) {
+        // Ownership rules that keep the automatic reconnect resend from
+        // duplicating what another path already handled:
+        //
+        //  1. the echo already landed  -> the server has it, nothing to do;
+        //  2. the send queue still holds this id (processQueue runs just
+        //     before this drain and re-issues entries that survived the
+        //     disconnect) -> that entry will send it;
+        //  3. a manual retry is on the wire -> the user's tap owns it;
+        //  4. the message is showing as FAILED -> it is the user's to
+        //     resend. This is the contract with the retry button: once we
+        //     have told someone their message was not delivered, we never
+        //     also send it behind their back. Otherwise a reconnect plus a
+        //     tap on Retry delivers it twice.
+        if (!msg?.id || !msg?.roomJid) continue;
+        if (hasEchoLanded(msg.roomJid, msg.id)) continue;
+        if (this.isSendPending(msg.id)) continue;
+        if (isSendRetryInFlight(msg.id)) continue;
+        if (isMessageMarkedFailed(msg.roomJid, msg.id)) continue;
         const isTranslate = !!msg.langSource;
         const firstName = (msg.user as any)?.firstName || '';
         const lastName = (msg.user as any)?.lastName || '';
@@ -2474,8 +2512,22 @@ export class XmppClient implements XmppClientInterface {
           );
           if (ok === false) break;
         }
+
+        // An auto-resend is a send like any other, so give it the same
+        // deadline: without this the reconnect path could put a message
+        // back on the wire and leave it spinning forever all over again.
+        armSendFailureWatchdog({
+          roomJID: msg.roomJid,
+          messageId: msg.id,
+          body: msg.body,
+        });
+        // Drop only what we actually re-sent. The blanket clearHeap() that
+        // used to run here also threw away the entries this loop skipped
+        // (still queued, mid-retry, or failed and waiting on the user) and
+        // everything after an early `break`, silently losing the outbound
+        // copy of messages that had not been delivered yet.
+        store.dispatch(removeMessageFromHeapById(msg.id));
       }
-      store.dispatch({ type: 'roomHeapStore/clearHeap' });
       ethoraLogger.log(`[InitTiming] xmpp:drainHeap ${Date.now() - start}ms`);
     } catch {
       // Ignore heap drain failures; pending messages stay queued for retry.
