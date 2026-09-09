@@ -12,7 +12,9 @@ import {
   MAX_PERSISTED_ROOMS,
   PERSISTED_ROOMS_CHAR_BUDGET,
   ENCRYPTION_INFLATION_FACTOR,
+  compactDraftsForPersist,
 } from './index';
+import { MAX_DRAFT_LENGTH, MAX_PERSISTED_DRAFTS } from './roomsSlice';
 import { IMessage, IRoom } from '../types/types';
 
 const makeRoom = (jid: string, overrides: Partial<IRoom> = {}): IRoom =>
@@ -537,6 +539,89 @@ describe('limitMessagesTransform wires usersSet through the de-dup', () => {
   it('leaves unrelated keys alone', () => {
     expect(limitMessagesTransform.in('x', 'subscribedRooms', {} as any)).toBe('x');
     expect(limitMessagesTransform.out('x', 'reportRoom', {} as any)).toBe('x');
+  });
+});
+
+// Drafts are a persisted key we added deliberately, so they get the same
+// treatment every other persisted key here does: bounded before the write,
+// bounded again on the way back in, and measured against the budget rather
+// than assumed to be small.
+describe('composer drafts are bounded before they reach storage', () => {
+  const draftJid = (n: number | string) => `room${n}@conference.example.com`;
+
+  it('keeps ordinary drafts untouched', () => {
+    const drafts = { [draftJid(1)]: 'see you at 5', [draftJid(2)]: 'ok' };
+    expect(compactDraftsForPersist(drafts)).toEqual(drafts);
+  });
+
+  it('truncates an over-long draft rather than dropping it', () => {
+    const compacted = compactDraftsForPersist({
+      [draftJid(1)]: 'x'.repeat(MAX_DRAFT_LENGTH * 3),
+    });
+    expect(compacted[draftJid(1)]).toHaveLength(MAX_DRAFT_LENGTH);
+  });
+
+  it('keeps only the MAX_PERSISTED_DRAFTS most recently typed rooms', () => {
+    const drafts: Record<string, string> = {};
+    for (let i = 0; i < MAX_PERSISTED_DRAFTS + 10; i++) {
+      drafts[draftJid(i)] = `draft ${i}`;
+    }
+    const compacted = compactDraftsForPersist(drafts);
+
+    expect(Object.keys(compacted)).toHaveLength(MAX_PERSISTED_DRAFTS);
+    expect(compacted[draftJid(0)]).toBeUndefined();
+    expect(compacted[draftJid(MAX_PERSISTED_DRAFTS + 9)]).toBe(
+      `draft ${MAX_PERSISTED_DRAFTS + 9}`
+    );
+  });
+
+  it('drops empty values, non-strings and non-JID keys', () => {
+    expect(
+      compactDraftsForPersist({
+        [draftJid(1)]: '',
+        [draftJid(2)]: 42 as never,
+        rooms: 'leaked slice key' as never,
+        [draftJid(3)]: 'real',
+      })
+    ).toEqual({ [draftJid(3)]: 'real' });
+  });
+
+  it('survives junk without throwing', () => {
+    expect(compactDraftsForPersist(undefined)).toEqual({});
+    expect(compactDraftsForPersist(null)).toEqual({});
+    expect(compactDraftsForPersist([1, 2, 3])).toEqual({});
+    expect(compactDraftsForPersist('nope')).toEqual({});
+  });
+
+  // The whole point of keeping drafts OFF the room objects: they are their
+  // own key with their own ceiling and cannot squeeze the message cache.
+  it('cannot come anywhere near the rooms char budget, even at the cap', () => {
+    const drafts: Record<string, string> = {};
+    for (let i = 0; i < MAX_PERSISTED_DRAFTS * 4; i++) {
+      drafts[draftJid(i)] = 'x'.repeat(MAX_DRAFT_LENGTH * 2);
+    }
+    const size = JSON.stringify(compactDraftsForPersist(drafts)).length;
+
+    expect(size).toBeLessThan(PERSISTED_ROOMS_CHAR_BUDGET / 10);
+  });
+
+  it('is wired to the persist transforms in both directions', () => {
+    const oversized: Record<string, string> = {};
+    for (let i = 0; i < MAX_PERSISTED_DRAFTS + 3; i++) {
+      oversized[draftJid(i)] = 'x'.repeat(MAX_DRAFT_LENGTH + 1);
+    }
+
+    const stored = limitMessagesTransform.in(oversized, 'drafts', {} as any);
+    expect(Object.keys(stored)).toHaveLength(MAX_PERSISTED_DRAFTS);
+    expect(Object.values(stored)[0]).toHaveLength(MAX_DRAFT_LENGTH);
+
+    const rehydrated = sanitizeRoomsStateTransform.out(
+      oversized,
+      'drafts',
+      {} as any
+    );
+    expect(Object.keys(rehydrated)).toHaveLength(MAX_PERSISTED_DRAFTS);
+    expect(Object.values(rehydrated)[0]).toHaveLength(MAX_DRAFT_LENGTH);
   });
 });
 

@@ -8,7 +8,11 @@ import React, {
 import { useSelector } from 'react-redux';
 import { useAppDispatch } from '../../hooks/hooks';
 import { getRoomByName } from '../../networking/api-requests/rooms.api';
-import { updateRoom } from '../../roomStore/roomsSlice';
+import {
+  clearRoomDraft,
+  setRoomDraft,
+  updateRoom,
+} from '../../roomStore/roomsSlice';
 import {
   AttachmentNotice,
   EmojiPickerPopover,
@@ -43,6 +47,9 @@ import MentionDropdown from '../InputComponents/MentionDropdown';
 import MentionPickerModal from '../InputComponents/MentionPickerModal';
 
 const DEFAULT_MAX_FILES = 5;
+
+/** Typing pause after which the composer commits its text as a draft. */
+const DRAFT_SAVE_DEBOUNCE_MS = 400;
 
 /** Identity for dedup: same name AND size AND mtime is the same pick. */
 const fileKey = (file: File) =>
@@ -84,6 +91,13 @@ export interface SendInputProps {
   /** Disables the @-mention autocomplete (e.g. for a composer variant that
    * doesn't want it). Defaults to enabled. */
   disableMentions?: boolean;
+  /**
+   * Disables per-room draft persistence. Set it on any SECOND composer
+   * that is mounted for the same room as the main one - the thread
+   * composer, for instance - since drafts are keyed by room JID and two
+   * live composers would otherwise overwrite each other's text.
+   */
+  disableDrafts?: boolean;
 }
 
 const SendInput: React.FC<SendInputProps> = ({
@@ -104,6 +118,7 @@ const SendInput: React.FC<SendInputProps> = ({
   onSendMedia,
   placeholderText,
   disableMentions,
+  disableDrafts,
 }) => {
   const t = useT();
   const [message, setMessage] = useState('');
@@ -450,6 +465,136 @@ const SendInput: React.FC<SendInputProps> = ({
     }
   }, [editMessage, updateTextareaHeight]);
 
+  // ------------------------------------------------------------------
+  // Per-room drafts
+  //
+  // The composer's text is local state and SendInput is never unmounted
+  // when the active room changes, so without this every room shared one
+  // buffer. Drafts live in the rooms slice (roomsSlice `drafts`, keyed by
+  // room JID) rather than here so they survive both a room switch and,
+  // through that slice's persistence, a reload.
+  //
+  // What is NOT a draft: an edit in progress and an active reply. An edit
+  // is a rewrite of an already sent message and already has its own state
+  // (roomsSlice's `editAction`, carrying the message id it belongs to);
+  // storing it as the room's draft would clobber the unsent text it is
+  // temporarily standing in for, and restoring it later would re-attach a
+  // body to an edit that no longer exists. A reply target is likewise
+  // already per-room state (`activeMessage` on the room). Only the plain
+  // unsent buffer is stored - and when an edit ends, the room's own draft
+  // is put back into the composer.
+  // ------------------------------------------------------------------
+  const draftsEnabled = !disableDrafts;
+  const activeRoomJid = activeRoom?.jid;
+  const roomDraft = useSelector((state: RootState) =>
+    draftsEnabled && activeRoomJid
+      ? (state.rooms.drafts?.[activeRoomJid] ?? '')
+      : ''
+  );
+  // Read through a ref by the effects below: they react to the room
+  // changing, never to our own debounced write landing back in the store.
+  const roomDraftRef = useRef(roomDraft);
+  roomDraftRef.current = roomDraft;
+
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingDraftRef = useRef<{ jid: string; text: string } | null>(null);
+  const skipNextDraftSaveRef = useRef(false);
+  const draftRoomRef = useRef<string | null>(null);
+  const wasEditingRef = useRef(false);
+
+  /** Commits whatever the debounce still owes, immediately. */
+  const flushDraft = useCallback(() => {
+    if (draftTimerRef.current) {
+      clearTimeout(draftTimerRef.current);
+      draftTimerRef.current = null;
+    }
+    const pending = pendingDraftRef.current;
+    pendingDraftRef.current = null;
+    if (pending) dispatch(setRoomDraft(pending));
+  }, [dispatch]);
+
+  const restoreDraftIntoComposer = useCallback(() => {
+    const restored = roomDraftRef.current || '';
+    // Whatever is in the composer right now belongs to the room we are
+    // leaving (or to a finished edit): don't let the save effect write it
+    // under the room we are arriving at.
+    skipNextDraftSaveRef.current = true;
+    setMessage(restored);
+    updateTextareaHeight(restored);
+    if (mentionsEnabled) mention.resetMentions();
+    // Caret at the end, so the user carries on where they stopped. Only
+    // when there is something to carry on from - an empty draft must not
+    // pull focus into the composer on every room switch.
+    if (restored) requestCaret(restored.length);
+  }, [updateTextareaHeight, mentionsEnabled, mention, requestCaret]);
+
+  const clearDraftForRoom = useCallback(() => {
+    if (draftTimerRef.current) {
+      clearTimeout(draftTimerRef.current);
+      draftTimerRef.current = null;
+    }
+    pendingDraftRef.current = null;
+    if (!draftsEnabled || !activeRoomJid) return;
+    dispatch(clearRoomDraft({ jid: activeRoomJid }));
+  }, [draftsEnabled, activeRoomJid, dispatch]);
+
+  useEffect(() => {
+    if (!draftsEnabled) return;
+    if (draftRoomRef.current === (activeRoomJid ?? null)) return;
+    flushDraft();
+    draftRoomRef.current = activeRoomJid ?? null;
+    // An edit owns the composer while it runs; the transition effect below
+    // hands the draft back when it ends.
+    if (editMessage) return;
+    restoreDraftIntoComposer();
+  }, [
+    draftsEnabled,
+    activeRoomJid,
+    editMessage,
+    flushDraft,
+    restoreDraftIntoComposer,
+  ]);
+
+  // Declared after the editMessage effect above on purpose: when an edit
+  // ends that effect blanks the composer, and this one puts the room's own
+  // unsent draft back in its place.
+  useEffect(() => {
+    const editing = !!editMessage;
+    const wasEditing = wasEditingRef.current;
+    wasEditingRef.current = editing;
+    if (!draftsEnabled || !wasEditing || editing) return;
+    restoreDraftIntoComposer();
+  }, [editMessage, draftsEnabled, restoreDraftIntoComposer]);
+
+  // Saving is driven off `message` rather than from inside the change
+  // handler because the composer mutates that text from five places
+  // (typing, emoji insert, mention pick, atomic mention backspace,
+  // send/clear); a draft that silently missed one of them would be worse
+  // than no draft at all.
+  useEffect(() => {
+    if (!draftsEnabled || !activeRoomJid) return;
+    if (skipNextDraftSaveRef.current) {
+      skipNextDraftSaveRef.current = false;
+      return;
+    }
+    if (editMessage) return;
+
+    pendingDraftRef.current = { jid: activeRoomJid, text: message };
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    draftTimerRef.current = setTimeout(() => {
+      draftTimerRef.current = null;
+      const pending = pendingDraftRef.current;
+      pendingDraftRef.current = null;
+      if (pending) dispatch(setRoomDraft(pending));
+    }, DRAFT_SAVE_DEBOUNCE_MS);
+  }, [message, activeRoomJid, draftsEnabled, editMessage, dispatch]);
+
+  // Unmounting mid-debounce (the whole chat closing, a route change) must
+  // not silently drop what was typed.
+  const flushDraftRef = useRef(flushDraft);
+  flushDraftRef.current = flushDraft;
+  useEffect(() => () => flushDraftRef.current(), []);
+
   const effectiveSendMessage = onSendMessage || sendMessage;
   const effectiveSendMedia = onSendMedia || sendMedia;
   const hasTextContent = useCallback(
@@ -480,6 +625,7 @@ const SendInput: React.FC<SendInputProps> = ({
         }
         effectiveSendMessage(trailingText, mention.mentionSpans);
         mention.resetMentions();
+        clearDraftForRoom();
         setMessage('');
         setFilePreviews([]);
         setAttachmentNotice(null);
@@ -488,6 +634,7 @@ const SendInput: React.FC<SendInputProps> = ({
       }
 
       mention.resetMentions();
+      clearDraftForRoom();
       setMessage('');
       setFilePreviews([]);
       setAttachmentNotice(null);
@@ -512,6 +659,7 @@ const SendInput: React.FC<SendInputProps> = ({
       hasTextContent,
       message,
       mention,
+      clearDraftForRoom,
     ]
   );
 
@@ -523,6 +671,7 @@ const SendInput: React.FC<SendInputProps> = ({
     }
     effectiveSendMessage(outgoing, mention.mentionSpans);
     mention.resetMentions();
+    clearDraftForRoom();
     setMessage('');
     setFilePreviews([]);
     setAttachmentNotice(null);
@@ -534,6 +683,7 @@ const SendInput: React.FC<SendInputProps> = ({
     formatMessage,
     hasTextContent,
     mention,
+    clearDraftForRoom,
   ]);
 
   // The caret can sit inside an "@query" that matches nobody, in which case
