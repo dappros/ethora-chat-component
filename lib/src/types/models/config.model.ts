@@ -3,6 +3,7 @@ import { xmppSettingsInterface } from './xmpp.model';
 import { PartialRoomWithMandatoryKeys, ConfigRoom } from './room.model';
 import { MessageBubble, MessageProps, IMessage } from './message.model';
 import { Iso639_1Codes } from './language.model';
+import { QuickReply } from '../../helpers/quickReplies';
 import React from 'react'; // Assuming React types are globally available or managed by the project's tsconfig
 
 import { MessageNotificationToastProps } from '../../components/MessageNotification/MessageNotificationToast';
@@ -379,6 +380,24 @@ export interface IConfig {
       roomJID: string;
       user: any;
     }) => void;
+    /**
+     * Called after the user taps a button a bot attached to its message.
+     * The answer has ALREADY been sent into the room as an ordinary message
+     * by the time this fires - this is a notification, not an interception
+     * point, and a throw inside it is caught and logged.
+     *
+     * It exists so a host can drive a scripted flow (quiz, intake form,
+     * onboarding) on top of the same buttons a bot would send.
+     */
+    onQuickReply?: (event: {
+      /** Id of the bot message that offered the buttons. */
+      messageId: string;
+      roomJID: string;
+      /** The button that was tapped. */
+      reply: QuickReply;
+      /** `reply.questionId`, or the button's index when the bot sent none. */
+      questionId: string;
+    }) => void | Promise<void>;
   };
 
   disableTypingIndicator?: boolean;

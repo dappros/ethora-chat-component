@@ -4,6 +4,7 @@ import { transformArrayToObject } from './transformTranslatations';
 import { Iso639_1Codes } from '../types/types';
 import { ethoraLogger } from './ethoraLogger';
 import { safeJsonParse } from './safeJson';
+import { parseQuickReplies } from './quickReplies';
 import { getTimestampFromUnknown } from './timestamp';
 import { normalizeXmppUsername } from './xmppUsername';
 
@@ -113,7 +114,24 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
     profileImage: photoURL,
   };
 
-  const dataAttrs = data?.attrs || {};
+  // Copied, not aliased: `data.attrs` belongs to the parsed stanza, and the
+  // decode below would otherwise mutate it in place.
+  const dataAttrs: { [x: string]: any } = { ...(data?.attrs || {}) };
+
+  // `quickReplies` carries the buttons a bot attached to its message, as a
+  // JSON string. Decode it here so every consumer of `data`/`data.data` sees
+  // real objects rather than a string it would have to parse itself.
+  if ('quickReplies' in dataAttrs) {
+    const buttons = parseQuickReplies(dataAttrs.quickReplies);
+    // Legacy senders stamp `quickReplies=""` on EVERY message; dropping the
+    // key when it decodes to nothing keeps that empty array out of the
+    // message object (and out of the persisted snapshot).
+    if (buttons.length) {
+      dataAttrs.quickReplies = buttons;
+    } else {
+      delete dataAttrs.quickReplies;
+    }
+  }
 
   return {
     data: dataAttrs,
