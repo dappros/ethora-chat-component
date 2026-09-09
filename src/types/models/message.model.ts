@@ -52,14 +52,6 @@ export interface ReactionMessage {
 
 export interface IReply extends IMessage {}
 
-export interface MessageBubble {
-  backgroundMessageUser?: string;
-  backgroundMessage?: string;
-  colorUser?: string;
-  color?: string;
-  borderRadius?: number;
-}
-
 export interface MessageProps {
   message: IMessage;
   isUser: boolean;

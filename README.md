@@ -333,7 +333,6 @@ Below is a grouped reference for all `config` options.
 | `customAppToken` | `string` | Custom app token for API initialization. |
 | `xmppSettings` | `{ devServer; host; conference?; xmppPingOnSendEnabled? }` | XMPP connectivity settings. |
 | `initBeforeLoad` | `boolean` | Initialize XMPP before normal chat load flow. |
-| `clearStoreBeforeInit` | `boolean` | Clear local store before initialization. |
 | `newArch` | `boolean` | Defaults to `true`; set `false` to explicitly force legacy/old architecture paths. |
 | `useStoreConsoleEnabled` | `boolean` | Enable verbose internal logging in console. |
 
@@ -364,7 +363,6 @@ Below is a grouped reference for all `config` options.
 | `chatRoomStyles` | `React.CSSProperties` | Styles for chat pane. |
 | `noMessagesPlaceholder` | `React.ComponentType` | Replace empty-chat placeholder component (same render position as default placeholder). |
 | `backgroundChat` | `{ color?: string; image?: string \| File }` | Chat background customization. |
-| `bubleMessage` | `MessageBubble` | Bubble-level style overrides (as defined in types). |
 | `setRoomJidInPath` | `boolean` | Sync room JID to URL path. |
 | `qrUrl` | `string` | Base URL for QR deep link behavior. |
 
@@ -384,8 +382,6 @@ Below is a grouped reference for all `config` options.
 | Option | Type | Description |
 | --- | --- | --- |
 | `defaultRooms` | `ConfigRoom[]` | Seed/default rooms. |
-| `customRooms` | `{ rooms: PartialRoomWithMandatoryKeys[]; disableGetRooms?: boolean; singleRoom: boolean }` | Fully controlled room source. |
-| `forceSetRoom` | `boolean` | Force room setup path in init flow. |
 | `enableRoomsRetry` | `{ enabled: boolean; helperText: string }` | Enable retry UX when rooms fail to load. |
 
 ### Messaging and Interactions
@@ -396,7 +392,6 @@ Below is a grouped reference for all `config` options.
 | `disableProfilesInteractions` | `boolean` | Disable profile interactions from chat UI. |
 | `disableSentLogic` | `boolean` | Disable default sent-state logic when needed. |
 | `secondarySendButton` | `{ enabled: boolean; messageEdit: string; label?: React.ReactNode; buttonStyles?: React.CSSProperties; hideInputSendButton?: boolean; overwriteEnterClick?: true }` | Extra send action/button config. |
-| `botMessageAutoScroll` | `boolean` | Force auto-scroll behavior on bot messages. |
 | `messageTextFilter` | `{ enabled: boolean; filterFunction: (text: string) => string }` | Transform/filter outgoing message text. |
 | `eventHandlers` | `{ onMessageSent?; onMessageFailed?; onMessageEdited? }` | Lifecycle callbacks for message operations. |
 | `translates` | `{ enabled: boolean; translations?: Iso639_1Codes }` | Message translation-related options. |
@@ -680,7 +675,7 @@ This is a practical planning snapshot for cross-platform consumers. It is not a 
 | Issue | Likely cause | Fix |
 | --- | --- | --- |
 | `useXmppClient must be used within an XmppProvider` | Using internal XMPP-dependent logic without provider context | Wrap the app tree with `XmppProvider` where needed. |
-| Chat loads but no rooms appear | Auth/app context mismatch or room fetching restrictions | Verify `appId`, user credentials/tokens, `baseUrl`, and `customRooms` settings. |
+| Chat loads but no rooms appear | Auth/app context mismatch or room fetching restrictions | Verify `appId`, user credentials/tokens, `baseUrl`, and `defaultRooms` settings. |
 | Push permission never appears | `softAsk: true` without manual trigger, insecure origin, or missing VAPID key | Trigger `requestPermission()`, use HTTPS/localhost, set valid VAPID key. |
 | Service worker not found | `firebase-messaging-sw.js` missing in public dir | Run `npx @ethora/chat-component ethora-chat` or copy file manually. |
 | Login loop / auth failure | Wrong token/user object shape | Validate `jwtLogin`, `userLogin.user`, and refresh token flow. |

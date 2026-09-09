@@ -112,9 +112,6 @@ export interface DeleteRoomMember {
 
 export interface IRoomCompressed extends Pick<IRoom, 'jid'> {}
 
-export type PartialRoomWithMandatoryKeys = Partial<IRoom> &
-  Pick<IRoom, 'jid' | 'title'>;
-
 export interface ConfigRoom {
   jid: string;
   pinned: boolean;

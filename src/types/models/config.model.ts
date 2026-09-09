@@ -1,7 +1,7 @@
 import { User } from './user.model';
 import { xmppSettingsInterface } from './xmpp.model';
-import { PartialRoomWithMandatoryKeys, ConfigRoom } from './room.model';
-import { MessageBubble, MessageProps, IMessage } from './message.model';
+import { ConfigRoom } from './room.model';
+import { MessageProps, IMessage } from './message.model';
 import { Iso639_1Codes } from './language.model';
 import React from 'react'; // Assuming React types are globally available or managed by the project's tsconfig
 
@@ -203,7 +203,6 @@ export interface IConfig {
   defaultLogin?: boolean;
   disableInteractions?: boolean;
   chatHeaderBurgerMenu?: boolean;
-  forceSetRoom?: boolean;
   roomListStyles?: React.CSSProperties;
   chatRoomStyles?: React.CSSProperties;
   noMessagesPlaceholder?: React.ComponentType;
@@ -237,7 +236,6 @@ export interface IConfig {
     color?: string;
     image?: string | File;
   };
-  bubleMessage?: MessageBubble;
   /**
    * Host logo rendered at the left of the chat header, before the back
    * button / burger menu. A plain string is treated as an image URL and
@@ -259,11 +257,6 @@ export interface IConfig {
    * button calls this handler instead.
    */
   headerChatMenu?: () => void;
-  customRooms?: {
-    rooms: PartialRoomWithMandatoryKeys[];
-    disableGetRooms?: boolean;
-    singleRoom: boolean;
-  };
   translates?: {
     enabled: boolean;
     translations?: Iso639_1Codes;
@@ -363,7 +356,6 @@ export interface IConfig {
    * a presence state, not a count, so it is unaffected.
    */
   disableUserCount?: boolean;
-  clearStoreBeforeInit?: boolean;
   disableSentLogic?: boolean;
   initBeforeLoad?: boolean;
   initBeforeLoadAuth?: {
@@ -383,7 +375,6 @@ export interface IConfig {
   enableRoomsRetry?: { enabled: boolean; helperText: string };
   disableNewChatButton?: boolean;
   chatHeaderAdditional?: { enabled: boolean; element: any };
-  botMessageAutoScroll?: boolean;
   messageTextFilter?: {
     enabled: boolean;
     filterFunction: (text: string) => string;
