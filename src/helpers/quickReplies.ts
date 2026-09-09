@@ -69,20 +69,57 @@ export const parseQuickReplies = (rawValue: unknown): QuickReply[] => {
 };
 
 /**
- * Which message ids the user has already answered. Module-level rather than
- * component state because MessageList unmounts rows outside its render
- * window - state living in the bubble would come back "unanswered" after a
- * scroll. Session-scoped on purpose: this is display state, and the answer
- * itself lives on the server.
+ * Which message ids the user has already answered, and therefore whose
+ * buttons are gone.
+ *
+ * Module-level rather than component state because MessageList unmounts
+ * rows outside its render window - state living in the bubble would bring
+ * the spent buttons back after a scroll.
+ *
+ * Mirrored into sessionStorage because a reload would otherwise do the same
+ * thing, and re-offering a question the user already answered is worse than
+ * a cosmetic glitch: tapping again posts a second answer. Session-scoped,
+ * not local: it is display state about one visit, and the answers
+ * themselves are in the room.
  */
-const answeredMessageIds = new Set<string>();
+const ANSWERED_STORAGE_KEY = 'ethora-answered-quick-replies';
+
+const readPersisted = (): string[] => {
+  try {
+    const raw = globalThis.sessionStorage?.getItem(ANSWERED_STORAGE_KEY);
+    const parsed = safeJsonParse<unknown>(raw, []);
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
+  } catch {
+    // No sessionStorage (SSR, a browser with site data blocked): the set
+    // still works for this page load, it just will not survive a reload.
+    return [];
+  }
+};
+
+const answeredMessageIds = new Set<string>(readPersisted());
+
+const persist = () => {
+  try {
+    globalThis.sessionStorage?.setItem(
+      ANSWERED_STORAGE_KEY,
+      JSON.stringify([...answeredMessageIds])
+    );
+  } catch {
+    // ignore - see readPersisted
+  }
+};
 
 export const markQuickRepliesAnswered = (messageId: string) => {
-  if (messageId) answeredMessageIds.add(messageId);
+  if (!messageId) return;
+  answeredMessageIds.add(messageId);
+  persist();
 };
 
 export const hasAnsweredQuickReplies = (messageId: string): boolean =>
   !!messageId && answeredMessageIds.has(messageId);
 
 /** Test seam - the set is process-wide. */
-export const resetAnsweredQuickReplies = () => answeredMessageIds.clear();
+export const resetAnsweredQuickReplies = () => {
+  answeredMessageIds.clear();
+  persist();
+};
