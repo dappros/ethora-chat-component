@@ -238,8 +238,26 @@ export interface IConfig {
     image?: string | File;
   };
   bubleMessage?: MessageBubble;
+  /**
+   * Host logo rendered at the left of the chat header, before the back
+   * button / burger menu. A plain string is treated as an image URL and
+   * rendered as an `<img>` (32px tall, aspect preserved); any other React
+   * element is rendered as-is. Same string-or-node duality as
+   * `fallbackScreens`. Omit to render no logo (the default).
+   */
   headerLogo?: string | React.ReactElement;
+  /**
+   * Takes over the room-list burger menu. When set, the built-in
+   * Profile/Settings/Logout dropdown is not rendered at all: the same burger
+   * button just calls this handler, so the host can open its own account
+   * menu or drawer.
+   */
   headerMenu?: () => void;
+  /**
+   * Same idea for the chat header's room menu (the "more" button carrying
+   * Report and Leave). When set, that dropdown is not rendered and the
+   * button calls this handler instead.
+   */
   headerChatMenu?: () => void;
   customRooms?: {
     rooms: PartialRoomWithMandatoryKeys[];
@@ -331,8 +349,19 @@ export interface IConfig {
     locale?: string;
     strings?: Record<string, string>;
   };
+  /**
+   * Hide every control that mutates a room's configuration: the room avatar
+   * upload/remove overlay, the "Delete chat" entry in the chat-details menu,
+   * the add-members action and the per-member moderator menu (appoint as
+   * admin / remove member). Read-only room details stay visible.
+   */
   disableRoomConfig?: boolean;
   disableProfilesInteractions?: boolean;
+  /**
+   * Hide the member-count subtitle in the chat header ("N users", plus the
+   * online-users popover that hangs off it). The 1:1 online/offline line is
+   * a presence state, not a count, so it is unaffected.
+   */
   disableUserCount?: boolean;
   clearStoreBeforeInit?: boolean;
   disableSentLogic?: boolean;

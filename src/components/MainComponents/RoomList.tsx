@@ -9,7 +9,8 @@ import { IRoom } from '../../types/types';
 import { SearchInput } from '../InputComponents/Search';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
-import { SearchIcon } from '../../assets/icons';
+import { BurgerMenuIcon, SearchIcon } from '../../assets/icons';
+import Button from '../styled/Button';
 import DropdownMenu from '../DropdownMenu/DropdownMenu';
 import { setActiveModal } from '../../roomStore/chatSettingsSlice';
 import NewChatModal from '../Modals/NewChatModal/NewChatModal';
@@ -283,12 +284,24 @@ const RoomList: React.FC<RoomListProps> = ({
             {!config?.chatHeaderSettings?.hide && (
               <SearchContainer>
                 {!config?.disableRoomMenu &&
-                  !config?.chatHeaderSettings?.disableMenu && (
+                  !config?.chatHeaderSettings?.disableMenu &&
+                  // config.headerMenu hands the burger over to the host: the
+                  // built-in Profile/Settings/Logout dropdown is not rendered
+                  // at all, the same button just calls the host's handler so
+                  // it can open its own account menu or drawer.
+                  (typeof config?.headerMenu === 'function' ? (
+                    <Button
+                      aria-label={t('header.menu')}
+                      onClick={() => config.headerMenu?.()}
+                    >
+                      <BurgerMenuIcon />
+                    </Button>
+                  ) : (
                     <DropdownMenu
                       options={menuOptions}
                       // onClose={dispatch(setActiveModal())}
                     />
-                  )}
+                  ))}
                 {!config?.chatHeaderSettings?.hideSearch && (
                   <SearchInput
                     icon={<SearchIcon height={'20px'} />}

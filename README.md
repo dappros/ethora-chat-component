@@ -345,16 +345,16 @@ Below is a grouped reference for all `config` options.
 | `disableMedia` | `boolean` | Disable media sending/processing paths. |
 | `disableRooms` | `boolean` | Hide/disable room list area. |
 | `disableRoomMenu` | `boolean` | Disable room menu controls. |
-| `disableRoomConfig` | `boolean` | Disable room configuration actions. |
+| `disableRoomConfig` | `boolean` | Hide every control that mutates a room's configuration, leaving the chat-details panel read-only: room avatar upload/remove, the "Delete chat" menu entry, the add-members action, and the per-member moderator menu (appoint as admin / remove member). |
 | `disableNewChatButton` | `boolean` | Hide new chat/create room action. |
-| `disableUserCount` | `boolean` | Hide user count in header/UI. |
+| `disableUserCount` | `boolean` | Hide the member-count subtitle in the chat header ("N users", plus the online-users popover attached to it). The 1:1 online/offline line is a presence state, not a count, so it stays. |
 | `disableChatInfo` | `{ disableHeader?; disableDescription?; disableType?; disableMembers?; hideMembers?; disableChatHeaderMenu? }` | Fine-grained chat info panel toggles. |
 | `chatHeaderBurgerMenu` | `boolean` | Toggle burger menu in chat header. |
 | `chatHeaderSettings` | `{ hide?; disableCreate?; disableMenu?; hideSearch? }` | Additional header-level controls. |
 | `chatHeaderAdditional` | `{ enabled: boolean; element: any }` | Inject custom element into header area. |
-| `headerLogo` | `string \| React.ReactElement` | Custom logo in header. |
-| `headerMenu` | `() => void` | Custom menu handler. |
-| `headerChatMenu` | `() => void` | Custom room header menu handler. |
+| `headerLogo` | `string \| React.ReactElement` | Host logo rendered at the left of the chat header, before the back button / burger menu. A plain string is treated as an image URL and rendered as a 32px-tall `<img>` (aspect preserved); any other React element renders as-is. Same string-or-node duality as `fallbackScreens`. |
+| `headerMenu` | `() => void` | Takes over the room-list burger menu. When set, the built-in Profile/Settings/Logout dropdown is not rendered: the same burger button calls your handler instead, so you can open your own account menu or drawer. |
+| `headerChatMenu` | `() => void` | Same for the chat header's room menu (the "more" button carrying Report and Leave). When set, that dropdown is not rendered and the button calls your handler. |
 | `colors` | `{ primary; secondary; icons?; ownMessageBackground?; otherMessageBackground?; inputBackground? }` | Theme colours. `primary` drives icon colours and the sender name. `icons` themes every accent icon/icon-button (attach, mic, active send, new-chat, header, empty-state) — defaults to `primary`, so set a *distinct* value to decouple. `ownMessageBackground`/`otherMessageBackground`/`inputBackground` recolour the message bubbles and input bar. |
 | `backgroundChat` | `{ color?; image? }` | Background colour and/or image for the messages area. (`image` as a string URL; pass an object URL for a `File`.) |
 | `typography` | `TypographyConfig` | Font family + size for the chat UI: `fontFamily` (or just `googleFontsFamily`) is applied across all chat text incl. messages and sender names; `fontSize` (px) scales message text, sender names, timestamps, inputs, room names and badges. Plus loaders (`googleFontsUrl`/`fontFaces`) and weight tokens. |

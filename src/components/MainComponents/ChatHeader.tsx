@@ -39,6 +39,7 @@ import {
 import { sendCallInviteSignal } from '../../networking/callTokenStanza';
 import { ModalWrapper } from '../Modals/ModalWrapper/ModalWrapper';
 import { LanguageSelectorButton } from './LanguageSelectorModal';
+import HeaderLogo from './HeaderLogo';
 
 interface ChatHeaderProps {
   currentRoom: IRoom;
@@ -269,6 +270,9 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       <ChatContainerHeader>
         {/* todo add here list of rooms */}
         <div style={{ display: 'flex', gap: '8px' }}>
+          {config?.headerLogo != null && (
+            <HeaderLogo logo={config.headerLogo} />
+          )}
           {!config?.disableRooms && handleBackClick && (
             <Button
               EndIcon={<BackIcon />}
@@ -321,6 +325,11 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                       </span>
                     );
                   }
+                  // config.disableUserCount drops the whole member-count
+                  // subtitle ("N users" plus the online-users popover that
+                  // hangs off it). The 1:1 online/offline line above is a
+                  // presence state, not a count, so it is untouched.
+                  if (config?.disableUserCount) return '';
                   const displayCount = getDisplayCount(currentRoom);
                   if (displayCount <= 0) return '';
                   const base = t(
