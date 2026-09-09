@@ -172,8 +172,12 @@ export function buildThemeTokens(
   };
 }
 
-/** The class the chat's root element carries; useful for scoping global CSS. */
-export const CHAT_ROOT_CLASS = 'ethora-chat-root';
+/**
+ * The class the chat's root element carries; useful for scoping global CSS.
+ * Re-exported from `styles/classNames`, which owns every class name this
+ * SDK writes into the DOM, so the literal exists in exactly one place.
+ */
+export { CHAT_ROOT_CLASS } from './classNames';
 
 /**
  * Memoized React.CSSProperties built from the token map - spread this onto

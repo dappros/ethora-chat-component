@@ -17,6 +17,25 @@ import NotificationPermissionBanner from '../Notification/NotificationPermission
 import { useTypography } from '../../hooks/useTypography';
 import { applyThemeColors } from '../../helpers/resolveIconColor';
 import { ThemeTokens } from '../../styles/tokens';
+import { CHAT_ROOT_CLASS } from '../../styles/classNames';
+
+// The chat's scoping root. Everything in `index.css` that is not itself
+// `ethora-`-prefixed (scrollbars, base typography) is nested under
+// `.ethora-chat-root`, so the stylesheet cannot reach the host page.
+//
+// It sits here rather than on <ChatWrapperBox> because ChatWrapper returns
+// that box in only some of its branches: the login form, the loader and the
+// fallback screens render outside it and would otherwise lose the chat's
+// configured typography. ChatWrapperBox keeps its own copy of the class, so
+// in the main shell the two nest; that is harmless for CSS scoping and keeps
+// a host's `document.querySelector('.ethora-chat-root')` resolving to the
+// outermost node.
+//
+// `display: contents` is deliberate: the element must be a real DOM node (so
+// it can carry the class and act as a CSS ancestor) while contributing no box
+// of its own. A normal <div> would break the height chain, since the host
+// sizes whatever <Chat> renders and <ChatWrapperBox> is `height: 100%`.
+const chatRootStyle: React.CSSProperties = { display: 'contents' };
 
 interface ChatWrapperProps
   extends Pick<
@@ -130,6 +149,7 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
     }, [props.config]);
 
     return (
+      <div className={CHAT_ROOT_CLASS} style={chatRootStyle}>
       <Provider store={store}>
         <PersistGate loading={<Loader />} persistor={persistor}>
           <ToastProvider>
@@ -160,6 +180,7 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
           </ToastProvider>
         </PersistGate>
       </Provider>
+      </div>
     );
   }
 );

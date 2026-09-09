@@ -24,6 +24,7 @@ import { fadeInAnimation, scaleInAnimation } from '../../styles/motion';
 import { useT } from '../../i18n/useT';
 
 import '../../index.css';
+import { APPLE_EMOJI_CLASS } from '../../styles/classNames';
 
 // Local overrides on top of the shared ContextMenu primitives: fade/scale-in
 // on open instead of the hard show/hide the plain conditional render gives
@@ -182,7 +183,7 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
               {fixedEmojiIds.map((id) => (
                 <ReactionBadge
                   key={id}
-                  className="apple-emoji"
+                  className={APPLE_EMOJI_CLASS}
                   onClick={(e) => handleReactionClick(id, e)}
                 >
                   {getEmojiById(id)}

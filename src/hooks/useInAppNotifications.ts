@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { setCurrentRoom } from '../roomStore/roomsSlice';
+import { MESSAGE_HIGHLIGHT_CLASS } from '../styles/classNames';
 
 /**
  * Hook to enable in-app notifications globally
@@ -48,9 +49,9 @@ export const useInAppNotifications = () => {
             block: 'center',
           });
           // Add highlight effect for 2 seconds
-          messageElement.classList.add('message-highlight');
+          messageElement.classList.add(MESSAGE_HIGHLIGHT_CLASS);
           setTimeout(() => {
-            messageElement.classList.remove('message-highlight');
+            messageElement.classList.remove(MESSAGE_HIGHLIGHT_CLASS);
           }, 2000);
         } else {
           // Retry if message not found (might still be loading)
@@ -63,9 +64,9 @@ export const useInAppNotifications = () => {
                 behavior: 'smooth',
                 block: 'center',
               });
-              retryElement.classList.add('message-highlight');
+              retryElement.classList.add(MESSAGE_HIGHLIGHT_CLASS);
               setTimeout(() => {
-                retryElement.classList.remove('message-highlight');
+                retryElement.classList.remove(MESSAGE_HIGHLIGHT_CLASS);
               }, 2000);
             }
           }, 500);

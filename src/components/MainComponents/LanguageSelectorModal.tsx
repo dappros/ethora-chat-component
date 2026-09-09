@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useThemeTokenStyle } from '../../styles/tokens';
 import { useModalDismiss } from '../../hooks/useModalDismiss';
+import { CHAT_ROOT_CLASS } from '../../styles/classNames';
 import styled from 'styled-components';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
@@ -210,8 +211,12 @@ export const LanguageSelectorButton: React.FC = () => {
 
       {isOpen &&
         typeof document !== 'undefined' &&
+        // The portal target is `document.body`, outside the chat root, so
+        // the modal re-declares the scoping class or it loses the chat's
+        // scrollbar and typography rules.
         createPortal(
           <LanguageModalBackground
+            className={CHAT_ROOT_CLASS}
             onClick={() => setIsOpen(false)}
             style={portalTokenStyle}
           >
