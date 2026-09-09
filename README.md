@@ -782,4 +782,4 @@ from `src/test/testIds.ts` here.
 
 ## License
 
-AGPL. See [LICENSE.txt](./LICENSE.txt).
+MIT. See [LICENSE](./LICENSE).

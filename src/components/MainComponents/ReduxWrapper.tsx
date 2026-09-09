@@ -37,7 +37,7 @@ import { CHAT_ROOT_CLASS } from '../../styles/classNames';
 // sizes whatever <Chat> renders and <ChatWrapperBox> is `height: 100%`.
 const chatRootStyle: React.CSSProperties = { display: 'contents' };
 
-interface ChatWrapperProps
+export interface ChatWrapperProps
   extends Pick<
     CustomComponentsContextValue,
     | 'CustomMessageComponent'

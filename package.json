@@ -4,6 +4,24 @@
   "type": "module",
   "main": "dist/main.js",
   "types": "dist/main.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/main.d.ts",
+      "default": "./dist/main.js"
+    },
+    "./package.json": "./package.json",
+    "./dist/*": "./dist/*",
+    "./public/*": "./public/*",
+    "./scripts/*": "./scripts/*",
+    "./*": "./dist/*"
+  },
+  "sideEffects": [
+    "*.css",
+    "./dist/main.js",
+    "./dist/main-*.js",
+    "./src/main.ts",
+    "./src/index.css"
+  ],
   "files": [
     "dist",
     "public/firebase-messaging-sw.js",
@@ -50,6 +68,7 @@
     "redux-persist": "^6.0.0",
     "redux-persist-transform-encrypt": "^5.1.1",
     "rehype-raw": "^7.0.0",
+    "rehype-sanitize": "^6.0.0",
     "remark-gfm": "^4.0.1",
     "styled-components": "^6.1.19",
     "uuid": "^11.1.0",
@@ -92,7 +111,7 @@
     "lib": "lib"
   },
   "author": "Ethora",
-  "license": "AGPL",
+  "license": "MIT",
   "keywords": [
     "chat",
     "messaging",
