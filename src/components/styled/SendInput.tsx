@@ -5,6 +5,7 @@ import React, {
   useMemo,
   useEffect,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { useSelector } from 'react-redux';
 import { useAppDispatch } from '../../hooks/hooks';
 import { getRoomByName } from '../../networking/api-requests/rooms.api';
@@ -15,6 +16,8 @@ import {
 } from '../../roomStore/roomsSlice';
 import {
   AttachmentNotice,
+  DropOverlay,
+  DropTarget,
   EmojiPickerPopover,
   FilePreviewContainer,
   HiddenFileInput,
@@ -50,6 +53,26 @@ const DEFAULT_MAX_FILES = 5;
 
 /** Typing pause after which the composer commits its text as a draft. */
 const DRAFT_SAVE_DEBOUNCE_MS = 400;
+
+/**
+ * Hosts can widen the drop area past the composer by putting this attribute
+ * on an ancestor. ChatRoom puts it on the whole message area, so a file
+ * dropped anywhere over the conversation lands in the tray; without a
+ * marked ancestor the composer itself is the drop zone (the thread
+ * composer, an embedded SendInput, ...).
+ */
+const DROP_ZONE_ATTRIBUTE = 'data-ethora-drop-zone';
+
+/**
+ * A drag only counts as an attachment drag when it actually carries files -
+ * dragging selected text, a link or an image out of the transcript must not
+ * light up the drop target.
+ */
+const dragCarriesFiles = (event: DragEvent): boolean => {
+  const types = event.dataTransfer?.types;
+  if (!types) return false;
+  return Array.from(types).includes('Files');
+};
 
 /** Identity for dedup: same name AND size AND mtime is the same pick. */
 const fileKey = (file: File) =>
@@ -133,6 +156,7 @@ const SendInput: React.FC<SendInputProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const emojiPopoverRef = useRef<HTMLDivElement>(null);
   const emojiButtonRef = useRef<HTMLButtonElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Whichever of the textarea/input is actually rendered (only one is, per
   // `multiline`) - lets mention handling read/set caret position without
@@ -269,14 +293,15 @@ const SendInput: React.FC<SendInputProps> = ({
     }
   }, []);
 
-  const handleFileChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const picked = Array.from(event.target.files || []);
-
-      // Reset first: re-picking the same file must fire `change` again.
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+  /**
+   * The single intake path for attachments, whatever produced them: the
+   * file picker, a drop on the message area, or an image pasted into the
+   * composer. Dedup, the size limit, the per-message count limit and the
+   * notices they raise all live here so every source gets identical
+   * validation and identical feedback.
+   */
+  const addFiles = useCallback(
+    (picked: File[]) => {
       if (picked.length === 0) return;
 
       const sizeLimit = maxFileSizeMb ? maxFileSizeMb * 1024 * 1024 : null;
@@ -319,6 +344,137 @@ const SendInput: React.FC<SendInputProps> = ({
       setAttachmentNotice(notices.length > 0 ? notices.join(' ') : null);
     },
     [filePreviews, maxFiles, maxFileSizeMb, t]
+  );
+
+  const handleFileChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const picked = Array.from(event.target.files || []);
+
+      // Reset first: re-picking the same file must fire `change` again.
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      addFiles(picked);
+    },
+    [addFiles]
+  );
+
+  // ------------------------------------------------------------------
+  // Drag and drop / paste attachments
+  //
+  // The intake, limits and error paths are already there (addFiles above);
+  // only the event handlers were missing. Files can be dropped anywhere on
+  // the drop zone - the whole message area when a host marks one with
+  // DROP_ZONE_ATTRIBUTE, the composer alone otherwise - and images can be
+  // pasted straight into the input.
+  // ------------------------------------------------------------------
+  const attachmentsEnabled = !config?.disableMedia;
+  const [dropZoneEl, setDropZoneEl] = useState<HTMLElement | null>(null);
+  const [isDropTargetActive, setIsDropTargetActive] = useState(false);
+  // dragenter/dragleave fire per element crossed, so a single drag over the
+  // transcript raises a burst of them; count depth instead of toggling, or
+  // the target flickers off the moment the pointer crosses a message.
+  const dragDepthRef = useRef(0);
+
+  useEffect(() => {
+    const self = containerRef.current;
+    if (!self) return;
+    setDropZoneEl(
+      (self.closest(`[${DROP_ZONE_ATTRIBUTE}]`) as HTMLElement | null) ?? self
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!dropZoneEl || !attachmentsEnabled) return;
+
+    const endDrag = () => {
+      dragDepthRef.current = 0;
+      setIsDropTargetActive(false);
+    };
+
+    const onDragEnter = (event: DragEvent) => {
+      if (!dragCarriesFiles(event)) return;
+      event.preventDefault();
+      dragDepthRef.current += 1;
+      setIsDropTargetActive(true);
+    };
+    const onDragOver = (event: DragEvent) => {
+      if (!dragCarriesFiles(event)) return;
+      // Required: an element that doesn't cancel dragover is not a drop
+      // target at all, and the browser then navigates away to the file.
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+    };
+    const onDragLeave = (event: DragEvent) => {
+      if (!dragCarriesFiles(event)) return;
+      dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+      if (dragDepthRef.current === 0) setIsDropTargetActive(false);
+    };
+    const onDrop = (event: DragEvent) => {
+      if (!dragCarriesFiles(event)) return;
+      event.preventDefault();
+      endDrag();
+      addFiles(Array.from(event.dataTransfer?.files || []));
+    };
+
+    dropZoneEl.addEventListener('dragenter', onDragEnter);
+    dropZoneEl.addEventListener('dragover', onDragOver);
+    dropZoneEl.addEventListener('dragleave', onDragLeave);
+    dropZoneEl.addEventListener('drop', onDrop);
+    return () => {
+      dropZoneEl.removeEventListener('dragenter', onDragEnter);
+      dropZoneEl.removeEventListener('dragover', onDragOver);
+      dropZoneEl.removeEventListener('dragleave', onDragLeave);
+      dropZoneEl.removeEventListener('drop', onDrop);
+    };
+  }, [dropZoneEl, attachmentsEnabled, addFiles]);
+
+  // A file dropped anywhere the chat isn't would otherwise make the browser
+  // navigate to it, throwing away the whole session. These run in the
+  // bubble phase, after the zone handlers above, so a drop that WAS handled
+  // is already defaultPrevented and this does nothing extra; a real drop
+  // target elsewhere on the host page cancels its own events the same way
+  // and keeps working.
+  useEffect(() => {
+    const swallowStrayDrag = (event: DragEvent) => {
+      if (event.defaultPrevented) return;
+      if (!dragCarriesFiles(event)) return;
+      event.preventDefault();
+    };
+    const onWindowDrop = (event: DragEvent) => {
+      swallowStrayDrag(event);
+      dragDepthRef.current = 0;
+      setIsDropTargetActive(false);
+    };
+    const onDragEnd = () => {
+      dragDepthRef.current = 0;
+      setIsDropTargetActive(false);
+    };
+
+    window.addEventListener('dragover', swallowStrayDrag);
+    window.addEventListener('drop', onWindowDrop);
+    window.addEventListener('dragend', onDragEnd);
+    return () => {
+      window.removeEventListener('dragover', swallowStrayDrag);
+      window.removeEventListener('drop', onWindowDrop);
+      window.removeEventListener('dragend', onDragEnd);
+    };
+  }, []);
+
+  const handlePaste = useCallback(
+    (event: React.ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      if (!attachmentsEnabled) return;
+      const pasted = Array.from(event.clipboardData?.files || []);
+      const images = pasted.filter((file) =>
+        String(file.type || '').startsWith('image/')
+      );
+      // Anything else - plain text above all - falls through to the normal
+      // paste, so text still lands in the input untouched.
+      if (images.length === 0) return;
+      event.preventDefault();
+      addFiles(images);
+    },
+    [attachmentsEnabled, addFiles]
   );
 
   const handleFocus = () => {
@@ -798,7 +954,15 @@ const SendInput: React.FC<SendInputProps> = ({
   );
 
   return (
-    <InputContainer>
+    <InputContainer ref={containerRef}>
+      {isDropTargetActive &&
+        dropZoneEl &&
+        createPortal(
+          <DropOverlay role="status" aria-live="polite">
+            <DropTarget>{t('attachment.dropHint')}</DropTarget>
+          </DropOverlay>,
+          dropZoneEl
+        )}
       {mentionsEnabled && mention.isDropdownOpen && !mention.overflowOpen && (
         <MentionDropdown
           candidates={mention.visibleCandidates}
@@ -884,6 +1048,7 @@ const SendInput: React.FC<SendInputProps> = ({
                   value={message}
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
+                  onPaste={handlePaste}
                   onFocus={handleFocus}
                   onBlur={handleBlur}
                   disabled={isLoading || isMessageProcessing}
@@ -903,6 +1068,7 @@ const SendInput: React.FC<SendInputProps> = ({
                 value={message}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
                 onFocus={handleFocus}
                 onBlur={handleBlur}
                 disabled={isLoading || isMessageProcessing}

@@ -212,6 +212,11 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
 
     return (
       <ChatContainer
+        // Widens the composer's attachment drop zone from the composer
+        // itself to the whole message area, so a file dropped anywhere over
+        // the conversation lands in the attachment tray. SendInput looks
+        // this attribute up on its ancestors (DROP_ZONE_ATTRIBUTE).
+        data-ethora-drop-zone=""
         style={{
           overflow: 'auto',
           ...config?.chatRoomStyles,
