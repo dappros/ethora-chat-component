@@ -443,7 +443,14 @@ const RoomList: React.FC<RoomListProps> = ({
   return (
     <>
       {burgerMenu && !open && (
-        <BurgerButton onClick={() => setOpen(!open)}>☰</BurgerButton>
+        <BurgerButton
+          type="button"
+          aria-label={t('action.openChatList')}
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+        >
+          <span aria-hidden="true">☰</span>
+        </BurgerButton>
       )}
       <Container
         burgerMenu={burgerMenu}
