@@ -23,13 +23,26 @@ const nodeGlobals = normalizeGlobals({
 
 export default [
   {
+    // Generated, vendored or third-party trees. Linting these produced
+    // dozens of meaningless errors (for example test-app-next/.next bundles),
+    // which hid the real problems in src/.
     ignores: [
-      'dist/**',
-      'lib/**',
-      'node_modules/**',
-      '.next/**',
-      'coverage/**',
+      // build output of this package
+      '**/dist/**',
+      '**/lib/**',
+      '**/build/**',
+      '**/coverage/**',
+      '**/node_modules/**',
+      // sample / companion apps checked out next to the library
+      'test-app-next/**',
+      '**/.next/**',
+      'flutter/**',
+      'xmpp-client-video/**',
       'video-xmpp/**',
+      // tooling scratch dirs
+      '.playwright-mcp/**',
+      '.claude/worktrees/**',
+      // generated artifacts
       '**/*.d.ts',
       '**/*.tsbuildinfo',
       '.eslintrc.cjs',

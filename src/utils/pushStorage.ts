@@ -18,6 +18,7 @@ export const setStoredFcmToken = (token: string): void => {
       window.localStorage.removeItem(FCM_TOKEN_STORAGE_KEY);
     }
   } catch {
+    // storage can be unavailable (private mode, quota), ignore
   }
 };
 
