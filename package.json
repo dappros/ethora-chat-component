@@ -4,6 +4,24 @@
   "type": "module",
   "main": "dist/main.js",
   "types": "dist/main.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/main.d.ts",
+      "default": "./dist/main.js"
+    },
+    "./package.json": "./package.json",
+    "./dist/*": "./dist/*",
+    "./public/*": "./public/*",
+    "./scripts/*": "./scripts/*",
+    "./*": "./dist/*"
+  },
+  "sideEffects": [
+    "*.css",
+    "./dist/main.js",
+    "./dist/main-*.js",
+    "./src/main.ts",
+    "./src/index.css"
+  ],
   "files": [
     "dist",
     "public/firebase-messaging-sw.js",

@@ -1,6 +1,7 @@
-# Ignore build artifacts
-dist/
-build/
+# NOTE: the `files` field in package.json is authoritative for what gets
+# published (it lists `dist`, so `dist/` must NOT be ignored here - the
+# two used to contradict each other). This file only trims stray local
+# artefacts out of the directories `files` pulls in.
 
 # Node modules
 node_modules/
