@@ -4,6 +4,7 @@ import { useXmppClient } from '../context/xmppProvider';
 import { IConfig, IMessage, IRoom } from '../types/types';
 import { useDispatch } from 'react-redux';
 import useGetNewArchRoom from './useGetNewArchRoom';
+import { MESSAGE_HIGHLIGHT_CLASS } from '../styles/classNames';
 
 const countUndefinedText = (arr: IMessage[]) =>
   (Array.isArray(arr) ? arr : []).filter((item) => item?.body === undefined)
@@ -37,8 +38,8 @@ const scrollToMessage = (messageId: string) => {
   );
   if (messageElement) {
     messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    messageElement.classList.add('message-highlight');
-    setTimeout(() => messageElement.classList.remove('message-highlight'), 2000);
+    messageElement.classList.add(MESSAGE_HIGHLIGHT_CLASS);
+    setTimeout(() => messageElement.classList.remove(MESSAGE_HIGHLIGHT_CLASS), 2000);
   }
 };
 

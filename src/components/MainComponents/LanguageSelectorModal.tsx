@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { CHAT_ROOT_CLASS } from '../../styles/classNames';
 import styled from 'styled-components';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
@@ -195,7 +196,13 @@ export const LanguageSelectorButton: React.FC = () => {
       {isOpen &&
         typeof document !== 'undefined' &&
         createPortal(
-          <LanguageModalBackground onClick={() => setIsOpen(false)}>
+          // The portal target is `document.body`, i.e. outside the chat's
+          // `.ethora-chat-root` wrapper, so the modal has to re-declare the
+          // scoping class or it loses the chat's scrollbar/typography rules.
+          <LanguageModalBackground
+            className={CHAT_ROOT_CLASS}
+            onClick={() => setIsOpen(false)}
+          >
             <LanguageModalContainer onClick={(e) => e.stopPropagation()}>
               <CloseButton onClick={() => setIsOpen(false)} aria-label={t('action.cancel')}>
                 &times;

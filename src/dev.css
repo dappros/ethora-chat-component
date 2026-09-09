@@ -1,0 +1,40 @@
+/*
+ * Dev-harness-only stylesheet.
+ *
+ * These are page-level rules: they belong to the demo application that lives
+ * in this repo (src/App.tsx mounted by src/main.tsx / src/index.tsx), NOT to
+ * the published library. `src/index.css` used to carry them, which meant every
+ * host app embedding <Chat> silently got its `body`, `html` and `#root`
+ * restyled. Import this file ONLY from a dev entry point, never from
+ * `src/main.ts` (the library entry) or from a component.
+ */
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    'Roboto',
+    'Oxygen',
+    'Ubuntu',
+    'Cantarell',
+    'Fira Sans',
+    'Droid Sans',
+    'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}

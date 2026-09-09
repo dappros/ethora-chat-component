@@ -21,6 +21,7 @@ import Picker from '@emoji-mart/react';
 import emojiData, { Emoji as EmojiData } from '@emoji-mart/data';
 
 import '../../index.css';
+import { APPLE_EMOJI_CLASS } from '../../styles/classNames';
 
 const fixedEmojiIds = ['joy', 'heart', 'fire', '+1', 'smile', 'scream'];
 import { useRoomState } from '../../hooks/useRoomState';
@@ -166,7 +167,7 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
               {fixedEmojiIds.map((id) => (
                 <ReactionBadge
                   key={id}
-                  className="apple-emoji"
+                  className={APPLE_EMOJI_CLASS}
                   onClick={(e) => handleReactionClick(id, e)}
                 >
                   {getEmojiById(id)}

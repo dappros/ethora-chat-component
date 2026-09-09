@@ -16,6 +16,19 @@ import usePushNotifications from '../../hooks/usePushNotifications';
 import NotificationPermissionBanner from '../Notification/NotificationPermissionBanner';
 import { useTypography } from '../../hooks/useTypography';
 import { applyThemeColors } from '../../helpers/resolveIconColor';
+import { CHAT_ROOT_CLASS } from '../../styles/classNames';
+
+// The chat's scoping root. Everything in `index.css` that is not itself
+// `ethora-`-prefixed (scrollbars, base typography) is nested under
+// `.ethora-chat-root`, so the stylesheet cannot reach the host page.
+//
+// `display: contents` is deliberate: this element must be a real DOM node (so
+// it can carry the class and be an ancestor for the CSS) while contributing no
+// box of its own. A normal <div> here would break the height chain - the host
+// sizes whatever <Chat> renders, and <ChatWrapperBox> is `height: 100%`, which
+// would resolve against a zero-height wrapper. Inheritance and descendant
+// selectors both still work through a `display: contents` element.
+const chatRootStyle: React.CSSProperties = { display: 'contents' };
 
 interface ChatWrapperProps
   extends Pick<
@@ -129,35 +142,37 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
     }, [props.config]);
 
     return (
-      <Provider store={store}>
-        <PersistGate loading={<Loader />} persistor={persistor}>
-          <ToastProvider>
-            {/* No <MessageNotificationProvider> here: it now wraps the tree
-                once, up in <XmppProvider>, so mounting a second one around
-                <Chat> would double-handle every incoming message. */}
-            <NotificationEnabler />
-            <ConfigEnabler config={memoizedConfig} />
-            <TypographyEnabler config={memoizedConfig} />
-            <ThemeColorsEnabler config={memoizedConfig} />
-            <PushNotificationsEnabler config={memoizedConfig} />
-            <CustomComponentsProvider
-              CustomMessageComponent={CustomMessageComponent}
-              CustomInputComponent={CustomInputComponent}
-              CustomScrollableArea={CustomScrollableArea}
-              CustomDaySeparator={CustomDaySeparator}
-              CustomNewMessageLabel={CustomNewMessageLabel}
-            >
-              {/* `config` must come AFTER the spread: props still carries
-                  the raw config, so spreading last silently overwrote
-                  memoizedConfig and threw away its `newArch ?? true`
-                  default (and would now throw away the same normalization
-                  ConfigEnabler puts in the store, leaving prop and store
-                  disagreeing again). */}
-              <LoginWrapper {...props} config={memoizedConfig} />
-            </CustomComponentsProvider>
-          </ToastProvider>
-        </PersistGate>
-      </Provider>
+      <div className={CHAT_ROOT_CLASS} style={chatRootStyle}>
+        <Provider store={store}>
+          <PersistGate loading={<Loader />} persistor={persistor}>
+            <ToastProvider>
+              {/* No <MessageNotificationProvider> here: it now wraps the tree
+                  once, up in <XmppProvider>, so mounting a second one around
+                  <Chat> would double-handle every incoming message. */}
+              <NotificationEnabler />
+              <ConfigEnabler config={memoizedConfig} />
+              <TypographyEnabler config={memoizedConfig} />
+              <ThemeColorsEnabler config={memoizedConfig} />
+              <PushNotificationsEnabler config={memoizedConfig} />
+              <CustomComponentsProvider
+                CustomMessageComponent={CustomMessageComponent}
+                CustomInputComponent={CustomInputComponent}
+                CustomScrollableArea={CustomScrollableArea}
+                CustomDaySeparator={CustomDaySeparator}
+                CustomNewMessageLabel={CustomNewMessageLabel}
+              >
+                {/* `config` must come AFTER the spread: props still carries
+                    the raw config, so spreading last silently overwrote
+                    memoizedConfig and threw away its `newArch ?? true`
+                    default (and would now throw away the same normalization
+                    ConfigEnabler puts in the store, leaving prop and store
+                    disagreeing again). */}
+                <LoginWrapper {...props} config={memoizedConfig} />
+              </CustomComponentsProvider>
+            </ToastProvider>
+          </PersistGate>
+        </Provider>
+      </div>
     );
   }
 );

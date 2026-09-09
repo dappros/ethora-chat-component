@@ -34,6 +34,7 @@ import { store } from '../roomStore';
 import { IConfig } from '../types/types';
 import { ethoraLogger } from '../helpers/ethoraLogger';
 import { setStoredFcmToken } from '../utils/pushStorage';
+import { MESSAGE_HIGHLIGHT_CLASS } from '../styles/classNames';
 import { normalizeRoomJidWithConference } from '../utils/runtimeHostConfig';
 import {
   buildNotificationUrl,
@@ -151,8 +152,8 @@ const usePushNotifications = (
     );
     if (messageElement) {
       messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      messageElement.classList.add('message-highlight');
-      setTimeout(() => messageElement.classList.remove('message-highlight'), 2000);
+      messageElement.classList.add(MESSAGE_HIGHLIGHT_CLASS);
+      setTimeout(() => messageElement.classList.remove(MESSAGE_HIGHLIGHT_CLASS), 2000);
     }
   }, []);
 
