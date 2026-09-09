@@ -15,7 +15,7 @@ import { persistReducer, persistStore } from 'redux-persist';
 import { createTransform } from 'redux-persist';
 import { newMessageMidlleware } from './Middleware/newMessageMidlleware';
 import { logoutMiddleware } from './Middleware/logoutMiddleware';
-import { encryptTransform } from 'redux-persist-transform-encrypt';
+import { sessionEncryptTransform } from './persistEncryption';
 import { reactionsMiddleware } from './Middleware/reactionsMiddleware';
 import { ETHORA_CHAT_COMPONENT_VERSION } from '../version';
 import { sanitizeUserForPersistentStorage } from '../helpers/authStorage';
@@ -399,12 +399,12 @@ export const limitMessagesTransform = createTransform<
   }
 );
 
-const encryptor = encryptTransform({
-  secretKey: 'hey-this-is-dappros',
-  onError: (error) => {
-    console.error('Encryption error:', error);
-  },
-});
+// The persist encryptor. The key used to be the literal string
+// 'hey-this-is-dappros' right here, which meant it shipped inside every
+// published dist bundle - see persistEncryption.ts for what replaced it
+// (a key derived per session from the account's stable JWT claims) and
+// for the honest limits of what that buys.
+const encryptor = sessionEncryptTransform;
 
 // Same per-key bug as the rooms transforms: this used to check
 // `inboundState?.user`, but for key 'user' the inbound IS the user object
@@ -436,6 +436,25 @@ export const sanitizeRoomsStateTransform = createTransform<
 
 const PERSIST_THROTTLE_MS = 500;
 
+// INVALIDATING THE OLD, HARDCODED-KEY BLOBS: deliberately NOT by
+// bumping `key` or `version`.
+//
+//  - A new `key` ('roomMessages_v2') orphans the old localStorage
+//    entry instead of replacing it. That entry is the single biggest
+//    thing on the origin - budgeted at 1M chars pre-encryption, ~2.8MB
+//    written - and nothing would ever clean it up, so every upgrading
+//    user would permanently lose that much of a ~5MB quota and start
+//    tripping QuotaExceededError on the NEW key.
+//  - `version` does not help either: redux-persist runs `migrate` only
+//    AFTER `getStoredState` resolves, and getStoredState is exactly
+//    where an undecryptable blob throws. The migration never gets a
+//    look at it.
+//
+// Reusing the same key and letting the decrypt failure discard the
+// slice is both cleaner and self-healing: the failed read rehydrates
+// the reducer's initial state, and the REHYDRATE action's own write
+// overwrites the stale blob in place with one encrypted under the new
+// key. One cold cache, no orphaned megabytes.
 const chatSettingPersistConfig = {
   key: 'chatSettingStore',
   storage,
