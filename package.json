@@ -92,7 +92,7 @@
     "lib": "lib"
   },
   "author": "Ethora",
-  "license": "AGPL",
+  "license": "MIT",
   "keywords": [
     "chat",
     "messaging",
