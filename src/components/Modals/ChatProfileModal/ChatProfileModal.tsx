@@ -92,6 +92,10 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
 
   const { client } = useXmppClient();
   const { user: stateUser, config } = useChatSettingState();
+  // config.disableRoomConfig turns the chat-details panel read-only: no
+  // avatar upload/remove, no "Delete chat", no add-members, no per-member
+  // moderator actions. Everything informational stays visible.
+  const roomConfigDisabled = config?.disableRoomConfig === true;
   const activeRoom = useSelector((state: RootState) => getActiveRoom(state));
   const onlineUsers = useRoomPresence(activeRoom?.jid);
   // Secure room avatars need the viewer's own `?ft=` token appended at
@@ -315,6 +319,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
             )}
             {activeRoom.role === 'moderator' &&
               activeRoom.type !== 'private' &&
+              !roomConfigDisabled &&
               !config?.disableChatInfo?.disableChatHeaderMenu && (
                 <DropdownMenu
                   position="left"
@@ -336,11 +341,17 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         <ProfileImagePlaceholder
           name={activeRoom.name}
           icon={appendFileToken(activeRoom.icon, fileToken)}
-          upload={{
-            onUpload,
-            active: activeRoom?.role !== 'participant' ? true : false,
-          }}
-          remove={{ enabled: true, onRemoveClick }}
+          upload={
+            roomConfigDisabled
+              ? undefined
+              : {
+                  onUpload,
+                  active: activeRoom?.role !== 'participant' ? true : false,
+                }
+          }
+          remove={
+            roomConfigDisabled ? undefined : { enabled: true, onRemoveClick }
+          }
           role={activeRoom?.role}
           size={128}
         />
@@ -361,12 +372,14 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
             })()}
           </UserStatus>
         </UserInfo>
-        {activeRoom.role === 'moderator' && activeRoom.type === 'group' && (
-          <>
-            {/* <AddMembersModal /> */}
-            <SelectUsersModal />
-          </>
-        )}
+        {activeRoom.role === 'moderator' &&
+          activeRoom.type === 'group' &&
+          !roomConfigDisabled && (
+            <>
+              {/* <AddMembersModal /> */}
+              <SelectUsersModal />
+            </>
+          )}
         {!config?.disableChatInfo?.disableDescription && (
           <BorderedContainer>
             <LabelData>{t('modal.chatProfile.description')}</LabelData>
@@ -425,7 +438,11 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                     showMenu={
                       stateUser.xmppUsername !== user.xmppUsername &&
                       activeRoom.role === 'moderator' &&
-                      activeRoom.type !== 'private'
+                      activeRoom.type !== 'private' &&
+                      // config.disableRoomConfig makes the panel read-only, so
+                      // the per-member moderator actions (appoint admin, remove
+                      // member) go with it.
+                      !roomConfigDisabled
                     }
                     menuOptions={menuOptions(user.xmppUsername)}
                     moreOptionsLabel={t('action.moreOptions')}

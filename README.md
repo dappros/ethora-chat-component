@@ -333,7 +333,6 @@ Below is a grouped reference for all `config` options.
 | `customAppToken` | `string` | Custom app token for API initialization. |
 | `xmppSettings` | `{ devServer; host; conference?; xmppPingOnSendEnabled? }` | XMPP connectivity settings. |
 | `initBeforeLoad` | `boolean` | Initialize XMPP before normal chat load flow. |
-| `clearStoreBeforeInit` | `boolean` | Clear local store before initialization. |
 | `newArch` | `boolean` | Defaults to `true`; set `false` to explicitly force legacy/old architecture paths. |
 | `useStoreConsoleEnabled` | `boolean` | Enable verbose internal logging in console. |
 
@@ -347,16 +346,16 @@ Below is a grouped reference for all `config` options.
 | `pdfPreview` | `{ enabled?; workerSrc?; maxFileSizeMb? }` | First-page PDF thumbnails inside bubbles and in the composer tray. On by default; `enabled: false` keeps the static document card. pdf.js is code-split and only fetched when a PDF actually shows up. By default it runs on the main thread, which needs no bundler asset wiring: set `workerSrc` to a pdf.js worker URL you host to move parsing off it. `maxFileSizeMb` (default `25`) is the size past which a document is not auto-rendered. |
 | `disableRooms` | `boolean` | Hide/disable room list area. |
 | `disableRoomMenu` | `boolean` | Disable room menu controls. |
-| `disableRoomConfig` | `boolean` | Disable room configuration actions. |
+| `disableRoomConfig` | `boolean` | Hide every control that mutates a room's configuration, leaving the chat-details panel read-only: room avatar upload/remove, the "Delete chat" menu entry, the add-members action, and the per-member moderator menu (appoint as admin / remove member). |
 | `disableNewChatButton` | `boolean` | Hide new chat/create room action. |
-| `disableUserCount` | `boolean` | Hide user count in header/UI. |
+| `disableUserCount` | `boolean` | Hide the member-count subtitle in the chat header ("N users", plus the online-users popover attached to it). The 1:1 online/offline line is a presence state, not a count, so it stays. |
 | `disableChatInfo` | `{ disableHeader?; disableDescription?; disableType?; disableMembers?; hideMembers?; disableChatHeaderMenu? }` | Fine-grained chat info panel toggles. |
 | `chatHeaderBurgerMenu` | `boolean` | Toggle burger menu in chat header. |
 | `chatHeaderSettings` | `{ hide?; disableCreate?; disableMenu?; hideSearch? }` | Additional header-level controls. |
 | `chatHeaderAdditional` | `{ enabled: boolean; element: any }` | Inject custom element into header area. |
-| `headerLogo` | `string \| React.ReactElement` | Custom logo in header. |
-| `headerMenu` | `() => void` | Custom menu handler. |
-| `headerChatMenu` | `() => void` | Custom room header menu handler. |
+| `headerLogo` | `string \| React.ReactElement` | Host logo rendered at the left of the chat header, before the back button / burger menu. A plain string is treated as an image URL and rendered as a 32px-tall `<img>` (aspect preserved); any other React element renders as-is. Same string-or-node duality as `fallbackScreens`. |
+| `headerMenu` | `() => void` | Takes over the room-list burger menu. When set, the built-in Profile/Settings/Logout dropdown is not rendered: the same burger button calls your handler instead, so you can open your own account menu or drawer. |
+| `headerChatMenu` | `() => void` | Same for the chat header's room menu (the "more" button carrying Report and Leave). When set, that dropdown is not rendered and the button calls your handler. |
 | `colors` | `{ primary; secondary; icons?; ownMessageBackground?; otherMessageBackground?; inputBackground? }` | Theme colours. `primary` drives icon colours and the sender name. `icons` themes every accent icon/icon-button (attach, mic, active send, new-chat, header, empty-state) — defaults to `primary`, so set a *distinct* value to decouple. `ownMessageBackground`/`otherMessageBackground`/`inputBackground` recolour the message bubbles and input bar. |
 | `backgroundChat` | `{ color?; image? }` | Background colour and/or image for the messages area. (`image` as a string URL; pass an object URL for a `File`.) |
 | `typography` | `TypographyConfig` | Font family + size for the chat UI: `fontFamily` (or just `googleFontsFamily`) is applied across all chat text incl. messages and sender names; `fontSize` (px) scales message text, sender names, timestamps, inputs, room names and badges. Plus loaders (`googleFontsUrl`/`fontFaces`) and weight tokens. |
@@ -366,7 +365,6 @@ Below is a grouped reference for all `config` options.
 | `chatRoomStyles` | `React.CSSProperties` | Styles for chat pane. |
 | `noMessagesPlaceholder` | `React.ComponentType` | Replace empty-chat placeholder component (same render position as default placeholder). |
 | `backgroundChat` | `{ color?: string; image?: string \| File }` | Chat background customization. |
-| `bubleMessage` | `MessageBubble` | Bubble-level style overrides (as defined in types). |
 | `setRoomJidInPath` | `boolean` | Sync room JID to URL path. |
 | `qrUrl` | `string` | Base URL for QR deep link behavior. |
 
@@ -386,8 +384,6 @@ Below is a grouped reference for all `config` options.
 | Option | Type | Description |
 | --- | --- | --- |
 | `defaultRooms` | `ConfigRoom[]` | Seed/default rooms. |
-| `customRooms` | `{ rooms: PartialRoomWithMandatoryKeys[]; disableGetRooms?: boolean; singleRoom: boolean }` | Fully controlled room source. |
-| `forceSetRoom` | `boolean` | Force room setup path in init flow. |
 | `enableRoomsRetry` | `{ enabled: boolean; helperText: string }` | Enable retry UX when rooms fail to load. |
 
 ### Messaging and Interactions
@@ -398,7 +394,6 @@ Below is a grouped reference for all `config` options.
 | `disableProfilesInteractions` | `boolean` | Disable profile interactions from chat UI. |
 | `disableSentLogic` | `boolean` | Disable default sent-state logic when needed. |
 | `secondarySendButton` | `{ enabled: boolean; messageEdit: string; label?: React.ReactNode; buttonStyles?: React.CSSProperties; hideInputSendButton?: boolean; overwriteEnterClick?: true }` | Extra send action/button config. |
-| `botMessageAutoScroll` | `boolean` | Force auto-scroll behavior on bot messages. |
 | `messageTextFilter` | `{ enabled: boolean; filterFunction: (text: string) => string }` | Transform/filter outgoing message text. |
 | `eventHandlers` | `{ onMessageSent?; onMessageFailed?; onMessageEdited?; onError? }` | Lifecycle callbacks for message operations, plus `onError` for uncaught render errors caught by the SDK's error boundary, see [Error handling](#error-handling-and-crash-containment). |
 | `translates` | `{ enabled: boolean; translations?: Iso639_1Codes }` | Message translation-related options. |
@@ -738,7 +733,7 @@ This is a practical planning snapshot for cross-platform consumers. It is not a 
 | Issue | Likely cause | Fix |
 | --- | --- | --- |
 | `useXmppClient must be used within an XmppProvider` | Using internal XMPP-dependent logic without provider context | Wrap the app tree with `XmppProvider` where needed. |
-| Chat loads but no rooms appear | Auth/app context mismatch or room fetching restrictions | Verify `appId`, user credentials/tokens, `baseUrl`, and `customRooms` settings. |
+| Chat loads but no rooms appear | Auth/app context mismatch or room fetching restrictions | Verify `appId`, user credentials/tokens, `baseUrl`, and `defaultRooms` settings. |
 | Push permission never appears | `softAsk: true` without manual trigger, insecure origin, or missing VAPID key | Trigger `requestPermission()`, use HTTPS/localhost, set valid VAPID key. |
 | Service worker not found | `firebase-messaging-sw.js` missing in public dir | Run `npx @ethora/chat-component ethora-chat` or copy file manually. |
 | Login loop / auth failure | Wrong token/user object shape | Validate `jwtLogin`, `userLogin.user`, and refresh token flow. |
