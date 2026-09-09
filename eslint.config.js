@@ -23,16 +23,28 @@ const nodeGlobals = normalizeGlobals({
 
 export default [
   {
+    // Generated, vendored or third-party trees. Linting these produced
+    // dozens of meaningless errors (for example test-app-next/.next bundles),
+    // which hid the real problems in src/.
     ignores: [
-      'dist/**',
-      'lib/**',
-      'node_modules/**',
-      '.next/**',
-      'coverage/**',
+      // build output of this package
+      '**/dist/**',
+      '**/lib/**',
+      '**/build/**',
+      '**/coverage/**',
+      '**/node_modules/**',
+      // sample / companion apps checked out next to the library
+      'test-app-next/**',
+      '**/.next/**',
+      'flutter/**',
+      'xmpp-client-video/**',
       'video-xmpp/**',
+      // tooling scratch dirs
+      '.playwright-mcp/**',
+      '.claude/worktrees/**',
+      // generated artifacts
       '**/*.d.ts',
       '**/*.tsbuildinfo',
-      '.eslintrc.cjs',
     ],
   },
   js.configs.recommended,
@@ -59,9 +71,19 @@ export default [
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      // The base rule does not understand TypeScript (type-only imports,
+      // parameter properties), so it stays off in favour of the TS one.
       'no-unused-vars': 'off',
-      '@typescript-eslint/no-unused-vars': 'off',
-      'react-hooks/exhaustive-deps': 'off',
+      // Both are "warn", not "error": there is a backlog of pre-existing
+      // hits and blocking the build on them would only get the rules
+      // switched off again. Warnings keep them visible for new code.
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrors: 'none' },
+      ],
+      // Stale closures in effects are this codebase's most expensive bug
+      // class, see the 75s stall documented in useChatWrapperInit.ts.
+      'react-hooks/exhaustive-deps': 'warn',
       'react-refresh/only-export-components': 'off',
     },
   },

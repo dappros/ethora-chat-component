@@ -571,11 +571,9 @@ try {
       : false;
   if (typeof window !== 'undefined' && isDev) {
     (window as any).__ethoraStore = store;
-    // eslint-disable-next-line no-console
     console.info('[ethora] redux store available as window.__ethoraStore');
   }
 } catch (e) {
-  // eslint-disable-next-line no-console
   console.warn('[ethora] failed to attach __ethoraStore bridge:', e);
 }
 
