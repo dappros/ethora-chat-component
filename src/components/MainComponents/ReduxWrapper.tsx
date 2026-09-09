@@ -18,6 +18,7 @@ import { useTypography } from '../../hooks/useTypography';
 import { applyThemeColors } from '../../helpers/resolveIconColor';
 import { ThemeTokens } from '../../styles/tokens';
 import { CHAT_ROOT_CLASS } from '../../styles/classNames';
+import ChatErrorBoundary from './ChatErrorBoundary';
 
 // The chat's scoping root. Everything in `index.css` that is not itself
 // `ethora-`-prefixed (scrollbars, base typography) is nested under
@@ -112,7 +113,9 @@ const ThemeColorsEnabler: React.FC<{ config?: IConfig }> = ({ config }) => {
   return null;
 };
 
-const PushNotificationsEnabler: React.FC<{ config?: IConfig }> = ({ config }) => {
+const PushNotificationsEnabler: React.FC<{ config?: IConfig }> = ({
+  config,
+}) => {
   const { requestPermission } = usePushNotifications({
     enabled: config?.pushNotifications?.enabled,
     vapidPublicKey: config?.pushNotifications?.vapidPublicKey,
@@ -150,36 +153,44 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
 
     return (
       <div className={CHAT_ROOT_CLASS} style={chatRootStyle}>
-      <Provider store={store}>
-        <PersistGate loading={<Loader />} persistor={persistor}>
-          <ToastProvider>
-            {/* No <MessageNotificationProvider> here: it now wraps the tree
+        <Provider store={store}>
+          {/* The SDK's crash barrier, as high as it goes while still being
+            INSIDE the store provider: everything below it is what actually
+            crashes in the field, and the default fallback screen reads the
+            host's colours and locale out of redux to theme itself. Without
+            it, one throw in the chat tree propagates to the HOST's root and
+            unmounts the customer's whole app. */}
+          <ChatErrorBoundary config={memoizedConfig} scope="chat">
+            <PersistGate loading={<Loader />} persistor={persistor}>
+              <ToastProvider>
+                {/* No <MessageNotificationProvider> here: it now wraps the tree
                 once, up in <XmppProvider>, so mounting a second one around
                 <Chat> would double-handle every incoming message. */}
-            <NotificationEnabler />
-            <ConfigEnabler config={memoizedConfig} />
-            <ThemeTokens config={memoizedConfig} />
-            <TypographyEnabler config={memoizedConfig} />
-            <ThemeColorsEnabler config={memoizedConfig} />
-            <PushNotificationsEnabler config={memoizedConfig} />
-            <CustomComponentsProvider
-              CustomMessageComponent={CustomMessageComponent}
-              CustomInputComponent={CustomInputComponent}
-              CustomScrollableArea={CustomScrollableArea}
-              CustomDaySeparator={CustomDaySeparator}
-              CustomNewMessageLabel={CustomNewMessageLabel}
-            >
-              {/* `config` must come AFTER the spread: props still carries
+                <NotificationEnabler />
+                <ConfigEnabler config={memoizedConfig} />
+                <ThemeTokens config={memoizedConfig} />
+                <TypographyEnabler config={memoizedConfig} />
+                <ThemeColorsEnabler config={memoizedConfig} />
+                <PushNotificationsEnabler config={memoizedConfig} />
+                <CustomComponentsProvider
+                  CustomMessageComponent={CustomMessageComponent}
+                  CustomInputComponent={CustomInputComponent}
+                  CustomScrollableArea={CustomScrollableArea}
+                  CustomDaySeparator={CustomDaySeparator}
+                  CustomNewMessageLabel={CustomNewMessageLabel}
+                >
+                  {/* `config` must come AFTER the spread: props still carries
                   the raw config, so spreading last silently overwrote
                   memoizedConfig and threw away its `newArch ?? true`
                   default (and would now throw away the same normalization
                   ConfigEnabler puts in the store, leaving prop and store
                   disagreeing again). */}
-              <LoginWrapper {...props} config={memoizedConfig} />
-            </CustomComponentsProvider>
-          </ToastProvider>
-        </PersistGate>
-      </Provider>
+                  <LoginWrapper {...props} config={memoizedConfig} />
+                </CustomComponentsProvider>
+              </ToastProvider>
+            </PersistGate>
+          </ChatErrorBoundary>
+        </Provider>
       </div>
     );
   }

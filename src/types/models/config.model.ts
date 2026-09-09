@@ -120,6 +120,28 @@ export interface TypographyConfig {
   };
 }
 
+/** Which part of the SDK an uncaught render error came from. */
+export type ChatErrorScope = 'chat' | 'call-overlay';
+
+/**
+ * What the SDK reports when its error boundary catches an uncaught render
+ * error: the error itself, React's component stack (when the runtime gives
+ * one) and which subtree crashed.
+ */
+export interface ChatErrorInfo {
+  error: Error;
+  componentStack?: string;
+  scope: ChatErrorScope;
+}
+
+/**
+ * Render-prop form of `fallbackScreens.error`. `reset()` clears the boundary
+ * and re-mounts the chat subtree, so a host can build its own "try again".
+ */
+export type ChatErrorFallbackRenderer = (
+  context: ChatErrorInfo & { reset: () => void }
+) => React.ReactNode;
+
 export interface IConfig {
   appId?: string;
   disableHeader?: boolean;
@@ -188,6 +210,25 @@ export interface IConfig {
     noConnection?: React.ReactNode;
     /** Shown when the user has no chat room to display. */
     noRoom?: React.ReactNode;
+    /**
+     * Shown when an uncaught render error inside the chat is caught by the
+     * SDK's error boundary (instead of white-screening the host app).
+     *
+     * Same shape as the screens above (string = centered text, React node =
+     * rendered as-is) plus a render-function form, which is what you want if
+     * the replacement screen needs its own retry control or wants to show
+     * something about the error:
+     *
+     *   fallbackScreens: {
+     *     error: ({ error, reset }) => (
+     *       <MyErrorPanel message={error.message} onRetry={reset} />
+     *     ),
+     *   }
+     *
+     * Omit it to keep the built-in calm, themed, translated screen with its
+     * own "try again" button.
+     */
+    error?: React.ReactNode | ChatErrorFallbackRenderer;
   };
   /**
    * Hide specific rooms from the room list and unread counters without
@@ -419,6 +460,13 @@ export interface IConfig {
       roomJID: string;
       user: any;
     }) => void;
+    /**
+     * Called when the SDK's error boundary catches an uncaught render error,
+     * i.e. the crash that would otherwise have taken the host app down with
+     * it. Wire it to your own crash reporter (Sentry, Datadog, ...). A throw
+     * inside this handler is caught and logged, never rethrown.
+     */
+    onError?: (event: ChatErrorInfo) => void;
   };
 
   disableTypingIndicator?: boolean;

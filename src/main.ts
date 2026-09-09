@@ -26,6 +26,15 @@ export type {
   FontFaceSource,
 } from './types/models/config.model';
 
+// Crash handling: the shape passed to `config.eventHandlers.onError` and to
+// the `config.fallbackScreens.error` render function, so hosts can type their
+// own crash reporter / replacement screen.
+export type {
+  ChatErrorInfo,
+  ChatErrorScope,
+  ChatErrorFallbackRenderer,
+} from './types/models/config.model';
+
 // Stable `data-testid` constants - exposed so host apps that consume
 // this package (e.g. ethora-app-reactjs) can resolve chat-component
 // nodes in their own Playwright / Cypress tests without re-typing

@@ -27,7 +27,8 @@ const en: UiStringTable = {
   'common.or': 'Or',
   'tabs.label': 'Sidebar sections',
   'call.disabled.roomType': 'Calls are available only in 1:1 chats',
-  'call.disabled.noLivekit': 'Calls are unavailable: video service is not configured',
+  'call.disabled.noLivekit':
+    'Calls are unavailable: video service is not configured',
   'call.disabled.busy': 'Another call is already in progress',
   'date.today': 'Today',
   'date.yesterday': 'Yesterday',
@@ -72,7 +73,8 @@ const en: UiStringTable = {
   'translation.translating': 'Translating…',
   'translation.failed': 'Could not translate',
   'translation.enableToggleLabel': 'Translate my messages',
-  'translation.enableToggleDisclaimer': 'If translations were not enabled, only new messages sent from now on will be translated.',
+  'translation.enableToggleDisclaimer':
+    'If translations were not enabled, only new messages sent from now on will be translated.',
   'translation.modeLabel': 'Translation display',
   'translation.modeAuto': 'Auto',
   'translation.modeManual': 'Manual',
@@ -93,7 +95,8 @@ const en: UiStringTable = {
   'toast.roomCreating': 'Room is being created...',
   'toast.success': 'Success!',
   'toast.roomCreatedSuccess': 'Room created successfully!',
-  'modal.filePreview.unsupported': 'Unable to open the uploaded document. The file format is not supported by the system. Please upload a file in a compatible format. You still can download this file.',
+  'modal.filePreview.unsupported':
+    'Unable to open the uploaded document. The file format is not supported by the system. Please upload a file in a compatible format. You still can download this file.',
   'toast.usersAddedSuccess': 'Users added successfully!',
   'settings.menu.title': 'Settings',
   'modal.filePreview.title': 'File preview',
@@ -176,7 +179,8 @@ const en: UiStringTable = {
   'modal.leaveChat.description': 'Are you sure you want to leave this chat?',
   'modal.report.chatTitle': 'Report Chat',
   'modal.report.messageTitle': 'Report Message',
-  'modal.report.otherDetails': 'Please enter additional details relevant to your report.',
+  'modal.report.otherDetails':
+    'Please enter additional details relevant to your report.',
   'report.category.spam': 'Spam',
   'report.category.violence': 'Violence',
   'report.category.childAbuse': 'Child Abuse',
@@ -190,38 +194,51 @@ const en: UiStringTable = {
   'settings.shares.listOfShares': 'List of shares',
   'settings.documentShares.title': 'Document Shares',
   'settings.documentShares.currentShares': 'Current Document Shares',
-  'settings.documentShares.description': 'Listed below are your currently active document sharing links. You can share or delete them.',
-  'settings.documentShares.emptyState': 'There are no shares yet, or you can add them by clicking the "Add New Share" button',
+  'settings.documentShares.description':
+    'Listed below are your currently active document sharing links. You can share or delete them.',
+  'settings.documentShares.emptyState':
+    'There are no shares yet, or you can add them by clicking the "Add New Share" button',
   'settings.profileShares.title': 'Profile Shares',
   'settings.profileShares.currentShares': 'Current Profile Shares',
-  'settings.profileShares.description': 'Listed below are your currently active profile sharing links. You can share or delete them.',
+  'settings.profileShares.description':
+    'Listed below are your currently active profile sharing links. You can share or delete them.',
   'settings.blockedUsers.title': 'Blocked Users',
   'settings.blockedUsers.label': 'Blocked Users',
-  'settings.blockedUsers.description': 'Users you have blocked cannot send you messages or see when you are online.',
+  'settings.blockedUsers.description':
+    'Users you have blocked cannot send you messages or see when you are online.',
   'settings.blockedUsers.emptyState': "You haven't blocked anyone yet.",
   'settings.visibility.title': 'Visibility',
   'settings.visibility.profileLabel': 'Profile Visibility',
   'settings.visibility.open': 'Open (default)',
-  'settings.visibility.openDescription': 'Your profile can be viewed by anyone who follows your profile link or QR code.',
+  'settings.visibility.openDescription':
+    'Your profile can be viewed by anyone who follows your profile link or QR code.',
   'settings.visibility.restricted': 'Restricted',
-  'settings.visibility.restrictedDescription': 'Only users with your permission or temporary secure link can see your profile.',
+  'settings.visibility.restrictedDescription':
+    'Only users with your permission or temporary secure link can see your profile.',
   'settings.visibility.documentsLabel': 'Documents Visibility',
   'settings.visibility.full': 'Full (default)',
-  'settings.visibility.fullDescription': 'Show all Documents to those who can see your profile.',
+  'settings.visibility.fullDescription':
+    'Show all Documents to those who can see your profile.',
   'settings.visibility.individual': 'Individual',
-  'settings.visibility.individualDescription': 'You need to share each document individually before others can see them.',
+  'settings.visibility.individualDescription':
+    'You need to share each document individually before others can see them.',
   'settings.referrals.title': 'Referrals',
   'settings.referrals.giftPart1': 'Gift friends 25',
   'settings.referrals.giftPart2': 'and receive 25',
-  'settings.referrals.giftPart3': 'Send friends invite with your personal invitation code.',
+  'settings.referrals.giftPart3':
+    'Send friends invite with your personal invitation code.',
   'settings.referrals.yourCode': 'Your invitation code',
-  'settings.referrals.enterReferralCode': 'Or enter your referral code to earn coins',
+  'settings.referrals.enterReferralCode':
+    'Or enter your referral code to earn coins',
   'settings.manageData.title': 'Manage Data',
   'settings.manageData.downloadLabel': 'Download your data',
-  'settings.manageData.downloadDescription': 'You own your data. Tap the button below to download a copy of your data',
+  'settings.manageData.downloadDescription':
+    'You own your data. Tap the button below to download a copy of your data',
   'settings.manageData.deleteLabel': 'Delete your account',
-  'settings.manageData.deleteDescription': 'Use this only if you want to permanently delete your account & data from our system.',
-  'settings.manageData.deleteDisclosure': 'Due to the immutable nature of distributed ledger technology, network nodes operated by the community may still retain historical transactions generated by your account, however your personally identifiable information such as your name, e-mail, your key-value storage etc will be removed. Any of your digital assets will be lost.',
+  'settings.manageData.deleteDescription':
+    'Use this only if you want to permanently delete your account & data from our system.',
+  'settings.manageData.deleteDisclosure':
+    'Due to the immutable nature of distributed ledger technology, network nodes operated by the community may still retain historical transactions generated by your account, however your personally identifiable information such as your name, e-mail, your key-value storage etc will be removed. Any of your digital assets will be lost.',
   'files.panel.title': 'Files',
   'files.filter.all': 'All',
   'files.filter.media': 'Media',
@@ -231,7 +248,8 @@ const en: UiStringTable = {
   'files.empty.title': 'No files yet',
   'files.empty.subtitle': 'Files you upload will show up here.',
   'files.noResults': 'No files match your search',
-  'files.noResults.moreAvailable': 'Not every file is loaded yet, load more to keep searching',
+  'files.noResults.moreAvailable':
+    'Not every file is loaded yet, load more to keep searching',
   'files.loading': 'Loading files...',
   'files.error.title': 'Could not load files',
   'files.action.retry': 'Retry',
@@ -240,11 +258,16 @@ const en: UiStringTable = {
   'files.action.download': 'Download',
   'files.action.delete': 'Delete',
   'files.delete.confirmTitle': 'Delete file?',
-  'files.delete.confirmMessage': 'This file will be permanently deleted. This cannot be undone.',
+  'files.delete.confirmMessage':
+    'This file will be permanently deleted. This cannot be undone.',
   'files.delete.failed': 'Failed to delete file',
   'modal.chatProfile.filesTitle': 'Files',
   'modal.chatProfile.filesShowAll': 'Show all',
   'modal.chatProfile.filesEmpty': 'No files in this chat yet',
+  'error.boundary.title': 'Something went wrong',
+  'error.boundary.description':
+    'The chat ran into an unexpected problem. Your messages are safe.',
+  'error.boundary.retry': 'Try again',
 };
 
 const fr: UiStringTable = {
@@ -260,8 +283,10 @@ const fr: UiStringTable = {
   'media.unsupported': 'Type de média non pris en charge',
   'common.or': 'Ou',
   'tabs.label': 'Sections de la barre latérale',
-  'call.disabled.roomType': 'Les appels ne sont disponibles que dans les discussions 1:1',
-  'call.disabled.noLivekit': 'Appels indisponibles : service vidéo non configuré',
+  'call.disabled.roomType':
+    'Les appels ne sont disponibles que dans les discussions 1:1',
+  'call.disabled.noLivekit':
+    'Appels indisponibles : service vidéo non configuré',
   'call.disabled.busy': 'Un autre appel est déjà en cours',
   'date.today': "Aujourd'hui",
   'date.yesterday': 'Hier',
@@ -306,7 +331,8 @@ const fr: UiStringTable = {
   'translation.translating': 'Traduction…',
   'translation.failed': 'Traduction impossible',
   'translation.enableToggleLabel': 'Traduire mes messages',
-  'translation.enableToggleDisclaimer': "Si les traductions n'étaient pas activées, seuls les nouveaux messages envoyés à partir de maintenant seront traduits.",
+  'translation.enableToggleDisclaimer':
+    "Si les traductions n'étaient pas activées, seuls les nouveaux messages envoyés à partir de maintenant seront traduits.",
   'translation.modeLabel': 'Affichage des traductions',
   'translation.modeAuto': 'Automatique',
   'translation.modeManual': 'Manuel',
@@ -324,7 +350,8 @@ const fr: UiStringTable = {
   'modal.selectUsers.empty': 'Aucun utilisateur trouve',
   'thread.title': 'Fil de discussion',
   'toast.roomCreationTitle': 'Création du salon',
-  'modal.filePreview.unsupported': "Impossible d'ouvrir le document téléchargé. Le format du fichier n'est pas pris en charge par le système. Veuillez téléverser un fichier dans un format compatible. Vous pouvez toujours télécharger ce fichier.",
+  'modal.filePreview.unsupported':
+    "Impossible d'ouvrir le document téléchargé. Le format du fichier n'est pas pris en charge par le système. Veuillez téléverser un fichier dans un format compatible. Vous pouvez toujours télécharger ce fichier.",
   'toast.roomCreating': 'Le salon est en cours de création...',
   'toast.success': 'Succès !',
   'toast.roomCreatedSuccess': 'Salon créé avec succès !',
@@ -335,7 +362,8 @@ const fr: UiStringTable = {
   'modal.filePreview.nextPage': 'Page suivante',
   'attachment.pages': '{count} p.',
   'attachment.remove': 'Supprimer la pièce jointe',
-  'attachment.limit': 'Vous pouvez joindre jusqu\u2019à {count} fichiers par message.',
+  'attachment.limit':
+    'Vous pouvez joindre jusqu\u2019à {count} fichiers par message.',
   'attachment.tooLarge': 'Ignoré {files} : plus de {size} Mo.',
   'action.attachFile': 'Joindre un fichier',
   'action.startRecording': 'Enregistrer un message vocal',
@@ -345,9 +373,11 @@ const fr: UiStringTable = {
   'modal.filePreview.pdfUnavailable':
     'Ce PDF ne peut pas être affiché ici. Vous pouvez toujours l\u2019ouvrir ou le télécharger.',
   'toast.error': 'Erreur',
-  'toast.couldNotOpenPrivateChat': "Impossible d'ouvrir la nouvelle discussion privée",
+  'toast.couldNotOpenPrivateChat':
+    "Impossible d'ouvrir la nouvelle discussion privée",
   'toast.couldNotResolveRecipient': 'Impossible de résoudre le destinataire',
-  'toast.failedToCreatePrivateChat': 'Échec de la création de la discussion privée',
+  'toast.failedToCreatePrivateChat':
+    'Échec de la création de la discussion privée',
   'toast.failedToCreateCall': "Échec de la création de l'appel",
   'toast.failedToDeleteUser': "Échec de la suppression de l'utilisateur.",
   'toast.userRemovedFromRoom': '{userId} a été retiré du salon.',
@@ -360,7 +390,8 @@ const fr: UiStringTable = {
   'toast.loginErrorTitle': 'Erreur de connexion',
   'toast.loginErrorMessage': "Une erreur s'est produite lors de la connexion",
   'validation.invalidEmail': "Format d'e-mail invalide",
-  'validation.passwordTooShort': 'Le mot de passe doit comporter au moins 6 caractères',
+  'validation.passwordTooShort':
+    'Le mot de passe doit comporter au moins 6 caractères',
   'validation.wrongCredentials': 'Données incorrectes. Réessayez',
   'field.email': 'E-mail',
   'field.password': 'Mot de passe',
@@ -407,10 +438,12 @@ const fr: UiStringTable = {
   'modal.addMembers.title': 'Ajouter un nouveau membre',
   'modal.addMembers.userIdPlaceholder': "Entrez l'ID utilisateur",
   'modal.leaveChat.title': 'Quitter la discussion',
-  'modal.leaveChat.description': 'Voulez-vous vraiment quitter cette discussion ?',
+  'modal.leaveChat.description':
+    'Voulez-vous vraiment quitter cette discussion ?',
   'modal.report.chatTitle': 'Signaler la discussion',
   'modal.report.messageTitle': 'Signaler le message',
-  'modal.report.otherDetails': 'Veuillez indiquer des détails supplémentaires concernant votre signalement.',
+  'modal.report.otherDetails':
+    'Veuillez indiquer des détails supplémentaires concernant votre signalement.',
   'report.category.spam': 'Spam',
   'report.category.violence': 'Violence',
   'report.category.childAbuse': "Maltraitance d'enfants",
@@ -424,38 +457,51 @@ const fr: UiStringTable = {
   'settings.shares.listOfShares': 'Liste des partages',
   'settings.documentShares.title': 'Partages de documents',
   'settings.documentShares.currentShares': 'Partages de documents actuels',
-  'settings.documentShares.description': 'Voici la liste de vos liens de partage de documents actifs. Vous pouvez les partager ou les supprimer.',
-  'settings.documentShares.emptyState': 'Aucun partage pour le moment - vous pouvez en ajouter en cliquant sur le bouton "Ajouter un nouveau partage"',
+  'settings.documentShares.description':
+    'Voici la liste de vos liens de partage de documents actifs. Vous pouvez les partager ou les supprimer.',
+  'settings.documentShares.emptyState':
+    'Aucun partage pour le moment - vous pouvez en ajouter en cliquant sur le bouton "Ajouter un nouveau partage"',
   'settings.profileShares.title': 'Partages de profil',
   'settings.profileShares.currentShares': 'Partages de profil actuels',
-  'settings.profileShares.description': 'Voici la liste de vos liens de partage de profil actifs. Vous pouvez les partager ou les supprimer.',
+  'settings.profileShares.description':
+    'Voici la liste de vos liens de partage de profil actifs. Vous pouvez les partager ou les supprimer.',
   'settings.blockedUsers.title': 'Utilisateurs bloqués',
   'settings.blockedUsers.label': 'Utilisateurs bloqués',
-  'settings.blockedUsers.description': "Les utilisateurs que vous avez bloqués ne peuvent pas vous envoyer de messages ni voir quand vous êtes en ligne.",
+  'settings.blockedUsers.description':
+    'Les utilisateurs que vous avez bloqués ne peuvent pas vous envoyer de messages ni voir quand vous êtes en ligne.',
   'settings.blockedUsers.emptyState': "Vous n'avez encore bloqué personne.",
   'settings.visibility.title': 'Visibilité',
   'settings.visibility.profileLabel': 'Visibilité du profil',
   'settings.visibility.open': 'Ouvert (par défaut)',
-  'settings.visibility.openDescription': 'Votre profil peut être consulté par quiconque suit votre lien de profil ou votre code QR.',
+  'settings.visibility.openDescription':
+    'Votre profil peut être consulté par quiconque suit votre lien de profil ou votre code QR.',
   'settings.visibility.restricted': 'Restreint',
-  'settings.visibility.restrictedDescription': 'Seuls les utilisateurs autorisés ou disposant d\'un lien sécurisé temporaire peuvent voir votre profil.',
+  'settings.visibility.restrictedDescription':
+    "Seuls les utilisateurs autorisés ou disposant d'un lien sécurisé temporaire peuvent voir votre profil.",
   'settings.visibility.documentsLabel': 'Visibilité des documents',
   'settings.visibility.full': 'Complète (par défaut)',
-  'settings.visibility.fullDescription': 'Montrer tous les documents à ceux qui peuvent voir votre profil.',
+  'settings.visibility.fullDescription':
+    'Montrer tous les documents à ceux qui peuvent voir votre profil.',
   'settings.visibility.individual': 'Individuelle',
-  'settings.visibility.individualDescription': 'Vous devez partager chaque document individuellement avant que d\'autres puissent le voir.',
+  'settings.visibility.individualDescription':
+    "Vous devez partager chaque document individuellement avant que d'autres puissent le voir.",
   'settings.referrals.title': 'Parrainages',
   'settings.referrals.giftPart1': 'Offrez 25 à vos amis',
   'settings.referrals.giftPart2': 'et recevez 25',
-  'settings.referrals.giftPart3': 'Envoyez une invitation à vos amis avec votre code d\'invitation personnel.',
+  'settings.referrals.giftPart3':
+    "Envoyez une invitation à vos amis avec votre code d'invitation personnel.",
   'settings.referrals.yourCode': "Votre code d'invitation",
-  'settings.referrals.enterReferralCode': 'Ou entrez votre code de parrainage pour gagner des pièces',
+  'settings.referrals.enterReferralCode':
+    'Ou entrez votre code de parrainage pour gagner des pièces',
   'settings.manageData.title': 'Gérer les données',
   'settings.manageData.downloadLabel': 'Télécharger vos données',
-  'settings.manageData.downloadDescription': 'Vos données vous appartiennent. Appuyez sur le bouton ci-dessous pour en télécharger une copie',
+  'settings.manageData.downloadDescription':
+    'Vos données vous appartiennent. Appuyez sur le bouton ci-dessous pour en télécharger une copie',
   'settings.manageData.deleteLabel': 'Supprimer votre compte',
-  'settings.manageData.deleteDescription': 'À utiliser uniquement si vous souhaitez supprimer définitivement votre compte et vos données de notre système.',
-  'settings.manageData.deleteDisclosure': "En raison de la nature immuable de la technologie des registres distribués, les nœuds du réseau exploités par la communauté peuvent conserver des transactions historiques générées par votre compte ; toutefois, vos informations personnelles identifiables telles que votre nom, e-mail, stockage clé-valeur, etc. seront supprimées. Tous vos actifs numériques seront perdus.",
+  'settings.manageData.deleteDescription':
+    'À utiliser uniquement si vous souhaitez supprimer définitivement votre compte et vos données de notre système.',
+  'settings.manageData.deleteDisclosure':
+    'En raison de la nature immuable de la technologie des registres distribués, les nœuds du réseau exploités par la communauté peuvent conserver des transactions historiques générées par votre compte ; toutefois, vos informations personnelles identifiables telles que votre nom, e-mail, stockage clé-valeur, etc. seront supprimées. Tous vos actifs numériques seront perdus.',
   'files.panel.title': 'Fichiers',
   'files.filter.all': 'Tous',
   'files.filter.media': 'Médias',
@@ -465,7 +511,8 @@ const fr: UiStringTable = {
   'files.empty.title': 'Aucun fichier',
   'files.empty.subtitle': 'Les fichiers que vous envoyez apparaîtront ici.',
   'files.noResults': 'Aucun fichier ne correspond à votre recherche',
-  'files.noResults.moreAvailable': 'Tous les fichiers ne sont pas encore chargés, chargez-en plus pour continuer la recherche',
+  'files.noResults.moreAvailable':
+    'Tous les fichiers ne sont pas encore chargés, chargez-en plus pour continuer la recherche',
   'files.loading': 'Chargement des fichiers...',
   'files.error.title': 'Impossible de charger les fichiers',
   'files.action.retry': 'Réessayer',
@@ -474,11 +521,16 @@ const fr: UiStringTable = {
   'files.action.download': 'Télécharger',
   'files.action.delete': 'Supprimer',
   'files.delete.confirmTitle': 'Supprimer ce fichier ?',
-  'files.delete.confirmMessage': 'Ce fichier sera définitivement supprimé. Cette action est irréversible.',
+  'files.delete.confirmMessage':
+    'Ce fichier sera définitivement supprimé. Cette action est irréversible.',
   'files.delete.failed': 'Échec de la suppression du fichier',
   'modal.chatProfile.filesTitle': 'Fichiers',
   'modal.chatProfile.filesShowAll': 'Tout afficher',
   'modal.chatProfile.filesEmpty': 'Aucun fichier dans ce salon pour le moment',
+  'error.boundary.title': 'Une erreur est survenue',
+  'error.boundary.description':
+    'Le chat a rencontré un problème inattendu. Vos messages sont intacts.',
+  'error.boundary.retry': 'Réessayer',
 };
 
 const es: UiStringTable = {
@@ -495,7 +547,8 @@ const es: UiStringTable = {
   'common.or': 'O',
   'tabs.label': 'Secciones de la barra lateral',
   'call.disabled.roomType': 'Las llamadas solo están disponibles en chats 1:1',
-  'call.disabled.noLivekit': 'Llamadas no disponibles: el servicio de video no está configurado',
+  'call.disabled.noLivekit':
+    'Llamadas no disponibles: el servicio de video no está configurado',
   'call.disabled.busy': 'Ya hay otra llamada en curso',
   'date.today': 'Hoy',
   'date.yesterday': 'Ayer',
@@ -540,7 +593,8 @@ const es: UiStringTable = {
   'translation.translating': 'Traduciendo…',
   'translation.failed': 'No se pudo traducir',
   'translation.enableToggleLabel': 'Traducir mis mensajes',
-  'translation.enableToggleDisclaimer': 'Si las traducciones no estaban activadas, solo se traducirán los mensajes nuevos enviados a partir de ahora.',
+  'translation.enableToggleDisclaimer':
+    'Si las traducciones no estaban activadas, solo se traducirán los mensajes nuevos enviados a partir de ahora.',
   'translation.modeLabel': 'Visualización de traducciones',
   'translation.modeAuto': 'Automático',
   'translation.modeManual': 'Manual',
@@ -551,7 +605,8 @@ const es: UiStringTable = {
   'modal.newChat.typePublic': 'Público',
   'modal.newChat.typePrivate': 'Privado',
   'modal.newChat.selectUsersTitle': 'Selecciona usuarios para añadir al chat',
-  'modal.filePreview.unsupported': 'No se puede abrir el documento cargado. El formato del archivo no es compatible con el sistema. Cargue un archivo en un formato compatible. Aún puede descargar este archivo.',
+  'modal.filePreview.unsupported':
+    'No se puede abrir el documento cargado. El formato del archivo no es compatible con el sistema. Cargue un archivo en un formato compatible. Aún puede descargar este archivo.',
   'modal.selectUsers.title': 'Seleccionar usuarios (máx. 20)',
   'modal.selectUsers.searchPlaceholder': 'Buscar usuarios...',
   'mention.pickerTitle': 'Mencionar a alguien',
@@ -594,7 +649,8 @@ const es: UiStringTable = {
   'toast.loginErrorTitle': 'Error de inicio de sesión',
   'toast.loginErrorMessage': 'Ocurrió un error durante el inicio de sesión',
   'validation.invalidEmail': 'Formato de correo inválido',
-  'validation.passwordTooShort': 'La contraseña debe tener al menos 6 caracteres',
+  'validation.passwordTooShort':
+    'La contraseña debe tener al menos 6 caracteres',
   'validation.wrongCredentials': 'Datos incorrectos. Inténtalo de nuevo',
   'field.email': 'Correo electrónico',
   'field.password': 'Contraseña',
@@ -644,7 +700,8 @@ const es: UiStringTable = {
   'modal.leaveChat.description': '¿Seguro que quieres salir de este chat?',
   'modal.report.chatTitle': 'Reportar chat',
   'modal.report.messageTitle': 'Reportar mensaje',
-  'modal.report.otherDetails': 'Introduce detalles adicionales relevantes para tu reporte.',
+  'modal.report.otherDetails':
+    'Introduce detalles adicionales relevantes para tu reporte.',
   'report.category.spam': 'Spam',
   'report.category.violence': 'Violencia',
   'report.category.childAbuse': 'Abuso infantil',
@@ -658,38 +715,51 @@ const es: UiStringTable = {
   'settings.shares.listOfShares': 'Lista de recursos compartidos',
   'settings.documentShares.title': 'Documentos compartidos',
   'settings.documentShares.currentShares': 'Documentos compartidos actuales',
-  'settings.documentShares.description': 'A continuación se muestran tus enlaces de documentos compartidos activos. Puedes compartirlos o eliminarlos.',
-  'settings.documentShares.emptyState': 'Todavía no hay recursos compartidos, o puedes añadirlos haciendo clic en el botón "Añadir nuevo recurso compartido"',
+  'settings.documentShares.description':
+    'A continuación se muestran tus enlaces de documentos compartidos activos. Puedes compartirlos o eliminarlos.',
+  'settings.documentShares.emptyState':
+    'Todavía no hay recursos compartidos, o puedes añadirlos haciendo clic en el botón "Añadir nuevo recurso compartido"',
   'settings.profileShares.title': 'Perfil compartido',
   'settings.profileShares.currentShares': 'Perfiles compartidos actuales',
-  'settings.profileShares.description': 'A continuación se muestran tus enlaces de perfil compartido activos. Puedes compartirlos o eliminarlos.',
+  'settings.profileShares.description':
+    'A continuación se muestran tus enlaces de perfil compartido activos. Puedes compartirlos o eliminarlos.',
   'settings.blockedUsers.title': 'Usuarios bloqueados',
   'settings.blockedUsers.label': 'Usuarios bloqueados',
-  'settings.blockedUsers.description': 'Los usuarios que hayas bloqueado no podrán enviarte mensajes ni ver cuándo estás en línea.',
+  'settings.blockedUsers.description':
+    'Los usuarios que hayas bloqueado no podrán enviarte mensajes ni ver cuándo estás en línea.',
   'settings.blockedUsers.emptyState': 'Todavía no has bloqueado a nadie.',
   'settings.visibility.title': 'Visibilidad',
   'settings.visibility.profileLabel': 'Visibilidad del perfil',
   'settings.visibility.open': 'Abierto (predeterminado)',
-  'settings.visibility.openDescription': 'Cualquiera que siga el enlace de tu perfil o tu código QR puede ver tu perfil.',
+  'settings.visibility.openDescription':
+    'Cualquiera que siga el enlace de tu perfil o tu código QR puede ver tu perfil.',
   'settings.visibility.restricted': 'Restringido',
-  'settings.visibility.restrictedDescription': 'Solo los usuarios con tu permiso o un enlace seguro temporal pueden ver tu perfil.',
+  'settings.visibility.restrictedDescription':
+    'Solo los usuarios con tu permiso o un enlace seguro temporal pueden ver tu perfil.',
   'settings.visibility.documentsLabel': 'Visibilidad de documentos',
   'settings.visibility.full': 'Completa (predeterminada)',
-  'settings.visibility.fullDescription': 'Mostrar todos los documentos a quienes puedan ver tu perfil.',
+  'settings.visibility.fullDescription':
+    'Mostrar todos los documentos a quienes puedan ver tu perfil.',
   'settings.visibility.individual': 'Individual',
-  'settings.visibility.individualDescription': 'Debes compartir cada documento individualmente antes de que otros puedan verlo.',
+  'settings.visibility.individualDescription':
+    'Debes compartir cada documento individualmente antes de que otros puedan verlo.',
   'settings.referrals.title': 'Referidos',
   'settings.referrals.giftPart1': 'Regala 25 a tus amigos',
   'settings.referrals.giftPart2': 'y recibe 25',
-  'settings.referrals.giftPart3': 'Envía una invitación a tus amigos con tu código de invitación personal.',
+  'settings.referrals.giftPart3':
+    'Envía una invitación a tus amigos con tu código de invitación personal.',
   'settings.referrals.yourCode': 'Tu código de invitación',
-  'settings.referrals.enterReferralCode': 'O introduce tu código de referido para ganar monedas',
+  'settings.referrals.enterReferralCode':
+    'O introduce tu código de referido para ganar monedas',
   'settings.manageData.title': 'Gestionar datos',
   'settings.manageData.downloadLabel': 'Descarga tus datos',
-  'settings.manageData.downloadDescription': 'Tus datos te pertenecen. Toca el botón de abajo para descargar una copia de tus datos',
+  'settings.manageData.downloadDescription':
+    'Tus datos te pertenecen. Toca el botón de abajo para descargar una copia de tus datos',
   'settings.manageData.deleteLabel': 'Elimina tu cuenta',
-  'settings.manageData.deleteDescription': 'Utiliza esto solo si deseas eliminar permanentemente tu cuenta y tus datos de nuestro sistema.',
-  'settings.manageData.deleteDisclosure': 'Debido a la naturaleza inmutable de la tecnología de registro distribuido, los nodos de red operados por la comunidad pueden seguir conservando transacciones históricas generadas por tu cuenta; sin embargo, tu información personal identificable, como tu nombre, correo electrónico y almacenamiento clave-valor, será eliminada. Se perderán todos tus activos digitales.',
+  'settings.manageData.deleteDescription':
+    'Utiliza esto solo si deseas eliminar permanentemente tu cuenta y tus datos de nuestro sistema.',
+  'settings.manageData.deleteDisclosure':
+    'Debido a la naturaleza inmutable de la tecnología de registro distribuido, los nodos de red operados por la comunidad pueden seguir conservando transacciones históricas generadas por tu cuenta; sin embargo, tu información personal identificable, como tu nombre, correo electrónico y almacenamiento clave-valor, será eliminada. Se perderán todos tus activos digitales.',
   'files.panel.title': 'Archivos',
   'files.filter.all': 'Todos',
   'files.filter.media': 'Multimedia',
@@ -699,7 +769,8 @@ const es: UiStringTable = {
   'files.empty.title': 'Aún no hay archivos',
   'files.empty.subtitle': 'Los archivos que subas aparecerán aquí.',
   'files.noResults': 'Ningún archivo coincide con tu búsqueda',
-  'files.noResults.moreAvailable': 'Aún no se han cargado todos los archivos, carga más para seguir buscando',
+  'files.noResults.moreAvailable':
+    'Aún no se han cargado todos los archivos, carga más para seguir buscando',
   'files.loading': 'Cargando archivos...',
   'files.error.title': 'No se pudieron cargar los archivos',
   'files.action.retry': 'Reintentar',
@@ -708,11 +779,16 @@ const es: UiStringTable = {
   'files.action.download': 'Descargar',
   'files.action.delete': 'Eliminar',
   'files.delete.confirmTitle': '¿Eliminar este archivo?',
-  'files.delete.confirmMessage': 'Este archivo se eliminará permanentemente. Esta acción no se puede deshacer.',
+  'files.delete.confirmMessage':
+    'Este archivo se eliminará permanentemente. Esta acción no se puede deshacer.',
   'files.delete.failed': 'No se pudo eliminar el archivo',
   'modal.chatProfile.filesTitle': 'Archivos',
   'modal.chatProfile.filesShowAll': 'Ver todos',
   'modal.chatProfile.filesEmpty': 'Aún no hay archivos en este chat',
+  'error.boundary.title': 'Algo salió mal',
+  'error.boundary.description':
+    'El chat encontró un problema inesperado. Tus mensajes están a salvo.',
+  'error.boundary.retry': 'Intentar de nuevo',
 };
 
 const pt: UiStringTable = {
@@ -729,7 +805,8 @@ const pt: UiStringTable = {
   'common.or': 'Ou',
   'tabs.label': 'Seções da barra lateral',
   'call.disabled.roomType': 'Chamadas disponíveis apenas em conversas 1:1',
-  'call.disabled.noLivekit': 'Chamadas indisponíveis: serviço de vídeo não configurado',
+  'call.disabled.noLivekit':
+    'Chamadas indisponíveis: serviço de vídeo não configurado',
   'call.disabled.busy': 'Outra chamada já está em andamento',
   'date.today': 'Hoje',
   'date.yesterday': 'Ontem',
@@ -774,18 +851,21 @@ const pt: UiStringTable = {
   'translation.translating': 'A traduzir…',
   'translation.failed': 'Não foi possível traduzir',
   'translation.enableToggleLabel': 'Traduzir minhas mensagens',
-  'translation.enableToggleDisclaimer': 'Se as traduções não estavam ativadas, apenas as novas mensagens enviadas a partir de agora serão traduzidas.',
+  'translation.enableToggleDisclaimer':
+    'Se as traduções não estavam ativadas, apenas as novas mensagens enviadas a partir de agora serão traduzidas.',
   'translation.modeLabel': 'Exibição de traduções',
   'translation.modeAuto': 'Automático',
   'translation.modeManual': 'Manual',
   'language.select': 'Selecionar idioma',
   'modal.newChat.title': 'Criar novo chat',
-  'modal.filePreview.unsupported': 'Não é possível abrir o documento carregado. O formato do ficheiro não é suportado pelo sistema. Carregue um ficheiro num formato compatível. Ainda pode transferir este ficheiro.',
+  'modal.filePreview.unsupported':
+    'Não é possível abrir o documento carregado. O formato do ficheiro não é suportado pelo sistema. Carregue um ficheiro num formato compatível. Ainda pode transferir este ficheiro.',
   'modal.newChat.roomNamePlaceholder': 'Nome da sala',
   'modal.newChat.chatTypePlaceholder': 'Selecione o tipo de chat',
   'modal.newChat.typePublic': 'Público',
   'modal.newChat.typePrivate': 'Privado',
-  'modal.newChat.selectUsersTitle': 'Selecione utilizadores para adicionar ao chat',
+  'modal.newChat.selectUsersTitle':
+    'Selecione utilizadores para adicionar ao chat',
   'modal.selectUsers.title': 'Selecionar utilizadores (máx. 20)',
   'modal.selectUsers.searchPlaceholder': 'Pesquisar utilizadores...',
   'mention.pickerTitle': 'Mencionar alguém',
@@ -814,7 +894,8 @@ const pt: UiStringTable = {
     'Este PDF não pode ser apresentado aqui. Ainda pode abri-lo ou transferi-lo.',
   'toast.error': 'Erro',
   'toast.couldNotOpenPrivateChat': 'Não foi possível abrir o novo chat privado',
-  'toast.couldNotResolveRecipient': 'Não foi possível identificar o destinatário',
+  'toast.couldNotResolveRecipient':
+    'Não foi possível identificar o destinatário',
   'toast.failedToCreatePrivateChat': 'Falha ao criar o chat privado',
   'toast.failedToCreateCall': 'Falha ao criar a chamada',
   'toast.failedToDeleteUser': 'Falha ao eliminar o utilizador.',
@@ -828,7 +909,8 @@ const pt: UiStringTable = {
   'toast.loginErrorTitle': 'Erro ao iniciar sessão',
   'toast.loginErrorMessage': 'Ocorreu um erro ao iniciar sessão',
   'validation.invalidEmail': 'Formato de email inválido',
-  'validation.passwordTooShort': 'A palavra-passe deve ter pelo menos 6 caracteres',
+  'validation.passwordTooShort':
+    'A palavra-passe deve ter pelo menos 6 caracteres',
   'validation.wrongCredentials': 'Dados incorretos. Tente novamente',
   'field.email': 'Email',
   'field.password': 'Palavra-passe',
@@ -878,7 +960,8 @@ const pt: UiStringTable = {
   'modal.leaveChat.description': 'Tem a certeza de que quer sair deste chat?',
   'modal.report.chatTitle': 'Denunciar chat',
   'modal.report.messageTitle': 'Denunciar mensagem',
-  'modal.report.otherDetails': 'Indique detalhes adicionais relevantes para a sua denúncia.',
+  'modal.report.otherDetails':
+    'Indique detalhes adicionais relevantes para a sua denúncia.',
   'report.category.spam': 'Spam',
   'report.category.violence': 'Violência',
   'report.category.childAbuse': 'Abuso infantil',
@@ -892,38 +975,51 @@ const pt: UiStringTable = {
   'settings.shares.listOfShares': 'Lista de partilhas',
   'settings.documentShares.title': 'Partilhas de documentos',
   'settings.documentShares.currentShares': 'Partilhas de documentos atuais',
-  'settings.documentShares.description': 'Abaixo estão as suas ligações de partilha de documentos ativas. Pode partilhá-las ou eliminá-las.',
-  'settings.documentShares.emptyState': 'Ainda não há partilhas, ou pode adicioná-las clicando no botão "Adicionar nova partilha"',
+  'settings.documentShares.description':
+    'Abaixo estão as suas ligações de partilha de documentos ativas. Pode partilhá-las ou eliminá-las.',
+  'settings.documentShares.emptyState':
+    'Ainda não há partilhas, ou pode adicioná-las clicando no botão "Adicionar nova partilha"',
   'settings.profileShares.title': 'Partilhas de perfil',
   'settings.profileShares.currentShares': 'Partilhas de perfil atuais',
-  'settings.profileShares.description': 'Abaixo estão as suas ligações de partilha de perfil ativas. Pode partilhá-las ou eliminá-las.',
+  'settings.profileShares.description':
+    'Abaixo estão as suas ligações de partilha de perfil ativas. Pode partilhá-las ou eliminá-las.',
   'settings.blockedUsers.title': 'Utilizadores bloqueados',
   'settings.blockedUsers.label': 'Utilizadores bloqueados',
-  'settings.blockedUsers.description': 'Os utilizadores que bloqueou não lhe podem enviar mensagens nem ver quando está online.',
+  'settings.blockedUsers.description':
+    'Os utilizadores que bloqueou não lhe podem enviar mensagens nem ver quando está online.',
   'settings.blockedUsers.emptyState': 'Ainda não bloqueou ninguém.',
   'settings.visibility.title': 'Visibilidade',
   'settings.visibility.profileLabel': 'Visibilidade do perfil',
   'settings.visibility.open': 'Aberto (predefinição)',
-  'settings.visibility.openDescription': 'O seu perfil pode ser visto por qualquer pessoa que siga a ligação do seu perfil ou o código QR.',
+  'settings.visibility.openDescription':
+    'O seu perfil pode ser visto por qualquer pessoa que siga a ligação do seu perfil ou o código QR.',
   'settings.visibility.restricted': 'Restrito',
-  'settings.visibility.restrictedDescription': 'Só os utilizadores com a sua permissão ou com uma ligação segura temporária podem ver o seu perfil.',
+  'settings.visibility.restrictedDescription':
+    'Só os utilizadores com a sua permissão ou com uma ligação segura temporária podem ver o seu perfil.',
   'settings.visibility.documentsLabel': 'Visibilidade dos documentos',
   'settings.visibility.full': 'Total (predefinição)',
-  'settings.visibility.fullDescription': 'Mostrar todos os documentos a quem pode ver o seu perfil.',
+  'settings.visibility.fullDescription':
+    'Mostrar todos os documentos a quem pode ver o seu perfil.',
   'settings.visibility.individual': 'Individual',
-  'settings.visibility.individualDescription': 'Tem de partilhar cada documento individualmente antes que outros o possam ver.',
+  'settings.visibility.individualDescription':
+    'Tem de partilhar cada documento individualmente antes que outros o possam ver.',
   'settings.referrals.title': 'Referências',
   'settings.referrals.giftPart1': 'Ofereça 25 aos amigos',
   'settings.referrals.giftPart2': 'e receba 25',
-  'settings.referrals.giftPart3': 'Envie um convite aos amigos com o seu código de convite pessoal.',
+  'settings.referrals.giftPart3':
+    'Envie um convite aos amigos com o seu código de convite pessoal.',
   'settings.referrals.yourCode': 'O seu código de convite',
-  'settings.referrals.enterReferralCode': 'Ou introduza o seu código de referência para ganhar moedas',
+  'settings.referrals.enterReferralCode':
+    'Ou introduza o seu código de referência para ganhar moedas',
   'settings.manageData.title': 'Gerir dados',
   'settings.manageData.downloadLabel': 'Transferir os seus dados',
-  'settings.manageData.downloadDescription': 'Os dados são seus. Toque no botão abaixo para transferir uma cópia dos seus dados',
+  'settings.manageData.downloadDescription':
+    'Os dados são seus. Toque no botão abaixo para transferir uma cópia dos seus dados',
   'settings.manageData.deleteLabel': 'Eliminar a sua conta',
-  'settings.manageData.deleteDescription': 'Use isto apenas se quiser eliminar permanentemente a sua conta e os seus dados do nosso sistema.',
-  'settings.manageData.deleteDisclosure': 'Devido à natureza imutável da tecnologia de registo distribuído, os nós da rede operados pela comunidade podem manter transações históricas geradas pela sua conta; no entanto, as suas informações de identificação pessoal, como nome, email e armazenamento chave-valor, serão removidas. Todos os seus ativos digitais serão perdidos.',
+  'settings.manageData.deleteDescription':
+    'Use isto apenas se quiser eliminar permanentemente a sua conta e os seus dados do nosso sistema.',
+  'settings.manageData.deleteDisclosure':
+    'Devido à natureza imutável da tecnologia de registo distribuído, os nós da rede operados pela comunidade podem manter transações históricas geradas pela sua conta; no entanto, as suas informações de identificação pessoal, como nome, email e armazenamento chave-valor, serão removidas. Todos os seus ativos digitais serão perdidos.',
   'files.panel.title': 'Arquivos',
   'files.filter.all': 'Todos',
   'files.filter.media': 'Mídia',
@@ -933,7 +1029,8 @@ const pt: UiStringTable = {
   'files.empty.title': 'Ainda não há arquivos',
   'files.empty.subtitle': 'Os arquivos que você enviar aparecerão aqui.',
   'files.noResults': 'Nenhum arquivo corresponde à sua pesquisa',
-  'files.noResults.moreAvailable': 'Nem todos os arquivos foram carregados, carregue mais para continuar a busca',
+  'files.noResults.moreAvailable':
+    'Nem todos os arquivos foram carregados, carregue mais para continuar a busca',
   'files.loading': 'Carregando arquivos...',
   'files.error.title': 'Não foi possível carregar os arquivos',
   'files.action.retry': 'Tentar novamente',
@@ -942,11 +1039,16 @@ const pt: UiStringTable = {
   'files.action.download': 'Baixar',
   'files.action.delete': 'Excluir',
   'files.delete.confirmTitle': 'Excluir este arquivo?',
-  'files.delete.confirmMessage': 'Este arquivo será excluído permanentemente. Esta ação não pode ser desfeita.',
+  'files.delete.confirmMessage':
+    'Este arquivo será excluído permanentemente. Esta ação não pode ser desfeita.',
   'files.delete.failed': 'Falha ao excluir o arquivo',
   'modal.chatProfile.filesTitle': 'Arquivos',
   'modal.chatProfile.filesShowAll': 'Ver todos',
   'modal.chatProfile.filesEmpty': 'Ainda não há arquivos neste chat',
+  'error.boundary.title': 'Algo correu mal',
+  'error.boundary.description':
+    'O chat encontrou um problema inesperado. As suas mensagens estão seguras.',
+  'error.boundary.retry': 'Tentar novamente',
 };
 
 const ht: UiStringTable = {
@@ -1008,10 +1110,12 @@ const ht: UiStringTable = {
   'translation.translating': 'Ap tradui…',
   'translation.failed': 'Pa t kapab tradui',
   'translation.enableToggleLabel': 'Tradui mesaj mwen yo',
-  'translation.enableToggleDisclaimer': "Si tradiksyon yo pa t aktive, se sèlman nouvo mesaj ou voye apati kounye a ki pral tradui.",
+  'translation.enableToggleDisclaimer':
+    'Si tradiksyon yo pa t aktive, se sèlman nouvo mesaj ou voye apati kounye a ki pral tradui.',
   'translation.modeLabel': 'Afichaj tradiksyon',
   'translation.modeAuto': 'Otomatik',
-  'modal.filePreview.unsupported': 'Nou pa ka louvri dokiman telechaje a. Fòma fichye a pa sipòte pa sistèm nan. Tanpri telechaje yon fichye nan yon fòma konpatib. Ou toujou ka telechaje fichye sa a.',
+  'modal.filePreview.unsupported':
+    'Nou pa ka louvri dokiman telechaje a. Fòma fichye a pa sipòte pa sistèm nan. Tanpri telechaje yon fichye nan yon fòma konpatib. Ou toujou ka telechaje fichye sa a.',
   'translation.modeManual': 'Manyèl',
   'language.select': 'Chwazi lang',
   'modal.newChat.title': 'Kreye yon nouvo chat',
@@ -1112,7 +1216,8 @@ const ht: UiStringTable = {
   'modal.leaveChat.description': 'Èske ou sèten ou vle kite chat sa a?',
   'modal.report.chatTitle': 'Rapòte chat la',
   'modal.report.messageTitle': 'Rapòte mesaj la',
-  'modal.report.otherDetails': 'Tanpri antre detay anplis ki gen rapò ak rapò ou a.',
+  'modal.report.otherDetails':
+    'Tanpri antre detay anplis ki gen rapò ak rapò ou a.',
   'report.category.spam': 'Spam',
   'report.category.violence': 'Vyolans',
   'report.category.childAbuse': 'Abi sou timoun',
@@ -1126,38 +1231,51 @@ const ht: UiStringTable = {
   'settings.shares.listOfShares': 'Lis pataj yo',
   'settings.documentShares.title': 'Pataj dokiman',
   'settings.documentShares.currentShares': 'Pataj dokiman aktyèl yo',
-  'settings.documentShares.description': 'Anba a se lyen pataj dokiman ou yo ki aktif. Ou ka pataje yo oswa efase yo.',
-  'settings.documentShares.emptyState': 'Pa gen pataj pou kounye a, oswa ou ka ajoute yo lè ou klike sou bouton "Ajoute yon nouvo pataj"',
+  'settings.documentShares.description':
+    'Anba a se lyen pataj dokiman ou yo ki aktif. Ou ka pataje yo oswa efase yo.',
+  'settings.documentShares.emptyState':
+    'Pa gen pataj pou kounye a, oswa ou ka ajoute yo lè ou klike sou bouton "Ajoute yon nouvo pataj"',
   'settings.profileShares.title': 'Pataj pwofil',
   'settings.profileShares.currentShares': 'Pataj pwofil aktyèl yo',
-  'settings.profileShares.description': 'Anba a se lyen pataj pwofil ou yo ki aktif. Ou ka pataje yo oswa efase yo.',
+  'settings.profileShares.description':
+    'Anba a se lyen pataj pwofil ou yo ki aktif. Ou ka pataje yo oswa efase yo.',
   'settings.blockedUsers.title': 'Itilizatè bloke',
   'settings.blockedUsers.label': 'Itilizatè bloke',
-  'settings.blockedUsers.description': 'Itilizatè ou bloke yo pa ka voye mesaj ba ou ni wè lè ou an liy.',
+  'settings.blockedUsers.description':
+    'Itilizatè ou bloke yo pa ka voye mesaj ba ou ni wè lè ou an liy.',
   'settings.blockedUsers.emptyState': 'Ou poko bloke pèsonn.',
   'settings.visibility.title': 'Vizibilite',
   'settings.visibility.profileLabel': 'Vizibilite pwofil la',
   'settings.visibility.open': 'Louvri (default)',
-  'settings.visibility.openDescription': 'Nenpòt moun ki swiv lyen pwofil ou a oswa kòd QR ou a ka wè pwofil ou.',
+  'settings.visibility.openDescription':
+    'Nenpòt moun ki swiv lyen pwofil ou a oswa kòd QR ou a ka wè pwofil ou.',
   'settings.visibility.restricted': 'Limite',
-  'settings.visibility.restrictedDescription': 'Sèlman itilizatè ki gen pèmisyon ou oswa yon lyen sekirize tanporè ka wè pwofil ou.',
+  'settings.visibility.restrictedDescription':
+    'Sèlman itilizatè ki gen pèmisyon ou oswa yon lyen sekirize tanporè ka wè pwofil ou.',
   'settings.visibility.documentsLabel': 'Vizibilite dokiman yo',
   'settings.visibility.full': 'Konplè (default)',
-  'settings.visibility.fullDescription': 'Montre tout dokiman yo bay moun ki ka wè pwofil ou.',
+  'settings.visibility.fullDescription':
+    'Montre tout dokiman yo bay moun ki ka wè pwofil ou.',
   'settings.visibility.individual': 'Endividyèl',
-  'settings.visibility.individualDescription': 'Ou dwe pataje chak dokiman endividyèlman anvan lòt moun ka wè yo.',
+  'settings.visibility.individualDescription':
+    'Ou dwe pataje chak dokiman endividyèlman anvan lòt moun ka wè yo.',
   'settings.referrals.title': 'Referans',
   'settings.referrals.giftPart1': 'Bay zanmi 25',
   'settings.referrals.giftPart2': 'epi resevwa 25',
-  'settings.referrals.giftPart3': 'Voye yon envitasyon bay zanmi ou ak kòd envitasyon pèsonèl ou.',
+  'settings.referrals.giftPart3':
+    'Voye yon envitasyon bay zanmi ou ak kòd envitasyon pèsonèl ou.',
   'settings.referrals.yourCode': 'Kòd envitasyon ou',
-  'settings.referrals.enterReferralCode': 'Oswa antre kòd referans ou pou touche pyès monnen',
+  'settings.referrals.enterReferralCode':
+    'Oswa antre kòd referans ou pou touche pyès monnen',
   'settings.manageData.title': 'Jere done',
   'settings.manageData.downloadLabel': 'Telechaje done ou yo',
-  'settings.manageData.downloadDescription': 'Done yo se pa ou. Peze bouton anba a pou telechaje yon kopi done ou yo',
+  'settings.manageData.downloadDescription':
+    'Done yo se pa ou. Peze bouton anba a pou telechaje yon kopi done ou yo',
   'settings.manageData.deleteLabel': 'Efase kont ou',
-  'settings.manageData.deleteDescription': 'Sèvi ak sa a sèlman si ou vle efase kont ou ak done ou yo nèt nan sistèm nou an.',
-  'settings.manageData.deleteDisclosure': 'Akoz nati imityab teknoloji rejis distribiye a, nœud rezo kominote a opere yo ka toujou kenbe tranzaksyon istorik kont ou an te jenere; sepandan, enfòmasyon idantifyab pèsonèl ou yo tankou non ou, imèl ou ak depo kle-valè ou yo ap retire. Tout byen dijital ou yo ap pèdi.',
+  'settings.manageData.deleteDescription':
+    'Sèvi ak sa a sèlman si ou vle efase kont ou ak done ou yo nèt nan sistèm nou an.',
+  'settings.manageData.deleteDisclosure':
+    'Akoz nati imityab teknoloji rejis distribiye a, nœud rezo kominote a opere yo ka toujou kenbe tranzaksyon istorik kont ou an te jenere; sepandan, enfòmasyon idantifyab pèsonèl ou yo tankou non ou, imèl ou ak depo kle-valè ou yo ap retire. Tout byen dijital ou yo ap pèdi.',
   'files.panel.title': 'Fichye',
   'files.filter.all': 'Tout',
   'files.filter.media': 'Medya',
@@ -1167,7 +1285,8 @@ const ht: UiStringTable = {
   'files.empty.title': 'Poko gen fichye',
   'files.empty.subtitle': 'Fichye ou telechaje yo ap parèt isit la.',
   'files.noResults': 'Pa gen fichye ki matche ak rechèch ou',
-  'files.noResults.moreAvailable': 'Tout fichye yo poko chaje, chaje plis pou kontinye chèche',
+  'files.noResults.moreAvailable':
+    'Tout fichye yo poko chaje, chaje plis pou kontinye chèche',
   'files.loading': 'K ap chaje fichye...',
   'files.error.title': 'Pa t kapab chaje fichye yo',
   'files.action.retry': 'Eseye ankò',
@@ -1176,11 +1295,16 @@ const ht: UiStringTable = {
   'files.action.download': 'Telechaje',
   'files.action.delete': 'Efase',
   'files.delete.confirmTitle': 'Efase fichye sa a?',
-  'files.delete.confirmMessage': 'Fichye sa a ap efase pou tout tan. Ou pa ka defèt sa.',
+  'files.delete.confirmMessage':
+    'Fichye sa a ap efase pou tout tan. Ou pa ka defèt sa.',
   'files.delete.failed': 'Echèk nan efase fichye a',
   'modal.chatProfile.filesTitle': 'Fichye',
   'modal.chatProfile.filesShowAll': 'Wè tout',
   'modal.chatProfile.filesEmpty': 'Poko gen fichye nan chat sa a',
+  'error.boundary.title': 'Gen yon bagay ki pa mache',
+  'error.boundary.description':
+    'Chat la jwenn yon pwoblèm inatandi. Mesaj ou yo an sekirite.',
+  'error.boundary.retry': 'Eseye ankò',
 };
 
 const zh: UiStringTable = {
@@ -1242,10 +1366,12 @@ const zh: UiStringTable = {
   'translation.translating': '翻译中…',
   'translation.failed': '无法翻译',
   'translation.enableToggleLabel': '翻译我的消息',
-  'translation.enableToggleDisclaimer': '如果之前未启用翻译，只有从现在开始发送的新消息才会被翻译。',
+  'translation.enableToggleDisclaimer':
+    '如果之前未启用翻译，只有从现在开始发送的新消息才会被翻译。',
   'translation.modeLabel': '翻译显示方式',
   'translation.modeAuto': '自动',
-  'modal.filePreview.unsupported': '无法打开上传的文档。系统不支持该文件格式,请上传兼容格式的文件。您仍可以下载此文件。',
+  'modal.filePreview.unsupported':
+    '无法打开上传的文档。系统不支持该文件格式,请上传兼容格式的文件。您仍可以下载此文件。',
   'translation.modeManual': '手动',
   'language.select': '选择语言',
   'modal.newChat.title': '创建新聊天',
@@ -1359,26 +1485,33 @@ const zh: UiStringTable = {
   'settings.shares.listOfShares': '分享列表',
   'settings.documentShares.title': '文档分享',
   'settings.documentShares.currentShares': '当前文档分享',
-  'settings.documentShares.description': '以下是您当前有效的文档分享链接。您可以分享或删除它们。',
-  'settings.documentShares.emptyState': '暂无分享，您可以点击“添加新分享”按钮来添加',
+  'settings.documentShares.description':
+    '以下是您当前有效的文档分享链接。您可以分享或删除它们。',
+  'settings.documentShares.emptyState':
+    '暂无分享，您可以点击“添加新分享”按钮来添加',
   'settings.profileShares.title': '资料分享',
   'settings.profileShares.currentShares': '当前资料分享',
-  'settings.profileShares.description': '以下是您当前有效的资料分享链接。您可以分享或删除它们。',
+  'settings.profileShares.description':
+    '以下是您当前有效的资料分享链接。您可以分享或删除它们。',
   'settings.blockedUsers.title': '已屏蔽用户',
   'settings.blockedUsers.label': '已屏蔽用户',
-  'settings.blockedUsers.description': '被您屏蔽的用户无法向您发送消息，也无法看到您何时在线。',
+  'settings.blockedUsers.description':
+    '被您屏蔽的用户无法向您发送消息，也无法看到您何时在线。',
   'settings.blockedUsers.emptyState': '您还没有屏蔽任何人。',
   'settings.visibility.title': '可见性',
   'settings.visibility.profileLabel': '资料可见性',
   'settings.visibility.open': '公开（默认）',
-  'settings.visibility.openDescription': '任何打开您资料链接或扫描您二维码的人都可以查看您的资料。',
+  'settings.visibility.openDescription':
+    '任何打开您资料链接或扫描您二维码的人都可以查看您的资料。',
   'settings.visibility.restricted': '受限',
-  'settings.visibility.restrictedDescription': '只有获得您许可或持有临时安全链接的用户才能查看您的资料。',
+  'settings.visibility.restrictedDescription':
+    '只有获得您许可或持有临时安全链接的用户才能查看您的资料。',
   'settings.visibility.documentsLabel': '文档可见性',
   'settings.visibility.full': '全部（默认）',
   'settings.visibility.fullDescription': '向所有能查看您资料的人显示全部文档。',
   'settings.visibility.individual': '单独',
-  'settings.visibility.individualDescription': '您需要单独分享每个文档，其他人才能查看。',
+  'settings.visibility.individualDescription':
+    '您需要单独分享每个文档，其他人才能查看。',
   'settings.referrals.title': '推荐',
   'settings.referrals.giftPart1': '赠送好友 25',
   'settings.referrals.giftPart2': '并获得 25',
@@ -1387,10 +1520,13 @@ const zh: UiStringTable = {
   'settings.referrals.enterReferralCode': '或输入您的推荐码以赚取代币',
   'settings.manageData.title': '管理数据',
   'settings.manageData.downloadLabel': '下载您的数据',
-  'settings.manageData.downloadDescription': '您的数据归您所有。点击下方按钮下载您的数据副本',
+  'settings.manageData.downloadDescription':
+    '您的数据归您所有。点击下方按钮下载您的数据副本',
   'settings.manageData.deleteLabel': '删除您的账户',
-  'settings.manageData.deleteDescription': '仅当您希望从我们的系统中永久删除您的账户及数据时才使用此功能。',
-  'settings.manageData.deleteDisclosure': '由于分布式账本技术的不可篡改特性，社区运营的网络节点可能仍会保留您账户生成的历史交易记录；但您的个人身份信息，如姓名、电子邮箱、键值存储等将被移除。您的所有数字资产都将丢失。',
+  'settings.manageData.deleteDescription':
+    '仅当您希望从我们的系统中永久删除您的账户及数据时才使用此功能。',
+  'settings.manageData.deleteDisclosure':
+    '由于分布式账本技术的不可篡改特性，社区运营的网络节点可能仍会保留您账户生成的历史交易记录；但您的个人身份信息，如姓名、电子邮箱、键值存储等将被移除。您的所有数字资产都将丢失。',
   'files.panel.title': '文件',
   'files.filter.all': '全部',
   'files.filter.media': '媒体',
@@ -1414,6 +1550,9 @@ const zh: UiStringTable = {
   'modal.chatProfile.filesTitle': '文件',
   'modal.chatProfile.filesShowAll': '查看全部',
   'modal.chatProfile.filesEmpty': '此聊天中还没有文件',
+  'error.boundary.title': '出了点问题',
+  'error.boundary.description': '聊天遇到了意外问题。您的消息是安全的。',
+  'error.boundary.retry': '重试',
 };
 
 // Built-in tables keyed by base language. Add a language here (plus the code
