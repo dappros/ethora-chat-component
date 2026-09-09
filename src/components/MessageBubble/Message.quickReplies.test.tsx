@@ -1,0 +1,153 @@
+import React from 'react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { screen, fireEvent } from '@testing-library/react';
+import { renderWithProviders } from '../../test/renderWithProviders';
+import { Message } from './Message';
+import { IMessage, IRoom } from '../../types/types';
+import { resetAnsweredQuickReplies } from '../../helpers/quickReplies';
+
+vi.mock('../../context/xmppProvider', () => ({
+  useXmppClient: () => ({ client: { sendMessageReactionStanza: vi.fn() } }),
+}));
+
+const sendMessageMock = vi.fn();
+vi.mock('../../hooks/useSendMessage', () => ({
+  useSendMessage: () => ({ sendMessage: sendMessageMock }),
+  shouldTagOutgoingTranslateSource: () => false,
+}));
+
+const onQuickReply = vi.fn();
+
+const ROOM_JID = 'room1@conference.example.com';
+
+const makeMessage = (overrides: Partial<IMessage> = {}): IMessage =>
+  ({
+    id: 'bot-msg-1',
+    body: 'Would you like to take the quiz?',
+    date: new Date().toISOString(),
+    roomJid: ROOM_JID,
+    user: { id: 'bot', name: 'Assistant' },
+    ...overrides,
+  }) as IMessage;
+
+const makeRoom = (): IRoom =>
+  ({
+    jid: ROOM_JID,
+    name: 'room1',
+    title: 'Room 1',
+    usersCnt: 0,
+    messages: [],
+    isLoading: false,
+    roomBg: null,
+  }) as IRoom;
+
+function renderMessage(message: IMessage, isUser = false) {
+  return renderWithProviders(
+    <Message message={message} isUser={isUser} isReply={false} />,
+    {
+      preloadedState: {
+        chatSettingStore: {
+          user: { xmppUsername: 'me', firstName: 'Me', lastName: 'Myself' },
+          config: { eventHandlers: { onQuickReply } },
+        } as any,
+        rooms: { rooms: { [ROOM_JID]: makeRoom() }, usersSet: {} } as any,
+        roomHeapSlice: { messageHeap: [] } as any,
+      },
+    }
+  );
+}
+
+const BUTTONS = [
+  { name: 'Take Quiz', value: 'Take Quiz', questionId: 'start' },
+  { name: 'Not now', value: 'Not now' },
+];
+
+describe('Message - bot quick replies', () => {
+  beforeEach(() => {
+    sendMessageMock.mockClear();
+    onQuickReply.mockClear();
+    resetAnsweredQuickReplies();
+  });
+
+  it('renders a chip per button, from the raw JSON the bots already send', () => {
+    renderMessage(makeMessage({ quickReplies: JSON.stringify(BUTTONS) }));
+
+    expect(screen.getByRole('button', { name: 'Take Quiz' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Not now' })).toBeInTheDocument();
+  });
+
+  it('sends the answer into the room as an ordinary message on tap', () => {
+    renderMessage(makeMessage({ quickReplies: BUTTONS }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Take Quiz' }));
+
+    expect(sendMessageMock).toHaveBeenCalledWith('Take Quiz', ROOM_JID);
+  });
+
+  // What a host-scripted flow (the 5-question quiz) hangs off.
+  it('notifies the host of the answer, after the send', () => {
+    renderMessage(makeMessage({ quickReplies: BUTTONS }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Take Quiz' }));
+
+    expect(onQuickReply).toHaveBeenCalledWith({
+      messageId: 'bot-msg-1',
+      roomJID: ROOM_JID,
+      questionId: 'start',
+      reply: { name: 'Take Quiz', value: 'Take Quiz', questionId: 'start' },
+    });
+  });
+
+  // A host handler is untrusted code running mid-click; the answer is
+  // already sent by then and must not be undone by its failure.
+  it('survives a host handler that throws', () => {
+    onQuickReply.mockImplementationOnce(() => {
+      throw new Error('host blew up');
+    });
+    renderMessage(makeMessage({ quickReplies: BUTTONS }));
+
+    expect(() =>
+      fireEvent.click(screen.getByRole('button', { name: 'Take Quiz' }))
+    ).not.toThrow();
+    expect(sendMessageMock).toHaveBeenCalledWith('Take Quiz', ROOM_JID);
+  });
+
+  // Without a questionId the button's position is the question identity -
+  // otherwise every answer of a buttonless-id bot would collide on the same
+  // /quiz/<messageId>- path.
+  it('falls back to the button index when the bot sends no questionId', () => {
+    renderMessage(makeMessage({ quickReplies: BUTTONS }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
+
+    expect(onQuickReply).toHaveBeenCalledWith(
+      expect.objectContaining({ questionId: '1' })
+    );
+  });
+
+  // A double tap used to be the obvious way to submit two answers to one
+  // question.
+  it('locks every chip after the first answer', () => {
+    renderMessage(makeMessage({ quickReplies: BUTTONS }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Take Quiz' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Take Quiz' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
+
+    expect(sendMessageMock).toHaveBeenCalledTimes(1);
+    expect(onQuickReply).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Not now' })).toBeDisabled();
+  });
+
+  it('never shows buttons on the visitor own bubble', () => {
+    renderMessage(makeMessage({ quickReplies: BUTTONS }), true);
+
+    expect(screen.queryByRole('button', { name: 'Take Quiz' })).toBeNull();
+  });
+
+  it('ignores the empty quickReplies attribute legacy senders stamp everywhere', () => {
+    const { container } = renderMessage(makeMessage({ quickReplies: '' }));
+
+    expect(container.querySelector('[aria-label="Quick replies"]')).toBeNull();
+  });
+});

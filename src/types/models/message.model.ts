@@ -49,6 +49,12 @@ export interface IMessage {
   attachments?: IAttachment[];
   xmppId?: string;
   xmppFrom?: string;
+  // Bot-offered buttons ("Take Quiz", "Yes"/"No", ...), decoded from the
+  // `quickReplies` JSON attribute on the stanza's <data> element. Typed as
+  // `unknown` because a message restored from persist (or one that never
+  // went through getDataFromXml) can still hold the raw string - read it
+  // through `parseQuickReplies()` rather than directly.
+  quickReplies?: unknown;
   // @-mentions carried by this message's body, decoded from the `mentions`
   // JSON attribute on the stanza's <data> element (see getDataFromXml.ts).
   mentions?: IMentionSpan[];

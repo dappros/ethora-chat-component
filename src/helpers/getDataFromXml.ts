@@ -5,6 +5,7 @@ import { Iso639_1Codes } from '../types/types';
 import { ethoraLogger } from './ethoraLogger';
 import { safeJsonParse } from './safeJson';
 import { parseAttachments } from './attachments';
+import { parseQuickReplies } from './quickReplies';
 import { getTimestampFromUnknown } from './timestamp';
 import { normalizeXmppUsername } from './xmppUsername';
 
@@ -132,6 +133,21 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
   if (typeof dataAttrs.mentions === 'string') {
     const parsedMentions = safeJsonParse<unknown>(dataAttrs.mentions, []);
     dataAttrs.mentions = Array.isArray(parsedMentions) ? parsedMentions : [];
+  }
+
+  // `quickReplies` carries bot-offered buttons as a JSON string (the format
+  // the existing Ethora bots already send). Decode it here, next to
+  // `mentions` and `attachments`, so the bubble receives real objects.
+  if ('quickReplies' in dataAttrs) {
+    const buttons = parseQuickReplies(dataAttrs.quickReplies);
+    // Legacy senders stamp `quickReplies=""` on EVERY message; dropping the
+    // key when it decodes to nothing keeps that empty array out of the
+    // message object (and out of the persisted snapshot).
+    if (buttons.length) {
+      dataAttrs.quickReplies = buttons;
+    } else {
+      delete dataAttrs.quickReplies;
+    }
   }
 
   return {
