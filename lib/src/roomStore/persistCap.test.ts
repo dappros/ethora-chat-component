@@ -104,7 +104,6 @@ describe('compactMessageForPersist', () => {
       senderJID: 'a@example.com/res',
       senderWalletAddress: '0xabc',
       tokenAmount: '0',
-      quickReplies: '',
       notDisplayedValue: '',
       push: 'true',
       translations: { pt: { translatedText: 'olá', language: 'pt', languageName: 'Portuguese' } },
@@ -123,7 +122,6 @@ describe('compactMessageForPersist', () => {
       'senderJID',
       'senderWalletAddress',
       'tokenAmount',
-      'quickReplies',
       'notDisplayedValue',
       'push',
       'translations',
@@ -132,6 +130,19 @@ describe('compactMessageForPersist', () => {
     ]) {
       expect(compact[junk], junk).toBeUndefined();
     }
+  });
+
+  // quickReplies used to be junk (every legacy sender stamps an empty
+  // string), and getDataFromXml now drops it unless it decodes to real
+  // buttons - so what reaches persist is only ever a bot's answer options,
+  // which the bubble has to repaint from cache on reload.
+  it('keeps bot quick-reply buttons', () => {
+    const buttons = [{ name: 'Take Quiz', value: 'Take Quiz', questionId: 'q1' }];
+    const compact = compactMessageForPersist(
+      makeMessage('m1', { quickReplies: buttons } as any)
+    ) as any;
+
+    expect(compact.quickReplies).toEqual(buttons);
   });
 
   it('strips auth material an optimistic send leaked into message.user', () => {

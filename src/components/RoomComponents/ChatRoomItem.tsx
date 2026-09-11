@@ -20,6 +20,7 @@ import OnlineUsersPopover from './OnlineUsersPopover';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
 import { formatCallLogLabel } from '../../helpers/callLogMessage';
+import { stripBotMarkup } from '../../helpers/botMarkup';
 import { appendFileToken } from '../../helpers/secureFileUrl';
 import { RoomListTestIds } from '../../testIds';
 
@@ -109,7 +110,8 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
         // current language like the transcript does.
         body: message.callLog
           ? formatCallLogLabel(message.callLog, t, message.body)
-          : message.body,
+          : // An agent's <bot-data> buttons are for the bubble, not the preview.
+            stripBotMarkup(message.body),
         user: {
           ...message.user,
           name: safeName,

@@ -50,6 +50,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   'handleQRChatId',
   'isRefreshFatalError',
   'logoutService',
+  'parseQuickReplies',
   'refreshAuthTokens',
   'refreshAuthTokensQuietly',
   'resendMessage',

@@ -39,12 +39,6 @@ import { parseMessageReference } from '../../helpers/parseMessageReference';
 import { useMessageTranslation } from '../../hooks/useMessageTranslation';
 import TranslatedMessageBody from './TranslatedMessageBody';
 import { useT } from '../../i18n/useT';
-import styled from 'styled-components';
-import {
-  resolveTranslateMode,
-  shouldTagOutgoingTranslateSource,
-} from '../../utils/translateModePolicy';
-import { resendMessage } from '../../utils/resendMessage';
 import QuickReplies from './QuickReplies';
 import {
   parseQuickReplies,
@@ -52,6 +46,13 @@ import {
   QuickReply,
 } from '../../helpers/quickReplies';
 import { useSendMessage } from '../../hooks/useSendMessage';
+import { parseBotMarkup, stripBotMarkup } from '../../helpers/botMarkup';
+import styled from 'styled-components';
+import {
+  resolveTranslateMode,
+  shouldTagOutgoingTranslateSource,
+} from '../../utils/translateModePolicy';
+import { resendMessage } from '../../utils/resendMessage';
 
 // Inherits CustomMessageTimestamp's colour/size - just the WhatsApp/
 // Telegram-style italic to read as a tag, not a second timestamp.
@@ -357,10 +358,29 @@ const Message: React.FC<MessageProps> = forwardRef<
   // Buttons the bot attached to this message. Only ever shown on incoming
   // messages: an outgoing bubble carrying them would mean the user is
   // offering the bot a choice, which is not a thing.
-  const quickReplies = useMemo<QuickReply[]>(
-    () => (isUser ? [] : parseQuickReplies(message.quickReplies)),
-    [isUser, message.quickReplies]
+  // Buttons also arrive inside the reply text itself: an AI agent taught the
+  // Ethora chat protocol in its system prompt writes
+  // <bot-data type="buttons">[A],[B]</bot-data> into its answer, since the
+  // text is all it controls. Same buttons, same behaviour as the attribute.
+  const botMarkup = useMemo(
+    () => (isUser ? null : parseBotMarkup(message.body)),
+    [isUser, message.body]
   );
+
+  const quickReplies = useMemo<QuickReply[]>(() => {
+    if (isUser) return [];
+    const fromAttribute = parseQuickReplies(message.quickReplies);
+    const fromBody = botMarkup?.buttons ?? [];
+    if (!fromBody.length) return fromAttribute;
+    const seen = new Set(fromAttribute.map((reply) => reply.value));
+    const merged = [...fromAttribute];
+    for (const reply of fromBody) {
+      if (seen.has(reply.value)) continue;
+      seen.add(reply.value);
+      merged.push(reply);
+    }
+    return merged;
+  }, [isUser, message.quickReplies, botMarkup]);
 
   const handleQuickReply = useCallback(
     (reply: QuickReply, questionId: string) => {
@@ -494,11 +514,15 @@ const Message: React.FC<MessageProps> = forwardRef<
                 <DeletedMessage />
               ) : (
                 (() => {
-                  const displayText = config?.messageTextFilter?.enabled
+                  const filteredText = config?.messageTextFilter?.enabled
                     ? config.messageTextFilter.filterFunction(
                         translationDisplay.displayText
                       )
                     : translationDisplay.displayText;
+                  // The markup is for the client, not the reader.
+                  const displayText = isUser
+                    ? filteredText
+                    : stripBotMarkup(filteredText);
                   // Mention offsets index into the ORIGINAL sent body, not a
                   // translation - only apply them when we're actually
                   // showing that original text, so a mismatched offset can't
@@ -519,7 +543,11 @@ const Message: React.FC<MessageProps> = forwardRef<
                   return (
                     <TranslatedMessageBody
                       isUser={isUser}
-                      originalText={translationDisplay.originalText}
+                      originalText={
+                        isUser
+                          ? translationDisplay.originalText
+                          : stripBotMarkup(translationDisplay.originalText)
+                      }
                       accentColor={config?.colors?.primary}
                     >
                       {body}

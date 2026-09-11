@@ -276,8 +276,8 @@ const PERSISTED_MESSAGE_FIELDS: (keyof IMessage)[] = [
   'callLog',
   'mentions',
   // Bot buttons. Bounded (a handful of short labels) and load-bearing on
-  // reload: without it a quiz message repaints from cache with its answer
-  // options missing until MAM re-delivers the stanza.
+  // reload: without it a message that asked a question repaints from cache
+  // with its answer options missing until MAM re-delivers the stanza.
   'quickReplies',
 ];
 

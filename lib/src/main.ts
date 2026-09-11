@@ -17,6 +17,13 @@ export { useInAppNotifications } from './hooks/useInAppNotifications';
 export { default as usePushNotifications } from './hooks/usePushNotifications';
 export { resendMessage } from './utils/resendMessage';
 
+// Bot buttons ("quick replies"): the parser for the `quickReplies` wire
+// format. Exported so a host embedding the chat can build the same buttons
+// into its own message renderer, and so the bot/agent side has one
+// definition of the format to serialise against.
+export { parseQuickReplies } from './helpers/quickReplies';
+export type { QuickReply } from './helpers/quickReplies';
+
 // Font configuration: types + the runtime loader, so hosts can also apply
 // a font outside the <Chat> tree if needed.
 export { applyTypography, clearTypography } from './helpers/applyTypography';

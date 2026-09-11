@@ -45,6 +45,7 @@ const StyledContextMenu = styled(ContextMenu)`
 const fixedEmojiIds = ['joy', 'heart', 'fire', '+1', 'smile', 'scream'];
 import { useRoomState } from '../../hooks/useRoomState';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
+import { stripBotMarkup } from '../../helpers/botMarkup';
 
 interface MessageInteractionsProps {
   isReply?: boolean;
@@ -273,7 +274,13 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
                   <Delimeter />
                 </>
               )}
-              <MenuItem onClick={() => handleCopyMessage(message.body)}>
+              <MenuItem
+                onClick={() =>
+                  handleCopyMessage(
+                    isUser ? message.body : stripBotMarkup(message.body)
+                  )
+                }
+              >
                 {MESSAGE_INTERACTIONS.COPY}
                 <MESSAGE_INTERACTIONS_ICONS.COPY />
               </MenuItem>

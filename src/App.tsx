@@ -12,6 +12,7 @@ import CustomDaySeparator from './examples/customComponents/CustomDaySeparator';
 import CustomMessageBubble from './examples/customComponents/CustomMessageBubble';
 import { ethoraLogger } from './helpers/ethoraLogger';
 import { loginEmail } from './networking/api-requests/auth.api';
+import QuizDemo from './examples/quiz/QuizDemo';
 
 const LIVEKIT_URL =
   (((import.meta as unknown as { env?: Record<string, string | undefined> }).env) || {})
@@ -313,6 +314,11 @@ export default function App() {
             Chat
           </button>
         </Link>
+        <Link to="/quiz">
+          <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+            Quiz
+          </button>
+        </Link>
         <button
           className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
           onClick={() => handleLogoutClick()}
@@ -334,6 +340,7 @@ export default function App() {
             <Routes>
               <Route path="/apps" element={<Apps />} />
               <Route path="/chat" element={<ChatComponent />} />
+              <Route path="/quiz" element={<QuizDemo />} />
             </Routes>
           </div>
         </div>

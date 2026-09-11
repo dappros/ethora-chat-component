@@ -1,4 +1,4 @@
-import React, { forwardRef, useEffect, useRef, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IUser, MessageProps } from '../../types/types';
 import { useUsersSet } from '../../hooks/useRoomState';
 import {
@@ -39,6 +39,14 @@ import { parseMessageReference } from '../../helpers/parseMessageReference';
 import { useMessageTranslation } from '../../hooks/useMessageTranslation';
 import TranslatedMessageBody from './TranslatedMessageBody';
 import { useT } from '../../i18n/useT';
+import QuickReplies from './QuickReplies';
+import {
+  parseQuickReplies,
+  hasAnsweredQuickReplies,
+  QuickReply,
+} from '../../helpers/quickReplies';
+import { useSendMessage } from '../../hooks/useSendMessage';
+import { parseBotMarkup, stripBotMarkup } from '../../helpers/botMarkup';
 import styled from 'styled-components';
 import {
   resolveTranslateMode,
@@ -95,6 +103,7 @@ const Message: React.FC<MessageProps> = forwardRef<
   MessageProps
 >(({ message, isUser, isReply }, ref) => {
   const { client } = useXmppClient();
+  const { sendMessage } = useSendMessage();
   const t = useT();
   const { user, config, langSource, translateMode, translateSendEnabled } =
     useChatSettingState();
@@ -218,6 +227,9 @@ const Message: React.FC<MessageProps> = forwardRef<
       timerRef.current = null;
     }
   };
+
+  const avatarClickable =
+    !profilesDisabled && senderDisplayName !== 'Deleted User';
 
   const handleUserAvatarClick = (user: IUser): void => {
     if (profilesDisabled || user?.name === 'Deleted User') return;
@@ -343,6 +355,62 @@ const Message: React.FC<MessageProps> = forwardRef<
   const sentLogicEnabled = !config?.disableSentLogic;
   const isFailed = Boolean(sentLogicEnabled && isUser && message?.failed);
 
+  // Buttons the bot attached to this message. Only ever shown on incoming
+  // messages: an outgoing bubble carrying them would mean the user is
+  // offering the bot a choice, which is not a thing.
+  // Buttons also arrive inside the reply text itself: an AI agent taught the
+  // Ethora chat protocol in its system prompt writes
+  // <bot-data type="buttons">[A],[B]</bot-data> into its answer, since the
+  // text is all it controls. Same buttons, same behaviour as the attribute.
+  const botMarkup = useMemo(
+    () => (isUser ? null : parseBotMarkup(message.body)),
+    [isUser, message.body]
+  );
+
+  const quickReplies = useMemo<QuickReply[]>(() => {
+    if (isUser) return [];
+    const fromAttribute = parseQuickReplies(message.quickReplies);
+    const fromBody = botMarkup?.buttons ?? [];
+    if (!fromBody.length) return fromAttribute;
+    const seen = new Set(fromAttribute.map((reply) => reply.value));
+    const merged = [...fromAttribute];
+    for (const reply of fromBody) {
+      if (seen.has(reply.value)) continue;
+      seen.add(reply.value);
+      merged.push(reply);
+    }
+    return merged;
+  }, [isUser, message.quickReplies, botMarkup]);
+
+  const handleQuickReply = useCallback(
+    (reply: QuickReply, questionId: string) => {
+      // The answer is an ordinary message: the bot sees it through the same
+      // path as typed input, and the transcript reads naturally. Nothing
+      // else is sent anywhere.
+      sendMessage(reply.value, message.roomJid);
+
+      // Notification only, and deliberately after the send - a host driving
+      // a scripted flow (quiz, intake) hangs off this, and a throw in its
+      // handler must not cost the user their answer.
+      try {
+        const result = config?.eventHandlers?.onQuickReply?.({
+          messageId: message.id,
+          roomJID: message.roomJid,
+          reply,
+          questionId,
+        });
+        if (result && typeof (result as Promise<void>).catch === 'function') {
+          (result as Promise<void>).catch((error) =>
+            console.error('Error in quick reply handler:', error)
+          );
+        }
+      } catch (error) {
+        console.error('Error in quick reply handler:', error);
+      }
+    },
+    [config?.eventHandlers, message.id, message.roomJid, sendMessage]
+  );
+
   const handleRetrySend = () => {
     if (!isFailed) return;
     // The bubble flips straight back to "sending" (setMessageSendRetrying),
@@ -386,12 +454,16 @@ const Message: React.FC<MessageProps> = forwardRef<
         ref={ref}
       >
         {!isUser && (
+          // With profiles disabled the avatar is purely decorative: no
+          // handler at all (not one that silently returns) and a default
+          // cursor, so it stops advertising a click that does nothing.
           <CustomMessagePhotoContainer
-            onClick={() =>
-              senderDisplayName !== 'Deleted User'
-                ? handleUserAvatarClick(message.user)
-                : null
+            onClick={
+              avatarClickable
+                ? () => handleUserAvatarClick(message.user)
+                : undefined
             }
+            style={avatarClickable ? undefined : { cursor: 'default' }}
           >
             {senderProfileImage ? (
               <CustomMessagePhoto
@@ -401,12 +473,7 @@ const Message: React.FC<MessageProps> = forwardRef<
             ) : (
               <Avatar
                 username={senderDisplayName}
-                style={{
-                  cursor:
-                    senderDisplayName !== 'Deleted User'
-                      ? 'pointer'
-                      : 'default',
-                }}
+                style={{ cursor: avatarClickable ? 'pointer' : 'default' }}
               />
             )}
           </CustomMessagePhotoContainer>
@@ -447,11 +514,15 @@ const Message: React.FC<MessageProps> = forwardRef<
                 <DeletedMessage />
               ) : (
                 (() => {
-                  const displayText = config?.messageTextFilter?.enabled
+                  const filteredText = config?.messageTextFilter?.enabled
                     ? config.messageTextFilter.filterFunction(
                         translationDisplay.displayText
                       )
                     : translationDisplay.displayText;
+                  // The markup is for the client, not the reader.
+                  const displayText = isUser
+                    ? filteredText
+                    : stripBotMarkup(filteredText);
                   // Mention offsets index into the ORIGINAL sent body, not a
                   // translation - only apply them when we're actually
                   // showing that original text, so a mismatched offset can't
@@ -472,7 +543,11 @@ const Message: React.FC<MessageProps> = forwardRef<
                   return (
                     <TranslatedMessageBody
                       isUser={isUser}
-                      originalText={translationDisplay.originalText}
+                      originalText={
+                        isUser
+                          ? translationDisplay.originalText
+                          : stripBotMarkup(translationDisplay.originalText)
+                      }
                       accentColor={config?.colors?.primary}
                     >
                       {body}
@@ -501,6 +576,15 @@ const Message: React.FC<MessageProps> = forwardRef<
             })}
             {sentLogicEnabled && isUser && !isPending && <DoubleTick />}
           </CustomMessageTimestamp>
+          {quickReplies.length > 0 && !message.isDeleted && (
+            <QuickReplies
+              replies={quickReplies}
+              messageId={message.id}
+              accentColor={config?.colors?.primary}
+              answered={hasAnsweredQuickReplies(message.id)}
+              onSelect={handleQuickReply}
+            />
+          )}
           {isFailed && (
             <FailedNotice>
               <span>{t('message.notDelivered')}</span>

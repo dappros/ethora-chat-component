@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import styled, { keyframes } from 'styled-components';
 import { IMessage } from '../../types/models/message.model';
 import { RootState } from '../../roomStore';
+import { stripBotMarkup } from '../../helpers/botMarkup';
 
 export interface MessageNotificationData {
   id: string;
@@ -250,7 +251,7 @@ const getMessagePreview = (message: IMessage): string => {
   if (message.isSystemMessage === 'true') {
     return message.body || 'System message';
   }
-  return message.body || '';
+  return stripBotMarkup(message.body) || '';
 };
 
 const MessageNotificationToast: React.FC<MessageNotificationToastProps> = ({
