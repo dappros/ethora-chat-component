@@ -16,6 +16,7 @@ import LastMessageItem from './LastMessageItem';
 import { useRoomPresence } from '../../hooks/useRoomPresence';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { useT } from '../../i18n/useT';
+import { BellOffIcon } from '../../assets/icons';
 import OnlineUsersPopover from './OnlineUsersPopover';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
@@ -236,6 +237,14 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
               }}
             >
               <ChatName style={{ minWidth: 0 }}>{displayName}</ChatName>
+              {chat?.muted && (
+                <BellOffIcon
+                  width={14}
+                  height={14}
+                  style={{ flexShrink: 0 }}
+                  color={!isChatActive ? '#8C8C8C' : '#fff'}
+                />
+              )}
               {showOnlineUsersPopover && (
                 <OnlineUsersPopover
                   onlineUsernames={onlineUsers}
@@ -298,9 +307,16 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
             ) && (
               <NewMessageMarker
                 style={
-                  config?.colors?.primary
-                    ? { backgroundColor: config.colors.primary }
-                    : undefined
+                  // Telegram-style: a muted room's own badge still shows its
+                  // count, just in a neutral grey instead of the accent
+                  // colour, so it doesn't read as "needs attention". This
+                  // takes priority over a host's colors.primary - muted is a
+                  // per-room state, not a theme choice.
+                  chat?.muted
+                    ? { backgroundColor: '#8C8C8C' }
+                    : config?.colors?.primary
+                      ? { backgroundColor: config.colors.primary }
+                      : undefined
                 }
               >
                 {chat.unreadCapped

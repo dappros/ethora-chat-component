@@ -528,6 +528,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
               </>
             )}
             <RoomMenu
+              roomJid={currentRoom?.jid}
               handleLeaveClick={handleLeaveClick}
               handleReportClick={handleReportClick}
             />

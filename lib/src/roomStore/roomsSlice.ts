@@ -1189,6 +1189,23 @@ const roomsStore = createSlice({
       state.subscribedRooms = [];
       state.pushSubscriptionStatus = {};
     },
+    // Sets the caller's own mute preference for one room. `undefined` clears
+    // the field back to "unsupported" instead of writing `false` - used to
+    // roll back an optimistic toggle that started from a room the backend
+    // had never reported a `muted` value for (see useRoomMute).
+    setRoomMuted: (
+      state,
+      action: PayloadAction<{ jid: string; muted: boolean | undefined }>
+    ) => {
+      const { jid, muted } = action.payload;
+      const room = state.rooms[jid];
+      if (!room) return;
+      if (muted === undefined) {
+        delete room.muted;
+      } else {
+        room.muted = muted;
+      }
+    },
   },
 });
 
@@ -1276,6 +1293,7 @@ export const {
   applyRoomsPreloadBatch,
   setRoomDraft,
   clearRoomDraft,
+  setRoomMuted,
 } = roomsStore.actions;
 
 export default roomsStore.reducer;

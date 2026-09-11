@@ -122,6 +122,54 @@ export async function getRoomByName(
   return shared.join(signal);
 }
 
+// PUT/DELETE /v1/chats/my/{chatName}/mute - the caller's own per-chat mute
+// preference. Idempotent on both ends and QA-only for now (live on
+// api.chat-qa.ethora.com, not yet on prod api.chat.ethora.com) - a prod
+// caller gets a 404 the same as any other unknown route, which is why the
+// UI only offers the toggle once a room has already reported a `muted`
+// boolean (see useRoomMute's `isSupported`).
+export async function muteRoom(
+  chatName: string
+): Promise<{ chatName: string; muted: boolean } | undefined> {
+  const token = store.getState().chatSettingStore.user.token || '';
+
+  try {
+    const response = await http.put(
+      `/v1/chats/my/${chatName}/mute`,
+      {},
+      {
+        headers: {
+          Authorization: token,
+        },
+      }
+    );
+    // The 60s /chats/my cache would otherwise keep serving the pre-mute
+    // `muted` value to anything that calls getRooms() before it expires.
+    invalidateRoomsCache();
+    return response.data?.result;
+  } catch (error) {
+    throw new Error('Error muting chat');
+  }
+}
+
+export async function unmuteRoom(
+  chatName: string
+): Promise<{ chatName: string; muted: boolean } | undefined> {
+  const token = store.getState().chatSettingStore.user.token || '';
+
+  try {
+    const response = await http.delete(`/v1/chats/my/${chatName}/mute`, {
+      headers: {
+        Authorization: token,
+      },
+    });
+    invalidateRoomsCache();
+    return response.data?.result;
+  } catch (error) {
+    throw new Error('Error unmuting chat');
+  }
+}
+
 export async function postRoom(data: PostRoom) {
   const token = store.getState().chatSettingStore.user.token || '';
 

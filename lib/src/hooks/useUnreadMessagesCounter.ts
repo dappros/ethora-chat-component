@@ -12,8 +12,17 @@ interface UnreadMessagesDisplayMap {
 }
 
 interface UnreadMessagesStats {
+  /** True when `totalCount > 0` - already excludes muted rooms, see `totalCount`. */
   hasUnread: boolean;
+  /**
+   * Sum of unread counts across visible rooms, EXCLUDING any room the caller
+   * has muted (a muted room still counts its own unread - see
+   * `unreadByRoom` - it just doesn't inflate this aggregate, so a global
+   * unread badge/favicon built from this number doesn't light up for a
+   * muted chat).
+   */
   totalCount: number;
+  /** Per-room unread counts, including muted rooms - the room-list badge always shows its own count regardless of mute. */
   unreadByRoom: UnreadMessagesMap;
   displayTotal: string;
   displayByRoom: UnreadMessagesDisplayMap;
@@ -61,15 +70,20 @@ const buildUnreadStats = (
     }
 
     unreadByRoom[roomJid] = unreadCount;
-    totalCount += unreadCount;
 
-    if (room?.unreadCapped) {
-      hasCappedUnread = true;
-      displayByRoom[roomJid] = `${Math.max(unreadCount, 10)}+`;
-      return;
+    // A muted room keeps its own badge (unreadByRoom/displayByRoom above and
+    // below), it just never inflates the aggregated total - that's the whole
+    // point of muting a chat.
+    if (!room?.muted) {
+      totalCount += unreadCount;
+      if (room?.unreadCapped) {
+        hasCappedUnread = true;
+      }
     }
 
-    displayByRoom[roomJid] = String(unreadCount);
+    displayByRoom[roomJid] = room?.unreadCapped
+      ? `${Math.max(unreadCount, 10)}+`
+      : String(unreadCount);
   });
 
   return {
@@ -91,7 +105,11 @@ const buildCountsSignature = (
     .filter(([, room]) => !isRoomHidden(room, hiddenConfig))
     .map(
       ([jid, room]) =>
-        `${jid}:${Number(room?.unreadMessages || 0)}:${room?.unreadCapped ? 1 : 0}`
+        // `muted` is part of the signature too - toggling it changes
+        // totalCount/hasUnread even when the underlying unread count of that
+        // room doesn't move, and this signature is what onChange below
+        // compares to decide whether to re-emit.
+        `${jid}:${Number(room?.unreadMessages || 0)}:${room?.unreadCapped ? 1 : 0}:${room?.muted ? 1 : 0}`
     )
     .sort();
   return `${entries.join('|')}#${JSON.stringify(hiddenConfig?.hiddenRooms ?? null)}`;

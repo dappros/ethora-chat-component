@@ -5,7 +5,17 @@ import { getTimestampFromUnknown } from '../../helpers/timestamp';
 import { isSameXmppUsername } from '../../helpers/xmppUsername';
 
 const TRACKED_ACTIONS_PREFIX = 'roomMessages/';
-const EXCLUDED_ACTIONS = new Set(['roomMessages/insertUsers']);
+// setRoomMuted only flips a per-room preference flag - it never changes
+// which messages exist, the read baseline, or the active room, so it can't
+// change any room's *real* unread count. Without this exclusion it would
+// fall through to the generic 'roomMessages/*' default below and touch
+// EVERY room, forcing a wasteful (and, worse, actively wrong if a caller
+// ever had a locally-adjusted count) full-account unread recompute on every
+// single mute/unmute toggle.
+const EXCLUDED_ACTIONS = new Set([
+  'roomMessages/insertUsers',
+  'roomMessages/setRoomMuted',
+]);
 
 const isCountableMessage = (msg: IMessage): boolean =>
   !!msg &&

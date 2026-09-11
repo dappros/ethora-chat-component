@@ -275,6 +275,14 @@ export interface IConfig {
   noMessagesPlaceholder?: React.ComponentType;
   setRoomJidInPath?: boolean;
   disableRoomMenu?: boolean;
+  /**
+   * Hide the "Mute/Unmute notifications" toggle from the chat header menu
+   * and the room profile drawer. The toggle is only ever offered when the
+   * backend has reported a `muted` boolean for the room in the first place
+   * (see IRoom.muted) - this flag is for a host that wants to hide it
+   * outright even then, e.g. because it renders its own mute control.
+   */
+  disableRoomMute?: boolean;
   defaultRooms?: ConfigRoom[];
   /**
    * The "Files" tab shown in the sidebar alongside "Chats". Backed by

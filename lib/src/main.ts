@@ -17,6 +17,14 @@ export { useInAppNotifications } from './hooks/useInAppNotifications';
 export { default as usePushNotifications } from './hooks/usePushNotifications';
 export { resendMessage } from './utils/resendMessage';
 
+// Per-chat mute: optimistic toggle + rollback over PUT/DELETE
+// /v1/chats/my/{chatName}/mute. `isSupported` only flips true once the
+// backend has actually reported a `muted` boolean for that room (not live on
+// prod yet), so a host building its own mute UI should gate on it the same
+// way the built-in chat header menu and room profile do.
+export { useRoomMute } from './hooks/useRoomMute';
+export type { UseRoomMuteResult } from './hooks/useRoomMute';
+
 // Bot buttons ("quick replies"): the parser for the `quickReplies` wire
 // format. Exported so a host embedding the chat can build the same buttons
 // into its own message renderer, and so the bot/agent side has one

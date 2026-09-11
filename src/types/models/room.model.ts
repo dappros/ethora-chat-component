@@ -67,6 +67,16 @@ export interface IRoom {
   // has work to do. Only 'done' short-circuits preloading.
   historyPreloadState?: 'idle' | 'loading' | 'partial' | 'done' | 'error';
   unreadCapped?: boolean;
+
+  /**
+   * The caller's own mute preference for this room, as reported by the
+   * backend (`GET /v1/chats/my` / `/v1/chats/my/{chatName}`). Only a real
+   * backend that supports mute ever sends this field - prod doesn't yet, so
+   * this stays `undefined` (not `false`) there. Treat `undefined` as "not
+   * muted" for behaviour, but as "unsupported" for whether to show a mute
+   * toggle at all (see useRoomMute's `isSupported`).
+   */
+  muted?: boolean;
 }
 
 export interface ApiRoom {
@@ -85,6 +95,9 @@ export interface ApiRoom {
   createdAt?: string;
   updatedAt?: string;
   __v?: string;
+
+  /** See IRoom.muted - only present when the backend supports per-chat mute. */
+  muted?: boolean;
 }
 
 export interface PostRoom {

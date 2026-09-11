@@ -53,6 +53,7 @@ The package exports:
 - `useInAppNotifications`
 - `usePushNotifications`
 - `resendMessage`
+- `useRoomMute`
 
 ## Why Ethora
 
@@ -346,6 +347,7 @@ Below is a grouped reference for all `config` options.
 | `pdfPreview` | `{ enabled?; workerSrc?; maxFileSizeMb? }` | First-page PDF thumbnails inside bubbles and in the composer tray. On by default; `enabled: false` keeps the static document card. pdf.js is code-split and only fetched when a PDF actually shows up. By default it runs on the main thread, which needs no bundler asset wiring: set `workerSrc` to a pdf.js worker URL you host to move parsing off it. `maxFileSizeMb` (default `25`) is the size past which a document is not auto-rendered. |
 | `disableRooms` | `boolean` | Hide/disable room list area. |
 | `disableRoomMenu` | `boolean` | Disable room menu controls. |
+| `disableRoomMute` | `boolean` | Hide the "Mute/Unmute notifications" toggle from the chat header menu and room profile, even on a backend that supports it. |
 | `disableRoomConfig` | `boolean` | Hide every control that mutates a room's configuration, leaving the chat-details panel read-only: room avatar upload/remove, the "Delete chat" menu entry, the add-members action, and the per-member moderator menu (appoint as admin / remove member). |
 | `disableNewChatButton` | `boolean` | Hide new chat/create room action. |
 | `disableUserCount` | `boolean` | Hide the member-count subtitle in the chat header ("N users", plus the online-users popover attached to it). The 1:1 online/offline line is a presence state, not a count, so it stays. |
@@ -659,13 +661,14 @@ function PushPermissionButton() {
 | --- | --- | --- |
 | `Chat` | React component | Main chat component. |
 | `XmppProvider` | React provider | Provides XMPP client context for internal hooks/state. |
-| `useUnread` | hook | Returns unread counters (`totalCount`, per-room maps) plus a `loading` flag that stays `true` until the room list has loaded at least once. |
+| `useUnread` | hook | Returns unread counters (`totalCount`, per-room maps) plus a `loading` flag that stays `true` until the room list has loaded at least once. `totalCount`/`hasUnread` exclude any room the caller has muted - a muted room still reports its own count in `unreadByRoom`/`displayByRoom`, it just doesn't inflate the aggregate. |
 | `logoutService` | service | Programmatic logout utility. |
 | `useQRCodeChat` | hook | Handle QR-based room links. |
 | `handleQRChatId` | function | Parse/process QR chat ID from URL. |
 | `useInAppNotifications` | hook | Enables and handles in-app notifications. |
 | `usePushNotifications` | hook | Push subscription + foreground handling workflow. |
 | `resendMessage` | function | Retry sending failed/pending messages. |
+| `useRoomMute` | hook | `useRoomMute(roomJid)` returns `{ muted, isSupported, isPending, toggleMute, setMuted }` for a room's mute preference - optimistic with rollback on failure. `isSupported` is only `true` once the backend has reported a `muted` boolean for that room (it hasn't shipped to prod yet), so hosts building their own UI should hide a mute control until then. |
 
 Basic hook usage:
 

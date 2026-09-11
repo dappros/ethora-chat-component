@@ -438,6 +438,56 @@ export const ReportIcon = ({ color = 'var(--ethora-icon-color, #8C8C8C)', ...pro
   </svg>
 );
 
+export const BellIcon = ({ color = 'var(--ethora-icon-color, #8C8C8C)', ...props }) => (
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <path
+      d="M18 16V11C18 7.93 16.37 5.36 13.5 4.68V4C13.5 3.17 12.83 2.5 12 2.5C11.17 2.5 10.5 3.17 10.5 4V4.68C7.63 5.36 6 7.92 6 11V16L4 18V19H20V18L18 16Z"
+      fill={color}
+    />
+    <path
+      d="M12 22C13.1 22 14 21.1 14 20H10C10 21.1 10.9 22 12 22Z"
+      fill={color}
+    />
+  </svg>
+);
+
+// Bell-off / muted state: same bell glyph, dimmed, with a diagonal slash -
+// the room list, chat header menu and room profile all use this to mark a
+// room the user has muted notifications for.
+export const BellOffIcon = ({ color = 'var(--ethora-icon-color, #8C8C8C)', ...props }) => (
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <path
+      d="M18 16V11C18 7.93 16.37 5.36 13.5 4.68V4C13.5 3.17 12.83 2.5 12 2.5C11.17 2.5 10.5 3.17 10.5 4V4.68C7.63 5.36 6 7.92 6 11V16L4 18V19H20V18L18 16Z"
+      fill={color}
+      opacity="0.5"
+    />
+    <path
+      d="M12 22C13.1 22 14 21.1 14 20H10C10 21.1 10.9 22 12 22Z"
+      fill={color}
+    />
+    <path
+      d="M3 3L21 21"
+      stroke={color}
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
 export const DeleteIcon = ({
   fill = '#E53935',
   color = '#8C8C8C',

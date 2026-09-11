@@ -27,7 +27,9 @@ import { useXmppClient } from '../../../context/xmppProvider';
 import { updateRoom } from '../../../roomStore/roomsSlice';
 import Loader from '../../styled/Loader';
 import Button from '../../styled/Button';
+import Switch from '../../MainComponents/Switch';
 import { DeleteIcon, MoreIcon, QrIcon } from '../../../assets/icons';
+import { useRoomMute } from '../../../hooks/useRoomMute';
 import OperationalModal from '../../OperationalModal/OperationalModal';
 import { RoomMember } from '../../../types/types';
 import {
@@ -96,6 +98,15 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   const { client } = useXmppClient();
   const { user: stateUser, config } = useChatSettingState();
   const activeRoom = useSelector((state: RootState) => getActiveRoom(state));
+  const {
+    muted: isRoomMuted,
+    isSupported: isMuteSupported,
+    setMuted: setRoomMutedState,
+  } = useRoomMute(activeRoom?.jid);
+  // Same gate as the chat header's room menu: only show the control once
+  // the backend has actually reported a `muted` value for this room, and
+  // let a host hide it outright via config.disableRoomMute.
+  const showMuteToggle = isMuteSupported && !config?.disableRoomMute;
   const onlineUsers = useRoomPresence(activeRoom?.jid);
   // Secure room avatars need the viewer's own `?ft=` token appended at
   // render time - see appendFileToken in helpers/secureFileUrl.
@@ -400,6 +411,37 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                 <DrawerLabel>{activeRoom.type}</DrawerLabel>
               </DrawerCardBody>
             )}
+          </DrawerCard>
+        </DrawerSection>
+      )}
+
+      {/* Same gate as the chat header's room menu: only offered once the
+          backend has actually reported a `muted` value for this room, and
+          hidden outright when a host sets config.disableRoomMute. */}
+      {showMuteToggle && (
+        <DrawerSection>
+          <DrawerSectionTitle>
+            {t('modal.chatProfile.notifications')}
+          </DrawerSectionTitle>
+          <DrawerCard>
+            <DrawerCardBody
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <DrawerLabel>
+                {isRoomMuted ? t('action.unmute') : t('action.mute')}
+              </DrawerLabel>
+              <Switch
+                checked={isRoomMuted}
+                onToggle={(isOn) => {
+                  void setRoomMutedState(isOn);
+                }}
+                bgColor={config?.colors?.primary}
+              />
+            </DrawerCardBody>
           </DrawerCard>
         </DrawerSection>
       )}

@@ -1,5 +1,6 @@
 // Global message notification manager that can be used from both React and non-React code
 import { IMessage } from '../types/models/message.model';
+import { store } from '../roomStore';
 
 export interface MessageNotificationCallback {
   (message: IMessage, roomName: string, senderName: string, roomJID: string): void;
@@ -82,6 +83,17 @@ class MessageNotificationManager {
     const body = typeof message?.body === 'string' ? message.body.trim() : '';
     // Safety net: ignore typing/chat-state or malformed payloads without real text body.
     if (!body) {
+      return;
+    }
+    // The mute preference is a stored setting, not something the backend
+    // filters push delivery on - the client is the one suppressing the
+    // alert. This is the single choke point every notification surface
+    // (in-app toast, browser Notification API, foreground push toast) goes
+    // through, both for live XMPP messages and for foreground FCM pushes -
+    // so gating here covers all of them at once. The message itself was
+    // already stored via the normal message-received path before this is
+    // ever called - only the alert is skipped.
+    if (store.getState().rooms.rooms[roomJID]?.muted) {
       return;
     }
     if (this.shouldSkipDuplicate(message, roomJID)) {

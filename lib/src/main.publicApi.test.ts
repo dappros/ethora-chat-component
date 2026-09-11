@@ -30,6 +30,7 @@ import type {
   ScrollControllerApi,
   xmppSettingsInterface,
   TypographyConfig,
+  UseRoomMuteResult,
 } from './main';
 
 /**
@@ -58,6 +59,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   'useIsUserOnline',
   'usePushNotifications',
   'useQRCodeChat',
+  'useRoomMute',
   'useRoomPresence',
   'useTypography',
   'useUnread',
@@ -104,6 +106,7 @@ describe('public API', () => {
     assertExported<ScrollControllerApi>();
     assertExported<xmppSettingsInterface>();
     assertExported<TypographyConfig>();
+    assertExported<UseRoomMuteResult>();
 
     expect(props.config).toBe(config);
     expect(props.loginData?.email).toBe('a@b.c');
