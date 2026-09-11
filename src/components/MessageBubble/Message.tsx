@@ -227,6 +227,9 @@ const Message: React.FC<MessageProps> = forwardRef<
     }
   };
 
+  const avatarClickable =
+    !profilesDisabled && senderDisplayName !== 'Deleted User';
+
   const handleUserAvatarClick = (user: IUser): void => {
     if (profilesDisabled || user?.name === 'Deleted User') return;
     dispatch(setActiveModal(MODAL_TYPES.PROFILE));
@@ -431,12 +434,16 @@ const Message: React.FC<MessageProps> = forwardRef<
         ref={ref}
       >
         {!isUser && (
+          // With profiles disabled the avatar is purely decorative: no
+          // handler at all (not one that silently returns) and a default
+          // cursor, so it stops advertising a click that does nothing.
           <CustomMessagePhotoContainer
-            onClick={() =>
-              senderDisplayName !== 'Deleted User'
-                ? handleUserAvatarClick(message.user)
-                : null
+            onClick={
+              avatarClickable
+                ? () => handleUserAvatarClick(message.user)
+                : undefined
             }
+            style={avatarClickable ? undefined : { cursor: 'default' }}
           >
             {senderProfileImage ? (
               <CustomMessagePhoto
@@ -446,12 +453,7 @@ const Message: React.FC<MessageProps> = forwardRef<
             ) : (
               <Avatar
                 username={senderDisplayName}
-                style={{
-                  cursor:
-                    senderDisplayName !== 'Deleted User'
-                      ? 'pointer'
-                      : 'default',
-                }}
+                style={{ cursor: avatarClickable ? 'pointer' : 'default' }}
               />
             )}
           </CustomMessagePhotoContainer>
