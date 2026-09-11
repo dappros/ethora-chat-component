@@ -22,11 +22,18 @@ let getRoomsInFlightToken = '';
 let lastGetRoomsResponse: { items: ApiRoom[] } | null = null;
 let lastGetRoomsResponseAt = 0;
 let lastGetRoomsResponseToken = '';
+// Bumped by invalidateRoomsCache(). A getRooms() request that was already
+// in flight when a mute/unmute toggle called invalidateRoomsCache() would
+// otherwise write its (pre-toggle) response into the cache when it finally
+// resolves, re-poisoning the exact cache entry the toggle just cleared -
+// see the generation check in getRooms() below.
+let roomsCacheGeneration = 0;
 
 export function invalidateRoomsCache() {
   lastGetRoomsResponse = null;
   lastGetRoomsResponseAt = 0;
   lastGetRoomsResponseToken = '';
+  roomsCacheGeneration++;
 }
 
 // An aborted request (AbortSignal fired) must never poison the cache or the
@@ -52,6 +59,7 @@ export async function getRooms(signal?: AbortSignal): Promise<{ items: ApiRoom[]
   }
 
   getRoomsInFlightToken = token;
+  const requestGeneration = roomsCacheGeneration;
   const shared = createSharedRequest(async (sharedSignal) => {
     const response = await http.get('/v1/chats/my', {
       headers: {
@@ -59,9 +67,15 @@ export async function getRooms(signal?: AbortSignal): Promise<{ items: ApiRoom[]
       },
       signal: sharedSignal,
     });
-    lastGetRoomsResponse = response.data;
-    lastGetRoomsResponseAt = Date.now();
-    lastGetRoomsResponseToken = token;
+    // Only cache this response if nothing invalidated the cache while it
+    // was in flight (e.g. a mute/unmute toggle). Otherwise this request
+    // started before the toggle and carries its pre-toggle `muted` value -
+    // writing it now would silently undo invalidateRoomsCache().
+    if (roomsCacheGeneration === requestGeneration) {
+      lastGetRoomsResponse = response.data;
+      lastGetRoomsResponseAt = Date.now();
+      lastGetRoomsResponseToken = token;
+    }
     return response.data as { items: ApiRoom[] };
   });
   getRoomsInFlight = shared;

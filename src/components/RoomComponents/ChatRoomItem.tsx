@@ -242,7 +242,12 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
                   width={14}
                   height={14}
                   style={{ flexShrink: 0 }}
-                  color={!isChatActive ? '#8C8C8C' : '#fff'}
+                  // The active row is a light tint (--ethora-color-primary-soft),
+                  // not a solid dark fill - see ChatItem in RoomListComponents -
+                  // so the icon needs the same dark-on-light colour in both
+                  // active and inactive rows. A white icon here would be
+                  // nearly invisible against that light tint.
+                  color="#8C8C8C"
                 />
               )}
               {showOnlineUsersPopover && (

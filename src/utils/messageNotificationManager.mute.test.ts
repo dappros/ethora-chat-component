@@ -92,4 +92,30 @@ describe('messageNotificationManager - per-chat mute suppresses the alert', () =
     expect(callback).toHaveBeenCalledTimes(1);
     unsubscribe();
   });
+
+  // showNotification() queues a message as "pending" when no callback is
+  // registered yet (e.g. app still starting up) and delivers it once a
+  // callback registers. The mute check at queue time only reflects the
+  // room's state when the message arrived - if the room gets muted before
+  // a callback registers and flushes the queue, that queued message must
+  // still be suppressed.
+  it('does not deliver a queued message once its room is muted before a callback registers', () => {
+    seedRoom(ROOM_OPEN, false);
+
+    // No callback registered yet - this queues instead of delivering.
+    messageNotificationManager.showNotification(
+      makeMessage('queued-msg-1'),
+      'Room',
+      'Sender',
+      ROOM_OPEN
+    );
+
+    store.dispatch(setRoomMuted({ jid: ROOM_OPEN, muted: true }));
+
+    const callback = vi.fn();
+    const unsubscribe = messageNotificationManager.addCallback(callback);
+
+    expect(callback).not.toHaveBeenCalled();
+    unsubscribe();
+  });
 });

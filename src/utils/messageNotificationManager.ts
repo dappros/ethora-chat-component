@@ -37,7 +37,16 @@ class MessageNotificationManager {
   private flushPending() {
     if (this.callbacks.size === 0 || this.pending.length === 0) return;
     const now = Date.now();
-    const valid = this.pending.filter((item) => now - item.ts <= this.pendingTtlMs);
+    const valid = this.pending.filter((item) => {
+      if (now - item.ts > this.pendingTtlMs) return false;
+      // The mute check in showNotification() only reflects the room's
+      // state at the moment the message arrived. A room queued here (no
+      // callback registered yet, e.g. still starting up) can be muted
+      // afterwards but before a callback registers and flushes this queue -
+      // re-check here so that mute still suppresses it.
+      if (store.getState().rooms.rooms[item.roomJID]?.muted) return false;
+      return true;
+    });
     this.pending = [];
     valid.forEach((item) => {
       this.callbacks.forEach((cb) =>

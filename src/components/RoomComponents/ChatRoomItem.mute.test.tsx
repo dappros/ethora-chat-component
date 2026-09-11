@@ -74,4 +74,24 @@ describe('ChatRoomItem - muted room presentation', () => {
     const badge = screen.getByText('3');
     expect(badge).toHaveStyle({ backgroundColor: '#123456' });
   });
+
+  // The active row's background is a light tint (--ethora-color-primary-soft,
+  // e.g. #E7EDF9), not a solid dark fill - see ChatItem in
+  // components/styled/RoomListComponents. A white bell-off icon on that
+  // light background would be nearly invisible, so the icon must use the
+  // same dark colour whether or not the row is active.
+  it('renders the bell-off icon in the same dark colour for an active (selected) muted room', () => {
+    renderWithProviders(
+      <ChatRoomItem
+        chat={makeRoom({ muted: true })}
+        isChatActive={true}
+        performClick={noop}
+        config={{} as never}
+      />
+    );
+
+    const iconPath = document.querySelector('svg path');
+    expect(iconPath).not.toBeNull();
+    expect(iconPath).toHaveAttribute('fill', '#8C8C8C');
+  });
 });
