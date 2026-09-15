@@ -43,12 +43,38 @@ export const presenceInRoom = async (
       }, delay);
     };
 
+    // Two ways a join can be confirmed:
+    //
+    // 1. The server echoes our presence stanza with the same `id` we
+    //    sent. Ejabberd does this; it's the strongest correlation.
+    // 2. A presence stanza arrives `from = roomJID/<resource>` and
+    //    carries a MUC namespace `<x xmlns=".../muc..."/>` child. This
+    //    is the standard XEP-0045 confirmation shape — every spec-
+    //    compliant MUC server emits it on successful join, even if it
+    //    doesn't echo our `id` back. Some non-Ejabberd deployments
+    //    (and older Ejabberd configs) skip the id-echo, which used to
+    //    cause the join to wait until timeout → reject → caller
+    //    treats it as failure → message resend loops → bubbles stuck
+    //    as "pending". The second match path closes that gap.
+    const isMucXmlnsChild = (child: Element): boolean =>
+      child?.name === 'x' &&
+      typeof child.attrs?.xmlns === 'string' &&
+      child.attrs.xmlns.startsWith('http://jabber.org/protocol/muc');
+
+    const matchesJoinConfirmation = (stanza: Element): boolean => {
+      if (!stanza.is('presence')) return false;
+      const from = stanza.attrs.from;
+      if (!from?.startsWith(roomJID)) return false;
+      // Fast path: id echo matches.
+      if (stanza.attrs.id === stanzaId) return true;
+      // Fallback path: must come from a /resource (i.e. an occupant
+      // self-presence, not the bare room jid) and carry a MUC <x>.
+      if (!from.includes('/')) return false;
+      return stanza.getChildren('x').some(isMucXmlnsChild);
+    };
+
     stanzaHandler = (stanza) => {
-      if (
-        stanza.is('presence') &&
-        stanza.attrs.id === stanzaId &&
-        stanza.attrs.from?.startsWith(roomJID)
-      ) {
+      if (matchesJoinConfirmation(stanza)) {
         if (stanza.attrs.type === 'error') {
           const errEl = stanza.getChild('error');
           const code =
