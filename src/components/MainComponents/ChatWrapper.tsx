@@ -33,6 +33,13 @@ import FallbackScreen from './FallbackScreen';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
 import { useLoaderDebug } from '../../hooks/useLoaderDebug';
+// Motion: the delete-confirm and report-chat dialogs are plain `{isOpen &&
+// <X/>}` renders, so they'd otherwise vanish the instant Redux flips their
+// flag. useExitTransition keeps each mounted for one exit animation's worth
+// of time and reports it via `isClosing`, which ModalWrapper/ModalReportChat
+// forward to the shared modal primitives (see components/Modals/motionVariants.ts).
+import { useExitTransition } from '../../hooks/useExitTransition';
+import { MOTION_FAST_MS } from '../../styles/motion';
 interface ChatWrapperProps {
   token?: string;
   room?: IRoom;
@@ -103,6 +110,13 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     Boolean(state.rooms?.reportRoom?.isOpen)
   );
   const { loadingText } = useRoomState();
+
+  // Motion: see the import comment above.
+  const deleteModalExit = useExitTransition(
+    Boolean(deleteModal?.isDeleteModal),
+    MOTION_FAST_MS
+  );
+  const reportModalExit = useExitTransition(reportRoomIsOpen, MOTION_FAST_MS);
 
   // Memoized so ChatWrapper re-renders that don't touch `rooms` (typing
   // indicators, activeRoomJID changes, etc.) don't hand RoomList a brand-new
@@ -396,7 +410,7 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           <div>{loadingText || 'Loading chat...'}</div>
         </StyledLoaderWrapper>
       )}
-      {deleteModal?.isDeleteModal && (
+      {deleteModalExit.shouldRender && (
         <ModalWrapper
           title="Delete Message"
           description="Are you sure you want to delete this message?"
@@ -404,9 +418,12 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           backgroundColorButton="#E53935"
           handleClick={handleDeleteClick}
           handleCloseModal={handleCloseDeleteModal}
+          isClosing={deleteModalExit.isExiting}
         />
       )}
-      {reportRoomIsOpen && <ModalReportChat />}
+      {reportModalExit.shouldRender && (
+        <ModalReportChat isClosing={reportModalExit.isExiting} />
+      )}
     </>
   );
 };
