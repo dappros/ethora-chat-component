@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { ActionButton } from '../styledModalComponents';
 import SideDrawer, {
   DrawerCard,
@@ -8,6 +8,7 @@ import SideDrawer, {
   DrawerSectionTitle,
 } from '../SideDrawer/SideDrawer';
 import {
+  DrawerDescriptionText,
   ProfileHero,
   ProfileHeroName,
   ProfileActions,
@@ -35,7 +36,7 @@ import {
   addRoomViaApi,
   setCurrentRoom,
 } from '../../../roomStore/roomsSlice';
-import EditUserModal from './EditUserModal';
+import EditUserModal, { EditUserModalHandle } from './EditUserModal';
 import { walletToUsername } from '../../../helpers/walletUsername';
 import { useXmppClient } from '../../../context/xmppProvider';
 import Loader from '../../styled/Loader';
@@ -77,6 +78,10 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const callPhase = useSelector((state: RootState) => state.call.phase);
 
   const [isEditing, setIsEditing] = useState<boolean>(false);
+  // Lets the drawer's own header Save button trigger EditUserModal's save
+  // (see EditUserModalHandle) instead of EditUserModal rendering a second,
+  // redundant header of its own below the drawer's "<- Profile" bar.
+  const editHandleRef = useRef<EditUserModalHandle | null>(null);
 
   // Calling from the profile creates the 1:1 private room then dials it. Gate on
   // the same prerequisites as the chat header (the target room is private).
@@ -361,6 +366,29 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     </>
   ) : undefined;
 
+  // Cancel/Save live in the SAME header slot the drawer always uses, right
+  // where the edit/overflow controls sit when not editing - one header row,
+  // not two. Save calls into EditUserModal's own field state via the
+  // imperative handle; Cancel just flips back out of editing mode.
+  const editingHeaderActions = (
+    <>
+      <Button
+        variant="ghost"
+        onClick={() => setIsEditing(false)}
+        style={{ width: 'auto', padding: '0 var(--ethora-space-3, 12px)' }}
+      >
+        {t('action.cancel')}
+      </Button>
+      <Button
+        variant="filled"
+        onClick={() => void editHandleRef.current?.save()}
+        style={{ width: 'auto', padding: '0 var(--ethora-space-4, 16px)' }}
+      >
+        {t('action.save')}
+      </Button>
+    </>
+  );
+
   const showActions =
     selectedUser &&
     selectedUser.xmppUsername !== user.xmppUsername &&
@@ -388,15 +416,13 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
         <DrawerSection>
           <DrawerSectionTitle>{t('modal.profile.about')}</DrawerSectionTitle>
-          <DrawerCard>
-            <DrawerCardBody>
-              <DrawerHint>
-                {modalUser?.description && modalUser?.description?.length > 4
-                  ? modalUser.description
-                  : t('modal.profile.noDescription')}
-              </DrawerHint>
-            </DrawerCardBody>
-          </DrawerCard>
+          <DrawerDescriptionText
+            $empty={!(modalUser?.description && modalUser?.description?.length > 4)}
+          >
+            {modalUser?.description && modalUser?.description?.length > 4
+              ? modalUser.description
+              : t('modal.profile.noDescription')}
+          </DrawerDescriptionText>
         </DrawerSection>
 
         {!selectedUser && config?.translates?.enabled && (
@@ -482,6 +508,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const EditingBody = useMemo(
     () => (
       <EditUserModal
+        ref={editHandleRef}
         setIsEditing={setIsEditing}
         modalUser={modalUser}
         config={config}
@@ -494,7 +521,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     <SideDrawer
       title={t('modal.profile.title')}
       onClose={handleBackClick}
-      headerActions={!isEditing ? headerActions : undefined}
+      headerActions={isEditing ? editingHeaderActions : headerActions}
     >
       {!isEditing ? DefaultBody : EditingBody}
     </SideDrawer>

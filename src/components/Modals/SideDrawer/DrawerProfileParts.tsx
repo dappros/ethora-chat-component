@@ -1,4 +1,4 @@
-import styled from 'styled-components';
+import styled, { css } from 'styled-components';
 
 /**
  * The identity block at the top of a profile-style drawer: avatar, then the
@@ -63,4 +63,88 @@ export const ProfileActions = styled.div`
   gap: var(--ethora-space-2, 8px);
   width: 100%;
   margin-top: var(--ethora-space-1, 4px);
+`;
+
+// ---------------------------------------------------------------------------
+// About / facts - replaces the old "label above value, twice, each in its
+// own bordered box" treatment (read as a disabled form). A description is
+// prose, not a field, so it gets no label at all; a fact like the chat type
+// is a small tag, not a box.
+// ---------------------------------------------------------------------------
+
+/**
+ * Room/profile description, set directly under the hero with no "Description"
+ * label above it - the About section heading already says what this is.
+ * When there is no description yet, `$empty` swaps in a muted italic tone so
+ * the placeholder line reads as an unwritten blank rather than a failed
+ * value, without changing the copy or the layout.
+ */
+export const DrawerDescriptionText = styled.p<{ $empty?: boolean }>`
+  margin: 0;
+  font-size: var(--ethora-font-size-sm, 14px);
+  line-height: var(--ethora-line-height-normal, 1.5);
+  color: ${({ $empty }) =>
+    $empty
+      ? 'var(--ethora-color-text-muted, #8c8c8c)'
+      : 'var(--ethora-color-text, #141414)'};
+  font-style: ${({ $empty }) => ($empty ? 'italic' : 'normal')};
+  text-align: start;
+  overflow-wrap: anywhere;
+`;
+
+/** Small icon+label tag for a single fact (chat type, visibility, ...). */
+export const DrawerFactPill = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ethora-space-1, 4px);
+  padding: var(--ethora-space-1, 4px) var(--ethora-space-3, 12px);
+  border-radius: var(--ethora-radius-full, 999px);
+  background: var(--ethora-color-primary-soft, #e7edf9);
+  color: var(--ethora-color-primary, #0052cd);
+  font-size: var(--ethora-font-size-xs, 12px);
+  font-weight: var(--ethora-font-weight-semibold, 600);
+
+  & > svg {
+    width: 14px;
+    height: 14px;
+  }
+`;
+
+const emptyStateSizing = css<{ $compact?: boolean }>`
+  padding: ${({ $compact }) =>
+    $compact
+      ? 'var(--ethora-space-4, 16px) var(--ethora-space-2, 8px)'
+      : 'var(--ethora-space-6, 24px) var(--ethora-space-4, 16px)'};
+`;
+
+/**
+ * A deliberate blank state - icon, title, optional hint - for "nothing here
+ * yet" spots (no files, no members) that used to be a single line of grey
+ * text sitting in a box and reading like something had gone wrong.
+ */
+export const DrawerEmptyState = styled.div<{ $compact?: boolean }>`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: var(--ethora-space-1, 4px);
+  color: var(--ethora-color-text-secondary, #5a5f66);
+  ${emptyStateSizing}
+
+  & > svg {
+    opacity: 0.7;
+    margin-bottom: var(--ethora-space-1, 4px);
+  }
+`;
+
+export const DrawerEmptyStateTitle = styled.div`
+  font-size: var(--ethora-font-size-sm, 14px);
+  font-weight: var(--ethora-font-weight-medium, 500);
+  color: var(--ethora-color-text-secondary, #5a5f66);
+`;
+
+export const DrawerEmptyStateHint = styled.div`
+  font-size: var(--ethora-font-size-xs, 12px);
+  color: var(--ethora-color-text-muted, #8c8c8c);
 `;
