@@ -197,6 +197,32 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
     <ChatItem
       active={isChatActive}
       onClick={() => performClick(chat)}
+      // A real <button> only shows its browser focus ring for a keyboard
+      // activation, never a mouse click - but this row is a plain div made
+      // focusable with `tabIndex`, and browsers apply :focus-visible more
+      // conservatively there: since the element needed tabIndex to be
+      // focusable at all, a mouse click on it (or on any non-focusable
+      // descendant inside it, which re-targets focus to this nearest
+      // focusable ancestor) is treated as a legitimate reason to show the
+      // ring, not just a click. That is the purple box the owner saw after
+      // clicking a row with the mouse. Moving focus onto click is itself
+      // just the browser's default mousedown action, so preventing that
+      // default (mousedown fires, and is fully handled, before the click)
+      // stops the row from ever taking DOM focus on a pointer interaction -
+      // the click handler above still runs normally. Tab-driven keyboard
+      // focus never goes through mousedown, so this leaves keyboard
+      // navigation of the list untouched.
+      //
+      // Also blur whatever element was focused before this click (e.g. the
+      // Chats/Files tab switcher, Tab'd into earlier): since this row is no
+      // longer willing to take focus, the browser would otherwise leave
+      // that earlier element - and its own ring - focused, even though the
+      // click has visibly moved attention to a different room. Same fix as
+      // OnlineUsersPopover's blur-before-opening.
+      onMouseDown={(e) => {
+        e.preventDefault();
+        (document.activeElement as HTMLElement | null)?.blur();
+      }}
       bg={config?.colors?.primary}
       data-testid={RoomListTestIds.roomRow}
       role="button"

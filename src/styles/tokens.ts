@@ -154,6 +154,12 @@ export function buildThemeTokens(
     '--ethora-shadow-md': '0 4px 12px rgba(16,24,40,.10)',
     '--ethora-shadow-lg': '0 12px 32px rgba(16,24,40,.14)',
 
+    // Width of the inset keyboard-focus ring on rounded, full-width rows
+    // (the room list) - see ChatItem in styled/RoomListComponents. Kept as
+    // its own token, not folded into a shadow default, so a host can turn
+    // the ring up or down without redefining the whole box-shadow.
+    '--ethora-focus-ring-width': '2px',
+
     '--ethora-space-1': '4px',
     '--ethora-space-2': '8px',
     '--ethora-space-3': '12px',
