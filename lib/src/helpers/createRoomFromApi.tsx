@@ -1,4 +1,4 @@
-import { ApiRoom, IRoom, RoomMember } from '../types/types';
+import { ApiRoom, IRoom, LastMessage, RoomMember } from '../types/types';
 import { VITE_APP_XMPP_CONFERENCE } from '../config';
 import { ethoraLogger } from './ethoraLogger';
 import { store } from '../roomStore';
@@ -56,12 +56,59 @@ const derivePrivateTitle = (
   return apiTitle || 'Private chat';
 };
 
+// `GET /v1/chats/my` embeds a flattened `lastMessage` doc per room (QA
+// verified 2026-09-16: all 16 rooms carried one). Prod may not send it at
+// all yet - every field here is optional and its absence must change
+// nothing. Map it into the same LastMessage shape a live message already
+// takes, so LastMessageItem can render either one without knowing which
+// it got. This is only ever a SEED for the room-list preview: the caller
+// (ChatRoomItem) uses it strictly while the room has no loaded messages
+// yet, and stops reading it the moment a real message arrives - so a
+// stale API value can never overwrite a newer live one.
+const mapApiLastMessage = (
+  apiLastMessage: ApiRoom['lastMessage'],
+  roomJid: string
+): LastMessage | undefined => {
+  const body = String(apiLastMessage?.body || '').trim();
+  if (!apiLastMessage || !body) return undefined;
+
+  const senderName = `${apiLastMessage.senderFirstName || ''} ${
+    apiLastMessage.senderLastName || ''
+  }`.trim();
+
+  return {
+    id: apiLastMessage.messageId || apiLastMessage.stanzaId || '',
+    xmppId: apiLastMessage.stanzaId,
+    roomJid,
+    body,
+    date: apiLastMessage.createdAt,
+    isDeleted: false,
+    user: {
+      id: apiLastMessage.fromUserId || apiLastMessage.from || '',
+      name: senderName,
+    },
+  } as LastMessage;
+};
+
 export const createRoomFromApi = (
   room: ApiRoom,
   service: string = VITE_APP_XMPP_CONFERENCE,
   usersArrayLength: number = 0
-): IRoom => {
+): IRoom | null => {
   try {
+    // A MUC room JID only ever exists as `<localpart>@<conference host>`.
+    // `service` resolves to an empty string in this package's own build,
+    // and several call sites pass `config?.xmppSettings?.conference` or
+    // `client.conference` straight through before the XMPP session is
+    // hydrated - both are `undefined` early in the lifecycle. The old
+    // default-parameter fallback let that combine with `room.name` into
+    // "<name>@", a JID with no domain: it has an '@' so it looks valid
+    // enough, but no such room exists on the server. MAM returns nothing
+    // and presence never resolves, so it renders forever as a duplicate
+    // ghost row with no history and no "N online" line. Refuse to guess a
+    // host, the same way toRoomJid() in isLikelyMucJid.ts does.
+    if (!room?.name || !service) return null;
+
     const members = Array.isArray(room?.members) ? room.members : [];
     // Don't fabricate a "1 user" fallback when /chats/my doesn't surface
     // members. Header reads usersCnt directly; injecting 1 lies to the user
@@ -74,9 +121,11 @@ export const createRoomFromApi = (
         ? derivePrivateTitle(room, members)
         : String(room?.title || '').trim();
 
+    const jid = `${room.name}@${service}`;
+
     const roomData: IRoom = {
       ...room,
-      jid: room?.name ? `${room.name}@${service}` : '',
+      jid,
       name: resolvedTitle,
       title: resolvedTitle,
       members,
@@ -89,6 +138,7 @@ export const createRoomFromApi = (
       unreadCapped: false,
       lastViewedTimestamp: 0,
       historyPreloadState: 'idle',
+      lastMessage: mapApiLastMessage(room?.lastMessage, jid),
     };
     return roomData;
   } catch (error) {

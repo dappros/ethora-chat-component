@@ -45,6 +45,14 @@ export interface IRoom {
   _id?: string;
 
   id?: string;
+  /**
+   * Written from two places: reactionsMiddleware keeps it current for a
+   * room that already has loaded messages, and createRoomFromApi seeds it
+   * from the API's `lastMessage` (see ApiRoomLastMessage) for a room that
+   * doesn't yet. ChatRoomItem only reads this while `messages` is empty -
+   * once real history loads, `messages` is what renders the preview, so a
+   * seed left sitting here afterward is inert rather than stale-looking.
+   */
   lastMessage?: LastMessage;
   lastMessageTimestamp?: number;
   lastRoomMessage?: RoomLastMessage;
@@ -79,6 +87,25 @@ export interface IRoom {
   muted?: boolean;
 }
 
+/**
+ * The flattened `lastMessage` object `GET /v1/chats/my` embeds per room
+ * (QA verified 2026-09-16: all 16 rooms returned it). Prod's `chats/my`
+ * has previously lacked fields other endpoints send (see IRoom.muted) -
+ * treat every field here as optional and never assume it is present.
+ */
+export interface ApiRoomLastMessage {
+  body?: string;
+  truncated?: boolean;
+  from?: string;
+  fromUserId?: string;
+  messageId?: string;
+  stanzaId?: string;
+  createdAt?: string;
+  isOwn?: boolean;
+  senderFirstName?: string;
+  senderLastName?: string;
+}
+
 export interface ApiRoom {
   name: string;
   type: 'public' | 'group' | 'private';
@@ -98,6 +125,9 @@ export interface ApiRoom {
 
   /** See IRoom.muted - only present when the backend supports per-chat mute. */
   muted?: boolean;
+
+  /** See ApiRoomLastMessage - only present when the backend supports it. */
+  lastMessage?: ApiRoomLastMessage;
 }
 
 export interface PostRoom {
