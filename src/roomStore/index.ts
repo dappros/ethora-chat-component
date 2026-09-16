@@ -109,7 +109,24 @@ export const sanitizeRoomsMap = (
         // whole-slice transforms carry `rooms`/`activeRoomJID`/`usersSet`
         // keys inside the rooms map). Also drop arrays / non-objects
         // which crash Immer when reducers later mutate them as rooms.
-        if (!key || typeof key !== 'string' || !key.includes('@')) return false;
+        if (!key || typeof key !== 'string') return false;
+        const at = key.indexOf('@');
+        if (at <= 0) return false;
+
+        // Also drop ghosts: a JID with an empty domain part ("<name>@").
+        // createRoomFromApi used to build one of these whenever it was
+        // called before the conference host was known (default param
+        // fell back to an empty string) - no such room exists on the
+        // server, so it became a permanent duplicate of the real room
+        // with no history and no presence. createRoomFromApi now refuses
+        // to build these going forward, but this purges any that were
+        // already written to localStorage before that fix, on both the
+        // read and the write path (sanitizeRoomsSliceKey runs this both
+        // ways). Only the JID shape is checked - a legitimately-keyed
+        // room with zero loaded messages is normal and must survive.
+        const domain = key.slice(at + 1).split('/')[0];
+        if (!domain) return false;
+
         return room && typeof room === 'object' && !Array.isArray(room);
       })
       .map(([jid, room]: [string, IRoom]) => [
