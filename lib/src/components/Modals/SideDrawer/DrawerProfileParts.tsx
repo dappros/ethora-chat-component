@@ -95,6 +95,10 @@ export const DrawerDescriptionText = styled.p<{ $empty?: boolean }>`
 /** Small icon+label tag for a single fact (chat type, visibility, ...). */
 export const DrawerFactPill = styled.span`
   display: inline-flex;
+  /* The pill is usually a child of a column flex container, which blockifies
+     inline-flex and stretches it to the full column width unless it opts out.
+     A pill that spans the whole panel reads as a banner, not as a tag. */
+  align-self: flex-start;
   align-items: center;
   gap: var(--ethora-space-1, 4px);
   padding: var(--ethora-space-1, 4px) var(--ethora-space-3, 12px);

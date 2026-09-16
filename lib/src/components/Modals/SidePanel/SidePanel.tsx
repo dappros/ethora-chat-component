@@ -39,7 +39,12 @@ export const SIDE_PANEL_BREAKPOINT_PX = 767;
 const SidePanelColumn = styled.aside`
   position: absolute;
   inset: 0;
-  z-index: 5;
+  /* Above the chat's own floating chrome. In this covering mode the panel IS
+     the screen, so the conversation's scroll-to-bottom button (z-index 1000,
+     rendered outside this subtree) must not float over it with its unread
+     badge. Reset to auto in the three-column mode below, where the panel is
+     an ordinary layout column and stacks by document order. */
+  z-index: 1001;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
