@@ -449,6 +449,11 @@ const roomsStore = createSlice({
         icon: roomData.icon ?? existing?.icon,
         messages:
           existingMessages.length > 0 ? existingMessages : incomingMessages,
+        // See addRoomFromApi's identical line - same reasoning: a seed
+        // used only while `messages` is empty, so take the freshest value
+        // but never let a `roomData` with no `lastMessage` erase one that
+        // was already there.
+        lastMessage: roomData.lastMessage ?? existing?.lastMessage,
         unreadMessages: existing?.unreadMessages ?? roomData.unreadMessages ?? 0,
         lastViewedTimestamp:
           existing?.lastViewedTimestamp ?? roomData.lastViewedTimestamp ?? 0,
@@ -1147,6 +1152,15 @@ const roomsStore = createSlice({
         icon: room.icon ?? existing?.icon,
         messages:
           existingMessages.length > 0 ? existingMessages : incomingMessages,
+        // A seed for the room-list preview, used only while `messages` is
+        // empty (see ChatRoomItem) - so it is safe to just take the
+        // freshest API value here. Falling back to `existing?.lastMessage`
+        // (rather than letting `...room` write `undefined` over it) matters
+        // because this reducer runs on every /chats/my refresh: a refresh
+        // that doesn't carry `lastMessage` (prod, or a stripped-down
+        // response) must not erase one a previous, richer response already
+        // set.
+        lastMessage: room.lastMessage ?? existing?.lastMessage,
         unreadMessages: existing?.unreadMessages ?? room.unreadMessages ?? 0,
         lastViewedTimestamp:
           existing?.lastViewedTimestamp ?? room.lastViewedTimestamp ?? 0,

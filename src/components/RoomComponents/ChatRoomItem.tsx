@@ -67,9 +67,19 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
   // refresh. Only the LAST message's sender entry is selected - subscribing
   // to the whole usersSet map re-rendered every room row on every
   // insertUsers dispatch.
-  const previewSenderRawId = String(
-    chat?.messages?.[(chat?.messages?.length ?? 0) - 1]?.user?.id || ''
-  );
+  // A room with no loaded messages yet (never opened, or history still
+  // loading) falls back to the API's `lastMessage` seed - see
+  // createRoomFromApi/addRoomFromApi. The moment a real message loads,
+  // `chat.messages` stops being empty and this branch is never reached
+  // again for that room, so a live message always wins and a stale API
+  // value can never overwrite it.
+  const lastLiveMessage =
+    (chat?.messages?.length ?? 0) > 0
+      ? chat.messages[chat.messages.length - 1]
+      : undefined;
+  const previewSourceMessage = lastLiveMessage ?? chat?.lastMessage;
+
+  const previewSenderRawId = String(previewSourceMessage?.user?.id || '');
   const previewSenderLocalId = previewSenderRawId.split('@')[0];
   const previewSenderEntry = useSelector(
     (state: RootState) =>
@@ -83,7 +93,10 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
   );
 
   const withAuthorFallback = useCallback(
-    (message?: IMessage): IMessage | undefined => {
+    // Accepts either a live message or the API-seeded `LastMessage` preview
+    // (see previewSourceMessage below) - both carry the same body/user/
+    // callLog shape the preview actually reads.
+    (message?: IMessage | LastMessage): (IMessage | LastMessage) | undefined => {
       if (!message) return message;
       const rawUserId = String(message?.user?.id || '');
       const localId = rawUserId.split('@')[0];
@@ -122,7 +135,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
     [previewSenderEntry, t]
   );
 
-  const lastRawMessage = chat?.messages?.[(chat?.messages?.length ?? 0) - 1];
+  const lastRawMessage = previewSourceMessage;
   const lastMessage = useMemo(
     () => withAuthorFallback(lastRawMessage),
     [chat?.jid, lastRawMessage?.id, lastRawMessage?.body, withAuthorFallback]

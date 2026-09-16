@@ -117,6 +117,18 @@ const NewChatModal: React.FC = () => {
         config?.xmppSettings?.conference,
         namesArray.length
       );
+
+      // createRoomFromApi refuses to build a room when it has no conference
+      // host to attach (see its own comment) - without this guard we'd
+      // dereference .jid on null and crash here.
+      if (!normalizedChat || !normalizedChat.jid) {
+        console.error(
+          'handleCreateRoom: failed to normalize the new room',
+          newChat
+        );
+        return;
+      }
+
       dispatch(addRoom({ roomData: normalizedChat }));
       dispatch(setCurrentRoom({ roomJID: normalizedChat.jid }));
       client.presenceInRoomStanza(normalizedChat.jid);
