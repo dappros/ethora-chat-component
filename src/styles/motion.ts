@@ -100,7 +100,21 @@ export const scaleInAnimation = css`
 
 /** Convenience: side-drawer slide-in shorthand, respecting reduced motion. */
 export const slideInRightAnimation = css`
-  animation: ${slideInRight} ${MOTION_BASE} ${MOTION_EASE} both;
+  /*
+   * backwards, deliberately, not both.
+   *
+   * With both, the element keeps computing the 100% keyframe after the
+   * animation finishes: transform translateX(0) rather than transform
+   * none. Any non-none transform makes the element a containing block
+   * for its position:fixed descendants, so a fixed, viewport-centred
+   * overlay opened from inside a settled panel would centre on the
+   * panel instead of the screen, and get clipped by it.
+   *
+   * backwards still applies the 0% state before the animation starts, so
+   * there is no first-frame flash at the final position, and the end
+   * state is visually identical to having no transform at all.
+   */
+  animation: ${slideInRight} ${MOTION_BASE} ${MOTION_EASE} backwards;
   ${reducedMotion}
 `;
 
