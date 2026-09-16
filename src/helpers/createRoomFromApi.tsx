@@ -1,4 +1,4 @@
-import { ApiRoom, IRoom, RoomMember } from '../types/types';
+import { ApiRoom, IRoom, LastMessage, RoomMember } from '../types/types';
 import { VITE_APP_XMPP_CONFERENCE } from '../config';
 import { ethoraLogger } from './ethoraLogger';
 import { store } from '../roomStore';
@@ -56,6 +56,40 @@ const derivePrivateTitle = (
   return apiTitle || 'Private chat';
 };
 
+// `GET /v1/chats/my` embeds a flattened `lastMessage` doc per room (QA
+// verified 2026-09-16: all 16 rooms carried one). Prod may not send it at
+// all yet - every field here is optional and its absence must change
+// nothing. Map it into the same LastMessage shape a live message already
+// takes, so LastMessageItem can render either one without knowing which
+// it got. This is only ever a SEED for the room-list preview: the caller
+// (ChatRoomItem) uses it strictly while the room has no loaded messages
+// yet, and stops reading it the moment a real message arrives - so a
+// stale API value can never overwrite a newer live one.
+const mapApiLastMessage = (
+  apiLastMessage: ApiRoom['lastMessage'],
+  roomJid: string
+): LastMessage | undefined => {
+  const body = String(apiLastMessage?.body || '').trim();
+  if (!apiLastMessage || !body) return undefined;
+
+  const senderName = `${apiLastMessage.senderFirstName || ''} ${
+    apiLastMessage.senderLastName || ''
+  }`.trim();
+
+  return {
+    id: apiLastMessage.messageId || apiLastMessage.stanzaId || '',
+    xmppId: apiLastMessage.stanzaId,
+    roomJid,
+    body,
+    date: apiLastMessage.createdAt,
+    isDeleted: false,
+    user: {
+      id: apiLastMessage.fromUserId || apiLastMessage.from || '',
+      name: senderName,
+    },
+  } as LastMessage;
+};
+
 export const createRoomFromApi = (
   room: ApiRoom,
   service: string = VITE_APP_XMPP_CONFERENCE,
@@ -87,9 +121,11 @@ export const createRoomFromApi = (
         ? derivePrivateTitle(room, members)
         : String(room?.title || '').trim();
 
+    const jid = `${room.name}@${service}`;
+
     const roomData: IRoom = {
       ...room,
-      jid: `${room.name}@${service}`,
+      jid,
       name: resolvedTitle,
       title: resolvedTitle,
       members,
@@ -102,6 +138,7 @@ export const createRoomFromApi = (
       unreadCapped: false,
       lastViewedTimestamp: 0,
       historyPreloadState: 'idle',
+      lastMessage: mapApiLastMessage(room?.lastMessage, jid),
     };
     return roomData;
   } catch (error) {
