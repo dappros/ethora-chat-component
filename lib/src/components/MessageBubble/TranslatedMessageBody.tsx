@@ -18,6 +18,10 @@ const OriginalQuote = styled.div<{ $accent: string }>`
   color: currentColor;
   opacity: 0.6;
   word-wrap: break-word;
+  /* originalText is shown as plain text, not through the markdown
+     pipeline, so a plain <div> would otherwise collapse the line breaks
+     the sender actually typed - the same bug this whole fix is about. */
+  white-space: pre-wrap;
 `;
 
 // parseMessageBody renders through ReactMarkdown, whose <p> carries
@@ -40,6 +44,12 @@ const TranslatedText = styled.div`
   & p:last-of-type {
     margin-bottom: 0 !important;
   }
+  /* For the sender's own message this wraps plain originalText rather
+     than markdown output (see below) - keep its line breaks too. Harmless
+     on the markdown branch: react-markdown no longer leaves a literal
+     "\n" inside a paragraph's text, so this only ever affects whitespace
+     that is actually meant to be visible. */
+  white-space: pre-wrap;
 `;
 
 interface TranslatedMessageBodyProps {

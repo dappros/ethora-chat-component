@@ -3,6 +3,7 @@ import { useXmppClient } from '../context/xmppProvider';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   addRoomMessage,
+  editRoomMessage,
   removeRoomMessage,
   setEditAction,
 } from '../roomStore/roomsSlice';
@@ -282,6 +283,49 @@ export const useSendMessage = () => {
       }
 
       if (editAction.isEdit) {
+        // Unlike a regular send, there is no retry/failed-state machinery
+        // for edits (no watchdog, no `failed` flag). If the client cannot
+        // even put the stanza on the wire, there is nothing that will ever
+        // reconcile an optimistic edit applied now - so skip it entirely.
+        // The bubble keeps its pre-edit text and the composer stays open
+        // with what the user typed, instead of silently showing an edit
+        // that never went anywhere.
+        const canIssueEdit = !!client?.checkOnline?.();
+        if (!canIssueEdit) {
+          console.error('Error editing message: client is not connected');
+          handleMessageFailed({
+            message,
+            roomJID: activeRoomJID,
+            error: new Error('Not connected'),
+            messageType: 'text',
+          });
+          return;
+        }
+
+        const previousMessage = editAction.roomJid
+          ? store
+              .getState()
+              .rooms.rooms[editAction.roomJid]?.messages.find(
+                (msg) => msg.id === editAction.messageId
+              )
+          : undefined;
+        const previousBody = previousMessage?.body;
+        const previousIsEdited = previousMessage?.isEdited ?? false;
+
+        // Apply the edit locally right away: this is the same reducer the
+        // server echo dispatches (onEditMessage in stanzaHandlers.ts ->
+        // editRoomMessage), so a same-text echo lands as a no-op and a
+        // different-text echo (another client's edit won the race) simply
+        // overwrites this one - one consistent value, never a flicker back
+        // to the pre-edit body.
+        dispatch(
+          editRoomMessage({
+            roomJID: editAction.roomJid,
+            messageId: editAction.messageId,
+            text: message,
+          })
+        );
+
         try {
           client?.editMessageStanza(
             editAction.roomJid,
@@ -303,7 +347,19 @@ export const useSendMessage = () => {
             },
           });
         } catch (error) {
+          // The stanza never made it out - roll the optimistic edit back
+          // rather than leave the UI showing a change that was never sent.
           console.error('Error editing message:', error);
+          if (previousMessage) {
+            dispatch(
+              editRoomMessage({
+                roomJID: editAction.roomJid,
+                messageId: editAction.messageId,
+                text: previousBody ?? message,
+                isEdited: previousIsEdited,
+              })
+            );
+          }
           handleMessageFailed({
             message,
             roomJID: activeRoomJID,

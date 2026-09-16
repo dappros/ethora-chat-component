@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import { markdownSanitizeSchema } from './markdownSanitizeSchema';
+import { remarkLineBreaks } from './remarkLineBreaks';
 import type { MentionClickHandler } from './parseMessageBody';
 
 interface MarkdownBodyProps {
@@ -28,7 +29,12 @@ const MarkdownBody = ({ text, onMentionClick }: MarkdownBodyProps) => {
       }}
     >
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        // remarkLineBreaks runs after remarkGfm, over the already-parsed
+        // tree: it turns a single "\n" (a CommonMark soft break, which
+        // renders as a plain space) into a real line break, the way every
+        // chat app behaves. See remarkLineBreaks.ts for why this is a
+        // hand-written plugin instead of the `remark-breaks` package.
+        remarkPlugins={[remarkGfm, remarkLineBreaks]}
         // Order matters: rehypeRaw parses the author's raw HTML into real
         // nodes, then rehypeSanitize strips anything dangerous from them.
         // Sanitising first would leave the raw string untouched and do
