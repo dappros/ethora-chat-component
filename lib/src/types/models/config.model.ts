@@ -355,11 +355,14 @@ export interface IConfig {
      * "Translate" link the reader clicks (LinkedIn-style), then renders the
      * result inline with a "Show original" toggle. Default 'auto'.
      *
-     * Neither mode calls any translation service - both only ever display
+     * 'auto' is purely a display choice: it only ever reads
      * `message.translations`, whatever arrived attached to the stanza (see
-     * `readerLocale` below for how a message gets translated in the first
-     * place). This is purely a display choice: show it immediately, or let
-     * the reader ask for it.
+     * `readerLocale` below), and never calls a translation service itself.
+     * 'manual' does one thing more: on a click, if nothing is attached and
+     * the host hasn't supplied `onTranslate`, it fetches a translation from
+     * `endpoint` (or the one derived from `config.baseUrl`, see below) and
+     * caches the result onto `message.translations` so a second click - and
+     * 'auto' mode, if the reader switches to it - see it for free.
      */
     mode?: 'auto' | 'manual';
     /**
@@ -406,8 +409,9 @@ export interface IConfig {
     /**
      * Host-provided translation function. When set, the manual Translate
      * action calls this - wire it to your own service - instead of reading
-     * `message.translations`. Optional; omit to use only what already
-     * arrived over XMPP.
+     * `message.translations` or falling back to the built-in translate
+     * service. Optional; omit to use only what already arrived over XMPP
+     * (and, in manual mode, the fetch described on `endpoint` below).
      */
     onTranslate?: (
       text: string,
@@ -419,6 +423,21 @@ export interface IConfig {
      * source vs reader, region ignored) and shows the action when they differ.
      */
     showTranslateForMessage?: (message: IMessage) => boolean;
+    /**
+     * Fixed override for the translate service's URL (e.g.
+     * "https://translate.api.example.com/translate"), used by manual mode's
+     * on-demand fetch (see `mode` above) when nothing is attached to the
+     * message and the host hasn't supplied `onTranslate`.
+     *
+     * When omitted, the endpoint is derived from `config.baseUrl` by turning
+     * the API host `api.<rest>` into `translate.api.<rest>` with path
+     * `/translate` (e.g. "https://api.chat-qa.ethora.com/v1" ->
+     * "https://translate.api.chat-qa.ethora.com/translate"). When neither
+     * resolves to a usable URL, manual mode makes no request at all and
+     * falls back to whatever is already attached (or the existing
+     * "Could not translate" retry link).
+     */
+    endpoint?: string;
   };
   /**
    * Static UI i18n (interface captions like "Search...", "Type message").

@@ -5,6 +5,10 @@ import { CustomDivider } from './CustomDivider';
 import { CustomMessageText } from '../styled/StyledComponents';
 import { useT } from '../../i18n/useT';
 import { toBaseLanguage } from '../../i18n/strings';
+import { useAppDispatch } from '../../hooks/hooks';
+import { setMessageTranslation } from '../../roomStore/roomsSlice';
+import { deriveTranslateEndpoint } from '../../helpers/deriveTranslateEndpoint';
+import { fetchTranslation } from '../../networking/api-requests/translate.api';
 
 interface MessageTranslateProps {
   message: IMessage;
@@ -34,13 +38,23 @@ type Phase = 'idle' | 'loading' | 'done' | 'error';
 
 /**
  * Manual-mode message translation (LinkedIn-style). Renders a "Translate"
- * link under an incoming message; on click it calls
- * `config.translates.onTranslate` (host-provided) - or, when the host
- * doesn't supply one, reads whatever translation already arrived attached
- * to the stanza (`message.translations`) - and shows the result inline
- * with a "Show original" toggle. No default translation service is called
- * here; a message with nothing attached and no host `onTranslate` simply
- * has nothing to reveal (see `translation.failed`).
+ * link under an incoming message; on click it resolves a translation in
+ * this order:
+ *
+ *  1. `config.translates.onTranslate` (host-provided) - wins whenever set;
+ *  2. whatever translation already arrived attached to the stanza
+ *     (`message.translations`) - free, no request;
+ *  3. a fetch from the translate service at `config.translates.endpoint`
+ *     (or one derived from `config.baseUrl`, see deriveTranslateEndpoint) -
+ *     only when neither of the above produced anything and an endpoint
+ *     could be resolved. The result is cached onto the message in the
+ *     store (setMessageTranslation) so a second click - and 'auto' mode,
+ *     if the reader switches to it - see it for free, even after this
+ *     bubble unmounts and remounts (long rooms remount bubbles on scroll).
+ *
+ * A message with nothing attached, no host `onTranslate`, and no
+ * resolvable endpoint (or a failed/empty fetch) simply has nothing to
+ * reveal (see `translation.failed`, clickable to retry).
  *
  * Visibility: `config.translates.showTranslateForMessage(message)` if the host
  * supplies it (they keep the locale logic and just tell us yes/no); otherwise
@@ -54,6 +68,7 @@ const MessageTranslate: FC<MessageTranslateProps> = ({
   config,
 }) => {
   const t = useT();
+  const dispatch = useAppDispatch();
   const [phase, setPhase] = useState<Phase>('idle');
   const [translated, setTranslated] = useState<string | null>(null);
   const [showOriginal, setShowOriginal] = useState(false);
@@ -73,6 +88,16 @@ const MessageTranslate: FC<MessageTranslateProps> = ({
     return toBaseLanguage(sourceLocale) !== toBaseLanguage(targetLocale);
   })();
 
+  // Exact locale first (the service echoes the reader's own locale key
+  // verbatim when it can, e.g. "fr-CA"), then base language, so a reader
+  // locale of "en" or "en-US" still matches a returned "en-CA" entry.
+  const attachedTranslation = (): string | undefined => {
+    return (
+      message.translations?.[targetLocale]?.translatedText ||
+      message.translations?.[toBaseLanguage(targetLocale)]?.translatedText
+    );
+  };
+
   const runTranslate = useCallback(async () => {
     if (!originalText.trim()) return;
     setPhase('loading');
@@ -85,10 +110,28 @@ const MessageTranslate: FC<MessageTranslateProps> = ({
           message,
         });
       } else {
-        const base = toBaseLanguage(targetLocale);
-        result =
-          message.translations?.[base]?.translatedText ||
-          message.translations?.[targetLocale]?.translatedText;
+        result = attachedTranslation();
+        if (!result) {
+          const endpoint =
+            translates?.endpoint || deriveTranslateEndpoint(config?.baseUrl);
+          const entry = await fetchTranslation(
+            originalText,
+            sourceLocale,
+            targetLocale,
+            endpoint
+          );
+          if (entry?.translatedText) {
+            result = entry.translatedText;
+            dispatch(
+              setMessageTranslation({
+                roomJID: message.roomJid,
+                messageId: message.id,
+                locale: entry.language,
+                entry,
+              })
+            );
+          }
+        }
       }
       if (result && result.trim()) {
         setTranslated(result);
@@ -99,7 +142,10 @@ const MessageTranslate: FC<MessageTranslateProps> = ({
     } catch {
       setPhase('error');
     }
-  }, [originalText, translates, sourceLocale, targetLocale, message]);
+    // attachedTranslation reads message.translations/targetLocale, both
+    // already covered by their own deps below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [originalText, translates, sourceLocale, targetLocale, message, config?.baseUrl, dispatch]);
 
   if (!shouldShow) return null;
 

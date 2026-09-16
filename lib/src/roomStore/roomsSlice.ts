@@ -7,6 +7,7 @@ import {
   IRoom,
   ReactionAction,
   RoomMember,
+  Translation,
 } from '../types/types';
 import { insertMessageWithDelimiter } from '../helpers/insertMessageWithDelimiter';
 import XmppClient from '../networking/xmppClient';
@@ -740,6 +741,38 @@ const roomsStore = createSlice({
       // a mismatched one.
       delete message.translations;
     },
+    // Caches a single on-demand translation (manual mode's "Translate"
+    // click, see MessageTranslate.tsx) onto the message it belongs to,
+    // keyed by whatever locale string the translate service echoed back
+    // (a full regional tag like "fr-CA", matching what getDataFromXml
+    // already keys server-attached translations by). Landing it in the
+    // store rather than component state means:
+    //  - a second click on the same message is free, even after the
+    //    bubble unmounted and remounted (long rooms remount bubbles on
+    //    scroll, wiping any local useState);
+    //  - 'auto' mode (useMessageTranslation) sees it too, since it just
+    //    reads message.translations - no separate cache to keep in sync.
+    // Deliberately not persisted (see PERSISTED_MESSAGE_FIELDS in
+    // roomStore/index.ts) for the same reason editRoomMessage above drops
+    // `translations` on an edit: a stale fetched entry is worse than
+    // re-fetching, and it re-syncs from the server on room open anyway.
+    setMessageTranslation(
+      state,
+      action: PayloadAction<{
+        roomJID: string;
+        messageId: string;
+        locale: string;
+        entry: Translation;
+      }>
+    ) {
+      const { roomJID, messageId, locale, entry } = action.payload;
+      const message = state.rooms[roomJID]?.messages.find(
+        (msg) => msg.id === messageId
+      );
+      if (!message) return;
+      if (!message.translations) message.translations = {};
+      message.translations[locale] = entry;
+    },
     addRoomMessage(state, action: PayloadAction<AddRoomMessageAction>) {
       const { roomJID, message, start } = action.payload;
 
@@ -1288,6 +1321,7 @@ export const {
   setMessageSendFailed,
   setMessageSendRetrying,
   editRoomMessage,
+  setMessageTranslation,
   setComposing,
   setIsLoading,
   setLastViewedTimestamp,

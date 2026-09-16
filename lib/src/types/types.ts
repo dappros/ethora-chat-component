@@ -11,4 +11,7 @@ export * from './models/attachment.model';
 export * from './models/file.model';
 
 export { MODAL_TYPES } from '../helpers/constants/MODAL_TYPES';
-export type { TranslationObject } from '../helpers/transformTranslatations';
+export type {
+  TranslationObject,
+  Translation,
+} from '../helpers/transformTranslatations';

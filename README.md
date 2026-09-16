@@ -398,7 +398,7 @@ Below is a grouped reference for all `config` options.
 | `secondarySendButton` | `{ enabled: boolean; messageEdit: string; label?: React.ReactNode; buttonStyles?: React.CSSProperties; hideInputSendButton?: boolean; overwriteEnterClick?: true }` | Extra send action/button config. |
 | `messageTextFilter` | `{ enabled: boolean; filterFunction: (text: string) => string }` | Transform/filter outgoing message text. |
 | `eventHandlers` | `{ onMessageSent?; onMessageFailed?; onMessageEdited?; onError? }` | Lifecycle callbacks for message operations, plus `onError` for uncaught render errors caught by the SDK's error boundary, see [Error handling](#error-handling-and-crash-containment). |
-| `translates` | `{ enabled: boolean; translations?: Iso639_1Codes }` | Message translation-related options. |
+| `translates` | `{ enabled: boolean; translations?: Iso639_1Codes; mode?: 'auto' \| 'manual'; forceType?: boolean; readerLocale?: string; showLanguageSelector?: boolean; showLanguageList?: boolean; onTranslate?: (text, ctx) => Promise<string>; showTranslateForMessage?: (message) => boolean; endpoint?: string }` | Message translation-related options. In manual mode, an on-demand translate click uses `onTranslate` if provided, else `message.translations`, else fetches from `endpoint` (or one derived from `config.baseUrl`, see the type doc comment) and caches the result. |
 | `whitelistSystemMessage` | `string[]` | Restrict/render only selected system message types. |
 | `customSystemMessage` | `React.ComponentType<MessageProps>` | Replace system message component renderer. |
 
