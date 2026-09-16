@@ -50,8 +50,11 @@ vi.mock('../modalComponents', async () => {
   };
 });
 
-// Imported after the mock so Modal.tsx picks up the mocked modalComponents.
-import Modal from './Modal';
+// Imported after the mock so the router picks up the mocked modalComponents.
+// ModalContent is the shared router: both the centred `Modal` host and the
+// in-layout `SidePanel` host render through it, so the focus contract only
+// has to be pinned down here once.
+import ModalContent from './ModalContent';
 
 const RealModalContent: React.FC<{ handleCloseModal: () => void }> = ({
   handleCloseModal,
@@ -71,7 +74,7 @@ const findButton = (container: HTMLElement, text: string) =>
 describe('Modal initial focus ignores hidden stale content', () => {
   it('keeps watching past a hidden stale element and focuses the real content once it mounts', async () => {
     const { container } = renderWithProviders(
-      <Modal modal={MODAL_TYPES.SETTINGS} setOpenModal={() => {}} />
+      <ModalContent modal={MODAL_TYPES.SETTINGS} setOpenModal={() => {}} />
     );
 
     // The lazy chunk hasn't resolved yet. Stand in for a React-18-retained,

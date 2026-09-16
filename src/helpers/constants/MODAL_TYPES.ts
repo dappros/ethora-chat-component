@@ -30,11 +30,13 @@ export const SETTINGS_SUB_MODAL_TYPES: string[] = [
 ];
 
 /**
- * Panels that open as a right-hand side drawer instead of a centred card:
- * the profile/settings family. Everything else (file preview) keeps the
- * centred-dialog presentation.
+ * Panels that open as the chat's right-hand COLUMN rather than as a centred
+ * card on top of it: the profile/settings family. These take part in the
+ * layout (see `components/Modals/SidePanel/SidePanel.tsx`), so opening one
+ * narrows the conversation instead of covering it. Everything else (file
+ * preview and the confirm dialogs) keeps the centred-dialog presentation.
  */
-export const DRAWER_MODAL_TYPES: string[] = [
+export const SIDE_PANEL_MODAL_TYPES: string[] = [
   MODAL_TYPES.SETTINGS,
   MODAL_TYPES.PROFILE,
   MODAL_TYPES.CHAT_PROFILE,

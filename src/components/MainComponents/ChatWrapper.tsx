@@ -11,12 +11,14 @@ import { IConfig, IRoom, ModalType } from '../../types/types';
 import LoginForm from '../AuthForms/Login';
 import { RootState } from '../../roomStore';
 import {
+  setCloseActiveMessage,
   setCurrentRoom,
   setEditAction,
   setIsLoading,
 } from '../../roomStore/roomsSlice';
 import RoomList from './RoomList';
 import Modal from '../Modals/Modal/Modal';
+import SidePanel from '../Modals/SidePanel/SidePanel';
 import ThreadWrapper from '../Thread/ThreadWrapper';
 import { ModalWrapper } from '../Modals/ModalWrapper/ModalWrapper';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
@@ -33,6 +35,18 @@ import FallbackScreen from './FallbackScreen';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
 import { useLoaderDebug } from '../../hooks/useLoaderDebug';
+import { useExclusiveRightPane } from '../../hooks/useExclusiveRightPane';
+import { SIDE_PANEL_MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
+import { useIsMobileViewport } from '../../hooks/useIsMobileViewport';
+
+// Three columns (432px room list + chat + 400px panel) stop fitting long
+// before the mobile breakpoint: at 1000px the chat would be left with ~170px,
+// which is not a chat. 1280 is the narrowest viewport that still leaves the
+// conversation ~450px, so below it the ROOM LIST is the column that gives way
+// while a panel is open - it is the one you are least likely to be reading,
+// and closing the panel brings it straight back.
+export const THREE_COLUMN_MIN_WIDTH_PX = 1280;
+
 interface ChatWrapperProps {
   token?: string;
   room?: IRoom;
@@ -133,6 +147,26 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
       });
     }
   };
+
+  // Only one of the thread view and the profile panel may hold the right
+  // column; see useExclusiveRightPane for the rule.
+  const isThreadOpen = Boolean(activeMessage?.activeMessage);
+  const isSidePanelOpen = SIDE_PANEL_MODAL_TYPES.includes(activeModal || '');
+  useExclusiveRightPane({
+    threadOpen: isThreadOpen,
+    panelOpen: isSidePanelOpen,
+    closeThread: () => {
+      if (activeRoomJID) {
+        dispatch(setCloseActiveMessage({ chatJID: activeRoomJID }));
+      }
+    },
+    closePanel: () => dispatch(setActiveModal(undefined)),
+  });
+
+  // Desktop, but not wide enough for room list + chat + panel at once.
+  const isNarrowDesktop = useIsMobileViewport(THREE_COLUMN_MIN_WIDTH_PX - 1);
+  const hideRoomListForPanel =
+    !isSmallScreen && isSidePanelOpen && isNarrowDesktop;
 
   const handleDeleteClick = () => {
     client.deleteMessageStanza(deleteModal.roomJid, deleteModal.messageId);
@@ -334,20 +368,20 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
           >
             {!config?.disableRooms &&
               rooms &&
-              (isSmallScreen ? (
-                !isChatVisible && (
-                  <RoomList
-                    chats={roomsList}
-                    onRoomClick={handleChangeChat}
-                    isSmallScreen={isSmallScreen}
-                  />
-                )
-              ) : (
-                <RoomList
-                  chats={roomsList}
-                  onRoomClick={handleChangeChat}
-                />
-              ))}
+              (isSmallScreen
+                ? !isChatVisible && (
+                    <RoomList
+                      chats={roomsList}
+                      onRoomClick={handleChangeChat}
+                      isSmallScreen={isSmallScreen}
+                    />
+                  )
+                : !hideRoomListForPanel && (
+                    <RoomList
+                      chats={roomsList}
+                      onRoomClick={handleChangeChat}
+                    />
+                  ))}
             {isSmallScreen ? (
               isChatVisible ? (
                 activeMessage?.activeMessage ? (
@@ -377,6 +411,16 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
             ) : (
               <ChatRoom CustomMessageComponent={resolvedMessageComponent} />
             )}
+            {/* The profile/settings family is a COLUMN of this row, not an
+                overlay on top of it, so opening one narrows the chat instead
+                of covering it. Everything still centred (file preview, the
+                confirm cards) stays with <Modal/>. */}
+            <SidePanel
+              modal={activeModal}
+              setOpenModal={(value?: ModalType) =>
+                dispatch(setActiveModal(value))
+              }
+            />
             <Modal
               modal={activeModal}
               setOpenModal={(value?: ModalType) =>

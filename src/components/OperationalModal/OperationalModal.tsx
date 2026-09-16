@@ -1,28 +1,72 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import styled from 'styled-components';
 import QRCode from 'react-qr-code';
-import { CloseButton } from '../Modals/styledModalComponents';
-import { Overlay, StyledModal } from '../styled/MediaModal';
+import SideDrawer, {
+  DrawerCard,
+  DrawerCardBody,
+  DrawerHint,
+  DrawerSection,
+} from '../Modals/SideDrawer/SideDrawer';
 import { StyledInput } from '../styled/StyledInputComponents/StyledInputComponents';
 import Button from '../styled/Button';
 import { QRCODE_URL } from '../../helpers/constants/PLATFORM_CONSTANTS';
 import { handleCopyClick } from '../../helpers/handleCopyClick';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
-import { fadeInAnimation, scaleInAnimation } from '../../styles/motion';
+import { useT } from '../../i18n/useT';
 
-// Local wrappers (not shared) so the modal picks up the token-driven radius/
-// shadow and an entrance animation without touching the shared MediaModal
-// primitives, which other modal surfaces also consume as-is.
-const AnimatedOverlay = styled(Overlay)`
-  background-color: rgba(16, 24, 40, 0.45);
-  ${fadeInAnimation}
+/**
+ * The chat's QR / share-link panel.
+ *
+ * It used to be a fixed, full-viewport overlay with a centred card, which put
+ * it in a different visual language from every other panel reached out of the
+ * chat profile AND covered the conversation. It is rendered from inside
+ * `ChatProfileModal`'s `SideDrawer`, and the nearest positioned ancestor is
+ * that drawer's panel (`position: relative; overflow: hidden`), so parking
+ * this layer on `inset: 0` stacks it over the PROFILE COLUMN only, header
+ * included: the room list and the chat stay exactly where they are. Its
+ * containing block is the panel rather than the drawer's scrolling body, so
+ * the body's `overflow-y: auto` does not clip it. Reusing `SideDrawer` also
+ * gets the shared Escape/focus/accessible-name contract for free, and because
+ * `useModalDismiss` stacks, Escape peels this panel off and leaves the profile
+ * open underneath.
+ *
+ * NOTE: how the link itself is built (`config.qrUrl` / the current origin) is
+ * deliberately untouched here - that is being fixed separately.
+ */
+
+// Stacks over the profile panel that renders this, not over the chat.
+const QrPanelLayer = styled.div`
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
 `;
 
-const AnimatedModal = styled(StyledModal)`
-  border-radius: var(--ethora-radius-lg, 16px);
-  box-shadow: var(--ethora-shadow-lg, 0 12px 32px rgba(16, 24, 40, 0.18));
-  background: var(--ethora-color-bg, #fff);
-  ${scaleInAnimation}
+const QrFrame = styled.div`
+  display: flex;
+  justify-content: center;
+  padding: var(--ethora-space-4, 16px);
+  background-color: var(--ethora-color-bg, #fff);
+`;
+
+const QrCodeBox = styled.div`
+  width: 100%;
+  max-width: 240px;
+`;
+
+const QrLinkRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: var(--ethora-space-2, 8px);
+  width: 100%;
+  min-width: 0;
+`;
+
+// The column is a fixed 400px, so the copy affordance has to promise not to
+// wrap its label onto a second line and shove the link input to nothing.
+const QrCopyAction = styled.div`
+  flex: 0 0 auto;
+  white-space: nowrap;
 `;
 
 interface OperationalModalProps {
@@ -37,6 +81,7 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
   setVisible,
 }) => {
   const { config } = useChatSettingState();
+  const t = useT();
   // Prefer app-provided qrUrl; else build from the current origin so QA /
   // self-hosted deployments don't point QR codes at the prod default.
   const qrBase =
@@ -45,89 +90,56 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
       ? `${window.location.origin}/app/chat/?chatId=`
       : QRCODE_URL);
 
-  useEffect(() => {
-    const { overflow } = document.body.style;
-    if (isVisible) document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = overflow;
-    };
-  }, [isVisible]);
+  if (!isVisible) return null;
+
+  const qrValue = `${qrBase}${chatJid.split('@')[0]}`;
 
   return (
-    isVisible && (
-      <AnimatedOverlay
-        style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 1000,
-        }}
+    <QrPanelLayer>
+      <SideDrawer
+        title={t('modal.qr.title')}
+        onClose={() => setVisible(false)}
+        backLabel={t('action.close')}
       >
-        <AnimatedModal
-          style={{
-            width: 'auto',
-            height: 'auto',
-            padding: '32px 64px',
-            minWidth: '480px',
-          }}
-        >
-          <CloseButton
-            onClick={() => setVisible(false)}
-            style={{
-              fontSize: 24,
-              width: '36px',
-              height: '36px',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-          >
-            &times;
-          </CloseButton>
+        <DrawerSection>
+          <DrawerCard>
+            <QrFrame>
+              <QrCodeBox>
+                <QRCode
+                  size={256}
+                  style={{ width: '100%', height: 'auto', maxWidth: '100%' }}
+                  value={qrValue}
+                  viewBox="0 0 256 256"
+                />
+              </QrCodeBox>
+            </QrFrame>
+          </DrawerCard>
+        </DrawerSection>
 
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px',
-              alignItems: 'center',
-            }}
-          >
-            <div style={{ width: '70%', position: 'relative' }}>
-              <QRCode
-                size={256}
-                style={{ width: '100%', height: '70%', maxWidth: '100%' }}
-                value={`${qrBase}${chatJid.split('@')[0]}`}
-                viewBox="0 0 256 256"
-              />
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                gap: '8px',
-                alignItems: 'center',
-                minWidth: '400px',
-              }}
-            >
-              <StyledInput
-                $colorBg={config?.colors?.colorInput}
-                value={`${qrBase}${chatJid.split('@')[0]}`}
-                disabled
-                style={{ width: '80%' }}
-              />
-              <Button
-                text="Copy"
-                onClick={() =>
-                  handleCopyClick(
-                    `${qrBase}${chatJid.split('@')[0]}`
-                  )
-                }
-              />
-            </div>
-          </div>
-        </AnimatedModal>
-      </AnimatedOverlay>
-    )
+        <DrawerSection>
+          <DrawerCard>
+            <DrawerCardBody>
+              <QrLinkRow>
+                <StyledInput
+                  $colorBg={config?.colors?.colorInput}
+                  value={qrValue}
+                  readOnly
+                  aria-label={t('modal.qr.title')}
+                  style={{ flex: '1 1 auto', minWidth: 0 }}
+                />
+                <QrCopyAction>
+                  <Button
+                    text={t('action.copyLink')}
+                    onClick={() => handleCopyClick(qrValue)}
+                  />
+                </QrCopyAction>
+              </QrLinkRow>
+              <DrawerHint>{t('modal.qr.hint')}</DrawerHint>
+            </DrawerCardBody>
+          </DrawerCard>
+        </DrawerSection>
+      </SideDrawer>
+    </QrPanelLayer>
   );
 };
 

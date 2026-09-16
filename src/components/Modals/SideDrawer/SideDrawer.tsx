@@ -8,18 +8,18 @@ import { slideInRightAnimation } from '../../../styles/motion';
 import { useIsMobileViewport } from '../../../hooks/useIsMobileViewport';
 
 /**
- * The one side-drawer surface for the profile/settings family of panels.
+ * The one surface for the profile/settings family of panels.
  *
- * Built on the existing store-driven `Modals/Modal` primitive rather than as
- * a new modal system: `Modal.tsx` already owns the routing (which panel is
- * open), the backdrop element, the lazy/Suspense boundary and the focus
- * plumbing, and it renders whichever `MODAL_COMPONENTS` entry is active
- * inside `ModalBackground`. All this component replaces is the *surface*
- * those panels used to render - `ModalContainerFullScreen`, which was
- * width:100%/height:100% and therefore covered the room list and the chat.
- * `Modal.tsx` puts `ModalBackground` into its `$drawer` mode for these panel
- * types (transparent, pointer-events:none, child parked right), so the room
- * list and chat behind the drawer stay visible and clickable on desktop.
+ * It fills whatever host renders it and does not size itself: on desktop the
+ * host is `Modals/SidePanel`, a real column of the chat's flex row, so the
+ * conversation gets NARROWER when a panel opens rather than disappearing
+ * under it (the overlay presentation this replaced was pinned over the chat).
+ * Below the mobile breakpoint that same column covers the whole chat box,
+ * which is the one-pane-at-a-time behaviour phones already had.
+ *
+ * Routing (which panel is open), the lazy/Suspense boundary and the focus
+ * plumbing still belong to the shared `Modals/Modal/ModalContent` router, so
+ * the store's `activeModal` remains the single source of truth.
  *
  * Behaviour:
  * - Slides in from the right using `styles/motion`'s shared primitives, which
@@ -48,11 +48,12 @@ export const DrawerPanel = styled.div`
   overflow: hidden;
   ${slideInRightAnimation}
 
+  /* The width belongs to the column (SidePanel), not to the panel: this is
+     in-layout furniture now, so it takes the space it is given. A hairline
+     separates it from the chat; the drop shadow it used to carry belonged to
+     a floating overlay and read as wrong once the panel stopped floating. */
   @media (min-width: 768px) {
-    width: 400px;
-    max-width: 100%;
     border-left: 1px solid var(--ethora-color-border, #e6e8ec);
-    box-shadow: var(--ethora-shadow-lg, 0 12px 32px rgba(16, 24, 40, 0.14));
   }
 `;
 
