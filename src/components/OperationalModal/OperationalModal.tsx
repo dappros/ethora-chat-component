@@ -5,7 +5,7 @@ import { CloseButton } from '../Modals/styledModalComponents';
 import { Overlay, StyledModal } from '../styled/MediaModal';
 import { StyledInput } from '../styled/StyledInputComponents/StyledInputComponents';
 import Button from '../styled/Button';
-import { QRCODE_URL } from '../../helpers/constants/PLATFORM_CONSTANTS';
+import { buildChatShareLink } from '../../helpers/buildChatShareLink';
 import { handleCopyClick } from '../../helpers/handleCopyClick';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { fadeInAnimation, scaleInAnimation } from '../../styles/motion';
@@ -37,13 +37,11 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
   setVisible,
 }) => {
   const { config } = useChatSettingState();
-  // Prefer app-provided qrUrl; else build from the current origin so QA /
-  // self-hosted deployments don't point QR codes at the prod default.
-  const qrBase =
-    config?.qrUrl ||
-    (typeof window !== 'undefined'
-      ? `${window.location.origin}/app/chat/?chatId=`
-      : QRCODE_URL);
+  // Prefer an app-provided qrUrl; otherwise point the link back at THIS
+  // page. The previous fallback appended a hard-coded `/app/chat/` path to
+  // the origin, which is a route most deployments (including this repo's
+  // own dev harness) do not serve - the QR then opened a blank page.
+  const shareLink = buildChatShareLink(chatJid, config?.qrUrl);
 
   useEffect(() => {
     const { overflow } = document.body.style;
@@ -96,7 +94,7 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
               <QRCode
                 size={256}
                 style={{ width: '100%', height: '70%', maxWidth: '100%' }}
-                value={`${qrBase}${chatJid.split('@')[0]}`}
+                value={shareLink}
                 viewBox="0 0 256 256"
               />
             </div>
@@ -111,16 +109,14 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
             >
               <StyledInput
                 $colorBg={config?.colors?.colorInput}
-                value={`${qrBase}${chatJid.split('@')[0]}`}
+                value={shareLink}
                 disabled
                 style={{ width: '80%' }}
               />
               <Button
                 text="Copy"
                 onClick={() =>
-                  handleCopyClick(
-                    `${qrBase}${chatJid.split('@')[0]}`
-                  )
+                  handleCopyClick(shareLink)
                 }
               />
             </div>
