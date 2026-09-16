@@ -169,6 +169,28 @@ export function buildThemeTokens(
     '--ethora-font-weight-medium': String(weights.medium),
     '--ethora-font-weight-semibold': String(weights.semibold),
     '--ethora-font-weight-bold': String(weights.bold),
+
+    // Type scale. Several components (the side-drawer panels' section
+    // labels, row titles and hints) already read `xs`/`sm`/`lg` with a
+    // literal fallback baked into each call site - these values match those
+    // existing fallbacks exactly, so publishing them here is additive: it
+    // gives the scale one real source of truth instead of N duplicated
+    // literals, with no visual change to anything already shipping. `md`
+    // and `xl` are new steps, for a body-copy size and a "this is the
+    // biggest text in the panel" hero size respectively - see
+    // DrawerProfileParts.tsx's ProfileHeroName, the one place that uses
+    // `xl`, deliberately, so the panel has exactly one clearly-largest line.
+    '--ethora-font-size-xs': '12px',
+    '--ethora-font-size-sm': '14px',
+    '--ethora-font-size-md': '15px',
+    '--ethora-font-size-lg': '18px',
+    '--ethora-font-size-xl': '22px',
+
+    // Line-height companions to the scale above, for multi-line text set in
+    // it: `tight` for short, large, rarely-wrapping text (a hero name),
+    // `normal` for a sentence or two of body copy (disclosure/hint text).
+    '--ethora-line-height-tight': '1.25',
+    '--ethora-line-height-normal': '1.5',
   };
 }
 

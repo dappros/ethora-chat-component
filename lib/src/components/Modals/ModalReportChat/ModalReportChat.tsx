@@ -44,7 +44,12 @@ const REPORT_CATEGORIES: { id: string; labelKey: string }[] = [
 ];
 const OTHER_CATEGORY = { id: 'Other', labelKey: 'report.category.other' };
 
-export const ModalReportChat: FC = () => {
+interface ModalReportChatProps {
+  /** Forwarded to `ModalBox` - see its `isClosing` doc. */
+  isClosing?: boolean;
+}
+
+export const ModalReportChat: FC<ModalReportChatProps> = ({ isClosing }) => {
   const { config } = useChatSettingState();
   const { activeRoomJID } = useRoomState();
   const dispatch = useDispatch();
@@ -90,6 +95,7 @@ export const ModalReportChat: FC = () => {
           : t('modal.report.chatTitle')
       }
       handleCloseModal={handleCloseModal}
+      isClosing={isClosing}
     >
       {reportChoose.name === 'Other' && (
         <p style={{ margin: 0 }}>{t('modal.report.otherDetails')}</p>

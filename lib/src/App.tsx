@@ -140,8 +140,6 @@ const ChatComponent = React.memo(() => {
     () => ({
       ...APP_CHAT_BASE_CONFIG,
       colors: { primary: '#5E3FDE', secondary: '#E1E4FE' },
-      chatRoomStyles: { borderRadius: '16px' },
-      roomListStyles: { borderRadius: '16px' },
       inAppNotifications: {
         enabled: true,
         showInContext: true,
@@ -186,8 +184,6 @@ const ChatComponent = React.memo(() => {
     () => ({
       width: '100%',
       height: '100%',
-      borderRadius: '16px',
-      border: '1px solid #E4E4E7',
       overflow: 'hidden',
     }),
     []

@@ -1,9 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import styled from 'styled-components';
-import {
-  CenterContainer,
-  ModalContainerFullScreen,
-} from '../styledModalComponents';
+import { CenterContainer } from '../styledModalComponents';
+import { PresenceModalContainerFullScreen } from '../motionVariants';
+import { useIsModalExiting } from '../../../context/ModalTransitionContext';
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -124,6 +123,9 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
 }) => {
   const dispatch = useDispatch();
   const t = useT();
+  // Modal.tsx keeps this mounted for the exit animation's duration after
+  // close; fade it out for that window instead of letting it just vanish.
+  const isClosing = useIsModalExiting();
   const { activeFile: openedFile } = useSelector(
     (state: RootState) => state.chatSettingStore
   );
@@ -324,7 +326,10 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
   }, [activeFile, fileToken, imageAlt, kind, goNext, goPrevious, t]);
 
   return (
-    <ModalContainerFullScreen aria-label={t('modal.filePreview.title')}>
+    <PresenceModalContainerFullScreen
+      aria-label={t('modal.filePreview.title')}
+      $closing={isClosing}
+    >
       <ModalHeaderComponent
         handleCloseModal={closeModal}
         headerTitle={t('modal.filePreview.title')}
@@ -404,7 +409,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
           )}
         </Stage>
       </CenterContainer>
-    </ModalContainerFullScreen>
+    </PresenceModalContainerFullScreen>
   );
 };
 

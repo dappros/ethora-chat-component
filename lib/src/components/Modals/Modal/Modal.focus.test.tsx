@@ -59,8 +59,11 @@ vi.mock('../modalComponents', async () => {
   };
 });
 
-// Imported after the mock so Modal.tsx picks up the mocked modalComponents.
-import Modal from './Modal';
+// Imported after the mock so the router picks up the mocked modalComponents.
+// ModalContent is the shared router: both the centred `Modal` host and the
+// in-layout `SidePanel` host render through it, so the focus contract only
+// has to be pinned down here once.
+import ModalContent from './ModalContent';
 
 const LazyModalContent: React.FC<{ handleCloseModal: () => void }> = ({
   handleCloseModal,
@@ -84,7 +87,7 @@ describe('Modal initial focus (lazy content)', () => {
     expect(document.activeElement).toBe(trigger);
 
     const { container } = renderWithProviders(
-      <Modal modal={MODAL_TYPES.PROFILE} setOpenModal={() => {}} />
+      <ModalContent modal={MODAL_TYPES.PROFILE} setOpenModal={() => {}} />
     );
 
     // The lazy chunk hasn't resolved yet, so its button doesn't exist in
@@ -110,7 +113,7 @@ describe('Modal initial focus (lazy content)', () => {
     trigger.focus();
 
     const { container } = renderWithProviders(
-      <Modal modal={MODAL_TYPES.SETTINGS} setOpenModal={() => {}} />
+      <ModalContent modal={MODAL_TYPES.SETTINGS} setOpenModal={() => {}} />
     );
 
     // Burn several animation frames with the chunk still unresolved. An

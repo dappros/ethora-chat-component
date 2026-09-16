@@ -23,7 +23,7 @@ import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 import { RoomMenu } from '../MenuRoom/MenuRoom';
 import { useRoomState } from '../../hooks/useRoomState';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
-import { useT } from '../../i18n/useT';
+import { useT, useUiLocale } from '../../i18n/useT';
 import { formatNumberWithCommas } from '../../helpers/formatNumberWithCommas';
 import { appendFileToken } from '../../helpers/secureFileUrl';
 import { createChatCall } from '../../networking/api-requests/rooms.api';
@@ -213,6 +213,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const { composing } = useRoomState(currentRoom.jid).room ?? {};
   const { config, user: stateUser } = useChatSettingState();
   const t = useT();
+  const uiLocale = useUiLocale();
   const call = useSelector((state: RootState) => state.call);
   // Secure room avatars need the viewer's own `?ft=` token appended at
   // render time - see appendFileToken in helpers/secureFileUrl.
@@ -467,7 +468,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                     displayCount === 1
                       ? 'header.userCountSingular'
                       : 'header.userCountPlural',
-                    { count: formatNumberWithCommas(displayCount) }
+                    { count: formatNumberWithCommas(displayCount, uiLocale) }
                   );
                   if (onlineUsers.length === 0) return base;
                   return (

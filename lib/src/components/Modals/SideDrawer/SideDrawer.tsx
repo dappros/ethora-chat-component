@@ -4,26 +4,34 @@ import { BackIcon } from '../../../assets/icons';
 import Button from '../../styled/Button';
 import { useT } from '../../../i18n/useT';
 import { useModalDismiss } from '../../../hooks/useModalDismiss';
-import { slideInRightAnimation } from '../../../styles/motion';
+import { slideInRightAnimation, slideOutRightAnimation } from '../../../styles/motion';
 import { useIsMobileViewport } from '../../../hooks/useIsMobileViewport';
+// Motion: Modal.tsx keeps this drawer mounted for one exit-animation's worth
+// of time after it closes (see useExitTransition there) and reports it via
+// this context, since threading a prop through every SideDrawer-hosting
+// modal component would touch five files this drawer doesn't need to.
+import { useIsModalExiting } from '../../../context/ModalTransitionContext';
 
 /**
- * The one side-drawer surface for the profile/settings family of panels.
+ * The one surface for the profile/settings family of panels.
  *
- * Built on the existing store-driven `Modals/Modal` primitive rather than as
- * a new modal system: `Modal.tsx` already owns the routing (which panel is
- * open), the backdrop element, the lazy/Suspense boundary and the focus
- * plumbing, and it renders whichever `MODAL_COMPONENTS` entry is active
- * inside `ModalBackground`. All this component replaces is the *surface*
- * those panels used to render - `ModalContainerFullScreen`, which was
- * width:100%/height:100% and therefore covered the room list and the chat.
- * `Modal.tsx` puts `ModalBackground` into its `$drawer` mode for these panel
- * types (transparent, pointer-events:none, child parked right), so the room
- * list and chat behind the drawer stay visible and clickable on desktop.
+ * It fills whatever host renders it and does not size itself: on desktop the
+ * host is `Modals/SidePanel`, a real column of the chat's flex row, so the
+ * conversation gets NARROWER when a panel opens rather than disappearing
+ * under it (the overlay presentation this replaced was pinned over the chat).
+ * Below the mobile breakpoint that same column covers the whole chat box,
+ * which is the one-pane-at-a-time behaviour phones already had.
+ *
+ * Routing (which panel is open), the lazy/Suspense boundary and the focus
+ * plumbing still belong to the shared `Modals/Modal/ModalContent` router, so
+ * the store's `activeModal` remains the single source of truth.
  *
  * Behaviour:
- * - Slides in from the right using `styles/motion`'s shared primitives, which
- *   already no-op under `prefers-reduced-motion`.
+ * - Slides in from the right, and back out on close, using `styles/motion`'s
+ *   shared primitives (which already no-op under `prefers-reduced-motion`).
+ *   `Modal.tsx` keeps this component mounted for the exit animation's
+ *   duration after closing and reports it through `ModalTransitionContext`
+ *   (`useIsModalExiting`), which flips `DrawerPanel`'s `$closing` prop.
  * - Escape closes, initial focus moves inside, focus is restored on close -
  *   all via the shared `useModalDismiss` hook (whose modal stack means a
  *   nested confirm dialog opened from inside the drawer closes first).
@@ -36,7 +44,7 @@ import { useIsMobileViewport } from '../../../hooks/useIsMobileViewport';
 const DRAWER_BREAKPOINT_PX = 767;
 const DRAWER_BREAKPOINT = `${DRAWER_BREAKPOINT_PX}px`;
 
-export const DrawerPanel = styled.div`
+export const DrawerPanel = styled.div<{ $closing?: boolean }>`
   position: relative;
   pointer-events: auto;
   display: flex;
@@ -46,13 +54,14 @@ export const DrawerPanel = styled.div`
   height: 100%;
   background-color: var(--ethora-color-bg, #fff);
   overflow: hidden;
-  ${slideInRightAnimation}
+  ${({ $closing }) => ($closing ? slideOutRightAnimation : slideInRightAnimation)}
 
+  /* The width belongs to the column (SidePanel), not to the panel: this is
+     in-layout furniture now, so it takes the space it is given. A hairline
+     separates it from the chat; the drop shadow it used to carry belonged to
+     a floating overlay and read as wrong once the panel stopped floating. */
   @media (min-width: 768px) {
-    width: 400px;
-    max-width: 100%;
     border-left: 1px solid var(--ethora-color-border, #e6e8ec);
-    box-shadow: var(--ethora-shadow-lg, 0 12px 32px rgba(16, 24, 40, 0.14));
   }
 `;
 
@@ -185,6 +194,66 @@ export const DrawerRowDivider = styled.div`
   background-color: var(--ethora-color-border, #e6e8ec);
 `;
 
+/**
+ * Filled, borderless search field - matches the room list's and the Files
+ * tab's own search bars (bg-subtle fill, no border) rather than the boxed,
+ * bordered field the member search used to be, which sat inside a bordered
+ * `DrawerCard` and read as a box nested in another box. Not built on the
+ * shared `InputComponents/Search` component: that one adds its own visible
+ * border and isn't in this pass's file list, so this is a local, purpose-fit
+ * equivalent that shares the same visual language as the other search bars
+ * in the app.
+ */
+export const DrawerSearchBar = styled.div`
+  display: flex;
+  align-items: center;
+  gap: var(--ethora-space-2, 8px);
+  width: 100%;
+  box-sizing: border-box;
+  height: 44px;
+  padding: 0 var(--ethora-space-3, 12px);
+  border-radius: var(--ethora-radius-md, 12px);
+  background: var(--ethora-color-bg-subtle, #f5f7fa);
+  color: var(--ethora-color-text-muted, #8c8c8c);
+  transition: background-color var(--ethora-motion-fast, 150ms)
+    var(--ethora-motion-ease, ease);
+
+  &:focus-within {
+    outline: 2px solid var(--ethora-color-primary, #0052cd);
+    outline-offset: 1px;
+  }
+
+  & > svg {
+    flex: 0 0 auto;
+  }
+`;
+
+export const DrawerSearchInput = styled.input`
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font: inherit;
+  font-size: var(--ethora-font-size-sm, 14px);
+  color: var(--ethora-color-text, #141414);
+
+  &::placeholder {
+    color: var(--ethora-color-text-muted, #8c8c8c);
+  }
+`;
+
+/**
+ * Flat row list with no surrounding card border - used where the rows
+ * themselves (via hover/press state) already read as one group, e.g. the
+ * member list, so it doesn't also need a bounding box drawn around it.
+ */
+export const DrawerList = styled.div`
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+`;
+
 export const DrawerLabel = styled.div`
   font-size: var(--ethora-font-size-sm, 14px);
   font-weight: var(--ethora-font-weight-medium, 500);
@@ -313,6 +382,7 @@ const SideDrawer: FC<SideDrawerProps> = ({
   // and the chat stay interactive, so claiming `aria-modal` would misreport
   // the panel to assistive tech.
   const isFullScreen = useIsMobileViewport(DRAWER_BREAKPOINT_PX);
+  const isClosing = useIsModalExiting();
 
   return (
     <DrawerPanel
@@ -321,6 +391,7 @@ const SideDrawer: FC<SideDrawerProps> = ({
       aria-modal={isFullScreen ? true : undefined}
       aria-labelledby={titleId}
       data-testid="side-drawer"
+      $closing={isClosing}
     >
       <DrawerHeader>
         <Button

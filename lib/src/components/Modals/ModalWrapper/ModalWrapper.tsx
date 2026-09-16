@@ -1,5 +1,6 @@
 import { FC, useRef, useState } from 'react';
-import { CloseButton, GroupContainer, ModalBackground, ModalContainer, ModalDescription, ModalTitle } from '../styledModalComponents';
+import { CloseButton, GroupContainer, ModalDescription, ModalTitle } from '../styledModalComponents';
+import { PresenceModalBackground, PresenceModalContainer } from '../motionVariants';
 import { TextareaInput } from '../../styled/StyledInputComponents/StyledInputComponents';
 import Button from '../../styled/Button';
 import { useChatSettingState } from '../../../hooks/useChatSettingState';
@@ -19,6 +20,14 @@ interface ModalWrapperProps {
   setTextarea?: (value: string) => void;
   handleCloseModal: () => void;
   handleClick: () => void;
+  /**
+   * True while the caller is keeping this mounted only so the exit
+   * animation can finish - see `ModalBox`'s `isClosing` doc for the pattern
+   * (a `useExitTransition` at the `{shouldRender && <ModalWrapper .../>}`
+   * call site). Buttons here still call `handleCloseModal`/`handleClick`
+   * immediately either way.
+   */
+  isClosing?: boolean;
 }
 
 export const ModalWrapper: FC<ModalWrapperProps> = ({
@@ -33,6 +42,7 @@ export const ModalWrapper: FC<ModalWrapperProps> = ({
   setTextarea,
   handleCloseModal,
   handleClick,
+  isClosing,
 }) => {
   const textareaRef = useRef(null);
   // Rendered synchronously (no lazy/Suspense boundary here, unlike Modal.tsx),
@@ -55,8 +65,8 @@ export const ModalWrapper: FC<ModalWrapperProps> = ({
   };
   
   return (
-    <ModalBackground>
-      <ModalContainer ref={containerRef} style={{maxWidth: '640px'}}>
+    <PresenceModalBackground $closing={isClosing}>
+      <PresenceModalContainer ref={containerRef} $closing={isClosing} style={{maxWidth: '640px'}}>
         <CloseButton
           onClick={handleCloseModal}
           style={{ fontSize: 24 }}
@@ -99,7 +109,7 @@ export const ModalWrapper: FC<ModalWrapperProps> = ({
             variant="filled"
           />}
         </GroupContainer>
-      </ModalContainer>
-    </ModalBackground>
+      </PresenceModalContainer>
+    </PresenceModalBackground>
   );
 };

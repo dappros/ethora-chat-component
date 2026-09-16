@@ -36,7 +36,23 @@ const removeFromStorage = (store: Storage | null, key: string): void => {
   }
 };
 
-export const clearScopedChatCache = (): void => {
+interface ClearScopedChatCacheOptions {
+  /**
+   * Keep the chat id a QR code / shared link just parked.
+   *
+   * That id is not cached data from a previous session, it is the room the
+   * user is arriving at RIGHT NOW. Wiping it on a first-run reset (which is
+   * exactly when someone opens a link on a fresh browser) dropped the
+   * destination on the floor: the selection was cleared, and the first room
+   * that happened to arrive over XMPP was opened instead. A genuine tenant
+   * switch still drops it - a bare chat id means nothing in another tenant.
+   */
+  keepPendingChatId?: boolean;
+}
+
+export const clearScopedChatCache = (
+  options?: ClearScopedChatCacheOptions
+): void => {
   if (typeof window === 'undefined') return;
 
   const local = window.localStorage;
@@ -47,7 +63,9 @@ export const clearScopedChatCache = (): void => {
     removeFromStorage(session, key);
   });
 
-  removeFromStorage(local, localStorageConstants.ETHORA_QR_CHAT_ID);
+  if (!options?.keepPendingChatId) {
+    removeFromStorage(local, localStorageConstants.ETHORA_QR_CHAT_ID);
+  }
   removeFromStorage(local, localStorageConstants.ETHORA_USER);
   removeFromStorage(local, localStorageConstants.ETHORA_USER_SESSION);
   removeFromStorage(local, localStorageConstants.ETHORA_USER_PAYLOAD_VERSION);
@@ -98,7 +116,10 @@ export const ensureScopedChatCache = (
   const shouldReset = previousScope !== null || hasLegacy;
 
   if (shouldReset) {
-    clearScopedChatCache();
+    // previousScope === null means this browser has never recorded a scope:
+    // a first run, or a legacy payload from before scoping existed. That is
+    // not a tenant switch, so a pending deep-link chat id must survive it.
+    clearScopedChatCache({ keepPendingChatId: previousScope === null });
   }
 
   try {

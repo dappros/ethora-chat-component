@@ -11,6 +11,11 @@ export const ChooseChatMessageContainer = styled.div`
   justify-content: center;
   flex-direction: column;
   gap: 16px;
+  /* This stands in for the chat pane, which has its own background. Left
+     transparent, the near-black text below sat on whatever the host page
+     paints - on a dark page the copy was simply invisible, which is how an
+     "this chat isn't available" message manages to be no message at all. */
+  background: var(--ethora-color-bg, #fff);
 `;
 
 export const ChooseChatMessageContainerBoxText = styled.div`
@@ -31,18 +36,30 @@ export const ChooseChatDescription = styled.div`
   color: #141414;
 `;
 
-export const ChooseChatMessage = () => {
+interface ChooseChatMessageProps {
+  /**
+   * True when a specific room WAS requested (a QR code, a shared link, a
+   * `roomJID` prop) but is not available to this user. Without this the
+   * failure rendered as the ordinary "pick a chat" placeholder, so a dead
+   * or members-only link looked exactly like an idle chat pane.
+   */
+  unavailable?: boolean;
+}
+
+export const ChooseChatMessage = ({ unavailable }: ChooseChatMessageProps = {}) => {
   const { config } = useChatSettingState();
 
   return (
-    <ChooseChatMessageContainer>
+    <ChooseChatMessageContainer data-testid="choose-chat-message">
     <EmptyChatIllustration width={240} style={{ color: resolveIconColor(config) }} />
     <ChooseChatMessageContainerBoxText>
       <ChooseChatTitle>
-        Start a Conversation
+        {unavailable ? "This chat isn't available" : 'Start a Conversation'}
       </ChooseChatTitle>
       <ChooseChatDescription>
-        Choose a chat to start messaging.
+        {unavailable
+          ? 'The link may have expired, or you may not be a member of this chat.'
+          : 'Choose a chat to start messaging.'}
       </ChooseChatDescription>
     </ChooseChatMessageContainerBoxText>
   </ChooseChatMessageContainer>

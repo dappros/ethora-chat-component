@@ -106,6 +106,13 @@ export const MessagesList = styled.div`
   min-height: 0;
   position: relative;
   color: #000000de;
+  /* MessageList is keyed by activeRoomJID in ChatRoom.tsx, so this remounts
+     - and this fade plays - exactly once per room switch (and on first
+     load), not on every re-render or scroll: a CSS animation only runs
+     when it starts applying to a node, which for a static (non-conditional)
+     rule is when the node itself is created. A settle-in on the content
+     reads far better than the list just swapping in place. */
+  ${fadeInAnimation}
 `;
 
 export const MessageTimestamp = styled.div`
