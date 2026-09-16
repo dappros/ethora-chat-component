@@ -200,11 +200,15 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             !!message.xmppId &&
             message.xmppId === seedLastMessage.xmppId)
       );
+    // The seed stays on screen for as long as the room has nothing loaded,
+    // not just while it is opening. Some rooms have a lastMessage in
+    // `chats/my` but an empty MAM archive (the message was never archived,
+    // or was removed). Dropping the seed at the end of the opening phase
+    // made those rooms show the message and then replace it with "this chat
+    // is empty", which contradicts what the user just read, and contradicts
+    // the room-list row that still shows the same message as the preview.
     const showOpeningSeed =
-      openPhase === 'opening' &&
-      !hasMessages &&
-      !!seedLastMessage?.body &&
-      !seedAlreadyLoaded;
+      !hasMessages && !!seedLastMessage?.body && !seedAlreadyLoaded;
     const openingSeedMessage: IMessage | undefined = showOpeningSeed
       ? {
           ...(seedLastMessage as IMessage),
@@ -296,21 +300,23 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         )}
         {config?.chatHeaderAdditional?.enabled &&
           config.chatHeaderAdditional.element()}
-        {openPhase === 'opening' && !hasMessages ? (
-          openingSeedMessage ? (
-            <ChatRoomOpeningPreview
-              seedMessage={openingSeedMessage}
-              config={config}
-              xmppUsername={user?.xmppUsername}
-              isReply={false}
-              CustomMessage={CustomMessageComponent}
-            />
-          ) : (
-            <Loader
-              data-testid="chat-room-opening-loader"
-              color={config?.colors?.primary}
-            />
-          )
+        {openingSeedMessage ? (
+          <ChatRoomOpeningPreview
+            seedMessage={openingSeedMessage}
+            config={config}
+            xmppUsername={user?.xmppUsername}
+            isReply={false}
+            CustomMessage={CustomMessageComponent}
+            // The loader sits above the seeded message only while history is
+            // still on its way. Once the room has settled the message stays,
+            // without a spinner implying more is coming.
+            loading={openPhase === 'opening'}
+          />
+        ) : openPhase === 'opening' && !hasMessages ? (
+          <Loader
+            data-testid="chat-room-opening-loader"
+            color={config?.colors?.primary}
+          />
         ) : Object.keys(roomsList).length < 1 || !activeRoomJID ? (
           <EmptyChatIllustration
             width={240}

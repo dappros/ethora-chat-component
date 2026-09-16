@@ -15,6 +15,14 @@ interface ChatRoomOpeningPreviewProps {
     $isUser?: boolean;
     isReply: boolean;
   }>;
+  /**
+   * Whether history is still on its way. The loader above the seeded message
+   * stands in for the rest of the conversation, so it must disappear once the
+   * room has settled. Some rooms keep the seed forever: `chats/my` reports a
+   * last message while their MAM archive is empty, and a permanent spinner
+   * there would promise messages that are never going to arrive.
+   */
+  loading?: boolean;
 }
 
 // Shown while a room is opening, has no loaded history yet, but the API
@@ -33,25 +41,28 @@ export const ChatRoomOpeningPreview: React.FC<ChatRoomOpeningPreviewProps> = ({
   xmppUsername,
   isReply,
   CustomMessage,
+  loading = true,
 }) => {
   return (
     <MessagesScroll
       data-testid="chat-room-opening-seed"
       style={{ display: 'flex', flexDirection: 'column' }}
     >
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          padding: 'var(--ethora-space-4, 16px) 0',
-        }}
-      >
-        <Loader
-          data-testid="chat-room-opening-loader"
-          color={config?.colors?.primary}
-          size={28}
-        />
-      </div>
+      {loading && (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            padding: 'var(--ethora-space-4, 16px) 0',
+          }}
+        >
+          <Loader
+            data-testid="chat-room-opening-loader"
+            color={config?.colors?.primary}
+            size={28}
+          />
+        </div>
+      )}
       <div
         style={{
           flex: '1 1 auto',
