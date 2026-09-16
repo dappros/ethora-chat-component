@@ -1,6 +1,6 @@
 import React, { FC } from 'react';
-import styled, { css, keyframes } from 'styled-components';
-import { reducedMotion } from '../../../styles/motion';
+import styled, { css } from 'styled-components';
+import { dotFade as dotAnimation, pulse as pulseAnimation, reducedMotion } from '../../../styles/motion';
 
 interface CustomTypingIndicatorProps {
   usersTyping: string[];
@@ -14,18 +14,6 @@ interface CustomTypingIndicatorProps {
   }>;
   isVisible: boolean;
 }
-
-const dotAnimation = keyframes`
-  0% { opacity: 0.2; }
-  20% { opacity: 1; }
-  100% { opacity: 0.2; }
-`;
-
-const pulseAnimation = keyframes`
-  0% { transform: scale(1); opacity: 0.8; }
-  50% { transform: scale(1.05); opacity: 1; }
-  100% { transform: scale(1); opacity: 0.8; }
-`;
 
 const BaseWrapper = styled.div<{ $position: string }>`
   display: flex;

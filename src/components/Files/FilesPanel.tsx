@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import styled, { keyframes } from 'styled-components';
+import styled from 'styled-components';
+import { fadeIn } from '../../styles/motion';
 import { RootState } from '../../roomStore';
 import { useMyFiles } from '../../hooks/useMyFiles';
 import { ApiFile } from '../../types/types';
@@ -86,11 +87,6 @@ const Chip = styled.button<{ $active?: boolean }>`
   @media (prefers-reduced-motion: reduce) {
     transition: none;
   }
-`;
-
-const fadeIn = keyframes`
-  from { opacity: 0; }
-  to { opacity: 1; }
 `;
 
 const SkeletonRow = styled.div`
