@@ -9,7 +9,7 @@ import SideDrawer, {
 } from '../Modals/SideDrawer/SideDrawer';
 import { StyledInput } from '../styled/StyledInputComponents/StyledInputComponents';
 import Button from '../styled/Button';
-import { QRCODE_URL } from '../../helpers/constants/PLATFORM_CONSTANTS';
+import { buildChatShareLink } from '../../helpers/buildChatShareLink';
 import { handleCopyClick } from '../../helpers/handleCopyClick';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { useT } from '../../i18n/useT';
@@ -82,17 +82,14 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
 }) => {
   const { config } = useChatSettingState();
   const t = useT();
-  // Prefer app-provided qrUrl; else build from the current origin so QA /
-  // self-hosted deployments don't point QR codes at the prod default.
-  const qrBase =
-    config?.qrUrl ||
-    (typeof window !== 'undefined'
-      ? `${window.location.origin}/app/chat/?chatId=`
-      : QRCODE_URL);
 
   if (!isVisible) return null;
 
-  const qrValue = `${qrBase}${chatJid.split('@')[0]}`;
+  // The link is built by the shared helper: it prefers a host-provided
+  // `config.qrUrl` and otherwise points back at THIS page. The old
+  // fallback appended a hardcoded `/app/chat/` path to the origin, a
+  // route most deployments do not serve, so the QR opened a blank page.
+  const qrValue = buildChatShareLink(chatJid, config?.qrUrl);
 
   return (
     <QrPanelLayer>

@@ -1,4 +1,4 @@
-import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { FC, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import ChatRoom from './ChatRoom';
 import {
@@ -78,10 +78,6 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   const conferenceServer = config?.xmppSettings?.conference;
 
   const dispatch = useDispatch();
-  const { wasAutoSelected } = useQRCodeChat(
-    (params) => dispatch(setCurrentRoom(params)),
-    conferenceServer
-  );
 
   useEffect(() => {
     // Only run on client-side
@@ -117,6 +113,39 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     Boolean(state.rooms?.reportRoom?.isOpen)
   );
   const { loadingText } = useRoomState();
+
+  // Deliberately placed after the room selectors: the QR / deep-link hook
+  // needs to see the rooms as they load so it can keep re-asserting the
+  // requested room until it actually lands (and stop once it is clear the
+  // room will never arrive). `conferenceServer` comes from the host config
+  // only - there is no build-time fallback.
+  const { wasAutoSelected } = useQRCodeChat(
+    useCallback(
+      (params: { roomJID: string }) => dispatch(setCurrentRoom(params)),
+      [dispatch]
+    ),
+    conferenceServer,
+    {
+      rooms,
+      activeRoomJID,
+      isReady: !isRoomsLoading && Object.keys(rooms || {}).length > 0,
+    }
+  );
+
+  // A QR code is scanned on a phone, which is exactly the viewport where the
+  // room list and the conversation are two separate screens. Selecting the
+  // room is not enough there: without this the deep link left the user
+  // looking at the room list with the target room silently selected behind
+  // it. Fires once per auto-selected room, so tapping Back still works.
+  const revealedRoomRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isSmallScreen) return;
+    if (!activeRoomJID) return;
+    if (!wasAutoSelected && !roomJID) return;
+    if (revealedRoomRef.current === activeRoomJID) return;
+    revealedRoomRef.current = activeRoomJID;
+    setIsChatVisible(true);
+  }, [isSmallScreen, activeRoomJID, wasAutoSelected, roomJID]);
 
   // Memoized so ChatWrapper re-renders that don't touch `rooms` (typing
   // indicators, activeRoomJID changes, etc.) don't hand RoomList a brand-new

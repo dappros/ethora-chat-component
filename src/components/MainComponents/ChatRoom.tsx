@@ -207,7 +207,18 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     }
 
     if (!activeRoomJID || !roomsList?.[activeRoomJID]) {
-      return <ChooseChatMessage />;
+      // A room WAS requested (deep link, QR, roomJID prop) but is not in the
+      // list and nothing is still loading: say so instead of showing the
+      // idle "pick a chat" placeholder, which made a dead link and a fresh
+      // session look identical.
+      const requestedRoomUnavailable =
+        Boolean(activeRoomJID) &&
+        !loading &&
+        !globalLoading &&
+        !providerStillBootstrapping &&
+        !xmppNotOnline;
+
+      return <ChooseChatMessage unavailable={requestedRoomUnavailable} />;
     }
 
     return (
