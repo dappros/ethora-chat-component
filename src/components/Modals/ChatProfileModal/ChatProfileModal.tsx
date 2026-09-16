@@ -2,15 +2,20 @@ import React, { useMemo, useState } from 'react';
 import SideDrawer, {
   DrawerCard,
   DrawerCardBody,
-  DrawerHint,
   DrawerLabel,
-  DrawerRowDivider,
+  DrawerList,
+  DrawerSearchBar,
+  DrawerSearchInput,
   DrawerSection,
   DrawerSectionTitle,
   SectionHeaderRow,
   ShowMoreButton,
 } from '../SideDrawer/SideDrawer';
 import {
+  DrawerDescriptionText,
+  DrawerEmptyState,
+  DrawerEmptyStateTitle,
+  DrawerFactPill,
   ProfileHero,
   ProfileHeroName,
   ProfileHeroSubtitle,
@@ -19,8 +24,6 @@ import { ProfileImagePlaceholder } from '../../MainComponents/ProfileImagePlaceh
 import { useRoomPresence } from '../../../hooks/useRoomPresence';
 import { useDispatch, useSelector, useStore } from 'react-redux';
 import { RootState, getActiveRoom } from '../../../roomStore';
-import { SearchInput } from '../../InputComponents/Search';
-import { SearchIcon } from '../../../assets/icons';
 import { uploadFile } from '../../../networking/api-requests/auth.api';
 import { appendFileToken } from '../../../helpers/secureFileUrl';
 import { useXmppClient } from '../../../context/xmppProvider';
@@ -28,7 +31,14 @@ import { updateRoom } from '../../../roomStore/roomsSlice';
 import Loader from '../../styled/Loader';
 import Button from '../../styled/Button';
 import Switch from '../../MainComponents/Switch';
-import { DeleteIcon, MoreIcon, QrIcon } from '../../../assets/icons';
+import {
+  DeleteIcon,
+  FileIcon,
+  GlobeIcon,
+  MoreIcon,
+  QrIcon,
+  SearchIcon,
+} from '../../../assets/icons';
 import { useRoomMute } from '../../../hooks/useRoomMute';
 import OperationalModal from '../../OperationalModal/OperationalModal';
 import { RoomMember } from '../../../types/types';
@@ -387,31 +397,33 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         activeRoom.type === 'group' &&
         !roomConfigDisabled && <SelectUsersModal />}
 
-      {/* Description and chat type used to be two separate bordered boxes with
-          no heading between them. They are one "About" card of labelled rows
-          now, so the panel reads as grouped facts rather than loose chrome. */}
+      {/* Description reads as prose (no "Description" label above it - the
+          section heading already says what this is), and the chat type is a
+          small tag rather than a second bordered field. Between them this
+          replaces what used to be two identical "label above value" boxes
+          that read like a disabled form. */}
       {(showDescription || showType) && (
         <DrawerSection>
           <DrawerSectionTitle>
             {t('modal.chatProfile.aboutSection')}
           </DrawerSectionTitle>
-          <DrawerCard>
-            {showDescription && (
-              <DrawerCardBody>
-                <DrawerHint>{t('modal.chatProfile.description')}</DrawerHint>
-                <DrawerLabel>
-                  {activeRoom?.description || t('modal.profile.noDescription')}
-                </DrawerLabel>
-              </DrawerCardBody>
-            )}
-            {showDescription && showType && <DrawerRowDivider />}
-            {showType && (
-              <DrawerCardBody>
-                <DrawerHint>{t('modal.chatProfile.chatType')}</DrawerHint>
-                <DrawerLabel>{activeRoom.type}</DrawerLabel>
-              </DrawerCardBody>
-            )}
-          </DrawerCard>
+          {showDescription && (
+            <DrawerDescriptionText $empty={!activeRoom?.description}>
+              {activeRoom?.description || t('modal.profile.noDescription')}
+            </DrawerDescriptionText>
+          )}
+          {showType && (
+            <DrawerFactPill>
+              <GlobeIcon color="currentColor" />
+              {t(
+                activeRoom.type === 'private'
+                  ? 'modal.chatProfile.typePrivate'
+                  : activeRoom.type === 'group'
+                    ? 'modal.chatProfile.typeGroup'
+                    : 'modal.chatProfile.typePublic'
+              )}
+            </DrawerFactPill>
+          )}
         </DrawerSection>
       )}
 
@@ -448,62 +460,64 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
 
       {!config?.disableChatInfo?.hideMembers && (
         <DrawerSection>
-          <DrawerSectionTitle>
-            {t('modal.chatProfile.membersSection')}
-          </DrawerSectionTitle>
-          <DrawerCard>
-            <DrawerCardBody>
-              {enrichedMembers.length > 0 && (
-                <SearchInput
-                  icon={<SearchIcon height={'20px'} />}
-                  value={memberQuery}
-                  onChange={handleMemberQueryChange}
-                  placeholder={t('modal.chatProfile.searchMembers')}
-                  aria-label={t('modal.chatProfile.searchMembers')}
+          <SectionHeaderRow>
+            <DrawerSectionTitle>
+              {t('modal.chatProfile.membersSection')}
+            </DrawerSectionTitle>
+          </SectionHeaderRow>
+          {/* Filled, borderless search bar - not boxed inside another card,
+              so members read as one flat, searchable list (same surface as
+              the room list itself) rather than a box nested in a box. */}
+          {enrichedMembers.length > 0 && (
+            <DrawerSearchBar>
+              <SearchIcon color="currentColor" height={'18px'} />
+              <DrawerSearchInput
+                type="text"
+                value={memberQuery}
+                onChange={handleMemberQueryChange}
+                placeholder={t('modal.chatProfile.searchMembers')}
+                aria-label={t('modal.chatProfile.searchMembers')}
+              />
+            </DrawerSearchBar>
+          )}
+          {loading ? (
+            <Loader />
+          ) : (
+            <DrawerList>
+              {visibleMembers.map((user) => (
+                <ChatProfileMemberRow
+                  key={user.xmppUsername}
+                  member={user}
+                  isLast
+                  disableClick={!!config?.disableChatInfo?.disableMembers}
+                  online={onlineUsersSet.has(user.xmppUsername)}
+                  showMenu={
+                    stateUser.xmppUsername !== user.xmppUsername &&
+                    activeRoom.role === 'moderator' &&
+                    activeRoom.type !== 'private' &&
+                    !roomConfigDisabled
+                  }
+                  menuOptions={menuOptions(user.xmppUsername)}
+                  moreOptionsLabel={t('action.moreOptions')}
+                  onAvatarClick={handleUserAvatarClick}
                 />
+              ))}
+              {hasMoreMembers && (
+                <ShowMoreButton
+                  type="button"
+                  onClick={() =>
+                    setVisibleMemberCount(
+                      (count) => count + MEMBER_RENDER_WINDOW_STEP
+                    )
+                  }
+                >
+                  {t('modal.chatProfile.membersShowMore', {
+                    count: filteredMembers.length - visibleMemberCount,
+                  })}
+                </ShowMoreButton>
               )}
-              {loading ? (
-                <Loader />
-              ) : (
-                <>
-                  {visibleMembers.map((user, index) => (
-                    <ChatProfileMemberRow
-                      key={user.xmppUsername}
-                      member={user}
-                      isLast={
-                        index === visibleMembers.length - 1 && !hasMoreMembers
-                      }
-                      disableClick={!!config?.disableChatInfo?.disableMembers}
-                      online={onlineUsersSet.has(user.xmppUsername)}
-                      showMenu={
-                        stateUser.xmppUsername !== user.xmppUsername &&
-                        activeRoom.role === 'moderator' &&
-                        activeRoom.type !== 'private' &&
-                        !roomConfigDisabled
-                      }
-                      menuOptions={menuOptions(user.xmppUsername)}
-                      moreOptionsLabel={t('action.moreOptions')}
-                      onAvatarClick={handleUserAvatarClick}
-                    />
-                  ))}
-                  {hasMoreMembers && (
-                    <ShowMoreButton
-                      type="button"
-                      onClick={() =>
-                        setVisibleMemberCount(
-                          (count) => count + MEMBER_RENDER_WINDOW_STEP
-                        )
-                      }
-                    >
-                      {t('modal.chatProfile.membersShowMore', {
-                        count: filteredMembers.length - visibleMemberCount,
-                      })}
-                    </ShowMoreButton>
-                  )}
-                </>
-              )}
-            </DrawerCardBody>
-          </DrawerCard>
+            </DrawerList>
+          )}
         </DrawerSection>
       )}
 
@@ -524,26 +538,36 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
             </ShowMoreButton>
           )}
         </SectionHeaderRow>
-        <DrawerCard>
-          <DrawerCardBody>
-            {filesLoading && roomFiles.length === 0 ? (
-              <Loader />
-            ) : filesError && roomFiles.length === 0 ? (
-              <DrawerHint>{t('files.error.title')}</DrawerHint>
-            ) : roomFiles.length === 0 ? (
-              <DrawerHint>{t('modal.chatProfile.filesEmpty')}</DrawerHint>
-            ) : (
-              <FilesList
-                items={visibleRoomFiles}
-                fileToken={fileToken}
-                onPreview={handleFilePreview}
-                onDownload={handleFileDownload}
-                onDelete={handleFileDelete}
-                compact
-              />
-            )}
-          </DrawerCardBody>
-        </DrawerCard>
+        {filesLoading && roomFiles.length === 0 ? (
+          <Loader />
+        ) : filesError && roomFiles.length === 0 ? (
+          <DrawerEmptyState $compact>
+            <FileIcon
+              color="var(--ethora-color-text-muted, #8c8c8c)"
+              fill="var(--ethora-color-bg-subtle, #f5f7fa)"
+            />
+            <DrawerEmptyStateTitle>{t('files.error.title')}</DrawerEmptyStateTitle>
+          </DrawerEmptyState>
+        ) : roomFiles.length === 0 ? (
+          <DrawerEmptyState $compact>
+            <FileIcon
+              color="var(--ethora-color-text-muted, #8c8c8c)"
+              fill="var(--ethora-color-bg-subtle, #f5f7fa)"
+            />
+            <DrawerEmptyStateTitle>
+              {t('modal.chatProfile.filesEmpty')}
+            </DrawerEmptyStateTitle>
+          </DrawerEmptyState>
+        ) : (
+          <FilesList
+            items={visibleRoomFiles}
+            fileToken={fileToken}
+            onPreview={handleFilePreview}
+            onDownload={handleFileDownload}
+            onDelete={handleFileDelete}
+            compact
+          />
+        )}
       </DrawerSection>
 
       <OperationalModal

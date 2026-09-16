@@ -186,6 +186,66 @@ export const DrawerRowDivider = styled.div`
   background-color: var(--ethora-color-border, #e6e8ec);
 `;
 
+/**
+ * Filled, borderless search field - matches the room list's and the Files
+ * tab's own search bars (bg-subtle fill, no border) rather than the boxed,
+ * bordered field the member search used to be, which sat inside a bordered
+ * `DrawerCard` and read as a box nested in another box. Not built on the
+ * shared `InputComponents/Search` component: that one adds its own visible
+ * border and isn't in this pass's file list, so this is a local, purpose-fit
+ * equivalent that shares the same visual language as the other search bars
+ * in the app.
+ */
+export const DrawerSearchBar = styled.div`
+  display: flex;
+  align-items: center;
+  gap: var(--ethora-space-2, 8px);
+  width: 100%;
+  box-sizing: border-box;
+  height: 44px;
+  padding: 0 var(--ethora-space-3, 12px);
+  border-radius: var(--ethora-radius-md, 12px);
+  background: var(--ethora-color-bg-subtle, #f5f7fa);
+  color: var(--ethora-color-text-muted, #8c8c8c);
+  transition: background-color var(--ethora-motion-fast, 150ms)
+    var(--ethora-motion-ease, ease);
+
+  &:focus-within {
+    outline: 2px solid var(--ethora-color-primary, #0052cd);
+    outline-offset: 1px;
+  }
+
+  & > svg {
+    flex: 0 0 auto;
+  }
+`;
+
+export const DrawerSearchInput = styled.input`
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font: inherit;
+  font-size: var(--ethora-font-size-sm, 14px);
+  color: var(--ethora-color-text, #141414);
+
+  &::placeholder {
+    color: var(--ethora-color-text-muted, #8c8c8c);
+  }
+`;
+
+/**
+ * Flat row list with no surrounding card border - used where the rows
+ * themselves (via hover/press state) already read as one group, e.g. the
+ * member list, so it doesn't also need a bounding box drawn around it.
+ */
+export const DrawerList = styled.div`
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+`;
+
 export const DrawerLabel = styled.div`
   font-size: var(--ethora-font-size-sm, 14px);
   font-weight: var(--ethora-font-weight-medium, 500);
