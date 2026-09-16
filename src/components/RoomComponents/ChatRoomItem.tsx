@@ -196,32 +196,26 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
   return (
     <ChatItem
       active={isChatActive}
-      onClick={() => performClick(chat)}
-      // A real <button> only shows its browser focus ring for a keyboard
-      // activation, never a mouse click - but this row is a plain div made
-      // focusable with `tabIndex`, and browsers apply :focus-visible more
-      // conservatively there: since the element needed tabIndex to be
-      // focusable at all, a mouse click on it (or on any non-focusable
-      // descendant inside it, which re-targets focus to this nearest
-      // focusable ancestor) is treated as a legitimate reason to show the
-      // ring, not just a click. That is the purple box the owner saw after
-      // clicking a row with the mouse. Moving focus onto click is itself
-      // just the browser's default mousedown action, so preventing that
-      // default (mousedown fires, and is fully handled, before the click)
-      // stops the row from ever taking DOM focus on a pointer interaction -
-      // the click handler above still runs normally. Tab-driven keyboard
-      // focus never goes through mousedown, so this leaves keyboard
-      // navigation of the list untouched.
+      // The row is a plain div made focusable with tabIndex, and browsers
+      // are more liberal with :focus-visible there than on a real <button>:
+      // in some engines a plain pointer click is treated as reason enough to
+      // paint the ring. That is the box the owner saw after clicking a room.
       //
-      // Also blur whatever element was focused before this click (e.g. the
-      // Chats/Files tab switcher, Tab'd into earlier): since this row is no
-      // longer willing to take focus, the browser would otherwise leave
-      // that earlier element - and its own ring - focused, even though the
-      // click has visibly moved attention to a different room. Same fix as
-      // OnlineUsersPopover's blur-before-opening.
-      onMouseDown={(e) => {
-        e.preventDefault();
-        (document.activeElement as HTMLElement | null)?.blur();
+      // Dropping focus here, inside the click handler, is the safe place to
+      // undo it: the browser has already moved focus by then, and nothing
+      // about activation is cancelled. An earlier attempt did this by
+      // calling preventDefault on mousedown, which does suppress the ring
+      // but also stopped the row opening its chat on a real pointer click
+      // (confirmed in the browser: with it, the click never selected the
+      // room; without it, the room opens).
+      //
+      // `detail` is the click count: it is greater than zero for a genuine
+      // pointer click and zero when the click was synthesised by activating
+      // a focused element from the keyboard, so keyboard users keep both
+      // their focus and their ring.
+      onClick={(e) => {
+        if (e.detail > 0) e.currentTarget.blur();
+        performClick(chat);
       }}
       bg={config?.colors?.primary}
       data-testid={RoomListTestIds.roomRow}

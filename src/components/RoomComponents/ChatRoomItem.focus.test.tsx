@@ -35,7 +35,7 @@ const getRow = () =>
 // something that was never focused. Tab-driven keyboard focus doesn't go
 // through mousedown, so it must still land on the row exactly as before.
 describe('ChatRoomItem row focus behavior', () => {
-  it('does not move DOM focus onto the row for a mouse click, but still opens the room', async () => {
+  it('leaves no focus on the row after a pointer click, and still opens the room', async () => {
     const performClick = vi.fn();
     const user = userEvent.setup();
 
@@ -50,6 +50,9 @@ describe('ChatRoomItem row focus behavior', () => {
 
     const row = getRow();
     expect(row).not.toBeNull();
+    // The browser may focus the row on mousedown; what matters is that it
+    // does not stay focused once the click has been handled, so no ring
+    // is left behind for a pointer user.
     expect(document.activeElement).not.toBe(row);
 
     // userEvent.click() (unlike a bare fireEvent.click()) dispatches the
