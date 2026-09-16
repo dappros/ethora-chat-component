@@ -43,6 +43,10 @@ import { deleteRoom, setCurrentRoom } from '../../roomStore/roomsSlice';
 import { RoomListTestIds } from '../../testIds';
 import FilesPanel from '../Files/FilesPanel';
 import { useFilesEndpointSupport } from '../../hooks/useFilesEndpointSupport';
+import {
+  getTimestampFromUnknown,
+  normalizeTimestampValue,
+} from '../../helpers/timestamp';
 
 const SKELETON_ROW_COUNT = 6;
 
@@ -52,13 +56,6 @@ interface RoomListProps {
   onRoomClick?: (chat: IRoom) => void;
   isSmallScreen?: boolean;
 }
-
-const normalizeTimestampValue = (value: number): number => {
-  if (!Number.isFinite(value) || value <= 0) return 0;
-  if (value < 1e11) return value * 1000;
-  if (value > 1e14) return Math.floor(value / 1000);
-  return value;
-};
 
 const getRoomActivityTimestamp = (chat: IRoom): number => {
   const latestMessage = chat?.messages?.[chat.messages.length - 1];
@@ -89,6 +86,22 @@ const getRoomActivityTimestamp = (chat: IRoom): number => {
         return normalizedChunk;
       }
     }
+  }
+
+  // No live signal (no loaded history, no live lastMessageTimestamp, no
+  // message id to parse). Before falling all the way back to the room's
+  // creation date, try the API's own `lastMessage.createdAt` (see
+  // createRoomFromApi/mapApiLastMessage) - it is the same "correct when
+  // present" activity data ChatRoomItem already uses to seed the preview
+  // text for a room with no loaded history, so ordering should trust it
+  // too. It is frozen at seed time and never refreshed from live traffic
+  // (see IRoom.lastMessage), which is exactly why every check above - all
+  // of them real live signals - must keep outranking it.
+  const apiLastMessageTimestamp = getTimestampFromUnknown(
+    chat?.lastMessage?.date
+  );
+  if (apiLastMessageTimestamp > 0) {
+    return apiLastMessageTimestamp;
   }
 
   const createdAt = new Date(chat?.createdAt as string).getTime();
@@ -292,9 +305,12 @@ const RoomList: React.FC<RoomListProps> = ({
           getRoomLabel(chat).toLowerCase().includes(lowerCaseSearchTerm)
         )
         .sort((a, b) => {
-          // Took main's getRoomActivityTimestamp helper (helpers/roomActivityScore.ts)
-          // over tf-dev's inline getLastMessageId/createdAt fallback chain - main's
-          // helper is the cleaner extraction and accounts for more activity signals.
+          // Deliberately NOT helpers/roomActivityScore.ts's getRoomLastActivityScore:
+          // that helper is shared with xmppClient.ts's reconnect resubscription order
+          // and historyPreloadScheduler.ts's preload priority, neither of which should
+          // start weighing the API's lastMessage seed just because the sidebar does.
+          // This chain also keeps its own last resort (chat.createdAt) that makes
+          // sense for "where do I place this row" but not for those other consumers.
           const aCompare = getRoomActivityTimestamp(a);
           const bCompare = getRoomActivityTimestamp(b);
           return bCompare - aCompare;
