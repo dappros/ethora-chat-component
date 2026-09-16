@@ -1,5 +1,5 @@
 import { IMessage } from '../types/types';
-import { toBaseLanguage } from '../helpers/toBaseLanguage';
+import { resolveMessageTranslation } from '../helpers/resolveMessageTranslation';
 
 export interface MessageTranslationState {
   /** False when the message is already in the reader's language, or no
@@ -11,10 +11,6 @@ export interface MessageTranslationState {
   displayText: string;
 }
 
-// "42", "+1 (555) 123-4567", "3.14159" - text with no actual letters has
-// nothing to translate.
-const hasNoLetters = (text: string): boolean => !/\p{L}/u.test(text);
-
 /**
  * Translation for ONE message, into the reader's language only.
  *
@@ -23,9 +19,10 @@ const hasNoLetters = (text: string): boolean => !/\p{L}/u.test(text);
  * `<translate source="xx"/>` (see sendTextMessageWithTranslateTag) and
  * whatever process attaches actual translations does so server-side,
  * landing on `message.translations` when the stanza is parsed (see
- * getDataFromXml). This function only ever reads that - it never calls a
- * translation service itself, so there's nothing to fail when one isn't
- * reachable, and nothing to await.
+ * getDataFromXml). This hook is a thin wrapper around
+ * `resolveMessageTranslation` (the shared lookup manual mode also uses) - it
+ * never calls a translation service itself, so there's nothing to fail when
+ * one isn't reachable, and nothing to await.
  *
  * A message sent before the sender had translate-sending turned on simply
  * never got tagged, so it has no translation to show - not an error, just
@@ -37,40 +34,19 @@ export const useMessageTranslation = (
   readerLocale?: string,
   enabled = true
 ): MessageTranslationState => {
-  const originalText = message?.body || '';
-  const source = message?.langSource;
-  const targetBase = toBaseLanguage(readerLocale || 'en');
-  const sourceBase = toBaseLanguage(source);
+  const resolved = resolveMessageTranslation(message, readerLocale);
 
-  // Nothing to do when we don't know the source language, the message is
-  // already in the reader's language (region ignored: en-US vs en-CA is the
-  // same language, not a translation job), or there's no actual text to
-  // translate (a bare number, a phone number, an emoji-only reaction).
-  const trimmedText = originalText.trim();
-  const needsTranslation =
-    enabled &&
-    !!trimmedText &&
-    !!source &&
-    sourceBase !== targetBase &&
-    !hasNoLetters(trimmedText);
-
-  const result = needsTranslation
-    ? message?.translations?.[readerLocale || '']?.translatedText ||
-      message?.translations?.[targetBase]?.translatedText
-    : undefined;
-
-  // A "translation" that's byte-identical to the original (mistagged
-  // langSource, a no-op from the source, matching proper nouns/numbers in
-  // otherwise-different text) is worse than nothing: it renders the same
-  // sentence twice - a small quote block above, then the body repeating
-  // it verbatim. Treat identical-after-trim as "nothing to show" rather
-  // than a real translation.
-  const isRealTranslation =
-    !!result && result.trim() !== originalText.trim();
+  if (!enabled) {
+    return {
+      hasTranslation: false,
+      originalText: resolved.originalText,
+      displayText: resolved.originalText,
+    };
+  }
 
   return {
-    hasTranslation: isRealTranslation,
-    originalText,
-    displayText: isRealTranslation ? (result as string) : originalText,
+    hasTranslation: resolved.hasTranslation,
+    originalText: resolved.originalText,
+    displayText: resolved.displayText,
   };
 };

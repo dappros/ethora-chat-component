@@ -4,10 +4,9 @@ import { IConfig, IMessage } from '../../types/types';
 import { CustomDivider } from './CustomDivider';
 import { CustomMessageText } from '../styled/StyledComponents';
 import { useT } from '../../i18n/useT';
-import { toBaseLanguage } from '../../i18n/strings';
 import { useAppDispatch } from '../../hooks/hooks';
 import { setMessageTranslation } from '../../roomStore/roomsSlice';
-import { deriveTranslateEndpoint } from '../../helpers/deriveTranslateEndpoint';
+import { resolveMessageTranslation } from '../../helpers/resolveMessageTranslation';
 import { fetchTranslation } from '../../networking/api-requests/translate.api';
 
 interface MessageTranslateProps {
@@ -43,24 +42,32 @@ type Phase = 'idle' | 'loading' | 'done' | 'error';
  *
  *  1. `config.translates.onTranslate` (host-provided) - wins whenever set;
  *  2. whatever translation already arrived attached to the stanza
- *     (`message.translations`) - free, no request;
- *  3. a fetch from the translate service at `config.translates.endpoint`
- *     (or one derived from `config.baseUrl`, see deriveTranslateEndpoint) -
- *     only when neither of the above produced anything and an endpoint
- *     could be resolved. The result is cached onto the message in the
- *     store (setMessageTranslation) so a second click - and 'auto' mode,
- *     if the reader switches to it - see it for free, even after this
- *     bubble unmounts and remounts (long rooms remount bubbles on scroll).
+ *     (`message.translations`), read through the SAME shared resolver
+ *     `resolveMessageTranslation` that auto mode uses - free, no request,
+ *     and guaranteed to show exactly what auto mode would have rendered
+ *     automatically for this message;
+ *  3. a fetch from the translate service, ONLY when the host has explicitly
+ *     set `config.translates.endpoint` - the built-in HTTP call is opt-in,
+ *     never a default. The result is cached onto the message in the store
+ *     (setMessageTranslation) so a second click - and 'auto' mode, if the
+ *     reader switches to it - see it for free, even after this bubble
+ *     unmounts and remounts (long rooms remount bubbles on scroll).
  *
- * A message with nothing attached, no host `onTranslate`, and no
- * resolvable endpoint (or a failed/empty fetch) simply has nothing to
- * reveal (see `translation.failed`, clickable to retry).
+ * A message with nothing attached, no host `onTranslate`, and no explicit
+ * `endpoint` simply has nothing to reveal - and in that case the link itself
+ * does not render at all (see `shouldShow` below), rather than offering a
+ * click that can only ever end in `translation.failed`. That retry link is
+ * reserved for a genuine attempt that came back empty or threw (host
+ * `onTranslate`, or an explicitly configured `endpoint`).
  *
  * Visibility: `config.translates.showTranslateForMessage(message)` if the host
  * supplies it (they keep the locale logic and just tell us yes/no); otherwise
- * we compare the message's source base-language with the reader's base-language
- * (region ignored, so en-US vs en-CA shows nothing). The reader's FULL locale
- * (fr-CA vs fr-FR) is still forwarded to `onTranslate` as `targetLocale`.
+ * the link shows only when the message actually needs translating for this
+ * reader (same gate as auto mode: known source language, base-language
+ * mismatch, actual translatable text) AND there is something that could
+ * reveal a translation - an attached one, a host `onTranslate`, or an
+ * explicit `endpoint`. The reader's FULL locale (fr-CA vs fr-FR) is still
+ * forwarded to `onTranslate` as `targetLocale`.
  */
 const MessageTranslate: FC<MessageTranslateProps> = ({
   message,
@@ -80,23 +87,28 @@ const MessageTranslate: FC<MessageTranslateProps> = ({
     translates?.readerLocale || config?.i18n?.locale || 'en';
   const linkColor = config?.colors?.primary;
 
+  // The one place that decides whether there's a translation to show for
+  // this message/reader pair - the exact same function auto mode calls, so
+  // a click here can never reveal anything different than auto mode would
+  // have rendered automatically.
+  const resolved = resolveMessageTranslation(message, targetLocale);
+  const hasHostTranslate = typeof translates?.onTranslate === 'function';
+  const hasExplicitEndpoint = !!translates?.endpoint;
+
   const shouldShow = (() => {
     if (typeof translates?.showTranslateForMessage === 'function') {
       return translates.showTranslateForMessage(message);
     }
-    if (!originalText.trim() || !sourceLocale) return false;
-    return toBaseLanguage(sourceLocale) !== toBaseLanguage(targetLocale);
+    // Nothing to translate at all (same gate as auto mode) - showing the
+    // link would be misleading regardless of what could otherwise answer
+    // it.
+    if (!resolved.needsTranslation) return false;
+    // Something to translate, but only worth a link when something could
+    // actually reveal a result: it's already attached, the host has its own
+    // translator, or an explicit endpoint is configured to fetch one. With
+    // none of those, the link could only ever end in "Could not translate".
+    return resolved.hasTranslation || hasHostTranslate || hasExplicitEndpoint;
   })();
-
-  // Exact locale first (the service echoes the reader's own locale key
-  // verbatim when it can, e.g. "fr-CA"), then base language, so a reader
-  // locale of "en" or "en-US" still matches a returned "en-CA" entry.
-  const attachedTranslation = (): string | undefined => {
-    return (
-      message.translations?.[targetLocale]?.translatedText ||
-      message.translations?.[toBaseLanguage(targetLocale)]?.translatedText
-    );
-  };
 
   const runTranslate = useCallback(async () => {
     if (!originalText.trim()) return;
@@ -110,15 +122,19 @@ const MessageTranslate: FC<MessageTranslateProps> = ({
           message,
         });
       } else {
-        result = attachedTranslation();
-        if (!result) {
-          const endpoint =
-            translates?.endpoint || deriveTranslateEndpoint(config?.baseUrl);
+        const attached = resolveMessageTranslation(message, targetLocale);
+        result = attached.hasTranslation ? attached.displayText : undefined;
+        // The built-in translate service is strictly opt-in: only called
+        // when the host has explicitly set `config.translates.endpoint`.
+        // There is no default derivation from `config.baseUrl` - a host
+        // that hasn't configured a reachable, CORS-enabled endpoint gets no
+        // network request at all, not a doomed one.
+        if (!result && translates?.endpoint) {
           const entry = await fetchTranslation(
             originalText,
             sourceLocale,
             targetLocale,
-            endpoint
+            translates.endpoint
           );
           if (entry?.translatedText) {
             result = entry.translatedText;
@@ -142,10 +158,7 @@ const MessageTranslate: FC<MessageTranslateProps> = ({
     } catch {
       setPhase('error');
     }
-    // attachedTranslation reads message.translations/targetLocale, both
-    // already covered by their own deps below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [originalText, translates, sourceLocale, targetLocale, message, config?.baseUrl, dispatch]);
+  }, [originalText, translates, sourceLocale, targetLocale, message, dispatch]);
 
   if (!shouldShow) return null;
 

@@ -53,8 +53,62 @@ function renderTranslate(message: IMessage, config: any) {
 
 const baseConfig = {
   translates: { enabled: true, mode: 'manual', readerLocale: 'en' },
+  // Looks like an Ethora API host - must NOT matter any more: no endpoint
+  // is ever derived from it, only an explicit `translates.endpoint` counts.
   baseUrl: 'https://api.chat-qa.ethora.com/v1',
 };
+
+describe('MessageTranslate - no dead-end link', () => {
+  it('renders no "Translate" link at all when nothing is attached, no onTranslate, and no endpoint - even with an api.*-shaped baseUrl', () => {
+    const message = makeMessage();
+
+    renderTranslate(message, baseConfig);
+
+    expect(screen.queryByText('Translate')).toBeNull();
+    expect(fetchTranslationMock).not.toHaveBeenCalled();
+  });
+
+  it('renders no link when the only attached translation is identical to the original', () => {
+    const message = makeMessage({
+      body: 'hello this is shapin',
+      langSource: 'es',
+      translations: {
+        en: {
+          translatedText: 'hello this is shapin',
+          language: 'en',
+          languageName: 'English',
+        },
+      },
+    });
+
+    renderTranslate(message, baseConfig);
+
+    expect(screen.queryByText('Translate')).toBeNull();
+  });
+
+  it('renders no link when the message does not need translating at all (same base language)', () => {
+    const message = makeMessage({ body: 'hello', langSource: 'en' });
+
+    renderTranslate(message, baseConfig);
+
+    expect(screen.queryByText('Translate')).toBeNull();
+  });
+
+  it('host showTranslateForMessage still overrides visibility either way', () => {
+    const message = makeMessage({ body: 'hello', langSource: 'en' });
+    const config = {
+      ...baseConfig,
+      translates: {
+        ...baseConfig.translates,
+        showTranslateForMessage: () => true,
+      },
+    };
+
+    renderTranslate(message, config);
+
+    expect(screen.getByText('Translate')).toBeTruthy();
+  });
+});
 
 describe('MessageTranslate - resolution order', () => {
   beforeEach(() => {
@@ -84,7 +138,27 @@ describe('MessageTranslate - resolution order', () => {
     expect(fetchTranslationMock).not.toHaveBeenCalled();
   });
 
-  it('uses an attached translation without making any request', async () => {
+  it('host onTranslate failing (empty result) shows the retry link', async () => {
+    const onTranslate = vi.fn().mockResolvedValue('');
+    const message = makeMessage();
+    const config = {
+      ...baseConfig,
+      translates: { ...baseConfig.translates, onTranslate },
+    };
+
+    renderTranslate(message, config);
+    fireEvent.click(screen.getByText('Translate'));
+
+    await waitFor(() => expect(screen.getByText('Could not translate')).toBeTruthy());
+
+    onTranslate.mockResolvedValueOnce('hello on retry');
+    fireEvent.click(screen.getByText('Could not translate'));
+
+    await waitFor(() => expect(screen.getByText('hello on retry')).toBeTruthy());
+    expect(fetchTranslationMock).not.toHaveBeenCalled();
+  });
+
+  it('uses an attached translation without making any request - shows exactly what auto mode would show', async () => {
     const message = makeMessage({
       translations: {
         en: { translatedText: 'Hello everyone', language: 'en', languageName: 'English' },
@@ -98,15 +172,22 @@ describe('MessageTranslate - resolution order', () => {
     expect(fetchTranslationMock).not.toHaveBeenCalled();
   });
 
-  it('fetches from the translate service when nothing is attached, renders and caches the result', async () => {
+  it('config.translates.endpoint fetches from the translate service when nothing is attached, renders and caches the result', async () => {
     fetchTranslationMock.mockResolvedValue({
       translatedText: 'Hello everyone',
       language: 'en-CA',
       languageName: 'Canadian English',
     });
     const message = makeMessage();
+    const config = {
+      ...baseConfig,
+      translates: {
+        ...baseConfig.translates,
+        endpoint: 'https://translate.api.chat-qa.ethora.com/translate',
+      },
+    };
 
-    const { storeRef } = renderTranslate(message, baseConfig);
+    const { storeRef } = renderTranslate(message, config);
     fireEvent.click(screen.getByText('Translate'));
 
     await waitFor(() => expect(screen.getByText('Hello everyone')).toBeTruthy());
@@ -130,19 +211,33 @@ describe('MessageTranslate - resolution order', () => {
       languageName: 'Canadian English',
     });
     const message = makeMessage();
+    const config = {
+      ...baseConfig,
+      translates: {
+        ...baseConfig.translates,
+        endpoint: 'https://translate.api.chat-qa.ethora.com/translate',
+      },
+    };
 
-    renderTranslate(message, baseConfig);
+    renderTranslate(message, config);
     fireEvent.click(screen.getByText('Translate'));
     await waitFor(() => expect(screen.getByText('Hello everyone')).toBeTruthy());
 
     expect(fetchTranslationMock).toHaveBeenCalledTimes(1);
   });
 
-  it('shows "Could not translate" when the fetch resolves with nothing, and a retry click fetches again', async () => {
+  it('shows "Could not translate" when the configured endpoint resolves with nothing, and a retry click fetches again', async () => {
     fetchTranslationMock.mockResolvedValueOnce(undefined);
     const message = makeMessage();
+    const config = {
+      ...baseConfig,
+      translates: {
+        ...baseConfig.translates,
+        endpoint: 'https://translate.api.chat-qa.ethora.com/translate',
+      },
+    };
 
-    renderTranslate(message, baseConfig);
+    renderTranslate(message, config);
     fireEvent.click(screen.getByText('Translate'));
 
     await waitFor(() => expect(screen.getByText('Could not translate')).toBeTruthy());
@@ -159,62 +254,20 @@ describe('MessageTranslate - resolution order', () => {
     expect(fetchTranslationMock).toHaveBeenCalledTimes(2);
   });
 
-  it('shows "Could not translate" when the fetch rejects', async () => {
+  it('shows "Could not translate" when the configured endpoint fetch rejects', async () => {
     fetchTranslationMock.mockRejectedValueOnce(new Error('network down'));
     const message = makeMessage();
-
-    renderTranslate(message, baseConfig);
-    fireEvent.click(screen.getByText('Translate'));
-
-    await waitFor(() => expect(screen.getByText('Could not translate')).toBeTruthy());
-  });
-
-  it('derives no endpoint (and still ends in error) when config.baseUrl is not in the api.* shape', async () => {
-    fetchTranslationMock.mockResolvedValue(undefined);
-    const message = makeMessage();
     const config = {
-      translates: { enabled: true, mode: 'manual', readerLocale: 'en' },
-      baseUrl: 'https://app.chat.ethora.com',
-    };
-
-    renderTranslate(message, config);
-    fireEvent.click(screen.getByText('Translate'));
-
-    await waitFor(() => expect(screen.getByText('Could not translate')).toBeTruthy());
-    expect(fetchTranslationMock).toHaveBeenCalledWith(
-      message.body,
-      'fr',
-      'en',
-      undefined
-    );
-  });
-
-  it('config.translates.endpoint overrides the derived endpoint', async () => {
-    fetchTranslationMock.mockResolvedValue({
-      translatedText: 'Hello everyone',
-      language: 'en',
-      languageName: 'English',
-    });
-    const message = makeMessage();
-    const config = {
+      ...baseConfig,
       translates: {
-        enabled: true,
-        mode: 'manual',
-        readerLocale: 'en',
-        endpoint: 'https://custom.example.com/translate',
+        ...baseConfig.translates,
+        endpoint: 'https://translate.api.chat-qa.ethora.com/translate',
       },
-      baseUrl: 'https://api.chat-qa.ethora.com/v1',
     };
 
     renderTranslate(message, config);
     fireEvent.click(screen.getByText('Translate'));
 
-    await waitFor(() => expect(screen.getByText('Hello everyone')).toBeTruthy());
-    expect(fetchTranslationMock).toHaveBeenCalledWith(
-      message.body,
-      'fr',
-      'en',
-      'https://custom.example.com/translate'
-    );
+    await waitFor(() => expect(screen.getByText('Could not translate')).toBeTruthy());
   });
 });

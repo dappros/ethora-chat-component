@@ -358,11 +358,14 @@ export interface IConfig {
      * 'auto' is purely a display choice: it only ever reads
      * `message.translations`, whatever arrived attached to the stanza (see
      * `readerLocale` below), and never calls a translation service itself.
-     * 'manual' does one thing more: on a click, if nothing is attached and
-     * the host hasn't supplied `onTranslate`, it fetches a translation from
-     * `endpoint` (or the one derived from `config.baseUrl`, see below) and
-     * caches the result onto `message.translations` so a second click - and
-     * 'auto' mode, if the reader switches to it - see it for free.
+     * 'manual' shows exactly the same thing on click, via the same lookup -
+     * no host function and no `endpoint` means no network request, just the
+     * translation already attached (if any). 'manual' does one thing more:
+     * on a click, if nothing is attached and the host hasn't supplied
+     * `onTranslate`, it fetches a translation from `endpoint` ONLY when the
+     * host has set that explicitly (see below) and caches the result onto
+     * `message.translations` so a second click - and 'auto' mode, if the
+     * reader switches to it - see it for free.
      */
     mode?: 'auto' | 'manual';
     /**
@@ -420,22 +423,28 @@ export interface IConfig {
     /**
      * Host predicate deciding whether to show the Translate action for a given
      * message. When omitted, the component compares base languages (message
-     * source vs reader, region ignored) and shows the action when they differ.
+     * source vs reader, region ignored) and shows the action when they differ,
+     * AND only when something could actually answer the click (a translation
+     * is already attached, `onTranslate` is set, or `endpoint` is set below) -
+     * otherwise no Translate link is shown at all, rather than one that could
+     * only ever end in "Could not translate".
      */
     showTranslateForMessage?: (message: IMessage) => boolean;
     /**
-     * Fixed override for the translate service's URL (e.g.
+     * Explicit opt-in override for the built-in translate service's URL (e.g.
      * "https://translate.api.example.com/translate"), used by manual mode's
      * on-demand fetch (see `mode` above) when nothing is attached to the
      * message and the host hasn't supplied `onTranslate`.
      *
-     * When omitted, the endpoint is derived from `config.baseUrl` by turning
-     * the API host `api.<rest>` into `translate.api.<rest>` with path
-     * `/translate` (e.g. "https://api.chat-qa.ethora.com/v1" ->
-     * "https://translate.api.chat-qa.ethora.com/translate"). When neither
-     * resolves to a usable URL, manual mode makes no request at all and
-     * falls back to whatever is already attached (or the existing
-     * "Could not translate" retry link).
+     * This is strictly opt-in: the built-in HTTP call is never made unless
+     * this is set explicitly - there is no default derived from
+     * `config.baseUrl`. Leave it unset to rely only on `onTranslate` and
+     * whatever translation already arrived over XMPP. The call is made
+     * directly from the browser, so a self-hosted endpoint must send
+     * `Access-Control-Allow-Origin` for this origin or the fetch is blocked
+     * with no error shown beyond the "Could not translate" retry link; if you
+     * can't set that on the endpoint, use `onTranslate` and proxy the call
+     * through your own backend instead.
      */
     endpoint?: string;
   };
