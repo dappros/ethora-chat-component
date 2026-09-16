@@ -263,6 +263,9 @@ const en: UiStringTable = {
   'modal.chatProfile.filesTitle': 'Files',
   'modal.chatProfile.filesShowAll': 'Show all',
   'modal.chatProfile.filesEmpty': 'No files in this chat yet',
+  'modal.qr.title': 'QR code',
+  'modal.qr.hint': 'Scan this code or share the link to open this chat.',
+  'action.copyLink': 'Copy link',
   'error.boundary.title': 'Something went wrong',
   'error.boundary.description':
     'The chat ran into an unexpected problem. Your messages are safe.',
@@ -531,6 +534,10 @@ const fr: UiStringTable = {
   'modal.chatProfile.filesTitle': 'Fichiers',
   'modal.chatProfile.filesShowAll': 'Tout afficher',
   'modal.chatProfile.filesEmpty': 'Aucun fichier dans ce salon pour le moment',
+  'modal.qr.title': 'Code QR',
+  'modal.qr.hint':
+    'Scannez ce code ou partagez le lien pour ouvrir cette conversation.',
+  'action.copyLink': 'Copier le lien',
   'error.boundary.title': 'Une erreur est survenue',
   'error.boundary.description':
     'Le chat a rencontré un problème inattendu. Vos messages sont intacts.',
@@ -794,6 +801,10 @@ const es: UiStringTable = {
   'modal.chatProfile.filesTitle': 'Archivos',
   'modal.chatProfile.filesShowAll': 'Ver todos',
   'modal.chatProfile.filesEmpty': 'Aún no hay archivos en este chat',
+  'modal.qr.title': 'Código QR',
+  'modal.qr.hint':
+    'Escanea este código o comparte el enlace para abrir este chat.',
+  'action.copyLink': 'Copiar enlace',
   'error.boundary.title': 'Algo salió mal',
   'error.boundary.description':
     'El chat encontró un problema inesperado. Tus mensajes están a salvo.',
@@ -1059,6 +1070,10 @@ const pt: UiStringTable = {
   'modal.chatProfile.filesTitle': 'Arquivos',
   'modal.chatProfile.filesShowAll': 'Ver todos',
   'modal.chatProfile.filesEmpty': 'Ainda não há arquivos neste chat',
+  'modal.qr.title': 'Código QR',
+  'modal.qr.hint':
+    'Leia este código ou partilhe a ligação para abrir este chat.',
+  'action.copyLink': 'Copiar ligação',
   'error.boundary.title': 'Algo correu mal',
   'error.boundary.description':
     'O chat encontrou um problema inesperado. As suas mensagens estão seguras.',
@@ -1320,6 +1335,10 @@ const ht: UiStringTable = {
   'modal.chatProfile.filesTitle': 'Fichye',
   'modal.chatProfile.filesShowAll': 'Wè tout',
   'modal.chatProfile.filesEmpty': 'Poko gen fichye nan chat sa a',
+  'modal.qr.title': 'Kòd QR',
+  'modal.qr.hint':
+    'Eskane kòd sa a oswa pataje lyen an pou ouvri chat sa a.',
+  'action.copyLink': 'Kopye lyen an',
   'error.boundary.title': 'Gen yon bagay ki pa mache',
   'error.boundary.description':
     'Chat la jwenn yon pwoblèm inatandi. Mesaj ou yo an sekirite.',
@@ -1576,6 +1595,9 @@ const zh: UiStringTable = {
   'modal.chatProfile.filesTitle': '文件',
   'modal.chatProfile.filesShowAll': '查看全部',
   'modal.chatProfile.filesEmpty': '此聊天中还没有文件',
+  'modal.qr.title': '二维码',
+  'modal.qr.hint': '扫描此二维码或分享链接即可打开此聊天。',
+  'action.copyLink': '复制链接',
   'error.boundary.title': '出了点问题',
   'error.boundary.description': '聊天遇到了意外问题。您的消息是安全的。',
   'error.boundary.retry': '重试',
