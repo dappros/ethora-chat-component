@@ -9,10 +9,11 @@ import { useXmppClient } from '../../../context/xmppProvider';
 import {
   CloseButton,
   GroupContainer,
-  ModalBackground,
-  ModalContainer,
   ModalTitle,
 } from '../styledModalComponents';
+import { PresenceModalBackground, PresenceModalContainer } from '../motionVariants';
+import { useExitTransition } from '../../../hooks/useExitTransition';
+import { MOTION_FAST_MS } from '../../../styles/motion';
 import {
   addRoomViaApi,
   setCurrentRoom,
@@ -157,6 +158,12 @@ const NewChatModal: React.FC = () => {
     onClose: handleCloseModal,
     containerRef,
   });
+  // Motion: keep the card mounted for its exit animation instead of letting
+  // `isModalOpen && (...)` below unmount it the instant it flips false
+  // (Cancel, Escape, outside click, or a successful create all just flip
+  // this same boolean, so watching it here covers every path).
+  const { shouldRender: isModalRendered, isExiting: isModalClosing } =
+    useExitTransition(isModalOpen, MOTION_FAST_MS);
 
   const onUpload = async (file: File) => {
     setProfileImage(file);
@@ -290,9 +297,9 @@ const NewChatModal: React.FC = () => {
       />
       )}
 
-      {isModalOpen && (
-        <ModalBackground ref={containerRef} $anchorTop>
-          <ModalContainer ref={containerRef}>
+      {isModalRendered && (
+        <PresenceModalBackground ref={containerRef} $anchorTop $closing={isModalClosing}>
+          <PresenceModalContainer ref={containerRef} $closing={isModalClosing}>
             <CloseButton
               onClick={handleCloseModal}
               style={{ fontSize: 24 }}
@@ -437,8 +444,8 @@ const NewChatModal: React.FC = () => {
                 EndIcon={loading ? <Loader size={16} /> : undefined}
               />
             </GroupContainer>
-          </ModalContainer>
-        </ModalBackground>
+          </PresenceModalContainer>
+        </PresenceModalBackground>
       )}
     </>
   );

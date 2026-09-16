@@ -1,19 +1,12 @@
 import React, { FC } from 'react';
-import styled, { keyframes } from 'styled-components';
-import { reducedMotion } from '../../../styles/motion';
+import styled from 'styled-components';
+import { dotFade, reducedMotion } from '../../../styles/motion';
 
 // Define props
 interface ComposingProps {
   usersTyping?: string[];
   style?: any;
 }
-
-// Dot animation using keyframes
-const dotAnimation = keyframes`
-  0% { opacity: 0.2; }
-  20% { opacity: 1; }
-  100% { opacity: 0.2; }
-`;
 
 // Styled components
 const Wrapper = styled.div`
@@ -34,7 +27,7 @@ const UserTypingText = styled.span`
 const Dot = styled.span`
   font-size: 24px;
   line-height: 0;
-  animation: ${dotAnimation} 1.5s infinite;
+  animation: ${dotFade} 1.5s infinite;
   ${reducedMotion}
 
   &:nth-child(2) {

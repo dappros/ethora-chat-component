@@ -1,8 +1,14 @@
-import React from 'react';
-import { ModalBackground } from '../styledModalComponents';
+import React, { useRef } from 'react';
 import { ModalType } from '../../../types/types';
 import { SIDE_PANEL_MODAL_TYPES } from '../../../helpers/constants/MODAL_TYPES';
 import ModalContent from './ModalContent';
+// Motion: keeps the outgoing dialog mounted long enough to play its exit
+// animation instead of vanishing the instant `modal` clears. See
+// styles/motion.ts and context/ModalTransitionContext.tsx for the pieces.
+import { PresenceModalBackground } from '../motionVariants';
+import { ModalExitingProvider } from '../../../context/ModalTransitionContext';
+import { useExitTransition } from '../../../hooks/useExitTransition';
+import { MOTION_BASE_MS } from '../../../styles/motion';
 
 interface ModalProps {
   children?: React.ReactNode;
@@ -21,13 +27,32 @@ interface ModalProps {
  * painted twice.
  */
 const Modal: React.FC<ModalProps> = ({ children, modal, setOpenModal }) => {
-  if (!modal || SIDE_PANEL_MODAL_TYPES.includes(modal)) return null;
+  // `modal` clears the instant the host closes it, but the dialog still needs
+  // ~MOTION_BASE_MS to play its exit animation. `shouldRender` keeps this
+  // component mounted for that long; `displayModal` remembers which dialog it
+  // was, since `modal` itself is already undefined during the exit window.
+  const isCentredDialog = Boolean(modal) && !SIDE_PANEL_MODAL_TYPES.includes(modal || '');
+  const { shouldRender, isExiting } = useExitTransition(
+    isCentredDialog,
+    MOTION_BASE_MS
+  );
+  const lastModalRef = useRef<string | undefined>(undefined);
+  if (isCentredDialog) lastModalRef.current = modal;
+  const displayModal = isCentredDialog ? modal : lastModalRef.current;
+
+  if (!shouldRender || !displayModal) return null;
 
   return (
-    <ModalBackground id="modal-background" style={{ position: 'absolute' }}>
-      <ModalContent modal={modal} setOpenModal={setOpenModal} />
-      {children}
-    </ModalBackground>
+    <ModalExitingProvider value={isExiting}>
+      <PresenceModalBackground
+        id="modal-background"
+        $closing={isExiting}
+        style={{ position: 'absolute' }}
+      >
+        <ModalContent modal={displayModal} setOpenModal={setOpenModal} />
+        {children}
+      </PresenceModalBackground>
+    </ModalExitingProvider>
   );
 };
 

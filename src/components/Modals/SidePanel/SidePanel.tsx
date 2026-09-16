@@ -1,8 +1,15 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import styled from 'styled-components';
 import { ModalType } from '../../../types/types';
 import { SIDE_PANEL_MODAL_TYPES } from '../../../helpers/constants/MODAL_TYPES';
 import ModalContent from '../Modal/ModalContent';
+// Motion: the panel is a real layout column, so simply unmounting it makes the
+// chat snap back to full width with no transition. `useExitTransition` keeps
+// the column mounted for one exit animation, and `ModalExitingProvider` tells
+// the SideDrawer inside it to play its slide-out. See styles/motion.ts.
+import { ModalExitingProvider } from '../../../context/ModalTransitionContext';
+import { useExitTransition } from '../../../hooks/useExitTransition';
+import { MOTION_BASE_MS } from '../../../styles/motion';
 
 /**
  * The chat's third column: chat profile, user profile, settings, Manage Data
@@ -56,12 +63,25 @@ interface SidePanelProps {
 }
 
 const SidePanel: React.FC<SidePanelProps> = ({ modal, setOpenModal }) => {
-  if (!modal || !SIDE_PANEL_MODAL_TYPES.includes(modal)) return null;
+  const isPanel = Boolean(modal) && SIDE_PANEL_MODAL_TYPES.includes(modal || '');
+
+  // `modal` clears the moment the panel is closed, but the column still needs
+  // one animation to slide out. `shouldRender` holds it on screen for that
+  // long and `displayModal` remembers which panel it was, since `modal` is
+  // already undefined during the exit window.
+  const { shouldRender, isExiting } = useExitTransition(isPanel, MOTION_BASE_MS);
+  const lastPanelRef = useRef<string | undefined>(undefined);
+  if (isPanel) lastPanelRef.current = modal;
+  const displayModal = isPanel ? modal : lastPanelRef.current;
+
+  if (!shouldRender || !displayModal) return null;
 
   return (
-    <SidePanelColumn data-testid="side-panel-column">
-      <ModalContent modal={modal} setOpenModal={setOpenModal} />
-    </SidePanelColumn>
+    <ModalExitingProvider value={isExiting}>
+      <SidePanelColumn data-testid="side-panel-column">
+        <ModalContent modal={displayModal} setOpenModal={setOpenModal} />
+      </SidePanelColumn>
+    </ModalExitingProvider>
   );
 };
 
