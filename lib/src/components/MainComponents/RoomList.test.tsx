@@ -389,6 +389,87 @@ describe('RoomList - FLIP reposition on resort', () => {
   });
 });
 
+describe('RoomList - sort order (API lastMessage as an activity signal)', () => {
+  // Order-in-the-DOM helper: each room row is a button whose accessible
+  // name is the room title (same pattern the animation tests above use).
+  // getAllByRole returns elements in document order, so filtering it down
+  // to just the titles under test reads back the actual sort order the
+  // comparator produced, not an assumed array index.
+  const renderedOrder = (titles: string[]) =>
+    screen
+      .getAllByRole('button')
+      .map((el) => el.getAttribute('aria-label') ?? el.textContent ?? '')
+      .filter((name) => titles.some((title) => name.includes(title)));
+
+  it('sorts a room with no loaded history by its API lastMessage.createdAt instead of sinking to the bottom', () => {
+    const roomWithOldHistory = room({
+      jid: 'old@conference.example.com',
+      title: 'Old Loaded Room',
+      messages: [{ id: '1', date: '2024-01-01T00:00:00.000Z' } as any],
+    });
+    // No messages loaded yet, but the API told us this room had recent
+    // activity - it must not be treated as having no signal at all.
+    const roomWithApiSeedOnly = room({
+      jid: 'seed@conference.example.com',
+      title: 'Api Seeded Room',
+      messages: [],
+      lastMessage: { body: 'hi', date: '2024-06-01T00:00:00.000Z' } as any,
+    });
+
+    renderWithProviders(
+      <RoomList chats={[roomWithOldHistory, roomWithApiSeedOnly]} />
+    );
+
+    expect(
+      renderedOrder(['Old Loaded Room', 'Api Seeded Room'])
+    ).toEqual(['Api Seeded Room', 'Old Loaded Room']);
+  });
+
+  it('lets a live loaded message outrank a stale-by-comparison API lastMessage seed on the same room', () => {
+    // roomLive carries an API lastMessage seed dated well after roomOther's
+    // only loaded message - if the seed were still consulted once real
+    // history exists, roomLive would incorrectly rank first.
+    const roomLive = room({
+      jid: 'live@conference.example.com',
+      title: 'Live History Room',
+      messages: [{ id: '1', date: '2024-01-01T00:00:00.000Z' } as any],
+      lastMessage: { body: 'stale seed', date: '2024-06-01T00:00:00.000Z' } as any,
+    });
+    const roomOther = room({
+      jid: 'other@conference.example.com',
+      title: 'Other Room',
+      messages: [{ id: '2', date: '2024-03-01T00:00:00.000Z' } as any],
+    });
+
+    renderWithProviders(<RoomList chats={[roomLive, roomOther]} />);
+
+    // roomLive's real message (Jan) is older than roomOther's (Mar), so the
+    // live signal - not the newer-looking API seed - must decide the order.
+    expect(
+      renderedOrder(['Live History Room', 'Other Room'])
+    ).toEqual(['Other Room', 'Live History Room']);
+  });
+
+  it('orders rooms with no lastMessage at all exactly as before (unaffected by the new fallback step)', () => {
+    const roomNewer = room({
+      jid: 'newer@conference.example.com',
+      title: 'Newer Room',
+      messages: [{ id: '1', date: '2024-05-01T00:00:00.000Z' } as any],
+    });
+    const roomOlder = room({
+      jid: 'older@conference.example.com',
+      title: 'Older Room',
+      messages: [{ id: '2', date: '2024-01-01T00:00:00.000Z' } as any],
+    });
+
+    renderWithProviders(<RoomList chats={[roomOlder, roomNewer]} />);
+
+    expect(
+      renderedOrder(['Newer Room', 'Older Room'])
+    ).toEqual(['Newer Room', 'Older Room']);
+  });
+});
+
 describe('RoomList - loading skeleton', () => {
   it('renders skeleton rows instead of an empty list while rooms are loading', () => {
     renderWithProviders(<RoomList chats={[]} />, {
