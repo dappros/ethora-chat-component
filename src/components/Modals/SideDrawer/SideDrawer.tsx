@@ -4,8 +4,13 @@ import { BackIcon } from '../../../assets/icons';
 import Button from '../../styled/Button';
 import { useT } from '../../../i18n/useT';
 import { useModalDismiss } from '../../../hooks/useModalDismiss';
-import { slideInRightAnimation } from '../../../styles/motion';
+import { slideInRightAnimation, slideOutRightAnimation } from '../../../styles/motion';
 import { useIsMobileViewport } from '../../../hooks/useIsMobileViewport';
+// Motion: Modal.tsx keeps this drawer mounted for one exit-animation's worth
+// of time after it closes (see useExitTransition there) and reports it via
+// this context, since threading a prop through every SideDrawer-hosting
+// modal component would touch five files this drawer doesn't need to.
+import { useIsModalExiting } from '../../../context/ModalTransitionContext';
 
 /**
  * The one side-drawer surface for the profile/settings family of panels.
@@ -22,8 +27,11 @@ import { useIsMobileViewport } from '../../../hooks/useIsMobileViewport';
  * list and chat behind the drawer stay visible and clickable on desktop.
  *
  * Behaviour:
- * - Slides in from the right using `styles/motion`'s shared primitives, which
- *   already no-op under `prefers-reduced-motion`.
+ * - Slides in from the right, and back out on close, using `styles/motion`'s
+ *   shared primitives (which already no-op under `prefers-reduced-motion`).
+ *   `Modal.tsx` keeps this component mounted for the exit animation's
+ *   duration after closing and reports it through `ModalTransitionContext`
+ *   (`useIsModalExiting`), which flips `DrawerPanel`'s `$closing` prop.
  * - Escape closes, initial focus moves inside, focus is restored on close -
  *   all via the shared `useModalDismiss` hook (whose modal stack means a
  *   nested confirm dialog opened from inside the drawer closes first).
@@ -36,7 +44,7 @@ import { useIsMobileViewport } from '../../../hooks/useIsMobileViewport';
 const DRAWER_BREAKPOINT_PX = 767;
 const DRAWER_BREAKPOINT = `${DRAWER_BREAKPOINT_PX}px`;
 
-export const DrawerPanel = styled.div`
+export const DrawerPanel = styled.div<{ $closing?: boolean }>`
   position: relative;
   pointer-events: auto;
   display: flex;
@@ -46,7 +54,7 @@ export const DrawerPanel = styled.div`
   height: 100%;
   background-color: var(--ethora-color-bg, #fff);
   overflow: hidden;
-  ${slideInRightAnimation}
+  ${({ $closing }) => ($closing ? slideOutRightAnimation : slideInRightAnimation)}
 
   @media (min-width: 768px) {
     width: 400px;
@@ -313,6 +321,7 @@ const SideDrawer: FC<SideDrawerProps> = ({
   // and the chat stay interactive, so claiming `aria-modal` would misreport
   // the panel to assistive tech.
   const isFullScreen = useIsMobileViewport(DRAWER_BREAKPOINT_PX);
+  const isClosing = useIsModalExiting();
 
   return (
     <DrawerPanel
@@ -321,6 +330,7 @@ const SideDrawer: FC<SideDrawerProps> = ({
       aria-modal={isFullScreen ? true : undefined}
       aria-labelledby={titleId}
       data-testid="side-drawer"
+      $closing={isClosing}
     >
       <DrawerHeader>
         <Button

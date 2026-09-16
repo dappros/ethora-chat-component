@@ -1,6 +1,5 @@
 import React, { Suspense, useEffect, useRef } from 'react';
 import { useModalDismiss, FOCUSABLE_SELECTOR } from '../../../hooks/useModalDismiss';
-import { ModalBackground } from '../styledModalComponents';
 import { ModalType } from '../../../types/types';
 import { useDispatch } from 'react-redux';
 import { setActiveModal } from '../../../roomStore/chatSettingsSlice';
@@ -10,6 +9,13 @@ import {
   SETTINGS_SUB_MODAL_TYPES,
 } from '../../../helpers/constants/MODAL_TYPES';
 import { MODAL_COMPONENTS } from '../modalComponents';
+// Motion: keeps the outgoing panel mounted long enough to play its exit
+// animation instead of vanishing the instant `modal` clears. See
+// styles/motion.ts and context/ModalTransitionContext.tsx for the pieces.
+import { PresenceModalBackground } from '../motionVariants';
+import { ModalExitingProvider } from '../../../context/ModalTransitionContext';
+import { useExitTransition } from '../../../hooks/useExitTransition';
+import { MOTION_BASE_MS } from '../../../styles/motion';
 
 interface ModalProps {
   children?: React.ReactNode;
@@ -23,13 +29,28 @@ const Modal: React.FC<ModalProps> = ({ children, modal, setOpenModal }) => {
   const handleBackButtonClick = () =>
     dispatch(setActiveModal(MODAL_TYPES.SETTINGS));
 
+  // Motion: `modal` clears the instant the host closes it, but the panel
+  // still needs ~MOTION_BASE_MS to play its exit animation. `shouldRender`
+  // keeps this component (and the panel inside it) mounted for that long;
+  // `displayModal` remembers which panel that was, since `modal` itself is
+  // already undefined during the exit window.
+  const { shouldRender, isExiting } = useExitTransition(
+    Boolean(modal),
+    MOTION_BASE_MS
+  );
+  const lastModalRef = useRef<string | undefined>(modal);
+  if (modal) lastModalRef.current = modal;
+  const displayModal = modal ?? lastModalRef.current;
+
   // Escape dismisses whichever store-driven modal is open (the settings
   // sub-modals step back to Settings, matching their own close button).
-  const isSubSettingsModal = SETTINGS_SUB_MODAL_TYPES.includes(modal || '');
+  const isSubSettingsModal = SETTINGS_SUB_MODAL_TYPES.includes(
+    displayModal || ''
+  );
   // The profile/settings family renders as a side drawer, so the backdrop
   // must not be a scrim over the room list and the chat - see the `$drawer`
   // branch of ModalBackground.
-  const isDrawerModal = DRAWER_MODAL_TYPES.includes(modal || '');
+  const isDrawerModal = DRAWER_MODAL_TYPES.includes(displayModal || '');
   const containerRef = useRef<HTMLDivElement>(null);
   // Bumped once per run of the focus effect below; a MutationObserver
   // callback (or a resolved focusFirst() call) only actually applies focus
@@ -131,7 +152,7 @@ const Modal: React.FC<ModalProps> = ({ children, modal, setOpenModal }) => {
   }, [modal]);
 
   const renderModalContent = () => {
-    const ModalComponent = MODAL_COMPONENTS[modal];
+    const ModalComponent = MODAL_COMPONENTS[displayModal];
 
     if (!ModalComponent) return null;
 
@@ -153,15 +174,18 @@ const Modal: React.FC<ModalProps> = ({ children, modal, setOpenModal }) => {
     );
   };
   return (
-    modal && (
-      <ModalBackground
+    shouldRender && (
+      <PresenceModalBackground
         id="modal-background"
         $drawer={isDrawerModal}
+        $closing={isExiting}
         style={{ position: 'absolute' }}
       >
-        {renderModalContent()}
+        <ModalExitingProvider value={isExiting}>
+          {renderModalContent()}
+        </ModalExitingProvider>
         {children}
-      </ModalBackground>
+      </PresenceModalBackground>
     )
   );
 };
