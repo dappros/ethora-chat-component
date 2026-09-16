@@ -196,7 +196,27 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
   return (
     <ChatItem
       active={isChatActive}
-      onClick={() => performClick(chat)}
+      // The row is a plain div made focusable with tabIndex, and browsers
+      // are more liberal with :focus-visible there than on a real <button>:
+      // in some engines a plain pointer click is treated as reason enough to
+      // paint the ring. That is the box the owner saw after clicking a room.
+      //
+      // Dropping focus here, inside the click handler, is the safe place to
+      // undo it: the browser has already moved focus by then, and nothing
+      // about activation is cancelled. An earlier attempt did this by
+      // calling preventDefault on mousedown, which does suppress the ring
+      // but also stopped the row opening its chat on a real pointer click
+      // (confirmed in the browser: with it, the click never selected the
+      // room; without it, the room opens).
+      //
+      // `detail` is the click count: it is greater than zero for a genuine
+      // pointer click and zero when the click was synthesised by activating
+      // a focused element from the keyboard, so keyboard users keep both
+      // their focus and their ring.
+      onClick={(e) => {
+        if (e.detail > 0) e.currentTarget.blur();
+        performClick(chat);
+      }}
       bg={config?.colors?.primary}
       data-testid={RoomListTestIds.roomRow}
       role="button"

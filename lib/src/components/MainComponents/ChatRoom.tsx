@@ -25,8 +25,10 @@ import { useRoomState } from '../../hooks/useRoomState.tsx';
 import { useChatSettingState } from '../../hooks/useChatSettingState.tsx';
 import useComposing from '../../hooks/useComposing.tsx';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
-import { MessageProps, IMentionSpan } from '../../types/types';
+import { MessageProps, IMentionSpan, IMessage } from '../../types/types';
 import { useLoaderDebug } from '../../hooks/useLoaderDebug';
+import { useChatOpenPhase } from '../../hooks/useChatOpenPhase';
+import { ChatRoomOpeningPreview } from './ChatRoomOpeningPreview';
 
 interface ChatRoomProps {
   CustomMessageComponent?: React.ComponentType<MessageProps>;
@@ -160,9 +162,66 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       loaderByActiveRoomLoading ||
       loaderByHistoryPreloadLoading;
 
-    const activeRoomLoading =
+    // Same three flags the old `activeRoomLoading` OR'd together (never
+    // loaderByGlobalLoading - that one is room-list-wide, not specific to
+    // the room being opened). Fed into useChatOpenPhase below instead of
+    // driving the render directly: those three flip independently as MUC
+    // join / MAM fetch / background preload each progress at their own
+    // pace, and rendering straight off their OR is what produced the
+    // Loader/placeholder flicker while a room opens.
+    const openingLoadSignal =
       !hasMessages &&
-      (loaderByLoading || loaderByActiveRoomLoading || loaderByHistoryPreloadLoading);
+      (loaderByLoading ||
+        loaderByActiveRoomLoading ||
+        loaderByHistoryPreloadLoading);
+
+    // Turns that flapping signal into one phase per room that only ever
+    // moves forward: 'opening' then 'settled'. See useChatOpenPhase for why
+    // a debounce (not "resolve the instant loading looks false") is what
+    // actually stops the oscillation.
+    const openPhase = useChatOpenPhase(activeRoomJID, openingLoadSignal);
+
+    // The API's seeded last message (GET /v1/chats/my -> chat.lastMessage,
+    // mapped in createRoomFromApi) rendered as a real bubble while the room
+    // is still opening and has no loaded history yet. Once any real
+    // message loads, hasMessages flips true and this branch is never
+    // reached again for this room - MessageList takes over unconditionally
+    // - so the seed and a live copy of the same message can never be on
+    // screen together. The identity check below is a defensive second
+    // layer for that same guarantee: it matches on messageId/stanzaId
+    // (never on body text, which two different messages can share).
+    const seedLastMessage = activeRoom?.lastMessage;
+    const seedAlreadyLoaded =
+      !!seedLastMessage &&
+      (activeRoom?.messages || []).some(
+        (message) =>
+          (!!seedLastMessage.id && message.id === seedLastMessage.id) ||
+          (!!seedLastMessage.xmppId &&
+            !!message.xmppId &&
+            message.xmppId === seedLastMessage.xmppId)
+      );
+    // The seed stays on screen for as long as the room has nothing loaded,
+    // not just while it is opening. Some rooms have a lastMessage in
+    // `chats/my` but an empty MAM archive (the message was never archived,
+    // or was removed). Dropping the seed at the end of the opening phase
+    // made those rooms show the message and then replace it with "this chat
+    // is empty", which contradicts what the user just read, and contradicts
+    // the room-list row that still shows the same message as the preview.
+    const showOpeningSeed =
+      !hasMessages && !!seedLastMessage?.body && !seedAlreadyLoaded;
+    const openingSeedMessage: IMessage | undefined = showOpeningSeed
+      ? {
+          ...(seedLastMessage as IMessage),
+          id: seedLastMessage!.id || seedLastMessage!.xmppId || 'seed-last-message',
+          roomJid: seedLastMessage!.roomJid || activeRoomJID,
+          body: seedLastMessage!.body,
+          date: seedLastMessage!.date || new Date(),
+          user: {
+            id: seedLastMessage!.user?.id || '',
+            name: seedLastMessage!.user?.name || '',
+          },
+        }
+      : undefined;
 
     useLoaderDebug('chat-room-history-loader', isHistoryLoading);
     useLoaderDebug(
@@ -241,8 +300,23 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         )}
         {config?.chatHeaderAdditional?.enabled &&
           config.chatHeaderAdditional.element()}
-        {activeRoomLoading ? (
-          <Loader color={config?.colors?.primary} />
+        {openingSeedMessage ? (
+          <ChatRoomOpeningPreview
+            seedMessage={openingSeedMessage}
+            config={config}
+            xmppUsername={user?.xmppUsername}
+            isReply={false}
+            CustomMessage={CustomMessageComponent}
+            // The loader sits above the seeded message only while history is
+            // still on its way. Once the room has settled the message stays,
+            // without a spinner implying more is coming.
+            loading={openPhase === 'opening'}
+          />
+        ) : openPhase === 'opening' && !hasMessages ? (
+          <Loader
+            data-testid="chat-room-opening-loader"
+            color={config?.colors?.primary}
+          />
         ) : Object.keys(roomsList).length < 1 || !activeRoomJID ? (
           <EmptyChatIllustration
             width={240}

@@ -108,9 +108,20 @@ export const ChatItem = styled.div.withConfig({
         : 'var(--ethora-color-bg-hover, #F0F2F5)'};
   }
 
+  /* Keyboard focus: an outline+offset here draws a 2px box floating outside
+     a 60px full-width row - it reads as a heavy rectangle bolted on top of
+     the row's own rounded, tinted active/hover highlight and clips into the
+     margin that keeps the hairline divider off the row's corners (see the
+     margin comment above). An inset ring instead: no offset, so nothing
+     escapes the row's own box, and it is naturally clipped to the row's
+     existing border-radius (same as the tint above), so it reads as part of
+     the row's shape rather than a shape drawn over it. Width and color both
+     come from tokens, never a literal, so a host's own primary color and
+     ring width apply here exactly like everywhere else focus is shown. */
   &:focus-visible {
-    outline: 2px solid var(--ethora-color-primary, #0052cd);
-    outline-offset: 2px;
+    outline: none;
+    box-shadow: inset 0 0 0 var(--ethora-focus-ring-width, 2px)
+      var(--ethora-color-primary, #0052cd);
   }
 
   ${reducedMotion}
