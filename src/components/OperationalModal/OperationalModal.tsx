@@ -3,9 +3,7 @@ import styled from 'styled-components';
 import QRCode from 'react-qr-code';
 import SideDrawer, {
   DrawerCard,
-  DrawerCardBody,
   DrawerHint,
-  DrawerSection,
 } from '../Modals/SideDrawer/SideDrawer';
 import { StyledInput } from '../styled/StyledInputComponents/StyledInputComponents';
 import Button from '../styled/Button';
@@ -42,31 +40,49 @@ const QrPanelLayer = styled.div`
   display: flex;
 `;
 
-const QrFrame = styled.div`
+// The panel body is a tall flex column with exactly one child (this
+// wrapper), so `margin: auto 0` centres the whole QR block in whatever
+// vertical space is available instead of letting it pile up under the
+// header with dead space below - the classic single-flex-child centring
+// trick, and it degrades gracefully to top-anchored-plus-scroll on a short
+// viewport where the content doesn't fit.
+const QrCenterWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  margin: auto 0;
+  gap: var(--ethora-space-5, 20px);
+`;
+
+// One card, not two: the QR and the link are the same object (two ways to
+// get to the same chat), so one bordered surface with a hairline between
+// its two halves reads as a single deliberate unit rather than debris.
+const QrCard = styled(DrawerCard)`
+  width: 100%;
+`;
+
+const QrCodeSection = styled.div`
   display: flex;
   justify-content: center;
-  padding: var(--ethora-space-4, 16px);
-  background-color: var(--ethora-color-bg, #fff);
+  padding: var(--ethora-space-6, 24px) var(--ethora-space-5, 20px);
 `;
 
+// A fixed, moderate size rather than "as big as the column allows": the
+// code needs to stay scannable, not fill the card. Real margin on every
+// side makes it read as an object sitting on the card's surface.
 const QrCodeBox = styled.div`
-  width: 100%;
-  max-width: 240px;
+  width: 176px;
 `;
 
-const QrLinkRow = styled.div`
+const QrLinkSection = styled.div`
+  box-sizing: border-box;
   display: flex;
-  align-items: center;
-  gap: var(--ethora-space-2, 8px);
+  flex-direction: column;
   width: 100%;
-  min-width: 0;
-`;
-
-// The column is a fixed 400px, so the copy affordance has to promise not to
-// wrap its label onto a second line and shove the link input to nothing.
-const QrCopyAction = styled.div`
-  flex: 0 0 auto;
-  white-space: nowrap;
+  gap: var(--ethora-space-3, 12px);
+  padding: var(--ethora-space-4, 16px) var(--ethora-space-5, 20px);
+  border-top: 1px solid var(--ethora-color-border, #e6e8ec);
 `;
 
 interface OperationalModalProps {
@@ -98,43 +114,40 @@ const OperationalModal: React.FC<OperationalModalProps> = ({
         onClose={() => setVisible(false)}
         backLabel={t('action.close')}
       >
-        <DrawerSection>
-          <DrawerCard>
-            <QrFrame>
+        <QrCenterWrapper>
+          <QrCard>
+            <QrCodeSection>
               <QrCodeBox>
                 <QRCode
-                  size={256}
-                  style={{ width: '100%', height: 'auto', maxWidth: '100%' }}
+                  size={176}
+                  style={{ width: '100%', height: 'auto' }}
                   value={qrValue}
-                  viewBox="0 0 256 256"
+                  viewBox="0 0 176 176"
                 />
               </QrCodeBox>
-            </QrFrame>
-          </DrawerCard>
-        </DrawerSection>
+            </QrCodeSection>
 
-        <DrawerSection>
-          <DrawerCard>
-            <DrawerCardBody>
-              <QrLinkRow>
-                <StyledInput
-                  $colorBg={config?.colors?.colorInput}
-                  value={qrValue}
-                  readOnly
-                  aria-label={t('modal.qr.title')}
-                  style={{ flex: '1 1 auto', minWidth: 0 }}
-                />
-                <QrCopyAction>
-                  <Button
-                    text={t('action.copyLink')}
-                    onClick={() => handleCopyClick(qrValue)}
-                  />
-                </QrCopyAction>
-              </QrLinkRow>
-              <DrawerHint>{t('modal.qr.hint')}</DrawerHint>
-            </DrawerCardBody>
-          </DrawerCard>
-        </DrawerSection>
+            <QrLinkSection>
+              <StyledInput
+                $colorBg={config?.colors?.colorInput}
+                value={qrValue}
+                readOnly
+                aria-label={t('modal.qr.title')}
+                style={{ width: '100%' }}
+              />
+              <Button
+                text={t('action.copyLink')}
+                onClick={() => handleCopyClick(qrValue)}
+                variant="filled"
+                style={{ width: '100%' }}
+              />
+            </QrLinkSection>
+          </QrCard>
+
+          <DrawerHint style={{ textAlign: 'center' }}>
+            {t('modal.qr.hint')}
+          </DrawerHint>
+        </QrCenterWrapper>
       </SideDrawer>
     </QrPanelLayer>
   );
