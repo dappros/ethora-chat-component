@@ -48,37 +48,52 @@
 /*
  * Scrollbars, chat subtree only.
  *
- * The colour follows the host theme: `--ethora-icon-color` is published by
- * helpers/resolveIconColor from `config.colors.icons ?? config.colors.primary`,
- * so a themed app gets a matching scrollbar for free. `--ethora-scrollbar-thumb`
- * / `--ethora-scrollbar-track` are escape hatches for hosts that want the
- * scrollbar decoupled from the icon colour. The literal fallbacks match the
- * resolver's own defaults (#0052CD is Ethora brand blue).
+ * Quiet on purpose. The thumb used to be painted in the host's brand colour
+ * (`--ethora-icon-color`), which on a themed app produced a saturated bar
+ * running down the whole room list, and the track was a solid grey rail
+ * beside it. A scrollbar is chrome, not an accent: it should say where you
+ * are in the list and otherwise stay out of the way.
+ *
+ * Note for anyone tempted to add `scrollbar-color` back: setting the standard
+ * property makes Chrome abandon the platform's overlay scrollbar and fall
+ * back to a classic, always-visible widget (roughly 11px wide, far wider than
+ * the 4px asked for below, because the standard properties win over the
+ * -webkit- pseudo-elements when both are present). That is exactly how the
+ * heavy purple bar got there. `scrollbar-width: thin` alone keeps Firefox
+ * slim without triggering that switch.
+ *
+ * `--ethora-scrollbar-thumb` / `--ethora-scrollbar-track` remain the escape
+ * hatches for a host that does want a branded scrollbar.
  */
 .ethora-chat-root,
 .ethora-chat-root * {
   scrollbar-width: thin;
-  scrollbar-color: var(--ethora-scrollbar-thumb, var(--ethora-icon-color, #0052cd))
-    var(--ethora-scrollbar-track, #f0f0f0);
 }
 
 .ethora-chat-root::-webkit-scrollbar,
 .ethora-chat-root ::-webkit-scrollbar {
-  width: 4px;
+  width: 8px;
+  height: 8px;
 }
 
 .ethora-chat-root::-webkit-scrollbar-thumb,
 .ethora-chat-root ::-webkit-scrollbar-thumb {
-  background-color: var(
-    --ethora-scrollbar-thumb,
-    var(--ethora-icon-color, #0052cd)
-  );
-  border-radius: 6px;
+  background-color: var(--ethora-scrollbar-thumb, rgba(20, 20, 20, 0.18));
+  border-radius: var(--ethora-radius-full, 999px);
+  /* Transparent border plus background-clip keeps the visible thumb slim
+     while leaving a comfortable hit area for dragging it. */
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.ethora-chat-root::-webkit-scrollbar-thumb:hover,
+.ethora-chat-root ::-webkit-scrollbar-thumb:hover {
+  background-color: var(--ethora-scrollbar-thumb-hover, rgba(20, 20, 20, 0.32));
 }
 
 .ethora-chat-root::-webkit-scrollbar-track,
 .ethora-chat-root ::-webkit-scrollbar-track {
-  background-color: var(--ethora-scrollbar-track, #f0f0f0);
+  background-color: var(--ethora-scrollbar-track, transparent);
 }
 
 .ethora-apple-emoji {
