@@ -31,6 +31,10 @@ const PUSH_ROOM_JID_KEY = '@ethora/chat-component-pushRoomJid';
 const ACTIVE_ROOM_PRESENCE_TIMEOUT_MS = 1200;
 const ACTIVE_ROOM_FAST_PRESENCE_TIMEOUT_MS = 3000;
 const ACTIVE_ROOM_LOADER_HARD_CAP_MS = 3000;
+// Backoff for the BACKGROUND /chats/my refetches after joining a room by
+// link. Measured against the QA backend, which registers the membership the
+// MUC presence created a few seconds after the presence call returns.
+const JOIN_SYNC_RETRY_DELAYS_MS = [1000, 2500, 5000];
 
 const scrollToMessage = (messageId: string) => {
   const messageElement = document.querySelector(
@@ -64,6 +68,11 @@ export const useRoomInitialization = (
   const activeJoinRef = useRef<{ jid: string; promise: Promise<boolean> } | null>(
     null
   );
+
+  // Rooms whose post-join room-list reconcile is already running, so the
+  // effect re-running as the list settles doesn't stack up duplicate
+  // background retry loops for the same room.
+  const joinReconcileRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (client && activeRoomJID) {
@@ -182,13 +191,56 @@ export const useRoomInitialization = (
 
     const initialPresenceAndHistory = async () => {
       if (!roomsList[activeRoomJID] && activeRoomJID && client) {
-        client
-          .presenceInRoomStanza(activeRoomJID, 0, ACTIVE_ROOM_PRESENCE_TIMEOUT_MS, false)
-          .catch(() => {});
+        // Entering a room we are not a member of yet - a QR code, a shared
+        // link, a push deep link. The MUC presence join is what makes the
+        // server register the membership, so two things have to be true for
+        // the room to actually show up in this session:
+        //
+        //  1. the room list must be refetched AFTER the join settles. The
+        //     join used to be fire-and-forget, so the refetch raced it and
+        //     almost always lost.
+        //  2. the 60s /chats/my cache must be dropped first, or the refetch
+        //     just replays the pre-join list.
+        //
+        // Even then the backend registers the membership a few seconds
+        // after our presence call returns, so one refetch is not enough.
+        // The retries run in the BACKGROUND: history must not be held
+        // hostage to the room list, or the user stares at an empty pane for
+        // the whole backoff. Without this the room only appeared after a
+        // full page reload, which looked exactly like "joining a public
+        // chat by link is broken".
+        await client
+          .presenceInRoomStanza(
+            activeRoomJID,
+            0,
+            ACTIVE_ROOM_PRESENCE_TIMEOUT_MS,
+            false
+          )
+          .catch(() => false);
         if (config?.newArch === false) {
           await client.getRoomsStanza();
         } else {
-          await syncRooms(client, config);
+          const targetJid = activeRoomJID;
+          const wantedName = String(targetJid).split('@')[0];
+          const items = await syncRooms(client, config, { force: true });
+          const alreadyThere = items?.some((item) => item?.name === wantedName);
+          // One background reconcile per room per mount, no matter how many
+          // times this effect re-runs as the room list settles.
+          if (
+            !alreadyThere &&
+            !joinReconcileRef.current.has(targetJid)
+          ) {
+            joinReconcileRef.current.add(targetJid);
+            void (async () => {
+              for (const delay of JOIN_SYNC_RETRY_DELAYS_MS) {
+                await new Promise((resolve) => setTimeout(resolve, delay));
+                const retried = await syncRooms(client, config, {
+                  force: true,
+                }).catch(() => [] as typeof items);
+                if (retried?.some((item) => item?.name === wantedName)) return;
+              }
+            })();
+          }
         }
         await getDefaultHistory();
       } else {
