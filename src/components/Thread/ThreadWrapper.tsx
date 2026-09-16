@@ -1,4 +1,5 @@
 import { FC, useCallback, useEffect, useState } from 'react';
+import styled from 'styled-components';
 import { IMessage, User } from '../../types/types';
 import {
   AlsoCheckbox,
@@ -22,6 +23,25 @@ import { useSendMessage } from '../../hooks/useSendMessage';
 import { createMainMessageForThread } from '../../helpers/createMainMessageForThread';
 import { useRoomState } from '../../hooks/useRoomState';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { useDelayedAction } from '../../hooks/useDelayedAction';
+import {
+  fadeInUpAnimation,
+  slideOutRightAnimation,
+  MOTION_BASE_MS,
+} from '../../styles/motion';
+
+/**
+ * Thread pane enters with a settle-in (`fadeInUpAnimation`) and leaves with
+ * a slide (`slideOutRightAnimation`, the same primitive the side drawer
+ * uses), instead of the room/thread swap in `ChatWrapper.tsx` just blinking
+ * from one to the other. `closeThread` below delays the Redux dispatch that
+ * actually unmounts this component (via `ChatWrapper`'s `activeMessage?.
+ * activeMessage` ternary) so the exit animation has time to play first -
+ * see `useDelayedAction`.
+ */
+const AnimatedThreadContainer = styled(ChatContainer)<{ $closing?: boolean }>`
+  ${({ $closing }) => ($closing ? slideOutRightAnimation : fadeInUpAnimation)}
+`;
 
 interface ThreadWrapperProps {
   activeMessage: IMessage;
@@ -130,13 +150,23 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
     dispatch(setEditAction({ isEdit: false }));
   };
 
-  const closeThread = () => {
+  // The actual dispatch is wrapped so closing plays `slideOutRightAnimation`
+  // (via `isThreadClosing` below) before the pane unmounts, instead of the
+  // Redux state flipping and the whole thread disappearing on the same tick.
+  const closeActiveMessage = useCallback(() => {
     dispatch(setCloseActiveMessage({ chatJID: activeMessage.roomJid }));
+  }, [activeMessage.roomJid, dispatch]);
+  const { requestAction: closeThread, isPending: isThreadClosing } =
+    useDelayedAction(closeActiveMessage, MOTION_BASE_MS);
+
+  const onCloseThread = () => {
     dispatch(setEditAction({ isEdit: false }));
+    closeThread();
   };
 
   return (
-    <ChatContainer
+    <AnimatedThreadContainer
+      $closing={isThreadClosing}
       style={{
         overflow: 'auto',
         ...config?.chatRoomStyles,
@@ -144,7 +174,7 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
     >
       <ModalHeaderComponent
         headerTitle="Thread"
-        handleCloseModal={closeThread}
+        handleCloseModal={onCloseThread}
       />
       <MessageList
         loadMoreMessages={loadMoreMessages}
@@ -174,7 +204,7 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
             cursor: 'pointer',
             borderBottom: '1px solid',
           }}
-          onClick={closeThread}
+          onClick={onCloseThread}
         >
           {roomsList[activeMessage.roomJid].name}
         </a>
@@ -215,7 +245,7 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
             isVisible={roomsList[activeMessage.roomJid]?.composing || false}
           />
         )}
-    </ChatContainer>
+    </AnimatedThreadContainer>
   );
 };
 
