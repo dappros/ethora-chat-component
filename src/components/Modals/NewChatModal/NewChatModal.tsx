@@ -184,6 +184,17 @@ const NewChatModal: React.FC = () => {
         usersArrayLength
       );
 
+      // createRoomFromApi refuses to build a room when it has no conference
+      // host to attach (see its own comment) - without this guard we'd
+      // dereference .jid on null and crash here.
+      if (!normalizedChat || !normalizedChat.jid) {
+        console.error(
+          'handleRoomCreation: failed to normalize the new room',
+          newChat
+        );
+        return null;
+      }
+
       dispatch(
         addRoomViaApi({
           room: normalizedChat,

@@ -60,8 +60,21 @@ export const createRoomFromApi = (
   room: ApiRoom,
   service: string = VITE_APP_XMPP_CONFERENCE,
   usersArrayLength: number = 0
-): IRoom => {
+): IRoom | null => {
   try {
+    // A MUC room JID only ever exists as `<localpart>@<conference host>`.
+    // `service` resolves to an empty string in this package's own build,
+    // and several call sites pass `config?.xmppSettings?.conference` or
+    // `client.conference` straight through before the XMPP session is
+    // hydrated - both are `undefined` early in the lifecycle. The old
+    // default-parameter fallback let that combine with `room.name` into
+    // "<name>@", a JID with no domain: it has an '@' so it looks valid
+    // enough, but no such room exists on the server. MAM returns nothing
+    // and presence never resolves, so it renders forever as a duplicate
+    // ghost row with no history and no "N online" line. Refuse to guess a
+    // host, the same way toRoomJid() in isLikelyMucJid.ts does.
+    if (!room?.name || !service) return null;
+
     const members = Array.isArray(room?.members) ? room.members : [];
     // Don't fabricate a "1 user" fallback when /chats/my doesn't surface
     // members. Header reads usersCnt directly; injecting 1 lies to the user
@@ -76,7 +89,7 @@ export const createRoomFromApi = (
 
     const roomData: IRoom = {
       ...room,
-      jid: room?.name ? `${room.name}@${service}` : '',
+      jid: `${room.name}@${service}`,
       name: resolvedTitle,
       title: resolvedTitle,
       members,
