@@ -43,7 +43,8 @@ import DeleteChatModal from './DeleteChatModal';
 import { useChatSettingState } from '../../../hooks/useChatSettingState';
 import SelectUsersModal from '../SelectUsersModal/SelectUsersModal';
 import { useToast } from '../../../context/ToastContext';
-import { useT } from '../../../i18n/useT';
+import { useT, useUiLocale } from '../../../i18n/useT';
+import { formatNumberWithCommas } from '../../../helpers/formatNumberWithCommas';
 import { useMyFiles } from '../../../hooks/useMyFiles';
 import FilesList from '../../Files/FilesList';
 import { ApiFile } from '../../../types/types';
@@ -71,6 +72,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
 
   const { showToast } = useToast();
   const t = useT();
+  const uiLocale = useUiLocale();
 
   const chatMenuOptions = useMemo(
     () => [
@@ -322,9 +324,15 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         : typeof activeRoom.usersCnt === 'number' && activeRoom.usersCnt > 0
           ? activeRoom.usersCnt
           : 0;
+    // Same thousands-separator convention the chat header uses for its own
+    // user count (formatNumberWithCommas + the reader's UI locale), so
+    // "3,510 users" in the header and the member count right next to it in
+    // this panel read the same way instead of one having a separator and
+    // the other not.
+    const formattedCount = formatNumberWithCommas(displayCount, uiLocale);
     return displayCount === 1
-      ? t('modal.chatProfile.memberCountSingular', { count: displayCount })
-      : t('modal.chatProfile.memberCountPlural', { count: displayCount });
+      ? t('modal.chatProfile.memberCountSingular', { count: formattedCount })
+      : t('modal.chatProfile.memberCountPlural', { count: formattedCount });
   })();
 
   const showDescription = !config?.disableChatInfo?.disableDescription;

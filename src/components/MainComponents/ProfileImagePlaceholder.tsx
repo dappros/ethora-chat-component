@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { EditIcon } from '../../assets/icons';
 import {
   AvatarCircle,
@@ -10,6 +10,7 @@ import {
 } from '../styled/StyledComponents';
 import { nameToColor } from '../../helpers/hashcolor';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { useT } from '../../i18n/useT';
 
 interface ProfileImagePlaceholderProps {
   name?: string;
@@ -47,10 +48,33 @@ export const ProfileImagePlaceholder: React.FC<
   online = false,
 }) => {
   const { config } = useChatSettingState();
+  const t = useT();
   const iconsBg = config?.colors?.iconsBg;
   const iconColor = config?.colors?.icons;
   const { backgroundColor: hashedBg } = nameToColor(name);
   const backgroundColor = iconsBg || hashedBg;
+
+  // Social-login avatars (Google/Facebook profile photos) commonly fail to
+  // load, either because the CDN refuses hotlinked/referrer-carrying
+  // requests or because the URL has simply expired. When that happens the
+  // browser renders a broken-image glyph plus the alt text clipped to the
+  // circle, which is very visible in member lists. Track the failure and
+  // fall back to the same initials/placeholder rendering used when there is
+  // no icon at all, so a failed avatar looks exactly like one that was
+  // never set.
+  const [imageFailed, setImageFailed] = useState(false);
+
+  // A recycled row (e.g. a virtualized member list) reuses this component
+  // for a different person. Reset the failure flag whenever the icon
+  // changes, otherwise the new user's valid avatar keeps showing initials
+  // forever because of a previous, unrelated failure.
+  useEffect(() => {
+    setImageFailed(false);
+  }, [icon]);
+
+  const avatarAlt = name
+    ? t('avatar.altWithName', { name })
+    : t('avatar.altGeneric');
 
   const getTwoUppercaseLetters = (fullName: string) => {
     if (!fullName) return '';
@@ -78,7 +102,12 @@ export const ProfileImagePlaceholder: React.FC<
     return firstLetter + secondLetter;
   };
 
-  const getInitials = () => (!icon && name ? getTwoUppercaseLetters(name) : '');
+  // A failed image is indistinguishable from no icon at all: same initials,
+  // same background.
+  const showImage = !!icon && !imageFailed;
+
+  const getInitials = () =>
+    !showImage && name ? getTwoUppercaseLetters(name) : '';
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -95,12 +124,12 @@ export const ProfileImagePlaceholder: React.FC<
 
   return (
     <Wrapper
-      bgColor={icon ? 'transparent' : backgroundColor}
+      bgColor={showImage ? 'transparent' : backgroundColor}
       size={size}
       isClickable={active || !!upload?.active}
     >
       <AvatarCircle
-        bgColor={icon ? 'transparent' : backgroundColor}
+        bgColor={showImage ? 'transparent' : backgroundColor}
         size={size}
         isClickable={active || (role === 'participant' && !!upload?.active)}
         onClick={handleAvatarClick}
@@ -110,11 +139,15 @@ export const ProfileImagePlaceholder: React.FC<
           cursor: 'pointer'
         }}
       >
-        {icon ? (
+        {showImage ? (
           <AvatarImage
-            src={typeof icon === 'string' ? icon : URL.createObjectURL(icon)}
-            alt="avatar icon"
+            src={typeof icon === 'string' ? icon : URL.createObjectURL(icon as File)}
+            alt={avatarAlt}
             size={size}
+            referrerPolicy="no-referrer"
+            loading="lazy"
+            decoding="async"
+            onError={() => setImageFailed(true)}
           />
         ) : placeholderIcon ? (
           placeholderIcon
