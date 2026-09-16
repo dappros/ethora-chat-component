@@ -703,23 +703,42 @@ const roomsStore = createSlice({
         };
       }
     },
+    // Shared by two callers that must agree on the result: the optimistic
+    // apply in useSendMessage (fired the moment the author confirms an
+    // edit) and the server echo (onEditMessage in stanzaHandlers.ts). Both
+    // just set body/isEdited unconditionally, which is what makes a
+    // same-text echo a no-op and a different-text echo (another client's
+    // edit won the race) simply win - there is no "already edited" branch
+    // to get out of sync.
     editRoomMessage(
       state,
       action: PayloadAction<{
         roomJID: string;
         messageId: string;
         text: string;
+        // Defaults to true (a genuine edit). The optimistic-apply rollback
+        // in useSendMessage passes the pre-edit value back through here so
+        // a message that was already edited before this attempt doesn't
+        // lose its "edited" label when the failed attempt is undone.
+        isEdited?: boolean;
       }>
     ) {
-      const { roomJID, messageId, text } = action.payload;
-      if (state.rooms[roomJID]) {
-        state.rooms[roomJID].messages.map((message) => {
-          if (message.id === messageId) {
-            message.body = text;
-            message.isEdited = true;
-          }
-        });
-      }
+      const { roomJID, messageId, text, isEdited = true } = action.payload;
+      const message = state.rooms[roomJID]?.messages.find(
+        (msg) => msg.id === messageId
+      );
+      if (!message) return;
+      message.body = text;
+      message.isEdited = isEdited;
+      // The cached translation was computed for the OLD body, and the edit
+      // relay (editMessage.xmpp.ts) carries no re-translation - so a stale
+      // entry would render as if it were a translation of text that no
+      // longer exists. `translations` is deliberately not persisted and
+      // re-syncs from the server on room open (see PERSISTED_MESSAGE_FIELDS
+      // in roomStore/index.ts), so dropping it here just means the reader
+      // sees the plain (correct) new body until the next resync instead of
+      // a mismatched one.
+      delete message.translations;
     },
     addRoomMessage(state, action: PayloadAction<AddRoomMessageAction>) {
       const { roomJID, message, start } = action.payload;
