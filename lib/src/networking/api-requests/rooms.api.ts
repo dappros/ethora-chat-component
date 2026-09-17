@@ -17,6 +17,7 @@ import { ethoraLogger } from '../../helpers/ethoraLogger';
 // the UI fires a second /chats/my just to refetch the same data - and the
 // user sees a "0 rooms" flash while the second request is in flight.
 const GET_ROOMS_CACHE_MS = 60_000;
+export type GetRoomsResult = { items: ApiRoom[]; failed?: boolean };
 let getRoomsInFlight: SharedRequest<{ items: ApiRoom[] }> | null = null;
 let getRoomsInFlightToken = '';
 let lastGetRoomsResponse: { items: ApiRoom[] } | null = null;
@@ -42,7 +43,7 @@ export function invalidateRoomsCache() {
 // written on the success path, and the in-flight entry is always cleared in
 // the finally so the next (non-aborted) caller gets a fresh request instead
 // of hanging on a promise that will never resolve for them.
-export async function getRooms(signal?: AbortSignal): Promise<{ items: ApiRoom[] }> {
+export async function getRooms(signal?: AbortSignal): Promise<GetRoomsResult> {
   const token = store.getState().chatSettingStore.user.token || '';
   const now = Date.now();
 
@@ -90,7 +91,16 @@ export async function getRooms(signal?: AbortSignal): Promise<{ items: ApiRoom[]
       throw error;
     }
     ethoraLogger.log('Error loading rooms');
-    return { items: [] };
+    // `failed: true` is the difference between "the account has no chats"
+    // and "we could not find out". Returning a bare empty list made every
+    // transport failure (a 401 while the freshly issued token is still
+    // propagating on a first login, an offline blip) indistinguishable
+    // from a genuinely empty account, and the caller then latched
+    // "rooms resolved, cleanly, with zero rooms" - which is what put the
+    // "No room. Let's create one!" CTA on screen seconds before the real
+    // rooms arrived. Kept as a field rather than a throw so the existing
+    // callers that only read `.items` keep working unchanged.
+    return { items: [], failed: true };
   } finally {
     getRoomsInFlight = null;
     getRoomsInFlightToken = '';

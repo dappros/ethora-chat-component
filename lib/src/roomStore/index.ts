@@ -572,6 +572,15 @@ const roomsPersistConfig = {
     'presenceByRoom',
     'isLoading',
     'reportRoom',
+    // Per-session facts about THIS page load's rooms fetch, for the same
+    // reason isLoading is here. Rehydrating roomsLoadedOnce: true from a
+    // previous session tells ChatRoom "the room list is final" before this
+    // session has asked the server anything, which re-opens the empty-state
+    // flash the flag exists to close (the persisted rooms map can come back
+    // empty while the flag comes back true: eviction by the size cap, a
+    // sanitized-away ghost room, or a different account signing in).
+    'roomsLoadedOnce',
+    'roomsLoadError',
   ],
   transforms: [sanitizeRoomsStateTransform, limitMessagesTransform, encryptor],
 };

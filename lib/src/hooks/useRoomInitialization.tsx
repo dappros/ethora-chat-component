@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { setIsLoading } from '../roomStore/roomsSlice';
 import { useXmppClient } from '../context/xmppProvider';
-import { IConfig, IMessage, IRoom } from '../types/types';
+import { ApiRoom, IConfig, IMessage, IRoom } from '../types/types';
 import { useDispatch } from 'react-redux';
 import useGetNewArchRoom from './useGetNewArchRoom';
 import { MESSAGE_HIGHLIGHT_CLASS } from '../styles/classNames';
@@ -222,7 +222,13 @@ export const useRoomInitialization = (
         } else {
           const targetJid = activeRoomJID;
           const wantedName = String(targetJid).split('@')[0];
-          const items = await syncRooms(client, config, { force: true });
+          // syncRooms now rejects when /chats/my failed (see
+          // useGetNewArchRoom). This call is a best-effort reconcile after
+          // joining a public room, so it keeps its old "treat a failure as
+          // nothing new" behaviour rather than aborting history loading.
+          const items = await syncRooms(client, config, { force: true }).catch(
+            () => [] as ApiRoom[]
+          );
           const alreadyThere = items?.some((item) => item?.name === wantedName);
           // One background reconcile per room per mount, no matter how many
           // times this effect re-runs as the room list settles.
