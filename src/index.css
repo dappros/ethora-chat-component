@@ -73,6 +73,13 @@
     var(--ethora-scrollbar-track, transparent);
 }
 
+/*
+ * This 8px is depended on outside this file: RoomList.tsx sizes the room
+ * list's right padding as this width plus a visible gap (so the overlay bar
+ * never paints over the last column of content, e.g. the date in a row's
+ * top-right corner). Change this number and that padding has to change with
+ * it, or the gap silently disappears.
+ */
 .ethora-chat-root::-webkit-scrollbar,
 .ethora-chat-root ::-webkit-scrollbar {
   width: 8px;
