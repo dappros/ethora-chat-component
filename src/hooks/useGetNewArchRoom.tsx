@@ -29,6 +29,15 @@ const useGetNewArchRoom = () => {
       // until a full page reload.
       if (options?.force) invalidateRoomsCache();
       const rooms = await getRooms();
+      // A failed fetch is not an empty account. getRooms() swallows
+      // transport errors and hands back an empty list with `failed` set;
+      // surfacing it as a rejection here is what lets the init flow latch
+      // roomsLoadError and retry, instead of telling the user they have no
+      // chats while /chats/my is still failing. See the comment in
+      // rooms.api.ts.
+      if (rooms?.failed) {
+        throw new Error('Failed to load rooms');
+      }
       const items = rooms?.items || [];
 
       items.forEach((room) => {
