@@ -76,14 +76,36 @@ const DEFAULTS = {
   primarySoft: '#E7EDF9',
   text: '#141414',
   textSecondary: '#5A5F66',
-  textMuted: '#8C8C8C',
+  // WCAG AA sweep (2026-09): the old #8C8C8C only cleared 3.36:1 against
+  // white, below the 4.5:1 a 12px timestamp needs. Darkened to the minimum
+  // that also clears the darkest surface it actually renders on
+  // (--ethora-color-bg-hover, #F0F2F5, on dropdown/list hover states) with a
+  // small margin: 5.25:1 on bg, 4.89:1 on bg-subtle, 4.68:1 on bg-hover.
+  // Still reads as a lighter, more muted gray than textSecondary.
+  textMuted: '#6C6C6C',
   textOnPrimary: '#FFFFFF',
   bg: '#FFFFFF',
   bgSubtle: '#F5F7FA',
   bgHover: '#F0F2F5',
   border: '#E6E8EC',
-  danger: '#D92D20',
-  success: '#12B76A',
+  // Same sweep: #D92D20 passed as plain body text (4.83:1 on bg) but fell
+  // to 4.31:1 on --ethora-color-bg-hover, which is exactly where it renders
+  // for destructive dropdown items (Leave/Delete/Block) on hover. Nudged
+  // down slightly (5.19:1 on bg, 4.83:1 on bg-subtle, 4.63:1 on bg-hover) -
+  // still unmistakably the same red.
+  danger: '#D02B1F',
+  // Same sweep: #12B76A only reached 2.62:1 as text ("N online") and even
+  // as the presence-dot graphic (3:1 needed) it fell short. This single
+  // value backs both --ethora-color-success and --ethora-color-online (see
+  // below), and both are used as real text somewhere (online counts/labels,
+  // and the white glyph inside Toast's success badge), so both need the
+  // 4.5:1 text threshold, not just the 3:1 graphic one - a second, lighter
+  // token for the presence dot would still have had to be at least this
+  // dark for that reason alone, so we kept one shared value rather than
+  // adding a second token. Darkened to clear bg-hover (the darkest surface
+  // this text sits on, e.g. a hovered member row): 5.26:1 on bg, 4.90:1 on
+  // bg-subtle, 4.69:1 on bg-hover. Still clearly reads as "online green".
+  success: '#0C7C48',
   iconsBg: '#FFFFFF',
 } as const;
 
