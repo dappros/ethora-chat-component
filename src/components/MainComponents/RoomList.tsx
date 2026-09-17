@@ -584,8 +584,15 @@ const RoomList: React.FC<RoomListProps> = ({
                   style={{
                     flexGrow: 1,
                     overflowY: 'auto',
+                    // `stable` only reserves room for a classic, space-taking
+                    // scrollbar. On a platform using overlay scrollbars (macOS
+                    // by default) it reserves nothing and the bar floats over
+                    // the rows, which put it straight on top of the date in
+                    // the top-right corner of each row. The horizontal padding
+                    // is what actually keeps content clear of it, on every
+                    // platform, and it is symmetric so the rows stay centred.
                     scrollbarGutter: 'stable',
-                    padding: '16px 0px',
+                    padding: '16px 8px',
                   }}
                 >
                   {isRoomsLoading && filteredChats.length === 0
