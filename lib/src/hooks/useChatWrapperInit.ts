@@ -15,6 +15,7 @@ import {
   setChatUiVisible,
   setIsLoading,
   setLogoutState,
+  setRoomsLoadResolved,
 } from '../roomStore/roomsSlice';
 import { useRoomState } from './useRoomState';
 import { useChatSettingState } from './useChatSettingState';
@@ -112,6 +113,17 @@ const useChatWrapperInit = ({
     initMode,
   } = useXmppClient();
   const syncRooms = useGetNewArchRoom();
+
+  // Marks the outcome of one rooms-fetch attempt in the store (see
+  // roomsSlice's setRoomsLoadResolved). ChatRoom's "No room" CTA reads that
+  // flag instead of the negative "nothing says it's loading" guards it used
+  // to rely on: `roomsLoadedOnce` only ever flips false -> true, and only
+  // from here, so a render that happens before this ever fires can never be
+  // mistaken for "the account really has no rooms".
+  const markRoomsResolved = useCallback(
+    (success: boolean) => dispatch(setRoomsLoadResolved({ success })),
+    [dispatch]
+  );
 
   const rooms = useSelector((state: RootState) => state.rooms.rooms);
   const { roomsList, activeRoomJID } = useRoomState();
@@ -590,6 +602,7 @@ const useChatWrapperInit = ({
 
               if (roomsList && Object.keys(roomsList).length > 0) {
                 setInited(true);
+                markRoomsResolved(true);
                 // Rooms came from redux-persist or a prior bootstrap.
                 // Still refresh from /chats/my in the background so the
                 // sidebar reflects the current server state - without it,
@@ -619,6 +632,7 @@ const useChatWrapperInit = ({
                     }
                   }
                   setInited(true);
+                  markRoomsResolved(true);
                 }
               }
               // Background tasks to avoid blocking UI
@@ -635,6 +649,12 @@ const useChatWrapperInit = ({
             } catch (error) {
               ethoraLogger.log('err', error);
               setConnectionLost(true);
+              // We tried to fetch the rooms and could not: latch the "we
+              // tried" signal WITH the failure flag, so ChatRoom shows a
+              // retry state instead of misreading "no data yet" as "no
+              // rooms". A later successful retry clears roomsLoadError (see
+              // markRoomsResolved(true) above).
+              markRoomsResolved(false);
               retryTimeout = setTimeout(initXmmpClient, 5000);
             }
           } else {
@@ -672,6 +692,7 @@ const useChatWrapperInit = ({
               }
             }
             setInited(true);
+            markRoomsResolved(true);
             setClient(client);
             setConnectionLost(false);
             dispatch(setIsLoading({ loading: false }));
@@ -689,6 +710,10 @@ const useChatWrapperInit = ({
         setConnectionLost(true);
         setInited(false);
         dispatch(setIsLoading({ loading: false }));
+        // Catches a failed rooms fetch from the "client already exists"
+        // branch above (it has no try/catch of its own) as well as any
+        // other failure in this effect - same reasoning as the inner catch.
+        markRoomsResolved(false);
         ethoraLogger.log(error);
         retryTimeout = setTimeout(initXmmpClient, 5000);
       }

@@ -139,6 +139,18 @@ interface RoomMessagesState {
   subscribedRooms: string[];
   pushSubscriptionStatus: Record<string, 'pending' | 'subscribed' | 'error' | 'blocked'>;
   loadingText?: string;
+  // True once the FIRST rooms fetch of this session has resolved, success or
+  // failure. A positive-only signal: it starts false and only this reducer
+  // ever flips it true, so a screen that reads it (ChatRoom's "No room. Let's
+  // create one!" CTA) can never mistake "nothing has happened yet" for "we
+  // checked and there is nothing". Reset on logout (setLogoutState) so the
+  // next login gets its own latch.
+  roomsLoadedOnce: boolean;
+  // True when the MOST RECENT rooms-fetch attempt failed. Lets an empty room
+  // list distinguish "we checked, the account really has none" (roomsLoadedOnce
+  // true, roomsLoadError false) from "we couldn't check" (both true) - only
+  // the former should show the CTA. A later successful retry clears it.
+  roomsLoadError: boolean;
   // Unsent composer text per room JID. Lives here rather than in the
   // composer's own useState so switching rooms (which never unmounts
   // SendInput) can hand each room back its own text, and so a reload gets
@@ -175,6 +187,8 @@ const initialState: RoomMessagesState = {
   subscribedRooms: [],
   pushSubscriptionStatus: {},
   loadingText: undefined,
+  roomsLoadedOnce: false,
+  roomsLoadError: false,
   drafts: {},
 };
 
@@ -1043,6 +1057,18 @@ const roomsStore = createSlice({
         state.rooms[chatJID].unreadCapped = false;
       }
     },
+    // Marks the outcome of one rooms-fetch attempt. Dispatched from
+    // useChatWrapperInit exactly where it already decides an attempt is
+    // done: on success (alongside setInited(true)) and on failure (the init
+    // catch blocks). See the `roomsLoadedOnce`/`roomsLoadError` field
+    // comments above for what each one means.
+    setRoomsLoadResolved: (
+      state,
+      action: PayloadAction<{ success: boolean }>
+    ) => {
+      state.roomsLoadedOnce = true;
+      state.roomsLoadError = !action.payload.success;
+    },
     setRoomRole: (
       state,
       action: PayloadAction<{ chatJID: string; role: string }>
@@ -1101,6 +1127,12 @@ const roomsStore = createSlice({
       // Half-typed messages are user content: logging out must not leave
       // them behind for whoever logs in next.
       state.drafts = {};
+      // Reset the rooms-load latch: without this, the second login of a
+      // session would see roomsLoadedOnce still true from the first one and
+      // show the "No room" CTA immediately, before the new account's own
+      // fetch even starts.
+      state.roomsLoadedOnce = false;
+      state.roomsLoadError = false;
     },
     setActiveMessage: (
       state,
@@ -1340,6 +1372,7 @@ export const {
   setIsLoading,
   setLastViewedTimestamp,
   setRoomNoMessages,
+  setRoomsLoadResolved,
   setCurrentRoom,
   setMemberOnline,
   setMemberOffline,
