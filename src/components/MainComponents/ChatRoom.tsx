@@ -51,6 +51,8 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       loading,
       globalLoading,
       roomMessages,
+      roomsLoadedOnce,
+      roomsLoadError,
     } = useRoomState();
     const {
       sendMessage: sendMs,
@@ -247,16 +249,52 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       initMode === 'provider' &&
       providerBootstrapStatus !== 'ready' &&
       providerBootstrapStatus !== 'failed';
+    // A null client means "we haven't even started connecting yet", not
+    // "connected and fine" - it must read the same as any other
+    // not-ready status. The old `!!client && ...` made a null client
+    // evaluate to xmppNotOnline===false (as if it were online), which was
+    // one of the three holes that let the empty-state CTA flash on a first
+    // login: see the roomsLoadedOnce comment below for the main fix.
     const xmppNotOnline =
-      !!client && client.status !== 'online' && client.status !== 'auth_failed';
+      !client || (client.status !== 'online' && client.status !== 'auth_failed');
 
-    if (
-      Object.keys(roomsList)?.length < 1 &&
+    // The CTA and the "requested room is gone" message below both used to be
+    // guarded only by NEGATIVE signals (not loading, not bootstrapping, not
+    // connecting) - none of which are true the instant the component mounts,
+    // before any of those flags has had a chance to flip. Absence of a
+    // "loading" signal is not evidence the room list is final.
+    // `roomsLoadedOnce` is the positive replacement: it starts false and is
+    // only ever set by useChatWrapperInit once a rooms fetch has actually
+    // resolved (success or failure, see setRoomsLoadResolved), so neither of
+    // these branches can fire before that has genuinely happened at least
+    // once this session. `roomsLoadError` further splits "resolved" into
+    // "really empty" vs "we couldn't tell" - only the former earns the
+    // "create one" CTA, the latter gets its own message below instead of
+    // silently showing nothing forever.
+    const roomsResolvedCleanly =
+      roomsLoadedOnce &&
+      !roomsLoadError &&
       !loading &&
       !globalLoading &&
       !providerStillBootstrapping &&
-      !xmppNotOnline
-    ) {
+      !xmppNotOnline;
+    const roomsResolvedWithError =
+      roomsLoadedOnce &&
+      roomsLoadError &&
+      !loading &&
+      !globalLoading &&
+      !providerStillBootstrapping &&
+      !xmppNotOnline;
+
+    if (Object.keys(roomsList)?.length < 1 && roomsResolvedWithError) {
+      // The fetch genuinely failed (network, server error, ...) rather than
+      // coming back empty. useChatWrapperInit already retries on its own
+      // timer, so this is purely informational - it exists so a failed
+      // fetch doesn't just look identical to an infinite loading state.
+      return <NonRoomChat>Couldn't load your chats. Retrying...</NonRoomChat>;
+    }
+
+    if (Object.keys(roomsList)?.length < 1 && roomsResolvedCleanly) {
       return (
         <NonRoomChat>
           No room. Let's create one!
@@ -267,15 +305,11 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
 
     if (!activeRoomJID || !roomsList?.[activeRoomJID]) {
       // A room WAS requested (deep link, QR, roomJID prop) but is not in the
-      // list and nothing is still loading: say so instead of showing the
-      // idle "pick a chat" placeholder, which made a dead link and a fresh
-      // session look identical.
+      // list and the room list has genuinely settled: say so instead of
+      // showing the idle "pick a chat" placeholder, which made a dead link
+      // and a fresh session look identical.
       const requestedRoomUnavailable =
-        Boolean(activeRoomJID) &&
-        !loading &&
-        !globalLoading &&
-        !providerStillBootstrapping &&
-        !xmppNotOnline;
+        Boolean(activeRoomJID) && (roomsResolvedCleanly || roomsResolvedWithError);
 
       return <ChooseChatMessage unavailable={requestedRoomUnavailable} />;
     }

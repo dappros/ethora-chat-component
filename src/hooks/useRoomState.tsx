@@ -36,6 +36,12 @@ export const useRoomState = (roomJID?: string) => {
   const loadingText = useSelector(
     (state: RootState) => state.rooms.loadingText
   );
+  const roomsLoadedOnce = useSelector(
+    (state: RootState) => state.rooms.roomsLoadedOnce
+  );
+  const roomsLoadError = useSelector(
+    (state: RootState) => state.rooms.roomsLoadError
+  );
 
   const roomMessages = useMemo(
     () =>
@@ -54,6 +60,8 @@ export const useRoomState = (roomJID?: string) => {
     loadingText,
     loading,
     roomMessages,
+    roomsLoadedOnce,
+    roomsLoadError,
   };
 };
 
