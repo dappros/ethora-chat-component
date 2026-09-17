@@ -1,6 +1,6 @@
 {
   "name": "@ethora/chat-component",
-  "version": "26.7.7",
+  "version": "26.7.9",
   "type": "module",
   "main": "dist/main.js",
   "types": "dist/main.d.ts",
@@ -106,12 +106,20 @@
   "overrides": {
     "csstype": "3.1.3"
   },
-  "description": "1. npm create vite@latest 2. select name of project, select type (react/js) 3. cd project-name 4. npm i 5. npm i @ethora/chat-component 6. go to file src/App.tsx and replace it with this code",
+  "description": "Open-source React chat and AI-agent UI SDK for Ethora: drop-in messaging, rooms, and AI bots with a self-hosted or cloud backend.",
   "directories": {
     "lib": "lib"
   },
   "author": "Ethora",
   "license": "MIT",
+  "homepage": "https://ethora.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dappros/ethora-chat-component.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dappros/ethora-chat-component/issues"
+  },
   "keywords": [
     "chat",
     "messaging",
