@@ -588,11 +588,21 @@ const RoomList: React.FC<RoomListProps> = ({
                     // scrollbar. On a platform using overlay scrollbars (macOS
                     // by default) it reserves nothing and the bar floats over
                     // the rows, which put it straight on top of the date in
-                    // the top-right corner of each row. The horizontal padding
-                    // is what actually keeps content clear of it, on every
-                    // platform, and it is symmetric so the rows stay centred.
+                    // the top-right corner of each row. The horizontal
+                    // padding is what actually keeps content clear of it, on
+                    // every platform.
+                    //
+                    // The padding is deliberately NOT symmetric: the right
+                    // side has to cover the scrollbar's own width plus a
+                    // visible gap, so it is larger than the left side. That
+                    // width (8px) is set on `.ethora-chat-root ::-webkit-
+                    // scrollbar` in src/index.css - if that number changes,
+                    // this right padding has to change with it or the gap
+                    // silently disappears (or the date starts clipping under
+                    // the bar again).
                     scrollbarGutter: 'stable',
-                    padding: '16px 8px',
+                    padding:
+                      '16px var(--ethora-space-4, 16px) 16px var(--ethora-space-2, 8px)',
                   }}
                 >
                   {isRoomsLoading && filteredChats.length === 0
