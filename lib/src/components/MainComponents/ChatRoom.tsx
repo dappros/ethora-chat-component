@@ -304,6 +304,26 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     }
 
     if (!activeRoomJID || !roomsList?.[activeRoomJID]) {
+      // This early return is what a cold start actually hits: there is no
+      // active room yet, so it fires before any of the branches below. Until
+      // the room list has come back, "Choose a chat to start messaging" is
+      // just as much of a lie as the "no rooms, create one" CTA the guard
+      // above suppresses, and it is the empty state users reported still
+      // seeing after that CTA was gated. Gating one and not the other only
+      // swapped which empty state flashed.
+      //
+      // Once the list has resolved this placeholder is correct again: either
+      // there are rooms and none is open (the idle state it is for), or the
+      // account has none and the CTA above has already returned.
+      if (Object.keys(roomsList).length < 1 && !roomsLoadedOnce) {
+        return (
+          <Loader
+            data-testid="chat-room-rooms-loader"
+            color={config?.colors?.primary}
+          />
+        );
+      }
+
       // A room WAS requested (deep link, QR, roomJID prop) but is not in the
       // list and the room list has genuinely settled: say so instead of
       // showing the idle "pick a chat" placeholder, which made a dead link
