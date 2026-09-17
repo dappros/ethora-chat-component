@@ -184,4 +184,20 @@ describe('ChatRoom "No room" CTA - cold start (roomsLoadedOnce)', () => {
 
     expect(screen.queryByText(NO_ROOM_CTA)).toBeNull();
   });
+
+  // The first attempt at this bug gated only the "no rooms, create one" CTA,
+  // which simply handed the same window over to the idle "choose a chat"
+  // illustration below it in the render chain. Neither may appear before the
+  // room list has actually come back.
+  it('shows neither empty state while the room list is still unresolved', () => {
+    const { container } = renderChatRoom({
+      rooms: {},
+      roomsLoadedOnce: false,
+      roomsLoadError: false,
+    });
+
+    const text = container.textContent || '';
+    expect(text).not.toMatch(/create one/i);
+    expect(text).not.toMatch(/Choose a chat|Start a Conversation/i);
+  });
 });
