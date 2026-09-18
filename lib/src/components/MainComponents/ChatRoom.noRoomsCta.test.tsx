@@ -201,3 +201,27 @@ describe('ChatRoom "No room" CTA - cold start (roomsLoadedOnce)', () => {
     expect(text).not.toMatch(/Choose a chat|Start a Conversation/i);
   });
 });
+
+// Regression, found live in ethora-app-reactjs: /chats/my can take 20s and
+// time out. The fetch then latched "resolved" WITH an error, which opened
+// the loader gate (`!roomsLoadedOnce` was false) and dropped the user on
+// the idle "Choose a chat to start messaging" placeholder while a retry was
+// still in flight. With zero rooms that placeholder is never the truth.
+describe('ChatRoom with a failed rooms fetch', () => {
+  it('shows the retry state, never the idle choose-a-chat placeholder', () => {
+    const { container } = renderChatRoom({
+      rooms: {},
+      roomsLoadedOnce: true,
+      roomsLoadError: true,
+      // Still "loading" as far as the init flow is concerned, which is what
+      // made roomsResolvedWithError false and let the old chain fall
+      // through to the placeholder.
+      isLoading: true,
+    });
+
+    const text = container.textContent || '';
+    expect(text).toMatch(/Couldn't load your chats/i);
+    expect(text).not.toMatch(/Choose a chat|Start a Conversation/i);
+    expect(text).not.toMatch(/create one/i);
+  });
+});

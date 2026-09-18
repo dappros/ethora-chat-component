@@ -530,6 +530,30 @@ const useChatWrapperInit = ({
 
   useEffect(() => {
     let retryTimeout: NodeJS.Timeout;
+    // A rooms fetch that fails is NOT a lost XMPP connection. Both call
+    // sites below used to sit inside the big try/catch whose catch sets
+    // connectionLost, so one slow or 5xx /chats/my (they do time out in
+    // the wild: 20s on a cold cache) painted "Connection lost. Retrying..."
+    // over a perfectly healthy socket, and the room list lost its own,
+    // more accurate retry state. Failure is latched here instead, and the
+    // same 5s retry is scheduled without tearing down the connection.
+    let roomsFetchFailed = false;
+    const loadRoomsGuarded = async (target: XmppClient) => {
+      try {
+        const loaded = await loadRooms(target);
+        roomsFetchFailed = false;
+        markRoomsResolved(true);
+        return loaded;
+      } catch (error) {
+        ethoraLogger.log('loadRooms failed', error);
+        roomsFetchFailed = true;
+        markRoomsResolved(false);
+        dispatch(setIsLoading({ loading: false, loadingText: undefined }));
+        clearTimeout(retryTimeout);
+        retryTimeout = setTimeout(initXmmpClient, 5000);
+        return null;
+      }
+    };
 
     const initXmmpClient = async () => {
       const legacyLangSource = resolveLegacyTranslatesLangSource(config?.translates);
@@ -620,19 +644,20 @@ const useChatWrapperInit = ({
                   await newClient.getRoomsStanza();
                   logDuration('xmpp:getRoomsStanza', 'xmpp:getRoomsStanza:start');
                 } else {
-                  const loadedRooms = await loadRooms(newClient);
-                  ensureActiveRoomSelected(loadedRooms as any);
-                  if (config?.enableRoomsRetry?.enabled) {
-                    const isSelectedRoomPresent = isChatIdPresentInArray(
-                      roomJID,
-                      loadedRooms
-                    );
-                    if (!isSelectedRoomPresent) {
-                      await getRoomsWithRertyRequest();
+                  const loadedRooms = await loadRoomsGuarded(newClient);
+                  if (loadedRooms) {
+                    ensureActiveRoomSelected(loadedRooms as any);
+                    if (config?.enableRoomsRetry?.enabled) {
+                      const isSelectedRoomPresent = isChatIdPresentInArray(
+                        roomJID,
+                        loadedRooms
+                      );
+                      if (!isSelectedRoomPresent) {
+                        await getRoomsWithRertyRequest();
+                      }
                     }
+                    setInited(true);
                   }
-                  setInited(true);
-                  markRoomsResolved(true);
                 }
               }
               // Background tasks to avoid blocking UI
@@ -669,7 +694,7 @@ const useChatWrapperInit = ({
               let currentRooms: any[] = [];
               if (!roomsList || Object.keys(roomsList).length === 0) {
                 setInited(false);
-                const loadedRooms = await loadRooms(client);
+                const loadedRooms = await loadRoomsGuarded(client);
                 ensureActiveRoomSelected(loadedRooms as any);
                 currentRooms = Array.isArray(loadedRooms) ? loadedRooms : [];
               } else {
@@ -692,7 +717,10 @@ const useChatWrapperInit = ({
               }
             }
             setInited(true);
-            markRoomsResolved(true);
+            // loadRoomsGuarded already latched the outcome when it ran; this
+            // only covers the paths that never called it (newArch === false,
+            // or rooms already in the store).
+            if (!roomsFetchFailed) markRoomsResolved(true);
             setClient(client);
             setConnectionLost(false);
             dispatch(setIsLoading({ loading: false }));

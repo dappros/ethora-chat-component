@@ -286,50 +286,54 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       !providerStillBootstrapping &&
       !xmppNotOnline;
 
-    if (Object.keys(roomsList)?.length < 1 && roomsResolvedWithError) {
-      // The fetch genuinely failed (network, server error, ...) rather than
-      // coming back empty. useChatWrapperInit already retries on its own
-      // timer, so this is purely informational - it exists so a failed
-      // fetch doesn't just look identical to an infinite loading state.
-      return <NonRoomChat>Couldn't load your chats. Retrying...</NonRoomChat>;
-    }
+    // ONE place decides what an empty room list looks like. Splitting this
+    // across several returns is what kept leaking empty states: each guard
+    // was individually right and the case it did not cover fell through to
+    // the next placeholder, so gating the "create one" CTA only swapped it
+    // for "Choose a chat", and latching roomsLoadedOnce on a FAILED fetch
+    // then opened that same placeholder again while a retry was in flight.
+    //
+    // The rule: with zero rooms, the only honest screens are "still
+    // finding out" and "we asked and the account really has none". The
+    // idle "Choose a chat" placeholder means "you have chats, open one",
+    // so it must never be reachable while the list is empty.
+    if (Object.keys(roomsList)?.length < 1) {
+      if (roomsResolvedCleanly) {
+        return (
+          <NonRoomChat>
+            No room. Let's create one!
+            <NewChatModal />
+          </NonRoomChat>
+        );
+      }
 
-    if (Object.keys(roomsList)?.length < 1 && roomsResolvedCleanly) {
+      // Note this is `roomsLoadError`, not `roomsResolvedWithError`: the
+      // latter also demands not-loading / not-bootstrapping / xmpp-online,
+      // and while any of those were still true a failed fetch used to fall
+      // past both this branch and the loader below. A fetch that failed is
+      // worth saying out loud whatever the connection is doing;
+      // useChatWrapperInit is already retrying on its own timer.
+      if (roomsLoadError) {
+        return <NonRoomChat>Couldn't load your chats. Retrying...</NonRoomChat>;
+      }
+
       return (
-        <NonRoomChat>
-          No room. Let's create one!
-          <NewChatModal />
-        </NonRoomChat>
+        <Loader
+          data-testid="chat-room-rooms-loader"
+          color={config?.colors?.primary}
+        />
       );
     }
 
     if (!activeRoomJID || !roomsList?.[activeRoomJID]) {
-      // This early return is what a cold start actually hits: there is no
-      // active room yet, so it fires before any of the branches below. Until
-      // the room list has come back, "Choose a chat to start messaging" is
-      // just as much of a lie as the "no rooms, create one" CTA the guard
-      // above suppresses, and it is the empty state users reported still
-      // seeing after that CTA was gated. Gating one and not the other only
-      // swapped which empty state flashed.
-      //
-      // Once the list has resolved this placeholder is correct again: either
-      // there are rooms and none is open (the idle state it is for), or the
-      // account has none and the CTA above has already returned.
-      if (Object.keys(roomsList).length < 1 && !roomsLoadedOnce) {
-        return (
-          <Loader
-            data-testid="chat-room-rooms-loader"
-            color={config?.colors?.primary}
-          />
-        );
-      }
-
-      // A room WAS requested (deep link, QR, roomJID prop) but is not in the
-      // list and the room list has genuinely settled: say so instead of
-      // showing the idle "pick a chat" placeholder, which made a dead link
-      // and a fresh session look identical.
+      // Rooms exist and none of them is the requested one. Either nothing
+      // was requested (the idle "pick a chat" state this placeholder is
+      // for) or a deep link / QR / roomJID prop pointed at a room that is
+      // not in the list, which gets said out loud instead of looking
+      // identical to a fresh session.
       const requestedRoomUnavailable =
-        Boolean(activeRoomJID) && (roomsResolvedCleanly || roomsResolvedWithError);
+        Boolean(activeRoomJID) &&
+        (roomsResolvedCleanly || roomsResolvedWithError);
 
       return <ChooseChatMessage unavailable={requestedRoomUnavailable} />;
     }
