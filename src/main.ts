@@ -147,3 +147,10 @@ export type {
   XmppClientInterface,
   MediaUploadData,
 } from './types/models/xmpp.model';
+
+// End-to-end encryption (OMEMO 2). Enabled through `config.e2ee.enabled`;
+// these exports exist for hosts that want to show fingerprints or manage
+// per-device trust themselves. `omemo()` is undefined while encryption is
+// off or the device's keys are still being published.
+export { omemo, isE2eeEnabled, formatFingerprint } from './e2ee';
+export type { DeviceInfo, Trust } from './e2ee';

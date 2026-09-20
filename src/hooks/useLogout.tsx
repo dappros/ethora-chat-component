@@ -7,6 +7,7 @@ import { clearScopedChatCache } from '../helpers/cacheScope';
 import { clearStoredUser } from '../helpers/authStorage';
 import { disablePushNotifications } from '../utils/firebasePushNotifications';
 import { getGlobalXmppClient, setGlobalXmppClient } from '../utils/clientRegistry';
+import { stopOmemo } from '../e2ee';
 
 const withTimeout = async (
   task: Promise<unknown>,
@@ -28,6 +29,10 @@ const logoutService = {
       // Ignore optional method errors.
     }
     setGlobalXmppClient(null);
+    // Drops the in-memory OMEMO instance. The keys stay in IndexedDB on
+    // purpose: wiping them would make every past message in every encrypted
+    // room unreadable for this device after a routine logout.
+    stopOmemo();
 
     if (typeof window !== 'undefined') {
       try {

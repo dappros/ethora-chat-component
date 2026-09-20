@@ -145,6 +145,20 @@ export type ChatErrorFallbackRenderer = (
 
 export interface IConfig {
   appId?: string;
+  /**
+   * End-to-end encryption (OMEMO 2, XEP-0384).
+   *
+   * Off by default, and off means nothing changes: no keys are generated, no
+   * PEP node is touched, and stanzas are built exactly as before. With it on,
+   * the SDK publishes this device's keys after connecting and encrypts
+   * messages in rooms the backend marked `e2ee` - other rooms stay plain.
+   *
+   * Requires a backend that reports `e2ee` per chat and an XMPP server that
+   * lets members read each other's OMEMO PEP nodes (`access_model: open`).
+   */
+  e2ee?: {
+    enabled: boolean;
+  };
   disableHeader?: boolean;
   disableMedia?: boolean;
   /** Composer attachment limits. Applies to the built-in SendInput. */

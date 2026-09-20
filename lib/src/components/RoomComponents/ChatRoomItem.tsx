@@ -16,7 +16,7 @@ import LastMessageItem from './LastMessageItem';
 import { useRoomPresence } from '../../hooks/useRoomPresence';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { useT } from '../../i18n/useT';
-import { BellOffIcon } from '../../assets/icons';
+import { BellOffIcon, LockIcon } from '../../assets/icons';
 import OnlineUsersPopover from './OnlineUsersPopover';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
@@ -96,7 +96,9 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
     // Accepts either a live message or the API-seeded `LastMessage` preview
     // (see previewSourceMessage below) - both carry the same body/user/
     // callLog shape the preview actually reads.
-    (message?: IMessage | LastMessage): (IMessage | LastMessage) | undefined => {
+    (
+      message?: IMessage | LastMessage
+    ): (IMessage | LastMessage) | undefined => {
       if (!message) return message;
       const rawUserId = String(message?.user?.id || '');
       const localId = rawUserId.split('@')[0];
@@ -270,6 +272,22 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
               }}
             >
               <ChatName style={{ minWidth: 0 }}>{displayName}</ChatName>
+              {chat?.e2ee && (
+                <span
+                  title={t('e2ee.roomEncrypted')}
+                  style={{ display: 'inline-flex', flexShrink: 0 }}
+                >
+                  <LockIcon
+                    width={14}
+                    height={14}
+                    // Same reason as the mute icon below: the active row is a
+                    // light tint, so a themed icon colour would vanish on it.
+                    color="#8C8C8C"
+                    role="img"
+                    aria-label={t('e2ee.roomEncrypted')}
+                  />
+                </span>
+              )}
               {chat?.muted && (
                 <BellOffIcon
                   width={14}

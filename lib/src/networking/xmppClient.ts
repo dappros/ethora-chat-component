@@ -7,6 +7,8 @@ import { sendTypingRequest } from './xmpp/sendTypingRequest.xmpp';
 import { sendTextMessage } from './xmpp/sendTextMessage.xmpp';
 import { deleteMessage } from './xmpp/deleteMessage.xmpp';
 import { presenceInRoom } from './xmpp/presenceInRoom.xmpp';
+import { accountDomain, isE2eeEnabled, onOnline } from '../e2ee';
+import { decryptStanzaInPlace } from '../e2ee/stanza';
 import { getLastMessage } from './xmpp/getLastMessageArchive.xmpp';
 import { createRoom } from './xmpp/createRoom.xmpp';
 import { setRoomImage } from './xmpp/setRoomImage.xmpp';
@@ -613,6 +615,9 @@ export class XmppClient implements XmppClientInterface {
         this.resource = jid.resource || 'default';
         ethoraLogger.log('Client is online.', new Date());
         this.status = 'online';
+        // Publishes this device's OMEMO keys. No-op unless the host app
+        // enabled e2ee; never blocks the rest of the online handler.
+        onOnline(this.client);
         this.authFailureDetected = false;
         this.authRecoveryAttempts = 0;
         this.reconnectAttempts = 0;
@@ -1429,6 +1434,16 @@ export class XmppClient implements XmppClientInterface {
     const reactionStanzas: Element[] = [];
 
     for (const msg of messages) {
+      // Archive pages never reach handleStanza - routeMamStanza collects them
+      // straight off the wire - so the decryption seam has to be here too, or
+      // history in an encrypted room renders as the sender's fallback body.
+      if (isE2eeEnabled()) {
+        const outcome = await decryptStanzaInPlace(
+          msg as Element,
+          accountDomain(this.client)
+        );
+        if (outcome === 'drop') continue;
+      }
       if (msg?.getChild('reactions')) {
         reactionStanzas.push(msg);
         continue;

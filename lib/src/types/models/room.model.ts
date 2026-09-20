@@ -32,6 +32,14 @@ export interface IRoom {
 
   members?: RoomMember[];
   type?: 'public' | 'group' | 'private';
+  /**
+   * End-to-end encrypted room (OMEMO 2), as the backend reports it on
+   * `GET /v1/chats/my`. Set once when the room is created and never changed:
+   * flipping it would either leak plaintext into a room the other side reads
+   * as encrypted, or drop encryption the other side relies on. The SDK only
+   * runs its OMEMO path for rooms carrying this flag.
+   */
+  e2ee?: boolean;
   creteadAt?: string; // Typo? Should it be createdAt?
 
   appId?: string;
@@ -110,6 +118,8 @@ export interface ApiRoom {
   name: string;
   type: 'public' | 'group' | 'private';
 
+  /** See IRoom.e2ee. Passed straight through by createRoomFromApi. */
+  e2ee?: boolean;
   title?: string;
   description?: string;
   picture?: string;

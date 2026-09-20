@@ -6,7 +6,12 @@ import { ProfileImagePlaceholder } from './ProfileImagePlaceholder';
 import { useRoomPresence } from '../../hooks/useRoomPresence';
 import OnlineUsersPopover from '../RoomComponents/OnlineUsersPopover';
 import Button from '../styled/Button';
-import { AudioCallIcon, BackIcon, VideoCallIcon } from '../../assets/icons';
+import {
+  AudioCallIcon,
+  BackIcon,
+  LockIcon,
+  VideoCallIcon,
+} from '../../assets/icons';
 import { useDispatch, useSelector } from 'react-redux';
 import Composing from '../styled/StyledInputComponents/Composing';
 import {
@@ -27,10 +32,7 @@ import { useT, useUiLocale } from '../../i18n/useT';
 import { formatNumberWithCommas } from '../../helpers/formatNumberWithCommas';
 import { appendFileToken } from '../../helpers/secureFileUrl';
 import { createChatCall } from '../../networking/api-requests/rooms.api';
-import {
-  setCallError,
-  startOutgoingCall,
-} from '../../roomStore/callSlice';
+import { setCallError, startOutgoingCall } from '../../roomStore/callSlice';
 import { sendCallInviteSignal } from '../../networking/callTokenStanza';
 import { ModalWrapper } from '../Modals/ModalWrapper/ModalWrapper';
 import { LanguageSelectorButton } from './LanguageSelectorModal';
@@ -81,6 +83,16 @@ const HeaderTitle = styled.div`
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+`;
+
+// The title keeps its ellipsis, so it needs min-width:0 inside the row and
+// the padlock needs flex-shrink:0 - otherwise a long room name pushes the
+// lock out of sight, which is the one thing it must never do.
+const HeaderTitleRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
 `;
 
 const HeaderSubtitle = styled.div`
@@ -161,7 +173,8 @@ const HeaderCallButton = styled(HeaderIconButton)<{
   }
 `;
 
-const UUID_LIKE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+const UUID_LIKE =
+  /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
 const looksLikeRawJidLocalPart = (
   value: string | undefined,
@@ -182,7 +195,6 @@ const getDisplayTitle = (room: IRoom | undefined): string => {
   return title as string;
 };
 
-
 const getDisplayCount = (room: IRoom | undefined): number => {
   if (Array.isArray(room?.members) && room.members.length > 0) {
     return room.members.length;
@@ -199,7 +211,8 @@ const getDisplayCount = (room: IRoom | undefined): number => {
 export const shouldShowLanguageSelector = (
   translatesConfig: IConfig['translates'] | undefined
 ): boolean =>
-  !!translatesConfig?.enabled && translatesConfig?.showLanguageSelector !== false;
+  !!translatesConfig?.enabled &&
+  translatesConfig?.showLanguageSelector !== false;
 
 const ChatHeader: React.FC<ChatHeaderProps> = ({
   currentRoom,
@@ -234,7 +247,8 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     : undefined;
   const peerOnline =
     !!peer?.xmppUsername && onlineUsers.includes(peer.xmppUsername);
-  const isRoomAllowedByType = isPrivateRoom && allowedRoomTypes.includes('private');
+  const isRoomAllowedByType =
+    isPrivateRoom && allowedRoomTypes.includes('private');
   const isRoomAllowed = isRoomAllowedByType;
   const hasLivekitUrl = Boolean(videoCallsConfig?.livekitUrl?.trim());
   const isCallBusy = call.phase !== 'idle';
@@ -444,15 +458,37 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
               />
             </div>
             <HeaderTextCol>
-              <HeaderTitle>{currentRoom?.title}</HeaderTitle>
+              <HeaderTitleRow>
+                <HeaderTitle>{currentRoom?.title}</HeaderTitle>
+                {currentRoom?.e2ee && (
+                  // The tooltip lives on the wrapper, not on the <svg>: these
+                  // icon components spread props onto an svg that already has
+                  // its own children, so a <title> child would be dropped.
+                  <span
+                    title={t('e2ee.roomEncrypted')}
+                    style={{ display: 'inline-flex', flexShrink: 0 }}
+                  >
+                    <LockIcon
+                      width={16}
+                      height={16}
+                      role="img"
+                      aria-label={t('e2ee.roomEncrypted')}
+                    />
+                  </span>
+                )}
+              </HeaderTitleRow>
               <HeaderSubtitle>
                 {(() => {
                   if (composing) {
-                    return <Composing usersTyping={currentRoom?.composingList} />;
+                    return (
+                      <Composing usersTyping={currentRoom?.composingList} />
+                    );
                   }
                   if (isPrivateRoom) {
                     return peerOnline ? (
-                      <HeaderOnlineText>{t('presence.online')}</HeaderOnlineText>
+                      <HeaderOnlineText>
+                        {t('presence.online')}
+                      </HeaderOnlineText>
                     ) : (
                       <span>{t('presence.offline')}</span>
                     );
@@ -489,51 +525,51 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
 
         {!config?.disableRoomMenu &&
           !config?.disableChatInfo?.disableChatHeaderMenu && (
-          <HeaderActions>
-            {shouldShowLanguageSelector(config?.translates) && (
-              <LanguageSelectorButton />
-            )}
-            {canCall && !isCallBusy && (
-              <>
-                {/*
+            <HeaderActions>
+              {shouldShowLanguageSelector(config?.translates) && (
+                <LanguageSelectorButton />
+              )}
+              {canCall && !isCallBusy && (
+                <>
+                  {/*
                   Audio call entry point. Opt-in via config.videoCalls
                   .enableAudioCalls. The server doesn't propagate the `kind`
                   on the call-token stanza, so the callee learns it from the
                   direct `call-invite` signal sent in placeCall() (fast chat
                   message that lands before the relayed token).
                 */}
-                {isAudioCallsEnabled && (
+                  {isAudioCallsEnabled && (
+                    <HeaderCallButton
+                      $kind="audio"
+                      onClick={() => {
+                        void handleAudioCallClick();
+                      }}
+                      disabled={!canCall || isCallBusy}
+                      title={audioCallLabel}
+                      aria-label={audioCallLabel}
+                    >
+                      <AudioCallIcon />
+                    </HeaderCallButton>
+                  )}
                   <HeaderCallButton
-                    $kind="audio"
+                    $kind="video"
                     onClick={() => {
-                      void handleAudioCallClick();
+                      void handleVideoCallClick();
                     }}
                     disabled={!canCall || isCallBusy}
-                    title={audioCallLabel}
-                    aria-label={audioCallLabel}
+                    title={videoCallLabel}
+                    aria-label={videoCallLabel}
                   >
-                    <AudioCallIcon />
+                    <VideoCallIcon />
                   </HeaderCallButton>
-                )}
-                <HeaderCallButton
-                  $kind="video"
-                  onClick={() => {
-                    void handleVideoCallClick();
-                  }}
-                  disabled={!canCall || isCallBusy}
-                  title={videoCallLabel}
-                  aria-label={videoCallLabel}
-                >
-                  <VideoCallIcon />
-                </HeaderCallButton>
-              </>
-            )}
-            <RoomMenu
-              roomJid={currentRoom?.jid}
-              handleLeaveClick={handleLeaveClick}
-              handleReportClick={handleReportClick}
-            />
-          </HeaderActions>
+                </>
+              )}
+              <RoomMenu
+                roomJid={currentRoom?.jid}
+                handleLeaveClick={handleLeaveClick}
+                handleReportClick={handleReportClick}
+              />
+            </HeaderActions>
           )}
       </HeaderBar>
       {isLeaveModalOpen && (

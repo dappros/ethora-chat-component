@@ -2,7 +2,10 @@ import React from 'react';
 
 // Globe - opens the reader-language picker (see LanguageSelectorButton) in
 // the chat header.
-export const GlobeIcon = ({ color = 'var(--ethora-icon-color, #8C8C8C)', ...props }) => (
+export const GlobeIcon = ({
+  color = 'var(--ethora-icon-color, #8C8C8C)',
+  ...props
+}) => (
   <svg
     width="20"
     height="20"
@@ -22,7 +25,10 @@ export const GlobeIcon = ({ color = 'var(--ethora-icon-color, #8C8C8C)', ...prop
   </svg>
 );
 
-export const AddNewIcon = ({ color = 'var(--ethora-icon-color, #0052CD)', ...props }) => (
+export const AddNewIcon = ({
+  color = 'var(--ethora-icon-color, #0052CD)',
+  ...props
+}) => (
   <svg
     width="20"
     height="18"
@@ -49,7 +55,11 @@ export const AddNewIcon = ({ color = 'var(--ethora-icon-color, #0052CD)', ...pro
   </svg>
 );
 
-export const AttachIcon = ({ color = 'var(--ethora-icon-color, #0052CD)', bgcolor = 'white', ...props }: any) => (
+export const AttachIcon = ({
+  color = 'var(--ethora-icon-color, #0052CD)',
+  bgcolor = 'white',
+  ...props
+}: any) => (
   <svg
     width="70"
     height="70"
@@ -150,7 +160,11 @@ export const DownloadIcon = ({
   </svg>
 );
 
-export const RecordIcon = ({ color = 'var(--ethora-icon-color, #0052CD)', bgcolor = 'white', ...props }: any) => (
+export const RecordIcon = ({
+  color = 'var(--ethora-icon-color, #0052CD)',
+  bgcolor = 'white',
+  ...props
+}: any) => (
   <svg
     width="70"
     height="70"
@@ -183,7 +197,11 @@ export const RecordIcon = ({ color = 'var(--ethora-icon-color, #0052CD)', bgcolo
   </svg>
 );
 
-export const PdfIcon = ({ fill = '#FDECEC', color = '#D93025', ...props }: any) => (
+export const PdfIcon = ({
+  fill = '#FDECEC',
+  color = '#D93025',
+  ...props
+}: any) => (
   <svg
     width="40"
     height="40"
@@ -245,7 +263,11 @@ export const RemoveIcon = (props: any) => (
   </svg>
 );
 
-export const SendIcon = ({ color = 'var(--ethora-icon-color, #0052CD)', bgcolor = 'white', ...props }) => (
+export const SendIcon = ({
+  color = 'var(--ethora-icon-color, #0052CD)',
+  bgcolor = 'white',
+  ...props
+}) => (
   <svg
     width="40"
     height="40"
@@ -298,7 +320,10 @@ export const GoogleIcon = ({ ...props }) => (
   </svg>
 );
 
-export const MoreIcon = ({ color = 'var(--ethora-icon-color, #8C8C8C)', ...props }) => (
+export const MoreIcon = ({
+  color = 'var(--ethora-icon-color, #8C8C8C)',
+  ...props
+}) => (
   <svg
     width="24"
     height="24"
@@ -313,7 +338,10 @@ export const MoreIcon = ({ color = 'var(--ethora-icon-color, #8C8C8C)', ...props
   </svg>
 );
 
-export const SearchIcon = ({ color = 'var(--ethora-icon-color, #8C8C8C)', ...props }) => (
+export const SearchIcon = ({
+  color = 'var(--ethora-icon-color, #8C8C8C)',
+  ...props
+}) => (
   <svg
     width="24"
     height="24"
@@ -379,7 +407,10 @@ export const HangUpIcon = ({ color = '#FFFFFF', ...props }) => (
   </svg>
 );
 
-export const ReferalsIcon = ({ color = 'var(--ethora-icon-color, #8C8C8C)', ...props }) => (
+export const ReferalsIcon = ({
+  color = 'var(--ethora-icon-color, #8C8C8C)',
+  ...props
+}) => (
   <svg
     width="400"
     height="240"
@@ -412,7 +443,10 @@ export const ReferalsIcon = ({ color = 'var(--ethora-icon-color, #8C8C8C)', ...p
   </svg>
 );
 
-export const ReportIcon = ({ color = 'var(--ethora-icon-color, #8C8C8C)', ...props }) => (
+export const ReportIcon = ({
+  color = 'var(--ethora-icon-color, #8C8C8C)',
+  ...props
+}) => (
   <svg
     width="24"
     height="24"
@@ -438,7 +472,10 @@ export const ReportIcon = ({ color = 'var(--ethora-icon-color, #8C8C8C)', ...pro
   </svg>
 );
 
-export const BellIcon = ({ color = 'var(--ethora-icon-color, #8C8C8C)', ...props }) => (
+export const BellIcon = ({
+  color = 'var(--ethora-icon-color, #8C8C8C)',
+  ...props
+}) => (
   <svg
     width="24"
     height="24"
@@ -461,7 +498,10 @@ export const BellIcon = ({ color = 'var(--ethora-icon-color, #8C8C8C)', ...props
 // Bell-off / muted state: same bell glyph, dimmed, with a diagonal slash -
 // the room list, chat header menu and room profile all use this to mark a
 // room the user has muted notifications for.
-export const BellOffIcon = ({ color = 'var(--ethora-icon-color, #8C8C8C)', ...props }) => (
+export const BellOffIcon = ({
+  color = 'var(--ethora-icon-color, #8C8C8C)',
+  ...props
+}) => (
   <svg
     width="24"
     height="24"
@@ -510,7 +550,10 @@ export const DeleteIcon = ({
   </svg>
 );
 
-export const CopyIcon = ({ color = 'var(--ethora-icon-color, #8C8C8C)', ...props }) => (
+export const CopyIcon = ({
+  color = 'var(--ethora-icon-color, #8C8C8C)',
+  ...props
+}) => (
   <svg
     width="24"
     height="24"
@@ -536,7 +579,10 @@ export const CopyIcon = ({ color = 'var(--ethora-icon-color, #8C8C8C)', ...props
   </svg>
 );
 
-export const ReplyIcon = ({ color = 'var(--ethora-icon-color, #8C8C8C)', ...props }) => (
+export const ReplyIcon = ({
+  color = 'var(--ethora-icon-color, #8C8C8C)',
+  ...props
+}) => (
   <svg
     width="24"
     height="24"
@@ -552,7 +598,10 @@ export const ReplyIcon = ({ color = 'var(--ethora-icon-color, #8C8C8C)', ...prop
   </svg>
 );
 
-export const SendCoinIcon = ({ color = 'var(--ethora-icon-color, #8C8C8C)', ...props }) => (
+export const SendCoinIcon = ({
+  color = 'var(--ethora-icon-color, #8C8C8C)',
+  ...props
+}) => (
   <svg
     width="24"
     height="24"
@@ -766,7 +815,10 @@ export const ChatIcon = ({ color = '#fff', ...props }) => (
   </svg>
 );
 
-export const EditIcon = ({ color = 'var(--ethora-icon-color, #000)', ...props }) => (
+export const EditIcon = ({
+  color = 'var(--ethora-icon-color, #000)',
+  ...props
+}) => (
   <svg
     width="24"
     height="24"
@@ -785,7 +837,10 @@ export const EditIcon = ({ color = 'var(--ethora-icon-color, #000)', ...props })
   </svg>
 );
 
-export const InfoIcon = ({ color = 'var(--ethora-icon-color, #004AC2)', ...props }) => (
+export const InfoIcon = ({
+  color = 'var(--ethora-icon-color, #004AC2)',
+  ...props
+}) => (
   <svg
     width="16"
     height="16"
@@ -834,7 +889,10 @@ export const PlusIcon = ({ color = '#fff', ...props }) => (
   </svg>
 );
 
-export const SaveIcon = ({ color = 'var(--ethora-icon-color, #8C8C8C)', ...props }) => (
+export const SaveIcon = ({
+  color = 'var(--ethora-icon-color, #8C8C8C)',
+  ...props
+}) => (
   <svg
     width="18"
     height="18"
@@ -1077,6 +1135,78 @@ export const ZoomResetIcon = ({
   >
     <path
       d="M4 9V5.5C4 4.67157 4.67157 4 5.5 4H9M15 4H18.5C19.3284 4 20 4.67157 20 5.5V9M20 15V18.5C20 19.3284 19.3284 20 18.5 20H15M9 20H5.5C4.67157 20 4 19.3284 4 18.5V15"
+      stroke={color}
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
+// Closed padlock - marks an end-to-end encrypted room in the chat header and
+// in the room list.
+export const LockIcon = ({
+  color = 'var(--ethora-icon-color, #8C8C8C)',
+  ...props
+}) => (
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <rect
+      x="5"
+      y="10.5"
+      width="14"
+      height="10"
+      rx="2"
+      stroke={color}
+      strokeWidth="1.8"
+    />
+    <path
+      d="M8 10.5V7.5C8 5.29 9.79 3.5 12 3.5C14.21 3.5 16 5.29 16 7.5V10.5"
+      stroke={color}
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
+// The same padlock struck through - a message that went out in clear in a
+// room that is supposed to be encrypted. Deliberately the same shape as
+// LockIcon so the difference reads as "this one is not it", and it carries
+// the danger tint rather than the neutral icon colour.
+export const LockOffIcon = ({
+  color = 'var(--ethora-color-danger, #d92d20)',
+  ...props
+}) => (
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <rect
+      x="5"
+      y="10.5"
+      width="14"
+      height="10"
+      rx="2"
+      stroke={color}
+      strokeWidth="1.8"
+    />
+    <path
+      d="M8 10.5V7.5C8 5.29 9.79 3.5 12 3.5C14.21 3.5 16 5.29 16 7.5V10.5"
+      stroke={color}
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    />
+    <path
+      d="M3 3L21 21"
       stroke={color}
       strokeWidth="1.8"
       strokeLinecap="round"
