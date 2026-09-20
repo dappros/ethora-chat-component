@@ -65,7 +65,9 @@ function maybeStart(): Promise<Omemo | undefined> {
       return instance;
     } catch (err) {
       // A failure here must not take the chat down with it: plain rooms keep
-      // working, and encrypted ones refuse to send rather than downgrade.
+      // working, and in encrypted ones the send seam falls back to plaintext
+      // (see sendTextMessage) - the message still goes out, and the receiving
+      // side marks it unprotected because it arrived outside an OMEMO payload.
       console.error('OMEMO: could not start', err);
       return undefined;
     } finally {

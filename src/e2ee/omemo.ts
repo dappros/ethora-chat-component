@@ -202,8 +202,8 @@ export class Omemo {
    *
    * Without this, one server-side change to the PEP node configuration locks
    * every existing account out of publishing its keys for good: the device
-   * can never announce itself, so nobody can encrypt to it and it cannot send
-   * (we refuse to fall back to plaintext). Reconfiguring is tried first
+   * can never announce itself, so nobody can encrypt to it and everything it
+   * sends silently degrades to plaintext. Reconfiguring is tried first
    * because it keeps the published items; deleting the node is the last
    * resort, and costs only bundles that every device republishes on its next
    * login anyway.
@@ -586,7 +586,10 @@ export class Omemo {
         else if (jid !== this.jid) unreachable.push(jid);
       }
       if (blocks.length === 0) {
-        // Never fall back to plaintext: the room is encrypted or it fails.
+        // Encrypting to nobody would be worse than not encrypting at all, so
+        // this throws rather than emitting a keyless stanza. The caller
+        // (sendTextMessage) decides what to do with that: today it sends the
+        // message in clear and lets the receiving side flag it as unprotected.
         // Name the members so the reason is findable - "nobody in this room
         // has ever opened it with encryption on" is the usual answer, and it
         // is invisible from the UI.

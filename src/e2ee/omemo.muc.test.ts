@@ -155,7 +155,7 @@ describe('OMEMO 2 in a MUC room', () => {
     expect(blocks.map((b) => b.attrs.jid)).toEqual([BOB]);
   });
 
-  it('refuses to send when no member has a published device', async () => {
+  it('throws when no member has a published device', async () => {
     const pep: Pep = new Map();
     const alice = await Omemo.create(
       fakeClient(pep, ALICE) as never,
@@ -163,7 +163,9 @@ describe('OMEMO 2 in a MUC room', () => {
       createMemoryStore()
     );
 
-    // Never fall back to plaintext: an encrypted room stays encrypted
+    // Encrypting to nobody is not a thing: this must throw rather than build
+    // a keyless stanza. What the caller does with that is its own decision -
+    // sendTextMessage catches it and sends the message in clear.
     await expect(
       alice.encryptGroupMessage(ROOM, [ALICE, BOB], content('hi'), 'msg-4')
     ).rejects.toThrow('omemo_no_recipients');
