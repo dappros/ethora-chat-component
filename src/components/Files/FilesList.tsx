@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import { useSelector } from 'react-redux';
 import { ApiFile } from '../../types/types';
+import { RootState } from '../../roomStore';
 import { getFileCategory, formatBytes } from './fileCategory';
 import { appendFileToken } from '../../helpers/secureFileUrl';
 import { FileIcon, DownloadIcon, DeleteIcon } from '../../assets/icons';
@@ -14,8 +16,8 @@ import {
 
 const Grid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 10px;
   margin-bottom: 8px;
 `;
 
@@ -35,7 +37,10 @@ const Thumb = styled.div`
   transition: box-shadow var(--ethora-motion-fast, 150ms)
     var(--ethora-motion-ease, ease);
 
+  // Same hover/focus treatment as the document Row below, on top of the
+  // tile's own shadow lift - the grid and the list read as one surface.
   &:hover {
+    background-color: var(--ethora-color-bg-hover, #f0f2f5);
     box-shadow: var(--ethora-shadow-sm, 0 1px 2px rgba(16, 24, 40, 0.06));
   }
 
@@ -96,22 +101,33 @@ const ThumbConfirmButton = styled.button<{ $danger?: boolean }>`
 
 const ThumbDeleteButton = styled.button`
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: 6px;
+  right: 6px;
   width: 24px;
   height: 24px;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.5);
   border-radius: 50%;
-  background: rgba(20, 20, 20, 0.55);
+  background: rgba(20, 20, 20, 0.6);
+  box-shadow: var(--ethora-shadow-sm, 0 1px 2px rgba(16, 24, 40, 0.3));
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   padding: 4px;
+  transition: background var(--ethora-motion-fast, 150ms)
+    var(--ethora-motion-ease, ease);
+
+  &:hover {
+    background: rgba(20, 20, 20, 0.8);
+  }
 
   &:focus-visible {
     outline: 2px solid #fff;
     outline-offset: 1px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
   }
 `;
 
@@ -128,6 +144,7 @@ const Row = styled.div`
   align-items: center;
   gap: 10px;
   min-height: 56px;
+  min-width: 0;
   border-radius: var(--ethora-radius-md, 12px);
   padding: 8px;
   transition: background-color var(--ethora-motion-fast, 150ms)
@@ -155,6 +172,12 @@ const RowIconWrap = styled.div`
 
 const RowMain = styled.button`
   flex: 1;
+  // Without this, a flex item's automatic minimum width is its content's
+  // min-content size - an unbreakable string (like a raw room id) can't
+  // wrap, so its min-content size is its full rendered width, and that
+  // refused to shrink no matter how narrow the panel got. This lets
+  // RowMain shrink below that; RowMeta/RoomTag below need the same rule
+  // for the same reason (see there).
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -188,14 +211,32 @@ const RowMeta = styled.span`
   display: flex;
   gap: 6px;
   align-items: center;
+  min-width: 0;
+  max-width: 100%;
 `;
 
+const RowMetaText = styled.span`
+  white-space: nowrap;
+  flex-shrink: 0;
+`;
+
+// Flex items don't shrink below their content's natural width by default,
+// so an unresolvable/oversized room name used to win a tug-of-war with the
+// action icons instead of truncating. min-width: 0 lets it shrink and the
+// ellipsis take over once it's the resolved room title rather than a raw id
+// (see FilesList's roomTitle lookup) - still bounded in case a real title
+// is itself very long.
 const RoomTag = styled.span`
   font-size: 11px;
   color: var(--ethora-color-text-muted, #8c8c8c);
   background: var(--ethora-color-bg-subtle, #f5f7fa);
   border-radius: 999px;
   padding: 1px 8px;
+  min-width: 0;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `;
 
 const RowActions = styled.div`
@@ -275,6 +316,15 @@ const FilesList: React.FC<FilesListProps> = ({
   const { config } = useChatSettingState();
   const locale = useUiLocale();
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+
+  // `file.roomName` is actually the room's XMPP JID (see files.api.ts /
+  // ApiFile) rather than a display name - printing it raw is what forced
+  // the whole row wider than the panel. Resolve it against the rooms store
+  // the same way the rest of the app shows room names, and hide the tag
+  // rather than fall back to the raw id when the room isn't loaded locally.
+  const rooms = useSelector((state: RootState) => state.rooms.rooms);
+  const resolveRoomTitle = (roomName?: string): string | undefined =>
+    roomName ? rooms[roomName]?.title : undefined;
 
   const formatDate = (value?: string) => {
     if (!value) return '';
@@ -368,58 +418,66 @@ const FilesList: React.FC<FilesListProps> = ({
 
       {otherItems.length > 0 && (
         <RowsContainer>
-          {otherItems.map((file) => (
-            <Row key={file._id}>
-              <RowIconWrap>
-                <FileIcon
-                  color={resolveIconColor(config)}
-                  fill={resolveIconBgColor(config)}
-                />
-              </RowIconWrap>
-              <RowMain
-                onClick={() => onPreview(file)}
-                aria-label={file.originalname}
-              >
-                <RowName>{file.originalname}</RowName>
-                <RowMeta>
-                  <span>{formatBytes(file.size)}</span>
-                  {file.createdAt && <span>&middot;</span>}
-                  <span>{formatDate(file.createdAt)}</span>
-                  {file.roomName && <RoomTag>{file.roomName}</RoomTag>}
-                </RowMeta>
-              </RowMain>
-              <RowActions>
-                {confirmingId === file._id ? (
-                  <ConfirmBar>
-                    <span>{t('files.delete.confirmTitle')}</span>
-                    <ConfirmButton $danger onClick={() => confirmDelete(file)}>
-                      {t('action.yes')}
-                    </ConfirmButton>
-                    <ConfirmButton onClick={cancelDelete}>
-                      {t('action.no')}
-                    </ConfirmButton>
-                  </ConfirmBar>
-                ) : (
-                  <>
-                    <IconButton
-                      aria-label={t('files.action.download')}
-                      onClick={() => onDownload(file)}
-                    >
-                      <DownloadIcon />
-                    </IconButton>
-                    {!compact && (
-                      <IconButton
-                        aria-label={t('files.action.delete')}
-                        onClick={() => requestDelete(file)}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
+          {otherItems.map((file) => {
+            const roomTitle = resolveRoomTitle(file.roomName);
+            return (
+              <Row key={file._id}>
+                <RowIconWrap>
+                  <FileIcon
+                    color={resolveIconColor(config)}
+                    fill={resolveIconBgColor(config)}
+                  />
+                </RowIconWrap>
+                <RowMain
+                  onClick={() => onPreview(file)}
+                  aria-label={file.originalname}
+                >
+                  <RowName>{file.originalname}</RowName>
+                  <RowMeta>
+                    <RowMetaText>{formatBytes(file.size)}</RowMetaText>
+                    {file.createdAt && <RowMetaText>&middot;</RowMetaText>}
+                    <RowMetaText>{formatDate(file.createdAt)}</RowMetaText>
+                    {roomTitle && (
+                      <RoomTag title={roomTitle}>{roomTitle}</RoomTag>
                     )}
-                  </>
-                )}
-              </RowActions>
-            </Row>
-          ))}
+                  </RowMeta>
+                </RowMain>
+                <RowActions>
+                  {confirmingId === file._id ? (
+                    <ConfirmBar>
+                      <span>{t('files.delete.confirmTitle')}</span>
+                      <ConfirmButton
+                        $danger
+                        onClick={() => confirmDelete(file)}
+                      >
+                        {t('action.yes')}
+                      </ConfirmButton>
+                      <ConfirmButton onClick={cancelDelete}>
+                        {t('action.no')}
+                      </ConfirmButton>
+                    </ConfirmBar>
+                  ) : (
+                    <>
+                      <IconButton
+                        aria-label={t('files.action.download')}
+                        onClick={() => onDownload(file)}
+                      >
+                        <DownloadIcon />
+                      </IconButton>
+                      {!compact && (
+                        <IconButton
+                          aria-label={t('files.action.delete')}
+                          onClick={() => requestDelete(file)}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      )}
+                    </>
+                  )}
+                </RowActions>
+              </Row>
+            );
+          })}
         </RowsContainer>
       )}
     </>
