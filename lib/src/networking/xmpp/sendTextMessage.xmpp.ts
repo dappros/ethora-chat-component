@@ -65,9 +65,14 @@ export const sendTextMessage = async (
     });
     const body = xml('body', {}, userMessage);
 
-    // E2EE seam. Both <data> and <body> go inside the SCE envelope: the
-    // sender's name, avatar, mentions and reply target live in <data>, so
-    // encrypting only the body would leave the interesting half in clear.
+    // E2EE seam. Only <body> is encrypted; <data> rides along in the clear.
+    // That is a deliberate trade, not an oversight: the server's push module
+    // builds every notification out of <data>'s attributes (sender name,
+    // avatar, mucName, project), so an encrypted <data> would reduce every
+    // push in an e2ee room to a JID localpart and the OMEMO fallback string.
+    // The price is that the sender's identity, the room name, the mentions
+    // and the reply target stay readable to the server and live on in MAM.
+    // What OMEMO protects here is the message text.
     if (isE2eeRoom(roomJID)) {
       const crypto = await omemoReady();
       try {
@@ -75,8 +80,9 @@ export const sendTextMessage = async (
         const encrypted = await crypto.encryptGroupMessage(
           roomJID,
           roomRecipients(roomJID, accountDomain(client)),
-          [data, body],
-          id
+          [body],
+          id,
+          [data]
         );
         client.send(encrypted);
         return true;

@@ -92,9 +92,13 @@ export async function decryptStanzaInPlace(
     : undefined;
 
   // The fallback <body> and the OMEMO elements exist for clients that cannot
-  // decrypt; drop them either way. Keeping the fallback on failure would be
-  // worse than a placeholder - it says "your client cannot read it", which is
-  // the wrong reason.
+  // decrypt; drop them either way. Even on failure the placeholder beats it:
+  // it is localised, and it distinguishes "encrypted for another device" from
+  // "we could not open this", where the fallback is one fixed English label.
+  //
+  // <data> is deliberately NOT dropped: only <body> is encrypted, so the
+  // <data> sitting beside <encrypted> is the sender's real metadata rather
+  // than a decoy, and the envelope carries no second one to replace it with.
   carrier.remove('encrypted', NS_OMEMO);
   carrier.remove('encryption', 'urn:xmpp:eme:0');
   carrier.remove('body');
@@ -116,8 +120,10 @@ export async function decryptStanzaInPlace(
   // "sent in clear" would be the opposite of what happened.
   //
   // <data> is the channel because createMessageFromXml spreads its attributes
-  // straight onto IMessage. On the undecryptable branch there is none (it came
-  // out of the envelope we could not open), so one is created to carry this.
+  // straight onto IMessage. A current sender puts <data> beside <encrypted>,
+  // in the clear, so it is already here on both branches; the element is
+  // created only for a message from a build that still sealed <data> inside
+  // the envelope, where an unreadable payload leaves us with no <data> at all.
   markEncrypted(carrier);
   return outcome;
 }
