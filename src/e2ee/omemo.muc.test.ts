@@ -76,10 +76,16 @@ function fakeClient(pep: Pep, jid: string) {
   };
 }
 
-/** The two children a text message carries: the body and Ethora's metadata. */
-const content = (text: string) => [
+/** The encrypted half of a text message: the body, and nothing else. */
+const content = (text: string) => [xml('body', {}, text)];
+
+/**
+ * The half that travels in the clear. Ethora's <data> is what the server's
+ * push module reads to build a notification, so it is sent beside <encrypted>
+ * rather than inside the envelope.
+ */
+const metadata = () => [
   xml('data', { xmlns: 'ethora', senderFirstName: 'Alice', fullName: 'Alice A' }),
-  xml('body', {}, text),
 ];
 
 async function twoMembers() {
@@ -105,7 +111,8 @@ describe('OMEMO 2 in a MUC room', () => {
       ROOM,
       [ALICE, BOB],
       content('hello room'),
-      'msg-1'
+      'msg-1',
+      metadata()
     );
 
     expect(stanza.attrs.type).toBe('groupchat');
@@ -117,24 +124,32 @@ describe('OMEMO 2 in a MUC room', () => {
     const decrypted = await bob.decrypt(stanza, ALICE, ROOM);
     expect(decrypted?.error).toBeUndefined();
     expect(decrypted?.content).toContain('hello room');
-    // The metadata element travels inside the envelope, not beside it
-    expect(decrypted?.content).toContain('senderFirstName="Alice"');
+    // The envelope holds the body and only the body. <data> is not in it -
+    // it came through in the clear, as a sibling of <encrypted>.
+    expect(decrypted?.content).not.toContain('senderFirstName');
+    expect(stanza.getChild('data')?.attrs.senderFirstName).toBe('Alice');
   });
 
-  it('puts nothing readable in the stanza itself', async () => {
+  it('hides the text on the wire, and nothing else', async () => {
     const { alice } = await twoMembers();
     const stanza = await alice.encryptGroupMessage(
       ROOM,
       [ALICE, BOB],
       content('top secret'),
-      'msg-2'
+      'msg-2',
+      metadata()
     );
 
     const wire = stanza.toString();
     expect(wire).not.toContain('top secret');
-    // ...including the metadata that used to sit in a plain <data> element
-    expect(wire).not.toContain('senderFirstName');
-    expect(wire).not.toContain('Alice');
+
+    // The other half of the bargain, asserted so it cannot regress by
+    // accident: everything in <data> is plaintext on the wire, and therefore
+    // in MAM, in the server log and in the push POST. The server needs it to
+    // build notifications; OMEMO here protects the message text, not who sent
+    // it, to which room, or whom it mentions.
+    expect(wire).toContain('senderFirstName="Alice"');
+    expect(wire).toContain('fullName="Alice A"');
   });
 
   it('addresses one <keys> block per member', async () => {
@@ -143,7 +158,8 @@ describe('OMEMO 2 in a MUC room', () => {
       ROOM,
       [ALICE, BOB],
       content('hi'),
-      'msg-3'
+      'msg-3',
+      metadata()
     );
 
     const blocks = stanza
@@ -167,7 +183,13 @@ describe('OMEMO 2 in a MUC room', () => {
     // a keyless stanza. What the caller does with that is its own decision -
     // sendTextMessage catches it and sends the message in clear.
     await expect(
-      alice.encryptGroupMessage(ROOM, [ALICE, BOB], content('hi'), 'msg-4')
+      alice.encryptGroupMessage(
+        ROOM,
+        [ALICE, BOB],
+        content('hi'),
+        'msg-4',
+        metadata()
+      )
     ).rejects.toThrow('omemo_no_recipients');
   });
 
@@ -177,7 +199,8 @@ describe('OMEMO 2 in a MUC room', () => {
       ROOM,
       [ALICE, BOB],
       content('hi'),
-      'msg-5'
+      'msg-5',
+      metadata()
     );
 
     // The envelope names the room it was written for, so re-posting the same
@@ -193,7 +216,8 @@ describe('OMEMO 2 in a MUC room', () => {
       ROOM,
       [ALICE, BOB],
       content('hi'),
-      'msg-6'
+      'msg-6',
+      metadata()
     );
 
     // Claiming to be a different member must not work: the envelope's `from`
@@ -208,7 +232,8 @@ describe('OMEMO 2 in a MUC room', () => {
       ROOM,
       [ALICE, BOB],
       content('my own words'),
-      'msg-7'
+      'msg-7',
+      metadata()
     );
 
     // A MUC reflects the message back to its sender, but we deliberately do
@@ -224,7 +249,8 @@ describe('OMEMO 2 in a MUC room', () => {
       ROOM,
       [ALICE, BOB],
       content('from history'),
-      'msg-8'
+      'msg-8',
+      metadata()
     );
 
     const live = await bob.decrypt(stanza, ALICE, ROOM);
@@ -392,6 +418,26 @@ describe('decryptStanzaInPlace', () => {
     expect(stanza.getChild('data')?.attrs.omemoEncrypted).toBe('true');
     // The sender's fallback body never survives: it explains the wrong reason
     expect(stanza.getChildText('body')).not.toContain('fallback for clients');
+  });
+
+  it('keeps the cleartext <data> the sender put beside <encrypted>', async () => {
+    // Only <body> is encrypted, so <data> arrives as an ordinary sibling.
+    // The rewrite strips the fallback body and the OMEMO elements; stripping
+    // <data> with them would throw away the sender's name, avatar and
+    // mentions, since the envelope has no copy to put back in its place.
+    const stanza = stanzaWithPayload();
+    stanza.append(
+      xml('data', { xmlns: 'ethora', senderFirstName: 'Alice', mucName: 'Room' })
+    );
+
+    expect(await decryptStanzaInPlace(stanza, DOMAIN)).toBe('undecryptable');
+
+    const data = stanza.getChild('data');
+    expect(data?.attrs.senderFirstName).toBe('Alice');
+    expect(data?.attrs.mucName).toBe('Room');
+    expect(data?.attrs.omemoEncrypted).toBe('true');
+    // ...and it stays the only one, so getDataFromXml cannot pick a stub
+    expect(stanza.getChildren('data')).toHaveLength(1);
   });
 
   it('drops a session-maintenance message', async () => {

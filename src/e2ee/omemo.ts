@@ -11,9 +11,15 @@
 //    SDK joins with `client.jid.getLocal()` as the nick (see
 //    presenceInRoom.xmpp.ts), so the real bare JID is `<nick>@<domain>` and
 //    the room does NOT have to be made non-anonymous for OMEMO to work;
-//  - the SCE envelope wraps the whole content element set (<body> AND the
-//    custom <data> element carrying sender name, avatar and mentions), not
-//    just the body - otherwise encrypting the text would hide nothing;
+//  - only <body> travels inside the SCE envelope. The custom <data> element
+//    (sender name, avatar, mucName, mentions, reply target) is sent beside
+//    <encrypted>, in the clear, because the server has to read it: the push
+//    pipeline builds every notification out of those attributes, and an
+//    encrypted <data> degrades every push to a JID localpart and the OMEMO
+//    fallback string. The cost is explicit - what is protected here is the
+//    message text, not who said it to whom, in which room, mentioning whom.
+//    Everything in <data> stays in MAM, in the server logs and in the push
+//    POST body for good;
 //  - session-completing empty messages cannot go through the room, since
 //    they target one device. They are sent as a direct type='chat' stanza to
 //    that member's real JID instead.
@@ -55,9 +61,19 @@ const NS_SCE = 'urn:xmpp:sce:1';
 const PREKEY_COUNT = 100;
 const DEVICE_LIST_TTL = 30_000;
 
-/** Shown by clients that cannot read `urn:xmpp:omemo:2`. */
-export const FALLBACK_BODY =
-  'This message is end-to-end encrypted (OMEMO 2) and your client cannot read it.';
+/**
+ * The cleartext <body> of an encrypted stanza.
+ *
+ * Two audiences, one string, and it cannot be localised for either: it is
+ * written once by the sender, who does not know the reader's language.
+ *
+ * - clients that cannot read `urn:xmpp:omemo:2` render it in place of the
+ *   message;
+ * - the server's push module copies it into `msgText`, so it is what lands on
+ *   a lock screen. That rules out anything phrased as an error - keep it to a
+ *   short, neutral label.
+ */
+export const FALLBACK_BODY = 'Encrypted message';
 
 /** Blind Trust Before Verification: new devices are trusted until one is verified. */
 export type Trust = 'blind' | 'verified' | 'untrusted';
@@ -538,18 +554,32 @@ export class Omemo {
   /**
    * Builds the encrypted groupchat stanza for `roomJid`.
    *
-   * `content` are the children the plaintext stanza would have carried
-   * (<body>, <data>, ...); all of them go inside the SCE envelope. `members`
-   * are the bare JIDs of everyone in the room - ours is added automatically
-   * so our other devices can read it too. `id` must be the id the plaintext
-   * stanza would have used, because the optimistic UI matches the room's
-   * echo by it.
+   * The plaintext stanza's children are split in two:
+   *
+   * - `content` goes inside the SCE envelope and is what OMEMO protects.
+   *   Today that is <body> alone.
+   * - `cleartext` is appended to the stanza untouched, beside <encrypted>.
+   *   That is Ethora's <data> element, which the server's push module reads
+   *   directly off the wire (get_data_map in mod_offline_post takes the
+   *   first <data> sub-element); encrypting it turns every notification into
+   *   a bare JID localpart plus FALLBACK_BODY.
+   *
+   * Nothing in `cleartext` is protected in any way - it is archived in MAM
+   * and POSTed to the push service exactly as an unencrypted room's would
+   * be. Keep it to what the server genuinely has to read, and never move a
+   * message's text into it.
+   *
+   * `members` are the bare JIDs of everyone in the room - ours is added
+   * automatically so our other devices can read it too. `id` must be the id
+   * the plaintext stanza would have used, because the optimistic UI matches
+   * the room's echo by it.
    */
   encryptGroupMessage(
     roomJid: string,
     members: string[],
     content: Element[],
-    id: string
+    id: string,
+    cleartext: Element[] = []
   ): Promise<Element> {
     return this.serial(async () => {
       const room = bare(roomJid);
@@ -624,7 +654,11 @@ export class Omemo {
         }),
         xml('store', { xmlns: 'urn:xmpp:hints' }),
         xml('origin-id', { xmlns: 'urn:xmpp:sid:0', id }),
-        xml('body', {}, FALLBACK_BODY)
+        xml('body', {}, FALLBACK_BODY),
+        // Last, so <encrypted> stays the first sub-element: mod_offline_post
+        // only inspects the head of the list for a typing notification before
+        // it goes looking for <data> anywhere in it.
+        ...cleartext
       );
     });
   }
