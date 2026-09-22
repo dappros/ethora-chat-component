@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
 import {
   ArrowButton,
@@ -124,54 +124,74 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
 
   const getEmojiById = getEmojiNativeById;
 
-  const calculatePickerPosition = (x: number, y: number) => {
-    const pickerWidth = 320;
-    const pickerHeight = 435;
+  // Where the menu actually ends up on screen. Starts pinned to the
+  // click/tap point (`contextMenu.x/y`) and gets corrected below once we can
+  // measure the rendered container - its height varies a lot (Reply/Copy/
+  // Edit/Delete are conditional, and the emoji picker adds ~350px), so a
+  // fixed "menu height" guess (the previous approach) was always wrong for
+  // some combination of rows.
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
 
-    if (typeof window === "undefined") {
-      return { adjustedX: x, adjustedY: y };
-    }
-
-    const windowWidth = window.innerWidth;
-    const windowHeight = window.innerHeight;
-
-    let adjustedX = x;
-    let adjustedY = y;
-
-    if (x + pickerWidth > windowWidth) {
-      adjustedX = windowWidth - pickerWidth - 10;
-    }
-
-    if (y + pickerHeight > windowHeight) {
-      adjustedY = windowHeight - pickerHeight - 10;
-    }
-
-    return { adjustedX, adjustedY };
-  };
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !contextMenu) {
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined' || !contextMenu?.visible) {
       return;
     }
 
-    const handleScroll = () => {
-      if (showPicker) {
-        const { adjustedX, adjustedY } = calculatePickerPosition(
-          contextMenu.x,
-          contextMenu.y
-        );
-        setContextMenu({ visible: true, x: adjustedX, y: adjustedY });
+    const margin = 8; // keep the menu clear of the viewport edge
+
+    const reposition = () => {
+      const el = menuContainerRef.current;
+      if (!el) return;
+
+      const { offsetWidth: width, offsetHeight: height } = el;
+      const windowWidth = window.innerWidth;
+      const windowHeight = window.innerHeight;
+
+      let top = contextMenu.y;
+      if (top + height + margin > windowHeight) {
+        // Doesn't fit below the click point - flip it above the anchor.
+        const flippedTop = contextMenu.y - height;
+        top =
+          flippedTop >= margin
+            ? flippedTop
+            : Math.max(margin, windowHeight - height - margin);
       }
+      if (top < margin) top = margin;
+
+      let left = contextMenu.x;
+      if (left + width + margin > windowWidth) {
+        left = windowWidth - width - margin;
+      }
+      if (left < margin) left = margin;
+
+      setMenuPosition((prev) =>
+        prev.top === top && prev.left === left ? prev : { top, left }
+      );
     };
 
-    window.addEventListener('scroll', handleScroll);
+    reposition();
+
+    // The emoji picker can grow after it mounts (its data loads lazily), and
+    // the menu itself can change height as rows come and go, so watch the
+    // container's actual size rather than only reacting to state we know
+    // about.
+    let observer: ResizeObserver | undefined;
+    if (typeof ResizeObserver !== 'undefined' && menuContainerRef.current) {
+      observer = new ResizeObserver(reposition);
+      observer.observe(menuContainerRef.current);
+    }
+
+    // Mobile browsers resize the viewport (address bar show/hide) on scroll,
+    // and the window can resize directly - both can strand the menu.
+    window.addEventListener('resize', reposition);
+    window.addEventListener('scroll', reposition);
 
     return () => {
-      if (typeof window !== "undefined") {
-        window.removeEventListener('scroll', handleScroll);
-      }
+      observer?.disconnect();
+      window.removeEventListener('resize', reposition);
+      window.removeEventListener('scroll', reposition);
     };
-  }, [showPicker, contextMenu?.x, contextMenu?.y]);
+  }, [contextMenu?.visible, contextMenu?.x, contextMenu?.y, showPicker]);
 
   // Same shared layer stack the dropdowns and modals use: Escape closes this
   // menu when it is the topmost layer, and opening any other menu or modal
@@ -195,7 +215,7 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
         <AnimatedOverlay onClick={closeContextMenu}>
           <ContainerInteractions
             ref={menuContainerRef}
-            style={{ top: contextMenu.y, left: contextMenu.x }}
+            style={{ top: menuPosition.top, left: menuPosition.left }}
           >
             <ReactionContainer>
               {fixedEmojiIds.map((id) => (
@@ -221,15 +241,9 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
                 }}
                 onClick={(e) => {
                   e.stopPropagation();
-                  const { adjustedX, adjustedY } = calculatePickerPosition(
-                    contextMenu.x,
-                    contextMenu.y
-                  );
-                  setContextMenu({
-                    visible: true,
-                    x: adjustedX,
-                    y: adjustedY,
-                  });
+                  // Toggling the picker changes the container's height; the
+                  // reposition effect above (keyed on `showPicker`) re-clamps
+                  // it once the picker has actually mounted/unmounted.
                   setShowPicker(!showPicker);
                 }}
               >

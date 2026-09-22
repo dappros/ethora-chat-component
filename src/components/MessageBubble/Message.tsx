@@ -191,32 +191,19 @@ const Message: React.FC<MessageProps> = forwardRef<
     if (interactionsDisabled) return;
 
     event.preventDefault();
-    const menuWidth = 240;
-    const menuHeight = 310;
 
     const x = 'touches' in event ? event.touches[0].clientX : event.clientX;
     const y = 'touches' in event ? event.touches[0].clientY : event.clientY;
 
-    if (typeof window === 'undefined') {
-      setContextMenu({
-        visible: true,
-        x: x,
-        y: y,
-      });
-      return;
-    }
-
-    const windowWidth = window.innerWidth;
-    const windowHeight = window.innerHeight;
-
-    const adjustedX = x + menuWidth > windowWidth ? x - menuWidth : x;
-    const adjustedY =
-      y + menuHeight > windowHeight ? windowHeight - menuHeight : y;
-
+    // Just record the click/tap point here. The menu's real size depends on
+    // which rows render (Reply/Copy/Edit/Delete are conditional) and on
+    // whether the emoji picker is open, so MessageInteractions measures its
+    // own rendered container and clamps/flips it against the viewport
+    // instead of us guessing a fixed menu size up front.
     setContextMenu({
       visible: true,
-      x: adjustedX,
-      y: adjustedY,
+      x,
+      y,
     });
   };
 
