@@ -77,7 +77,8 @@ const AttachmentTileItem: React.FC<{ attachment: IAttachment }> = ({
 const AttachmentRow: React.FC<{
   attachment: IAttachment;
   compact: boolean;
-}> = ({ attachment, compact }) => {
+  onUnavailable?: () => void;
+}> = ({ attachment, compact, onUnavailable }) => {
   const fileName = getAttachmentName(attachment);
   const kind = getFileKind(attachment.mimetype, fileName);
 
@@ -102,6 +103,7 @@ const AttachmentRow: React.FC<{
           fileURL={attachment.location}
           mimetype={attachment.mimetype || ''}
           locationPreview={attachment.locationPreview}
+          onUnavailable={onUnavailable}
         />
       );
     case 'video':
@@ -140,9 +142,17 @@ const AttachmentRow: React.FC<{
 
 interface AttachmentListProps {
   attachments: IAttachment[];
+  /** See CustomMessageImage's `onUnavailable` - only wired to the full-width
+   * single-image renderer (AttachmentRow), not the multi-file grid tiles,
+   * since one dead thumbnail there shouldn't tombstone a message that still
+   * has other live attachments. */
+  onUnavailable?: () => void;
 }
 
-const AttachmentList: React.FC<AttachmentListProps> = ({ attachments }) => {
+const AttachmentList: React.FC<AttachmentListProps> = ({
+  attachments,
+  onUnavailable,
+}) => {
   const { tiles, rows } = useMemo(() => {
     if (attachments.length < 2) {
       return { tiles: [] as IAttachment[], rows: attachments };
@@ -193,6 +203,7 @@ const AttachmentList: React.FC<AttachmentListProps> = ({ attachments }) => {
       {rows.map((attachment, index) => (
         <AttachmentRow
           key={attachment.attachmentId || `${attachment.location}-${index}`}
+          onUnavailable={onUnavailable}
           attachment={attachment}
           compact={compact}
         />

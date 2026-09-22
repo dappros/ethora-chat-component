@@ -16,7 +16,10 @@ import {
   resolveIconBgColor,
 } from '../../helpers/resolveIconColor';
 import { setActiveFile, setActiveModal } from '../../roomStore/chatSettingsSlice';
+import { deleteRoomMessage } from '../../roomStore/roomsSlice';
 import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
+import { useXmppClient } from '../../context/xmppProvider';
+import { findMessagesForFile } from '../../helpers/findMessagesForFile';
 
 const Container = styled.div`
   display: flex;
@@ -25,6 +28,10 @@ const Container = styled.div`
   padding: 12px 16px;
   box-sizing: border-box;
   overflow-y: auto;
+  // A raw (unresolved) room id used to force rows wider than the panel;
+  // FilesList now truncates that instead, but keep this as a hard backstop
+  // so nothing can reintroduce a horizontal scrollbar on the whole tab.
+  overflow-x: hidden;
 `;
 
 const SearchBar = styled.div`
@@ -179,6 +186,10 @@ const FilesPanel: React.FC = () => {
   const fileToken = useSelector(
     (state: RootState) => state.chatSettingStore.user?.fileToken || ''
   );
+  // Only needed to tombstone whatever chat message(s) carried a deleted
+  // file locally - see handleDelete.
+  const rooms = useSelector((state: RootState) => state.rooms.rooms);
+  const { client } = useXmppClient();
 
   const { items, loading, loadingMore, error, hasMore, loadMore, refresh, remove } =
     useMyFiles();
@@ -231,6 +242,19 @@ const FilesPanel: React.FC = () => {
   };
 
   const handleDelete = (file: ApiFile) => {
+    // The Files API has no notion of "the message this file was attached
+    // to" - deleting the file alone left the chat message pointing at a
+    // now-404ing URL, rendering as a broken "No image available" bubble
+    // (see the fallback in MessageImage.tsx for the case this can't
+    // resolve anything, e.g. the room's history isn't loaded locally).
+    // Tombstone every message we can find locally that carries this file,
+    // and tell the room over XMPP so every other member's view updates too.
+    const matches = findMessagesForFile(rooms, file);
+    matches.forEach(({ roomJID, messageId }) => {
+      dispatch(deleteRoomMessage({ roomJID, messageId }));
+      client?.deleteMessageStanza(roomJID, messageId);
+    });
+
     remove(file._id).catch(() => {
       // Error surfaced via the hook's `error` state; nothing else to do here.
     });

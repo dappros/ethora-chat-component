@@ -18,6 +18,12 @@ export interface IMessage {
   locationPreview?: string;
   mimetype?: string;
   location?: string;
+  // The uploaded file's own id (same `_id` the Files API returns for it,
+  // see ApiFile) - only present on a single-attachment media message; a
+  // multi-attach one carries it per item in `attachments` instead. Travels
+  // as a free-form <data> attribute (getDataFromXml.ts), not a modelled
+  // stanza field, which is why it stays optional here.
+  attachmentId?: string;
   pending?: boolean;
   // Set by the send-failure watchdog when the MUC never reflected this
   // message back within SEND_FAILURE_TIMEOUT_MS. It is a DISPLAY state

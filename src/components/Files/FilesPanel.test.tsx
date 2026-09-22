@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '../../test/renderWithProviders';
+import { IMessage, IRoom } from '../../types/types';
 
 const removeMock = vi.fn();
 const loadMoreMock = vi.fn();
@@ -10,6 +11,11 @@ const refreshMock = vi.fn();
 const useMyFilesMock = vi.fn();
 vi.mock('../../hooks/useMyFiles', () => ({
   useMyFiles: (...args: unknown[]) => useMyFilesMock(...args),
+}));
+
+const deleteMessageStanzaMock = vi.fn();
+vi.mock('../../context/xmppProvider', () => ({
+  useXmppClient: () => ({ client: { deleteMessageStanza: deleteMessageStanzaMock } }),
 }));
 
 import FilesPanel from './FilesPanel';
@@ -49,6 +55,7 @@ describe('FilesPanel', () => {
     loadMoreMock.mockReset();
     refreshMock.mockReset();
     useMyFilesMock.mockReset();
+    deleteMessageStanzaMock.mockReset();
   });
 
   it('renders the loading skeleton on first load', () => {
@@ -129,6 +136,64 @@ describe('FilesPanel', () => {
     fireEvent.click(screen.getByText('Yes'));
 
     await waitFor(() => expect(removeMock).toHaveBeenCalledWith('1'));
+  });
+
+  // Bug: deleting a file only removed it on the backend - the chat message
+  // that carried it kept pointing at the now-404ing URL and rendered as a
+  // broken "No image available" bubble. Deleting must also tombstone the
+  // matching message(s) locally and over XMPP.
+  it('deleting a file also tombstones the chat message that carries it, locally and over XMPP', async () => {
+    const roomJID = 'room-1@conference.example.com';
+    const message: IMessage = {
+      id: 'msg-1',
+      body: 'media',
+      date: new Date().toISOString(),
+      roomJid: roomJID,
+      user: { id: 'me@example.com', name: 'Me' },
+      isMediafile: 'true',
+      attachmentId: '1',
+      location: 'https://secure-files.example.com/1',
+    } as IMessage;
+    const room: IRoom = {
+      jid: roomJID,
+      name: roomJID,
+      title: 'Room One',
+      usersCnt: 0,
+      messages: [message],
+      isLoading: false,
+      roomBg: null,
+    } as IRoom;
+
+    setHookResult({ items: [file('1', { roomName: roomJID })] });
+
+    const storeRef: { current: any } = { current: null };
+    renderWithProviders(<FilesPanel />, {
+      preloadedState: {
+        rooms: { rooms: { [roomJID]: room } } as any,
+      },
+      storeRef,
+    });
+
+    fireEvent.click(screen.getByLabelText('Delete'));
+    fireEvent.click(screen.getByText('Yes'));
+
+    await waitFor(() => expect(removeMock).toHaveBeenCalledWith('1'));
+
+    expect(deleteMessageStanzaMock).toHaveBeenCalledWith(roomJID, 'msg-1');
+    const state = storeRef.current.getState();
+    expect(state.rooms.rooms[roomJID].messages[0].isDeleted).toBe(true);
+  });
+
+  it('deleting a file with no locally loaded message just removes the file, without touching XMPP', async () => {
+    setHookResult({ items: [file('1', { roomName: 'some-other-room' })] });
+
+    renderWithProviders(<FilesPanel />);
+
+    fireEvent.click(screen.getByLabelText('Delete'));
+    fireEvent.click(screen.getByText('Yes'));
+
+    await waitFor(() => expect(removeMock).toHaveBeenCalledWith('1'));
+    expect(deleteMessageStanzaMock).not.toHaveBeenCalled();
   });
 
   it('shows a Load more button when hasMore is true and no filter/search is active', () => {

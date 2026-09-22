@@ -22,6 +22,16 @@ interface CustomMessageImageProps {
   fileName: string;
   mimetype: string;
   locationPreview?: string;
+  /**
+   * Called once the image is confirmed unreachable (a fresh fileToken
+   * didn't help either) rather than just slow to load. The only known
+   * cause in practice is the file having been deleted from the Files
+   * panel without a matching message found locally to tombstone up front
+   * (see FilesPanel.tsx's handleDelete) - the caller uses this to flip the
+   * message to the normal "deleted" placeholder instead of leaving this
+   * broken-image card on screen.
+   */
+  onUnavailable?: () => void;
 }
 
 type LoadState = 'loading' | 'recovering' | 'loaded' | 'failed';
@@ -31,6 +41,7 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
   fileName,
   mimetype,
   locationPreview,
+  onUnavailable,
 }) => {
   const dispatch = useDispatch();
 
@@ -61,17 +72,20 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
         // this effect and retries; on failure we fall through to the
         // static placeholder.
         requestFileTokenRecovery().then((gotToken) => {
-          if (!cancelled && !gotToken) setState('failed');
+          if (cancelled || gotToken) return;
+          setState('failed');
+          onUnavailable?.();
         });
       } else {
         setState('failed');
+        onUnavailable?.();
       }
     };
     preloader.src = locationPreview;
     return () => {
       cancelled = true;
     };
-  }, [locationPreview]);
+  }, [locationPreview, onUnavailable]);
 
   const handleOpen = () => {
     dispatch(setActiveFile({ fileName, fileURL, mimetype }));
