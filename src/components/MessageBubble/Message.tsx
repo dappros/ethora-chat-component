@@ -1,4 +1,11 @@
-import React, { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { IUser, MessageProps } from '../../types/types';
 import { useUsersSet } from '../../hooks/useRoomState';
 import {
@@ -31,7 +38,7 @@ import { useXmppClient } from '../../context/xmppProvider';
 import { MessageReaction } from './MessageReaction';
 import MessageTranslate from './MessageTranslate';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
-import { DoubleTick } from '../../assets/icons';
+import { DoubleTick, LockOffIcon } from '../../assets/icons';
 import { parseMessageBody } from '../../helpers/parseMessageBody';
 import URLPreviewCard from './URLPreviewCard';
 import { useMessageHeapState } from '../../hooks/useMessageHeapState';
@@ -136,7 +143,8 @@ const Message: React.FC<MessageProps> = forwardRef<
       state.rooms.usersSet[senderLocal] ?? state.rooms.usersSet[senderUserId]
   );
   const senderDisplayName = senderEntry
-    ? `${senderEntry.firstName ?? ''} ${senderEntry.lastName ?? ''}`.trim() || senderLocal
+    ? `${senderEntry.firstName ?? ''} ${senderEntry.lastName ?? ''}`.trim() ||
+      senderLocal
     : message.user?.name || senderLocal || 'Unknown';
   // usersSet first, same reason as the name above: a message restored from
   // the persist cache never carries an avatar URL at all (profileImage is
@@ -152,7 +160,6 @@ const Message: React.FC<MessageProps> = forwardRef<
   const senderProfileImage =
     senderEntry?.profileImage || message.user?.profileImage || '';
   const referencedMessage = parseMessageReference(message.mainMessage);
-
 
   const dispatch = useDispatch();
   const [contextMenu, setContextMenu] = useState<{
@@ -189,8 +196,8 @@ const Message: React.FC<MessageProps> = forwardRef<
 
     const x = 'touches' in event ? event.touches[0].clientX : event.clientX;
     const y = 'touches' in event ? event.touches[0].clientY : event.clientY;
-    
-    if (typeof window === "undefined") {
+
+    if (typeof window === 'undefined') {
       setContextMenu({
         visible: true,
         x: x,
@@ -245,10 +252,12 @@ const Message: React.FC<MessageProps> = forwardRef<
   const handleMentionClick = (mention: { jid: string; name: string }): void => {
     if (profilesDisabled || !mention?.jid) return;
     const localKey = mention.jid.split('@')[0];
-    const enriched = (usersSet as any)?.[mention.jid] ?? (usersSet as any)?.[localKey];
-    const [firstName, ...rest] = (enriched
-      ? `${enriched.firstName ?? ''} ${enriched.lastName ?? ''}`.trim()
-      : mention.name
+    const enriched =
+      (usersSet as any)?.[mention.jid] ?? (usersSet as any)?.[localKey];
+    const [firstName, ...rest] = (
+      enriched
+        ? `${enriched.firstName ?? ''} ${enriched.lastName ?? ''}`.trim()
+        : mention.name
     ).split(' ');
 
     dispatch(setActiveModal(MODAL_TYPES.PROFILE));
@@ -450,7 +459,9 @@ const Message: React.FC<MessageProps> = forwardRef<
         key={message.id}
         $isUser={isUser}
         $reply={!!message?.reply?.length}
-        $reaction={message?.reaction && !!Object.keys(message?.reaction)?.length}
+        $reaction={
+          message?.reaction && !!Object.keys(message?.reaction)?.length
+        }
         ref={ref}
       >
         {!isUser && (
@@ -466,10 +477,7 @@ const Message: React.FC<MessageProps> = forwardRef<
             style={avatarClickable ? undefined : { cursor: 'default' }}
           >
             {senderProfileImage ? (
-              <CustomMessagePhoto
-                src={senderProfileImage}
-                alt="userIcon"
-              />
+              <CustomMessagePhoto src={senderProfileImage} alt="userIcon" />
             ) : (
               <Avatar
                 username={senderDisplayName}
@@ -481,8 +489,12 @@ const Message: React.FC<MessageProps> = forwardRef<
         <CustomMessageBubble
           $deleted={message.isDeleted}
           $isUser={isUser}
-          onContextMenu={!config?.disableInteractions ? handleContextMenu : undefined}
-          onTouchStart={!config?.disableInteractions ? handleTouchStart : undefined}
+          onContextMenu={
+            !config?.disableInteractions ? handleContextMenu : undefined
+          }
+          onTouchStart={
+            !config?.disableInteractions ? handleTouchStart : undefined
+          }
           onTouchEnd={!config?.disableInteractions ? handleTouchEnd : undefined}
         >
           {!isUser && (
@@ -558,17 +570,36 @@ const Message: React.FC<MessageProps> = forwardRef<
             </CustomMessageText>
           )}
 
-          {!isUser && config?.translates?.enabled && effectiveTranslateMode === 'manual' && (
-            <MessageTranslate
-              message={message}
-              config={config}
-              isUser={isUser}
-            />
-          )}
+          {!isUser &&
+            config?.translates?.enabled &&
+            effectiveTranslateMode === 'manual' && (
+              <MessageTranslate
+                message={message}
+                config={config}
+                isUser={isUser}
+              />
+            )}
           <CustomMessageTimestamp>
-            {sentLogicEnabled && isUser && isPending && !isFailed && 'sending...'}
+            {sentLogicEnabled &&
+              isUser &&
+              isPending &&
+              !isFailed &&
+              'sending...'}
             {message.isEdited && !message.isDeleted && (
               <EditedLabel>{t('message.edited')}</EditedLabel>
+            )}
+            {message.unencrypted && (
+              <span
+                title={t('e2ee.notEncryptedHint')}
+                style={{ display: 'inline-flex', flexShrink: 0 }}
+              >
+                <LockOffIcon
+                  width={14}
+                  height={14}
+                  role="img"
+                  aria-label={t('e2ee.notEncrypted')}
+                />
+              </span>
             )}
             {new Date(message.date).toLocaleTimeString([], {
               hour: '2-digit',

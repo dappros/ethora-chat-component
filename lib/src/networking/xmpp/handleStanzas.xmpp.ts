@@ -24,6 +24,8 @@ import {
 import XmppClient from '../xmppClient';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
 import { onCallTokenMessage } from '../callTokenStanza';
+import { accountDomain, isE2eeEnabled } from '../../e2ee';
+import { decryptStanzaInPlace, encryptedCarrier } from '../../e2ee/stanza';
 
 // Unwrap mucsub event wrappers so downstream handlers see the inner stanza
 // (which has the original id like 'deleteMessageStanza' / 'edit-message-*').
@@ -37,7 +39,31 @@ const unwrapMucsubMessage = (stanza: Element): Element => {
   return (inner as Element) || stanza;
 };
 
+/**
+ * Decrypts in place and re-dispatches the stanza, so the handlers below see
+ * an ordinary message. See e2ee/stanza.ts for why the rewrite works this way.
+ */
+async function decryptAndRedispatch(
+  stanza: Element,
+  xmppWs: XmppClient
+): Promise<void> {
+  const outcome = await decryptStanzaInPlace(stanza, accountDomain(xmppWs.client));
+  // 'drop': session maintenance, nothing to render
+  if (outcome === 'drop') return;
+  handleStanza(stanza, xmppWs);
+}
+
 export function handleStanza(stanza: Element, xmppWs: XmppClient) {
+  // E2EE seam. Inert unless the host app enabled encryption; when it did,
+  // the stanza is decrypted and then re-dispatched through this same
+  // function, with no <encrypted> left to match a second time.
+  if (isE2eeEnabled() && stanza?.name === 'message' && encryptedCarrier(stanza)) {
+    void decryptAndRedispatch(stanza, xmppWs).catch((err) =>
+      ethoraLogger.log('OMEMO: failed to handle encrypted stanza', err)
+    );
+    return;
+  }
+
   if (stanza?.attrs?.type === 'headline') {
     onUserUpdate(stanza);
     onChatUpdate(stanza);

@@ -209,16 +209,31 @@ export async function postRoom(data: PostRoom) {
   }
 }
 
+// Create (or resolve) the 1:1 room with `username`.
+//
+// `e2ee` selects which of the pair's two possible rooms this addresses rather
+// than toggling one: the backend keeps the encrypted room as a room of its
+// own, so asking for it on a pair that only has a plaintext chat creates it
+// alongside, and an encrypted room stays encrypted for life. Idempotent per
+// variant.
+//
+// The field is omitted from the body unless it is true, on purpose. The
+// backend validates this payload with a Joi object that rejects unknown keys,
+// so sending `e2ee: false` to a backend predating the feature would 422 every
+// plain private chat. Omitting it keeps the default request byte-identical to
+// what older backends already accept; only the encrypted variant - which the
+// UI gates behind `config.e2ee.enabled` anyway - needs a backend that knows
+// the field.
 export async function postPrivateRoom(
   username: string,
-  title: string = 'Private chat'
+  e2ee: boolean = false
 ): Promise<ApiRoom> {
   const token = store.getState().chatSettingStore.user.token || '';
 
   try {
     const response = await http.post(
       '/v1/chats/private',
-      { username },
+      e2ee ? { username, e2ee: true } : { username },
       {
         headers: {
           Authorization: token,

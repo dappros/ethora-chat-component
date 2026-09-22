@@ -18,6 +18,7 @@ import {
   ChatIcon,
   EditIcon,
   LeaveIcon,
+  LockIcon,
   MoreIcon,
   VideoCallIcon,
 } from '../../../assets/icons';
@@ -86,6 +87,10 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   // Calling from the profile creates the 1:1 private room then dials it. Gate on
   // the same prerequisites as the chat header (the target room is private).
   const videoCallsConfig = config?.videoCalls;
+  // Only offer an encrypted chat when this build will actually encrypt. With
+  // e2ee off the SDK never publishes a key or touches a stanza, so the room
+  // would carry a padlock while every message went out in the clear.
+  const isE2eeEnabled = config?.e2ee?.enabled === true;
   const canCall =
     videoCallsConfig?.enabled === true &&
     Boolean(videoCallsConfig?.livekitUrl?.trim()) &&
@@ -203,7 +208,16 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   // current room. Shared by the Message and Call actions: Message just opens it,
   // Call additionally dials it. Returns the room identity needed to place a call,
   // or null on failure (a toast is shown).
-  const ensurePrivateRoom = useCallback(async (): Promise<{
+  //
+  // `e2ee` picks the encrypted room of the pair rather than the plaintext one.
+  // The two are separate rooms on the backend, so this opens (or creates) a
+  // different room - it does not convert the plaintext one, and the plaintext
+  // history stays where it was written. Only reachable from the encrypted
+  // action, which is itself gated on `config.e2ee.enabled`; calls always use
+  // the plaintext room, since call media does not run through OMEMO.
+  const ensurePrivateRoom = useCallback(async (
+    e2ee: boolean = false
+  ): Promise<{
     jid: string;
     bareName: string;
     peerXmppUsername: string;
@@ -240,7 +254,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
         return null;
       }
       try {
-        const newRoom = await postPrivateRoom(targetUsername);
+        const newRoom = await postPrivateRoom(targetUsername, e2ee);
         const created = await handleRoomCreation(newRoom, 2);
         if (!created?.jid) return null;
         return {
@@ -294,17 +308,30 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     };
   }, [selectedUser, config?.newArch, client, user]);
 
-  const handlePrivateMessage = useCallback(async () => {
-    showToast({
-      id: Date.now().toString(),
-      title: t('toast.roomCreationTitle'),
-      message: t('toast.roomCreating'),
-      type: 'info',
-      duration: 3000,
-    });
-    await ensurePrivateRoom();
-    dispatch(setActiveModal());
-  }, [ensurePrivateRoom, dispatch, showToast, t]);
+  const openPrivateRoom = useCallback(
+    async (e2ee: boolean) => {
+      showToast({
+        id: Date.now().toString(),
+        title: t('toast.roomCreationTitle'),
+        message: t('toast.roomCreating'),
+        type: 'info',
+        duration: 3000,
+      });
+      await ensurePrivateRoom(e2ee);
+      dispatch(setActiveModal());
+    },
+    [ensurePrivateRoom, dispatch, showToast, t]
+  );
+
+  const handlePrivateMessage = useCallback(
+    () => openPrivateRoom(false),
+    [openPrivateRoom]
+  );
+
+  const handleEncryptedPrivateMessage = useCallback(
+    () => openPrivateRoom(true),
+    [openPrivateRoom]
+  );
 
   const handleCall = useCallback(
     async (kind: 'audio' | 'video') => {
@@ -458,6 +485,17 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
               >
                 {t('action.message')}
               </ActionButton>
+              {isE2eeEnabled && (
+                <ActionButton
+                  StartIcon={
+                    <LockIcon color="var(--ethora-color-text-on-primary, #FFFFFF)" />
+                  }
+                  onClick={handleEncryptedPrivateMessage}
+                  variant="filled"
+                >
+                  {t('action.encryptedMessage')}
+                </ActionButton>
+              )}
               {canCall && (
                 <ActionButton
                   StartIcon={<VideoCallIcon color="var(--ethora-color-text-on-primary, #FFFFFF)" />}
@@ -496,6 +534,8 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
       isCallBusy,
       handleCall,
       handlePrivateMessage,
+      handleEncryptedPrivateMessage,
+      isE2eeEnabled,
       selectedUser,
       showActions,
       user,

@@ -1,4 +1,26 @@
-import createWebStorage from 'redux-persist/lib/storage/createWebStorage';
+import createWebStorageImport from 'redux-persist/lib/storage/createWebStorage';
+
+/**
+ * Unwraps a CommonJS default export.
+ *
+ * `redux-persist` is CJS (`exports.__esModule = true; exports.default = fn`)
+ * and bundlers disagree about what its ESM default is. Rollup's commonjs
+ * interop - which this package's own build uses - hands back the function, so
+ * the published bundle works. Vite's dependency optimiser instead emits
+ * `export default require_createWebStorage()`, i.e. the whole `exports`
+ * object, and the import is then `{ __esModule: true, default: fn }`.
+ *
+ * That difference only shows when the SDK is consumed from source rather than
+ * from `dist` (a linked checkout, a monorepo alias), and it fails at module
+ * evaluation with "createWebStorage is not a function", which takes the whole
+ * chat down before it renders. Accept both shapes instead.
+ */
+const unwrapCjsDefault = <T>(mod: T | { default: T }): T =>
+  typeof mod === 'function'
+    ? (mod as T)
+    : ((mod as { default: T })?.default ?? (mod as T));
+
+const createWebStorage = unwrapCjsDefault(createWebStorageImport);
 
 // Custom storage implementation that handles SSR
 // Create a noop storage for SSR (Server-Side Rendering)

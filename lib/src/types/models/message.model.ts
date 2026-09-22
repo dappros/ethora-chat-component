@@ -26,6 +26,15 @@ export interface IMessage {
   // the message was not delivered - only as "we have no confirmation yet
   // and the user should be offered a retry".
   failed?: boolean;
+  /**
+   * Sent in clear in a room that is supposed to be end-to-end encrypted.
+   *
+   * Derived locally, never trusted from the sender: in an `e2ee` room any
+   * message that did not arrive inside an OMEMO payload is unprotected,
+   * whatever it claims about itself. The bubble marks these so nobody
+   * mistakes the room's badge for a guarantee about this message.
+   */
+  unencrypted?: boolean;
   timestamp?: number;
   showInChannel?: string;
   activeMessage?: boolean;

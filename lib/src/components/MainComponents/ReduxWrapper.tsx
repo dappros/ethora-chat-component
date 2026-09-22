@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Provider, useDispatch } from 'react-redux';
 import { store, persistor } from '../../roomStore';
 import { setConfig } from '../../roomStore/chatSettingsSlice';
+import { setE2eeEnabled } from '../../e2ee';
 import { ConfigUser, IConfig } from '../../types/types';
 import '../../index.css';
 import '../../helpers/storeConsole';
@@ -95,6 +96,12 @@ const ConfigEnabler: React.FC<{ config?: IConfig }> = ({ config }) => {
     if (!config) return;
     dispatch(setConfig(config));
   }, [config, dispatch]);
+  // Kept out of the effect above so the flag is set even when `config` is
+  // undefined: e2ee must then be off, not left at whatever a previous mount
+  // put there.
+  React.useEffect(() => {
+    setE2eeEnabled(config?.e2ee?.enabled === true);
+  }, [config?.e2ee?.enabled]);
   return null;
 };
 
