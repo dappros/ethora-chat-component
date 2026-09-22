@@ -249,15 +249,24 @@ const FilesPanel: React.FC = () => {
     // resolve anything, e.g. the room's history isn't loaded locally).
     // Tombstone every message we can find locally that carries this file,
     // and tell the room over XMPP so every other member's view updates too.
+    // Resolved against the store as it is now, before the delete round
+    // trip has a chance to move anything.
     const matches = findMessagesForFile(rooms, file);
-    matches.forEach(({ roomJID, messageId }) => {
-      dispatch(deleteRoomMessage({ roomJID, messageId }));
-      client?.deleteMessageStanza(roomJID, messageId);
-    });
 
-    remove(file._id).catch(() => {
-      // Error surfaced via the hook's `error` state; nothing else to do here.
-    });
+    Promise.resolve(remove(file._id))
+      .then(() => {
+        // Only once the backend confirms the file is gone: a retraction is
+        // broadcast to everyone in the room and cannot be taken back, so a
+        // failed delete must not leave a tombstoned message next to a file
+        // that still exists.
+        matches.forEach(({ roomJID, messageId }) => {
+          dispatch(deleteRoomMessage({ roomJID, messageId }));
+          client?.deleteMessageStanza(roomJID, messageId);
+        });
+      })
+      .catch(() => {
+        // Error surfaced via the hook's `error` state; nothing else to do here.
+      });
   };
 
   return (

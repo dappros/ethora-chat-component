@@ -48,6 +48,7 @@ const makeRoom = (): IRoom =>
 
 describe('MediaMessage - broken media falls back to the deleted placeholder', () => {
   const RealImage = globalThis.Image;
+  const RealFetch = globalThis.fetch;
   beforeEach(() => {
     class FailingImage {
       onload: null | (() => void) = null;
@@ -57,9 +58,14 @@ describe('MediaMessage - broken media falls back to the deleted placeholder', ()
       }
     }
     globalThis.Image = FailingImage as unknown as typeof Image;
+    // The server confirming the file is really gone, which is the only
+    // thing that may tombstone a message (see confirmFileIsGone in
+    // MessageImage.tsx).
+    globalThis.fetch = vi.fn(async () => ({ status: 404 })) as never;
   });
   afterEach(() => {
     globalThis.Image = RealImage;
+    globalThis.fetch = RealFetch;
   });
 
   it('dispatches deleteRoomMessage once the image is confirmed unreachable', async () => {
@@ -79,6 +85,52 @@ describe('MediaMessage - broken media falls back to the deleted placeholder', ()
       const state = storeRef.current.getState();
       expect(state.rooms.rooms[ROOM_JID].messages[0].isDeleted).toBe(true);
     });
+  });
+
+  // An image can fail to load for reasons that say nothing about whether
+  // the file still exists (offline, CORS, a dead CDN edge), and tombstoning
+  // drops the attachment from the store for good, so anything short of the
+  // server saying "gone" must leave the message alone.
+  it('leaves the message alone when the file still answers', async () => {
+    globalThis.fetch = vi.fn(async () => ({ status: 200 })) as never;
+    const storeRef: { current: any } = { current: null };
+    renderWithProviders(<MediaMessage message={baseMessage} />, {
+      preloadedState: {
+        chatSettingStore: { config: {} } as never,
+        rooms: { rooms: { [ROOM_JID]: makeRoom() } } as any,
+      },
+      storeRef,
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+
+    expect(
+      storeRef.current.getState().rooms.rooms[ROOM_JID].messages[0].isDeleted
+    ).toBeFalsy();
+  });
+
+  it('leaves the message alone when the status check itself fails', async () => {
+    globalThis.fetch = vi.fn(async () => {
+      throw new Error('offline');
+    }) as never;
+    const storeRef: { current: any } = { current: null };
+    renderWithProviders(<MediaMessage message={baseMessage} />, {
+      preloadedState: {
+        chatSettingStore: { config: {} } as never,
+        rooms: { rooms: { [ROOM_JID]: makeRoom() } } as any,
+      },
+      storeRef,
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+
+    expect(
+      storeRef.current.getState().rooms.rooms[ROOM_JID].messages[0].isDeleted
+    ).toBeFalsy();
   });
 
   it('does nothing once the message is already marked deleted', async () => {

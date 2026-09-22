@@ -177,11 +177,59 @@ describe('FilesPanel', () => {
     fireEvent.click(screen.getByLabelText('Delete'));
     fireEvent.click(screen.getByText('Yes'));
 
-    await waitFor(() => expect(removeMock).toHaveBeenCalledWith('1'));
-
-    expect(deleteMessageStanzaMock).toHaveBeenCalledWith(roomJID, 'msg-1');
+    await waitFor(() =>
+      expect(deleteMessageStanzaMock).toHaveBeenCalledWith(roomJID, 'msg-1')
+    );
+    expect(removeMock).toHaveBeenCalledWith('1');
     const state = storeRef.current.getState();
     expect(state.rooms.rooms[roomJID].messages[0].isDeleted).toBe(true);
+  });
+
+  // A retraction goes out to everyone in the room and cannot be taken
+  // back, so it must wait for the backend to confirm the file is actually
+  // gone - otherwise a failed delete leaves a "deleted" message next to a
+  // file that still exists.
+  it('does not retract anything when the file delete itself fails', async () => {
+    const roomJID = 'room-1@conference.example.com';
+    const message: IMessage = {
+      id: 'msg-1',
+      body: 'media',
+      date: new Date().toISOString(),
+      roomJid: roomJID,
+      user: { id: 'me@example.com', name: 'Me' },
+      isMediafile: 'true',
+      attachmentId: '1',
+      location: 'https://secure-files.example.com/1',
+    } as IMessage;
+    const room: IRoom = {
+      jid: roomJID,
+      name: roomJID,
+      title: 'Room One',
+      usersCnt: 0,
+      messages: [message],
+      isLoading: false,
+      roomBg: null,
+    } as IRoom;
+
+    removeMock.mockReset().mockRejectedValue(new Error('nope'));
+    setHookResult({ items: [file('1', { roomName: roomJID })] });
+
+    const storeRef: { current: any } = { current: null };
+    renderWithProviders(<FilesPanel />, {
+      preloadedState: {
+        rooms: { rooms: { [roomJID]: room } } as any,
+      },
+      storeRef,
+    });
+
+    fireEvent.click(screen.getByLabelText('Delete'));
+    fireEvent.click(screen.getByText('Yes'));
+
+    await waitFor(() => expect(removeMock).toHaveBeenCalledWith('1'));
+
+    expect(deleteMessageStanzaMock).not.toHaveBeenCalled();
+    const state = storeRef.current.getState();
+    expect(state.rooms.rooms[roomJID].messages[0].isDeleted).toBeFalsy();
   });
 
   it('deleting a file with no locally loaded message just removes the file, without touching XMPP', async () => {

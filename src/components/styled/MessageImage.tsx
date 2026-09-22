@@ -23,11 +23,11 @@ interface CustomMessageImageProps {
   mimetype: string;
   locationPreview?: string;
   /**
-   * Called once the image is confirmed unreachable (a fresh fileToken
-   * didn't help either) rather than just slow to load. The only known
-   * cause in practice is the file having been deleted from the Files
-   * panel without a matching message found locally to tombstone up front
-   * (see FilesPanel.tsx's handleDelete) - the caller uses this to flip the
+   * Called only once the server itself says the file is gone (404/410),
+   * not merely when the <img> failed to load. The only known cause in
+   * practice is the file having been deleted from the Files panel without
+   * a matching message found locally to tombstone up front (see
+   * FilesPanel.tsx's handleDelete) - the caller uses this to flip the
    * message to the normal "deleted" placeholder instead of leaving this
    * broken-image card on screen.
    */
@@ -35,6 +35,24 @@ interface CustomMessageImageProps {
 }
 
 type LoadState = 'loading' | 'recovering' | 'loaded' | 'failed';
+
+// A broken <img> on its own is not proof that the file was deleted: an
+// offline blip, a DNS/CORS hiccup or a dead CDN edge all fail in exactly
+// the same way, and what the caller does with `onUnavailable` (tombstone
+// the message, dropping its attachment from the store) is not reversible
+// without refetching the history. So ask the server for a status first and
+// only report the file as gone when it says so.
+const confirmFileIsGone = async (url: string): Promise<boolean> => {
+  if (typeof fetch !== 'function') return false;
+  try {
+    const response = await fetch(url, { method: 'HEAD' });
+    return response.status === 404 || response.status === 410;
+  } catch {
+    // Network failure, or a response we are not allowed to read: tells us
+    // nothing about whether the file still exists.
+    return false;
+  }
+};
 
 const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
   fileURL,
@@ -59,6 +77,12 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
     }
     setState('loading');
     let cancelled = false;
+    const reportIfGone = () => {
+      if (!onUnavailable) return;
+      confirmFileIsGone(locationPreview).then((gone) => {
+        if (!cancelled && gone) onUnavailable();
+      });
+    };
     const preloader = new Image();
     preloader.onload = () => {
       if (!cancelled) setState('loaded');
@@ -74,11 +98,11 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
         requestFileTokenRecovery().then((gotToken) => {
           if (cancelled || gotToken) return;
           setState('failed');
-          onUnavailable?.();
+          reportIfGone();
         });
       } else {
         setState('failed');
-        onUnavailable?.();
+        reportIfGone();
       }
     };
     preloader.src = locationPreview;
