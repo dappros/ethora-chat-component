@@ -24,6 +24,7 @@ import { formatCallLogLabel } from '../../helpers/callLogMessage';
 import { stripBotMarkup } from '../../helpers/botMarkup';
 import { appendFileToken } from '../../helpers/secureFileUrl';
 import { RoomListTestIds } from '../../testIds';
+import { isOpaqueXmppUserId } from '../../helpers/xmppUsername';
 
 interface ChatRoomItemProps {
   chat: IRoom;
@@ -112,12 +113,19 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
       // was cached with the message. The message's own `name` is the
       // fallback that carries broadcast/system senders ("Ethora"), which
       // never appear in usersSet.
+      const messageName = String(message?.user?.name || '').trim();
+      const safeMessageName = isOpaqueXmppUserId(messageName) ? '' : messageName;
+      // An opaque id (local part or full jid) is never shown as a name - a
+      // 50-character hex string reads as a bug, not a name, and it also
+      // breaks the row's fixed-width layout. Leave the name EMPTY in that
+      // case (rather than falling through to 'Unknown') so the preview
+      // renderers below can omit the name line entirely and show just the
+      // message body, which reads fine on its own. A genuinely
+      // human-readable id is still shown, same as before.
+      const safeLocalId = isOpaqueXmppUserId(localId) ? '' : localId;
+      const safeRawUserId = isOpaqueXmppUserId(rawUserId) ? '' : rawUserId;
       const safeName =
-        fromUsersSet ||
-        String(message?.user?.name || '').trim() ||
-        localId ||
-        rawUserId ||
-        'Unknown';
+        fromUsersSet || safeMessageName || safeLocalId || safeRawUserId || '';
 
       return {
         ...message,

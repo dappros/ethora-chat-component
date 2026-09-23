@@ -125,4 +125,40 @@ describe('resolveSenderDisplayName', () => {
 
     expect(resolveSenderDisplayName(message, usersSet)).toBe('alice');
   });
+
+  // Regression: a raw opaque xmpp id baked in as `user.name` (by an earlier
+  // resolution, or by an earlier bug in this very function) used to look
+  // exactly like a real one-word name and win the whole chain forever - the
+  // reported "id stays for the whole session" bug. An opaque id must behave
+  // like the "Deleted User" miss sentinel: ignored as `currentName`, and
+  // never produced by the tail fallback either.
+  describe('opaque xmpp ids', () => {
+    const OPAQUE_ID = '646cc8dc96d4a4dc8f7b2f2d_6ab3bdf50708e7041e0f8b96';
+
+    it('does not let a raw id already stamped as user.name short-circuit a better source', () => {
+      const message = {
+        user: { id: OPAQUE_ID, name: OPAQUE_ID },
+        senderFirstName: 'фів',
+        senderLastName: 'фів',
+      } as any;
+
+      expect(resolveSenderDisplayName(message, emptyUsersSet)).toBe(
+        'фів фів'
+      );
+    });
+
+    it('falls back to the "Deleted User" sentinel instead of the raw id when nothing else resolves', () => {
+      const message = { user: { id: OPAQUE_ID } } as any;
+
+      expect(resolveSenderDisplayName(message, emptyUsersSet)).toBe(
+        'Deleted User'
+      );
+    });
+
+    it('still returns a genuinely human-readable id from the tail fallback', () => {
+      const message = { user: { id: 'alice@example.com' } } as any;
+
+      expect(resolveSenderDisplayName(message, emptyUsersSet)).toBe('alice');
+    });
+  });
 });

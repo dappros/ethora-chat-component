@@ -49,28 +49,33 @@ export const Avatar: React.FC<AvatarProps> = ({
   const backgroundColor = iconsBg || hashedBg;
 
   const getInitials = () => {
-    const isAlphabetic = (char: string) => /^[a-zA-Zа-яА-ЯёЁ]$/.test(char);
+    // Same permissive rule as ProfileImagePlaceholder.getTwoUppercaseLetters
+    // (letters, numbers or punctuation in any script) - the old latin/
+    // cyrillic-only check rejected a leading digit, so a name like
+    // "5test 5test" produced an empty circle in the message bubble while
+    // the profile modal (using the wider rule) correctly showed "55".
+    const isValidInitialChar = (char: string) => /^[\p{L}\p{N}\p{P}]$/u.test(char);
 
     if (firstName && lastName) {
-      const firstInitial = isAlphabetic(firstName[0])
+      const firstInitial = isValidInitialChar(firstName[0])
         ? firstName[0].toUpperCase()
         : '';
-      const lastInitial = isAlphabetic(lastName[0])
+      const lastInitial = isValidInitialChar(lastName[0])
         ? lastName[0].toUpperCase()
         : '';
       return `${firstInitial}${lastInitial}`;
     } else if (username) {
       const names = username.split(' ');
       if (names.length > 1) {
-        const firstInitial = isAlphabetic(names[0][0])
+        const firstInitial = isValidInitialChar(names[0][0])
           ? names[0][0].toUpperCase()
           : '';
-        const secondInitial = isAlphabetic(names[1][0])
+        const secondInitial = isValidInitialChar(names[1][0])
           ? names[1][0].toUpperCase()
           : '';
         return `${firstInitial}${secondInitial}`;
       } else {
-        const singleInitial = isAlphabetic(names[0][0])
+        const singleInitial = isValidInitialChar(names[0][0])
           ? names[0][0].toUpperCase()
           : '';
         return `${singleInitial}`;

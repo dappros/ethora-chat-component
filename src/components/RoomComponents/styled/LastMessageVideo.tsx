@@ -48,9 +48,13 @@ const LastMessageVideo: FC<LastMessageVideoProps> = ({
   location,
   originalName,
 }) => {
+  // See LastTextMessage.tsx: an empty name (e.g. an opaque xmpp id) omits
+  // the name line (and its trailing ":") entirely rather than rendering a
+  // bare colon.
+  const name = user?.name;
   return (
     <LastRoomMessageContainer>
-      <LastRoomMessageName>{user.name || ''}:</LastRoomMessageName>
+      {name && <LastRoomMessageName>{name}:</LastRoomMessageName>}
       <div
         style={{
           display: 'flex',

@@ -16,9 +16,13 @@ const LastMessageEmoji: FC<LastMessageEmojiProps> = ({ user, emoji }) => {
   useEmojiData();
   const memoEmoji = getEmojiNativeById;
 
+  // See LastTextMessage.tsx: an empty name (e.g. an opaque xmpp id) omits
+  // the name line (and its trailing ":") entirely rather than rendering a
+  // bare colon.
+  const name = user?.name;
   return (
     <LastRoomMessageContainer>
-      <LastRoomMessageName>{user.name || ''}:</LastRoomMessageName>
+      {name && <LastRoomMessageName>{name}:</LastRoomMessageName>}
       <LastRoomMessageText>{memoEmoji(emoji)}</LastRoomMessageText>
     </LastRoomMessageContainer>
   );

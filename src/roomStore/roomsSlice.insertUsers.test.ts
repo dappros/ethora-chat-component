@@ -83,6 +83,76 @@ describe('roomsSlice - insertUsers does not downgrade an already-resolved name',
     expect(state.rooms[JID].messages[0].user.name).toBe('Fresh Name');
   });
 
+  // Regression: before the opaque-id fix, a raw xmpp id baked into
+  // `message.user.name` (e.g. a message restored from persisted state that
+  // predates the fix, or written by any path that skipped enrichment) read
+  // exactly like a real name and was never revisited. `insertUsers`'s
+  // upgrade pass must treat that shape the same as a stale "Deleted User"
+  // message and heal it once a real usersSet entry arrives - not just rely
+  // on it never happening again at insert time.
+  it('a message already stamped with a raw opaque id heals once a real usersSet entry arrives', () => {
+    let state = reducer(
+      undefined,
+      addRoom({
+        roomData: makeRoom({
+          messages: [
+            makeMessage({ user: { id: SENDER_ID, name: SENDER_ID } as any }),
+          ],
+        }),
+      })
+    );
+    expect(state.rooms[JID].messages[0].user.name).toBe(SENDER_ID);
+
+    state = reducer(
+      state,
+      insertUsers({
+        newUsers: [
+          { xmppUsername: SENDER_ID, firstName: 'фів', lastName: 'фів' } as any,
+        ],
+      })
+    );
+
+    expect(state.rooms[JID].messages[0].user.name).toBe('фів фів');
+  });
+
+  // Regression: the walk in insertUsers only re-checks a message when either
+  // (a) that exact sender is part of THIS insertUsers batch, or (b) the
+  // message is stale. Before this fix, "stale" meant only the literal
+  // "Deleted User" sentinel - a message stuck with a raw opaque id (from
+  // legacy persisted state, or any path that skipped the resolveSenderDisplayName
+  // fix) would never be revisited by an UNRELATED insertUsers call, even
+  // though it already carries a perfectly good name in its own <data>
+  // fields. This is the exact "unrelated user rename/insert wakes up an old
+  // broken row" shape the "Deleted User" self-heal already covered.
+  it('a message stamped with a raw opaque id self-heals from its own data on an unrelated insertUsers call', () => {
+    const OTHER_SENDER_ID = '646cc8dc96d4a4dc8f7b2f2d_0000000000000000000000';
+    let state = reducer(
+      undefined,
+      addRoom({
+        roomData: makeRoom({
+          messages: [
+            makeMessage({ user: { id: SENDER_ID, name: SENDER_ID } as any }),
+          ],
+        }),
+      })
+    );
+    expect(state.rooms[JID].messages[0].user.name).toBe(SENDER_ID);
+
+    // Insert a completely unrelated user - SENDER_ID is not in this batch,
+    // so the only reason the walk revisits our message at all is that it's
+    // "stale" (an opaque id counts now, same as "Deleted User").
+    state = reducer(
+      state,
+      insertUsers({
+        newUsers: [
+          { xmppUsername: OTHER_SENDER_ID, firstName: 'Other', lastName: 'Person' } as any,
+        ],
+      })
+    );
+
+    expect(state.rooms[JID].messages[0].user.name).toBe('New User');
+  });
+
   it('a nameless usersSet entry still lets a stale "Deleted User" message self-heal from the message data', () => {
     let state = reducer(undefined, addRoom({ roomData: makeRoom() }));
     state = reducer(

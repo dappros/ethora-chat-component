@@ -53,6 +53,7 @@ import {
   QuickReply,
 } from '../../helpers/quickReplies';
 import { useSendMessage } from '../../hooks/useSendMessage';
+import { isOpaqueXmppUserId } from '../../helpers/xmppUsername';
 import { parseBotMarkup, stripBotMarkup } from '../../helpers/botMarkup';
 import styled from 'styled-components';
 import {
@@ -152,8 +153,19 @@ const Message: React.FC<MessageProps> = forwardRef<
   const usersSetDisplayName = senderEntry
     ? `${senderEntry.firstName ?? ''} ${senderEntry.lastName ?? ''}`.trim()
     : '';
+  // Neither `message.user?.name` nor `senderLocal` is guaranteed readable:
+  // a message carried over from before the opaque-id fix (persisted state)
+  // can still have the raw xmpp id baked in as its name, and `senderLocal`
+  // always IS the raw id. Showing either as a "name" is the bug this whole
+  // change is about - fall through to 'Unknown' instead, same as a sender
+  // usersSet has never heard of.
+  const safeMessageName =
+    message.user?.name && !isOpaqueXmppUserId(message.user.name)
+      ? message.user.name
+      : '';
+  const safeSenderLocal = isOpaqueXmppUserId(senderLocal) ? '' : senderLocal;
   const senderDisplayName =
-    usersSetDisplayName || message.user?.name || senderLocal || 'Unknown';
+    usersSetDisplayName || safeMessageName || safeSenderLocal || 'Unknown';
   // usersSet first, same reason as the name above: a message restored from
   // the persist cache never carries an avatar URL at all (profileImage is
   // deliberately absent from PERSISTED_MESSAGE_USER_FIELDS - it's exactly
