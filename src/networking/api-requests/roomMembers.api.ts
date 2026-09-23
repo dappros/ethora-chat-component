@@ -47,7 +47,14 @@ export async function getUserByXmppUsername(
       cache.set(normalizedXmppUsername, result);
       return result;
     } catch (error) {
-      cache.set(normalizedXmppUsername, null);
+      // Deliberately NOT cached: a brand-new user's profile can 404/400 for a
+      // little while after registration (backend indexing lag), and caching
+      // that failure as a permanent `null` here used to poison the sender's
+      // display name for the rest of the session - every later message from
+      // the same user kept hitting this cached miss instead of retrying, and
+      // only a full reload (fresh module state, empty cache) ever cleared it.
+      // Leaving the cache untouched means the next message from this sender
+      // simply tries the lookup again instead of being stuck forever.
       console.error(`Failed to fetch user: ${normalizedXmppUsername}`, error);
       return null;
     } finally {
