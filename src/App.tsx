@@ -25,15 +25,26 @@ const LIVEKIT_URL =
 // library entry (src/main.ts).
 const DEV_ENV =
   (((import.meta as unknown as { env?: Record<string, string | undefined> }).env) || {});
-// `?email=&password=` lets a second tab (e.g. 127.0.0.1:5173, a different
-// origin from localhost:5173 - separate localStorage, separate XMPP session)
-// log in as a different account instead of hijacking the same one from
-// .env.local. Only read here, in dev-only harness code.
-const DEV_URL_PARAMS =
-  typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-const DEV_LOGIN_EMAIL = DEV_URL_PARAMS?.get('email') || DEV_ENV.VITE_DEV_LOGIN_EMAIL || '';
+// `?account=b` switches this tab to the second account from .env.local
+// (VITE_DEV_LOGIN_EMAIL_B / VITE_DEV_LOGIN_PASSWORD_B). Open it on the
+// other loopback origin (127.0.0.1 while the first tab is on localhost):
+// different origin means separate localStorage and a separate XMPP session,
+// which is what makes a real two-user check possible on one machine. The
+// credentials stay in the gitignored .env.local, never in the URL - a URL
+// carrying a password ends up in history, logs and screenshots.
+const DEV_ACCOUNT =
+  typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('account')
+    : null;
+const USE_SECOND_ACCOUNT = DEV_ACCOUNT === 'b';
+const DEV_LOGIN_EMAIL =
+  (USE_SECOND_ACCOUNT ? DEV_ENV.VITE_DEV_LOGIN_EMAIL_B : '') ||
+  DEV_ENV.VITE_DEV_LOGIN_EMAIL ||
+  '';
 const DEV_LOGIN_PASSWORD =
-  DEV_URL_PARAMS?.get('password') || DEV_ENV.VITE_DEV_LOGIN_PASSWORD || '';
+  (USE_SECOND_ACCOUNT ? DEV_ENV.VITE_DEV_LOGIN_PASSWORD_B : '') ||
+  DEV_ENV.VITE_DEV_LOGIN_PASSWORD ||
+  '';
 const DEV_AUTOLOGIN: Pick<IConfig, 'customLogin'> =
   DEV_LOGIN_EMAIL && DEV_LOGIN_PASSWORD
     ? {
