@@ -103,7 +103,7 @@ describe('a sealed attachment, all the way round', () => {
 
     const save = vi.fn();
     const meta = await saveSealedAttachment(
-      message.location as string,
+      `${message.location}?ft=tok`,
       message.e2eeKeys![0],
       { fetchImpl, save }
     );

@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 
-import chatSettingsSlice from '../../roomStore/chatSettingsSlice';
+import chatSettingsSlice, { refreshTokens } from '../../roomStore/chatSettingsSlice';
 import roomsSlice from '../../roomStore/roomsSlice';
 import roomHeapSlice from '../../roomStore/roomHeapSlice';
 import { sealFileForUpload } from '../../e2ee/fileEnvelope';
@@ -29,6 +29,11 @@ const renderWith = (message: Partial<IMessage>) => {
     reducer: { chatSettingStore: chatSettingsSlice, rooms: roomsSlice, roomHeapSlice },
     middleware: (d) => d({ serializableCheck: false, immutableCheck: false }),
   });
+  // Secure attachments are authorized by the viewer's own `?ft=` token, which
+  // MediaMessage appends at render time. Without it in the store the URL that
+  // reaches the fetch has no token and is refused before it leaves - the same
+  // thing that happens to a real session that never received one.
+  store.dispatch(refreshTokens({ fileToken: 'tok' }));
   return render(
     <Provider store={store}>
       <MediaMessage message={message as IMessage} />

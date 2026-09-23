@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { sealFileForUpload } from '../e2ee/fileEnvelope';
 import { openSealedAttachment, saveSealedAttachment } from './sealedAttachments';
 
+// Real call sites append the viewer's `?ft=` token before calling in.
 const URL_BASE = 'https://secure-files.example/bucket/';
+const secure = (n: number) => `${URL_BASE}${n}?ft=tok`;
 
 const sealed = (content: string, name: string, type: string) =>
   sealFileForUpload(new File([content], name, { type }));
@@ -25,7 +27,7 @@ describe('openSealedAttachment', () => {
     const seal = await sealed('the actual contents', 'contract-final.pdf', 'application/pdf');
 
     const opened = await openSealedAttachment(
-      `${URL_BASE}1`,
+      secure(1),
       seal.keyMaterial,
       serving(seal.ciphertext)
     );
@@ -40,7 +42,7 @@ describe('openSealedAttachment', () => {
     const failing = vi.fn(async () => ({ ok: false, status: 403 })) as unknown as typeof fetch;
 
     await expect(
-      openSealedAttachment(`${URL_BASE}1`, seal.keyMaterial, failing)
+      openSealedAttachment(secure(1), seal.keyMaterial, failing)
     ).rejects.toThrow(/sealed_attachment_http_403/);
   });
 
@@ -49,7 +51,7 @@ describe('openSealedAttachment', () => {
     const b = await sealed('bbb', 'b.txt', 'text/plain');
 
     await expect(
-      openSealedAttachment(`${URL_BASE}1`, b.keyMaterial, serving(a.ciphertext))
+      openSealedAttachment(secure(1), b.keyMaterial, serving(a.ciphertext))
     ).rejects.toThrow();
   });
 
@@ -59,9 +61,9 @@ describe('openSealedAttachment', () => {
     const seal = await sealed('x', 'a.txt', 'text/plain');
     const fetchImpl = serving(seal.ciphertext);
 
-    await openSealedAttachment(`${URL_BASE}1?ft=tok`, seal.keyMaterial, fetchImpl);
+    await openSealedAttachment(secure(1), seal.keyMaterial, fetchImpl);
 
-    expect(fetchImpl).toHaveBeenCalledWith(`${URL_BASE}1?ft=tok`);
+    expect(fetchImpl).toHaveBeenCalledWith(secure(1));
   });
 });
 
@@ -70,7 +72,7 @@ describe('saveSealedAttachment', () => {
     const seal = await sealed('the actual contents', 'contract-final.pdf', 'application/pdf');
     const save = vi.fn();
 
-    const meta = await saveSealedAttachment(`${URL_BASE}1`, seal.keyMaterial, {
+    const meta = await saveSealedAttachment(secure(1), seal.keyMaterial, {
       fetchImpl: serving(seal.ciphertext),
       save,
     });
@@ -92,7 +94,7 @@ describe('saveSealedAttachment', () => {
     const save = vi.fn();
 
     await expect(
-      saveSealedAttachment(`${URL_BASE}1`, b.keyMaterial, {
+      saveSealedAttachment(secure(1), b.keyMaterial, {
         fetchImpl: serving(a.ciphertext),
         save,
       })
@@ -116,11 +118,55 @@ describe('saveSealedAttachment', () => {
       revoked.push(u);
     });
 
-    await saveSealedAttachment(`${URL_BASE}1`, seal.keyMaterial, {
+    await saveSealedAttachment(secure(1), seal.keyMaterial, {
       fetchImpl: serving(seal.ciphertext),
     });
 
     expect(created).toHaveLength(1);
     expect(revoked).toEqual(created);
+  });
+});
+
+describe('openSealedAttachment failure modes', () => {
+  it('names a missing fileToken rather than letting it 403', async () => {
+    const seal = await sealed('x', 'a.txt', 'text/plain');
+    const fetchImpl = vi.fn();
+
+    await expect(
+      openSealedAttachment(
+        'https://secure-files.example/bucket/1',
+        seal.keyMaterial,
+        fetchImpl as unknown as typeof fetch
+      )
+    ).rejects.toThrow(/no_file_token/);
+
+    // Nothing is even attempted: the request cannot succeed.
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('names an unreachable host, which is what a CORS rejection looks like', async () => {
+    // fetch() rejects with a bare TypeError for CORS, DNS and offline alike.
+    const seal = await sealed('x', 'a.txt', 'text/plain');
+    const failing = vi.fn(async () => {
+      throw new TypeError('Failed to fetch');
+    }) as unknown as typeof fetch;
+
+    await expect(
+      openSealedAttachment(secure(1), seal.keyMaterial, failing)
+    ).rejects.toThrow(/unreachable.*Failed to fetch/);
+  });
+
+  it('leaves a non-secure URL alone, token or not', async () => {
+    // A v1 (public) attachment is not token-gated; requiring ?ft= there would
+    // break every legacy upload.
+    const seal = await sealed('x', 'a.txt', 'text/plain');
+    const fetchImpl = serving(seal.ciphertext);
+
+    const opened = await openSealedAttachment(
+      'https://files.example/bucket/1',
+      seal.keyMaterial,
+      fetchImpl
+    );
+    expect(opened.meta.originalname).toBe('a.txt');
   });
 });

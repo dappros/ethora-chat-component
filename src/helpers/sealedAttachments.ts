@@ -13,6 +13,7 @@
 // the tab waiting to be found.
 
 import { openSealedFile, type FileEnvelopeMeta } from '../e2ee/fileEnvelope';
+import { isSecureFileUrl } from './secureFileUrl';
 
 export interface OpenedAttachment {
   bytes: Uint8Array;
@@ -30,7 +31,29 @@ export async function openSealedAttachment(
   keyMaterial: string,
   fetchImpl: typeof fetch = fetch
 ): Promise<OpenedAttachment> {
-  const response = await fetchImpl(url);
+  // A secure object is authorized by the `?ft=` token in the URL. The cookie
+  // the <img> path relies on is not an option here: this is a cross-origin
+  // fetch, so the browser will not attach it. Say which of the two went wrong
+  // rather than reporting every failure as "could not be opened".
+  if (isSecureFileUrl(url) && !/[?&]ft=/.test(url)) {
+    throw new Error('sealed_attachment_no_file_token');
+  }
+
+  let response: Response;
+  try {
+    response = await fetchImpl(url);
+  } catch (error) {
+    // fetch() rejects with a bare TypeError for a CORS rejection, a DNS
+    // failure and an offline tab alike - there is deliberately no detail. The
+    // first thing to check is that the secure files vhost sends
+    // Access-Control-Allow-Origin (deploy/nginx/secure-files.conf.template):
+    // <img> never needed it, so an install predating sealed attachments has
+    // no such header and every one of them fails here.
+    throw new Error(
+      `sealed_attachment_unreachable: ${String((error as Error)?.message || error)}`
+    );
+  }
+
   if (!response.ok) {
     throw new Error(`sealed_attachment_http_${response.status}`);
   }
