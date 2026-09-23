@@ -1,12 +1,10 @@
 import { store } from '../roomStore';
+import { toLocalPart } from './xmppIdShape';
 
-// Strips a value that the local part of an XMPP JID may carry, leaving
-// just the bare resource (anything before `@`). XMPP allows resources
-// with `@` only in escaped form so the simple split is enough here.
-export const toLocalPart = (value?: string): string => {
-  if (!value) return '';
-  return String(value).split('@')[0];
-};
+// Re-exported for existing callers of this module - the actual
+// implementation lives in xmppIdShape.ts, which has no `store` dependency
+// (see that file's header comment for why that separation matters).
+export { toLocalPart, isOpaqueXmppUserId } from './xmppIdShape';
 
 export const normalizeXmppUsername = (value: string | undefined | null): string => {
   if (!value) return '';

@@ -1,4 +1,9 @@
 import { IMessage, RoomMember } from '../types/types';
+// From xmppIdShape.ts, NOT xmppUsername.ts: this file is reachable from the
+// redux reducer graph (via roomsSlice.ts), and xmppUsername.ts imports
+// `store` from roomStore/index.ts - importing it here would create a
+// circular dependency back into the module still assembling that store.
+import { isOpaqueXmppUserId } from './xmppIdShape';
 
 /**
  * Cache-only lookup. Returns the literal "Deleted User" as a MISS sentinel
@@ -56,8 +61,16 @@ export const resolveSenderDisplayName = (
   const localUserId = rawUserId.split('@')[0];
   const currentNameRaw = String(message?.user?.name || '').trim();
   // A previously-resolved "Deleted User" is itself a miss sentinel, not a
-  // real name - don't let it short-circuit the fallback chain below.
-  const currentName = currentNameRaw === 'Deleted User' ? '' : currentNameRaw;
+  // real name - don't let it short-circuit the fallback chain below. Same
+  // for a raw xmpp id baked in as `user.name` by an earlier, less careful
+  // resolution (or by this very function's own tail below, before this
+  // fix): once that happens it reads exactly like a real one-word name and
+  // would otherwise win here forever, even after a better source (a fresh
+  // profile, a `/chats/my` seed) becomes available.
+  const currentName =
+    currentNameRaw === 'Deleted User' || isOpaqueXmppUserId(currentNameRaw)
+      ? ''
+      : currentNameRaw;
 
   const dataFullName = String(message?.fullName || '').trim();
   const dataFirst = String(message?.senderFirstName || '').trim();
@@ -66,15 +79,32 @@ export const resolveSenderDisplayName = (
 
   const usersSetName = createUserNameFromSetUser(usersSet, localUserId);
   const usersSetNameAlt = createUserNameFromSetUser(usersSet, rawUserId);
-  const isUsersSetUseful = (name: string) => !!name && name !== 'Deleted User';
+  // `createUserNameFromSetUser` itself falls back to echoing the lookup key
+  // back when it finds a usersSet entry with no firstName/lastName (a real
+  // hit, but a nameless one - e.g. a just-registered profile the backend
+  // hasn't finished populating). That echo is indistinguishable from a real
+  // one-word name unless we also compare it against the key we looked up -
+  // treat it as a miss too, the same as "Deleted User", so we still try
+  // composedFromData below instead of showing the raw xmpp id.
+  const isUsersSetUseful = (name: string, key: string) =>
+    !!name && name !== 'Deleted User' && name !== key;
+
+  // The bare id / full jid are a last resort, and only when they're
+  // actually readable - an opaque machine-generated id (see
+  // isOpaqueXmppUserId) is worse than the "Deleted User" sentinel itself:
+  // it looks like a name, sticks in `message.user.name`, and (before this
+  // fix) short-circuited every later resolution attempt via `currentName`
+  // above. Drop straight through to the sentinel instead.
+  const safeLocalUserId = isOpaqueXmppUserId(localUserId) ? '' : localUserId;
+  const safeRawUserId = isOpaqueXmppUserId(rawUserId) ? '' : rawUserId;
 
   return (
     currentName ||
-    (isUsersSetUseful(usersSetName) && usersSetName) ||
-    (isUsersSetUseful(usersSetNameAlt) && usersSetNameAlt) ||
+    (isUsersSetUseful(usersSetName, localUserId) && usersSetName) ||
+    (isUsersSetUseful(usersSetNameAlt, rawUserId) && usersSetNameAlt) ||
     composedFromData ||
-    localUserId ||
-    rawUserId ||
+    safeLocalUserId ||
+    safeRawUserId ||
     'Deleted User'
   );
 };

@@ -53,6 +53,7 @@ import {
   QuickReply,
 } from '../../helpers/quickReplies';
 import { useSendMessage } from '../../hooks/useSendMessage';
+import { isOpaqueXmppUserId } from '../../helpers/xmppUsername';
 import { parseBotMarkup, stripBotMarkup } from '../../helpers/botMarkup';
 import styled from 'styled-components';
 import {
@@ -142,10 +143,29 @@ const Message: React.FC<MessageProps> = forwardRef<
     (state: RootState) =>
       state.rooms.usersSet[senderLocal] ?? state.rooms.usersSet[senderUserId]
   );
-  const senderDisplayName = senderEntry
-    ? `${senderEntry.firstName ?? ''} ${senderEntry.lastName ?? ''}`.trim() ||
-      senderLocal
-    : message.user?.name || senderLocal || 'Unknown';
+  // A usersSet hit with blank firstName/lastName (a profile that hasn't
+  // finished populating yet - the common case right after someone new
+  // registers) is worth no more than a miss. Falling straight to `senderLocal`
+  // in that case is what showed the raw xmpp id as the sender's name instead
+  // of the name the sender already stamped on the message itself
+  // (message.user.name, resolved by resolveSenderDisplayName/enrichMessageAuthor
+  // when the message was inserted) - try that before giving up to the id.
+  const usersSetDisplayName = senderEntry
+    ? `${senderEntry.firstName ?? ''} ${senderEntry.lastName ?? ''}`.trim()
+    : '';
+  // Neither `message.user?.name` nor `senderLocal` is guaranteed readable:
+  // a message carried over from before the opaque-id fix (persisted state)
+  // can still have the raw xmpp id baked in as its name, and `senderLocal`
+  // always IS the raw id. Showing either as a "name" is the bug this whole
+  // change is about - fall through to 'Unknown' instead, same as a sender
+  // usersSet has never heard of.
+  const safeMessageName =
+    message.user?.name && !isOpaqueXmppUserId(message.user.name)
+      ? message.user.name
+      : '';
+  const safeSenderLocal = isOpaqueXmppUserId(senderLocal) ? '' : senderLocal;
+  const senderDisplayName =
+    usersSetDisplayName || safeMessageName || safeSenderLocal || 'Unknown';
   // usersSet first, same reason as the name above: a message restored from
   // the persist cache never carries an avatar URL at all (profileImage is
   // deliberately absent from PERSISTED_MESSAGE_USER_FIELDS - it's exactly
@@ -191,32 +211,19 @@ const Message: React.FC<MessageProps> = forwardRef<
     if (interactionsDisabled) return;
 
     event.preventDefault();
-    const menuWidth = 240;
-    const menuHeight = 310;
 
     const x = 'touches' in event ? event.touches[0].clientX : event.clientX;
     const y = 'touches' in event ? event.touches[0].clientY : event.clientY;
 
-    if (typeof window === 'undefined') {
-      setContextMenu({
-        visible: true,
-        x: x,
-        y: y,
-      });
-      return;
-    }
-
-    const windowWidth = window.innerWidth;
-    const windowHeight = window.innerHeight;
-
-    const adjustedX = x + menuWidth > windowWidth ? x - menuWidth : x;
-    const adjustedY =
-      y + menuHeight > windowHeight ? windowHeight - menuHeight : y;
-
+    // Just record the click/tap point here. The menu's real size depends on
+    // which rows render (Reply/Copy/Edit/Delete are conditional) and on
+    // whether the emoji picker is open, so MessageInteractions measures its
+    // own rendered container and clamps/flips it against the viewport
+    // instead of us guessing a fixed menu size up front.
     setContextMenu({
       visible: true,
-      x: adjustedX,
-      y: adjustedY,
+      x,
+      y,
     });
   };
 

@@ -9,6 +9,7 @@ import {
   isRefreshFatalError,
   hasRotatableSession,
   markCurrentSessionDead,
+  attemptHostRecovery,
   RefreshResult,
 } from './authRefresh';
 
@@ -127,6 +128,25 @@ http.interceptors.response.use(
       // failure mode the new backend scheme would otherwise cause.
       if (isRefreshFatalError(refreshError)) {
         markCurrentSessionDead();
+
+        // Bug D: our refresh token being dead doesn't mean the READER is
+        // logged out - a host embedding this SDK via config.customLogin or
+        // config.jwtLogin usually keeps its own session alive well past
+        // ours. Give it a chance to hand back a fresh Ethora session before
+        // giving up: dispatching logout() unconditionally here used to tear
+        // down the whole chat UI (LoginWrapper unmounts ChatWrapper the
+        // moment xmppPassword clears) and show a loading/login screen even
+        // though the host could have reauthenticated us transparently.
+        const recovered = await attemptHostRecovery();
+        if (recovered) {
+          const freshToken = store.getState().chatSettingStore?.user?.token;
+          if (freshToken) {
+            originalRequest.headers = originalRequest.headers || {};
+            originalRequest.headers['Authorization'] = freshToken;
+            return http(originalRequest);
+          }
+        }
+
         store.dispatch(logout());
       }
       return Promise.reject(refreshError);

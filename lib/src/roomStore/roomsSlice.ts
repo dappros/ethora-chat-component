@@ -15,6 +15,11 @@ import {
   createUserNameFromSetUser,
   resolveSenderDisplayName,
 } from '../helpers/createUserNameFromSetUser';
+// From xmppIdShape.ts, NOT xmppUsername.ts: this reducer file is imported
+// by roomStore/index.ts to build the root reducer, and xmppUsername.ts
+// imports `store` from that same index.ts - importing it here would create
+// a circular dependency back into the module still assembling the store.
+import { isOpaqueXmppUserId } from '../helpers/xmppIdShape';
 import { extractUniqueMembersFromRooms } from '../helpers/extractUniqueMembersFromRooms';
 import { getTimestampFromUnknown } from '../helpers/timestamp';
 
@@ -962,11 +967,17 @@ const roomsStore = createSlice({
 
           // Upgrade the rendered name when:
           //  (a) this is one of the newly-inserted users, OR
-          //  (b) the message was previously stamped with "Deleted User" and we now
-          //      have an identity we can use (either from usersSet or from in-message
-          //      <data> fullName fields) - fixes the sticky-"Deleted User" bug users
-          //      hit after an ai-service bot restart.
-          const stale = String(message.user?.name || '') === 'Deleted User';
+          //  (b) the message was previously stamped with "Deleted User" (or, same
+          //      idea, a raw opaque xmpp id baked in as the name - see
+          //      isOpaqueXmppUserId) and we now have an identity we can use (either
+          //      from usersSet or from in-message <data> fullName fields) - fixes
+          //      the sticky-"Deleted User"/sticky-raw-id bug users hit after an
+          //      ai-service bot restart, or right after a brand-new user's first
+          //      message, respectively.
+          const currentMessageName = String(message.user?.name || '');
+          const stale =
+            currentMessageName === 'Deleted User' ||
+            isOpaqueXmppUserId(currentMessageName);
           const isTargetedUpdate =
             updatedUsernames.has(msgUserLocal) || updatedUsernames.has(rawId);
           if (!isTargetedUpdate && !stale) return;
@@ -975,7 +986,21 @@ const roomsStore = createSlice({
             const upgraded =
               createUserNameFromSetUser(state.usersSet, msgUserLocal) ||
               createUserNameFromSetUser(state.usersSet, rawId);
-            if (upgraded && upgraded !== 'Deleted User') {
+            // createUserNameFromSetUser falls back to echoing the lookup key
+            // back when the matched usersSet entry has no firstName/lastName
+            // (a real hit, but a nameless one - e.g. a profile that hasn't
+            // finished populating for a brand-new user). Treating that echo
+            // as a genuine "upgrade" used to overwrite an already-good name
+            // (resolved from the message's own <data> fields at insert time)
+            // with the raw xmpp id, and it would keep doing so on every later
+            // insertUsers call for this sender until a reload rebuilt
+            // usersSet from scratch. Only accept it when it's an actual name.
+            const isRealName =
+              !!upgraded &&
+              upgraded !== 'Deleted User' &&
+              upgraded !== msgUserLocal &&
+              upgraded !== rawId;
+            if (isRealName) {
               message.user = { ...message.user, name: upgraded };
               return;
             }

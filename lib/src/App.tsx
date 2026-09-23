@@ -25,8 +25,26 @@ const LIVEKIT_URL =
 // library entry (src/main.ts).
 const DEV_ENV =
   (((import.meta as unknown as { env?: Record<string, string | undefined> }).env) || {});
-const DEV_LOGIN_EMAIL = DEV_ENV.VITE_DEV_LOGIN_EMAIL || '';
-const DEV_LOGIN_PASSWORD = DEV_ENV.VITE_DEV_LOGIN_PASSWORD || '';
+// `?account=b` switches this tab to the second account from .env.local
+// (VITE_DEV_LOGIN_EMAIL_B / VITE_DEV_LOGIN_PASSWORD_B). Open it on the
+// other loopback origin (127.0.0.1 while the first tab is on localhost):
+// different origin means separate localStorage and a separate XMPP session,
+// which is what makes a real two-user check possible on one machine. The
+// credentials stay in the gitignored .env.local, never in the URL - a URL
+// carrying a password ends up in history, logs and screenshots.
+const DEV_ACCOUNT =
+  typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('account')
+    : null;
+const USE_SECOND_ACCOUNT = DEV_ACCOUNT === 'b';
+const DEV_LOGIN_EMAIL =
+  (USE_SECOND_ACCOUNT ? DEV_ENV.VITE_DEV_LOGIN_EMAIL_B : '') ||
+  DEV_ENV.VITE_DEV_LOGIN_EMAIL ||
+  '';
+const DEV_LOGIN_PASSWORD =
+  (USE_SECOND_ACCOUNT ? DEV_ENV.VITE_DEV_LOGIN_PASSWORD_B : '') ||
+  DEV_ENV.VITE_DEV_LOGIN_PASSWORD ||
+  '';
 const DEV_AUTOLOGIN: Pick<IConfig, 'customLogin'> =
   DEV_LOGIN_EMAIL && DEV_LOGIN_PASSWORD
     ? {

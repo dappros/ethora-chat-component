@@ -81,13 +81,61 @@ export const resolveExternalReaderLocaleLangSource = (
 // reconnected (e.g. a laptop sleeping, wifi drop, or a mid-session SASL
 // not-authorized recovery). This maps every status XmppClient can report
 // to whether the banner should show.
+// `isRecoveringAuth` mirrors XmppClient.isRecoveringAuth: true for the span
+// of a bounded, provider-backed credential refresh (an expired hourly xmpp
+// password or access token, recoverable without any user action). That
+// refresh cycles status through the very same values a real outage does
+// (offline -> connecting -> online, or auth_failed if it never even got
+// that far this tick), so without this flag every self-healing token
+// refresh painted the same "Connection lost. Retrying..." banner as an
+// actual dropped connection - a recoverable, expected refresh must not
+// look like a scary error. Only a status change OUTSIDE this window (a
+// real socket/network drop, or a recovery that has already exhausted its
+// bounded attempts and given up) should still read as connection-lost.
+//
+// `hasEverBeenOnline` mirrors XmppClient.hasEverBeenOnline: a brand new
+// client spends its first second or two sitting in 'connecting'/'offline'
+// while the WS handshake and SASL bind for a session that has NEVER been
+// online yet are still in flight - that is an ordinary first connect, not
+// a lost one. Measured live: a cold start with a cleared session flashed
+// "Connection lost. Retrying..." for ~2s on every load, purely from this
+// poll seeing 'connecting'/'offline' before the client's very first
+// 'online'. Defaults to `true` (i.e. the plain status mapping below,
+// unchanged) so any caller that predates this flag keeps its old
+// behaviour - only the real poll in this hook passes the client's actual
+// value, and it deliberately never flips back to false once the session
+// has been online, so a later genuine drop still shows the banner.
 export const isStatusConnectionLost = (
-  status?: string | null
-): boolean =>
-  status === 'connecting' ||
-  status === 'offline' ||
-  status === 'error' ||
-  status === 'auth_failed';
+  status?: string | null,
+  isRecoveringAuth?: boolean,
+  hasEverBeenOnline: boolean = true
+): boolean => {
+  if (isRecoveringAuth) return false;
+  if (!hasEverBeenOnline) return false;
+  return (
+    status === 'connecting' ||
+    status === 'offline' ||
+    status === 'error' ||
+    status === 'auth_failed'
+  );
+};
+
+// Bug D: `initBeforeLoad`'s own bootstrap (resolveInitBeforeLoadUser, run
+// from xmppProvider.tsx) is not the only way this reader ends up with a
+// usable session. A host configured with `config.customLogin` or
+// `config.jwtLogin` is recovered independently and concurrently by
+// LoginWrapper's own effect, which dispatches a fresh `user` the moment its
+// login call resolves - completely unaware of whether the provider's own
+// bootstrap succeeded, failed, or is still running. Once that dispatch
+// lands, `user` here holds a perfectly usable session even though
+// `providerBootstrapStatus` may still read 'failed' from the OTHER,
+// now-irrelevant attempt (nothing ever moves it back off 'failed' on its
+// own). This is the check that lets the init effect tell the two apart
+// instead of treating every 'failed' status as permanently locked.
+export const hasHostRefreshedSession = (user: {
+  xmppUsername?: string;
+  xmppPassword?: string;
+}): boolean => Boolean(user?.xmppUsername && user?.xmppPassword);
 
 const useChatWrapperInit = ({
   roomJID,
@@ -575,25 +623,45 @@ const useChatWrapperInit = ({
               providerBootstrapStatus !== 'idle'
             ) {
               if (providerBootstrapStatus === 'failed') {
-                dispatch(setIsLoading({ loading: false, loadingText: undefined }));
-                setConnectionLost(true);
-                setInited(false);
+                // Bug D: a FAILED provider bootstrap (resolveInitBeforeLoadUser
+                // could not restore/refresh a session on its own) is not the
+                // only way this reader ends up with a usable session - a host
+                // configured with config.customLogin / config.jwtLogin is
+                // recovered independently and concurrently by LoginWrapper's
+                // own effect, which dispatches a fresh user the moment its
+                // login call resolves. That dispatch updates `user` here too
+                // (it's in this effect's dependency array), but nothing ever
+                // moves providerBootstrapStatus back off 'failed' - so without
+                // this check, a perfectly usable, host-refreshed session sat
+                // behind this branch forever, re-checking a stale status that
+                // was never going to change and showing a permanent
+                // "Connecting..." spinner instead of the chat.
+                if (!hasHostRefreshedSession(user)) {
+                  dispatch(setIsLoading({ loading: false, loadingText: undefined }));
+                  setConnectionLost(true);
+                  setInited(false);
+                  ethoraLogger.log(
+                    '[InitPolicy] initBeforeLoad=true and provider bootstrap failed. ChatWrapper init is locked.'
+                  );
+                  retryTimeout = setTimeout(initXmmpClient, 2000);
+                  return;
+                }
                 ethoraLogger.log(
-                  '[InitPolicy] initBeforeLoad=true and provider bootstrap failed. ChatWrapper init is locked.'
+                  '[InitPolicy] provider bootstrap failed but a host-refreshed session is available - falling through to direct connect.'
                 );
-                retryTimeout = setTimeout(initXmmpClient, 2000);
+                // Fall through to the direct-connect path below instead of
+                // returning.
+              } else {
+                dispatch(
+                  setIsLoading({ loading: true, loadingText: 'Connecting...' })
+                );
+                setConnectionLost(false);
+                ethoraLogger.log(
+                  `[InitPolicy] initBeforeLoad=true, waiting provider client (status=${providerBootstrapStatus})`
+                );
+                retryTimeout = setTimeout(initXmmpClient, 400);
                 return;
               }
-
-              dispatch(
-                setIsLoading({ loading: true, loadingText: 'Connecting...' })
-              );
-              setConnectionLost(false);
-              ethoraLogger.log(
-                `[InitPolicy] initBeforeLoad=true, waiting provider client (status=${providerBootstrapStatus})`
-              );
-              retryTimeout = setTimeout(initXmmpClient, 400);
-              return;
             }
             try {
               dispatch(
@@ -782,10 +850,20 @@ const useChatWrapperInit = ({
   // xmppClient.ts never dispatch anything React would re-render on.
   useEffect(() => {
     if (!client) return;
-    setConnectionLost(isStatusConnectionLost(client.status));
+    setConnectionLost(
+      isStatusConnectionLost(
+        client.status,
+        client.isRecoveringAuth,
+        client.hasEverBeenOnline
+      )
+    );
     const intervalId = setInterval(() => {
       setConnectionLost((prev) => {
-        const next = isStatusConnectionLost(client.status);
+        const next = isStatusConnectionLost(
+          client.status,
+          client.isRecoveringAuth,
+          client.hasEverBeenOnline
+        );
         return prev === next ? prev : next;
       });
     }, 1000);
