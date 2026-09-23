@@ -260,6 +260,29 @@ export class XmppClient implements XmppClientInterface {
    */
   private authRecoveryAttempts: number = 0;
   private maxAuthRecoveryAttempts: number = 3;
+  /**
+   * True for the whole span of a bounded, self-healing credential
+   * refresh - from the moment `recoverFromAuthFailure` commits to trying
+   * again through to it either reconnecting online or giving up. While
+   * this is true, `status` cycles through 'auth_failed' -> 'offline' ->
+   * 'connecting' purely as a side effect of the refresh-and-reconnect
+   * dance, not because anything is actually wrong with the network - see
+   * `isRecoveringAuth` and its use in useChatWrapperInit's
+   * `isStatusConnectionLost`.
+   */
+  private authRecoveryActive: boolean = false;
+
+  /**
+   * Whether a bounded, provider-backed credential recovery is currently
+   * in flight (see `authRecoveryActive` above). Consumers use this to
+   * avoid painting a "Connection lost" banner for a recoverable, expected
+   * token refresh - only a status change that happens OUTSIDE this window
+   * (a real socket/network drop, or a recovery that has already given up)
+   * should read as a genuine connection loss.
+   */
+  get isRecoveringAuth(): boolean {
+    return this.authRecoveryActive;
+  }
 
   /**
    * Inject (or replace) the callback used to fetch fresh XMPP
@@ -319,6 +342,12 @@ export class XmppClient implements XmppClientInterface {
       return false;
     }
 
+    // From here on we are actually going to try - the status this attempt
+    // produces (offline -> connecting -> online/error) is a side effect of
+    // an expected credential refresh, not a real outage. Set the latch
+    // before any `await` so a poller reading `status` in the same tick
+    // never observes 'auth_failed' without also seeing recovery in flight.
+    this.authRecoveryActive = true;
     this.authRecoveryAttempts += 1;
     this.logStep(`auth-recovery:start:${reason}:${this.authRecoveryAttempts}`);
 
@@ -326,6 +355,7 @@ export class XmppClient implements XmppClientInterface {
       await this.refreshCredentialsOnce();
     } catch (error) {
       console.warn(`[XMPP] credential refresh failed: ${formatError(error)}`);
+      this.authRecoveryActive = false;
       return false;
     }
 
@@ -342,6 +372,8 @@ export class XmppClient implements XmppClientInterface {
         `[XMPP] reconnect after credential refresh failed: ${formatError(error)}`
       );
       return false;
+    } finally {
+      this.authRecoveryActive = false;
     }
   }
 

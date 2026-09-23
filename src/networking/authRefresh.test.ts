@@ -75,6 +75,7 @@ import {
   startCrossTabTokenSync,
   markCurrentSessionDead,
   isSessionDead,
+  attemptHostRecovery,
   __resetAuthRefreshStateForTests,
 } from './authRefresh';
 
@@ -661,6 +662,117 @@ describe('cross-tab token sync', () => {
     });
   });
 });
+/**
+ * Bug D: when the refresh token itself is dead (a RefreshFatalError - see
+ * apiClient's interceptor), the reader is not necessarily logged out - a
+ * host embedding this SDK via config.customLogin or config.jwtLogin
+ * usually keeps its own session alive well past Ethora's refresh-token
+ * TTL. attemptHostRecovery gives that host a chance to hand back a fresh
+ * session before the caller gives up and logs the reader out.
+ */
+describe('attemptHostRecovery', () => {
+  const withXmppCreds = (overrides: Partial<Record<string, unknown>> = {}) => ({
+    _id: 'u1',
+    token: 'host-access',
+    refreshToken: 'host-refresh',
+    xmppUsername: 'host-user',
+    xmppPassword: 'host-pw',
+    ...overrides,
+  });
+
+  it('recovers via customLogin.loginFunction and dispatches the fresh user', async () => {
+    const loginFunction = vi.fn().mockResolvedValue(withXmppCreds());
+    store.dispatch(
+      setConfig({ customLogin: { enabled: true, loginFunction } } as never)
+    );
+
+    const recovered = await attemptHostRecovery();
+
+    expect(recovered).toBe(true);
+    expect(loginFunction).toHaveBeenCalledTimes(1);
+    expect(store.getState().chatSettingStore.user.xmppPassword).toBe('host-pw');
+    expect(store.getState().chatSettingStore.user.token).toBe('host-access');
+  });
+
+  it('does not touch the session when customLogin returns a user with no usable xmpp credentials', async () => {
+    const loginFunction = vi.fn().mockResolvedValue({ _id: 'u1' });
+    store.dispatch(
+      setConfig({ customLogin: { enabled: true, loginFunction } } as never)
+    );
+
+    const recovered = await attemptHostRecovery();
+
+    expect(recovered).toBe(false);
+    expect(store.getState().chatSettingStore.user.refreshToken).toBe('refresh-1');
+  });
+
+  it('does not touch the session when customLogin throws', async () => {
+    const loginFunction = vi.fn().mockRejectedValue(new Error('host login down'));
+    store.dispatch(
+      setConfig({ customLogin: { enabled: true, loginFunction } } as never)
+    );
+
+    const recovered = await attemptHostRecovery();
+
+    expect(recovered).toBe(false);
+    expect(store.getState().chatSettingStore.user.refreshToken).toBe('refresh-1');
+  });
+
+  it('falls back to jwtLogin when customLogin is not configured', async () => {
+    store.dispatch(
+      setConfig({
+        jwtLogin: { enabled: true, token: 'host-jwt' },
+      } as never)
+    );
+    post.mockResolvedValueOnce({
+      data: {
+        user: withXmppCreds(),
+        token: 'jwt-access',
+        refreshToken: 'jwt-refresh',
+      },
+    });
+
+    const recovered = await attemptHostRecovery();
+
+    expect(recovered).toBe(true);
+    expect(post).toHaveBeenCalledWith(
+      '/v1/users/client',
+      null,
+      { headers: { 'x-custom-token': 'host-jwt' } }
+    );
+    expect(store.getState().chatSettingStore.user.xmppPassword).toBe('host-pw');
+  });
+
+  it('returns false without calling anything when neither customLogin nor jwtLogin is configured', async () => {
+    store.dispatch(setConfig({ refreshTokens: { enabled: true } } as never));
+
+    const recovered = await attemptHostRecovery();
+
+    expect(recovered).toBe(false);
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it('single-flights concurrent callers into one host login attempt', async () => {
+    let resolveLogin: (user: unknown) => void = () => {};
+    const loginFunction = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveLogin = resolve;
+        })
+    );
+    store.dispatch(
+      setConfig({ customLogin: { enabled: true, loginFunction } } as never)
+    );
+
+    const calls = [attemptHostRecovery(), attemptHostRecovery(), attemptHostRecovery()];
+    resolveLogin(withXmppCreds());
+    const results = await Promise.all(calls);
+
+    expect(loginFunction).toHaveBeenCalledTimes(1);
+    results.forEach((r) => expect(r).toBe(true));
+  });
+});
+
 describe('dead-session latch', () => {
   it('flags the credentials that were current when the session died', () => {
     markCurrentSessionDead();

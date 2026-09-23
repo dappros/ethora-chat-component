@@ -1,9 +1,10 @@
 import http from './apiClient';
 import { store } from '../roomStore';
-import { refreshTokens } from '../roomStore/chatSettingsSlice';
+import { refreshTokens, setUser } from '../roomStore/chatSettingsSlice';
 import { getStoredUser } from '../helpers/authStorage';
 import { User } from '../types/types';
 import { localStorageConstants } from '../helpers/constants/LOCAL_STORAGE';
+import { ethoraLogger } from '../helpers/ethoraLogger';
 
 /**
  * THE single refresh-token rotation point for the SDK.
@@ -564,8 +565,94 @@ export function clearDeadSessionLatch(): void {
   deadSessionSignature = null;
 }
 
+/**
+ * Bug D: last-resort recovery when the Ethora refresh token itself is dead
+ * (a `RefreshFatalError` - REUSE_DETECTED / NOT_FOUND / a stale
+ * ALREADY_ROTATED with nothing newer around). That verdict means OUR copy
+ * of the session is unrecoverable, NOT that the reader is actually logged
+ * out: a host that embeds this SDK via `config.customLogin` or
+ * `config.jwtLogin` almost always keeps its OWN session alive well past
+ * Ethora's refresh-token TTL, so it can hand back a brand new Ethora
+ * session on demand.
+ *
+ * Before apiClient's interceptor gives up and dispatches `logout()`, it
+ * calls this so that a host with either mechanism configured gets a chance
+ * to re-authenticate transparently. `logout()` clears `xmppUsername` /
+ * `xmppPassword`, which unmounts the whole chat UI (LoginWrapper's render
+ * gate) and falls back to a loading/login screen while its OWN, entirely
+ * separate effect eventually notices and retries the same host login - so
+ * without this, a dead refresh token behind a perfectly valid host session
+ * still produces a visible "stuck loading" / logged-out flash before the
+ * chat comes back on its own. Calling the host recovery FIRST, from the
+ * failing request's own retry path, skips that round trip entirely.
+ *
+ * A host without `customLogin`/`jwtLogin` configured sees no behavior
+ * change: both checks fail instantly and the caller falls through to the
+ * existing `logout()` path exactly as before.
+ */
+const hasXmppCredentials = (user?: Partial<User> | null): boolean =>
+  Boolean(
+    user?.xmppPassword &&
+      ((user as any)?.xmppUsername || user?.defaultWallet?.walletAddress)
+  );
+
+let hostRecoveryInflight: Promise<boolean> | null = null;
+
+const performHostRecovery = async (): Promise<boolean> => {
+  const config = store.getState().chatSettingStore?.config;
+
+  if (config?.customLogin?.enabled && config?.customLogin?.loginFunction) {
+    try {
+      const loginData = await config.customLogin.loginFunction();
+      if (loginData && hasXmppCredentials(loginData)) {
+        store.dispatch(setUser(loginData));
+        ethoraLogger.log('[hostRecovery] recovered session via customLogin');
+        return true;
+      }
+    } catch (error) {
+      ethoraLogger.log('[hostRecovery] customLogin recovery failed', error);
+    }
+  }
+
+  if (config?.jwtLogin?.enabled && config?.jwtLogin?.token) {
+    try {
+      // Lazy import: loginViaJwt lives in api-requests/auth.api, which
+      // imports `http` from apiClient - the same module that imports THIS
+      // file for refreshAuthTokens. Deferring the import to call time
+      // (rather than a static top-level import) sidesteps growing that
+      // existing apiClient<->authRefresh cycle into a wider one that also
+      // has to resolve before either module finishes evaluating.
+      const { loginViaJwt } = await import('./api-requests/auth.api');
+      const loginData = await loginViaJwt(config.jwtLogin.token);
+      if (loginData && hasXmppCredentials(loginData)) {
+        store.dispatch(setUser(loginData));
+        ethoraLogger.log('[hostRecovery] recovered session via jwtLogin');
+        return true;
+      }
+    } catch (error) {
+      ethoraLogger.log('[hostRecovery] jwtLogin recovery failed', error);
+    }
+  }
+
+  return false;
+};
+
+/**
+ * Single-flight wrapper: several requests can fail with the same dead
+ * refresh token at once (a burst of 401s right after the token dies), and
+ * without this each would call the host's `loginFunction` independently.
+ */
+export function attemptHostRecovery(): Promise<boolean> {
+  if (hostRecoveryInflight) return hostRecoveryInflight;
+  hostRecoveryInflight = performHostRecovery().finally(() => {
+    hostRecoveryInflight = null;
+  });
+  return hostRecoveryInflight;
+}
+
 /** Test seam: drops any shared in-flight promise between cases. */
 export function __resetAuthRefreshStateForTests(): void {
   inflight = null;
+  hostRecoveryInflight = null;
   deadSessionSignature = null;
 }
