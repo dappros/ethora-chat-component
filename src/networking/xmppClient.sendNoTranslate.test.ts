@@ -38,13 +38,22 @@ describe('sendTextMessageWithTranslateTag', () => {
     expect(stanza.getChild('body')?.getText()).toBe('hola');
   });
 
-  it('is synchronous - nothing to await before the stanza goes out', () => {
+  it('queues the stanza without awaiting anything in a plain room', async () => {
     const client = makeClient();
 
-    const result = sendTextMessageWithTranslateTag(client, baseStanza, 'es', 'id1');
+    const pending = sendTextMessageWithTranslateTag(
+      client,
+      baseStanza,
+      'es',
+      'id1'
+    );
 
-    expect(result).toBe(true);
-    // Already sent by the time the call returns, not after a microtask.
+    // The function is async now - an e2ee room has to await OMEMO before it
+    // can encrypt (see sendTextMessageWithTranslateTag.e2ee.test.ts). A plain
+    // room still reaches `client.send` before the first await, i.e. before
+    // this assertion runs, so the original guarantee holds: no round trip
+    // stands between the user hitting send and the stanza going out.
     expect(client.send).toHaveBeenCalledTimes(1);
+    await expect(pending).resolves.toBe(true);
   });
 });
