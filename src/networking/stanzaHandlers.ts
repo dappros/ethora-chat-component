@@ -536,10 +536,16 @@ const onChatInvite = async (stanza: Element, client: XmppClient) => {
         if (child) {
           const chat = store.getState().rooms.rooms[chatId];
           if (!chat) {
+            // A non-empty placeholder label matters: RoomList prunes any room
+            // whose title AND name are both blank as corrupted persisted state
+            // (isValidRoomRecord), which would otherwise delete this room the
+            // instant it renders, before the getRooms() call below has a
+            // chance to fill in the real title.
+            const placeholderLabel = chatId.split('@')[0];
             const roomData: IRoom = {
               jid: chatId,
-              name: '',
-              title: '',
+              name: placeholderLabel,
+              title: placeholderLabel,
               usersCnt: 0,
               messages: [],
               isLoading: false,
@@ -573,6 +579,15 @@ const onChatInvite = async (stanza: Element, client: XmppClient) => {
 
           client.getRoomInfoStanza(chatId);
 
+          // getRooms() caches /v1/chats/my for 60s (see GET_ROOMS_CACHE_MS in
+          // rooms.api.ts). A room this fresh - just created, this invite is
+          // its first sign of life to us - is essentially guaranteed to
+          // predate that cache entry, so without invalidating first this call
+          // would silently hand back the pre-invite list and this room would
+          // never get its real title/members: it would sit on the placeholder
+          // above (or on nothing, if RoomList's corrupted-room cleanup pruned
+          // it first) until the next full reload does an uncached fetch.
+          invalidateRoomsCache();
           void getRooms()
             .then((rooms) => {
               const items = rooms?.items || [];
