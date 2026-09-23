@@ -24,13 +24,12 @@ import { sealFileForUpload } from './fileEnvelope';
 import { sendMediaMessage } from '../networking/xmpp/sendMediaMessage.xmpp';
 import { getDataFromXml } from '../helpers/getDataFromXml';
 import { createMessageFromXml } from '../helpers/createMessageFromXml';
-import { openSealedAttachment, clearSealedAttachmentCache } from '../helpers/sealedAttachments';
+import { saveSealedAttachment } from '../helpers/sealedAttachments';
 
 const ROOM_JID = 'room@conference.xmpp.example';
 
 beforeEach(() => {
   vi.clearAllMocks();
-  clearSealedAttachmentCache();
   isE2eeRoom.mockReturnValue(true);
   // Stand-in for OMEMO: the <body> it was handed is what a receiving client
   // gets back after decryptStanzaInPlace rewrites the stanza.
@@ -102,14 +101,22 @@ describe('a sealed attachment, all the way round', () => {
       arrayBuffer: async () => seal.ciphertext.slice().buffer,
     })) as unknown as typeof fetch;
 
-    const opened = await openSealedAttachment(
+    const save = vi.fn();
+    const meta = await saveSealedAttachment(
       message.location as string,
       message.e2eeKeys![0],
-      fetchImpl
+      { fetchImpl, save }
     );
 
-    expect(opened.meta.originalname).toBe('contract-final.pdf');
-    expect(opened.meta.mimetype).toBe('application/pdf');
+    expect(meta.originalname).toBe('contract-final.pdf');
+    expect(meta.mimetype).toBe('application/pdf');
+
+    // ...and what reaches the disk is the file the sender picked.
+    const [blob, fileName] = save.mock.calls[0];
+    expect(fileName).toBe('contract-final.pdf');
+    expect(new TextDecoder().decode(await blob.arrayBuffer())).toBe(
+      'the actual contents'
+    );
   });
 
   it('an ordinary media message still parses with no keys', async () => {

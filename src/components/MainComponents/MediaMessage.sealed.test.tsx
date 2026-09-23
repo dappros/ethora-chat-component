@@ -1,6 +1,7 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 
@@ -8,23 +9,16 @@ import chatSettingsSlice from '../../roomStore/chatSettingsSlice';
 import roomsSlice from '../../roomStore/roomsSlice';
 import roomHeapSlice from '../../roomStore/roomHeapSlice';
 import { sealFileForUpload } from '../../e2ee/fileEnvelope';
-import { clearSealedAttachmentCache } from '../../helpers/sealedAttachments';
 import MediaMessage from './MediaMessage';
 import { IMessage } from '../../types/types';
 
-// AttachmentList is the renderer under all of this; stub it so the assertions
-// are about WHAT the tiles are handed, not about how a PDF tile draws itself.
+// The ordinary renderer is stubbed so "did we show a preview?" is a direct
+// assertion rather than a guess about how a PDF tile draws itself.
 vi.mock('./AttachmentList', () => ({
   default: ({ attachments }: { attachments: any[] }) => (
-    <div data-testid="tiles">
+    <div data-testid="preview-tiles">
       {attachments.map((a, i) => (
-        <div
-          key={i}
-          data-testid={`tile-${i}`}
-          data-location={a.location}
-          data-mimetype={a.mimetype}
-          data-name={a.originalName}
-        />
+        <div key={i} data-testid={`tile-${i}`} data-location={a.location} />
       ))}
     </div>
   ),
@@ -44,16 +38,39 @@ const renderWith = (message: Partial<IMessage>) => {
 
 const SEALED_URL = 'https://secure-files.example/bucket/9f2c';
 
+const sealedMessage = (seal: Awaited<ReturnType<typeof sealFileForUpload>>) => ({
+  location: SEALED_URL,
+  locationPreview: '',
+  mimetype: 'application/octet-stream',
+  originalName: seal.filename,
+  fileName: 'stored-9f2c',
+  size: '2048',
+  e2eeKeys: [seal.keyMaterial],
+});
+
+const makeSeal = () =>
+  sealFileForUpload(new File(['bytes'], 'holiday.png', { type: 'image/png' }));
+
 beforeEach(() => {
-  clearSealedAttachmentCache();
   vi.restoreAllMocks();
 });
 
 describe('MediaMessage with a sealed attachment', () => {
-  it('renders the decrypted blob, real type and real filename', async () => {
-    const seal = await sealFileForUpload(
-      new File(['bytes'], 'holiday.png', { type: 'image/png' })
-    );
+  it('shows a download card instead of a preview, and fetches nothing up front', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    const seal = await makeSeal();
+
+    renderWith(sealedMessage(seal));
+
+    expect(screen.queryByTestId('preview-tiles')).toBeNull();
+    expect(screen.getByText('Encrypted file')).toBeTruthy();
+    // Nothing is downloaded until the viewer asks for it.
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('decrypts and saves under the real filename when clicked', async () => {
+    const seal = await makeSeal();
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => ({
@@ -63,67 +80,72 @@ describe('MediaMessage with a sealed attachment', () => {
       }))
     );
 
-    renderWith({
-      location: SEALED_URL,
-      locationPreview: '',
-      mimetype: 'application/octet-stream',
-      originalName: seal.filename,
-      fileName: 'stored-9f2c',
-      size: '99',
-      e2eeKeys: [seal.keyMaterial],
+    const saved: { name: string; type: string }[] = [];
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test/1');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement
+    ) {
+      saved.push({ name: this.download, type: this.href });
     });
 
-    await waitFor(() => {
-      const tile = screen.getByTestId('tile-0');
-      expect(tile.getAttribute('data-location')).toMatch(/^blob:/);
-    });
+    renderWith(sealedMessage(seal));
+    await userEvent.click(screen.getByRole('button'));
 
-    const tile = screen.getByTestId('tile-0');
-    expect(tile.getAttribute('data-mimetype')).toBe('image/png');
-    expect(tile.getAttribute('data-name')).toBe('holiday.png');
+    await waitFor(() => expect(saved).toHaveLength(1));
+    expect(saved[0].name).toBe('holiday.png');
+    // Once opened, the card can finally show the real name.
+    await waitFor(() => expect(screen.getByText('holiday.png')).toBeTruthy());
   });
 
-  it('never hands a tile the ciphertext URL while it is still opening', async () => {
-    // Rendering the sealed URL would draw a broken image for the whole
-    // download; an empty location is what every tile already treats as
-    // "not available yet".
-    const seal = await sealFileForUpload(
-      new File(['bytes'], 'holiday.png', { type: 'image/png' })
-    );
-    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
-
-    renderWith({
-      location: SEALED_URL,
-      mimetype: 'application/octet-stream',
-      originalName: seal.filename,
-      e2eeKeys: [seal.keyMaterial],
-    });
-
-    expect(screen.getByTestId('tile-0').getAttribute('data-location')).toBe('');
-  });
-
-  it('says so when the attachment cannot be opened', async () => {
-    const seal = await sealFileForUpload(
-      new File(['bytes'], 'holiday.png', { type: 'image/png' })
-    );
+  it('reports a failed download and stays clickable', async () => {
+    const seal = await makeSeal();
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 403 })));
 
+    renderWith(sealedMessage(seal));
+    await userEvent.click(screen.getByRole('button'));
+
+    await waitFor(() =>
+      expect(screen.getByText('Download failed — tap to retry')).toBeTruthy()
+    );
+    expect(screen.getByRole('button').hasAttribute('disabled')).toBe(false);
+  });
+
+  it('offers no button when the message never decrypted, so there is no key', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+
     renderWith({
       location: SEALED_URL,
       mimetype: 'application/octet-stream',
-      originalName: seal.filename,
-      e2eeKeys: [seal.keyMaterial],
+      originalName: 'opaque',
+      // clientEncrypted was on the stanza but <body> would not decrypt.
+      e2eeKeys: [''],
     });
 
-    await waitFor(() =>
-      expect(screen.getByText('Encrypted attachment could not be opened')).toBeTruthy()
-    );
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.getByText('Encrypted attachment could not be opened')).toBeTruthy();
+  });
+
+  it('gives each attachment of a group its own card and key', async () => {
+    const first = await sealFileForUpload(new File(['a'], 'a.txt', { type: 'text/plain' }));
+    const second = await sealFileForUpload(new File(['b'], 'b.txt', { type: 'text/plain' }));
+
+    renderWith({
+      attachments: [
+        { location: `${SEALED_URL}/1`, mimetype: 'application/octet-stream', originalName: 'o1' },
+        { location: `${SEALED_URL}/2`, mimetype: 'application/octet-stream', originalName: 'o2' },
+      ],
+      e2eeKeys: [first.keyMaterial, second.keyMaterial],
+    } as Partial<IMessage>);
+
+    expect(screen.getAllByRole('button')).toHaveLength(2);
   });
 });
 
 describe('MediaMessage without sealing', () => {
-  it('passes an ordinary attachment straight through', async () => {
+  it('still renders the ordinary preview tiles', async () => {
     const fetchSpy = vi.fn();
     vi.stubGlobal('fetch', fetchSpy);
 
@@ -136,10 +158,10 @@ describe('MediaMessage without sealing', () => {
       size: '2048',
     });
 
-    const tile = screen.getByTestId('tile-0');
-    expect(tile.getAttribute('data-location')).toBe('https://files.example/photo.png');
-    expect(tile.getAttribute('data-mimetype')).toBe('image/png');
-    // Nothing to decrypt means nothing to download.
+    expect(screen.getByTestId('preview-tiles')).toBeTruthy();
+    expect(screen.getByTestId('tile-0').getAttribute('data-location')).toBe(
+      'https://files.example/photo.png'
+    );
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

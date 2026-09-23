@@ -8,7 +8,6 @@ import { clearStoredUser } from '../helpers/authStorage';
 import { disablePushNotifications } from '../utils/firebasePushNotifications';
 import { getGlobalXmppClient, setGlobalXmppClient } from '../utils/clientRegistry';
 import { stopOmemo } from '../e2ee';
-import { clearSealedAttachmentCache } from '../helpers/sealedAttachments';
 
 const withTimeout = async (
   task: Promise<unknown>,
@@ -34,10 +33,6 @@ const logoutService = {
     // purpose: wiping them would make every past message in every encrypted
     // room unreadable for this device after a routine logout.
     stopOmemo();
-    // Decrypted attachments are held as object URLs for the session. Unlike
-    // the OMEMO keys they must NOT survive a logout: they are plaintext, and
-    // the next user of this browser would otherwise be one URL away from them.
-    clearSealedAttachmentCache();
 
     if (typeof window !== 'undefined') {
       try {
