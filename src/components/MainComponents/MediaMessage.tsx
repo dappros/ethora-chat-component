@@ -108,7 +108,13 @@ const MediaMessage: React.FC<MediaMessageProps> = ({
   // viewer asks for it.
   const sealedKeys = message?.e2eeKeys;
   if (sealedKeys?.length) {
-    return <SealedAttachmentList attachments={attachments} keys={sealedKeys} />;
+    return (
+      <SealedAttachmentList
+        attachments={attachments}
+        keys={sealedKeys}
+        types={message?.e2eeTypes}
+      />
+    );
   }
 
   return (

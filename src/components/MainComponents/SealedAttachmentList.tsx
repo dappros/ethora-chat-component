@@ -6,6 +6,7 @@ import { useT } from '../../i18n/useT';
 import { DownloadIcon, LockIcon } from '../../assets/icons';
 import { formatFileName, formatFileSize } from '../../helpers/fileKind';
 import { saveSealedAttachment } from '../../helpers/sealedAttachments';
+import SealedAudioMessage from './SealedAudioMessage';
 
 // Deliberately NOT built on the shared MediaComponents file card: that one
 // sizes its icon box 100%/100% because it wraps a thumbnail, and a sealed
@@ -171,15 +172,31 @@ const SealedAttachmentCard: React.FC<{
 const SealedAttachmentList: React.FC<{
   attachments: IAttachment[];
   keys?: string[];
-}> = ({ attachments, keys }) => (
+  types?: string[];
+}> = ({ attachments, keys, types }) => (
   <SealedStack>
-    {attachments.map((attachment, index) => (
-      <SealedAttachmentCard
-        key={attachment.attachmentId || attachment.location || index}
-        attachment={attachment}
-        keyMaterial={keys?.[index]}
-      />
-    ))}
+    {attachments.map((attachment, index) => {
+      const id = attachment.attachmentId || attachment.location || index;
+      // A voice note is small and exists to be listened to, so it is decrypted
+      // and played in place. The real type comes from the encrypted body, not
+      // from <data> - the server only ever sees octet-stream.
+      if (types?.[index]?.startsWith('audio/')) {
+        return (
+          <SealedAudioMessage
+            key={id}
+            location={attachment.location}
+            keyMaterial={keys?.[index]}
+          />
+        );
+      }
+      return (
+        <SealedAttachmentCard
+          key={id}
+          attachment={attachment}
+          keyMaterial={keys?.[index]}
+        />
+      );
+    })}
   </SealedStack>
 );
 

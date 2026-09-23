@@ -125,3 +125,17 @@ describe('sealFileForUpload', () => {
     expect(opened.meta.mimetype).toBe('application/octet-stream');
   });
 });
+
+describe('sealFileForUpload on a bare Blob', () => {
+  it('still records a name a download can be saved under', async () => {
+    // Voice notes arrive as `new Blob(chunks)` with no name and no type. An
+    // absent `originalname` is dropped by JSON.stringify, so the receiver had
+    // nothing to name the saved file.
+    const sealed = await sealFileForUpload(new Blob(['fake audio bytes']));
+    const opened = openSealedFile(sealed.ciphertext, sealed.keyMaterial);
+
+    expect(opened.meta.originalname).toBe('blob');
+    expect(opened.meta.mimetype).toBe('application/octet-stream');
+    expect(opened.meta.size).toBe(16);
+  });
+});

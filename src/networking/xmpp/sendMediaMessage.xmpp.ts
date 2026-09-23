@@ -19,6 +19,13 @@ const PLAIN_BODY = 'media';
 export interface E2eeMediaBody {
   v: 1;
   keys: string[];
+  /**
+   * Real mimetypes, positional with `keys`. The receiver needs these to pick
+   * a renderer before downloading - a voice note must show a player, not a
+   * download chip - and they would be a metadata leak on <data>, which rides
+   * in the clear. In here they cost nothing.
+   */
+  types?: string[];
 }
 
 export async function sendMediaMessage(
@@ -70,6 +77,7 @@ export async function sendMediaMessage(
   }
 
   const keys: string[] | undefined = data?.e2eeKeys;
+  const types: string[] | undefined = data?.e2eeTypes;
 
   // A sealed attachment says so on <data>. The flag itself reveals nothing the
   // `application/octet-stream` mimetype does not already, and a receiver that
@@ -93,7 +101,7 @@ export async function sendMediaMessage(
     const crypto = await omemoReady();
     try {
       if (!crypto) throw new Error('omemo_not_ready');
-      const payload: E2eeMediaBody = { v: 1, keys };
+      const payload: E2eeMediaBody = { v: 1, keys, types };
       const encrypted = await crypto.encryptGroupMessage(
         roomJID,
         roomRecipients(roomJID, accountDomain(client)),

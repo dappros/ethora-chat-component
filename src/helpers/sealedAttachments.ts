@@ -84,3 +84,22 @@ export async function saveSealedAttachment(
 
   return meta;
 }
+
+/**
+ * Decrypt a sealed attachment into an object URL a media element can play.
+ *
+ * Unlike saveSealedAttachment this hands the URL back rather than consuming
+ * it, so the caller owns its lifetime and MUST revoke it when the player goes
+ * away - otherwise the plaintext stays in the tab.
+ */
+export async function openSealedAttachmentUrl(
+  url: string,
+  keyMaterial: string,
+  fetchImpl: typeof fetch = fetch
+): Promise<{ objectUrl: string; meta: FileEnvelopeMeta }> {
+  const { meta, bytes } = await openSealedAttachment(url, keyMaterial, fetchImpl);
+  // `bytes` is a subarray of the decrypted envelope; slice() so the Blob does
+  // not pin the whole plaintext buffer, header included.
+  const blob = new Blob([bytes.slice() as BlobPart], { type: meta.mimetype });
+  return { objectUrl: URL.createObjectURL(blob), meta };
+}

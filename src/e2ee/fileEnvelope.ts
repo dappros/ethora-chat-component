@@ -40,6 +40,13 @@ export interface SealedFile {
   keyMaterial: string;
   /** Random, extension-free name to upload under. */
   filename: string;
+  /**
+   * The real type, also sealed inside the payload. Belongs in the encrypted
+   * <body> beside the key: the receiver needs it to pick a renderer BEFORE
+   * downloading - a voice note has to show a player, not a download chip -
+   * and the body is encrypted, so saying so costs nothing.
+   */
+  mimetype: string;
 }
 
 /**
@@ -109,16 +116,20 @@ export function decodeFileEnvelope(envelope: Uint8Array): {
  * random key per call) so attachments and message bodies are protected by the
  * same construction rather than a second, separately-reviewed one.
  */
-export async function sealFileForUpload(file: File): Promise<SealedFile> {
+export async function sealFileForUpload(file: File | Blob): Promise<SealedFile> {
   const bytes = new Uint8Array(await file.arrayBuffer());
+  // Not everything that reaches here is a File. A voice note is a bare Blob
+  // straight off MediaRecorder (see AudioRecorder), with neither a name nor a
+  // type - and an absent `originalname` would be dropped by JSON.stringify,
+  // leaving the receiver nothing to save the download under. Plain uploads
+  // have the same gap and land server-side as "blob"; match that rather than
+  // inventing an extension we cannot know is right.
+  const name = (file as File).name || 'blob';
+  // A browser that cannot guess the type leaves `type` empty; record that as
+  // octet-stream rather than writing '' into the envelope.
+  const mimetype = file.type || 'application/octet-stream';
   const envelope = encodeFileEnvelope(
-    {
-      // A browser that cannot guess the type leaves `type` empty; record that
-      // as octet-stream rather than writing '' into the envelope.
-      mimetype: file.type || 'application/octet-stream',
-      originalname: file.name,
-      size: file.size,
-    },
+    { mimetype, originalname: name, size: file.size },
     bytes
   );
 
@@ -127,6 +138,7 @@ export async function sealFileForUpload(file: File): Promise<SealedFile> {
   return {
     ciphertext: payload,
     keyMaterial: toBase64(keyMaterial),
+    mimetype,
     // No extension: `.pdf` on an opaque blob would give back the one thing
     // sealing it was meant to hide.
     filename: toHex(randomBytes(16)),
@@ -149,19 +161,37 @@ export function openSealedFile(
  * an ordinary media message - or one from a build that predates sealing -
  * falls through untouched.
  */
-export function parseSealedMediaBody(body?: string): string[] | undefined {
+export interface SealedMediaBody {
+  keys: string[];
+  /** Real mimetypes, positional with `keys`. Absent on older senders. */
+  types?: string[];
+}
+
+export function parseSealedMediaBody(
+  body?: string
+): SealedMediaBody | undefined {
   const text = String(body || '').trim();
   if (!text.startsWith('{')) return undefined;
 
   try {
-    const parsed = JSON.parse(text) as { v?: unknown; keys?: unknown };
+    const parsed = JSON.parse(text) as {
+      v?: unknown;
+      keys?: unknown;
+      types?: unknown;
+    };
     if (parsed?.v !== 1 || !Array.isArray(parsed.keys)) return undefined;
     const keys = parsed.keys.filter(
       (k): k is string => typeof k === 'string' && k.length > 0
     );
-    return keys.length === parsed.keys.length && keys.length > 0
-      ? keys
+    if (keys.length !== parsed.keys.length || keys.length === 0) {
+      return undefined;
+    }
+
+    const types = Array.isArray(parsed.types)
+      ? parsed.types.map((t) => (typeof t === 'string' ? t : ''))
       : undefined;
+
+    return { keys, types };
   } catch {
     return undefined;
   }

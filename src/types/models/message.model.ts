@@ -51,6 +51,12 @@ export interface IMessage {
    */
   e2eeKeys?: string[];
   /**
+   * Real mimetypes of the sealed attachments, positional with `e2eeKeys`.
+   * Travels in the same encrypted body, so the server never sees it; lets the
+   * renderer tell a voice note from a document without downloading either.
+   */
+  e2eeTypes?: string[];
+  /**
    * Set by the sender when this message's attachments are sealed. Stamped on
    * <data>, which rides in the clear, so it survives a body that could not be
    * decrypted - which is exactly when a renderer most needs to know the bytes
