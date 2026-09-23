@@ -92,11 +92,26 @@ export const resolveExternalReaderLocaleLangSource = (
 // look like a scary error. Only a status change OUTSIDE this window (a
 // real socket/network drop, or a recovery that has already exhausted its
 // bounded attempts and given up) should still read as connection-lost.
+//
+// `hasEverBeenOnline` mirrors XmppClient.hasEverBeenOnline: a brand new
+// client spends its first second or two sitting in 'connecting'/'offline'
+// while the WS handshake and SASL bind for a session that has NEVER been
+// online yet are still in flight - that is an ordinary first connect, not
+// a lost one. Measured live: a cold start with a cleared session flashed
+// "Connection lost. Retrying..." for ~2s on every load, purely from this
+// poll seeing 'connecting'/'offline' before the client's very first
+// 'online'. Defaults to `true` (i.e. the plain status mapping below,
+// unchanged) so any caller that predates this flag keeps its old
+// behaviour - only the real poll in this hook passes the client's actual
+// value, and it deliberately never flips back to false once the session
+// has been online, so a later genuine drop still shows the banner.
 export const isStatusConnectionLost = (
   status?: string | null,
-  isRecoveringAuth?: boolean
+  isRecoveringAuth?: boolean,
+  hasEverBeenOnline: boolean = true
 ): boolean => {
   if (isRecoveringAuth) return false;
+  if (!hasEverBeenOnline) return false;
   return (
     status === 'connecting' ||
     status === 'offline' ||
@@ -835,10 +850,20 @@ const useChatWrapperInit = ({
   // xmppClient.ts never dispatch anything React would re-render on.
   useEffect(() => {
     if (!client) return;
-    setConnectionLost(isStatusConnectionLost(client.status, client.isRecoveringAuth));
+    setConnectionLost(
+      isStatusConnectionLost(
+        client.status,
+        client.isRecoveringAuth,
+        client.hasEverBeenOnline
+      )
+    );
     const intervalId = setInterval(() => {
       setConnectionLost((prev) => {
-        const next = isStatusConnectionLost(client.status, client.isRecoveringAuth);
+        const next = isStatusConnectionLost(
+          client.status,
+          client.isRecoveringAuth,
+          client.hasEverBeenOnline
+        );
         return prev === next ? prev : next;
       });
     }, 1000);

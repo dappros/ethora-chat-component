@@ -61,6 +61,49 @@ describe('isStatusConnectionLost with isRecoveringAuth', () => {
   });
 });
 
+// Bug C, part 2: measured live (200ms DOM poll for "Connection lost" text)
+// that a COLD start - a session that has never once reached 'online' -
+// flashed the banner for ~2s on every load: the very first WS handshake +
+// SASL bind routinely sits in 'connecting'/'offline' for a second or two,
+// and the plain status mapping above painted that identically to a real
+// drop. `hasEverBeenOnline` (mirrored from XmppClient.hasEverBeenOnline) is
+// the one-way latch that tells the two apart: false until the client's
+// first 'online', then true for the rest of the session no matter what
+// happens next - so a genuine later drop still shows the banner.
+describe('isStatusConnectionLost with hasEverBeenOnline', () => {
+  it('never-online: suppresses the banner for every status before the first "online"', () => {
+    expect(isStatusConnectionLost('connecting', false, false)).toBe(false);
+    expect(isStatusConnectionLost('offline', false, false)).toBe(false);
+    expect(isStatusConnectionLost('error', false, false)).toBe(false);
+    expect(isStatusConnectionLost('auth_failed', false, false)).toBe(false);
+  });
+
+  it('online -> offline: a session that HAS been online and then drops still shows the banner', () => {
+    expect(isStatusConnectionLost('offline', false, true)).toBe(true);
+    expect(isStatusConnectionLost('error', false, true)).toBe(true);
+    expect(isStatusConnectionLost('connecting', false, true)).toBe(true);
+  });
+
+  it('recovery-in-flight still wins even once the session has been online before', () => {
+    expect(isStatusConnectionLost('auth_failed', true, true)).toBe(false);
+    expect(isStatusConnectionLost('offline', true, true)).toBe(false);
+  });
+
+  it('never-online AND recovering is still suppressed (belt and braces)', () => {
+    expect(isStatusConnectionLost('auth_failed', true, false)).toBe(false);
+  });
+
+  it('online status is never "lost" regardless of hasEverBeenOnline', () => {
+    expect(isStatusConnectionLost('online', false, false)).toBe(false);
+    expect(isStatusConnectionLost('online', false, true)).toBe(false);
+  });
+
+  it('defaults hasEverBeenOnline to true when omitted (back-compat with the plain mapping)', () => {
+    expect(isStatusConnectionLost('offline')).toBe(true);
+    expect(isStatusConnectionLost('offline', false)).toBe(true);
+  });
+});
+
 // Bug D: a FAILED initBeforeLoad provider bootstrap used to lock the chat
 // area on "Connecting..." forever, re-checking the same stale
 // providerBootstrapStatus every 2s - even after a host configured with

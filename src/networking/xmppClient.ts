@@ -285,6 +285,29 @@ export class XmppClient implements XmppClientInterface {
   }
 
   /**
+   * Bug C, part 2: a client that has never once reached 'online' is
+   * mid-FIRST-connect, not "lost" - the WS handshake + SASL bind for a
+   * brand new session routinely spends a second or two sitting in
+   * 'connecting'/'offline' before its first 'online', and
+   * isStatusConnectionLost used to paint that identically to a real
+   * dropped connection, flashing "Connection lost. Retrying..." on every
+   * cold start (measured live: ~2s, samples 4-13 of a 200ms poll) even
+   * though nothing had ever been connected in the first place.
+   *
+   * Set once, on the first 'online' event, and deliberately never reset -
+   * a later real drop (offline/error) or auth-triggered reconnect must
+   * still read as connection-lost once this session has actually been
+   * online before. `authFailureDetected`/`authRecoveryAttempts` reset on
+   * every reconnect; this one is a one-way latch for the life of the
+   * client instance.
+   */
+  private everOnline: boolean = false;
+
+  get hasEverBeenOnline(): boolean {
+    return this.everOnline;
+  }
+
+  /**
    * Inject (or replace) the callback used to fetch fresh XMPP
    * credentials after a SASL `not-authorized`. The provider refreshes
    * whatever upstream credential is needed (the REST session, which now
@@ -647,6 +670,7 @@ export class XmppClient implements XmppClientInterface {
         this.resource = jid.resource || 'default';
         ethoraLogger.log('Client is online.', new Date());
         this.status = 'online';
+        this.everOnline = true;
         // Publishes this device's OMEMO keys. No-op unless the host app
         // enabled e2ee; never blocks the rest of the online handler.
         onOnline(this.client);
