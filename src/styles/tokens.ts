@@ -47,7 +47,8 @@ const hexToRgb = (hex: string): { r: number; g: number; b: number } => {
   return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
 };
 
-const clamp255 = (v: number): number => Math.max(0, Math.min(255, Math.round(v)));
+const clamp255 = (v: number): number =>
+  Math.max(0, Math.min(255, Math.round(v)));
 
 const rgbToHex = (r: number, g: number, b: number): string =>
   `#${[r, g, b]
@@ -193,7 +194,9 @@ export function buildThemeTokens(
   // so primary-coloured text / icons stay legible while buttons (white text
   // on primary) still clear 4.5:1.
   const primary = dark ? tintColor(configuredPrimary, 0.2) : configuredPrimary;
-  const primaryHover = isValidHex(primary) ? shadeColor(primary, 0.08) : primary;
+  const primaryHover = isValidHex(primary)
+    ? shadeColor(primary, 0.08)
+    : primary;
   const customPrimary = colors?.primary && isValidHex(colors.primary);
   // Derived from `primary` alone - NOT `ownMessageBackground`. This token
   // backs unrelated "soft" surfaces across the UI (the selected room row,
@@ -216,7 +219,15 @@ export function buildThemeTokens(
       : DEFAULTS.primarySoft;
 
   const icons = colors?.icons || primary;
-  const iconsBg = colors?.iconsBg || colors?.secondary || base.iconsBg;
+  // `secondary` is only a fallback in light. Hosts pick it for a light page
+  // (the SDK's own default config uses #F3F6FC), so honouring it in dark
+  // paints a near-white chip on a dark surface. resolveIconBgColor refuses
+  // the same fallback outright, for the same reason; this keeps the light
+  // output byte-identical while dark falls straight through to its own
+  // neutral. An explicit `iconsBg` is still respected in both schemes.
+  const iconsBg = dark
+    ? colors?.iconsBg || base.iconsBg
+    : colors?.iconsBg || colors?.secondary || base.iconsBg;
 
   const weights = { ...DEFAULT_WEIGHTS, ...(typography?.weights ?? {}) };
 
@@ -404,7 +415,10 @@ export function ThemeTokens({
 const DARK_QUERY = '(prefers-color-scheme: dark)';
 
 const subscribeToSystemScheme = (onChange: () => void): (() => void) => {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+  if (
+    typeof window === 'undefined' ||
+    typeof window.matchMedia !== 'function'
+  ) {
     return () => {};
   }
   const mql = window.matchMedia(DARK_QUERY);

@@ -193,9 +193,14 @@ export interface IConfig {
    * (`prefers-color-scheme`) and updates live when it changes.
    *
    * Defaults to `'light'`, which is exactly the chat as it looked before
-   * this option existed. Colours set explicitly in `colors` /
-   * `backgroundChat` are used as given in both schemes; everything else
-   * (surfaces, text, borders, bubbles) switches to a dark palette. The
+   * this option existed. Surfaces, text, borders and bubbles switch to a
+   * dark palette; `colors.icons`, `colors.iconsBg`, the bubble/input
+   * colours and `backgroundChat` are used as given in both schemes.
+   * `colors.primary` is the exception: in dark it is lightened slightly so
+   * primary-coloured text and icons stay legible on the dark surface while
+   * buttons keep white text on them (see `--ethora-color-primary-text` for
+   * the text-only variant). Pass an already-dark-suitable `primary` if the
+   * exact brand value matters more. The
    * scheme is scoped to the chat's own elements - the host page is not
    * touched, so a host with its own dark mode should pass its resolved
    * choice here.

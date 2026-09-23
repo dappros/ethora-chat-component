@@ -23,6 +23,7 @@ import {
   useThemeTokenStyle,
 } from '../../styles/tokens';
 import { CHAT_ROOT_CLASS } from '../../styles/classNames';
+import { useChatSettingState } from '../../hooks/useChatSettingState';
 import ChatErrorBoundary from './ChatErrorBoundary';
 
 // The chat's scoping root. Everything in `index.css` that is not itself
@@ -51,10 +52,20 @@ const ChatRoot: React.FC<{
   config?: IConfig;
   children: React.ReactNode;
 }> = ({ config, children }) => {
-  const scheme = useResolvedColorScheme(config?.colorScheme);
+  // Props first, store second. <ChatWrapperBox> (the inner root) themes
+  // itself from the STORE, so reading props only here meant the two roots
+  // could disagree: a host that drives the chat by dispatching setConfig
+  // instead of passing a `config` prop got a dark chat inside a light
+  // shell (loader, login, fallback screens, toasts). Props keep priority
+  // so the first paint still uses the authoritative value and nothing
+  // flashes while ConfigEnabler is pushing it into the store.
+  const { config: storeConfig } = useChatSettingState();
+  const scheme = useResolvedColorScheme(
+    config?.colorScheme ?? storeConfig?.colorScheme
+  );
   const tokenStyle = useThemeTokenStyle(
-    config?.colors,
-    config?.typography,
+    config?.colors ?? storeConfig?.colors,
+    config?.typography ?? storeConfig?.typography,
     scheme
   );
   const style = useMemo(
@@ -192,8 +203,10 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
     }, [props.config]);
 
     return (
-      <ChatRoot config={memoizedConfig}>
-        <Provider store={store}>
+      // <Provider> sits OUTSIDE the root element (the DOM is unchanged)
+      // purely so ChatRoot can read the store, see its comment above.
+      <Provider store={store}>
+        <ChatRoot config={memoizedConfig}>
           {/* The SDK's crash barrier, as high as it goes while still being
             INSIDE the store provider: everything below it is what actually
             crashes in the field, and the default fallback screen reads the
@@ -230,8 +243,8 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
               </ToastProvider>
             </PersistGate>
           </ChatErrorBoundary>
-        </Provider>
-      </ChatRoot>
+        </ChatRoot>
+      </Provider>
     );
   }
 );

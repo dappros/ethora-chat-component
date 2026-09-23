@@ -35,6 +35,19 @@ describe('buildThemeTokens colour scheme', () => {
     expect(dark['--ethora-color-text-on-primary']).toBe('#FFFFFF');
   });
 
+  // `secondary` is a light-page colour by nature (the SDK's own default
+  // config ships #F3F6FC), so inheriting it in dark painted a near-white
+  // chip on a dark surface.
+  it('dark does not fall back to a host secondary for the icon chip', () => {
+    const colors = { primary: '#0052CD', secondary: '#F3F6FC' } as any;
+    expect(buildThemeTokens(colors, undefined, 'light')['--ethora-color-icons-bg']).toBe(
+      '#F3F6FC'
+    );
+    expect(buildThemeTokens(colors, undefined, 'dark')['--ethora-color-icons-bg']).toBe(
+      '#24272D'
+    );
+  });
+
   it('dark still honours host icon colours as given', () => {
     const dark = buildThemeTokens(
       { primary: '#123456', secondary: '#000', icons: '#FF00FF', iconsBg: '#00FF00' },
