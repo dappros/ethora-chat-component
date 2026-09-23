@@ -50,6 +50,14 @@ export interface IMessage {
    * message has the ciphertext URLs and no keys, and stays unopenable.
    */
   e2eeKeys?: string[];
+  /**
+   * Set by the sender when this message's attachments are sealed. Stamped on
+   * <data>, which rides in the clear, so it survives a body that could not be
+   * decrypted - which is exactly when a renderer most needs to know the bytes
+   * are ciphertext rather than a corrupt file. A string, because it comes off
+   * an XML attribute.
+   */
+  clientEncrypted?: string;
   timestamp?: number;
   showInChannel?: string;
   activeMessage?: boolean;
