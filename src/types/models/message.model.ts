@@ -41,6 +41,15 @@ export interface IMessage {
    * mistakes the room's badge for a guarantee about this message.
    */
   unencrypted?: boolean;
+  /**
+   * Attachments on this message are sealed; `clientEncrypted` is set on the
+   * stanza and these open them, one key per attachment, in attachment order.
+   *
+   * Lifted by getDataFromXml out of the OMEMO-decrypted <body>, which is the
+   * only part of a media stanza that is encrypted - so an undecryptable
+   * message has the ciphertext URLs and no keys, and stays unopenable.
+   */
+  e2eeKeys?: string[];
   timestamp?: number;
   showInChannel?: string;
   activeMessage?: boolean;

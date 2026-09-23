@@ -140,3 +140,29 @@ export function openSealedFile(
 ): { meta: FileEnvelopeMeta; bytes: Uint8Array } {
   return decodeFileEnvelope(decryptPayload(fromBase64(keyMaterial), ciphertext));
 }
+
+/**
+ * Pull the attachment keys out of a decrypted media <body>.
+ *
+ * The sender put `{v:1,keys:[...]}` there instead of the usual literal
+ * "media" (see sendMediaMessage). Returns undefined for anything else, so
+ * an ordinary media message - or one from a build that predates sealing -
+ * falls through untouched.
+ */
+export function parseSealedMediaBody(body?: string): string[] | undefined {
+  const text = String(body || '').trim();
+  if (!text.startsWith('{')) return undefined;
+
+  try {
+    const parsed = JSON.parse(text) as { v?: unknown; keys?: unknown };
+    if (parsed?.v !== 1 || !Array.isArray(parsed.keys)) return undefined;
+    const keys = parsed.keys.filter(
+      (k): k is string => typeof k === 'string' && k.length > 0
+    );
+    return keys.length === parsed.keys.length && keys.length > 0
+      ? keys
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
