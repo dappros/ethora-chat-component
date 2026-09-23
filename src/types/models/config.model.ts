@@ -143,6 +143,8 @@ export type ChatErrorFallbackRenderer = (
   context: ChatErrorInfo & { reset: () => void }
 ) => React.ReactNode;
 
+export type ChatColorScheme = 'light' | 'dark' | 'system';
+
 export interface IConfig {
   appId?: string;
   /**
@@ -186,6 +188,19 @@ export interface IConfig {
     /** Documents above this are not auto-rendered. Default 25. */
     maxFileSizeMb?: number;
   };
+  /**
+   * Light or dark UI. `'system'` follows the viewer's OS / browser setting
+   * (`prefers-color-scheme`) and updates live when it changes.
+   *
+   * Defaults to `'light'`, which is exactly the chat as it looked before
+   * this option existed. Colours set explicitly in `colors` /
+   * `backgroundChat` are used as given in both schemes; everything else
+   * (surfaces, text, borders, bubbles) switches to a dark palette. The
+   * scheme is scoped to the chat's own elements - the host page is not
+   * touched, so a host with its own dark mode should pass its resolved
+   * choice here.
+   */
+  colorScheme?: ChatColorScheme;
   colors?: {
     primary: string;
     secondary: string;

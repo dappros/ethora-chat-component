@@ -12,7 +12,9 @@ const wrapperStyle: React.CSSProperties = {
   fontFamily:
     'var(--ethora-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif)',
   fontSize: 'var(--ethora-font-size, 16px)',
-  color: '#24292f',
+  // Same token MarkdownBody resolves to, so the pre-load text does not
+  // change colour when the lazy chunk arrives (and follows the dark scheme).
+  color: 'var(--ethora-color-text, #24292f)',
   lineHeight: 1.6,
 };
 

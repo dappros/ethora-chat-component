@@ -1,4 +1,23 @@
 import React from 'react';
+import styled from 'styled-components';
+
+// Dark-scheme overrides for icons whose light colours are fixed literals
+// with no matching token. Scoped to the chat root's
+// `data-ethora-color-scheme` attribute so light mode keeps the literals.
+const PdfIconSvg = styled.svg`
+  [data-ethora-color-scheme='dark'] & rect[data-ethora-default-fill] {
+    fill: rgba(242, 118, 107, 0.15);
+  }
+  [data-ethora-color-scheme='dark'] & path[data-ethora-default-stroke] {
+    stroke: var(--ethora-color-danger);
+  }
+`;
+
+const RemoveIconSvg = styled.svg`
+  [data-ethora-color-scheme='dark'] & path {
+    stroke: var(--ethora-color-danger);
+  }
+`;
 
 // Globe - opens the reader-language picker (see LanguageSelectorButton) in
 // the chat header.
@@ -197,44 +216,60 @@ export const RecordIcon = ({
   </svg>
 );
 
+const PDF_ICON_FILL = '#FDECEC';
+const PDF_ICON_COLOR = '#D93025';
+
 export const PdfIcon = ({
-  fill = '#FDECEC',
-  color = '#D93025',
+  fill = PDF_ICON_FILL,
+  color = PDF_ICON_COLOR,
   ...props
-}: any) => (
-  <svg
-    width="40"
-    height="40"
-    viewBox="0 0 40 40"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    {...props}
-  >
-    <rect width="40" height="40" rx="8" fill={fill} />
-    <path
-      d="M25 15V27C25 28.1046 24.1046 29 23 29H15C13.8954 29 13 28.1046 13 27V13C13 11.8954 13.8954 11 15 11H21L25 15Z"
-      stroke={color}
-      strokeWidth="1.8"
-      strokeLinejoin="round"
-    />
-    <path
-      d="M21 11V14C21 14.5523 21.4477 15 22 15H25"
-      stroke={color}
-      strokeWidth="1.8"
-      strokeLinejoin="round"
-    />
-    <path
-      d="M16 22.5H17C17.5523 22.5 18 22.0523 18 21.5C18 20.9477 17.5523 20.5 17 20.5H16V25M20.5 20.5V25H21.5C22.0523 25 22.5 24.5523 22.5 24V21.5C22.5 20.9477 22.0523 20.5 21.5 20.5H20.5Z"
-      stroke={color}
-      strokeWidth="1.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
+}: any) => {
+  const defaultFill = fill === PDF_ICON_FILL ? '' : undefined;
+  const defaultStroke = color === PDF_ICON_COLOR ? '' : undefined;
+  return (
+    <PdfIconSvg
+      width="40"
+      height="40"
+      viewBox="0 0 40 40"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <rect
+        width="40"
+        height="40"
+        rx="8"
+        fill={fill}
+        data-ethora-default-fill={defaultFill}
+      />
+      <path
+        d="M25 15V27C25 28.1046 24.1046 29 23 29H15C13.8954 29 13 28.1046 13 27V13C13 11.8954 13.8954 11 15 11H21L25 15Z"
+        stroke={color}
+        data-ethora-default-stroke={defaultStroke}
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M21 11V14C21 14.5523 21.4477 15 22 15H25"
+        stroke={color}
+        data-ethora-default-stroke={defaultStroke}
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M16 22.5H17C17.5523 22.5 18 22.0523 18 21.5C18 20.9477 17.5523 20.5 17 20.5H16V25M20.5 20.5V25H21.5C22.0523 25 22.5 24.5523 22.5 24V21.5C22.5 20.9477 22.0523 20.5 21.5 20.5H20.5Z"
+        stroke={color}
+        data-ethora-default-stroke={defaultStroke}
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </PdfIconSvg>
+  );
+};
 
 export const RemoveIcon = (props: any) => (
-  <svg
+  <RemoveIconSvg
     width="28"
     height="36"
     viewBox="0 0 28 36"
@@ -260,7 +295,7 @@ export const RemoveIcon = (props: any) => (
       strokeWidth="2.5"
       strokeLinecap="round"
     />
-  </svg>
+  </RemoveIconSvg>
 );
 
 export const SendIcon = ({
@@ -933,7 +968,11 @@ export const DownArrowIcon = ({
   </svg>
 );
 
-export const FileIcon = ({ fill = '#fff', color = '#0052CD', ...props }) => (
+export const FileIcon = ({
+  fill = 'var(--ethora-color-bg, #fff)',
+  color = '#0052CD',
+  ...props
+}) => (
   <svg
     width="46"
     height="46"

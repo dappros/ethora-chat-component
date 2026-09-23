@@ -1,6 +1,9 @@
 import React, { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useThemeTokenStyle } from '../../styles/tokens';
+import {
+  useResolvedColorScheme,
+  useThemeTokenStyle,
+} from '../../styles/tokens';
 import { useModalDismiss } from '../../hooks/useModalDismiss';
 import { CHAT_ROOT_CLASS } from '../../styles/classNames';
 import styled from 'styled-components';
@@ -169,7 +172,12 @@ export const LanguageSelectorButton: React.FC = () => {
   const accentColor = config?.colors?.primary || '#0052CD';
   // The portal mounts on document.body, outside the chat root that carries
   // the design tokens inline, so re-apply them on the portal container.
-  const portalTokenStyle = useThemeTokenStyle(config?.colors, config?.typography);
+  const portalScheme = useResolvedColorScheme(config?.colorScheme);
+  const portalTokenStyle = useThemeTokenStyle(
+    config?.colors,
+    config?.typography,
+    portalScheme
+  );
   // Anchors initial focus inside the dialog on open (and hands focus back to
   // the globe button on close). Rendered synchronously, so the container is
   // already in the DOM when useModalDismiss's mount effect runs.
@@ -219,6 +227,7 @@ export const LanguageSelectorButton: React.FC = () => {
             className={CHAT_ROOT_CLASS}
             onClick={() => setIsOpen(false)}
             style={portalTokenStyle}
+            data-ethora-color-scheme={portalScheme}
           >
             <LanguageModalContainer
               ref={containerRef}

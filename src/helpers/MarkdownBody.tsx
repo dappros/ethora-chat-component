@@ -47,7 +47,7 @@ const MarkdownBody = ({ text, onMentionClick }: MarkdownBodyProps) => {
               target="_blank"
               rel="noopener noreferrer"
               style={{
-                color: 'var(--ethora-color-primary, #0a66c2)',
+                color: 'var(--ethora-color-primary-text, var(--ethora-color-primary, #0a66c2))',
                 textDecoration: 'none',
               }}
             >
@@ -223,7 +223,7 @@ const MarkdownBody = ({ text, onMentionClick }: MarkdownBodyProps) => {
                     : undefined
                 }
                 style={{
-                  color: 'var(--ethora-color-primary, #0052cd)',
+                  color: 'var(--ethora-color-primary-text, var(--ethora-color-primary, #0052cd))',
                   fontWeight: 600,
                   cursor: onMentionClick ? 'pointer' : 'default',
                 }}

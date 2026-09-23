@@ -17,7 +17,11 @@ import usePushNotifications from '../../hooks/usePushNotifications';
 import NotificationPermissionBanner from '../Notification/NotificationPermissionBanner';
 import { useTypography } from '../../hooks/useTypography';
 import { applyThemeColors } from '../../helpers/resolveIconColor';
-import { ThemeTokens } from '../../styles/tokens';
+import {
+  ThemeTokens,
+  useResolvedColorScheme,
+  useThemeTokenStyle,
+} from '../../styles/tokens';
 import { CHAT_ROOT_CLASS } from '../../styles/classNames';
 import ChatErrorBoundary from './ChatErrorBoundary';
 
@@ -38,6 +42,35 @@ import ChatErrorBoundary from './ChatErrorBoundary';
 // of its own. A normal <div> would break the height chain, since the host
 // sizes whatever <Chat> renders and <ChatWrapperBox> is `height: 100%`.
 const chatRootStyle: React.CSSProperties = { display: 'contents' };
+
+// The outer root also carries the design tokens and the colour scheme:
+// the loader, login form, fallback screens, toasts and the notification
+// permission banner render here, above <ChatWrapperBox>. Custom properties
+// inherit through a `display: contents` element like through any other.
+const ChatRoot: React.FC<{
+  config?: IConfig;
+  children: React.ReactNode;
+}> = ({ config, children }) => {
+  const scheme = useResolvedColorScheme(config?.colorScheme);
+  const tokenStyle = useThemeTokenStyle(
+    config?.colors,
+    config?.typography,
+    scheme
+  );
+  const style = useMemo(
+    () => ({ ...tokenStyle, ...chatRootStyle }),
+    [tokenStyle]
+  );
+  return (
+    <div
+      className={CHAT_ROOT_CLASS}
+      style={style}
+      data-ethora-color-scheme={scheme}
+    >
+      {children}
+    </div>
+  );
+};
 
 export interface ChatWrapperProps
   extends Pick<
@@ -159,7 +192,7 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
     }, [props.config]);
 
     return (
-      <div className={CHAT_ROOT_CLASS} style={chatRootStyle}>
+      <ChatRoot config={memoizedConfig}>
         <Provider store={store}>
           {/* The SDK's crash barrier, as high as it goes while still being
             INSIDE the store provider: everything below it is what actually
@@ -198,7 +231,7 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
             </PersistGate>
           </ChatErrorBoundary>
         </Provider>
-      </div>
+      </ChatRoot>
     );
   }
 );

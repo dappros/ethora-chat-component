@@ -1,5 +1,10 @@
-import { useEffect, useMemo, type CSSProperties } from 'react';
-import { IConfig, TypographyConfig } from '../types/types';
+import {
+  useEffect,
+  useMemo,
+  useSyncExternalStore,
+  type CSSProperties,
+} from 'react';
+import { ChatColorScheme, IConfig, TypographyConfig } from '../types/types';
 
 /**
  * Design tokens for the chat UI, published as CSS custom properties.
@@ -67,6 +72,18 @@ export const shadeColor = (hex: string, amount: number): string => {
   return rgbToHex(r * (1 - amount), g * (1 - amount), b * (1 - amount));
 };
 
+/** Mix `a` toward `b` by `amount` (0-1). Used for dark-scheme tints. */
+export const mixColor = (a: string, b: string, amount: number): string => {
+  if (!isValidHex(a) || !isValidHex(b)) return a;
+  const x = hexToRgb(a);
+  const y = hexToRgb(b);
+  return rgbToHex(
+    x.r + (y.r - x.r) * amount,
+    x.g + (y.g - x.g) * amount,
+    x.b + (y.b - x.b) * amount
+  );
+};
+
 // ---------------------------------------------------------------------------
 // Defaults
 // ---------------------------------------------------------------------------
@@ -107,7 +124,45 @@ const DEFAULTS = {
   // bg-subtle, 4.69:1 on bg-hover. Still clearly reads as "online green".
   success: '#0C7C48',
   iconsBg: '#FFFFFF',
+  // Surfaces that used to be literals at their call sites; published as
+  // tokens so the dark scheme can replace them. Light values are exactly
+  // the old literals.
+  chatBg: '#F3F6FC',
+  overlay: 'rgba(0, 0, 0, 0.5)',
+  // Default icon-chip fill (resolveIconBgColor) when no iconsBg is set.
+  iconChipBg: '#F0F3F7',
 } as const;
+
+/**
+ * Dark-scheme neutrals (`config.colorScheme: 'dark'` or a dark `'system'`).
+ * Text colours are picked to clear WCAG AA (4.5:1) on `bg`, `bgSubtle` and
+ * `bgHover`, mirroring the constraint the light values above were tuned to.
+ */
+const DARK_DEFAULTS = {
+  text: '#ECEEF1',
+  textSecondary: '#B4B9C1',
+  textMuted: '#9AA1AB',
+  textOnPrimary: '#FFFFFF',
+  bg: '#1A1C21',
+  bgSubtle: '#202329',
+  bgHover: '#2A2D34',
+  border: '#34373F',
+  danger: '#F2766B',
+  // In light one green serves as both a fill (white glyph on it: toast
+  // badge, video-call button) and as text (online counts). On a dark
+  // surface no single green clears 4.5:1 in both roles, so dark splits
+  // them: `success` stays deep enough for a white glyph, `online` is
+  // bright enough to read as text.
+  success: '#17864A',
+  online: '#3DD68C',
+  iconsBg: '#24272D',
+  chatBg: '#141619',
+  overlay: 'rgba(0, 0, 0, 0.65)',
+  iconChipBg: '#2A2D34',
+} as const;
+
+/** The scheme actually rendered: `'system'` resolved against the OS. */
+export type ResolvedColorScheme = 'light' | 'dark';
 
 const DEFAULT_WEIGHTS = {
   regular: 400,
@@ -124,12 +179,20 @@ export type ThemeTokenMap = Record<string, string>;
  */
 export function buildThemeTokens(
   colors?: IConfig['colors'],
-  typography?: TypographyConfig
+  typography?: TypographyConfig,
+  scheme: ResolvedColorScheme = 'light'
 ): ThemeTokenMap {
-  const primary =
+  const dark = scheme === 'dark';
+  const base = dark ? { ...DEFAULTS, ...DARK_DEFAULTS } : DEFAULTS;
+  const configuredPrimary =
     colors?.primary && isValidHex(colors.primary)
       ? colors.primary
       : DEFAULTS.primary;
+  // Brand colours are usually picked for a white page; the stock #0052CD
+  // reads at ~2.9:1 on the dark surface. Lift the primary a little in dark
+  // so primary-coloured text / icons stay legible while buttons (white text
+  // on primary) still clear 4.5:1.
+  const primary = dark ? tintColor(configuredPrimary, 0.2) : configuredPrimary;
   const primaryHover = isValidHex(primary) ? shadeColor(primary, 0.08) : primary;
   const customPrimary = colors?.primary && isValidHex(colors.primary);
   // Derived from `primary` alone - NOT `ownMessageBackground`. This token
@@ -141,31 +204,44 @@ export function buildThemeTokens(
   // resolveIconColor.ts's applyThemeColors), which is set directly from
   // `ownMessageBackground` and takes priority over this token in
   // CustomMessageBubble - so bubbles are unaffected by this change.
-  const primarySoft = customPrimary ? tintColor(primary, 0.88) : DEFAULTS.primarySoft;
+  // In dark the "soft" tint goes toward the surface, not toward white.
+  // Primary used AS TEXT (links, sender names, selected labels). Same as
+  // `primary` in light; lifted further in dark, where `primary` itself has
+  // to stay deep enough to carry white button text.
+  const primaryText = dark ? tintColor(configuredPrimary, 0.45) : primary;
+  const primarySoft = dark
+    ? mixColor(configuredPrimary, base.bg, 0.72)
+    : customPrimary
+      ? tintColor(primary, 0.88)
+      : DEFAULTS.primarySoft;
 
   const icons = colors?.icons || primary;
-  const iconsBg = colors?.iconsBg || colors?.secondary || DEFAULTS.iconsBg;
+  const iconsBg = colors?.iconsBg || colors?.secondary || base.iconsBg;
 
   const weights = { ...DEFAULT_WEIGHTS, ...(typography?.weights ?? {}) };
 
   return {
     '--ethora-color-primary': primary,
     '--ethora-color-primary-hover': primaryHover,
+    '--ethora-color-primary-text': primaryText,
     '--ethora-color-primary-soft': primarySoft,
     '--ethora-color-secondary': colors?.secondary || primary,
     '--ethora-color-icons': icons,
     '--ethora-color-icons-bg': iconsBg,
-    '--ethora-color-text': DEFAULTS.text,
-    '--ethora-color-text-secondary': DEFAULTS.textSecondary,
-    '--ethora-color-text-muted': DEFAULTS.textMuted,
-    '--ethora-color-text-on-primary': DEFAULTS.textOnPrimary,
-    '--ethora-color-bg': DEFAULTS.bg,
-    '--ethora-color-bg-subtle': DEFAULTS.bgSubtle,
-    '--ethora-color-bg-hover': DEFAULTS.bgHover,
-    '--ethora-color-border': DEFAULTS.border,
-    '--ethora-color-danger': DEFAULTS.danger,
-    '--ethora-color-success': DEFAULTS.success,
-    '--ethora-color-online': DEFAULTS.success,
+    '--ethora-color-text': base.text,
+    '--ethora-color-text-secondary': base.textSecondary,
+    '--ethora-color-text-muted': base.textMuted,
+    '--ethora-color-text-on-primary': base.textOnPrimary,
+    '--ethora-color-bg': base.bg,
+    '--ethora-color-bg-subtle': base.bgSubtle,
+    '--ethora-color-bg-hover': base.bgHover,
+    '--ethora-color-border': base.border,
+    '--ethora-color-danger': base.danger,
+    '--ethora-color-success': base.success,
+    '--ethora-color-online': dark ? DARK_DEFAULTS.online : base.success,
+    '--ethora-color-chat-bg': base.chatBg,
+    '--ethora-color-overlay': base.overlay,
+    '--ethora-color-icon-chip-bg': base.iconChipBg,
 
     '--ethora-radius-sm': '8px',
     '--ethora-radius-md': '12px',
@@ -236,11 +312,18 @@ export { CHAT_ROOT_CLASS } from './classNames';
  */
 export function useThemeTokenStyle(
   colors?: IConfig['colors'],
-  typography?: TypographyConfig
+  typography?: TypographyConfig,
+  scheme: ResolvedColorScheme = 'light'
 ): CSSProperties {
   return useMemo(
-    () => buildThemeTokens(colors, typography) as CSSProperties,
+    () =>
+      ({
+        ...buildThemeTokens(colors, typography, scheme),
+        // Native controls (inputs, scrollbars, date pickers) follow it too.
+        colorScheme: scheme,
+      }) as CSSProperties,
     [
+      scheme,
       colors?.primary,
       colors?.secondary,
       colors?.icons,
@@ -285,11 +368,13 @@ const syncDocumentTokens = () => {
 export function ThemeTokens({
   config,
 }: {
-  config?: Pick<IConfig, 'colors' | 'typography'>;
+  config?: Pick<IConfig, 'colors' | 'typography' | 'colorScheme'>;
 }): null {
+  const scheme = useResolvedColorScheme(config?.colorScheme);
   const tokens = useMemo(
-    () => buildThemeTokens(config?.colors, config?.typography),
+    () => buildThemeTokens(config?.colors, config?.typography, scheme),
     [
+      scheme,
       config?.colors?.primary,
       config?.colors?.secondary,
       config?.colors?.icons,
@@ -310,4 +395,42 @@ export function ThemeTokens({
   }, [instanceId, tokens]);
 
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// Colour scheme
+// ---------------------------------------------------------------------------
+
+const DARK_QUERY = '(prefers-color-scheme: dark)';
+
+const subscribeToSystemScheme = (onChange: () => void): (() => void) => {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return () => {};
+  }
+  const mql = window.matchMedia(DARK_QUERY);
+  mql.addEventListener('change', onChange);
+  return () => mql.removeEventListener('change', onChange);
+};
+
+const systemPrefersDark = (): boolean =>
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia(DARK_QUERY).matches;
+
+/**
+ * Resolve `config.colorScheme` to the scheme to render. `'system'` tracks the
+ * OS setting live; anything else (including unset) is taken as given, with
+ * `'light'` as the default so existing integrations are unchanged.
+ */
+export function useResolvedColorScheme(
+  scheme?: ChatColorScheme
+): ResolvedColorScheme {
+  const systemDark = useSyncExternalStore(
+    subscribeToSystemScheme,
+    systemPrefersDark,
+    () => false
+  );
+  if (scheme === 'dark') return 'dark';
+  if (scheme === 'system') return systemDark ? 'dark' : 'light';
+  return 'light';
 }

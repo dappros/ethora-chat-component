@@ -65,7 +65,7 @@ const FallbackBox = styled.div`
   text-align: center;
 
   a {
-    color: var(--ethora-color-primary, #0052cd);
+    color: var(--ethora-color-primary-text, var(--ethora-color-primary, #0052cd));
   }
 `;
 

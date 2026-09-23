@@ -15,7 +15,10 @@ const AvatarCircle = styled.div<{ $bgColor: string; $textColor?: string }>`
   height: 40px;
   border-radius: 50%;
   background-color: ${({ $bgColor }) => $bgColor};
-  ${({ $textColor }) => ($textColor ? `color: ${$textColor};` : '')}
+  ${({ $textColor }) =>
+    $textColor
+      ? `color: ${$textColor};`
+      : `[data-ethora-color-scheme='dark'] & { color: #141414; }`}
   display: flex;
   align-items: center;
   justify-content: center;

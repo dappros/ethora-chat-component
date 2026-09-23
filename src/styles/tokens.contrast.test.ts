@@ -56,15 +56,17 @@ const contrastRatio = (hexA: string, hexB: string): number => {
 const AA_NORMAL_TEXT = 4.5;
 const AA_LARGE_TEXT_OR_GRAPHIC = 3;
 
-const tokens = buildThemeTokens();
+describe.each(['light', 'dark'] as const)(
+  'default %s token palette meets WCAG AA contrast',
+  (scheme) => {
+  const tokens = buildThemeTokens(undefined, undefined, scheme);
 
-const color = (name: string): string => {
-  const value = tokens[name];
-  if (!value) throw new Error(`Missing token: ${name}`);
-  return value;
-}
+  const color = (name: string): string => {
+    const value = tokens[name];
+    if (!value) throw new Error(`Missing token: ${name}`);
+    return value;
+  };
 
-describe('default token palette meets WCAG AA contrast', () => {
   // [foreground token, background token, threshold, human label]
   const pairs: Array<[string, string, number, string]> = [
     // Body/secondary text on the two neutral surfaces it actually renders
@@ -92,7 +94,8 @@ describe('default token palette meets WCAG AA contrast', () => {
 
     // Primary as text on its own soft tint - how sender names and the
     // active/selected room row render.
-    ['--ethora-color-primary', '--ethora-color-primary-soft', AA_NORMAL_TEXT, 'primary on primary-soft'],
+    ['--ethora-color-primary-text', '--ethora-color-primary-soft', AA_NORMAL_TEXT, 'primary-text on primary-soft'],
+    ['--ethora-color-primary-text', '--ethora-color-bg', AA_NORMAL_TEXT, 'primary-text on bg'],
 
     // Online/success green as real text: the "N online" header/popover
     // label and the online row in a member list, on both the plain
@@ -121,10 +124,15 @@ describe('default token palette meets WCAG AA contrast', () => {
     expect(ratio).toBeGreaterThanOrEqual(AA_LARGE_TEXT_OR_GRAPHIC);
   });
 
-  it('--ethora-color-online and --ethora-color-success stay in sync', () => {
-    // Documents the current architecture: one default green value backs
-    // both CSS variables. If a future change splits them, this test should
-    // be updated deliberately rather than silently drifting.
-    expect(color('--ethora-color-online')).toBe(color('--ethora-color-success'));
+  it('--ethora-color-online and --ethora-color-success: shared in light, split in dark', () => {
+    // Light: one default green backs both CSS variables. Dark deliberately
+    // splits them (see DARK_DEFAULTS in tokens.ts): no single green is both
+    // readable as text on the dark surface and dark enough for a white
+    // glyph on top of it.
+    if (scheme === 'light') {
+      expect(color('--ethora-color-online')).toBe(color('--ethora-color-success'));
+    } else {
+      expect(color('--ethora-color-online')).not.toBe(color('--ethora-color-success'));
+    }
   });
 });

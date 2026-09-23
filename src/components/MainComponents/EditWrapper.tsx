@@ -18,9 +18,24 @@ export const EditInfoBox = styled.div`
 export const EditTitle = styled.div`
   margin: 0px;
   color: rgb(140, 140, 140);
+  [data-ethora-color-scheme='dark'] & {
+    color: var(--ethora-color-text-muted);
+  }
   text-align: start;
   font-size: 12px;
   padding-bottom: 4px;
+`;
+
+const EditCloseButton = styled.button`
+  font-size: 24px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #888;
+  border-radius: 8px;
+  [data-ethora-color-scheme='dark'] & {
+    color: var(--ethora-color-text-muted);
+  }
 `;
 
 export const EditText = styled.div`
@@ -49,19 +64,9 @@ export const EditWrapper: FC<EditWrapperProps> = ({ text, onClose }) => {
           <EditText>{text}</EditText>
         </div>
       </EditInfoBox>
-      <button
-        style={{
-          fontSize: 24,
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          color: '#888',
-          borderRadius: '8px',
-        }}
-        onClick={onClose}
-      >
+      <EditCloseButton onClick={onClose}>
           &times;
-      </button>
+      </EditCloseButton>
     </EditContainer>
   );
 };
