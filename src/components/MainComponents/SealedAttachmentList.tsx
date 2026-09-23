@@ -6,34 +6,78 @@ import { useT } from '../../i18n/useT';
 import { DownloadIcon, LockIcon } from '../../assets/icons';
 import { formatFileName, formatFileSize } from '../../helpers/fileKind';
 import { saveSealedAttachment } from '../../helpers/sealedAttachments';
-import {
-  BackgroundFile,
-  FileInformation,
-  FileName,
-  FileSize,
-  FileSizeContainer,
-  UnsupportedContainer,
-} from '../styled/StyledInputComponents/MediaComponents';
 
+// Deliberately NOT built on the shared MediaComponents file card: that one
+// sizes its icon box 100%/100% because it wraps a thumbnail, and a sealed
+// attachment has no thumbnail to bound it. This is a fixed-size chip.
 const SealedStack = styled.div`
   display: flex;
   flex-direction: column;
   gap: 6px;
 `;
 
-const SealedCard = styled(UnsupportedContainer)`
-  min-width: 220px;
+const SealedCard = styled.button`
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  width: 240px;
+  max-width: 100%;
+  padding: 8px 10px;
+  text-align: left;
+  border-radius: var(--ethora-radius-sm, 8px);
+  background-color: var(--ethora-color-bg-subtle, #f3f6fc);
+  border: 1px solid var(--ethora-color-border, transparent);
+  cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+`;
+
+const IconBox = styled.span`
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--ethora-radius-sm, 8px);
+  background-color: var(--ethora-color-bg, #fff);
+`;
+
+const Details = styled.span`
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+`;
+
+const Name = styled.span`
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ethora-color-text, #141414);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+`;
+
+const Meta = styled.span`
+  font-size: var(--ethora-font-size-sm, 12px);
+  color: var(--ethora-color-text-secondary, #53575a);
+`;
+
+const ErrorNote = styled(Meta)`
+  color: var(--ethora-color-danger, #c0392b);
 `;
 
 const Action = styled.span`
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   color: var(--ethora-color-text-secondary, #53575a);
-`;
-
-const ErrorNote = styled.span`
-  color: var(--ethora-color-danger, #c0392b);
-  font-size: var(--ethora-font-size-sm, 13px);
 `;
 
 type CardState = 'idle' | 'working' | 'failed';
@@ -72,12 +116,13 @@ const SealedAttachmentCard: React.FC<{
   if (!canDownload) {
     return (
       <SealedCard as="div" title={t('media.sealedUnavailable')}>
-        <BackgroundFile>
-          <LockIcon />
-        </BackgroundFile>
-        <FileInformation>
-          <FileName>{t('media.sealedUnavailable')}</FileName>
-        </FileInformation>
+        <IconBox>
+          <LockIcon width={18} height={18} />
+        </IconBox>
+        <Details>
+          <Name>{t('media.sealedFile')}</Name>
+          <Meta>{t('media.sealedUnavailable')}</Meta>
+        </Details>
       </SealedCard>
     );
   }
@@ -98,23 +143,19 @@ const SealedAttachmentCard: React.FC<{
       title={name || t('media.sealedFile')}
       aria-label={t('media.sealedDownload')}
     >
-      <BackgroundFile>
-        <LockIcon />
-      </BackgroundFile>
-      <FileInformation>
-        <FileName>{label}</FileName>
+      <IconBox>
+        <LockIcon width={18} height={18} />
+      </IconBox>
+      <Details>
+        <Name>{label}</Name>
         {state === 'failed' ? (
           <ErrorNote>{t('media.sealedDownloadFailed')}</ErrorNote>
         ) : (
-          size && (
-            <FileSizeContainer>
-              <FileSize>{size}</FileSize>
-            </FileSizeContainer>
-          )
+          size && <Meta>{size}</Meta>
         )}
-      </FileInformation>
+      </Details>
       <Action aria-hidden="true">
-        <DownloadIcon />
+        <DownloadIcon width={18} height={18} />
       </Action>
     </SealedCard>
   );

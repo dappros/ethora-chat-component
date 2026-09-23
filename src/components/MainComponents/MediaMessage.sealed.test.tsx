@@ -69,6 +69,20 @@ describe('MediaMessage with a sealed attachment', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  it('sizes its icons, so the card stays a chip', async () => {
+    // Regression: the shared DownloadIcon defaults to 800x800. Rendered
+    // without an explicit size it blew the card out to fill the transcript.
+    const seal = await makeSeal();
+    const { container } = renderWith(sealedMessage(seal));
+
+    const icons = container.querySelectorAll('svg');
+    expect(icons.length).toBeGreaterThan(0);
+    icons.forEach((icon) => {
+      expect(icon.getAttribute('width')).toBe('18');
+      expect(icon.getAttribute('height')).toBe('18');
+    });
+  });
+
   it('decrypts and saves under the real filename when clicked', async () => {
     const seal = await makeSeal();
     vi.stubGlobal(
