@@ -41,6 +41,32 @@
       "port": 5176
     },
     {
+      "name": "chat-x",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5273",
+        "--strictPort"
+      ],
+      "port": 5273
+    },
+    {
+      "name": "chat-y",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5274",
+        "--strictPort"
+      ],
+      "port": 5274
+    },
+    {
       "name": "webapp",
       "runtimeExecutable": "npm",
       "runtimeArgs": [

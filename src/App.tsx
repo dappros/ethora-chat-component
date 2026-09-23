@@ -25,8 +25,15 @@ const LIVEKIT_URL =
 // library entry (src/main.ts).
 const DEV_ENV =
   (((import.meta as unknown as { env?: Record<string, string | undefined> }).env) || {});
-const DEV_LOGIN_EMAIL = DEV_ENV.VITE_DEV_LOGIN_EMAIL || '';
-const DEV_LOGIN_PASSWORD = DEV_ENV.VITE_DEV_LOGIN_PASSWORD || '';
+// `?email=&password=` lets a second tab (e.g. 127.0.0.1:5173, a different
+// origin from localhost:5173 - separate localStorage, separate XMPP session)
+// log in as a different account instead of hijacking the same one from
+// .env.local. Only read here, in dev-only harness code.
+const DEV_URL_PARAMS =
+  typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+const DEV_LOGIN_EMAIL = DEV_URL_PARAMS?.get('email') || DEV_ENV.VITE_DEV_LOGIN_EMAIL || '';
+const DEV_LOGIN_PASSWORD =
+  DEV_URL_PARAMS?.get('password') || DEV_ENV.VITE_DEV_LOGIN_PASSWORD || '';
 const DEV_AUTOLOGIN: Pick<IConfig, 'customLogin'> =
   DEV_LOGIN_EMAIL && DEV_LOGIN_PASSWORD
     ? {
