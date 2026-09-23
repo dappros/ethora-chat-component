@@ -66,12 +66,20 @@ export const resolveSenderDisplayName = (
 
   const usersSetName = createUserNameFromSetUser(usersSet, localUserId);
   const usersSetNameAlt = createUserNameFromSetUser(usersSet, rawUserId);
-  const isUsersSetUseful = (name: string) => !!name && name !== 'Deleted User';
+  // `createUserNameFromSetUser` itself falls back to echoing the lookup key
+  // back when it finds a usersSet entry with no firstName/lastName (a real
+  // hit, but a nameless one - e.g. a just-registered profile the backend
+  // hasn't finished populating). That echo is indistinguishable from a real
+  // one-word name unless we also compare it against the key we looked up -
+  // treat it as a miss too, the same as "Deleted User", so we still try
+  // composedFromData below instead of showing the raw xmpp id.
+  const isUsersSetUseful = (name: string, key: string) =>
+    !!name && name !== 'Deleted User' && name !== key;
 
   return (
     currentName ||
-    (isUsersSetUseful(usersSetName) && usersSetName) ||
-    (isUsersSetUseful(usersSetNameAlt) && usersSetNameAlt) ||
+    (isUsersSetUseful(usersSetName, localUserId) && usersSetName) ||
+    (isUsersSetUseful(usersSetNameAlt, rawUserId) && usersSetNameAlt) ||
     composedFromData ||
     localUserId ||
     rawUserId ||

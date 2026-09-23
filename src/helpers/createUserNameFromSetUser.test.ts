@@ -96,4 +96,33 @@ describe('resolveSenderDisplayName', () => {
 
     expect(resolveSenderDisplayName(message, usersSet)).toBe('Alice Doe');
   });
+
+  // Regression: a brand-new user's usersSet entry can exist (a profile
+  // lookup succeeded, or a room refresh added a member row) while their
+  // firstName/lastName haven't propagated yet. createUserNameFromSetUser
+  // falls back to echoing the lookup key in that case, which
+  // resolveSenderDisplayName must not mistake for a real name - otherwise
+  // it shows the raw xmpp id instead of trying the name the sender already
+  // stamped on the message itself.
+  it('does not treat a nameless usersSet entry as a real name', () => {
+    const message = {
+      user: { id: 'alice' },
+      senderFirstName: 'Alice',
+      senderLastName: 'Doe',
+    } as any;
+    const usersSet = {
+      alice: { xmppUsername: 'alice', firstName: '', lastName: '' } as any,
+    };
+
+    expect(resolveSenderDisplayName(message, usersSet)).toBe('Alice Doe');
+  });
+
+  it('falls back to the bare id when a nameless usersSet entry is the only thing available', () => {
+    const message = { user: { id: 'alice' } } as any;
+    const usersSet = {
+      alice: { xmppUsername: 'alice', firstName: '', lastName: '' } as any,
+    };
+
+    expect(resolveSenderDisplayName(message, usersSet)).toBe('alice');
+  });
 });

@@ -975,7 +975,21 @@ const roomsStore = createSlice({
             const upgraded =
               createUserNameFromSetUser(state.usersSet, msgUserLocal) ||
               createUserNameFromSetUser(state.usersSet, rawId);
-            if (upgraded && upgraded !== 'Deleted User') {
+            // createUserNameFromSetUser falls back to echoing the lookup key
+            // back when the matched usersSet entry has no firstName/lastName
+            // (a real hit, but a nameless one - e.g. a profile that hasn't
+            // finished populating for a brand-new user). Treating that echo
+            // as a genuine "upgrade" used to overwrite an already-good name
+            // (resolved from the message's own <data> fields at insert time)
+            // with the raw xmpp id, and it would keep doing so on every later
+            // insertUsers call for this sender until a reload rebuilt
+            // usersSet from scratch. Only accept it when it's an actual name.
+            const isRealName =
+              !!upgraded &&
+              upgraded !== 'Deleted User' &&
+              upgraded !== msgUserLocal &&
+              upgraded !== rawId;
+            if (isRealName) {
               message.user = { ...message.user, name: upgraded };
               return;
             }

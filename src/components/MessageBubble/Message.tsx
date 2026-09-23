@@ -142,10 +142,18 @@ const Message: React.FC<MessageProps> = forwardRef<
     (state: RootState) =>
       state.rooms.usersSet[senderLocal] ?? state.rooms.usersSet[senderUserId]
   );
-  const senderDisplayName = senderEntry
-    ? `${senderEntry.firstName ?? ''} ${senderEntry.lastName ?? ''}`.trim() ||
-      senderLocal
-    : message.user?.name || senderLocal || 'Unknown';
+  // A usersSet hit with blank firstName/lastName (a profile that hasn't
+  // finished populating yet - the common case right after someone new
+  // registers) is worth no more than a miss. Falling straight to `senderLocal`
+  // in that case is what showed the raw xmpp id as the sender's name instead
+  // of the name the sender already stamped on the message itself
+  // (message.user.name, resolved by resolveSenderDisplayName/enrichMessageAuthor
+  // when the message was inserted) - try that before giving up to the id.
+  const usersSetDisplayName = senderEntry
+    ? `${senderEntry.firstName ?? ''} ${senderEntry.lastName ?? ''}`.trim()
+    : '';
+  const senderDisplayName =
+    usersSetDisplayName || message.user?.name || senderLocal || 'Unknown';
   // usersSet first, same reason as the name above: a message restored from
   // the persist cache never carries an avatar URL at all (profileImage is
   // deliberately absent from PERSISTED_MESSAGE_USER_FIELDS - it's exactly
