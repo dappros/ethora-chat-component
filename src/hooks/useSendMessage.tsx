@@ -8,6 +8,8 @@ import {
   setEditAction,
 } from '../roomStore/roomsSlice';
 import { uploadFile } from '../networking/api-requests/auth.api';
+import { isE2eeRoom } from '../e2ee';
+import { sealFileForUpload } from '../e2ee/fileEnvelope';
 import {
   MAX_ATTACHMENTS_PER_MESSAGE,
   serializeAttachments,
@@ -713,9 +715,34 @@ export const useSendMessage = () => {
         // POST /files/ already answers with a `results` array, so the whole
         // group is one request - and one failure boundary.
         const mediaData = new FormData();
-        files.forEach((file) => mediaData.append('files', file));
 
-        const response = await uploadFile(mediaData, activeRoomJID);
+        // In an e2ee room the attachment is sealed before it leaves the
+        // browser: what goes up is opaque bytes under a random name, so the
+        // server never sees the file, its type or its filename, and never
+        // renders a thumbnail of it into a bucket. The per-file keys ride in
+        // the OMEMO-encrypted <body> of the stanza below - `location` and the
+        // rest of <data> stay readable, and now say nothing.
+        const e2ee = isE2eeRoom(activeRoomJID);
+        let sealedKeys: string[] | undefined;
+
+        if (e2ee) {
+          const sealed = await Promise.all(files.map(sealFileForUpload));
+          sealed.forEach((item) =>
+            mediaData.append(
+              'files',
+              new File([item.ciphertext as BlobPart], item.filename, {
+                type: 'application/octet-stream',
+              })
+            )
+          );
+          sealedKeys = sealed.map((item) => item.keyMaterial);
+        } else {
+          files.forEach((file) => mediaData.append('files', file));
+        }
+
+        const response = await uploadFile(mediaData, activeRoomJID, {
+          clientEncrypted: e2ee,
+        });
 
         const results: any[] = Array.isArray(response?.data?.results)
           ? response.data.results
@@ -772,6 +799,9 @@ export const useSendMessage = () => {
           mainMessage,
           isPrivate: head?.isPrivate,
           __v: head.__v,
+          // Consumed by sendMediaMessage, which puts them inside the encrypted
+          // <body>. Never stamped onto <data>: that rides in the clear.
+          e2eeKeys: sealedKeys,
         };
 
         const mediaSent = await sendWithActiveRoomRetry(

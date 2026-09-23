@@ -213,8 +213,26 @@ const postUpload = (endpoint: string, formData: FormData, token: string) =>
     timeout: 0,
   });
 
-export async function uploadFile(formData: FormData, activeRoomJID: string) {
+export interface UploadFileOptions {
+  /**
+   * The payload is ciphertext the caller sealed (e2ee rooms). Tells the
+   * backend to store it verbatim: no thumbnail, no duration/page probe, and
+   * `mimetype` recorded as declared rather than inferred. Set on the form
+   * BEFORE the secure/legacy split so both routes carry it.
+   */
+  clientEncrypted?: boolean;
+}
+
+export async function uploadFile(
+  formData: FormData,
+  activeRoomJID: string,
+  options: UploadFileOptions = {}
+) {
   const token = store.getState().chatSettingStore.user.token;
+
+  if (options.clientEncrypted) {
+    formData.append('clientEncrypted', 'true');
+  }
 
   if (!secureUploadUnavailable) {
     const secureData = cloneFormData(formData);
