@@ -6,6 +6,7 @@ import LastMessagePhoto from './styled/LastMessagePhoto';
 import LastMessageEmoji from './styled/LastMessageEmoji';
 import LastMessageFile from './styled/LastMessageFile';
 import LastAudioMessage from './styled/LastAudioMessage';
+import LastMessageSealed from './styled/LastMessageSealed';
 import { LastRoomMessageText } from './styled/StyledRoomComponents';
 import { useT } from '../../i18n/useT';
 
@@ -23,6 +24,15 @@ const LastMessageItem: FC<LastMessageItemProps> = ({ lastMessage }) => {
         {t('message.deleted')}
       </LastRoomMessageText>
     );
+  }
+
+  // A sealed attachment must be checked before mimetype: the server holds
+  // `application/octet-stream` for it, which the audio branch below claims
+  // (voice notes upload under the same type), so it rendered as "audio" with
+  // a play button. The flag rides on <data> in the clear, so this is right
+  // even for a message whose body would not decrypt.
+  if (lastMessage?.clientEncrypted === 'true') {
+    return <LastMessageSealed {...lastMessage} />;
   }
 
   if (mimetype) {

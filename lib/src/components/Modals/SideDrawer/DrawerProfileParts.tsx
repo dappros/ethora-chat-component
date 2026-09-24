@@ -104,7 +104,7 @@ export const DrawerFactPill = styled.span`
   padding: var(--ethora-space-1, 4px) var(--ethora-space-3, 12px);
   border-radius: var(--ethora-radius-full, 999px);
   background: var(--ethora-color-primary-soft, #e7edf9);
-  color: var(--ethora-color-primary, #0052cd);
+  color: var(--ethora-color-primary-text, var(--ethora-color-primary, #0052cd));
   font-size: var(--ethora-font-size-xs, 12px);
   font-weight: var(--ethora-font-weight-semibold, 600);
 

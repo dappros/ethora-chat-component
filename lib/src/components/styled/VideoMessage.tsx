@@ -57,6 +57,9 @@ export const IconButton = styled.button`
   border: none;
   cursor: pointer;
   color: gray;
+  [data-ethora-color-scheme='dark'] & {
+    color: var(--ethora-color-text-muted);
+  }
   font-size: 36px;
   display: flex;
   align-items: center;

@@ -252,7 +252,7 @@ const UsersList: React.FC<UsersListProps> = ({
               >
                 <Label
                   style={{
-                    color: 'var(--ethora-color-primary, #0052CD)',
+                    color: 'var(--ethora-color-primary-text, var(--ethora-color-primary, #0052CD))',
                     fontSize: '13px',
                   }}
                 >

@@ -127,3 +127,44 @@ describe('uploadFile - secure/legacy endpoint fallback', () => {
     expect(postMock).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('uploadFile - clientEncrypted flag', () => {
+  it('flags the secure route so the backend stores the ciphertext verbatim', async () => {
+    const uploadFile = await loadUploadFile();
+    postMock.mockResolvedValue({ data: { results: [{ location: 'u' }] } });
+
+    await uploadFile(makeFormData(), ROOM_JID, { clientEncrypted: true });
+
+    const [endpoint, body] = postMock.mock.calls[0];
+    expect(endpoint).toBe('/v2/files/secure');
+    expect((body as FormData).get('clientEncrypted')).toBe('true');
+  });
+
+  it('carries the flag onto the legacy route too', async () => {
+    // The flag is appended before the secure/legacy split, so a backend old
+    // enough to lack /v2/files/secure still gets told not to build a preview
+    // from bytes it cannot read.
+    const uploadFile = await loadUploadFile();
+    postMock
+      .mockRejectedValueOnce(httpError(404))
+      .mockResolvedValueOnce({ data: { results: [{ location: 'legacy' }] } });
+
+    await uploadFile(makeFormData(), ROOM_JID, { clientEncrypted: true });
+
+    expect(postMock).toHaveBeenCalledTimes(2);
+    const [endpoint, body] = postMock.mock.calls[1];
+    expect(endpoint).toBe('/v1/files/');
+    expect((body as FormData).get('clientEncrypted')).toBe('true');
+    expect((body as FormData).get('chatName')).toBeNull();
+  });
+
+  it('sends no flag at all for an ordinary upload', async () => {
+    const uploadFile = await loadUploadFile();
+    postMock.mockResolvedValue({ data: { results: [{ location: 'u' }] } });
+
+    await uploadFile(makeFormData(), ROOM_JID, { clientEncrypted: false });
+
+    const [, body] = postMock.mock.calls[0];
+    expect((body as FormData).get('clientEncrypted')).toBeNull();
+  });
+});

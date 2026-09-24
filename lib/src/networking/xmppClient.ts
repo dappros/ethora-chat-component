@@ -2531,7 +2531,9 @@ export class XmppClient implements XmppClientInterface {
           return true;
         }
         return this.wrapWithConnectionCheck(async () => {
-          sendMediaMessage(this.client, roomJID, data, id);
+          // Awaited: in an e2ee room this encrypts the attachment keys, and a
+          // failure there must reach the caller rather than resolving true.
+          await sendMediaMessage(this.client, roomJID, data, id);
         }).then(() => true);
       });
     }, id, roomJID, lane);

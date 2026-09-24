@@ -27,13 +27,13 @@ export const ChooseChatMessageContainerBoxText = styled.div`
 
 export const ChooseChatTitle = styled.div`
   font-size: var(--ethora-font-size, 16px);
-  color: #141414;
+  color: var(--ethora-color-text, #141414);
   font-weight: 600;
 `;
 
 export const ChooseChatDescription = styled.div`
   font-size: var(--ethora-font-size-sm, 14px);
-  color: #141414;
+  color: var(--ethora-color-text, #141414);
 `;
 
 interface ChooseChatMessageProps {

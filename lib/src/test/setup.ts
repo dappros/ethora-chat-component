@@ -50,3 +50,16 @@ if (typeof URL !== 'undefined' && !URL.createObjectURL) {
 if (typeof Element !== 'undefined' && !Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = function noopScrollIntoView() {};
 }
+
+// jsdom's Blob/File predate Blob.arrayBuffer(), which attachment sealing uses
+// to read a picked file. FileReader IS implemented, so route through it.
+if (typeof Blob !== 'undefined' && !Blob.prototype.arrayBuffer) {
+  Blob.prototype.arrayBuffer = function blobArrayBuffer(this: Blob) {
+    return new Promise<ArrayBuffer>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as ArrayBuffer);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(this);
+    });
+  };
+}

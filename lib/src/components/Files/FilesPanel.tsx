@@ -135,7 +135,7 @@ const RetryButton = styled.button`
   margin-top: 4px;
   border: 1px solid var(--ethora-color-border, #e6e8ec);
   background: var(--ethora-color-bg, #fff);
-  color: var(--ethora-color-primary, #0052cd);
+  color: var(--ethora-color-primary-text, var(--ethora-color-primary, #0052cd));
   border-radius: var(--ethora-radius-sm, 8px);
   padding: 6px 14px;
   font-size: 13px;

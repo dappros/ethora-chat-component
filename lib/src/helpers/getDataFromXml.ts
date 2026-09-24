@@ -8,6 +8,7 @@ import { parseAttachments } from './attachments';
 import { parseQuickReplies } from './quickReplies';
 import { getTimestampFromUnknown } from './timestamp';
 import { normalizeXmppUsername } from './xmppUsername';
+import { parseSealedMediaBody } from '../e2ee/fileEnvelope';
 
 const getLocalpartFromJid = (jid?: string): string | undefined => {
   const value = String(jid || '').trim();
@@ -70,7 +71,7 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
     fullData?.getChild('translations')?.attrs?.value,
     {}
   );
-  const body = fullData?.getChild('body')?.getText() || undefined;
+  const rawBody = fullData?.getChild('body')?.getText() || undefined;
   const deleted = !!fullData?.getChild('deleted');
   const translations = fullData?.getChild('translations')?.attrs?.value
       ? transformArrayToObject(
@@ -133,6 +134,20 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
   if (typeof dataAttrs.mentions === 'string') {
     const parsedMentions = safeJsonParse<unknown>(dataAttrs.mentions, []);
     dataAttrs.mentions = Array.isArray(parsedMentions) ? parsedMentions : [];
+  }
+
+  // A sealed attachment carries its per-file keys in the (OMEMO-decrypted)
+  // <body> rather than on <data>, which rides in the clear. Lift them onto
+  // the data attrs - where createMessageFromXml spreads them onto IMessage -
+  // and put <body> back to what a media message normally says, so nothing
+  // downstream renders the key JSON as message text.
+  let body = rawBody;
+  if (dataAttrs.clientEncrypted === 'true') {
+    const keys = parseSealedMediaBody(body);
+    if (keys) {
+      dataAttrs.e2eeKeys = keys;
+      body = 'media';
+    }
   }
 
   // `quickReplies` carries bot-offered buttons as a JSON string (the format

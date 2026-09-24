@@ -1,6 +1,8 @@
 import React, { Suspense } from 'react';
 import styled from 'styled-components';
 import { scaleInAnimation } from '../../styles/motion';
+import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { useResolvedColorScheme } from '../../styles/tokens';
 
 // The emoji picker (component + full emoji dataset) is loaded only when a
 // user actually opens it, keeping both out of the initial bundle.
@@ -24,12 +26,19 @@ const PickerShell = styled.div`
   ${scaleInAnimation}
 `;
 
-const LazyEmojiPicker: React.FC<any> = (props) => (
-  <Suspense fallback={null}>
-    <PickerShell>
-      <PickerWithData {...props} />
-    </PickerShell>
-  </Suspense>
-);
+const LazyEmojiPicker: React.FC<any> = (props) => {
+  const { config } = useChatSettingState();
+  const scheme = useResolvedColorScheme(config?.colorScheme);
+  // Callers pin theme="light"; in the dark scheme emoji-mart's own dark theme
+  // is used instead so the picker matches the chat. Light is left untouched.
+  const theme = scheme === 'dark' ? 'dark' : props.theme;
+  return (
+    <Suspense fallback={null}>
+      <PickerShell>
+        <PickerWithData {...props} theme={theme} />
+      </PickerShell>
+    </Suspense>
+  );
+};
 
 export default LazyEmojiPicker;

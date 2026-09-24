@@ -58,7 +58,9 @@ const Tooltip = styled.div`
   left: 50%;
   transform: translateX(-50%);
   background-color: var(--ethora-color-text, #333);
-  color: var(--ethora-color-text-on-primary, #fff);
+  /* Inverted chip: the page surface colour on a text-coloured fill, so it
+     stays readable when the dark scheme flips both. */
+  color: var(--ethora-color-bg, #fff);
   padding: 6px 10px;
   border-radius: var(--ethora-radius-sm, 6px);
   font-size: 12px;
@@ -115,7 +117,7 @@ export const MessageReaction: FC<MessageReactionProps> = ({
           color={userName && details.users.includes(userName) ? '#fff' : color}
           style={{
             backgroundColor: !details.users.includes(userName || '')
-              ? '#fff'
+              ? 'var(--ethora-color-bg, #fff)'
               : color,
           }}
         >
