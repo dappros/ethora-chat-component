@@ -813,6 +813,40 @@ export const useSendMessage = () => {
           throw new Error('media_send_failed');
         }
 
+        // Replace the optimistic attachment placeholders with the real ones.
+        //
+        // The optimistic bubble carries an `attachments` array built from the
+        // picked File, so its `location` is ''. The room echo that follows
+        // does NOT carry `attachments` - a single-file stanza deliberately
+        // omits it - and the store merges an echo key-by-key, so the stale
+        // array survives while only the flat fields get the real URL.
+        // getMessageAttachments prefers `attachments`, so the bubble kept
+        // reading location '' until a reload dropped the optimistic remnant:
+        // a spinner that never resolved for plain media, and "could not be
+        // opened" for a sealed one. The sender knows the truth here, so it
+        // says so rather than waiting for an echo that will not carry it.
+        if (!config?.disableSentLogic) {
+          dispatch(
+            addRoomMessage({
+              roomJID: activeRoomJID,
+              message: {
+                id,
+                xmppId: id,
+                // addRoomMessage drops anything with no body, so this patch
+                // has to carry the one the bubble already has.
+                body: 'media',
+                attachments,
+                location: head.location,
+                locationPreview: head.locationPreview,
+                mimetype: head.mimetype,
+                originalName: head?.originalname,
+                fileName: head.filename,
+                size: head.size?.toString?.() ?? head.size,
+              } as never,
+            })
+          );
+        }
+
         emitMessageSent({
           message: 'media',
           roomJID: activeRoomJID,
