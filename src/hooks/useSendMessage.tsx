@@ -8,6 +8,8 @@ import {
   setEditAction,
 } from '../roomStore/roomsSlice';
 import { uploadFile } from '../networking/api-requests/auth.api';
+import { isE2eeRoom } from '../e2ee';
+import { sealFileForUpload } from '../e2ee/fileEnvelope';
 import {
   MAX_ATTACHMENTS_PER_MESSAGE,
   serializeAttachments,
@@ -713,9 +715,34 @@ export const useSendMessage = () => {
         // POST /files/ already answers with a `results` array, so the whole
         // group is one request - and one failure boundary.
         const mediaData = new FormData();
-        files.forEach((file) => mediaData.append('files', file));
 
-        const response = await uploadFile(mediaData, activeRoomJID);
+        // In an e2ee room the attachment is sealed before it leaves the
+        // browser: what goes up is opaque bytes under a random name, so the
+        // server never sees the file, its type or its filename, and never
+        // renders a thumbnail of it into a bucket. The per-file keys ride in
+        // the OMEMO-encrypted <body> of the stanza below - `location` and the
+        // rest of <data> stay readable, and now say nothing.
+        const e2ee = isE2eeRoom(activeRoomJID);
+        let sealedKeys: string[] | undefined;
+
+        if (e2ee) {
+          const sealed = await Promise.all(files.map(sealFileForUpload));
+          sealed.forEach((item) =>
+            mediaData.append(
+              'files',
+              new File([item.ciphertext as BlobPart], item.filename, {
+                type: 'application/octet-stream',
+              })
+            )
+          );
+          sealedKeys = sealed.map((item) => item.keyMaterial);
+        } else {
+          files.forEach((file) => mediaData.append('files', file));
+        }
+
+        const response = await uploadFile(mediaData, activeRoomJID, {
+          clientEncrypted: e2ee,
+        });
 
         const results: any[] = Array.isArray(response?.data?.results)
           ? response.data.results
@@ -772,6 +799,9 @@ export const useSendMessage = () => {
           mainMessage,
           isPrivate: head?.isPrivate,
           __v: head.__v,
+          // Consumed by sendMediaMessage, which puts them inside the encrypted
+          // <body>. Never stamped onto <data>: that rides in the clear.
+          e2eeKeys: sealedKeys,
         };
 
         const mediaSent = await sendWithActiveRoomRetry(
@@ -781,6 +811,40 @@ export const useSendMessage = () => {
         );
         if (!mediaSent) {
           throw new Error('media_send_failed');
+        }
+
+        // Replace the optimistic attachment placeholders with the real ones.
+        //
+        // The optimistic bubble carries an `attachments` array built from the
+        // picked File, so its `location` is ''. The room echo that follows
+        // does NOT carry `attachments` - a single-file stanza deliberately
+        // omits it - and the store merges an echo key-by-key, so the stale
+        // array survives while only the flat fields get the real URL.
+        // getMessageAttachments prefers `attachments`, so the bubble kept
+        // reading location '' until a reload dropped the optimistic remnant:
+        // a spinner that never resolved for plain media, and "could not be
+        // opened" for a sealed one. The sender knows the truth here, so it
+        // says so rather than waiting for an echo that will not carry it.
+        if (!config?.disableSentLogic) {
+          dispatch(
+            addRoomMessage({
+              roomJID: activeRoomJID,
+              message: {
+                id,
+                xmppId: id,
+                // addRoomMessage drops anything with no body, so this patch
+                // has to carry the one the bubble already has.
+                body: 'media',
+                attachments,
+                location: head.location,
+                locationPreview: head.locationPreview,
+                mimetype: head.mimetype,
+                originalName: head?.originalname,
+                fileName: head.filename,
+                size: head.size?.toString?.() ?? head.size,
+              } as never,
+            })
+          );
         }
 
         emitMessageSent({

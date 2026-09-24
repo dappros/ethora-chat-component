@@ -8,6 +8,7 @@ import { getMessageAttachments } from '../../helpers/attachments';
 import { appendFileToken } from '../../helpers/secureFileUrl';
 import { deleteRoomMessage } from '../../roomStore/roomsSlice';
 import AttachmentList from './AttachmentList';
+import SealedAttachmentList from './SealedAttachmentList';
 
 const UnsupportedMedia = styled.div`
   color: var(--ethora-color-text-muted, #8c8c8c);
@@ -98,6 +99,16 @@ const MediaMessage: React.FC<MediaMessageProps> = ({
 
   if (attachments.length === 0) {
     return <UnsupportedMedia>{t('media.unsupported')}</UnsupportedMedia>;
+  }
+
+  // Sealed attachments get no preview. The server holds ciphertext and never
+  // rendered a thumbnail - that is the point - and building one here would
+  // mean downloading and decrypting every attachment in the transcript just
+  // to scroll past it. Offer a download instead; nothing is fetched until the
+  // viewer asks for it.
+  const sealedKeys = message?.e2eeKeys;
+  if (sealedKeys?.length) {
+    return <SealedAttachmentList attachments={attachments} keys={sealedKeys} />;
   }
 
   return (
