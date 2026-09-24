@@ -18,6 +18,7 @@ import {
 import { addRoomMessage } from '../../roomStore/roomsSlice';
 import { buildLocalCallLogMessage } from '../../helpers/callLogMessage';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { useResolvedColorScheme, useThemeTokenStyle } from '../../styles/tokens';
 import { VideoCallSession } from './VideoCallSession';
 import { ProfileImagePlaceholder } from '../MainComponents/ProfileImagePlaceholder';
 import {
@@ -83,9 +84,14 @@ const FOCUSABLE =
 const OUTGOING_CALL_TIMEOUT_MS = 30000;
 
 const DEFAULT_PRIMARY = '#0052CD';
-const TEXT_PRIMARY = '#141414';
-const TEXT_MUTED = '#8c8c8c';
-const DIVIDER = '#f0f0f0';
+// Light surfaces read the chat's colour tokens with the original literals as
+// fallbacks. The overlay renders outside the chat root, so it re-applies the
+// token map itself in the dark scheme (see callSchemeStyle below). Muted text
+// has no token with the same light value, so it goes through a call-local
+// variable that is only set in dark: light keeps #8c8c8c exactly.
+const TEXT_PRIMARY = 'var(--ethora-color-text, #141414)';
+const TEXT_MUTED = 'var(--ethora-call-text-muted, #8c8c8c)';
+const DIVIDER = 'var(--ethora-color-bg-hover, #f0f0f0)';
 const DANGER = '#E53935';
 
 // Keep one set of @keyframes per app. Same trick the chat sidebar uses
@@ -150,7 +156,7 @@ const sessionCardStyle: React.CSSProperties = {
   width: 'min(920px, calc(100vw - 32px))',
   height: 'min(680px, calc(100svh - 32px))',
   borderRadius: 24,
-  background: '#fff',
+  background: 'var(--ethora-color-bg, #fff)',
   boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.2)',
   overflow: 'hidden',
   position: 'relative',
@@ -165,7 +171,7 @@ const audioSessionCardStyle: React.CSSProperties = {
   width: 'min(420px, calc(100vw - 32px))',
   maxHeight: 'min(600px, calc(100svh - 32px))',
   borderRadius: 24,
-  background: '#fff',
+  background: 'var(--ethora-color-bg, #fff)',
   boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.2)',
   overflow: 'hidden',
   position: 'relative',
@@ -176,7 +182,7 @@ const ringingCardStyle: React.CSSProperties = {
   boxSizing: 'border-box',
   padding: '32px',
   borderRadius: 24,
-  background: '#fff',
+  background: 'var(--ethora-color-bg, #fff)',
   boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.2)',
   display: 'flex',
   flexDirection: 'column',
@@ -414,6 +420,27 @@ export const VideoCallOverlay: React.FC = () => {
   const enabled = videoCallsConfig?.enabled === true;
   const livekitUrl = (videoCallsConfig?.livekitUrl || '').trim();
   const primaryColor = config?.colors?.primary || DEFAULT_PRIMARY;
+  // The overlay is mounted beside the chat (in XmppProvider), not inside the
+  // chat root that carries the colour tokens, so in the dark scheme it
+  // carries them itself. Light is left exactly as before (no tokens applied
+  // here), so every literal fallback below still wins in light.
+  const colorScheme = useResolvedColorScheme(config?.colorScheme);
+  const darkTokenStyle = useThemeTokenStyle(
+    config?.colors,
+    config?.typography,
+    'dark'
+  );
+  const callSchemeStyle = useMemo<React.CSSProperties>(
+    () =>
+      colorScheme === 'dark'
+        ? ({
+            display: 'contents',
+            ...darkTokenStyle,
+            '--ethora-call-text-muted': 'var(--ethora-color-text-muted)',
+          } as React.CSSProperties)
+        : { display: 'contents' },
+    [colorScheme, darkTokenStyle]
+  );
 
   const isOpen = enabled && call.phase !== 'idle';
 
@@ -653,111 +680,113 @@ export const VideoCallOverlay: React.FC = () => {
   // so toggling minimize never unmounts VideoCallSession (LiveKit stays up).
   if (showSession) {
     return (
-      <>
-        <div aria-live="polite" role="status" style={visuallyHidden}>
-          {liveStatus}
-        </div>
-        {!isMinimized && <div style={overlayBackdropStyle} aria-hidden="true" />}
-        <div
-          ref={dialogRef}
-          role="dialog"
-          aria-modal={!isMinimized}
-          aria-label={dialogAriaLabel}
-          tabIndex={-1}
-          onPointerDown={isMinimized ? panel.onPointerDown : undefined}
-          style={
-            isMinimized
-              ? {
-                  ...floatingPanelBase,
-                  transform: panel.pos
-                    ? `translate(${panel.pos.x}px, ${panel.pos.y}px)`
-                    : undefined,
-                }
-              : dialogWrapperStyle
-          }
-        >
+      <div style={callSchemeStyle} data-ethora-color-scheme={colorScheme}>
+          <div aria-live="polite" role="status" style={visuallyHidden}>
+            {liveStatus}
+          </div>
+          {!isMinimized && <div style={overlayBackdropStyle} aria-hidden="true" />}
           <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal={!isMinimized}
+            aria-label={dialogAriaLabel}
+            tabIndex={-1}
+            onPointerDown={isMinimized ? panel.onPointerDown : undefined}
             style={
               isMinimized
-                ? undefined
-                : call.kind === 'audio'
-                  ? audioSessionCardStyle
-                  : sessionCardStyle
+                ? {
+                    ...floatingPanelBase,
+                    transform: panel.pos
+                      ? `translate(${panel.pos.x}px, ${panel.pos.y}px)`
+                      : undefined,
+                  }
+                : dialogWrapperStyle
             }
           >
-            <VideoCallSession
-              token={call.token as string}
-              livekitUrl={livekitUrl}
-              kind={call.kind}
-              primaryColor={primaryColor}
-              icons={videoCallsConfig?.icons}
-              startWithCameraOn={videoCallsConfig?.startWithCameraOn}
-              startWithMicOn={videoCallsConfig?.startWithMicOn}
-              showScreenShare={videoCallsConfig?.showScreenShare}
-              minimized={isMinimized}
-              onToggleMinimize={() => setMinimized((m) => !m)}
-              onConnected={() => dispatch(setCallPhase('in-call'))}
-              onError={(message) => dispatch(setCallError(message))}
-              onHangup={() => terminateCall('ended')}
-            />
+            <div
+              style={
+                isMinimized
+                  ? undefined
+                  : call.kind === 'audio'
+                    ? audioSessionCardStyle
+                    : sessionCardStyle
+              }
+            >
+              <VideoCallSession
+                token={call.token as string}
+                livekitUrl={livekitUrl}
+                kind={call.kind}
+                primaryColor={primaryColor}
+                icons={videoCallsConfig?.icons}
+                startWithCameraOn={videoCallsConfig?.startWithCameraOn}
+                startWithMicOn={videoCallsConfig?.startWithMicOn}
+                showScreenShare={videoCallsConfig?.showScreenShare}
+                minimized={isMinimized}
+                onToggleMinimize={() => setMinimized((m) => !m)}
+                onConnected={() => dispatch(setCallPhase('in-call'))}
+                onError={(message) => dispatch(setCallError(message))}
+                onHangup={() => terminateCall('ended')}
+              />
+            </div>
           </div>
-        </div>
-      </>
+      </div>
     );
   }
 
   return (
-    <div
-      ref={dialogRef}
-      role="dialog"
-      aria-modal="true"
-      aria-label={dialogAriaLabel}
-      tabIndex={-1}
-      style={overlayBackdropStyle}
-    >
-      <div aria-live="polite" role="status" style={visuallyHidden}>
-        {liveStatus}
+    <div style={callSchemeStyle} data-ethora-color-scheme={colorScheme}>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={dialogAriaLabel}
+        tabIndex={-1}
+        style={overlayBackdropStyle}
+      >
+        <div aria-live="polite" role="status" style={visuallyHidden}>
+          {liveStatus}
+        </div>
+        {showIncomingDecision ? (
+          <RingingCard
+            title={ringingHeader}
+            subtitle={ringingSubtitle}
+            roomName={call.roomName}
+            kind={call.kind}
+            variant="incoming"
+            primaryColor={primaryColor}
+            icons={videoCallsConfig?.icons}
+            onAccept={() => dispatch(acceptIncomingCall())}
+            onDecline={declineCall}
+          />
+        ) : call.phase === 'error' ? (
+          <RingingCard
+            title={ringingHeader}
+            subtitle={ringingSubtitle}
+            roomName={call.roomName}
+            kind={call.kind}
+            variant="error"
+            primaryColor={primaryColor}
+            errorMessage={
+              call.error ||
+              (!livekitUrl
+                ? 'Video calls unavailable: missing livekitUrl in config.videoCalls'
+                : null)
+            }
+            onDismiss={() => dispatch(resetCall())}
+          />
+        ) : (
+          <RingingCard
+            title={ringingHeader}
+            subtitle={ringingSubtitle}
+            roomName={call.roomName}
+            kind={call.kind}
+            variant="outgoing"
+            primaryColor={primaryColor}
+            icons={videoCallsConfig?.icons}
+            onHangup={() => terminateCall('cancelled')}
+          />
+        )}
       </div>
-      {showIncomingDecision ? (
-        <RingingCard
-          title={ringingHeader}
-          subtitle={ringingSubtitle}
-          roomName={call.roomName}
-          kind={call.kind}
-          variant="incoming"
-          primaryColor={primaryColor}
-          icons={videoCallsConfig?.icons}
-          onAccept={() => dispatch(acceptIncomingCall())}
-          onDecline={declineCall}
-        />
-      ) : call.phase === 'error' ? (
-        <RingingCard
-          title={ringingHeader}
-          subtitle={ringingSubtitle}
-          roomName={call.roomName}
-          kind={call.kind}
-          variant="error"
-          primaryColor={primaryColor}
-          errorMessage={
-            call.error ||
-            (!livekitUrl
-              ? 'Video calls unavailable: missing livekitUrl in config.videoCalls'
-              : null)
-          }
-          onDismiss={() => dispatch(resetCall())}
-        />
-      ) : (
-        <RingingCard
-          title={ringingHeader}
-          subtitle={ringingSubtitle}
-          roomName={call.roomName}
-          kind={call.kind}
-          variant="outgoing"
-          primaryColor={primaryColor}
-          icons={videoCallsConfig?.icons}
-          onHangup={() => terminateCall('cancelled')}
-        />
-      )}
     </div>
   );
 };

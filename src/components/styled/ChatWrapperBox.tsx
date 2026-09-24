@@ -1,7 +1,11 @@
 import React, { forwardRef } from 'react';
 import styled from 'styled-components';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
-import { CHAT_ROOT_CLASS, useThemeTokenStyle } from '../../styles/tokens';
+import {
+  CHAT_ROOT_CLASS,
+  useResolvedColorScheme,
+  useThemeTokenStyle,
+} from '../../styles/tokens';
 
 // `ethora-chat-root` marks the outermost element of the chat subtree and
 // carries the `--ethora-*` design tokens (see src/styles/tokens.ts) as inline
@@ -35,10 +39,16 @@ type ChatWrapperBoxProps = React.ComponentProps<typeof ChatWrapperBoxBase>;
 export const ChatWrapperBox = forwardRef<HTMLDivElement, ChatWrapperBoxProps>(
   ({ style, className, ...rest }, ref) => {
     const { config } = useChatSettingState();
-    const tokenStyle = useThemeTokenStyle(config?.colors, config?.typography);
+    const scheme = useResolvedColorScheme(config?.colorScheme);
+    const tokenStyle = useThemeTokenStyle(
+      config?.colors,
+      config?.typography,
+      scheme
+    );
     return (
       <ChatWrapperBoxBase
         ref={ref}
+        data-ethora-color-scheme={scheme}
         className={[CHAT_ROOT_CLASS, className].filter(Boolean).join(' ')}
         style={{ ...tokenStyle, ...style }}
         {...rest}

@@ -32,11 +32,11 @@ describe('resolveIconBgColor', () => {
   it('does NOT fall back to colors.secondary (avoids black icon chips)', () => {
     expect(
       resolveIconBgColor({ colors: { primary: '#111', secondary: '#222' } })
-    ).toBe('#F0F3F7');
+    ).toBe('var(--ethora-color-icon-chip-bg, #F0F3F7)');
   });
 
   it('falls back to the soft neutral default when no iconsBg set', () => {
-    expect(resolveIconBgColor(undefined)).toBe('#F0F3F7');
-    expect(resolveIconBgColor({})).toBe('#F0F3F7');
+    expect(resolveIconBgColor(undefined)).toBe('var(--ethora-color-icon-chip-bg, #F0F3F7)');
+    expect(resolveIconBgColor({})).toBe('var(--ethora-color-icon-chip-bg, #F0F3F7)');
   });
 });

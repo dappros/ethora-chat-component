@@ -8,6 +8,9 @@ export const ChatContainer = styled.div`
   width: 100%;
   box-sizing: border-box;
   background: linear-gradient(135deg, #f8f9ff 0%, #f3f6fc 100%);
+  [data-ethora-color-scheme='dark'] & {
+    background: var(--ethora-color-chat-bg);
+  }
   flex: 1;
   min-width: 0;
   position: relative;
@@ -19,7 +22,7 @@ export const ChatContainerHeader = styled.div`
   border-radius: 0px 0px 15px 15px;
   box-shadow: 1px -1px 10px 0 rgba(0, 0, 0, 0.25);
   padding: 16px;
-  background-color: #fff;
+  background-color: var(--ethora-color-bg, #fff);
   z-index: 1;
   justify-content: space-between;
 `;
@@ -38,7 +41,7 @@ export const ChatContainerHeaderInfo = styled.div`
 `;
 
 export const ChatContainerHeaderLabel = styled.div`
-  color: #141414;
+  color: var(--ethora-color-text, #141414);
   font-weight: 600;
   font-size: var(--ethora-font-size, 16px);
 `;
@@ -49,7 +52,7 @@ export const NonRoomChat = styled.div`
   align-items: center;
   display: flex;
   justify-content: center;
-  background-color: #fff;
+  background-color: var(--ethora-color-bg, #fff);
   flex-direction: column;
   gap: 16;
 `;
@@ -63,7 +66,7 @@ export const MessagesScroll = styled.div<{ color?: string }>`
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: var(--ethora-chat-bg, #f3f6fc);
+  background-color: var(--ethora-chat-bg, var(--ethora-color-chat-bg, #f3f6fc));
   background-image: var(--ethora-chat-bg-image, none);
   background-size: cover;
   background-position: center;
@@ -106,6 +109,9 @@ export const MessagesList = styled.div`
   min-height: 0;
   position: relative;
   color: #000000de;
+  [data-ethora-color-scheme='dark'] & {
+    color: var(--ethora-color-text);
+  }
   /* MessageList is keyed by activeRoomJID in ChatRoom.tsx, so this remounts
      - and this fade plays - exactly once per room switch (and on first
      load), not on every re-render or scroll: a CSS animation only runs
@@ -119,6 +125,9 @@ export const MessageTimestamp = styled.div`
   font-size: 0.75rem;
   color: #666;
   margin-bottom: 5px;
+  [data-ethora-color-scheme='dark'] & {
+    color: var(--ethora-color-text-muted);
+  }
 `;
 
 export const Message = styled.div<{ $isUser: boolean }>`
@@ -231,6 +240,11 @@ export const CustomUserName = styled.span<{ $isUser: boolean; $color?: string }>
   font-weight: 600;
   font-size: var(--ethora-font-size-lg, 18px);
   color: ${(props) => props?.$color || 'var(--ethora-color-primary, #0052CD)'};
+  /* A brand colour picked for white reads poorly on the dark surface; use
+     the lifted text variant of the same colour there. */
+  [data-ethora-color-scheme='dark'] & {
+    color: var(--ethora-color-primary-text, var(--ethora-color-primary, #0052CD));
+  }
   margin-bottom: 8px;
 `;
 
@@ -281,6 +295,9 @@ export const CustomSystemMessage = styled.div`
 export const CustomSystemMessageText = styled.p`
   margin: 0;
   color: #000000;
+  [data-ethora-color-scheme='dark'] & {
+    color: var(--ethora-color-text);
+  }
   margin: 10px;
   white-space: nowrap;
 `;
@@ -290,6 +307,9 @@ export const IconButton = styled.button`
   border: none;
   cursor: pointer;
   color: gray;
+  [data-ethora-color-scheme='dark'] & {
+    color: var(--ethora-color-text-muted);
+  }
   font-size: 36px;
   display: flex;
   align-items: center;
@@ -334,6 +354,9 @@ export const OrDelimiter = styled.div`
   width: 100%;
   font-size: 14px;
   color: #999;
+  [data-ethora-color-scheme='dark'] & {
+    color: var(--ethora-color-text-muted);
+  }
 
   &::before,
   &::after {
@@ -343,6 +366,11 @@ export const OrDelimiter = styled.div`
     width: 45%;
     height: 1px;
     background: #ccc;
+  }
+
+  [data-ethora-color-scheme='dark'] &::before,
+  [data-ethora-color-scheme='dark'] &::after {
+    background: var(--ethora-color-border);
   }
 
   &::before {
@@ -410,6 +438,12 @@ export const AvatarCircle = styled.div.withConfig({
   font-weight: bold;
   cursor: ${({ isClickable }) => (isClickable ? 'pointer' : 'default')};
   overflow: hidden;
+  /* Initials sit on a light pastel (hashcolor), so they stay dark in the
+     dark scheme instead of inheriting the light text colour. */
+  [data-ethora-color-scheme='dark'] & {
+    color: #141414;
+  }
+
   line-height: 16px;
 `;
 
@@ -477,7 +511,7 @@ export const ScrollToBottomButton = styled.button<{ color?: string }>`
   transition: transform var(--ethora-motion-fast, 150ms)
     var(--ethora-motion-ease, cubic-bezier(0.2, 0.8, 0.2, 1));
   z-index: 1000;
-  background-color: ${({ color }) => color || '#fff'};
+  background-color: ${({ color }) => color || 'var(--ethora-color-bg, #fff)'};
   ${scaleInAnimation}
 
   &:hover {

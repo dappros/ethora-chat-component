@@ -173,7 +173,7 @@ export const ShowMoreButton = styled.button`
   font: inherit;
   font-size: var(--ethora-font-size-xs, 13px);
   font-weight: var(--ethora-font-weight-medium, 500);
-  color: var(--ethora-color-primary, #0052cd);
+  color: var(--ethora-color-primary-text, var(--ethora-color-primary, #0052cd));
   align-self: center;
 
   &:hover {

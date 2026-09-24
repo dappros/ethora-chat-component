@@ -122,6 +122,10 @@ const CloseButton = styled.button`
   &:active {
     background-color: rgba(0, 0, 0, 0.1);
   }
+
+  [data-ethora-color-scheme='dark'] &:active {
+    background-color: rgba(255, 255, 255, 0.12);
+  }
 `;
 
 const Header = styled.div`

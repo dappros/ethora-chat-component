@@ -25,6 +25,10 @@ const IconWrap = styled.span`
   align-items: center;
   justify-content: center;
   opacity: 0.7;
+
+  [data-ethora-color-scheme='dark'] & path {
+    fill: var(--ethora-color-text-muted);
+  }
 `;
 
 export const DeletedMessage = () => {

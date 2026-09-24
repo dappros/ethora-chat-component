@@ -6,6 +6,7 @@ import {
   generateProcessingText,
 } from '../components/styled/StyledInputComponents/CustomTypingIndicator';
 import { RootState } from '../roomStore';
+import { useResolvedColorScheme } from '../styles/tokens';
 
 /**
  * Hook for managing custom typing indicator functionality
@@ -13,6 +14,12 @@ import { RootState } from '../roomStore';
  */
 export const useCustomTypingIndicator = (roomJID: string) => {
   const { config } = useChatSettingState();
+  const scheme = useResolvedColorScheme(config?.colorScheme);
+  // Translucent card behind the 'top' / 'floating' indicators. Light keeps the
+  // original frosted white; dark uses the dark surface (--ethora-color-bg,
+  // #1A1C21) at the same opacity, with the primary text colour on top unless
+  // the host styles set their own.
+  const isDark = scheme === 'dark';
   // Select the single room: an object-literal selector never bails out and
   // re-rendered the consumer on every store action.
   const room = useSelector((state: RootState) => state.rooms.rooms[roomJID]);
@@ -57,6 +64,14 @@ export const useCustomTypingIndicator = (roomJID: string) => {
   const getPositionStyles = useCallback(
     (position: string) => {
       const baseStyles = typingConfig?.styles || {};
+      const cardSurface = isDark
+        ? {
+            background: 'rgba(26, 28, 33, 0.95)',
+            ...(baseStyles.color
+              ? {}
+              : { color: 'var(--ethora-color-text, #ECEEF1)' }),
+          }
+        : { background: 'rgba(255, 255, 255, 0.95)' };
 
       switch (position) {
         case 'top':
@@ -66,7 +81,7 @@ export const useCustomTypingIndicator = (roomJID: string) => {
             top: '8px',
             left: '16px',
             right: '16px',
-            background: 'rgba(255, 255, 255, 0.95)',
+            ...cardSurface,
             padding: '8px 12px',
             borderRadius: '8px',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
@@ -91,7 +106,7 @@ export const useCustomTypingIndicator = (roomJID: string) => {
             position: 'fixed',
             bottom: '80px',
             right: '20px',
-            background: 'rgba(255, 255, 255, 0.95)',
+            ...cardSurface,
             padding: '12px 16px',
             borderRadius: '20px',
             boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
@@ -106,7 +121,7 @@ export const useCustomTypingIndicator = (roomJID: string) => {
           };
       }
     },
-    [typingConfig?.styles]
+    [typingConfig?.styles, isDark]
   );
 
   return {

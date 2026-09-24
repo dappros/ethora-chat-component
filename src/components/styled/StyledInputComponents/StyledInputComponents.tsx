@@ -7,7 +7,7 @@ export const InputContainer = styled.div`
   border-radius: var(--ethora-radius-lg, 15px) var(--ethora-radius-lg, 15px) 0
     0;
   padding: 16px;
-  background-color: var(--ethora-input-bg, #fff);
+  background-color: var(--ethora-input-bg, var(--ethora-color-bg, #fff));
   border-top: 1px solid var(--ethora-color-border, #e6e8ec);
   z-index: 1;
   /* Anchors the @-mention autocomplete dropdown (position: absolute,
@@ -60,6 +60,9 @@ export const DropOverlay = styled.div`
   padding: var(--ethora-space-3, 12px);
   pointer-events: none;
   background: var(--ethora-drop-overlay-bg, rgba(255, 255, 255, 0.72));
+  [data-ethora-color-scheme='dark'] & {
+    background: var(--ethora-drop-overlay-bg, rgba(20, 22, 25, 0.72));
+  }
   ${fadeInAnimation}
 `;
 
@@ -75,7 +78,7 @@ export const DropTarget = styled.div`
   border: 2px dashed var(--ethora-color-primary, #0052cd);
   border-radius: var(--ethora-radius-lg, 16px);
   background: var(--ethora-color-primary-soft, #e7edf9);
-  color: var(--ethora-color-primary, #0052cd);
+  color: var(--ethora-color-primary-text, var(--ethora-color-primary, #0052cd));
   font-size: var(--ethora-font-size, 16px);
   font-weight: 600;
   ${scaleInAnimation}
@@ -194,6 +197,9 @@ export const AttachmentNotice = styled.div`
   font-size: 12px;
   color: var(--ethora-color-danger, #9f0000);
   background-color: #fdecec;
+  [data-ethora-color-scheme='dark'] & {
+    background-color: rgba(242, 118, 107, 0.15);
+  }
 `;
 
 export const StyledInput = styled.input<{ $colorBg?: string }>`

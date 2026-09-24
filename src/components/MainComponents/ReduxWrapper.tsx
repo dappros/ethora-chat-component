@@ -17,8 +17,13 @@ import usePushNotifications from '../../hooks/usePushNotifications';
 import NotificationPermissionBanner from '../Notification/NotificationPermissionBanner';
 import { useTypography } from '../../hooks/useTypography';
 import { applyThemeColors } from '../../helpers/resolveIconColor';
-import { ThemeTokens } from '../../styles/tokens';
+import {
+  ThemeTokens,
+  useResolvedColorScheme,
+  useThemeTokenStyle,
+} from '../../styles/tokens';
 import { CHAT_ROOT_CLASS } from '../../styles/classNames';
+import { useChatSettingState } from '../../hooks/useChatSettingState';
 import ChatErrorBoundary from './ChatErrorBoundary';
 
 // The chat's scoping root. Everything in `index.css` that is not itself
@@ -38,6 +43,45 @@ import ChatErrorBoundary from './ChatErrorBoundary';
 // of its own. A normal <div> would break the height chain, since the host
 // sizes whatever <Chat> renders and <ChatWrapperBox> is `height: 100%`.
 const chatRootStyle: React.CSSProperties = { display: 'contents' };
+
+// The outer root also carries the design tokens and the colour scheme:
+// the loader, login form, fallback screens, toasts and the notification
+// permission banner render here, above <ChatWrapperBox>. Custom properties
+// inherit through a `display: contents` element like through any other.
+const ChatRoot: React.FC<{
+  config?: IConfig;
+  children: React.ReactNode;
+}> = ({ config, children }) => {
+  // Props first, store second. <ChatWrapperBox> (the inner root) themes
+  // itself from the STORE, so reading props only here meant the two roots
+  // could disagree: a host that drives the chat by dispatching setConfig
+  // instead of passing a `config` prop got a dark chat inside a light
+  // shell (loader, login, fallback screens, toasts). Props keep priority
+  // so the first paint still uses the authoritative value and nothing
+  // flashes while ConfigEnabler is pushing it into the store.
+  const { config: storeConfig } = useChatSettingState();
+  const scheme = useResolvedColorScheme(
+    config?.colorScheme ?? storeConfig?.colorScheme
+  );
+  const tokenStyle = useThemeTokenStyle(
+    config?.colors ?? storeConfig?.colors,
+    config?.typography ?? storeConfig?.typography,
+    scheme
+  );
+  const style = useMemo(
+    () => ({ ...tokenStyle, ...chatRootStyle }),
+    [tokenStyle]
+  );
+  return (
+    <div
+      className={CHAT_ROOT_CLASS}
+      style={style}
+      data-ethora-color-scheme={scheme}
+    >
+      {children}
+    </div>
+  );
+};
 
 export interface ChatWrapperProps
   extends Pick<
@@ -159,8 +203,10 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
     }, [props.config]);
 
     return (
-      <div className={CHAT_ROOT_CLASS} style={chatRootStyle}>
-        <Provider store={store}>
+      // <Provider> sits OUTSIDE the root element (the DOM is unchanged)
+      // purely so ChatRoot can read the store, see its comment above.
+      <Provider store={store}>
+        <ChatRoot config={memoizedConfig}>
           {/* The SDK's crash barrier, as high as it goes while still being
             INSIDE the store provider: everything below it is what actually
             crashes in the field, and the default fallback screen reads the
@@ -197,8 +243,8 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
               </ToastProvider>
             </PersistGate>
           </ChatErrorBoundary>
-        </Provider>
-      </div>
+        </ChatRoot>
+      </Provider>
     );
   }
 );

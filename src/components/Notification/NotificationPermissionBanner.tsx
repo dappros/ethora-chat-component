@@ -1,6 +1,36 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import styled from 'styled-components';
 import { IConfig } from '../../types/types';
 import { resolveIconColor } from '../../helpers/resolveIconColor';
+
+// Colours live here (not inline) so dark scheme can override them via the
+// root's data-ethora-color-scheme attribute; light keeps the old literals.
+// The banner renders outside <ChatWrapperBox>, so today it stays light.
+const BannerRoot = styled.div`
+  background: #ffffff;
+  color: #18181b;
+
+  [data-ethora-color-scheme='dark'] & {
+    background: var(--ethora-color-bg, #ffffff);
+    color: var(--ethora-color-text, #18181b);
+  }
+`;
+
+const BannerDescription = styled.div`
+  color: #71717a;
+
+  [data-ethora-color-scheme='dark'] & {
+    color: var(--ethora-color-text-secondary, #71717a);
+  }
+`;
+
+const DismissButton = styled.button`
+  color: #a1a1aa;
+
+  [data-ethora-color-scheme='dark'] & {
+    color: var(--ethora-color-text-muted, #a1a1aa);
+  }
+`;
 
 type PermissionState = NotificationPermission | 'unsupported';
 
@@ -156,7 +186,7 @@ const NotificationPermissionBanner: React.FC<
   const buttonLabel = banner.enableButtonLabel || 'Enable notifications';
 
   return (
-    <div
+    <BannerRoot
       role="status"
       aria-live="polite"
       style={{
@@ -168,8 +198,6 @@ const NotificationPermissionBanner: React.FC<
         display: 'flex',
         gap: 12,
         padding: '14px 16px',
-        background: '#FFFFFF',
-        color: '#18181B',
         borderLeft: `4px solid ${accent}`,
         borderRadius: 10,
         boxShadow: '0 8px 24px rgba(0, 0, 0, 0.16)',
@@ -182,16 +210,15 @@ const NotificationPermissionBanner: React.FC<
         <div style={{ fontWeight: 600, fontSize: 15, lineHeight: 1.3 }}>
           {title}
         </div>
-        <div
+        <BannerDescription
           style={{
             marginTop: 4,
             fontSize: 13,
             lineHeight: 1.4,
-            color: '#71717A',
           }}
         >
           {description}
-        </div>
+        </BannerDescription>
         {!isBlocked && (
           <button
             type="button"
@@ -217,7 +244,7 @@ const NotificationPermissionBanner: React.FC<
       </div>
 
       {dismissible && (
-        <button
+        <DismissButton
           type="button"
           onClick={handleDismiss}
           aria-label="Dismiss"
@@ -230,16 +257,15 @@ const NotificationPermissionBanner: React.FC<
             padding: 0,
             border: 'none',
             background: 'transparent',
-            color: '#A1A1AA',
             fontSize: 18,
             lineHeight: '22px',
             cursor: 'pointer',
           }}
         >
           ×
-        </button>
+        </DismissButton>
       )}
-    </div>
+    </BannerRoot>
   );
 };
 

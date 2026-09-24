@@ -9,6 +9,7 @@ import React, {
   useEffect,
 } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import styled from 'styled-components';
 import { IMessage } from '../types/models/message.model';
 import { MessageNotificationData } from '../components/MessageNotification/MessageNotificationToast';
 import MessageNotificationToast from '../components/MessageNotification/MessageNotificationToast';
@@ -23,6 +24,10 @@ import {
 } from '../utils/notificationPolicy';
 import { showBrowserNotification } from '../utils/notificationUtils';
 import { ethoraLogger } from '../helpers/ethoraLogger';
+import {
+  useResolvedColorScheme,
+  useThemeTokenStyle,
+} from '../styles/tokens';
 import {
   CHAT_ROOT_CLASS,
   MESSAGE_HIGHLIGHT_CLASS,
@@ -44,6 +49,27 @@ const MessageNotificationContext = createContext<
 
 const DEFAULT_MAX_NOTIFICATIONS = 3;
 const DEFAULT_NOTIFICATION_DURATION = 30000; // 30 seconds
+
+// Light values are the original literals; the dark override only applies
+// when an ancestor carries data-ethora-color-scheme (the notification
+// container can sit outside the chat root, where it stays light).
+const ClearAllButton = styled.button`
+  margin-top: 4px;
+  width: 100%;
+  border: none;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.2;
+  cursor: pointer;
+  background: #efefef;
+  color: #2f2f2f;
+
+  [data-ethora-color-scheme='dark'] & {
+    background: var(--ethora-color-bg-hover, #efefef);
+    color: var(--ethora-color-text, #2f2f2f);
+  }
+`;
 
 export const MessageNotificationProvider: React.FC<{
   children: ReactNode;
@@ -138,10 +164,20 @@ export const MessageNotificationProvider: React.FC<{
   // `.ethora-chat-root` wrapper - it carries the root class itself so the
   // toasts keep the chat's typography and scrollbar styling.
   const containerClassName = `${CHAT_ROOT_CLASS} ${NOTIFICATION_CONTAINER_CLASS}`;
-  
+
+  // For the same reason the container carries the design tokens (and the
+  // colour scheme) itself: it is outside every element <Chat> themes.
+  const colorScheme = useResolvedColorScheme(config?.colorScheme);
+  const tokenStyle = useThemeTokenStyle(
+    config?.colors,
+    config?.typography,
+    colorScheme
+  );
+
   // Add data attributes for CSS targeting
   const containerProps = {
     className: containerClassName,
+    'data-ethora-color-scheme': colorScheme,
     'data-position-horizontal': horizontal,
     'data-position-vertical': vertical,
   };
@@ -350,7 +386,7 @@ export const MessageNotificationProvider: React.FC<{
     <MessageNotificationContext.Provider value={contextValue}>
       {children}
       {shouldRender && (
-        <div style={containerStyles} {...containerProps}>
+        <div style={{ ...tokenStyle, ...containerStyles }} {...containerProps}>
           {notifications.map((notification) => {
             const NotificationComponent = notificationConfig?.customComponent || MessageNotificationToast;
             return (
@@ -368,24 +404,9 @@ export const MessageNotificationProvider: React.FC<{
           })}
           {notifications.length > 2 && (
             <div style={{ pointerEvents: 'auto', width: '100%' }}>
-              <button
-                type="button"
-                onClick={clearAllNotifications}
-                style={{
-                  marginTop: 4,
-                  width: '100%',
-                  border: 'none',
-                  borderRadius: 10,
-                  padding: '8px 10px',
-                  fontSize: 12,
-                  lineHeight: 1.2,
-                  cursor: 'pointer',
-                  background: '#efefef',
-                  color: '#2f2f2f',
-                }}
-              >
+              <ClearAllButton type="button" onClick={clearAllNotifications}>
                 Clear all
-              </button>
+              </ClearAllButton>
             </div>
           )}
         </div>
