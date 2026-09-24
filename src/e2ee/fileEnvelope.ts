@@ -40,13 +40,6 @@ export interface SealedFile {
   keyMaterial: string;
   /** Random, extension-free name to upload under. */
   filename: string;
-  /**
-   * The real type, also sealed inside the payload. Belongs in the encrypted
-   * <body> beside the key: the receiver needs it to pick a renderer BEFORE
-   * downloading - a voice note has to show a player, not a download chip -
-   * and the body is encrypted, so saying so costs nothing.
-   */
-  mimetype: string;
 }
 
 /**
@@ -138,7 +131,6 @@ export async function sealFileForUpload(file: File | Blob): Promise<SealedFile> 
   return {
     ciphertext: payload,
     keyMaterial: toBase64(keyMaterial),
-    mimetype,
     // No extension: `.pdf` on an opaque blob would give back the one thing
     // sealing it was meant to hide.
     filename: toHex(randomBytes(16)),
@@ -161,37 +153,19 @@ export function openSealedFile(
  * an ordinary media message - or one from a build that predates sealing -
  * falls through untouched.
  */
-export interface SealedMediaBody {
-  keys: string[];
-  /** Real mimetypes, positional with `keys`. Absent on older senders. */
-  types?: string[];
-}
-
-export function parseSealedMediaBody(
-  body?: string
-): SealedMediaBody | undefined {
+export function parseSealedMediaBody(body?: string): string[] | undefined {
   const text = String(body || '').trim();
   if (!text.startsWith('{')) return undefined;
 
   try {
-    const parsed = JSON.parse(text) as {
-      v?: unknown;
-      keys?: unknown;
-      types?: unknown;
-    };
+    const parsed = JSON.parse(text) as { v?: unknown; keys?: unknown };
     if (parsed?.v !== 1 || !Array.isArray(parsed.keys)) return undefined;
     const keys = parsed.keys.filter(
       (k): k is string => typeof k === 'string' && k.length > 0
     );
-    if (keys.length !== parsed.keys.length || keys.length === 0) {
-      return undefined;
-    }
-
-    const types = Array.isArray(parsed.types)
-      ? parsed.types.map((t) => (typeof t === 'string' ? t : ''))
+    return keys.length === parsed.keys.length && keys.length > 0
+      ? keys
       : undefined;
-
-    return { keys, types };
   } catch {
     return undefined;
   }

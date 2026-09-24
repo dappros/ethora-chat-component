@@ -143,10 +143,9 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
   // downstream renders the key JSON as message text.
   let body = rawBody;
   if (dataAttrs.clientEncrypted === 'true') {
-    const sealed = parseSealedMediaBody(body);
-    if (sealed) {
-      dataAttrs.e2eeKeys = sealed.keys;
-      if (sealed.types) dataAttrs.e2eeTypes = sealed.types;
+    const keys = parseSealedMediaBody(body);
+    if (keys) {
+      dataAttrs.e2eeKeys = keys;
       body = 'media';
     }
   }

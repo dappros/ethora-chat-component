@@ -724,7 +724,6 @@ export const useSendMessage = () => {
         // rest of <data> stay readable, and now say nothing.
         const e2ee = isE2eeRoom(activeRoomJID);
         let sealedKeys: string[] | undefined;
-        let sealedTypes: string[] | undefined;
 
         if (e2ee) {
           const sealed = await Promise.all(files.map(sealFileForUpload));
@@ -737,16 +736,6 @@ export const useSendMessage = () => {
             )
           );
           sealedKeys = sealed.map((item) => item.keyMaterial);
-          // A voice note is a bare MediaRecorder Blob with no `type`, so the
-          // seal records octet-stream for it. The caller's `type` argument
-          // ('audio/') is the only thing that knows better, and the receiver
-          // needs it to show a player instead of a download chip. Only used
-          // as a fallback, so a real File's own type always wins.
-          sealedTypes = sealed.map((item) =>
-            item.mimetype === 'application/octet-stream' && type
-              ? type
-              : item.mimetype
-          );
         } else {
           files.forEach((file) => mediaData.append('files', file));
         }
@@ -813,7 +802,6 @@ export const useSendMessage = () => {
           // Consumed by sendMediaMessage, which puts them inside the encrypted
           // <body>. Never stamped onto <data>: that rides in the clear.
           e2eeKeys: sealedKeys,
-          e2eeTypes: sealedTypes,
         };
 
         const mediaSent = await sendWithActiveRoomRetry(

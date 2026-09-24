@@ -119,42 +119,6 @@ describe('a sealed attachment, all the way round', () => {
     );
   });
 
-  it('carries the real type in the encrypted body, never on <data>', async () => {
-    // A voice note must render as a player rather than a download chip, which
-    // means knowing it is audio BEFORE downloading it. That fact is metadata:
-    // it belongs inside the encryption, not on <data>.
-    const seal = await sealFileForUpload(new Blob(['fake audio']));
-
-    const sent: Element[] = [];
-    const client = {
-      jid: { toString: () => 'me@xmpp.example/web' },
-      send: (stanza: Element) => sent.push(stanza),
-    } as unknown as Client;
-
-    await sendMediaMessage(
-      client,
-      ROOM_JID,
-      {
-        location: 'https://secure-files.example/bucket/9f2c',
-        mimetype: 'application/octet-stream',
-        originalName: seal.filename,
-        roomJid: ROOM_JID,
-        e2eeKeys: [seal.keyMaterial],
-        e2eeTypes: ['audio/webm'],
-      },
-      'msg-4'
-    );
-
-    const data = sent[0].getChild('data') as Element;
-    expect(data.toString()).not.toContain('audio');
-    expect(data.attrs.mimetype).toBe('application/octet-stream');
-
-    const message = await createMessageFromXml(
-      (await getDataFromXml(sent[0])) as never
-    );
-    expect(message.e2eeTypes).toEqual(['audio/webm']);
-  });
-
   it('an ordinary media message still parses with no keys', async () => {
     isE2eeRoom.mockReturnValue(false);
     const sent: Element[] = [];
