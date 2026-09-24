@@ -10,7 +10,7 @@ const Dropdown = styled.div`
   left: 16px;
   right: 16px;
   margin-bottom: 8px;
-  background: var(--ethora-input-bg, #fff);
+  background: var(--ethora-input-bg, var(--ethora-color-bg, #fff));
   border-radius: var(--ethora-radius-md, 12px);
   box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.15);
   max-height: 220px;
@@ -30,10 +30,22 @@ const Row = styled.div<{ $highlighted: boolean }>`
   &:hover {
     background-color: var(--ethora-hover-bg, #f0f3fb);
   }
+
+  /* #f0f3fb has no exact token; keep it in light, use bg-hover in dark. */
+  [data-ethora-color-scheme='dark'] & {
+    background-color: ${({ $highlighted }) =>
+      $highlighted
+        ? 'var(--ethora-hover-bg, var(--ethora-color-bg-hover))'
+        : 'transparent'};
+  }
+
+  [data-ethora-color-scheme='dark'] &:hover {
+    background-color: var(--ethora-hover-bg, var(--ethora-color-bg-hover));
+  }
 `;
 
 const ShowAllRow = styled(Row)`
-  color: var(--ethora-color-primary, #0052cd);
+  color: var(--ethora-color-primary-text, var(--ethora-color-primary, #0052cd));
   font-weight: 600;
   border-top: 1px solid var(--ethora-color-border, #eee);
 `;

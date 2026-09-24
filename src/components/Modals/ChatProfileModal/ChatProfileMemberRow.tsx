@@ -93,6 +93,10 @@ const RoleTag = styled.span<{ $banned?: boolean }>`
   font-size: var(--ethora-font-size-xs, 12px);
   font-weight: var(--ethora-font-weight-medium, 500);
   text-transform: capitalize;
+  [data-ethora-color-scheme='dark'] & {
+    ${({ $banned }) =>
+      $banned ? 'background-color: rgba(242, 118, 107, 0.15);' : ''}
+  }
 `;
 
 interface ChatProfileMemberRowProps {

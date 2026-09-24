@@ -94,6 +94,17 @@ const CustomButton = styled.button<{
     border-color: #e0e0e0;
     cursor: not-allowed;
     opacity: 0.6;
+
+    [data-ethora-color-scheme='dark'] & {
+      background-color: ${({ $variant }) =>
+        $variant === 'filled'
+          ? 'var(--ethora-color-bg-hover)'
+          : $variant === 'default'
+            ? 'var(--ethora-color-bg)'
+            : 'transparent'};
+      color: var(--ethora-color-text-muted);
+      border-color: var(--ethora-color-border);
+    }
   }
 `;
 

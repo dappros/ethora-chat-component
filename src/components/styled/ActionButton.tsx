@@ -20,7 +20,7 @@ const ActionButton: FC<ActionButtonProps> = ({ icon, ...props }) => {
         height: 40,
         width: 40,
         borderRadius: 8,
-        backgroundColor: '#fff',
+        backgroundColor: 'var(--ethora-color-bg, #fff)',
         border: `1px solid ${config?.colors?.primary || '#0052CD'}`,
         ...props.style,
       }}

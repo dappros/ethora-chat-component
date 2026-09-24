@@ -31,9 +31,12 @@ const AudioMessage: React.FC<AudioMessageProps> = ({ src }) => {
       // wavesurfer's canvas can't consume a CSS var string directly, so this
       // is the one place a literal fallback still needs to match the
       // `--ethora-color-*` tokens' own defaults.
+      // Resolved on the waveform node itself (inside the chat root, which
+      // carries the active scheme's tokens) rather than on <html>, so the
+      // wave follows this chat's light/dark scheme.
       const rootStyle =
         typeof window !== 'undefined'
-          ? getComputedStyle(document.documentElement)
+          ? getComputedStyle(waveformRef.current)
           : null;
       const waveColor =
         rootStyle?.getPropertyValue('--ethora-color-border')?.trim() ||

@@ -16,8 +16,13 @@ export const resolveIconColor = (
 ): string =>
   config?.colors?.icons || config?.colors?.primary || DEFAULT_ICON_COLOR;
 
-/** Fallback background colour for the icon "chips" when nothing is configured. */
-const DEFAULT_ICON_BG_COLOR = '#F0F3F7';
+/**
+ * Fallback background colour for the icon "chips" when nothing is configured.
+ * A token reference (with the historical literal as its fallback) so the
+ * dark colour scheme can swap it; see `--ethora-color-icon-chip-bg` in
+ * styles/tokens.ts.
+ */
+const DEFAULT_ICON_BG_COLOR = 'var(--ethora-color-icon-chip-bg, #F0F3F7)';
 
 /**
  * Resolve the background colour to use behind the chat's icon "chips" (attach,

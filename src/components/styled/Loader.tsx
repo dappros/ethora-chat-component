@@ -18,6 +18,12 @@ const Loader = styled.div<LoaderProps>`
     ${({ color }) => color || '#3498db'};
   border-left: ${({ size }) => (size ? size / 4 : 4)}px solid
     ${({ color }) => color || '#3498db'};
+  [data-ethora-color-scheme='dark'] & {
+    border-color: var(--ethora-color-border);
+    border-top-color: ${({ color }) => color || '#3498db'};
+    border-right-color: ${({ color }) => color || '#3498db'};
+    border-left-color: ${({ color }) => color || '#3498db'};
+  }
   border-radius: 50%;
   width: ${({ size }) => size || 32}px;
   height: ${({ size }) => size || 32}px;
