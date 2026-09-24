@@ -84,3 +84,42 @@ describe('ReduxWrapper - host config reaches the store before login', () => {
 // the dispatch under test) only mount after it.
 const screenHasRendered = () =>
   Boolean(document.querySelector('[data-testid="login-wrapper"]'));
+
+// Same two-sources-of-truth shape as the bug above, one level out: the
+// OUTER root (loader, login, fallback screens, toasts) read the config
+// PROP while <ChatWrapperBox> reads the STORE. A host that drives the chat
+// by dispatching setConfig, which is exactly what the first test here
+// establishes as supported, therefore got a dark chat inside a light shell.
+describe('ReduxWrapper - colour scheme on the outer root', () => {
+  it('follows a store-only colorScheme when the host passes no prop', async () => {
+    store.dispatch(
+      setConfig({
+        colors: { primary: '#0052CD', secondary: '#F3F6FC' },
+        colorScheme: 'dark',
+      } as any)
+    );
+
+    const { container } = render(<ReduxWrapper />);
+
+    await waitFor(() => {
+      const root = container.querySelector('[data-ethora-color-scheme]');
+      expect(root?.getAttribute('data-ethora-color-scheme')).toBe('dark');
+    });
+  });
+
+  it('lets the config prop win over the store', async () => {
+    store.dispatch(
+      setConfig({
+        colors: { primary: '#0052CD', secondary: '#F3F6FC' },
+        colorScheme: 'dark',
+      } as any)
+    );
+
+    const { container } = render(
+      <ReduxWrapper config={{ colorScheme: 'light' } as any} />
+    );
+
+    const root = container.querySelector('[data-ethora-color-scheme]');
+    expect(root?.getAttribute('data-ethora-color-scheme')).toBe('light');
+  });
+});

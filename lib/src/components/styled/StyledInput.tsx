@@ -22,6 +22,9 @@ const InputWrapper = styled.div`
 const Label = styled.label`
   font-size: var(--ethora-font-size-sm, 14px);
   color: #8c8c8c;
+  [data-ethora-color-scheme='dark'] & {
+    color: var(--ethora-color-text-muted);
+  }
   margin-bottom: 4px;
   margin-left: 8px;
 `;
@@ -35,8 +38,9 @@ const StyledInput = styled.input<{
   padding: 12px 16px;
   border-radius: 12px;
   border: 1px solid ${(props) => (props.$error ? 'red' : 'transparent')};
-  color: #141414;
-  background-color: ${({ $colorBg }) => ($colorBg ? $colorBg : '#f5f7f9')};
+  color: var(--ethora-color-text, #141414);
+  background-color: ${({ $colorBg }) =>
+    $colorBg ? $colorBg : 'var(--ethora-color-bg-subtle, #f5f7f9)'};
   font-size: var(--ethora-font-size, 16px);
   box-sizing: border-box;
 
@@ -44,13 +48,18 @@ const StyledInput = styled.input<{
     border: 1px solid
       ${(props) => (props.$error ? 'red' : props.color || '#0052CD')};
     outline: none;
-    background-color: ${({ $colorBg }) => ($colorBg ? $colorBg : '#f5f7f9')};
+    background-color: ${({ $colorBg }) =>
+      $colorBg ? $colorBg : 'var(--ethora-color-bg-subtle, #f5f7f9)'};
   }
 `;
 
 const HelperText = styled.span<{ $error?: boolean }>`
   font-size: var(--ethora-font-size-xs, 12px);
   color: ${(props) => (props.$error ? 'red' : '#8c8c8c')};
+  [data-ethora-color-scheme='dark'] & {
+    color: ${(props) =>
+      props.$error ? 'red' : 'var(--ethora-color-text-muted)'};
+  }
   margin-top: 4px;
   margin-left: 8px;
   position: absolute;

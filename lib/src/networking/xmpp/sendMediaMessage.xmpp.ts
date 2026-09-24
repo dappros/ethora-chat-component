@@ -1,6 +1,27 @@
 import { Client, xml } from '@xmpp/client';
+import {
+  accountDomain,
+  isE2eeRoom,
+  omemoReady,
+  roomRecipients,
+} from '../../e2ee';
 
-export function sendMediaMessage(
+/** Body of a media stanza in a plain room, and the fallback in an e2ee one. */
+const PLAIN_BODY = 'media';
+
+/**
+ * What <body> carries in an e2ee room: the key material for each sealed
+ * attachment, in the same order as `attachments` / the flat fields on <data>.
+ * The real mimetype and filename are not here - they are inside each sealed
+ * payload (see e2ee/fileEnvelope.ts), so they survive exactly as long as the
+ * bytes do and cannot be stripped off in transit.
+ */
+export interface E2eeMediaBody {
+  v: 1;
+  keys: string[];
+}
+
+export async function sendMediaMessage(
   client: Client,
   roomJID: string,
   data: any,
@@ -48,6 +69,55 @@ export function sendMediaMessage(
     (dataToSend as Record<string, unknown>).attachments = data.attachments;
   }
 
+  const keys: string[] | undefined = data?.e2eeKeys;
+
+  // A sealed attachment says so on <data>. The flag itself reveals nothing the
+  // `application/octet-stream` mimetype does not already, and a receiver that
+  // never gets the keys still needs to know why the bytes look like noise
+  // rather than rendering them as a broken image.
+  if (keys?.length) {
+    (dataToSend as Record<string, unknown>).clientEncrypted = 'true';
+  }
+
+  const body = xml('body', {}, PLAIN_BODY);
+  const hints = xml('store', { xmlns: 'urn:xmpp:hints' });
+
+  // E2EE seam. Same trade as sendTextMessage: only <body> is encrypted, and
+  // <data> rides in the clear so the push module can still build a
+  // notification. For media that is affordable only because the file was
+  // sealed before upload - `location` now points at opaque bytes, `mimetype`
+  // is octet-stream and `originalName` is a random string. The one thing on
+  // <data> that WOULD break the seal is the key material, so it goes here,
+  // inside the encrypted envelope, and nowhere else.
+  if (keys?.length && isE2eeRoom(roomJID)) {
+    const crypto = await omemoReady();
+    try {
+      if (!crypto) throw new Error('omemo_not_ready');
+      const payload: E2eeMediaBody = { v: 1, keys };
+      const encrypted = await crypto.encryptGroupMessage(
+        roomJID,
+        roomRecipients(roomJID, accountDomain(client)),
+        [xml('body', {}, JSON.stringify(payload))],
+        id,
+        [xml('data', dataToSend), hints]
+      );
+      client.send(encrypted);
+      return;
+    } catch (error) {
+      // Unlike text, there is no useful cleartext fallback here: sending the
+      // keys in the clear would undo the sealing, and sending without them
+      // uploads bytes nobody can ever open. Fail the send so the caller's
+      // error path runs and the user is told, rather than leaving an
+      // undecryptable attachment in the room forever.
+      console.error(
+        `OMEMO: refusing to send sealed attachment to ${roomJID} - ${String(
+          (error as Error)?.message || error
+        )}`
+      );
+      throw error instanceof Error ? error : new Error(String(error));
+    }
+  }
+
   const message = xml(
     'message',
     {
@@ -56,8 +126,8 @@ export function sendMediaMessage(
       from: client.jid?.toString(),
       to: roomJID,
     },
-    xml('body', {}, 'media'),
-    xml('store', { xmlns: 'urn:xmpp:hints' }),
+    body,
+    hints,
     xml('data', dataToSend)
   );
 

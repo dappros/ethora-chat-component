@@ -227,6 +227,9 @@ export const PdfBadge = styled.span`
   letter-spacing: 0.04em;
   color: var(--ethora-color-danger, #d93025);
   background-color: #fdecec;
+  [data-ethora-color-scheme='dark'] & {
+    background-color: rgba(242, 118, 107, 0.15);
+  }
   border-radius: var(--ethora-radius-sm, 4px);
   padding: 1px 5px;
 `;

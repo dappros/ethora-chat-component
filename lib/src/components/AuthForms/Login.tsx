@@ -262,7 +262,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ config }) => {
           <div
             style={{
               textDecoration: 'underline',
-              color: 'var(--ethora-color-primary, #0052CD)',
+              color: 'var(--ethora-color-primary-text, var(--ethora-color-primary, #0052CD))',
               fontSize: 'var(--ethora-font-size-sm, 14px)',
               display: 'inline',
               cursor: 'pointer',

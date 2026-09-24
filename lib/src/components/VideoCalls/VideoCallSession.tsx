@@ -50,11 +50,16 @@ interface VideoCallSessionProps {
 }
 
 const DEFAULT_PRIMARY = '#0052CD';
-const TEXT_PRIMARY = '#141414';
-const TEXT_MUTED = '#8c8c8c';
-const SURFACE = '#fff';
-const SURFACE_MUTED = '#f3f6fc';
-const DIVIDER = '#f0f0f0';
+// Light surfaces read the chat's colour tokens with the original literals as
+// fallbacks; VideoCallOverlay publishes the tokens (and the call-local muted
+// text variable) around this component in the dark scheme only. The dark
+// video stage / minimized bar below stay literal: they are dark in both
+// schemes on purpose.
+const TEXT_PRIMARY = 'var(--ethora-color-text, #141414)';
+const TEXT_MUTED = 'var(--ethora-call-text-muted, #8c8c8c)';
+const SURFACE = 'var(--ethora-color-bg, #fff)';
+const SURFACE_MUTED = 'var(--ethora-color-chat-bg, #f3f6fc)';
+const DIVIDER = 'var(--ethora-color-bg-hover, #f0f0f0)';
 const DANGER = '#E53935';
 
 // ---------- inline icon set ---------------------------------------------

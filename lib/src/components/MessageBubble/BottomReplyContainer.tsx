@@ -90,7 +90,7 @@ export const BottomReplyContainer: FC<BottomReplyContainerProps> = ({
               style={{
                 height: '100%',
                 width: '100%',
-                border: 'solid 1px #F0F0F0',
+                border: 'solid 1px var(--ethora-color-bg-hover, #F0F0F0)',
                 fontSize: '11px',
               }}
             />
