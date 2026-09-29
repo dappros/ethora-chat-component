@@ -58,6 +58,14 @@ const HeaderBar = styled.div`
   box-sizing: border-box;
   background-color: var(--ethora-color-bg, #fff);
   border-bottom: 1px solid var(--ethora-color-border, #e6e8ec);
+  /* The header is the top edge of the chat pane, and a host can round that
+     pane: ethora-app-reactjs passes
+     chatRoomStyles with borderRadius '0px 16px 16px 0px', which lands on
+     this element's parent. The header has a background of its own, so with
+     square corners inside that rounded, clipping parent the corner showed
+     up as an arc of the pane's background cutting into the header. */
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
   z-index: 1;
 `;
 

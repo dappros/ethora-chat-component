@@ -8,7 +8,28 @@ export const InputContainer = styled.div`
     0;
   padding: 16px;
   background-color: var(--ethora-input-bg, var(--ethora-color-bg, #fff));
-  border-top: 1px solid var(--ethora-color-border, #e6e8ec);
+  /* The separator is a pseudo-element, not a border-top. A border follows
+     the box's own rounding, so on these rounded top corners it curved
+     around them and the two arcs stuck out past the composer as a pair of
+     bright flecks - unmissable in dark, where the border token is lighter
+     than the surfaces on both sides of it. Inset by the radius, the line
+     stops where the curve starts and there is nothing left to stick out. */
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: var(--ethora-radius-lg, 15px);
+    right: var(--ethora-radius-lg, 15px);
+    height: 1px;
+    background-color: var(--ethora-color-border, #e6e8ec);
+    pointer-events: none;
+  }
+  /* The composer is the bottom edge of the chat pane, and a host can round
+     that pane (config.chatRoomStyles sets a border-radius on it). Square
+     bottom corners inside a rounded parent leave the parent's background
+     showing through as an arc in each corner. */
+  border-bottom-left-radius: inherit;
+  border-bottom-right-radius: inherit;
   z-index: 1;
   /* Anchors the @-mention autocomplete dropdown (position: absolute,
      bottom: 100%) so it renders directly above the composer. */

@@ -77,3 +77,36 @@ describe('ensureScopedChatCache and a pending deep link', () => {
     expect(localStorage.getItem(SCOPE_KEY)).toBeTruthy();
   });
 });
+
+// A host usually fetches its own app config, so the first render or two can
+// carry a config with no appId. Hashing that produces a scope matching
+// nothing, which reads as a tenant switch: the whole persisted cache was
+// wiped, and wiped again when the real appId arrived.
+describe('ensureScopedChatCache with an incomplete config', () => {
+  it('does nothing at all while appId is missing', () => {
+    ensureScopedChatCache(CONFIG_A);
+    localStorage.setItem('persist:roomMessages', '{"rooms":"cached"}');
+    const scopeForA = localStorage.getItem(SCOPE_KEY);
+
+    const result = ensureScopedChatCache({
+      baseUrl: 'https://api.a.example.com',
+    } as any);
+
+    expect(result.changed).toBe(false);
+    expect(localStorage.getItem('persist:roomMessages')).toBe(
+      '{"rooms":"cached"}'
+    );
+    // And the recorded scope is untouched, so the real config still matches
+    // it when it arrives a render later.
+    expect(localStorage.getItem(SCOPE_KEY)).toBe(scopeForA);
+    expect(ensureScopedChatCache(CONFIG_A).changed).toBe(false);
+  });
+
+  it('still switches tenants once both configs are complete', () => {
+    ensureScopedChatCache(CONFIG_A);
+    localStorage.setItem('persist:roomMessages', '{"rooms":"cached"}');
+
+    expect(ensureScopedChatCache(CONFIG_B).changed).toBe(true);
+    expect(localStorage.getItem('persist:roomMessages')).toBeNull();
+  });
+});

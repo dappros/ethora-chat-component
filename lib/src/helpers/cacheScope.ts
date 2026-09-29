@@ -97,6 +97,16 @@ export const ensureScopedChatCache = (
     return { changed: false, scope: '', previousScope: null };
   }
 
+  // An empty appId means the host has not finished assembling its config
+  // yet (it usually arrives from the host's own API a tick or two after the
+  // first render). Hashing that half-built config produces a scope that
+  // matches nothing, which reads as a tenant switch and wipes the whole
+  // persisted cache - twice, because the real appId then produces a third
+  // scope. Nothing is scoped until there is something to scope by.
+  if (!normalize(config?.appId)) {
+    return { changed: false, scope: '', previousScope: null };
+  }
+
   const scope = buildCacheScope(config);
   const local = window.localStorage;
 

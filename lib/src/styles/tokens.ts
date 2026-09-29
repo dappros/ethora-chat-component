@@ -1,4 +1,6 @@
 import {
+  createContext,
+  useContext,
   useEffect,
   useMemo,
   useSyncExternalStore,
@@ -430,6 +432,22 @@ const systemPrefersDark = (): boolean =>
   typeof window !== 'undefined' &&
   typeof window.matchMedia === 'function' &&
   window.matchMedia(DARK_QUERY).matches;
+
+/**
+ * The config the HOST passed as a prop, published so the inner roots can
+ * theme themselves from it on the very first frame.
+ *
+ * The store copy of the config only exists after ConfigEnabler has
+ * dispatched it, which is a render later. Until then a component reading
+ * the store sees the slice default - light - and paints light tokens over
+ * the dark ones it inherits, which is the white flash a dark-mode chat
+ * showed while it started up.
+ */
+export const HostConfigContext = createContext<
+  Pick<IConfig, 'colors' | 'typography' | 'colorScheme'> | undefined
+>(undefined);
+
+export const useHostConfig = () => useContext(HostConfigContext);
 
 /**
  * Resolve `config.colorScheme` to the scheme to render. `'system'` tracks the
