@@ -52,8 +52,16 @@ const HeaderBar = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 56px;
-  max-height: 64px;
+  /* Fixed, not a 56-64px range. The second line ("N users · M online") is
+     empty until the room's member count is known, and with a range the bar
+     sat at 56px while history loaded and grew to 64px the moment the count
+     arrived - the whole conversation below shifted by 8px, and the title,
+     centred vertically, jumped with it.
+     flex-shrink matters as much as the height: the header is a flex item in
+     the chat pane's column, and a long message list squeezed it below any
+     declared height (measured at 58.9px with height: 64px alone). */
+  height: 64px;
+  flex-shrink: 0;
   padding: 8px 16px;
   box-sizing: border-box;
   background-color: var(--ethora-color-bg, #fff);
@@ -106,6 +114,16 @@ const HeaderTitleRow = styled.div`
 const HeaderSubtitle = styled.div`
   color: var(--ethora-color-text-secondary, #5a5f66);
   font-size: 14px;
+  line-height: 20px;
+  /* Holds its line even while it has nothing to say (member count not
+     loaded yet, or nobody typing), so the title above it never moves. An
+     empty div collapses to 0px, which is what made the title re-centre.
+     A fixed height rather than a minimum: the online-users popover trigger
+     sits a fraction taller than the line (measured 20.6px), which still
+     nudged the title by 0.4px whenever the count appeared.
+     Deliberately NOT overflow: hidden - the online-users popover hangs off
+     this line (position: absolute, top: 100%) and would be clipped away. */
+  height: 20px;
 `;
 
 const HeaderOnlineText = styled.span`
