@@ -21,7 +21,14 @@ export const InputContainer = styled.div`
     left: var(--ethora-radius-lg, 15px);
     right: var(--ethora-radius-lg, 15px);
     height: 1px;
-    background-color: var(--ethora-color-border, #e6e8ec);
+    /* --ethora-color-divider, not --ethora-color-border: this line sits
+       BETWEEN two surfaces rather than outlining a control on one, and in
+       dark the border colour is lighter than both of them - a full-width
+       rule in it reads as a strip light above the composer. */
+    background-color: var(
+      --ethora-color-divider,
+      var(--ethora-color-border, #e6e8ec)
+    );
     pointer-events: none;
   }
   /* The composer is the bottom edge of the chat pane, and a host can round
