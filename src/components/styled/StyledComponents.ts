@@ -96,6 +96,40 @@ export const MessagesScroll = styled.div<{ color?: string }>`
     transparent; /* Color of the thumb and track */
 `;
 
+/**
+ * Bottom anchoring for the real transcript, as two nested wrappers inside
+ * MessagesScroll.
+ *
+ * A conversation shorter than the viewport used to hang from the TOP of the
+ * pane, leaving a wall of empty space under it, while the opening preview
+ * (ChatRoomOpeningPreview) that stands in for it a moment earlier sits at
+ * the BOTTOM, like every messenger. So a room with one message showed it
+ * low while loading and then jumped it to the top the instant history
+ * arrived - and which of the two you saw depended on the room.
+ *
+ * MessagesAnchor grows to at least the viewport and pushes its single child
+ * to the bottom. It is NOT the scroller (MessagesScroll still is), so
+ * justify-content: flex-end is safe here: the anchor is exactly as tall as
+ * its content once that overflows, and the top of a long list stays
+ * reachable.
+ *
+ * MessagesFlow is the reason there are two wrappers, and it is easy to
+ * "simplify" away: the messages must stay in ordinary block flow. Made
+ * direct flex items they lose margin collapsing, which measurably added
+ * 110-150px to a real conversation and changed the gaps between bubbles.
+ * One flex item containing all of them keeps the old spacing exactly.
+ */
+export const MessagesAnchor = styled.div`
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 100%;
+`;
+
+export const MessagesFlow = styled.div`
+  flex: 0 0 auto;
+`;
+
 export const MessagesList = styled.div`
   box-sizing: border-box;
   width: 100%;
