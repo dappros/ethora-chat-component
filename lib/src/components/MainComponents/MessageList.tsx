@@ -6,6 +6,8 @@ import React, {
   useState,
 } from 'react';
 import {
+  MessagesAnchor,
+  MessagesFlow,
   MessagesScroll,
   MessagesList,
   ScrollToBottomButton,
@@ -441,7 +443,7 @@ const MessageList = <TMessage extends IMessage>({
   };
 
   const onScroll = () => {
-    if (typeof window !== "undefined") {
+    if (typeof window !== 'undefined') {
       window.clearTimeout(timeoutRef.current);
       timeoutRef.current = window.setTimeout(() => {
         checkAtBottomRef.current();
@@ -526,7 +528,6 @@ const MessageList = <TMessage extends IMessage>({
         });
       }
     }
-
   }, [
     memoizedMessages.length,
     composingList,
@@ -654,24 +655,28 @@ const MessageList = <TMessage extends IMessage>({
         onScroll={onScroll}
         color={config?.colors?.primary}
       >
-        {loading && <Loader color={config?.colors?.primary} />}
-        {activeMessage && (
-          <React.Fragment>
-            <CustomMessage
-              message={activeMessage}
-              isUser={isUserMessage}
-              isReply={isReply}
-            />
-            <TreadLabel
-              reply={memoizedMessages.length}
-              colors={config?.colors}
-            />
-          </React.Fragment>
-        )}
-        {visibleDecoratedMessages.map((decorated) =>
-          renderDecoratedMessage(decorated)
-        )}
-        {typingIndicatorNode}
+        <MessagesAnchor>
+          <MessagesFlow>
+            {loading && <Loader color={config?.colors?.primary} />}
+            {activeMessage && (
+              <React.Fragment>
+                <CustomMessage
+                  message={activeMessage}
+                  isUser={isUserMessage}
+                  isReply={isReply}
+                />
+                <TreadLabel
+                  reply={memoizedMessages.length}
+                  colors={config?.colors}
+                />
+              </React.Fragment>
+            )}
+            {visibleDecoratedMessages.map((decorated) =>
+              renderDecoratedMessage(decorated)
+            )}
+            {typingIndicatorNode}
+          </MessagesFlow>
+        </MessagesAnchor>
       </MessagesScroll>
       {showScrollButton && (
         <ScrollToBottomButton
