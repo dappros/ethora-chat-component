@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import {
   CHAT_ROOT_CLASS,
+  useHostConfig,
   useResolvedColorScheme,
   useThemeTokenStyle,
 } from '../../styles/tokens';
@@ -38,11 +39,20 @@ type ChatWrapperBoxProps = React.ComponentProps<typeof ChatWrapperBoxBase>;
 
 export const ChatWrapperBox = forwardRef<HTMLDivElement, ChatWrapperBoxProps>(
   ({ style, className, ...rest }, ref) => {
+    // Host prop first, store second - the same order <ChatRoot/> uses, and
+    // for the same reason: the store copy of the config only lands a render
+    // after the first paint, so reading it alone made this element publish
+    // LIGHT tokens over the dark ones it inherits from the outer root. The
+    // visible result was a white flash across the whole chat pane (the
+    // gradient on ChatContainer) every time a dark chat started up.
+    const hostConfig = useHostConfig();
     const { config } = useChatSettingState();
-    const scheme = useResolvedColorScheme(config?.colorScheme);
+    const scheme = useResolvedColorScheme(
+      hostConfig?.colorScheme ?? config?.colorScheme
+    );
     const tokenStyle = useThemeTokenStyle(
-      config?.colors,
-      config?.typography,
+      hostConfig?.colors ?? config?.colors,
+      hostConfig?.typography ?? config?.typography,
       scheme
     );
     return (

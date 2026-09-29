@@ -18,6 +18,7 @@ import NotificationPermissionBanner from '../Notification/NotificationPermission
 import { useTypography } from '../../hooks/useTypography';
 import { applyThemeColors } from '../../helpers/resolveIconColor';
 import {
+  HostConfigContext,
   ThemeTokens,
   useResolvedColorScheme,
   useThemeTokenStyle,
@@ -78,7 +79,12 @@ const ChatRoot: React.FC<{
       style={style}
       data-ethora-color-scheme={scheme}
     >
-      {children}
+      {/* Published for the inner root (<ChatWrapperBox/>), which would
+          otherwise have only the store to theme itself from and would spend
+          the first frame in light. */}
+      <HostConfigContext.Provider value={config}>
+        {children}
+      </HostConfigContext.Provider>
     </div>
   );
 };
