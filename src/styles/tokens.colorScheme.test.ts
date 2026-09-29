@@ -48,6 +48,42 @@ describe('buildThemeTokens colour scheme', () => {
     );
   });
 
+  // A divider separates two surfaces; a border outlines a control on one.
+  // In dark the border colour is lighter than every chat surface, so using
+  // it for the composer's separator drew a full-width rule brighter than
+  // anything around it.
+  it('keeps the divider darker than both surfaces it separates in dark', () => {
+    const luminance = (hex: string) => {
+      const n = parseInt(hex.replace('#', ''), 16);
+      const channel = (v: number) => {
+        const c = v / 255;
+        return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+      };
+      return (
+        0.2126 * channel((n >> 16) & 255) +
+        0.7152 * channel((n >> 8) & 255) +
+        0.0722 * channel(n & 255)
+      );
+    };
+    const dark = buildThemeTokens(undefined, undefined, 'dark');
+
+    expect(luminance(dark['--ethora-color-divider'])).toBeLessThan(
+      luminance(dark['--ethora-color-chat-bg'])
+    );
+    expect(luminance(dark['--ethora-color-divider'])).toBeLessThan(
+      luminance(dark['--ethora-color-bg'])
+    );
+    // The border token is still the lighter, control-outline one.
+    expect(luminance(dark['--ethora-color-border'])).toBeGreaterThan(
+      luminance(dark['--ethora-color-bg'])
+    );
+  });
+
+  it('leaves the light divider exactly where the border was', () => {
+    const light = buildThemeTokens(undefined, undefined, 'light');
+    expect(light['--ethora-color-divider']).toBe(light['--ethora-color-border']);
+  });
+
   it('dark still honours host icon colours as given', () => {
     const dark = buildThemeTokens(
       { primary: '#123456', secondary: '#000', icons: '#FF00FF', iconsBg: '#00FF00' },

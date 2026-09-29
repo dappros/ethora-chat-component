@@ -132,6 +132,11 @@ const DEFAULTS = {
   // the old literals.
   chatBg: '#F3F6FC',
   overlay: 'rgba(0, 0, 0, 0.5)',
+  // The hairline BETWEEN two chat surfaces (composer/messages), as opposed
+  // to `border`, which outlines a control against the surface it sits on.
+  // Same value in light - white on near-white needs the line to be visible
+  // to do its job at all.
+  divider: '#E6E8EC',
   // Default icon-chip fill (resolveIconBgColor) when no iconsBg is set.
   iconChipBg: '#F0F3F7',
 } as const;
@@ -161,6 +166,12 @@ const DARK_DEFAULTS = {
   iconsBg: '#24272D',
   chatBg: '#141619',
   overlay: 'rgba(0, 0, 0, 0.65)',
+  // Darker than BOTH surfaces it separates, not lighter. The border colour
+  // (#34373F) reads as a control outline against a single surface, but
+  // stretched between the composer (#1A1C21) and the message area
+  // (#141619) it is the lightest thing in the frame, so a 1px rule across
+  // the full width glows like a strip light. A seam recedes instead.
+  divider: '#0F1114',
   iconChipBg: '#2A2D34',
 } as const;
 
@@ -253,6 +264,7 @@ export function buildThemeTokens(
     '--ethora-color-success': base.success,
     '--ethora-color-online': dark ? DARK_DEFAULTS.online : base.success,
     '--ethora-color-chat-bg': base.chatBg,
+    '--ethora-color-divider': base.divider,
     '--ethora-color-overlay': base.overlay,
     '--ethora-color-icon-chip-bg': base.iconChipBg,
 
