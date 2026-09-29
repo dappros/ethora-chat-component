@@ -4,6 +4,7 @@ import { LastMessage } from '../../../types/types';
 import {
   LastMessageImg,
   LastRoomMessageContainer,
+  LastRoomMessageMedia,
   LastRoomMessageName,
   LastRoomMessageText,
   ShadeWrapper,
@@ -41,21 +42,15 @@ const LastMessagePhoto: FC<LastMessagePhotoProps> = ({
   const name = user?.name;
   return (
     <LastRoomMessageContainer>
-      {name && <LastRoomMessageName>{name}:</LastRoomMessageName>}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'row',
-          gap: '4px',
-        }}
-      >
+      {name && <LastRoomMessageName>{name}</LastRoomMessageName>}
+      <LastRoomMessageMedia>
         <PhotoContainer>
           <ShadeWrapper>
             <LastMessageImg src={appendFileToken(locationPreview, fileToken)} />
           </ShadeWrapper>
         </PhotoContainer>
         <LastRoomMessageText>{originalName || 'file'}</LastRoomMessageText>
-      </div>
+      </LastRoomMessageMedia>
     </LastRoomMessageContainer>
   );
 };

@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { LastMessage } from '../../../types/types';
 import {
   LastRoomMessageContainer,
+  LastRoomMessageMedia,
   LastRoomMessageName,
   LastRoomMessageText,
 } from './StyledRoomComponents';
@@ -32,14 +33,8 @@ const LastMessageFile: FC<LastMessageFileProps> = ({
   const name = user?.name;
   return (
     <LastRoomMessageContainer>
-      {name && <LastRoomMessageName>{name}:</LastRoomMessageName>}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'row',
-          gap: '4px',
-        }}
-      >
+      {name && <LastRoomMessageName>{name}</LastRoomMessageName>}
+      <LastRoomMessageMedia>
         {locationPreview ? (
           <img
             src={appendFileToken(locationPreview, fileToken)}
@@ -62,7 +57,7 @@ const LastMessageFile: FC<LastMessageFileProps> = ({
           <FileIcon style={{ width: '20px', height: '20px' }} />
         )}
         <LastRoomMessageText>{originalName || 'file'}</LastRoomMessageText>
-      </div>
+      </LastRoomMessageMedia>
     </LastRoomMessageContainer>
   );
 };

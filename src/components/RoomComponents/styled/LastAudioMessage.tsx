@@ -1,6 +1,7 @@
 import React, { FC } from 'react';
 import {
   LastRoomMessageContainer,
+  LastRoomMessageMedia,
   LastRoomMessageName,
   LastRoomMessageText,
   ShadeWrapper,
@@ -46,20 +47,14 @@ const LastAudioMessage: FC<LastMessageEmojiProps> = ({ user, body }) => {
   return (
     <LastRoomMessageContainer>
       {name && <LastRoomMessageName>{name}</LastRoomMessageName>}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'row',
-          gap: '4px',
-        }}
-      >
+      <LastRoomMessageMedia>
         <PhotoContainer>
           <ShadeWrapper>
             <PlayButton>▶</PlayButton>
           </ShadeWrapper>
         </PhotoContainer>
         <LastRoomMessageText>audio</LastRoomMessageText>
-      </div>
+      </LastRoomMessageMedia>
     </LastRoomMessageContainer>
   );
 };

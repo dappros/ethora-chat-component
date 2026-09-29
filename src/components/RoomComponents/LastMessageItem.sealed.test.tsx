@@ -48,7 +48,9 @@ describe('room-list preview for a sealed attachment', () => {
       user: { id: 'u1', name: 'etest etest' } as never,
     });
 
-    expect(screen.getByText('etest etest:')).toBeTruthy();
+    // The trailing colon is drawn by LastRoomMessageName's ::after now, so
+    // every preview variant gets it (text and audio used to have none).
+    expect(screen.getByText('etest etest')).toBeTruthy();
   });
 
   it('still says so when the message body never decrypted', () => {

@@ -22,7 +22,7 @@ const LastMessageEmoji: FC<LastMessageEmojiProps> = ({ user, emoji }) => {
   const name = user?.name;
   return (
     <LastRoomMessageContainer>
-      {name && <LastRoomMessageName>{name}:</LastRoomMessageName>}
+      {name && <LastRoomMessageName>{name}</LastRoomMessageName>}
       <LastRoomMessageText>{memoEmoji(emoji)}</LastRoomMessageText>
     </LastRoomMessageContainer>
   );
