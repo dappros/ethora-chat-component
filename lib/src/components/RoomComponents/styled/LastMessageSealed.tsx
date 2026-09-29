@@ -2,6 +2,7 @@ import React, { FC } from 'react';
 import { LastMessage } from '../../../types/types';
 import {
   LastRoomMessageContainer,
+  LastRoomMessageMedia,
   LastRoomMessageName,
   LastRoomMessageText,
 } from './StyledRoomComponents';
@@ -26,11 +27,11 @@ const LastMessageSealed: FC<LastMessageSealedProps> = ({ user }) => {
 
   return (
     <LastRoomMessageContainer>
-      {name && <LastRoomMessageName>{name}:</LastRoomMessageName>}
-      <div style={{ display: 'flex', flexDirection: 'row', gap: '4px' }}>
+      {name && <LastRoomMessageName>{name}</LastRoomMessageName>}
+      <LastRoomMessageMedia>
         <LockIcon width={16} height={16} />
         <LastRoomMessageText>{t('media.sealedFile')}</LastRoomMessageText>
-      </div>
+      </LastRoomMessageMedia>
     </LastRoomMessageContainer>
   );
 };

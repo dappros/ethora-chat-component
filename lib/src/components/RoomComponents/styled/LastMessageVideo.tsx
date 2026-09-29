@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { LastMessage } from '../../../types/types';
 import {
   LastRoomMessageContainer,
+  LastRoomMessageMedia,
   LastRoomMessageName,
   LastRoomMessageText,
   ShadeWrapper,
@@ -54,14 +55,8 @@ const LastMessageVideo: FC<LastMessageVideoProps> = ({
   const name = user?.name;
   return (
     <LastRoomMessageContainer>
-      {name && <LastRoomMessageName>{name}:</LastRoomMessageName>}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'row',
-          gap: '4px',
-        }}
-      >
+      {name && <LastRoomMessageName>{name}</LastRoomMessageName>}
+      <LastRoomMessageMedia>
         <VideoContainer>
           <ShadeWrapper>
             <Thumbnail src={location} muted playsInline />
@@ -69,7 +64,7 @@ const LastMessageVideo: FC<LastMessageVideoProps> = ({
           <PlayButton>▶</PlayButton>
         </VideoContainer>
         <LastRoomMessageText>{originalName || 'file'}</LastRoomMessageText>
-      </div>
+      </LastRoomMessageMedia>
     </LastRoomMessageContainer>
   );
 };

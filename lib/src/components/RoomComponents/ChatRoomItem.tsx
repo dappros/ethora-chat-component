@@ -335,6 +335,13 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
             width: '100%',
             justifyContent: 'space-between',
             alignItems: 'center',
+            gap: '8px',
+            minWidth: 0,
+            // Fixed, not content-sized: a room with no preview yet (history
+            // still loading) must not come out shorter than its neighbours
+            // either. The preview itself is a single 20px line - see
+            // LastRoomMessageContainer.
+            height: '20px',
           }}
         >
           {chat.composing ? (
