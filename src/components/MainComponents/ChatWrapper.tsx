@@ -53,7 +53,7 @@ export const THREE_COLUMN_MIN_WIDTH_PX = 1280;
 // of time and reports it via `isClosing`, which ModalWrapper/ModalReportChat
 // forward to the shared modal primitives (see components/Modals/motionVariants.ts).
 import { useExitTransition } from '../../hooks/useExitTransition';
-import { MOTION_FAST_MS } from '../../styles/motion';
+import { MOTION_BASE_MS, MOTION_FAST_MS } from '../../styles/motion';
 interface ChatWrapperProps {
   token?: string;
   room?: IRoom;
@@ -207,8 +207,15 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
 
   // Desktop, but not wide enough for room list + chat + panel at once.
   const isNarrowDesktop = useIsMobileViewport(THREE_COLUMN_MIN_WIDTH_PX - 1);
+  // Held for the panel's exit animation, not just while it is open. SidePanel
+  // keeps its 400px column mounted for that long (its own useExitTransition),
+  // so releasing the room list on the same frame the panel closes put three
+  // columns into a width that only fits two: the chat was squeezed to a few
+  // dozen pixels mid-animation and its text reflowed to one letter per line
+  // before everything snapped back.
+  const sidePanelExit = useExitTransition(isSidePanelOpen, MOTION_BASE_MS);
   const hideRoomListForPanel =
-    !isSmallScreen && isSidePanelOpen && isNarrowDesktop;
+    !isSmallScreen && sidePanelExit.shouldRender && isNarrowDesktop;
 
   const handleDeleteClick = () => {
     client.deleteMessageStanza(deleteModal.roomJid, deleteModal.messageId);
@@ -233,7 +240,14 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   });
   const hasRooms = Object.keys(rooms || {}).length > 0;
   const clientReadyForUI = !!client && !isConnectionLost && hasRooms;
-  const showShell = (inited || clientReadyForUI) && !(isRoomsLoading && !hasRooms);
+  // Rooms restored from the persisted cache are enough to paint the shell.
+  // Waiting for the XMPP client as well meant a returning user stared at a
+  // loader for the length of a websocket handshake while the room list they
+  // are about to see was already in memory. Anything that needs the live
+  // client (sending, history) guards on it separately; this is only about
+  // what is on screen.
+  const showShell =
+    (inited || clientReadyForUI || hasRooms) && !(isRoomsLoading && !hasRooms);
   const isConnectingLoaderVisible = isConnectionLost && !inited;
   const isRoomsRetryLoaderVisible = Boolean(
     config?.enableRoomsRetry?.enabled && isRetrying && isRetrying !== 'norooms'
