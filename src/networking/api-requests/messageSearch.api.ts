@@ -12,7 +12,7 @@ export interface MessageSearchHit {
   chatType: string;
   /** Full room JID. */
   room: string;
-  /** Sender's xmpp username (local part). */
+  /** Sender's full JID, WITH the xmpp host: `appId_userId@xmpp.host`. */
   from: string;
   fromUserId: string;
   body: string;

@@ -17,6 +17,7 @@ import SideDrawer, {
   DrawerSearchInput,
 } from '../SideDrawer/SideDrawer';
 import { buildSnippet } from './snippet';
+import { resolveSender } from './resolveSender';
 import {
   MIN_QUERY_LENGTH,
   SearchScope,
@@ -195,12 +196,14 @@ const MessageSearchModal: React.FC<MessageSearchModalProps> = ({
   }, []);
 
   const senderName = (hit: MessageSearchHit): string => {
-    if (myXmppUsername && hit.from === myXmppUsername.split('@')[0]) {
-      return t('search.messages.you');
-    }
-    const member = (usersSet as Record<string, any>)?.[hit.from];
-    const full = `${member?.firstName || ''} ${member?.lastName || ''}`.trim();
-    return full || member?.name || t('search.messages.someone');
+    const room = rooms[hit.room];
+    const { name, isSelf } = resolveSender(hit, {
+      usersSet: usersSet as Record<string, any>,
+      members: room?.members as any[],
+      myXmppUsername,
+    });
+    if (isSelf) return t('search.messages.you');
+    return name || t('search.messages.someone');
   };
 
   const open = (hit: MessageSearchHit) => {
