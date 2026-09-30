@@ -19,6 +19,7 @@ import CustomTypingIndicator from '../styled/StyledInputComponents/CustomTypingI
 import TreadLabel from '../styled/TreadLabel';
 import { MessageContainer } from './MessageContainer';
 import { useJumpToMessage } from './useJumpToMessage';
+import { useStickToBottom } from './useStickToBottom';
 import { useRoomState } from '../../hooks/useRoomState';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { useXmppClient } from '../../context/xmppProvider';
@@ -157,6 +158,7 @@ const MessageList = <TMessage extends IMessage>({
   const isExpandingWindowRef = useRef<boolean>(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const flowRef = useRef<HTMLDivElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);
   const lastMessageRef = useRef<IMessage>(
     memoizedMessages[memoizedMessages.length - 1]
@@ -394,6 +396,17 @@ const MessageList = <TMessage extends IMessage>({
       setRenderWindow((current) => current + appended);
     }
   }, [memoizedMessages.length, renderWindow]);
+
+  const hasUnreadDelimiter = useMemo(
+    () => memoizedMessages.some((message) => message.id === 'delimiter-new'),
+    [memoizedMessages]
+  );
+  useStickToBottom({
+    containerRef,
+    contentRef: flowRef,
+    isUserScrolledUpRef: isUserScrolledUp,
+    hasUnreadDelimiter,
+  });
 
   useJumpToMessage({
     roomJID,
@@ -668,7 +681,7 @@ const MessageList = <TMessage extends IMessage>({
         color={config?.colors?.primary}
       >
         <MessagesAnchor>
-          <MessagesFlow>
+          <MessagesFlow ref={flowRef}>
             {loading && <Loader color={config?.colors?.primary} />}
             {activeMessage && (
               <React.Fragment>
