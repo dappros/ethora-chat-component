@@ -15,7 +15,7 @@ import { MessageNotificationData } from '../components/MessageNotification/Messa
 import MessageNotificationToast from '../components/MessageNotification/MessageNotificationToast';
 import { messageNotificationManager } from '../utils/messageNotificationManager';
 import { useTabVisibility } from '../hooks/useTabVisibility';
-import { setCurrentRoom } from '../roomStore/roomsSlice';
+import { openRoomAtMessage } from '../helpers/openRoomAtMessage';
 import { IConfig } from '../types/types';
 import { RootState } from '../roomStore';
 import {
@@ -30,7 +30,6 @@ import {
 } from '../styles/tokens';
 import {
   CHAT_ROOT_CLASS,
-  MESSAGE_HIGHLIGHT_CLASS,
   NOTIFICATION_CONTAINER_CLASS,
 } from '../styles/classNames';
 
@@ -256,16 +255,17 @@ export const MessageNotificationProvider: React.FC<{
 
       if (!roomJID) return;
 
-      dispatch(setCurrentRoom({ roomJID }));
-
-      setTimeout(() => {
-        const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
-        if (messageElement) {
-          messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          messageElement.classList.add(MESSAGE_HIGHLIGHT_CLASS);
-          setTimeout(() => messageElement.classList.remove(MESSAGE_HIGHLIGHT_CLASS), 2000);
-        }
-      }, 100);
+      // The toast may carry the client id, the stanza id or the stored id of
+      // the message, and the message itself can be unmounted or unloaded by the
+      // time of the tap, so this goes through the jump mechanism (scrolls,
+      // widens the window or pages history, toasts when unreachable).
+      openRoomAtMessage(
+        dispatch,
+        roomJID,
+        messageId,
+        message?.id,
+        (message as any)?.xmppId
+      );
     },
     [clearNotificationsByRoom, dispatch, notificationConfig]
   );

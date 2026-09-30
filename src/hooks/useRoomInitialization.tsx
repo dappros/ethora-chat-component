@@ -4,7 +4,6 @@ import { useXmppClient } from '../context/xmppProvider';
 import { ApiRoom, IConfig, IMessage, IRoom } from '../types/types';
 import { useDispatch } from 'react-redux';
 import useGetNewArchRoom from './useGetNewArchRoom';
-import { MESSAGE_HIGHLIGHT_CLASS } from '../styles/classNames';
 
 const countUndefinedText = (arr: IMessage[]) =>
   (Array.isArray(arr) ? arr : []).filter((item) => item?.body === undefined)
@@ -20,8 +19,6 @@ const hasLoadedRoomHistory = (room?: IRoom): boolean => {
   );
 };
 
-const PUSH_MESSAGE_ID_KEY = '@ethora/chat-component-pushMessageId';
-const PUSH_ROOM_JID_KEY = '@ethora/chat-component-pushRoomJid';
 // Took main's tighter timeouts + the new ACTIVE_ROOM_LOADER_HARD_CAP_MS over
 // tf-dev's 5000ms presence wait. Main's flow uses prioritizeRoomPresence + a
 // hard-cap timer instead of tf-dev's retry-on-empty pattern (commit 62b0b6d
@@ -35,17 +32,6 @@ const ACTIVE_ROOM_LOADER_HARD_CAP_MS = 3000;
 // link. Measured against the QA backend, which registers the membership the
 // MUC presence created a few seconds after the presence call returns.
 const JOIN_SYNC_RETRY_DELAYS_MS = [1000, 2500, 5000];
-
-const scrollToMessage = (messageId: string) => {
-  const messageElement = document.querySelector(
-    `[data-message-id="${messageId}"]`
-  );
-  if (messageElement) {
-    messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    messageElement.classList.add(MESSAGE_HIGHLIGHT_CLASS);
-    setTimeout(() => messageElement.classList.remove(MESSAGE_HIGHLIGHT_CLASS), 2000);
-  }
-};
 
 export const useRoomInitialization = (
   activeRoomJID: string,
@@ -281,38 +267,6 @@ export const useRoomInitialization = (
     messageLength,
     roomsList?.[activeRoomJID]?.messages?.length,
   ]);
-
-  // Push-notification deep link: runs on room activation only. It used to
-  // live in the effect above, which re-runs on every incoming message and
-  // re-read localStorage each time.
-  useEffect(() => {
-    if (!client || !activeRoomJID || typeof window === 'undefined') return;
-
-    const pendingMessageId =
-      typeof localStorage !== 'undefined'
-        ? localStorage.getItem(PUSH_MESSAGE_ID_KEY)
-        : null;
-    const pendingRoomJID =
-      typeof localStorage !== 'undefined'
-        ? localStorage.getItem(PUSH_ROOM_JID_KEY)
-        : null;
-
-    if (pendingMessageId && (!pendingRoomJID || pendingRoomJID === activeRoomJID)) {
-      client
-        .getHistoryStanza(activeRoomJID, 30, undefined, undefined, {
-          source: 'active',
-          coalesceRoom: true,
-        })
-        .catch(() => {})
-        .finally(() => {
-          setTimeout(() => scrollToMessage(pendingMessageId), 200);
-          if (typeof localStorage !== 'undefined') {
-            localStorage.removeItem(PUSH_MESSAGE_ID_KEY);
-            localStorage.removeItem(PUSH_ROOM_JID_KEY);
-          }
-        });
-    }
-  }, [client, activeRoomJID]);
 
   // Default-rooms bootstrap. Previously part of the message-count-keyed
   // effect above: while any default room was missing from roomsList, it
