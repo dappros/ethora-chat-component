@@ -36,6 +36,34 @@ export async function showBrowserNotification(
 }
 
 /**
+ * Only http(s) URLs and same-origin paths are usable as a notification icon;
+ * anything else is dropped rather than handed to the browser.
+ */
+export function sanitizeIconUrl(value: unknown): string {
+  const url = typeof value === 'string' ? value.trim() : '';
+  if (!url) return '';
+  if (url.startsWith('/') && !url.startsWith('//')) return url;
+  return /^https?:\/\/\S+$/i.test(url) ? url : '';
+}
+
+/**
+ * The icon a push asks for: its own icon first (data.icon, notification.icon),
+ * then the picture it carries (notification.image, what this used to return
+ * unconditionally), then the favicon. The service worker applies the same
+ * preference for a backgrounded tab.
+ */
+export function pickPushIcon(payload: PushPayloadLike): string {
+  const data = (payload?.data ?? {}) as Record<string, unknown>;
+  const notification = (payload?.notification ?? {}) as Record<string, unknown>;
+  return (
+    sanitizeIconUrl(data.icon) ||
+    sanitizeIconUrl(notification.icon) ||
+    sanitizeIconUrl(notification.image) ||
+    '/favicon.ico'
+  );
+}
+
+/**
  * Helper to extract common data from a message/payload for browser notifications.
  */
 export function getBrowserNotificationData(
@@ -51,7 +79,7 @@ export function getBrowserNotificationData(
     title,
     body,
     url,
-    icon: payload.notification?.image || '/favicon.ico',
+    icon: pickPushIcon(payload),
     badge: '/favicon.ico',
     tag: 'ethora-notification',
   };

@@ -172,8 +172,26 @@ function pickUrl(raw = {}, data = {}, notification = {}) {
   );
 }
 
-function pickIcon() {
-  return CUSTOM_ICON || DEFAULT_ICON;
+// An icon the push itself carries (data.icon, notification.icon or icon on
+// the payload) wins over the one configured for the whole app: a push about a
+// specific chat or sender knows better than the app-wide default. Only http(s)
+// and same-origin paths are accepted; anything else (data:, javascript:, a
+// bare word) is ignored and the configured/default icon is used instead.
+function sanitizeIconUrl(value) {
+  const url = typeof value === 'string' ? value.trim() : '';
+  if (!url) return '';
+  if (url.charAt(0) === '/' && url.charAt(1) !== '/') return url;
+  return /^https?:\/\/[^\s]+$/i.test(url) ? url : '';
+}
+
+function pickIcon(raw = {}, data = {}, notification = {}) {
+  return (
+    sanitizeIconUrl(data.icon) ||
+    sanitizeIconUrl(notification.icon) ||
+    sanitizeIconUrl(raw.icon) ||
+    CUSTOM_ICON ||
+    DEFAULT_ICON
+  );
 }
 
 function pickBadge() {
@@ -332,7 +350,7 @@ async function handlePush(raw = {}, source = 'push') {
   const title = pickTitle(raw, data, notification);
   const body = pickBody(raw, data, notification);
   const url = pickUrl(raw, data, notification);
-  const icon = pickIcon();
+  const icon = pickIcon(raw, data, notification);
   const badge = pickBadge();
   const image = pickImage(raw, data, notification);
 
