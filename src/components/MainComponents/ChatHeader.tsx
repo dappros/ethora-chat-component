@@ -10,6 +10,7 @@ import {
   AudioCallIcon,
   BackIcon,
   LockIcon,
+  SearchIcon,
   VideoCallIcon,
 } from '../../assets/icons';
 import { useDispatch, useSelector } from 'react-redux';
@@ -251,6 +252,11 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const { roomsList, activeRoomJID } = useRoomState(currentRoom.jid);
   const { composing } = useRoomState(currentRoom.jid).room ?? {};
   const { config, user: stateUser } = useChatSettingState();
+
+  // Search runs against the platform's archive, which is scoped by app, so it
+  // needs an appId; hosts can also switch it off.
+  const messageSearchEnabled =
+    Boolean(config?.appId) && !config?.disableMessageSearch;
   const t = useT();
   const uiLocale = useUiLocale();
   const call = useSelector((state: RootState) => state.call);
@@ -552,6 +558,17 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         {!config?.disableRoomMenu &&
           !config?.disableChatInfo?.disableChatHeaderMenu && (
             <HeaderActions>
+              {messageSearchEnabled && (
+                <HeaderIconButton
+                  onClick={() =>
+                    dispatch(setActiveModal(MODAL_TYPES.MESSAGE_SEARCH))
+                  }
+                  title={t('search.messages.title')}
+                  aria-label={t('search.messages.title')}
+                >
+                  <SearchIcon color="currentColor" />
+                </HeaderIconButton>
+              )}
               {shouldShowLanguageSelector(config?.translates) && (
                 <LanguageSelectorButton />
               )}

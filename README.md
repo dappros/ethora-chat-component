@@ -350,6 +350,7 @@ Below is a grouped reference for all `config` options.
 | `disableRoomMute` | `boolean` | Hide the "Mute/Unmute notifications" toggle from the chat header menu and room profile, even on a backend that supports it. |
 | `disableRoomConfig` | `boolean` | Hide every control that mutates a room's configuration, leaving the chat-details panel read-only: room avatar upload/remove, the "Delete chat" menu entry, the add-members action, and the per-member moderator menu (appoint as admin / remove member). |
 | `disableNewChatButton` | `boolean` | Hide new chat/create room action. |
+| `disableMessageSearch` | `boolean` | Hide the "Search messages" button in the chat header and the search panel behind it. The panel searches the platform's message archive (`GET /v2/apps/{appId}/messages/search`) for the current chat or all chats and jumps to the hit; it needs `appId`, and without one the button is hidden anyway. |
 | `disableUserCount` | `boolean` | Hide the member-count subtitle in the chat header ("N users", plus the online-users popover attached to it). The 1:1 online/offline line is a presence state, not a count, so it stays. |
 | `disableChatInfo` | `{ disableHeader?; disableDescription?; disableType?; disableMembers?; hideMembers?; disableChatHeaderMenu? }` | Fine-grained chat info panel toggles. |
 | `chatHeaderBurgerMenu` | `boolean` | Toggle burger menu in chat header. |

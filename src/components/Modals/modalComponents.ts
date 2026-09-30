@@ -35,6 +35,9 @@ export const MODAL_COMPONENTS: Record<
   [MODAL_TYPES.VISIBILITY]: lazy(
     () => import('./SettingsModals/Visibility/VisibilityModal')
   ),
+  [MODAL_TYPES.MESSAGE_SEARCH]: lazy(
+    () => import('./MessageSearchModal/MessageSearchModal')
+  ),
   [MODAL_TYPES.FILE_PREVIEW]: lazy(
     () => import('./FilePreviewModal/FilePreviewModal')
   ),

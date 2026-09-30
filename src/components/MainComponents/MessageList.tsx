@@ -18,6 +18,7 @@ import Composing from '../styled/StyledInputComponents/Composing';
 import CustomTypingIndicator from '../styled/StyledInputComponents/CustomTypingIndicator';
 import TreadLabel from '../styled/TreadLabel';
 import { MessageContainer } from './MessageContainer';
+import { useJumpToMessage } from './useJumpToMessage';
 import { useRoomState } from '../../hooks/useRoomState';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { useXmppClient } from '../../context/xmppProvider';
@@ -78,7 +79,7 @@ const MessageList = <TMessage extends IMessage>({
   activeMessage,
 }: MessageListProps<TMessage>) => {
   const { CustomScrollableArea, CustomNewMessageLabel } = useCustomComponents();
-  const { composing, messages, composingList } =
+  const { composing, messages, composingList, historyComplete } =
     useRoomState(roomJID).room ?? {};
   const { user } = useChatSettingState();
   const t = useT();
@@ -393,6 +394,17 @@ const MessageList = <TMessage extends IMessage>({
       setRenderWindow((current) => current + appended);
     }
   }, [memoizedMessages.length, renderWindow]);
+
+  useJumpToMessage({
+    roomJID,
+    messages: memoizedMessages,
+    visibleCount: visibleMessages.length,
+    setRenderWindow,
+    loadMoreMessages,
+    containerRef,
+    historyComplete,
+    isUserScrolledUpRef: isUserScrolledUp,
+  });
 
   const scrollToBottom = useCallback((): void => {
     const content = containerRef.current;

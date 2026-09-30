@@ -128,6 +128,15 @@ const collapseCallLogDuplicates = (messages: IMessage[]): IMessage[] => {
 export const MAX_DRAFT_LENGTH = 2000;
 export const MAX_PERSISTED_DRAFTS = 30;
 
+/** A request to scroll a room's transcript to one message. */
+export interface PendingJump {
+  roomJID: string;
+  /** Any id the message may be known by: message id, stanza id, xmpp id. */
+  ids: string[];
+  /** Epoch ms the request was made, to drop one nobody ever fulfilled. */
+  at: number;
+}
+
 interface RoomMessagesState {
   rooms: { [jid: string]: IRoom };
   activeRoomJID: string;
@@ -156,6 +165,13 @@ interface RoomMessagesState {
   // true, roomsLoadError false) from "we couldn't check" (both true) - only
   // the former should show the CTA. A later successful retry clears it.
   roomsLoadError: boolean;
+  // "Take me to that message", set by message search and consumed by the
+  // MessageList of the room it names. A request rather than an imperative
+  // call because the target room may not be mounted yet (a search hit from
+  // another chat switches rooms first), and the message itself may not be
+  // loaded (the list pages older history until it turns up). `at` bounds
+  // how long a request may stay alive. Never persisted.
+  pendingJump: PendingJump | null;
   // Unsent composer text per room JID. Lives here rather than in the
   // composer's own useState so switching rooms (which never unmounts
   // SendInput) can hand each room back its own text, and so a reload gets
@@ -194,6 +210,7 @@ const initialState: RoomMessagesState = {
   loadingText: undefined,
   roomsLoadedOnce: false,
   roomsLoadError: false,
+  pendingJump: null,
   drafts: {},
 };
 
@@ -1087,6 +1104,21 @@ const roomsStore = createSlice({
     // done: on success (alongside setInited(true)) and on failure (the init
     // catch blocks). See the `roomsLoadedOnce`/`roomsLoadError` field
     // comments above for what each one means.
+    requestJumpToMessage: (
+      state,
+      action: PayloadAction<{ roomJID: string; ids: string[] }>
+    ) => {
+      const ids = action.payload.ids.filter(Boolean);
+      if (!action.payload.roomJID || ids.length === 0) return;
+      state.pendingJump = {
+        roomJID: action.payload.roomJID,
+        ids,
+        at: Date.now(),
+      };
+    },
+    clearPendingJump: (state) => {
+      state.pendingJump = null;
+    },
     setRoomsLoadResolved: (
       state,
       action: PayloadAction<{ success: boolean }>
@@ -1398,6 +1430,8 @@ export const {
   setLastViewedTimestamp,
   setRoomNoMessages,
   setRoomsLoadResolved,
+  requestJumpToMessage,
+  clearPendingJump,
   setCurrentRoom,
   setMemberOnline,
   setMemberOffline,
