@@ -514,6 +514,11 @@ export interface IConfig {
    * it queries is scoped by app.
    */
   disableMessageSearch?: boolean;
+  /**
+   * Hide the "Discover chats" entry of the room list menu, the directory of
+   * the app's public chats (GET /v1/chats/public).
+   */
+  disablePublicChatsDirectory?: boolean;
   disableSentLogic?: boolean;
   initBeforeLoad?: boolean;
   initBeforeLoadAuth?: {

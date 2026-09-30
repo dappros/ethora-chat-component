@@ -448,13 +448,24 @@ const RoomList: React.FC<RoomListProps> = ({
             },
           ]
         : []),
+      ...(!config?.disablePublicChatsDirectory
+        ? [
+            {
+              label: t('publicChats.title'),
+              icon: null,
+              onClick: () => {
+                dispatch(setActiveModal(MODAL_TYPES.PUBLIC_CHATS));
+              },
+            },
+          ]
+        : []),
       {
         label: 'Logout',
         icon: null,
         onClick: () => handleLogout(),
       },
     ],
-    [config?.disableProfilesInteractions]
+    [config?.disableProfilesInteractions, config?.disablePublicChatsDirectory, t]
   );
 
   return (
