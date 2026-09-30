@@ -125,6 +125,10 @@ export class XmppClient implements XmppClientInterface {
   host: string;
   // xmppSettings.host as the host app configured it ('' when it did not).
   private configuredHost: string;
+  // xmppSettings.conference likewise. `conference` below is derived from the
+  // host only when the app did not name one: an install can run its MUC
+  // service under a name that is not `conference.<xmpp domain>`.
+  private configuredConference: string;
   service: string;
   conference: string;
   username: string;
@@ -447,10 +451,11 @@ export class XmppClient implements XmppClientInterface {
   ) {
     this.devServer = xmppSettings?.devServer || SERVICE;
     this.configuredHost = (xmppSettings?.host || '').trim();
+    this.configuredConference = (xmppSettings?.conference || '').trim();
     this.host = xmppSettings?.host || VITE_APP_XMPP_BASEDOMAIN;
     this.service = xmppSettings?.conference || VITE_APP_XMPP_CONFERENCE;
 
-    this.conference = `conference.${this.host}`;
+    this.conference = this.configuredConference || `conference.${this.host}`;
     this.username = username;
     this.password = password;
     this.pingOnSendEnabled = xmppSettings?.xmppPingOnSendEnabled === true;
@@ -519,7 +524,12 @@ export class XmppClient implements XmppClientInterface {
         host: this.configuredHost,
         devServer: url,
       });
-      this.conference = `conference.${this.host}`;
+      // The configured conference domain wins, same as `this.service` (which
+      // the room JIDs are built from). Overwriting it with
+      // `conference.<host>` here left the two disagreeing whenever an
+      // install's MUC service is not named that way, and `conference` is
+      // what rooms created from an API refresh are built with.
+      this.conference = this.configuredConference || `conference.${this.host}`;
       ethoraLogger.log('+-+-+-+-+-+-+-+-+ ', { username: this.username });
       this.devServer = url;
 

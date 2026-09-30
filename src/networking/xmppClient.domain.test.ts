@@ -51,6 +51,28 @@ describe('XmppClient XMPP domain', () => {
     });
   });
 
+  it('keeps a configured conference domain that is not conference.<host>', () => {
+    // An install can run its MUC service under any name. `conference` used
+    // to be rebuilt as conference.<host> regardless, so rooms created from an
+    // API refresh got a JID on a service that does not exist.
+    const c = new XmppClient('alice', 'secret', {
+      devServer: 'ws://192.168.1.20:8456/ws',
+      host: 'chat.local',
+      conference: 'muc.rooms.example.org',
+    });
+    expect(c.host).toBe('chat.local');
+    expect(c.conference).toBe('muc.rooms.example.org');
+    expect(c.service).toBe('muc.rooms.example.org');
+  });
+
+  it('derives conference from the host only when none is configured', () => {
+    const c = new XmppClient('alice', 'secret', {
+      devServer: 'ws://192.168.1.20:8456/ws',
+      host: 'chat.local',
+    });
+    expect(c.conference).toBe('conference.chat.local');
+  });
+
   it('falls back to the host of a wss:// URL when no host is configured', () => {
     const c = new XmppClient('alice', 'secret', { devServer: 'wss://xmpp.example.com/ws' });
     expect(c.host).toBe('xmpp.example.com');
