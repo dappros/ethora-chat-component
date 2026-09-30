@@ -35,7 +35,7 @@ import { store } from '../roomStore';
 import { IConfig } from '../types/types';
 import { ethoraLogger } from '../helpers/ethoraLogger';
 import { setStoredFcmToken } from '../utils/pushStorage';
-import { MESSAGE_HIGHLIGHT_CLASS } from '../styles/classNames';
+import { collectMessageIds, openRoomAtMessage } from '../helpers/openRoomAtMessage';
 import { normalizeRoomJidWithConference } from '../utils/runtimeHostConfig';
 import {
   buildNotificationUrl,
@@ -146,20 +146,8 @@ const usePushNotifications = (
     [config?.xmppSettings?.conference]
   );
 
-  const scrollToMessage = useCallback((messageId?: string) => {
-    if (!messageId || typeof document === 'undefined') return;
-    const messageElement = document.querySelector(
-      `[data-message-id="${messageId}"]`
-    );
-    if (messageElement) {
-      messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      messageElement.classList.add(MESSAGE_HIGHLIGHT_CLASS);
-      setTimeout(() => messageElement.classList.remove(MESSAGE_HIGHLIGHT_CLASS), 2000);
-    }
-  }, []);
-
   const fetchRecentHistory = useCallback(
-    (roomJid: string, messageId?: string) => {
+    (roomJid: string) => {
       if (!roomJid) return;
       const now = Date.now();
       const lastFetch = recentHistoryFetchRef.current.get(roomJid) || 0;
@@ -175,14 +163,9 @@ const usePushNotifications = (
           source: 'active',
           coalesceRoom: true,
         })
-        .catch(() => {})
-        .finally(() => {
-          if (messageId) {
-            setTimeout(() => scrollToMessage(messageId), 200);
-          }
-        });
+        .catch(() => {});
     },
-    [scrollToMessage]
+    []
   );
 
   // Surface an incoming call that arrived via push (app was backgrounded, so
@@ -241,6 +224,15 @@ const usePushNotifications = (
       const roomJid = normalizeRoomJid(roomJidRaw);
       const messageId =
         data.msgID || data.messageId || payload?.messageId || payload?.msgID;
+      // A push can name the message by more than one id.
+      const messageIds = collectMessageIds(
+        data.msgID,
+        data.messageId,
+        data.stanzaId,
+        data.xmppId,
+        payload?.messageId,
+        payload?.msgID
+      );
       const url = data.url || payload?.url;
 
       try {
@@ -277,8 +269,8 @@ const usePushNotifications = (
       }
 
       if (roomJid) {
-        dispatch(setCurrentRoom({ roomJID: roomJid }));
-        fetchRecentHistory(roomJid, messageId ? String(messageId) : undefined);
+        openRoomAtMessage(dispatch, roomJid, ...messageIds);
+        fetchRecentHistory(roomJid);
       }
     },
     [config?.pushNotifications?.onClick, dispatch, fetchRecentHistory, normalizeRoomJid, options.onClick, handleIncomingCallPush]
@@ -447,7 +439,7 @@ const usePushNotifications = (
       recentPushToastsRef.current.set(dedupeKey, now);
 
       if (roomJid && !alreadyInStore) {
-        fetchRecentHistory(roomJid, existingMessageId);
+        fetchRecentHistory(roomJid);
       }
 
       // Browser notifications are now handled by MessageNotificationContext
