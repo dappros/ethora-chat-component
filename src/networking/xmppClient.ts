@@ -37,6 +37,7 @@ import {
   type AllRoomPresenceSummary,
 } from './xmpp/allRoomPresences.xmpp';
 import { sendPing } from './xmpp/sendPing.xmpp';
+import { buildXmppClientIdentityHost } from '../utils/runtimeHostConfig';
 import { isPong } from './xmpp/handlePong.xmpp';
 import { store } from '../roomStore';
 import { removeMessageFromHeapById } from '../roomStore/roomHeapSlice';
@@ -122,6 +123,12 @@ export class XmppClient implements XmppClientInterface {
   client!: Client;
   devServer: string | undefined;
   host: string;
+  // xmppSettings.host as the host app configured it ('' when it did not).
+  private configuredHost: string;
+  // xmppSettings.conference likewise. `conference` below is derived from the
+  // host only when the app did not name one: an install can run its MUC
+  // service under a name that is not `conference.<xmpp domain>`.
+  private configuredConference: string;
   service: string;
   conference: string;
   username: string;
@@ -443,10 +450,12 @@ export class XmppClient implements XmppClientInterface {
     xmppSettings?: xmppSettingsInterface
   ) {
     this.devServer = xmppSettings?.devServer || SERVICE;
+    this.configuredHost = (xmppSettings?.host || '').trim();
+    this.configuredConference = (xmppSettings?.conference || '').trim();
     this.host = xmppSettings?.host || VITE_APP_XMPP_BASEDOMAIN;
     this.service = xmppSettings?.conference || VITE_APP_XMPP_CONFERENCE;
 
-    this.conference = `conference.${this.host}`;
+    this.conference = this.configuredConference || `conference.${this.host}`;
     this.username = username;
     this.password = password;
     this.pingOnSendEnabled = xmppSettings?.xmppPingOnSendEnabled === true;
@@ -505,13 +514,28 @@ export class XmppClient implements XmppClientInterface {
       }
       const url = this.devServer || SERVICE;
 
-      this.host = url.match(/wss:\/\/([^:/]+)/)?.[1] || '';
-      this.conference = `conference.${this.host}`;
+      // The XMPP domain is the configured host when the app set one, else the
+      // host of the WebSocket URL (ws:// or wss://). The two differ when the
+      // WebSocket endpoint is not served on the XMPP domain itself (a proxy
+      // on another name, or one origin that serves the API, web app and
+      // /ws by path): the stream must still be opened `to` the XMPP domain,
+      // or the server answers host-unknown.
+      this.host = buildXmppClientIdentityHost({
+        host: this.configuredHost,
+        devServer: url,
+      });
+      // The configured conference domain wins, same as `this.service` (which
+      // the room JIDs are built from). Overwriting it with
+      // `conference.<host>` here left the two disagreeing whenever an
+      // install's MUC service is not named that way, and `conference` is
+      // what rooms created from an API refresh are built with.
+      this.conference = this.configuredConference || `conference.${this.host}`;
       ethoraLogger.log('+-+-+-+-+-+-+-+-+ ', { username: this.username });
       this.devServer = url;
 
       this.client = xmpp.client({
         service: url,
+        ...(this.host ? { domain: this.host } : {}),
         username: this.username,
         password: this.password,
       });

@@ -10,6 +10,8 @@ All notable changes to this package are documented here. For cross-SDK release n
 
 ### Fixed
 
+- The XMPP stream is now opened to the configured `xmppSettings.host` (`VITE_XMPP_HOST` in the web app) and that domain is passed to the XMPP client. It used to be overwritten with the host of the WebSocket URL (and left empty for `ws://` URLs), so an install whose WebSocket endpoint is not on the XMPP domain (one origin serving the API, the web app and `/ws` by path, or a proxy under another name) was refused with `host-unknown`. Without a configured host the WebSocket URL's host is still used, now for `ws://` as well as `wss://`.
+- `xmppSettings.conference` is no longer overwritten with `conference.<xmpp host>` on the XMPP client. Rooms created from an API refresh were built on that derived name, so an install whose MUC service is not called `conference.<xmpp domain>` got room JIDs on a service that does not exist. The derived name is still used when no `conference` is configured.
 - `config.fallbackScreens.noUser` is now honored on **logout** too: `LoginWrapper` (which renders on logout, before `ChatWrapper` mounts) previously always showed the built-in Ethora login form, ignoring the fallback.
 - `config.backgroundChat.color` / `.image` is now actually applied to the chat (messages area) background — previously the prop was type-only and did nothing.
 - `config.colors.icons` now also drives the active send button, the new-chat button and other accent icon-buttons (not just the standalone chrome icons). It defaults to `colors.primary`, so setting `icons` equal to `primary` produces no visible change — set a distinct colour to decouple them.
