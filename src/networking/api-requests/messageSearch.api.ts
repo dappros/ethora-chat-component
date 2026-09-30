@@ -7,6 +7,8 @@ import { store } from '../../roomStore';
  * caller can see, so no client-side filtering is needed for privacy.
  */
 export interface MessageSearchHit {
+  /** The archive row's own id: the only identifier every hit is guaranteed to have. */
+  id: string;
   /** Room name, the local part of the room JID. */
   chatId: string;
   chatType: string;
@@ -39,6 +41,11 @@ export interface SearchMessagesParams {
   q: string;
   /** Room name (local part of the JID). Omit to search every visible chat. */
   chatId?: string;
+  /** Only messages from this user (a room member's `_id`). */
+  fromUserId?: string;
+  /** ISO 8601 bounds; the server rejects anything else. */
+  since?: string;
+  until?: string;
   limit?: number;
   offset?: number;
   signal?: AbortSignal;
@@ -46,11 +53,17 @@ export interface SearchMessagesParams {
 
 export const MESSAGE_SEARCH_PAGE_SIZE = 20;
 
-type RawHit = Partial<MessageSearchHit> & { deletedAt?: string | null };
+type RawHit = Partial<Omit<MessageSearchHit, 'id'>> & {
+  _id?: string;
+  deletedAt?: string | null;
+};
 
 export async function searchMessages({
   q,
   chatId,
+  fromUserId,
+  since,
+  until,
   limit = MESSAGE_SEARCH_PAGE_SIZE,
   offset = 0,
   signal,
@@ -63,7 +76,15 @@ export async function searchMessages({
   const response = await http.get(
     `/v2/apps/${encodeURIComponent(appId)}/messages/search`,
     {
-      params: { q, limit, offset, ...(chatId ? { chatId } : {}) },
+      params: {
+        q,
+        limit,
+        offset,
+        ...(chatId ? { chatId } : {}),
+        ...(fromUserId ? { fromUserId } : {}),
+        ...(since ? { since } : {}),
+        ...(until ? { until } : {}),
+      },
       headers: { Authorization: token },
       signal,
     }
@@ -80,6 +101,7 @@ export async function searchMessages({
         (hit) => !hit.deletedAt && typeof hit.body === 'string' && hit.body
       )
       .map((hit) => ({
+        id: String(hit._id ?? ''),
         chatId: String(hit.chatId ?? ''),
         chatType: String(hit.chatType ?? ''),
         room: String(hit.room ?? ''),
@@ -96,3 +118,13 @@ export async function searchMessages({
     nextOffset: offset + raw.length,
   };
 }
+
+/**
+ * A key that is unique per hit. stanzaId and messageId are NOT: on QA whole
+ * pages of older hits come back with both empty, which made every React key
+ * `chatId:` (rows were left behind when the list changed) and made a
+ * duplicate check by those ids throw real hits away.
+ */
+export const hitKey = (hit: MessageSearchHit): string =>
+  hit.id ||
+  `${hit.chatId}:${hit.stanzaId}:${hit.messageId}:${hit.createdAt}:${hit.body.slice(0, 24)}`;

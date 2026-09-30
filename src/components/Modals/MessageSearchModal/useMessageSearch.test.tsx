@@ -2,14 +2,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 
 const searchMessages = vi.fn();
-vi.mock('../../../networking/api-requests/messageSearch.api', () => ({
-  MESSAGE_SEARCH_PAGE_SIZE: 20,
-  searchMessages: (...a: unknown[]) => searchMessages(...a),
-}));
+vi.mock(
+  '../../../networking/api-requests/messageSearch.api',
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import('../../../networking/api-requests/messageSearch.api')
+    >()),
+    MESSAGE_SEARCH_PAGE_SIZE: 20,
+    searchMessages: (...a: unknown[]) => searchMessages(...a),
+  })
+);
 
 import { useMessageSearch } from './useMessageSearch';
 
 const hit = (id: string) => ({
+  id,
   chatId: 'r',
   chatType: 'groupchat',
   room: 'r@c',

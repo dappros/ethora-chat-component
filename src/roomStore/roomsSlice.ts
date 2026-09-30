@@ -46,7 +46,9 @@ const CALL_SIGNAL_BODIES = new Set([
 
 const isCallSignalMessage = (message: IMessage | undefined | null): boolean => {
   if (!message) return false;
-  const body = String(message.body || '').trim().toLowerCase();
+  const body = String(message.body || '')
+    .trim()
+    .toLowerCase();
   return CALL_SIGNAL_BODIES.has(body);
 };
 
@@ -99,16 +101,18 @@ const collapseCallLogDuplicates = (messages: IMessage[]): IMessage[] => {
   }
   if (!hasDuplicates) return messages;
   const emitted = new Set<string>();
-  return messages.filter((message) => {
-    const callId = message?.callLog?.callId;
-    if (!callId) return true;
-    if (emitted.has(callId)) return false;
-    emitted.add(callId);
-    return true;
-  }).map((message) => {
-    const callId = message?.callLog?.callId;
-    return callId ? byCallId.get(callId) || message : message;
-  });
+  return messages
+    .filter((message) => {
+      const callId = message?.callLog?.callId;
+      if (!callId) return true;
+      if (emitted.has(callId)) return false;
+      emitted.add(callId);
+      return true;
+    })
+    .map((message) => {
+      const callId = message?.callLog?.callId;
+      return callId ? byCallId.get(callId) || message : message;
+    });
 };
 
 /**
@@ -133,6 +137,12 @@ export interface PendingJump {
   roomJID: string;
   /** Any id the message may be known by: message id, stanza id, xmpp id. */
   ids: string[];
+  /**
+   * For a message that has no usable id (search archive rows often carry
+   * none): its timestamp and text, matched against the loaded transcript.
+   */
+  createdAt?: string;
+  body?: string;
   /** Epoch ms the request was made, to drop one nobody ever fulfilled. */
   at: number;
 }
@@ -151,7 +161,10 @@ interface RoomMessagesState {
     isOpen: boolean;
   };
   subscribedRooms: string[];
-  pushSubscriptionStatus: Record<string, 'pending' | 'subscribed' | 'error' | 'blocked'>;
+  pushSubscriptionStatus: Record<
+    string,
+    'pending' | 'subscribed' | 'error' | 'blocked'
+  >;
   loadingText?: string;
   // True once the FIRST rooms fetch of this session has resolved, success or
   // failure. A positive-only signal: it starts false and only this reducer
@@ -295,7 +308,8 @@ const compareMessageOrder = (a: IMessage, b: IMessage): number => {
     return tsA - tsB;
   }
 
-  const pendingDelta = Number(Boolean(a?.pending)) - Number(Boolean(b?.pending));
+  const pendingDelta =
+    Number(Boolean(a?.pending)) - Number(Boolean(b?.pending));
   if (pendingDelta !== 0) {
     return pendingDelta;
   }
@@ -498,7 +512,8 @@ const roomsStore = createSlice({
         // but never let a `roomData` with no `lastMessage` erase one that
         // was already there.
         lastMessage: roomData.lastMessage ?? existing?.lastMessage,
-        unreadMessages: existing?.unreadMessages ?? roomData.unreadMessages ?? 0,
+        unreadMessages:
+          existing?.unreadMessages ?? roomData.unreadMessages ?? 0,
         lastViewedTimestamp:
           existing?.lastViewedTimestamp ?? roomData.lastViewedTimestamp ?? 0,
         unreadBaselineTimestamp:
@@ -513,15 +528,13 @@ const roomsStore = createSlice({
           ),
         composingList: existing?.composingList ?? roomData.composingList,
         composing: existing?.composing ?? roomData.composing,
-        unreadCapped:
-          existing?.unreadCapped ?? roomData.unreadCapped ?? false,
+        unreadCapped: existing?.unreadCapped ?? roomData.unreadCapped ?? false,
         historyPreloadState:
           existing?.historyPreloadState ??
           roomData.historyPreloadState ??
           'idle',
         messageStats: existing?.messageStats ?? roomData.messageStats,
-        historyComplete:
-          existing?.historyComplete ?? roomData.historyComplete,
+        historyComplete: existing?.historyComplete ?? roomData.historyComplete,
       };
     },
     deleteRoom(state, action: PayloadAction<{ jid: string }>) {
@@ -543,7 +556,10 @@ const roomsStore = createSlice({
       if (!isValidRoomJid(jid)) return;
       if (!state.drafts) state.drafts = {};
 
-      const text = String(action.payload?.text ?? '').slice(0, MAX_DRAFT_LENGTH);
+      const text = String(action.payload?.text ?? '').slice(
+        0,
+        MAX_DRAFT_LENGTH
+      );
 
       if (!text) {
         if (state.drafts[jid] !== undefined) delete state.drafts[jid];
@@ -899,10 +915,7 @@ const roomsStore = createSlice({
       // createUserNameFromSetUser here, which returns the literal "Deleted User"
       // string the instant usersSet doesn't yet know the sender - precisely the
       // case for live bot messages that arrive before usersSet is hydrated.
-      const enriched = enrichMessageAuthor(
-        message as IMessage,
-        state.usersSet
-      );
+      const enriched = enrichMessageAuthor(message as IMessage, state.usersSet);
       const updMessage = {
         ...enriched,
         user: {
@@ -1035,8 +1048,12 @@ const roomsStore = createSlice({
             // messages that landed before usersSet hydrated stop displaying
             // "Deleted User" even when no API lookup ever succeeds.
             const dataFull = String((message as any)?.fullName || '').trim();
-            const dataFirst = String((message as any)?.senderFirstName || '').trim();
-            const dataLast = String((message as any)?.senderLastName || '').trim();
+            const dataFirst = String(
+              (message as any)?.senderFirstName || ''
+            ).trim();
+            const dataLast = String(
+              (message as any)?.senderLastName || ''
+            ).trim();
             const fromData = dataFull || `${dataFirst} ${dataLast}`.trim();
             if (fromData) {
               message.user = { ...message.user, name: fromData };
@@ -1098,7 +1115,9 @@ const roomsStore = createSlice({
           state.rooms[chatJID].unreadMessages = 0;
         }
         const delimiterCutoff = isEnteringActive
-          ? (previousLastViewed > 0 ? previousLastViewed : baseline)
+          ? previousLastViewed > 0
+            ? previousLastViewed
+            : baseline
           : normalizedTimestamp;
         state.rooms[chatJID].messages = normalizeDelimiterPosition(
           state.rooms[chatJID].messages,
@@ -1114,13 +1133,25 @@ const roomsStore = createSlice({
     // comments above for what each one means.
     requestJumpToMessage: (
       state,
-      action: PayloadAction<{ roomJID: string; ids: string[] }>
+      action: PayloadAction<{
+        roomJID: string;
+        ids: string[];
+        createdAt?: string;
+        body?: string;
+      }>
     ) => {
       const ids = action.payload.ids.filter(Boolean);
-      if (!action.payload.roomJID || ids.length === 0) return;
+      const canMatchByContent = Boolean(
+        action.payload.createdAt && action.payload.body
+      );
+      if (!action.payload.roomJID || (ids.length === 0 && !canMatchByContent)) {
+        return;
+      }
       state.pendingJump = {
         roomJID: action.payload.roomJID,
         ids,
+        createdAt: action.payload.createdAt,
+        body: action.payload.body,
         at: Date.now(),
       };
     },
@@ -1338,10 +1369,15 @@ const roomsStore = createSlice({
     },
     setPushSubscriptionStatus: (
       state,
-      action: PayloadAction<{ jid: string; status: 'pending' | 'subscribed' | 'error' | 'blocked' }>
+      action: PayloadAction<{
+        jid: string;
+        status: 'pending' | 'subscribed' | 'error' | 'blocked';
+      }>
     ) => {
       const { jid, status } = action.payload;
-      const subscribedRooms = getNormalizedSubscribedRooms(state.subscribedRooms);
+      const subscribedRooms = getNormalizedSubscribedRooms(
+        state.subscribedRooms
+      );
 
       if (subscribedRooms !== state.subscribedRooms) {
         state.subscribedRooms = subscribedRooms;

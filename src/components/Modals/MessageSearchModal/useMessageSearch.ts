@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react';
+import { SearchFilters } from './searchFilters';
 import {
+  hitKey,
   MESSAGE_SEARCH_PAGE_SIZE,
   MessageSearchHit,
   searchMessages,
@@ -33,8 +35,7 @@ type Action =
 
 const initial: State = { status: 'idle', items: [], total: 0, nextOffset: 0 };
 
-const keyOf = (hit: MessageSearchHit) =>
-  `${hit.chatId}:${hit.stanzaId || hit.messageId}`;
+const keyOf = hitKey;
 
 const reducer = (state: State, action: Action): State => {
   switch (action.type) {
@@ -71,12 +72,14 @@ const reducer = (state: State, action: Action): State => {
 export function useMessageSearch(
   query: string,
   scope: SearchScope,
-  roomName?: string
+  roomName?: string,
+  filters: SearchFilters = {}
 ) {
   const [state, dispatch] = useReducer(reducer, initial);
   const abortRef = useRef<AbortController | null>(null);
   const requestRef = useRef(0);
   const trimmed = query.trim();
+  const { fromUserId, since, until } = filters;
   const chatId = scope === 'chat' ? roomName : undefined;
   const searchable =
     trimmed.length >= MIN_QUERY_LENGTH &&
@@ -93,6 +96,9 @@ export function useMessageSearch(
         const page = await searchMessages({
           q: trimmed,
           chatId,
+          fromUserId,
+          since,
+          until,
           offset,
           limit: MESSAGE_SEARCH_PAGE_SIZE,
           signal: controller.signal,
@@ -110,7 +116,7 @@ export function useMessageSearch(
         dispatch({ type: 'fail' });
       }
     },
-    [trimmed, chatId]
+    [trimmed, chatId, fromUserId, since, until]
   );
 
   useEffect(() => {

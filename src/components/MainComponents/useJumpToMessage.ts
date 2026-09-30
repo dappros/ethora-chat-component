@@ -28,13 +28,44 @@ const EXHAUSTED_GRACE_MS = 1500;
 // the window is widened to it plus this much, to leave room around it.
 const WINDOW_MARGIN = 15;
 
-/** Index of the message a jump names, matching any id it may be known by. */
-export const findMessageIndex = (messages: IMessage[], ids: string[]): number =>
-  messages.findIndex(
-    (message) =>
-      ids.includes(String(message.id)) ||
-      (message.xmppId ? ids.includes(String(message.xmppId)) : false)
-  );
+// How far apart the archive's timestamp and the transcript's may be for the
+// same message. They are recorded by different components, so they are not
+// identical, but never more than a moment apart.
+const CONTENT_MATCH_WINDOW_MS = 5000;
+
+/**
+ * Index of the message a jump names.
+ *
+ * By id first (message.id is the MAM stanza id for history, xmppId the client
+ * message id). When the request has no id at all, which is common for archive
+ * rows, by content: same text, sent within a few seconds of the same time.
+ */
+export const findMessageIndex = (
+  messages: IMessage[],
+  ids: string[],
+  content?: { createdAt?: string; body?: string }
+): number => {
+  if (ids.length > 0) {
+    const byId = messages.findIndex(
+      (message) =>
+        ids.includes(String(message.id)) ||
+        (message.xmppId ? ids.includes(String(message.xmppId)) : false)
+    );
+    if (byId >= 0) return byId;
+  }
+
+  if (!content?.createdAt || !content.body) return -1;
+  const wanted = new Date(content.createdAt).getTime();
+  if (Number.isNaN(wanted)) return -1;
+  const body = content.body.trim();
+  return messages.findIndex((message) => {
+    if (String(message.body ?? '').trim() !== body) return false;
+    return (
+      Math.abs(new Date(message.date).getTime() - wanted) <=
+      CONTENT_MATCH_WINDOW_MS
+    );
+  });
+};
 
 interface Options {
   roomJID: string;
@@ -152,7 +183,10 @@ export function useJumpToMessage({
       return;
     }
 
-    const index = findMessageIndex(messages, jump.ids);
+    const index = findMessageIndex(messages, jump.ids, {
+      createdAt: jump.createdAt,
+      body: jump.body,
+    });
 
     if (index >= 0) {
       const fromEnd = messages.length - index;
