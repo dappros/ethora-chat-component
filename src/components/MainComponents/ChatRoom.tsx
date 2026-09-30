@@ -53,6 +53,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       roomMessages,
       roomsLoadedOnce,
       roomsLoadError,
+      joiningRoomJID,
     } = useRoomState();
     const {
       sendMessage: sendMs,
@@ -331,6 +332,19 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       // for) or a deep link / QR / roomJID prop pointed at a room that is
       // not in the list, which gets said out loud instead of looking
       // identical to a fresh session.
+      // A join for the requested room is still in flight: membership lands
+      // on the server a moment after our presence, so say "joining" instead
+      // of the unavailable screen. Bounded by the retry schedule in
+      // useRoomInitialization, after which the real answer shows.
+      if (activeRoomJID && joiningRoomJID === activeRoomJID) {
+        return (
+          <Loader
+            data-testid="chat-room-joining-loader"
+            color={config?.colors?.primary}
+          />
+        );
+      }
+
       const requestedRoomUnavailable =
         Boolean(activeRoomJID) &&
         (roomsResolvedCleanly || roomsResolvedWithError);
