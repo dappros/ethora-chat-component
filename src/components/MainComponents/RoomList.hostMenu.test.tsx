@@ -77,3 +77,35 @@ describe('room list burger menu (config.headerMenu)', () => {
     expect(panel?.querySelector('button')).toBeFalsy();
   });
 });
+
+describe('Discover chats entry without the burger dropdown', () => {
+  const directoryButton = () => screen.queryByRole('button', { name: 'Discover chats' });
+
+  it('lives in the dropdown by default, with no duplicate button', () => {
+    renderList({ chatHeaderSettings: { disableCreate: true } });
+    expect(directoryButton()).toBeNull();
+
+    clickTheBurger();
+    expect(screen.getByText('Discover chats')).toBeTruthy();
+  });
+
+  it('gets its own button when the host hides the dropdown (chatHeaderSettings.disableMenu)', () => {
+    // ethora-app-reactjs does exactly this, which left the directory with no
+    // way in at all.
+    renderList({ chatHeaderSettings: { disableCreate: true, disableMenu: true } });
+    expect(directoryButton()).toBeTruthy();
+  });
+
+  it('gets its own button when the host takes the burger over (config.headerMenu)', () => {
+    renderList({ headerMenu: vi.fn(), chatHeaderSettings: { disableCreate: true } });
+    expect(directoryButton()).toBeTruthy();
+  });
+
+  it('respects disablePublicChatsDirectory and disableRoomMenu', () => {
+    renderList({
+      disablePublicChatsDirectory: true,
+      chatHeaderSettings: { disableCreate: true, disableMenu: true },
+    });
+    expect(directoryButton()).toBeNull();
+  });
+});

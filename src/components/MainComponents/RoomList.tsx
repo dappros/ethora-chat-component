@@ -10,7 +10,8 @@ import { IRoom } from '../../types/types';
 import { SearchInput } from '../InputComponents/Search';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
-import { BurgerMenuIcon, SearchIcon } from '../../assets/icons';
+import { BurgerMenuIcon, GlobeIcon, SearchIcon } from '../../assets/icons';
+import { resolveIconColor } from '../../helpers/resolveIconColor';
 import Button from '../styled/Button';
 import DropdownMenu from '../DropdownMenu/DropdownMenu';
 import { setActiveModal } from '../../roomStore/chatSettingsSlice';
@@ -204,9 +205,9 @@ const RoomList: React.FC<RoomListProps> = ({
   // render) so React doesn't churn rowElementsRef's entries - detach then
   // reattach the same node - on every re-render that doesn't actually
   // change which row a jid maps to.
-  const rowRefCallbacksRef = useRef<Map<string, (el: HTMLDivElement | null) => void>>(
-    new Map()
-  );
+  const rowRefCallbacksRef = useRef<
+    Map<string, (el: HTMLDivElement | null) => void>
+  >(new Map());
 
   const getRowElementRef = useCallback((jid: string) => {
     let cb = rowRefCallbacksRef.current.get(jid);
@@ -465,7 +466,11 @@ const RoomList: React.FC<RoomListProps> = ({
         onClick: () => handleLogout(),
       },
     ],
-    [config?.disableProfilesInteractions, config?.disablePublicChatsDirectory, t]
+    [
+      config?.disableProfilesInteractions,
+      config?.disablePublicChatsDirectory,
+      t,
+    ]
   );
 
   return (
@@ -503,11 +508,16 @@ const RoomList: React.FC<RoomListProps> = ({
                   const next = activeTab === 'chats' ? 'files' : 'chats';
                   setActiveTab(next);
                   (
-                    e.currentTarget.querySelector(`#ethora-${next}-tab`) as HTMLElement | null
+                    e.currentTarget.querySelector(
+                      `#ethora-${next}-tab`
+                    ) as HTMLElement | null
                   )?.focus();
                 }}
               >
-                <TabIndicator $index={activeTab === 'chats' ? 0 : 1} $count={2} />
+                <TabIndicator
+                  $index={activeTab === 'chats' ? 0 : 1}
+                  $count={2}
+                />
                 <TabButton
                   type="button"
                   role="tab"
@@ -584,6 +594,33 @@ const RoomList: React.FC<RoomListProps> = ({
                       />
                     )}
 
+                    {/* "Discover chats" normally lives in the burger menu. A host
+                        that hides that menu (chatHeaderSettings.disableMenu, as
+                        ethora-app-reactjs does) or hands it over
+                        (config.headerMenu) would otherwise have no way to reach
+                        the directory at all, so it gets its own button. A host that removes the
+                        menu altogether with disableRoomMenu gets nothing. */}
+                    {!config?.disablePublicChatsDirectory &&
+                      !config?.disableRoomMenu &&
+                      (config?.chatHeaderSettings?.disableMenu ||
+                        typeof config?.headerMenu === 'function') && (
+                        <Button
+                          unstyled
+                          style={{
+                            padding: 8,
+                            borderRadius: '16px',
+                            backgroundColor: 'transparent',
+                          }}
+                          EndIcon={
+                            <GlobeIcon color={resolveIconColor(config)} />
+                          }
+                          onClick={() =>
+                            dispatch(setActiveModal(MODAL_TYPES.PUBLIC_CHATS))
+                          }
+                          title={t('publicChats.title')}
+                          aria-label={t('publicChats.title')}
+                        />
+                      )}
                     {!config?.chatHeaderSettings?.disableCreate && (
                       <NewChatModal />
                     )}
@@ -673,7 +710,9 @@ const RoomList: React.FC<RoomListProps> = ({
                                 config={config}
                               />
                             </AnimatedRow>
-                            {!isLast && <Divider $hidden={adjacentToActiveRow} />}
+                            {!isLast && (
+                              <Divider $hidden={adjacentToActiveRow} />
+                            )}
                           </React.Fragment>
                         );
                       })}
