@@ -204,6 +204,14 @@ const chatSlice = createSlice({
       }
       persistUserSession(state.user);
     },
+    // Just the XMPP credential, for POST /v1/users/xmpp-token. refreshTokens
+    // above needs a whole token pair, and minting only an XMPP password must
+    // not touch the REST session.
+    setXmppPassword: (state, action: PayloadAction<string>) => {
+      if (!action.payload) return;
+      state.user.xmppPassword = action.payload;
+      persistUserSession(state.user);
+    },
     logout: (state) => {
       state.user = unpackAndTransform();
       state.config = undefined;
@@ -216,6 +224,7 @@ export const {
   setUser,
   setConfig,
   refreshTokens,
+  setXmppPassword,
   logout,
   setActiveModal,
   setDeleteModal,

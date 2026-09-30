@@ -13,6 +13,7 @@ import XmppClient, {
   XmppCredentialsProvider,
 } from '../networking/xmppClient';
 import { refreshAuthTokensQuietly } from '../networking/authRefresh';
+import { fetchFreshXmppPassword } from '../networking/api-requests/xmppToken.api';
 import {
   buildXmppClientKey,
   getGlobalXmppClient,
@@ -193,16 +194,24 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
         };
       };
 
-      if (!config?.refreshTokens?.enabled) {
-        return readStoreCreds();
+      // Session rotation first when the host enabled it: it refreshes the
+      // REST tokens AND re-issues the XMPP password in one call.
+      if (config?.refreshTokens?.enabled) {
+        const rotated = await refreshAuthTokensQuietly();
+        if (rotated?.xmppPassword) {
+          return {
+            username: readStoreCreds().username,
+            password: rotated.xmppPassword,
+          };
+        }
       }
 
-      const rotated = await refreshAuthTokensQuietly();
-      if (rotated?.xmppPassword) {
-        return {
-          username: readStoreCreds().username,
-          password: rotated.xmppPassword,
-        };
+      // Otherwise (rotation off, or it came back without an xmppPassword)
+      // ask the endpoint built for this. The store's own copy is the
+      // credential that just failed, so returning it was a no-op retry.
+      const fresh = await fetchFreshXmppPassword();
+      if (fresh) {
+        return { username: readStoreCreds().username, password: fresh };
       }
 
       return readStoreCreds();
