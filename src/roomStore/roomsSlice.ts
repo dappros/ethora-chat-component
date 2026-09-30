@@ -172,6 +172,13 @@ interface RoomMessagesState {
   // loaded (the list pages older history until it turns up). `at` bounds
   // how long a request may stay alive. Never persisted.
   pendingJump: PendingJump | null;
+  // The room this session is joining right now (opened by link or from
+  // Discover) and is not in the room list yet. The server registers the
+  // membership a few seconds after our presence join, so "not in the list"
+  // is not yet "unavailable": ChatRoom shows a loader while this names the
+  // active room. Set/cleared by useRoomInitialization, bounded by its retry
+  // schedule. Never persisted.
+  joiningRoomJID: string | null;
   // Unsent composer text per room JID. Lives here rather than in the
   // composer's own useState so switching rooms (which never unmounts
   // SendInput) can hand each room back its own text, and so a reload gets
@@ -211,6 +218,7 @@ const initialState: RoomMessagesState = {
   roomsLoadedOnce: false,
   roomsLoadError: false,
   pendingJump: null,
+  joiningRoomJID: null,
   drafts: {},
 };
 
@@ -1119,6 +1127,14 @@ const roomsStore = createSlice({
     clearPendingJump: (state) => {
       state.pendingJump = null;
     },
+    setJoiningRoom: (state, action: PayloadAction<string>) => {
+      state.joiningRoomJID = action.payload || null;
+    },
+    // Only clears when it still names that room, so a slow retry loop for a
+    // room the user already left cannot wipe the join of the current one.
+    clearJoiningRoom: (state, action: PayloadAction<string>) => {
+      if (state.joiningRoomJID === action.payload) state.joiningRoomJID = null;
+    },
     setRoomsLoadResolved: (
       state,
       action: PayloadAction<{ success: boolean }>
@@ -1432,6 +1448,8 @@ export const {
   setRoomsLoadResolved,
   requestJumpToMessage,
   clearPendingJump,
+  setJoiningRoom,
+  clearJoiningRoom,
   setCurrentRoom,
   setMemberOnline,
   setMemberOffline,

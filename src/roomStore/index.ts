@@ -584,6 +584,9 @@ const roomsPersistConfig = {
     // A one-shot request for this page view; restoring it would scroll a
     // freshly loaded page to a message the user asked for last session.
     'pendingJump',
+    // In-flight join of this page view only; a stale value would show a
+    // loader for a join nobody is running.
+    'joiningRoomJID',
   ],
   transforms: [sanitizeRoomsStateTransform, limitMessagesTransform, encryptor],
 };
