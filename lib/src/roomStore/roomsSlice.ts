@@ -46,7 +46,9 @@ const CALL_SIGNAL_BODIES = new Set([
 
 const isCallSignalMessage = (message: IMessage | undefined | null): boolean => {
   if (!message) return false;
-  const body = String(message.body || '').trim().toLowerCase();
+  const body = String(message.body || '')
+    .trim()
+    .toLowerCase();
   return CALL_SIGNAL_BODIES.has(body);
 };
 
@@ -99,16 +101,18 @@ const collapseCallLogDuplicates = (messages: IMessage[]): IMessage[] => {
   }
   if (!hasDuplicates) return messages;
   const emitted = new Set<string>();
-  return messages.filter((message) => {
-    const callId = message?.callLog?.callId;
-    if (!callId) return true;
-    if (emitted.has(callId)) return false;
-    emitted.add(callId);
-    return true;
-  }).map((message) => {
-    const callId = message?.callLog?.callId;
-    return callId ? byCallId.get(callId) || message : message;
-  });
+  return messages
+    .filter((message) => {
+      const callId = message?.callLog?.callId;
+      if (!callId) return true;
+      if (emitted.has(callId)) return false;
+      emitted.add(callId);
+      return true;
+    })
+    .map((message) => {
+      const callId = message?.callLog?.callId;
+      return callId ? byCallId.get(callId) || message : message;
+    });
 };
 
 /**
@@ -128,6 +132,36 @@ const collapseCallLogDuplicates = (messages: IMessage[]): IMessage[] => {
 export const MAX_DRAFT_LENGTH = 2000;
 export const MAX_PERSISTED_DRAFTS = 30;
 
+/** A message found in the archive that the chat cannot show in place. */
+export interface ArchivedMessage {
+  roomJID: string;
+  sender: string;
+  body: string;
+  /** ISO timestamp from the archive. */
+  createdAt: string;
+}
+
+/** A request to scroll a room's transcript to one message. */
+export interface PendingJump {
+  roomJID: string;
+  /** Any id the message may be known by: message id, stanza id, xmpp id. */
+  ids: string[];
+  /**
+   * For a message that has no usable id (search archive rows often carry
+   * none): its timestamp and text, matched against the loaded transcript.
+   */
+  createdAt?: string;
+  body?: string;
+  /**
+   * What to show if the message cannot be reached in the transcript: the hit
+   * itself, so a tap on a search result always ends with the message on
+   * screen rather than an error.
+   */
+  preview?: ArchivedMessage;
+  /** Epoch ms the request was made, to drop one nobody ever fulfilled. */
+  at: number;
+}
+
 interface RoomMessagesState {
   rooms: { [jid: string]: IRoom };
   activeRoomJID: string;
@@ -142,7 +176,10 @@ interface RoomMessagesState {
     isOpen: boolean;
   };
   subscribedRooms: string[];
-  pushSubscriptionStatus: Record<string, 'pending' | 'subscribed' | 'error' | 'blocked'>;
+  pushSubscriptionStatus: Record<
+    string,
+    'pending' | 'subscribed' | 'error' | 'blocked'
+  >;
   loadingText?: string;
   // True once the FIRST rooms fetch of this session has resolved, success or
   // failure. A positive-only signal: it starts false and only this reducer
@@ -156,6 +193,22 @@ interface RoomMessagesState {
   // true, roomsLoadError false) from "we couldn't check" (both true) - only
   // the former should show the CTA. A later successful retry clears it.
   roomsLoadError: boolean;
+  // "Take me to that message", set by message search and consumed by the
+  // MessageList of the room it names. A request rather than an imperative
+  // call because the target room may not be mounted yet (a search hit from
+  // another chat switches rooms first), and the message itself may not be
+  // loaded (the list pages older history until it turns up). `at` bounds
+  // how long a request may stay alive. Never persisted.
+  pendingJump: PendingJump | null;
+  // The message a failed jump falls back to showing. Never persisted.
+  archivedMessage: ArchivedMessage | null;
+  // The room this session is joining right now (opened by link or from
+  // Discover) and is not in the room list yet. The server registers the
+  // membership a few seconds after our presence join, so "not in the list"
+  // is not yet "unavailable": ChatRoom shows a loader while this names the
+  // active room. Set/cleared by useRoomInitialization, bounded by its retry
+  // schedule. Never persisted.
+  joiningRoomJID: string | null;
   // Unsent composer text per room JID. Lives here rather than in the
   // composer's own useState so switching rooms (which never unmounts
   // SendInput) can hand each room back its own text, and so a reload gets
@@ -194,6 +247,9 @@ const initialState: RoomMessagesState = {
   loadingText: undefined,
   roomsLoadedOnce: false,
   roomsLoadError: false,
+  pendingJump: null,
+  archivedMessage: null,
+  joiningRoomJID: null,
   drafts: {},
 };
 
@@ -270,7 +326,8 @@ const compareMessageOrder = (a: IMessage, b: IMessage): number => {
     return tsA - tsB;
   }
 
-  const pendingDelta = Number(Boolean(a?.pending)) - Number(Boolean(b?.pending));
+  const pendingDelta =
+    Number(Boolean(a?.pending)) - Number(Boolean(b?.pending));
   if (pendingDelta !== 0) {
     return pendingDelta;
   }
@@ -473,7 +530,8 @@ const roomsStore = createSlice({
         // but never let a `roomData` with no `lastMessage` erase one that
         // was already there.
         lastMessage: roomData.lastMessage ?? existing?.lastMessage,
-        unreadMessages: existing?.unreadMessages ?? roomData.unreadMessages ?? 0,
+        unreadMessages:
+          existing?.unreadMessages ?? roomData.unreadMessages ?? 0,
         lastViewedTimestamp:
           existing?.lastViewedTimestamp ?? roomData.lastViewedTimestamp ?? 0,
         unreadBaselineTimestamp:
@@ -488,15 +546,13 @@ const roomsStore = createSlice({
           ),
         composingList: existing?.composingList ?? roomData.composingList,
         composing: existing?.composing ?? roomData.composing,
-        unreadCapped:
-          existing?.unreadCapped ?? roomData.unreadCapped ?? false,
+        unreadCapped: existing?.unreadCapped ?? roomData.unreadCapped ?? false,
         historyPreloadState:
           existing?.historyPreloadState ??
           roomData.historyPreloadState ??
           'idle',
         messageStats: existing?.messageStats ?? roomData.messageStats,
-        historyComplete:
-          existing?.historyComplete ?? roomData.historyComplete,
+        historyComplete: existing?.historyComplete ?? roomData.historyComplete,
       };
     },
     deleteRoom(state, action: PayloadAction<{ jid: string }>) {
@@ -518,7 +574,10 @@ const roomsStore = createSlice({
       if (!isValidRoomJid(jid)) return;
       if (!state.drafts) state.drafts = {};
 
-      const text = String(action.payload?.text ?? '').slice(0, MAX_DRAFT_LENGTH);
+      const text = String(action.payload?.text ?? '').slice(
+        0,
+        MAX_DRAFT_LENGTH
+      );
 
       if (!text) {
         if (state.drafts[jid] !== undefined) delete state.drafts[jid];
@@ -874,10 +933,7 @@ const roomsStore = createSlice({
       // createUserNameFromSetUser here, which returns the literal "Deleted User"
       // string the instant usersSet doesn't yet know the sender - precisely the
       // case for live bot messages that arrive before usersSet is hydrated.
-      const enriched = enrichMessageAuthor(
-        message as IMessage,
-        state.usersSet
-      );
+      const enriched = enrichMessageAuthor(message as IMessage, state.usersSet);
       const updMessage = {
         ...enriched,
         user: {
@@ -1010,8 +1066,12 @@ const roomsStore = createSlice({
             // messages that landed before usersSet hydrated stop displaying
             // "Deleted User" even when no API lookup ever succeeds.
             const dataFull = String((message as any)?.fullName || '').trim();
-            const dataFirst = String((message as any)?.senderFirstName || '').trim();
-            const dataLast = String((message as any)?.senderLastName || '').trim();
+            const dataFirst = String(
+              (message as any)?.senderFirstName || ''
+            ).trim();
+            const dataLast = String(
+              (message as any)?.senderLastName || ''
+            ).trim();
             const fromData = dataFull || `${dataFirst} ${dataLast}`.trim();
             if (fromData) {
               message.user = { ...message.user, name: fromData };
@@ -1073,7 +1133,9 @@ const roomsStore = createSlice({
           state.rooms[chatJID].unreadMessages = 0;
         }
         const delimiterCutoff = isEnteringActive
-          ? (previousLastViewed > 0 ? previousLastViewed : baseline)
+          ? previousLastViewed > 0
+            ? previousLastViewed
+            : baseline
           : normalizedTimestamp;
         state.rooms[chatJID].messages = normalizeDelimiterPosition(
           state.rooms[chatJID].messages,
@@ -1087,6 +1149,49 @@ const roomsStore = createSlice({
     // done: on success (alongside setInited(true)) and on failure (the init
     // catch blocks). See the `roomsLoadedOnce`/`roomsLoadError` field
     // comments above for what each one means.
+    requestJumpToMessage: (
+      state,
+      action: PayloadAction<{
+        roomJID: string;
+        ids: string[];
+        createdAt?: string;
+        body?: string;
+        preview?: ArchivedMessage;
+      }>
+    ) => {
+      const ids = action.payload.ids.filter(Boolean);
+      const canMatchByContent = Boolean(
+        action.payload.createdAt && action.payload.body
+      );
+      if (!action.payload.roomJID || (ids.length === 0 && !canMatchByContent)) {
+        return;
+      }
+      state.pendingJump = {
+        roomJID: action.payload.roomJID,
+        ids,
+        createdAt: action.payload.createdAt,
+        body: action.payload.body,
+        preview: action.payload.preview,
+        at: Date.now(),
+      };
+    },
+    clearPendingJump: (state) => {
+      state.pendingJump = null;
+    },
+    showArchivedMessage: (state, action: PayloadAction<ArchivedMessage>) => {
+      state.archivedMessage = action.payload;
+    },
+    clearArchivedMessage: (state) => {
+      state.archivedMessage = null;
+    },
+    setJoiningRoom: (state, action: PayloadAction<string>) => {
+      state.joiningRoomJID = action.payload || null;
+    },
+    // Only clears when it still names that room, so a slow retry loop for a
+    // room the user already left cannot wipe the join of the current one.
+    clearJoiningRoom: (state, action: PayloadAction<string>) => {
+      if (state.joiningRoomJID === action.payload) state.joiningRoomJID = null;
+    },
     setRoomsLoadResolved: (
       state,
       action: PayloadAction<{ success: boolean }>
@@ -1290,10 +1395,15 @@ const roomsStore = createSlice({
     },
     setPushSubscriptionStatus: (
       state,
-      action: PayloadAction<{ jid: string; status: 'pending' | 'subscribed' | 'error' | 'blocked' }>
+      action: PayloadAction<{
+        jid: string;
+        status: 'pending' | 'subscribed' | 'error' | 'blocked';
+      }>
     ) => {
       const { jid, status } = action.payload;
-      const subscribedRooms = getNormalizedSubscribedRooms(state.subscribedRooms);
+      const subscribedRooms = getNormalizedSubscribedRooms(
+        state.subscribedRooms
+      );
 
       if (subscribedRooms !== state.subscribedRooms) {
         state.subscribedRooms = subscribedRooms;
@@ -1398,6 +1508,12 @@ export const {
   setLastViewedTimestamp,
   setRoomNoMessages,
   setRoomsLoadResolved,
+  requestJumpToMessage,
+  clearPendingJump,
+  showArchivedMessage,
+  clearArchivedMessage,
+  setJoiningRoom,
+  clearJoiningRoom,
   setCurrentRoom,
   setMemberOnline,
   setMemberOffline,

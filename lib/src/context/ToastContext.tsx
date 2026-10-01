@@ -65,3 +65,12 @@ export const useToast = () => {
   }
   return context;
 };
+
+/**
+ * `useToast` for code that can run outside a ToastProvider (a MessageList
+ * rendered on its own, a host that mounts pieces of the chat directly): it
+ * gets `undefined` instead of a thrown error, and simply has nowhere to show
+ * a toast.
+ */
+export const useOptionalToast = (): ToastContextType | undefined =>
+  useContext(ToastContext);

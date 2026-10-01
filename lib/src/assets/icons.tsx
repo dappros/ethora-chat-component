@@ -21,6 +21,35 @@ const RemoveIconSvg = styled.svg`
 
 // Globe - opens the reader-language picker (see LanguageSelectorButton) in
 // the chat header.
+/**
+ * A compass: "discover". Deliberately not the globe, which is the language
+ * selector's icon in the chat header, so the two buttons read as different
+ * things when they sit next to each other.
+ */
+export const DiscoverIcon = ({
+  color = 'var(--ethora-icon-color, #8C8C8C)',
+  ...props
+}) => (
+  <svg
+    width="22"
+    height="22"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden="true"
+    {...props}
+  >
+    <circle cx="12" cy="12" r="9" stroke={color} strokeWidth="1.8" />
+    <path
+      d="M15.8 8.2L13.6 13.6L8.2 15.8L10.4 10.4L15.8 8.2Z"
+      stroke={color}
+      strokeWidth="1.6"
+      strokeLinejoin="round"
+    />
+    <circle cx="12" cy="12" r="1.1" fill={color} />
+  </svg>
+);
+
 export const GlobeIcon = ({
   color = 'var(--ethora-icon-color, #8C8C8C)',
   ...props

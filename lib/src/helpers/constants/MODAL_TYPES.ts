@@ -16,6 +16,8 @@ export const MODAL_TYPES = {
   CHAT_PROFILE: 'chatprofile',
   MANAGE_DATA: 'managedata',
   VISIBILITY: 'visibility',
+  MESSAGE_SEARCH: 'messagesearch',
+  PUBLIC_CHATS: 'publicchats',
 
   FILE_PREVIEW: 'file_preview',
 };
@@ -40,5 +42,7 @@ export const SIDE_PANEL_MODAL_TYPES: string[] = [
   MODAL_TYPES.SETTINGS,
   MODAL_TYPES.PROFILE,
   MODAL_TYPES.CHAT_PROFILE,
+  MODAL_TYPES.MESSAGE_SEARCH,
+  MODAL_TYPES.PUBLIC_CHATS,
   ...SETTINGS_SUB_MODAL_TYPES,
 ];

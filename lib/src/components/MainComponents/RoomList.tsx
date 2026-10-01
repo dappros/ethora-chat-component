@@ -10,7 +10,8 @@ import { IRoom } from '../../types/types';
 import { SearchInput } from '../InputComponents/Search';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
-import { BurgerMenuIcon, SearchIcon } from '../../assets/icons';
+import { BurgerMenuIcon, DiscoverIcon, SearchIcon } from '../../assets/icons';
+import { resolveIconColor } from '../../helpers/resolveIconColor';
 import Button from '../styled/Button';
 import DropdownMenu from '../DropdownMenu/DropdownMenu';
 import { setActiveModal } from '../../roomStore/chatSettingsSlice';
@@ -20,6 +21,9 @@ import {
   BurgerButton,
   Container,
   Divider,
+  MessageMatches,
+  MessageMatchesNote,
+  MessageMatchesTitle,
   ScollableContainer,
   SearchContainer,
   SkeletonAvatar,
@@ -31,11 +35,17 @@ import {
   TabIndicator,
   TabsContainer,
 } from '../styled/RoomListComponents';
+import { MessageSearchHit } from '../../networking/api-requests/messageSearch.api';
 import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 import { useXmppClient } from '../../context/xmppProvider';
 import ChatRoomItem from '../RoomComponents/ChatRoomItem';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { useT } from '../../i18n/useT';
+import { useMessageSearch } from '../Modals/MessageSearchModal/useMessageSearch';
+import {
+  MessageHitList,
+  useMessageHitActions,
+} from '../Modals/MessageSearchModal/MessageHitResults';
 import { isRoomHidden } from '../../helpers/hiddenRooms';
 import { logoutService } from '../../hooks/useLogout';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
@@ -204,9 +214,9 @@ const RoomList: React.FC<RoomListProps> = ({
   // render) so React doesn't churn rowElementsRef's entries - detach then
   // reattach the same node - on every re-render that doesn't actually
   // change which row a jid maps to.
-  const rowRefCallbacksRef = useRef<Map<string, (el: HTMLDivElement | null) => void>>(
-    new Map()
-  );
+  const rowRefCallbacksRef = useRef<
+    Map<string, (el: HTMLDivElement | null) => void>
+  >(new Map());
 
   const getRowElementRef = useCallback((jid: string) => {
     let cb = rowRefCallbacksRef.current.get(jid);
@@ -280,6 +290,30 @@ const RoomList: React.FC<RoomListProps> = ({
       setSearchTerm(e.target.value);
     },
     []
+  );
+
+  // The same box that filters chats by name also looks inside the messages:
+  // typing "invoice" lists the chats called that AND the messages that say it.
+  // Off wherever the message search itself is off.
+  const messageSearchEnabled =
+    Boolean(config?.appId) && !config?.disableMessageSearch;
+  const messageSearch = useMessageSearch(
+    messageSearchEnabled ? searchTerm : '',
+    'all'
+  );
+  const { open: openHit } = useMessageHitActions();
+  const openMessageHit = useCallback(
+    (hit: MessageSearchHit) => {
+      const target = (chats || []).find(
+        (chat) =>
+          chat?.jid === hit.room || chat?.jid?.split('@')[0] === hit.chatId
+      );
+      // Same path a tap on the chat row takes, so a host that routes on
+      // room clicks (and the small-screen pane switch) sees this one too.
+      if (target && target.jid !== activeRoomJID) performClick(target);
+      openHit(hit);
+    },
+    [chats, activeRoomJID, performClick, openHit]
   );
 
   const filteredChats = useMemo(() => {
@@ -448,13 +482,28 @@ const RoomList: React.FC<RoomListProps> = ({
             },
           ]
         : []),
+      ...(!config?.disablePublicChatsDirectory
+        ? [
+            {
+              label: t('publicChats.title'),
+              icon: null,
+              onClick: () => {
+                dispatch(setActiveModal(MODAL_TYPES.PUBLIC_CHATS));
+              },
+            },
+          ]
+        : []),
       {
         label: 'Logout',
         icon: null,
         onClick: () => handleLogout(),
       },
     ],
-    [config?.disableProfilesInteractions]
+    [
+      config?.disableProfilesInteractions,
+      config?.disablePublicChatsDirectory,
+      t,
+    ]
   );
 
   return (
@@ -492,11 +541,16 @@ const RoomList: React.FC<RoomListProps> = ({
                   const next = activeTab === 'chats' ? 'files' : 'chats';
                   setActiveTab(next);
                   (
-                    e.currentTarget.querySelector(`#ethora-${next}-tab`) as HTMLElement | null
+                    e.currentTarget.querySelector(
+                      `#ethora-${next}-tab`
+                    ) as HTMLElement | null
                   )?.focus();
                 }}
               >
-                <TabIndicator $index={activeTab === 'chats' ? 0 : 1} $count={2} />
+                <TabIndicator
+                  $index={activeTab === 'chats' ? 0 : 1}
+                  $count={2}
+                />
                 <TabButton
                   type="button"
                   role="tab"
@@ -567,12 +621,41 @@ const RoomList: React.FC<RoomListProps> = ({
                         colorBg={config?.colors?.colorInput}
                         value={searchTerm}
                         onChange={handleSearchChange}
+                        onClear={() => setSearchTerm('')}
+                        clearLabel={t('search.clear')}
                         placeholder={t('search.placeholder')}
                         data-testid={RoomListTestIds.searchInput}
                         // animated={true}
                       />
                     )}
 
+                    {/* "Discover chats" normally lives in the burger menu. A host
+                        that hides that menu (chatHeaderSettings.disableMenu, as
+                        ethora-app-reactjs does) or hands it over
+                        (config.headerMenu) would otherwise have no way to reach
+                        the directory at all, so it gets its own button. A host that removes the
+                        menu altogether with disableRoomMenu gets nothing. */}
+                    {!config?.disablePublicChatsDirectory &&
+                      !config?.disableRoomMenu &&
+                      (config?.chatHeaderSettings?.disableMenu ||
+                        typeof config?.headerMenu === 'function') && (
+                        <Button
+                          unstyled
+                          style={{
+                            padding: 8,
+                            borderRadius: '16px',
+                            backgroundColor: 'transparent',
+                          }}
+                          EndIcon={
+                            <DiscoverIcon color={resolveIconColor(config)} />
+                          }
+                          onClick={() =>
+                            dispatch(setActiveModal(MODAL_TYPES.PUBLIC_CHATS))
+                          }
+                          title={t('publicChats.title')}
+                          aria-label={t('publicChats.title')}
+                        />
+                      )}
                     {!config?.chatHeaderSettings?.disableCreate && (
                       <NewChatModal />
                     )}
@@ -662,10 +745,58 @@ const RoomList: React.FC<RoomListProps> = ({
                                 config={config}
                               />
                             </AnimatedRow>
-                            {!isLast && <Divider $hidden={adjacentToActiveRow} />}
+                            {!isLast && (
+                              <Divider $hidden={adjacentToActiveRow} />
+                            )}
                           </React.Fragment>
                         );
                       })}
+                  {messageSearchEnabled && messageSearch.searchable && (
+                    <MessageMatches data-testid="room-list-message-matches">
+                      {messageSearch.items.length > 0 && (
+                        <>
+                          <MessageMatchesTitle>
+                            {t('search.messages.title')}
+                          </MessageMatchesTitle>
+                          <MessageHitList
+                            hits={messageSearch.items}
+                            query={searchTerm.trim()}
+                            showRoom
+                            onOpen={openMessageHit}
+                          />
+                          {messageSearch.hasMore && (
+                            <Button
+                              unstyled
+                              onClick={messageSearch.loadMore}
+                              disabled={messageSearch.status === 'loadingMore'}
+                            >
+                              {t('search.messages.loadMore')}
+                            </Button>
+                          )}
+                        </>
+                      )}
+                      {messageSearch.status === 'loading' && (
+                        <MessageMatchesNote role="status">
+                          {t('search.messages.searching')}
+                        </MessageMatchesNote>
+                      )}
+                      {messageSearch.status === 'done' &&
+                        messageSearch.items.length === 0 &&
+                        filteredChats.length === 0 && (
+                          <MessageMatchesNote>
+                            {t('search.messages.empty')}
+                          </MessageMatchesNote>
+                        )}
+                      {messageSearch.status === 'error' && (
+                        <MessageMatchesNote role="alert">
+                          {t('search.messages.error')}{' '}
+                          <button type="button" onClick={messageSearch.retry}>
+                            {t('search.messages.retry')}
+                          </button>
+                        </MessageMatchesNote>
+                      )}
+                    </MessageMatches>
+                  )}
                 </div>
               </TabContent>
             )}

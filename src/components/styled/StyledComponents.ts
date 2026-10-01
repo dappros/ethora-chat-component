@@ -62,6 +62,9 @@ export const MessagesScroll = styled.div<{ color?: string }>`
   height: calc(100%);
   overflow: hidden;
   overflow-y: scroll;
+  /* MessageList compensates for history prepended above the reader itself;
+     the browser's own anchoring on top of that moves them twice. */
+  overflow-anchor: none;
   top: 0;
   left: 0;
   right: 0;
