@@ -20,6 +20,7 @@ import TreadLabel from '../styled/TreadLabel';
 import { MessageContainer } from './MessageContainer';
 import { useJumpToMessage } from './useJumpToMessage';
 import { useStickToBottom } from './useStickToBottom';
+import ArchivedMessageCard from './ArchivedMessageCard';
 import { useRoomState } from '../../hooks/useRoomState';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { useXmppClient } from '../../context/xmppProvider';
@@ -719,6 +720,7 @@ const MessageList = <TMessage extends IMessage>({
           )}
         </ScrollToBottomButton>
       )}
+      <ArchivedMessageCard roomJID={roomJID} />
     </MessagesList>
   );
 };

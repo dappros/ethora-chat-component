@@ -7,7 +7,10 @@ import {
 } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
-import { clearPendingJump } from '../../roomStore/roomsSlice';
+import {
+  clearPendingJump,
+  showArchivedMessage,
+} from '../../roomStore/roomsSlice';
 import { IMessage } from '../../types/types';
 import { MESSAGE_HIGHLIGHT_CLASS } from '../../styles/classNames';
 import { useOptionalToast } from '../../context/ToastContext';
@@ -167,15 +170,24 @@ export function useJumpToMessage({
 
     const finish = (reached: boolean) => {
       dispatch(clearPendingJump());
-      if (!reached) {
-        const { t, showToast } = latest.current;
-        showToast?.({
-          id: 'jump-to-message-missing',
-          title: t('search.messages.title'),
-          message: t('search.messages.notFound'),
-          type: 'info',
-        });
+      if (reached) return;
+
+      // Not reachable in the transcript. If the request knows what the
+      // message says (every search hit does), show IT, so the tap always ends
+      // with the message in front of the reader and nothing that reads as an
+      // error. Only a jump with no message to show (a notification or a link)
+      // falls back to saying it could not be found.
+      if (jump.preview) {
+        dispatch(showArchivedMessage(jump.preview));
+        return;
       }
+      const { t, showToast } = latest.current;
+      showToast?.({
+        id: 'jump-to-message-missing',
+        title: t('search.messages.title'),
+        message: t('search.messages.notFound'),
+        type: 'info',
+      });
     };
 
     if (Date.now() - jump.at > JUMP_TTL_MS) {

@@ -394,6 +394,12 @@ const MessageSearchModal: React.FC<MessageSearchModalProps> = ({
         ids: [hit.stanzaId, hit.messageId],
         createdAt: hit.createdAt,
         body: hit.body,
+        preview: {
+          roomJID,
+          sender: senderName(hit),
+          body: hit.body,
+          createdAt: hit.createdAt,
+        },
       })
     );
     // Phones show one pane at a time, so the panel would hide the very

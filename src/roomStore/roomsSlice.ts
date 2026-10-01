@@ -132,6 +132,15 @@ const collapseCallLogDuplicates = (messages: IMessage[]): IMessage[] => {
 export const MAX_DRAFT_LENGTH = 2000;
 export const MAX_PERSISTED_DRAFTS = 30;
 
+/** A message found in the archive that the chat cannot show in place. */
+export interface ArchivedMessage {
+  roomJID: string;
+  sender: string;
+  body: string;
+  /** ISO timestamp from the archive. */
+  createdAt: string;
+}
+
 /** A request to scroll a room's transcript to one message. */
 export interface PendingJump {
   roomJID: string;
@@ -143,6 +152,12 @@ export interface PendingJump {
    */
   createdAt?: string;
   body?: string;
+  /**
+   * What to show if the message cannot be reached in the transcript: the hit
+   * itself, so a tap on a search result always ends with the message on
+   * screen rather than an error.
+   */
+  preview?: ArchivedMessage;
   /** Epoch ms the request was made, to drop one nobody ever fulfilled. */
   at: number;
 }
@@ -185,6 +200,8 @@ interface RoomMessagesState {
   // loaded (the list pages older history until it turns up). `at` bounds
   // how long a request may stay alive. Never persisted.
   pendingJump: PendingJump | null;
+  // The message a failed jump falls back to showing. Never persisted.
+  archivedMessage: ArchivedMessage | null;
   // The room this session is joining right now (opened by link or from
   // Discover) and is not in the room list yet. The server registers the
   // membership a few seconds after our presence join, so "not in the list"
@@ -231,6 +248,7 @@ const initialState: RoomMessagesState = {
   roomsLoadedOnce: false,
   roomsLoadError: false,
   pendingJump: null,
+  archivedMessage: null,
   joiningRoomJID: null,
   drafts: {},
 };
@@ -1138,6 +1156,7 @@ const roomsStore = createSlice({
         ids: string[];
         createdAt?: string;
         body?: string;
+        preview?: ArchivedMessage;
       }>
     ) => {
       const ids = action.payload.ids.filter(Boolean);
@@ -1152,11 +1171,18 @@ const roomsStore = createSlice({
         ids,
         createdAt: action.payload.createdAt,
         body: action.payload.body,
+        preview: action.payload.preview,
         at: Date.now(),
       };
     },
     clearPendingJump: (state) => {
       state.pendingJump = null;
+    },
+    showArchivedMessage: (state, action: PayloadAction<ArchivedMessage>) => {
+      state.archivedMessage = action.payload;
+    },
+    clearArchivedMessage: (state) => {
+      state.archivedMessage = null;
     },
     setJoiningRoom: (state, action: PayloadAction<string>) => {
       state.joiningRoomJID = action.payload || null;
@@ -1484,6 +1510,8 @@ export const {
   setRoomsLoadResolved,
   requestJumpToMessage,
   clearPendingJump,
+  showArchivedMessage,
+  clearArchivedMessage,
   setJoiningRoom,
   clearJoiningRoom,
   setCurrentRoom,
