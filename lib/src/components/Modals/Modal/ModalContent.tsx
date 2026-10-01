@@ -108,7 +108,16 @@ const ModalContent: React.FC<ModalContentProps> = ({ modal, setOpenModal }) => {
       if (focusTokenRef.current !== myToken) return true;
       const candidates =
         container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
-      const first = Array.from(candidates).find(isVisible);
+      // A panel can name the field that should take focus (data-autofocus,
+      // e.g. the search box); otherwise it is the first focusable element,
+      // which is the back/close button and is the wrong place to land when
+      // the point of opening the panel is to type.
+      const preferred =
+        container.querySelector<HTMLElement>('[data-autofocus]');
+      const first =
+        preferred && isVisible(preferred)
+          ? preferred
+          : Array.from(candidates).find(isVisible);
       if (!first) return false;
       done = true;
       // Re-check right before focusing rather than trusting the check

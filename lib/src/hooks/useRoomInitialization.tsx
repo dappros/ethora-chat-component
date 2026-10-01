@@ -1,10 +1,13 @@
 import { useEffect, useRef } from 'react';
-import { setIsLoading } from '../roomStore/roomsSlice';
+import {
+  setIsLoading,
+  setJoiningRoom,
+  clearJoiningRoom,
+} from '../roomStore/roomsSlice';
 import { useXmppClient } from '../context/xmppProvider';
 import { ApiRoom, IConfig, IMessage, IRoom } from '../types/types';
 import { useDispatch } from 'react-redux';
 import useGetNewArchRoom from './useGetNewArchRoom';
-import { MESSAGE_HIGHLIGHT_CLASS } from '../styles/classNames';
 
 const countUndefinedText = (arr: IMessage[]) =>
   (Array.isArray(arr) ? arr : []).filter((item) => item?.body === undefined)
@@ -20,8 +23,6 @@ const hasLoadedRoomHistory = (room?: IRoom): boolean => {
   );
 };
 
-const PUSH_MESSAGE_ID_KEY = '@ethora/chat-component-pushMessageId';
-const PUSH_ROOM_JID_KEY = '@ethora/chat-component-pushRoomJid';
 // Took main's tighter timeouts + the new ACTIVE_ROOM_LOADER_HARD_CAP_MS over
 // tf-dev's 5000ms presence wait. Main's flow uses prioritizeRoomPresence + a
 // hard-cap timer instead of tf-dev's retry-on-empty pattern (commit 62b0b6d
@@ -35,17 +36,6 @@ const ACTIVE_ROOM_LOADER_HARD_CAP_MS = 3000;
 // link. Measured against the QA backend, which registers the membership the
 // MUC presence created a few seconds after the presence call returns.
 const JOIN_SYNC_RETRY_DELAYS_MS = [1000, 2500, 5000];
-
-const scrollToMessage = (messageId: string) => {
-  const messageElement = document.querySelector(
-    `[data-message-id="${messageId}"]`
-  );
-  if (messageElement) {
-    messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    messageElement.classList.add(MESSAGE_HIGHLIGHT_CLASS);
-    setTimeout(() => messageElement.classList.remove(MESSAGE_HIGHLIGHT_CLASS), 2000);
-  }
-};
 
 export const useRoomInitialization = (
   activeRoomJID: string,
@@ -73,6 +63,10 @@ export const useRoomInitialization = (
   // effect re-running as the list settles doesn't stack up duplicate
   // background retry loops for the same room.
   const joinReconcileRef = useRef<Set<string>>(new Set());
+  // Rooms whose join flag this mount already raised. The effect re-runs as
+  // the list settles; only the first run owns the flag, so a re-run after
+  // the retries gave up cannot raise it again with nobody left to clear it.
+  const joinFlagRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (client && activeRoomJID) {
@@ -209,6 +203,19 @@ export const useRoomInitialization = (
         // the whole backoff. Without this the room only appeared after a
         // full page reload, which looked exactly like "joining a public
         // chat by link is broken".
+        //
+        // Until the room shows up (or the retries give up) the pane must say
+        // "joining", not "this chat isn't available": the user just asked
+        // to join, and the unavailable screen used to flash for 2-3s.
+        const joinJid = activeRoomJID;
+        const ownsJoinFlag = !joinFlagRef.current.has(joinJid);
+        if (ownsJoinFlag) {
+          joinFlagRef.current.add(joinJid);
+          dispatch(setJoiningRoom(joinJid));
+        }
+        const endJoin = () => {
+          if (ownsJoinFlag) dispatch(clearJoiningRoom(joinJid));
+        };
         await client
           .presenceInRoomStanza(
             activeRoomJID,
@@ -218,7 +225,11 @@ export const useRoomInitialization = (
           )
           .catch(() => false);
         if (config?.newArch === false) {
-          await client.getRoomsStanza();
+          try {
+            await client.getRoomsStanza();
+          } finally {
+            endJoin();
+          }
         } else {
           const targetJid = activeRoomJID;
           const wantedName = String(targetJid).split('@')[0];
@@ -230,6 +241,7 @@ export const useRoomInitialization = (
             () => [] as ApiRoom[]
           );
           const alreadyThere = items?.some((item) => item?.name === wantedName);
+          if (alreadyThere) endJoin();
           // One background reconcile per room per mount, no matter how many
           // times this effect re-runs as the room list settles.
           if (
@@ -238,14 +250,20 @@ export const useRoomInitialization = (
           ) {
             joinReconcileRef.current.add(targetJid);
             void (async () => {
-              for (const delay of JOIN_SYNC_RETRY_DELAYS_MS) {
-                await new Promise((resolve) => setTimeout(resolve, delay));
-                const retried = await syncRooms(client, config, {
-                  force: true,
-                }).catch(() => [] as typeof items);
-                if (retried?.some((item) => item?.name === wantedName)) return;
+              try {
+                for (const delay of JOIN_SYNC_RETRY_DELAYS_MS) {
+                  await new Promise((resolve) => setTimeout(resolve, delay));
+                  const retried = await syncRooms(client, config, {
+                    force: true,
+                  }).catch(() => [] as typeof items);
+                  if (retried?.some((item) => item?.name === wantedName)) return;
+                }
+              } finally {
+                endJoin();
               }
             })();
+          } else if (!alreadyThere) {
+            endJoin();
           }
         }
         await getDefaultHistory();
@@ -281,38 +299,6 @@ export const useRoomInitialization = (
     messageLength,
     roomsList?.[activeRoomJID]?.messages?.length,
   ]);
-
-  // Push-notification deep link: runs on room activation only. It used to
-  // live in the effect above, which re-runs on every incoming message and
-  // re-read localStorage each time.
-  useEffect(() => {
-    if (!client || !activeRoomJID || typeof window === 'undefined') return;
-
-    const pendingMessageId =
-      typeof localStorage !== 'undefined'
-        ? localStorage.getItem(PUSH_MESSAGE_ID_KEY)
-        : null;
-    const pendingRoomJID =
-      typeof localStorage !== 'undefined'
-        ? localStorage.getItem(PUSH_ROOM_JID_KEY)
-        : null;
-
-    if (pendingMessageId && (!pendingRoomJID || pendingRoomJID === activeRoomJID)) {
-      client
-        .getHistoryStanza(activeRoomJID, 30, undefined, undefined, {
-          source: 'active',
-          coalesceRoom: true,
-        })
-        .catch(() => {})
-        .finally(() => {
-          setTimeout(() => scrollToMessage(pendingMessageId), 200);
-          if (typeof localStorage !== 'undefined') {
-            localStorage.removeItem(PUSH_MESSAGE_ID_KEY);
-            localStorage.removeItem(PUSH_ROOM_JID_KEY);
-          }
-        });
-    }
-  }, [client, activeRoomJID]);
 
   // Default-rooms bootstrap. Previously part of the message-count-keyed
   // effect above: while any default room was missing from roomsList, it

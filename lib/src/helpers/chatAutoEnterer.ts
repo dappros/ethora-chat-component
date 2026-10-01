@@ -1,5 +1,6 @@
 import { AppDispatch } from '../roomStore';
 import { setCurrentRoom } from '../roomStore/roomsSlice';
+import { openRoomAtMessage } from './openRoomAtMessage';
 
 interface XmppConfig {
   xmppSettings?: {
@@ -13,9 +14,6 @@ interface SelectRoomArgs {
   config: XmppConfig;
   dispatch: AppDispatch;
 }
-
-const PUSH_MESSAGE_ID_KEY = '@ethora/chat-component-pushMessageId';
-const PUSH_ROOM_JID_KEY = '@ethora/chat-component-pushRoomJid';
 
 export const chatAutoEnterer = ({
   roomJID,
@@ -46,15 +44,10 @@ export const chatAutoEnterer = ({
         const resolvedRoomJID = chatId.includes('@')
           ? chatId
           : `${chatId}@${conferenceDomain}`;
-        if (messageId && typeof localStorage !== 'undefined') {
-          localStorage.setItem(PUSH_MESSAGE_ID_KEY, messageId);
-          localStorage.setItem(PUSH_ROOM_JID_KEY, resolvedRoomJID);
-        }
-        dispatch(
-          setCurrentRoom({
-            roomJID: resolvedRoomJID,
-          })
-        );
+        // The link names the message by whichever id the sender had; the
+        // jump matches it against message.id and message.xmppId. A link with
+        // no message id just opens the room.
+        openRoomAtMessage(dispatch, resolvedRoomJID, messageId);
       }
     }
   }

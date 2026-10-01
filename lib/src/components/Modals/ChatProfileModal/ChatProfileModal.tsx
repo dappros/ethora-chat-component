@@ -4,6 +4,7 @@ import SideDrawer, {
   DrawerCardBody,
   DrawerLabel,
   DrawerList,
+  DrawerNavRow,
   DrawerSearchBar,
   DrawerSearchInput,
   DrawerSection,
@@ -435,6 +436,21 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         </DrawerSection>
       )}
 
+      {/* Search is otherwise reachable only from the chat header, which is
+          hidden behind this very panel on a phone. */}
+      {Boolean(config?.appId) && !config?.disableMessageSearch && (
+        <DrawerSection>
+          <DrawerCard>
+            <DrawerNavRow
+              label={t('search.messages.title')}
+              onClick={() =>
+                dispatch(setActiveModal(MODAL_TYPES.MESSAGE_SEARCH))
+              }
+            />
+          </DrawerCard>
+        </DrawerSection>
+      )}
+
       {/* Same gate as the chat header's room menu: only offered once the
           backend has actually reported a `muted` value for this room, and
           hidden outright when a host sets config.disableRoomMute. */}
@@ -554,7 +570,9 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
               color="var(--ethora-color-text-muted, #8c8c8c)"
               fill="var(--ethora-color-bg-subtle, #f5f7fa)"
             />
-            <DrawerEmptyStateTitle>{t('files.error.title')}</DrawerEmptyStateTitle>
+            <DrawerEmptyStateTitle>
+              {t('files.error.title')}
+            </DrawerEmptyStateTitle>
           </DrawerEmptyState>
         ) : roomFiles.length === 0 ? (
           <DrawerEmptyState $compact>

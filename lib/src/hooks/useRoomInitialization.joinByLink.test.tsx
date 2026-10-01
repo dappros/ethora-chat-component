@@ -13,6 +13,8 @@ vi.mock('react-redux', () => ({
 }));
 vi.mock('../roomStore/roomsSlice', () => ({
   setIsLoading: (payload: any) => ({ type: 'setIsLoading', payload }),
+  setJoiningRoom: (payload: any) => ({ type: 'setJoiningRoom', payload }),
+  clearJoiningRoom: (payload: any) => ({ type: 'clearJoiningRoom', payload }),
 }));
 
 const order: string[] = [];
@@ -148,5 +150,58 @@ describe('useRoomInitialization - entering a room by link', () => {
     expect(syncRoomsMock).not.toHaveBeenCalled();
 
     unmount();
+  });
+
+  it('raises the joining flag for the room, and clears it once the room is in the response', async () => {
+    mockClient = makeClient();
+    syncRoomsResult = [{ name: UNKNOWN_JID.split('@')[0] }];
+
+    const { unmount } = renderHook(() =>
+      useRoomInitialization(UNKNOWN_JID, {} as any, {} as any, 0)
+    );
+    await flush();
+
+    const types = dispatchMock.mock.calls
+      .map(([a]) => a)
+      .filter((a) => a.type === 'setJoiningRoom' || a.type === 'clearJoiningRoom');
+    expect(types).toEqual([
+      { type: 'setJoiningRoom', payload: UNKNOWN_JID },
+      { type: 'clearJoiningRoom', payload: UNKNOWN_JID },
+    ]);
+
+    unmount();
+  });
+
+  it('keeps the joining flag through the retries and clears it when they run out', async () => {
+    // A room that does not exist never shows up: the flag must not outlive
+    // the retry schedule, or the pane would spin forever.
+    vi.useFakeTimers();
+    try {
+      mockClient = makeClient();
+      syncRoomsResult = [];
+
+      const { unmount } = renderHook(() =>
+        useRoomInitialization(UNKNOWN_JID, {} as any, {} as any, 0)
+      );
+      const joiningCalls = () =>
+        dispatchMock.mock.calls
+          .map(([a]) => a)
+          .filter(
+            (a) => a.type === 'setJoiningRoom' || a.type === 'clearJoiningRoom'
+          )
+          .map((a) => a.type);
+
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(joiningCalls()).toEqual(['setJoiningRoom']);
+
+      await vi.advanceTimersByTimeAsync(10000);
+      expect(joiningCalls()).toEqual(['setJoiningRoom', 'clearJoiningRoom']);
+      // initial sync + one per retry step
+      expect(syncRoomsMock).toHaveBeenCalledTimes(4);
+
+      unmount();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

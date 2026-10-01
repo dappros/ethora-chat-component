@@ -508,6 +508,17 @@ export interface IConfig {
    * a presence state, not a count, so it is unaffected.
    */
   disableUserCount?: boolean;
+  /**
+   * Hide the "Search messages" button in the chat header (and so the search
+   * panel). Search is also hidden when `appId` is not set, since the archive
+   * it queries is scoped by app.
+   */
+  disableMessageSearch?: boolean;
+  /**
+   * Hide the "Discover chats" entry of the room list menu, the directory of
+   * the app's public chats (GET /v1/chats/public).
+   */
+  disablePublicChatsDirectory?: boolean;
   disableSentLogic?: boolean;
   initBeforeLoad?: boolean;
   initBeforeLoadAuth?: {

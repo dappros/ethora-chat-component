@@ -132,9 +132,30 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
+/* Flash on the row a notification or a search hit scrolls to. On the row's
+   own wrapper (the data-message-id element) it must not scale or fill a
+   full-width strip, so this is a soft tint in the brand colour that fades. */
+[data-message-id].ethora-message-highlight {
+  animation: ethoraMessageFlash 1s ease-out;
+  border-radius: var(--ethora-radius-md, 12px);
+}
+
+@keyframes ethoraMessageFlash {
+  0% {
+    background-color: color-mix(
+      in srgb,
+      var(--ethora-color-primary, #0052cd) 35%,
+      transparent
+    );
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
 /* Message highlight animation, flashed when a notification is opened. */
 .ethora-message-highlight {
-  animation: ethoraMessageHighlight 2s ease-out;
+  animation: ethoraMessageHighlight 1s ease-out;
   transition: background-color 0.3s ease;
 }
 

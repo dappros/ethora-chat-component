@@ -43,6 +43,12 @@ export const useRoomState = (roomJID?: string) => {
     (state: RootState) => state.rooms.roomsLoadError
   );
 
+  const joiningRoomJID = useSelector((state: RootState) =>
+    typeof state.rooms?.joiningRoomJID === 'string'
+      ? state.rooms.joiningRoomJID
+      : null
+  );
+
   const roomMessages = useMemo(
     () =>
       activeRoomJID && Array.isArray(roomsList[activeRoomJID]?.messages)
@@ -62,6 +68,7 @@ export const useRoomState = (roomJID?: string) => {
     roomMessages,
     roomsLoadedOnce,
     roomsLoadError,
+    joiningRoomJID,
   };
 };
 
