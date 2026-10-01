@@ -49,7 +49,7 @@ const Avatar = styled.div<{ $src?: string }>`
   border-radius: var(--ethora-radius-full, 999px);
   background: ${({ $src }) =>
     $src
-      ? `center / cover no-repeat url("${$src.replace(/"/g, '%22')}")`
+      ? `center / cover no-repeat url("${$src.replace(/["\\]/g, (ch) => encodeURIComponent(ch))}")`
       : 'var(--ethora-color-primary-soft, #e7edf9)'};
   color: var(--ethora-color-primary-text, #0052cd);
   font-weight: var(--ethora-font-weight-semibold, 600);

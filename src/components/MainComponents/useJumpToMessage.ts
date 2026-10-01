@@ -228,9 +228,15 @@ export function useJumpToMessage({
 
       const targetId = String(messages[index].id);
       const scrollToTarget = () => {
-        const element = containerRef.current?.querySelector<HTMLElement>(
-          `[data-message-id="${targetId.replace(/"/g, '\\"')}"]`
-        );
+        // Compared as strings instead of interpolated into a selector, so an
+        // id with quotes or backslashes can never change what is matched.
+        const element =
+          Array.from(
+            containerRef.current?.querySelectorAll<HTMLElement>(
+              '[data-message-id]'
+            ) ?? []
+          ).find((node) => node.getAttribute('data-message-id') === targetId) ??
+          null;
         element?.scrollIntoView({ behavior: 'auto', block: 'center' });
         return element ?? null;
       };
