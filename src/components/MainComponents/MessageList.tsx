@@ -23,6 +23,7 @@ import TreadLabel from '../styled/TreadLabel';
 import { MessageContainer } from './MessageContainer';
 import { OlderPage, useJumpToMessage } from './useJumpToMessage';
 import { useStickToBottom } from './useStickToBottom';
+import { computeAnchoredScrollTop } from './computeAnchoredScrollTop';
 import ArchivedMessageCard from './ArchivedMessageCard';
 import { useRoomState } from '../../hooks/useRoomState';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
@@ -121,6 +122,9 @@ const MessageList = <TMessage extends IMessage>({
   const [newMessagesCount, setNewMessagesCount] = useState(0);
   const [lastMessageDate, setLastMessageDate] = useState<number | null>(null);
   const lastMessageCount = useRef(messages.length);
+  const lastNewestIdRef = useRef<string | undefined>(
+    messages[messages.length - 1]?.id
+  );
   const lastUserMessageId = useRef<string | null>(null);
   const scrollPositions = useRef<{ [key: string]: number }>({});
   const isFirstLoad = useRef<boolean>(true);
@@ -591,13 +595,42 @@ const MessageList = <TMessage extends IMessage>({
 
   useEffect(() => {
     const messagesOuter = outerRef.current;
+    // An upward gesture marks the reader as scrolled up at once, not after the
+    // debounced check: anything that grows the list in that window (a history
+    // page, an image) must not pull them back to the bottom.
+    const onWheel = (event: WheelEvent) => {
+      if (event.deltaY < 0 && (containerRef.current?.scrollTop ?? 0) > 0) {
+        isUserScrolledUp.current = true;
+      }
+    };
+    let touchY = 0;
+    const onTouchStart = (event: TouchEvent) => {
+      touchY = event.touches[0]?.clientY ?? 0;
+    };
+    const onTouchMove = (event: TouchEvent) => {
+      const y = event.touches[0]?.clientY ?? 0;
+      if (y > touchY && (containerRef.current?.scrollTop ?? 0) > 0) {
+        isUserScrolledUp.current = true;
+      }
+      touchY = y;
+    };
     if (messagesOuter) {
       messagesOuter.addEventListener('scroll', onScroll, true);
+      messagesOuter.addEventListener('wheel', onWheel, { passive: true });
+      messagesOuter.addEventListener('touchstart', onTouchStart, {
+        passive: true,
+      });
+      messagesOuter.addEventListener('touchmove', onTouchMove, {
+        passive: true,
+      });
     }
 
     return () => {
-      messagesOuter &&
-        messagesOuter.removeEventListener('scroll', onScroll, true);
+      if (!messagesOuter) return;
+      messagesOuter.removeEventListener('scroll', onScroll, true);
+      messagesOuter.removeEventListener('wheel', onWheel);
+      messagesOuter.removeEventListener('touchstart', onTouchStart);
+      messagesOuter.removeEventListener('touchmove', onTouchMove);
     };
   }, []);
 
@@ -605,10 +638,15 @@ const MessageList = <TMessage extends IMessage>({
     if (visibleMessages.length > 30) {
       const content = containerRef.current;
       if (content && scrollParams.current) {
-        const newScrollTop =
-          scrollParams.current.top +
-          (content.scrollHeight - scrollParams.current.height);
-        content.scrollTop = newScrollTop;
+        // Anchor on the reader's LIVE position plus how much the list grew.
+        // The snapshot's own `top` is stale by the time a page arrives (the
+        // reader keeps scrolling up while the request is in flight), and
+        // restoring it threw them thousands of pixels back down.
+        content.scrollTop = computeAnchoredScrollTop(
+          content.scrollTop,
+          scrollParams.current.height,
+          content.scrollHeight
+        );
       }
       scrollParams.current = null;
     }
@@ -642,7 +680,13 @@ const MessageList = <TMessage extends IMessage>({
     const content = containerRef.current;
     if (!content) return;
 
-    const hasNewMessages = memoizedMessages.length > lastMessageCount.current;
+    // A page of older history grows the list too, but it is not a new
+    // message: only a changed newest message counts.
+    const newestId = memoizedMessages[memoizedMessages.length - 1]?.id;
+    const newestChanged = newestId !== lastNewestIdRef.current;
+    lastNewestIdRef.current = newestId;
+    const hasNewMessages =
+      newestChanged && memoizedMessages.length > lastMessageCount.current;
     const isTypingStarted =
       composingList?.length > 0 && !lastComposingState.current;
     lastComposingState.current = composingList?.length > 0;
