@@ -19,14 +19,12 @@ import { useT } from '../../i18n/useT';
 // How far back a jump will page before giving up, and how long a request may
 // stay alive at all (a room that never finishes opening must not leave one
 // armed to fire at some unrelated later moment).
-const MAX_HISTORY_PAGES = 25;
-const PAGE_SIZE = 50;
-const JUMP_TTL_MS = 30_000;
-// How long after a page request resolves the oldest message must stay the
-// same before the archive is called exhausted: the delivered messages reach
-// the list a beat AFTER the request's promise resolves, so an immediate
-// comparison reads the old list.
-const EXHAUSTED_GRACE_MS = 1500;
+const MAX_HISTORY_PAGES = 40;
+const PAGE_SIZE = 100;
+const JUMP_TTL_MS = 60_000;
+// A page request that times out is retried this many times in a row before
+// the history is treated as unreachable.
+const MAX_PAGE_FAILURES = 3;
 // Everything above the target must be mounted for it to be scrollable to, so
 // the window is widened to it plus this much, to leave room around it.
 const WINDOW_MARGIN = 15;
@@ -70,6 +68,22 @@ export const findMessageIndex = (
   });
 };
 
+/** What the server said about one page of older history. */
+export interface OlderPage {
+  /** False when the request failed or timed out. */
+  ok: boolean;
+  /**
+   * The RSM `<first>` of the page: the id (microseconds) of the oldest ROW the
+   * server returned. The next page continues from here. It is NOT the oldest
+   * message that got displayed: a page can be made entirely of reactions,
+   * system rows or deleted messages, display nothing, and still be followed
+   * by plenty of history.
+   */
+  cursor?: number | null;
+  /** The server's `<fin complete>`: there is nothing older. */
+  complete?: boolean;
+}
+
 interface Options {
   roomJID: string;
   /** The room's messages, in display order. */
@@ -77,11 +91,15 @@ interface Options {
   /** How many of them are currently mounted (the newest N). */
   visibleCount: number;
   setRenderWindow: (size: number) => void;
-  loadMoreMessages: (
-    chatJID: string,
-    max: number,
-    amount?: number
-  ) => Promise<void>;
+  /**
+   * Fetches the next page of older history by MAM and resolves once that page
+   * is in the store, with the server's own cursor for what it returned.
+   */
+  fetchOlderPage: (
+    roomJID: string,
+    before: number,
+    max: number
+  ) => Promise<OlderPage>;
   containerRef: RefObject<HTMLElement>;
   historyComplete?: boolean;
   /**
@@ -109,7 +127,7 @@ export function useJumpToMessage({
   messages,
   visibleCount,
   setRenderWindow,
-  loadMoreMessages,
+  fetchOlderPage,
   containerRef,
   historyComplete,
   isUserScrolledUpRef,
@@ -126,23 +144,21 @@ export function useJumpToMessage({
   // retrigger the effect below: every retrigger used to run its cleanup, and
   // the cleanup cancelled the scroll this effect had just scheduled, so a
   // target that was already mounted was never scrolled to.
-  const latest = useRef({ t, showToast, loadMoreMessages, setRenderWindow });
-  latest.current = { t, showToast, loadMoreMessages, setRenderWindow };
+  const latest = useRef({ t, showToast, fetchOlderPage, setRenderWindow });
+  latest.current = { t, showToast, fetchOlderPage, setRenderWindow };
   // The request whose scroll is already scheduled. Re-runs of the effect must
   // not schedule it a second time, nor cancel it.
   const scheduledAtRef = useRef<number | null>(null);
-  // The oldest message id a finished page request started from. Compared on
-  // the NEXT render, with the messages that request actually delivered: the
-  // store update lands in the list a render after the request resolves, so
-  // checking at resolve time read the old list and wrongly called the
-  // archive exhausted.
-  const awaitingCheckRef = useRef<string | null>(null);
-  const graceElapsedRef = useRef(false);
+  // Where the next page of older history starts: the server's cursor from the
+  // previous page, or (first page) the oldest message already loaded.
+  const cursorRef = useRef<number | null>(null);
+  // The server has nothing older, or paging stopped making progress.
+  const exhaustedRef = useRef(false);
+  const failuresRef = useRef(0);
   const timersRef = useRef<{
     frame?: number;
     settle?: ReturnType<typeof setTimeout>;
     clear?: ReturnType<typeof setTimeout>;
-    grace?: ReturnType<typeof setTimeout>;
   }>({});
   const [tick, setTick] = useState(0);
 
@@ -152,7 +168,6 @@ export function useJumpToMessage({
       if (timers.frame) cancelAnimationFrame(timers.frame);
       if (timers.settle) clearTimeout(timers.settle);
       if (timers.clear) clearTimeout(timers.clear);
-      if (timers.grace) clearTimeout(timers.grace);
     },
     []
   );
@@ -160,8 +175,9 @@ export function useJumpToMessage({
   // A new request starts its own page budget.
   useEffect(() => {
     attemptsRef.current = 0;
-    awaitingCheckRef.current = null;
-    graceElapsedRef.current = false;
+    cursorRef.current = null;
+    exhaustedRef.current = false;
+    failuresRef.current = 0;
   }, [jump?.at]);
 
   useEffect(() => {
@@ -245,44 +261,44 @@ export function useJumpToMessage({
     );
     if (!firstReal) return;
 
-    // A page finished and the oldest message is still the one it started
-    // from: there is nothing older to fetch, so the target is not in the
-    // history and paging again would repeat the same empty request.
-    if (awaitingCheckRef.current !== null) {
-      if (awaitingCheckRef.current !== String(firstReal.id)) {
-        // The page arrived: keep going from the new oldest message.
-        awaitingCheckRef.current = null;
-        graceElapsedRef.current = false;
-        if (timersRef.current.grace) clearTimeout(timersRef.current.grace);
-      } else if (graceElapsedRef.current) {
-        finish(false);
-        return;
-      } else {
-        // Nothing new YET; wait out the grace period before concluding.
-        return;
-      }
-    }
-
-    if (attemptsRef.current >= MAX_HISTORY_PAGES || historyComplete) {
+    if (
+      exhaustedRef.current ||
+      historyComplete ||
+      attemptsRef.current >= MAX_HISTORY_PAGES
+    ) {
       finish(false);
       return;
     }
 
+    // Page back through the archive by the server's own cursor. Each request
+    // resolves only once its page is in the store, so there is nothing to wait
+    // out and no guessing from the list: the answer to "is there more" is the
+    // server's, not "did the oldest displayed message change".
+    const before = cursorRef.current ?? Number(firstReal.id);
     attemptsRef.current += 1;
     loadingRef.current = true;
-    const firstIdBefore = String(firstReal.id);
 
     latest.current
-      .loadMoreMessages(roomJID, PAGE_SIZE, Number(firstReal.id))
-      .catch(() => undefined)
-      .finally(() => {
+      .fetchOlderPage(roomJID, before, PAGE_SIZE)
+      .catch((): OlderPage => ({ ok: false }))
+      .then((page) => {
         loadingRef.current = false;
-        awaitingCheckRef.current = firstIdBefore;
-        graceElapsedRef.current = false;
-        timersRef.current.grace = setTimeout(() => {
-          graceElapsedRef.current = true;
-          setTick((value) => value + 1);
-        }, EXHAUSTED_GRACE_MS);
+        if (!page.ok) {
+          failuresRef.current += 1;
+          if (failuresRef.current >= MAX_PAGE_FAILURES) {
+            exhaustedRef.current = true;
+          }
+        } else {
+          failuresRef.current = 0;
+          if (page.complete) exhaustedRef.current = true;
+          if (typeof page.cursor === 'number' && page.cursor < before) {
+            cursorRef.current = page.cursor;
+          } else if (!page.complete) {
+            // Same cursor back: this page made no progress, and asking again
+            // would repeat it forever.
+            exhaustedRef.current = true;
+          }
+        }
         setTick((value) => value + 1);
       });
   }, [

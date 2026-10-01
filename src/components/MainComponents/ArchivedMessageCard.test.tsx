@@ -90,7 +90,7 @@ const Harness: React.FC = () => {
     ],
     visibleCount: 1,
     setRenderWindow: () => {},
-    loadMoreMessages: async () => {},
+    fetchOlderPage: async () => ({ ok: true, complete: true }),
     containerRef: { current: null },
     historyComplete: true,
     isUserScrolledUpRef: { current: false },

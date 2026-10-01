@@ -5,6 +5,8 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useStore } from 'react-redux';
+import { RootState } from '../../roomStore';
 import {
   MessagesAnchor,
   MessagesFlow,
@@ -18,7 +20,7 @@ import Composing from '../styled/StyledInputComponents/Composing';
 import CustomTypingIndicator from '../styled/StyledInputComponents/CustomTypingIndicator';
 import TreadLabel from '../styled/TreadLabel';
 import { MessageContainer } from './MessageContainer';
-import { useJumpToMessage } from './useJumpToMessage';
+import { OlderPage, useJumpToMessage } from './useJumpToMessage';
 import { useStickToBottom } from './useStickToBottom';
 import ArchivedMessageCard from './ArchivedMessageCard';
 import { useRoomState } from '../../hooks/useRoomState';
@@ -409,12 +411,31 @@ const MessageList = <TMessage extends IMessage>({
     hasUnreadDelimiter,
   });
 
+  const reduxStore = useStore<RootState>();
+  const fetchOlderPage = useCallback(
+    async (jid: string, before: number, max: number): Promise<OlderPage> => {
+      if (!client) return { ok: false };
+      const page = await client.getHistoryStanza(jid, max, before, undefined, {
+        source: 'active',
+      });
+      // The page is in the store by now, and so is the server's cursor for it
+      // (the <fin> handler writes it to messageStats).
+      const room = reduxStore.getState().rooms.rooms[jid];
+      return {
+        ok: page !== undefined,
+        cursor: room?.messageStats?.firstMessageTimestamp,
+        complete: Boolean(room?.historyComplete),
+      };
+    },
+    [client, reduxStore]
+  );
+
   useJumpToMessage({
     roomJID,
     messages: memoizedMessages,
     visibleCount: visibleMessages.length,
     setRenderWindow,
-    loadMoreMessages,
+    fetchOlderPage,
     containerRef,
     historyComplete,
     isUserScrolledUpRef: isUserScrolledUp,
