@@ -81,11 +81,42 @@ const StyledInput = styled.input.withConfig({ shouldForwardProp })<{
   }
 `;
 
+const ClearButton = styled.button`
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  margin-left: 4px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ethora-color-text-muted, #999);
+  cursor: pointer;
+  z-index: 1;
+
+  &:hover {
+    background: var(--ethora-color-bg-hover, #f0f2f5);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ethora-color-primary, #0052cd);
+    outline-offset: 1px;
+  }
+`;
+
 interface SearchInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   icon?: React.ReactNode;
   animated?: boolean;
   direction?: 'left' | 'right';
   colorBg?: string;
+  /** When set, a clear button shows while the input has text. */
+  onClear?: () => void;
+  /** Accessible label for the clear button (pass a translated string). */
+  clearLabel?: string;
 }
 
 const SearchInput: React.FC<SearchInputProps> = ({
@@ -93,6 +124,8 @@ const SearchInput: React.FC<SearchInputProps> = ({
   animated = false,
   direction = 'left',
   colorBg,
+  onClear,
+  clearLabel = 'Clear search',
   ...props
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -112,6 +145,24 @@ const SearchInput: React.FC<SearchInputProps> = ({
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     setIsTyping(!!e.target.value);
   };
+
+  const handleClear = () => {
+    onClear?.();
+    setIsTyping(false);
+    inputRef.current?.focus();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    props.onKeyDown?.(e);
+    if (e.defaultPrevented) return;
+    if (e.key === 'Escape' && onClear && hasText) {
+      e.preventDefault();
+      e.stopPropagation();
+      handleClear();
+    }
+  };
+
+  const hasText = String(props.value ?? '').length > 0;
 
   useEffect(() => {
     if (isExpanded && animated) {
@@ -146,7 +197,31 @@ const SearchInput: React.FC<SearchInputProps> = ({
         expanded={isExpanded}
         onInput={handleInput}
         {...props}
+        onKeyDown={handleKeyDown}
       />
+      {onClear && hasText && (
+        <ClearButton
+          type="button"
+          aria-label={clearLabel}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleClear();
+          }}
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            aria-hidden="true"
+          >
+            <path d="M2 2l8 8M10 2l-8 8" />
+          </svg>
+        </ClearButton>
+      )}
     </SearchInputWrapper>
   );
 };

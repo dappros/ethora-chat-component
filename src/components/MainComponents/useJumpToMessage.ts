@@ -12,7 +12,7 @@ import {
   showArchivedMessage,
 } from '../../roomStore/roomsSlice';
 import { IMessage } from '../../types/types';
-import { MESSAGE_HIGHLIGHT_CLASS } from '../../styles/classNames';
+import { HIGHLIGHT_MS, MESSAGE_HIGHLIGHT_CLASS } from '../../styles/classNames';
 import { useOptionalToast } from '../../context/ToastContext';
 import { useT } from '../../i18n/useT';
 
@@ -241,7 +241,7 @@ export function useJumpToMessage({
           element.classList.add(MESSAGE_HIGHLIGHT_CLASS);
           timersRef.current.clear = setTimeout(
             () => element.classList.remove(MESSAGE_HIGHLIGHT_CLASS),
-            2000
+            HIGHLIGHT_MS
           );
           // Images and embeds above the target finish sizing after the first
           // scroll and push it off centre; settle once more.

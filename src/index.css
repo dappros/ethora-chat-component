@@ -136,7 +136,7 @@
    own wrapper (the data-message-id element) it must not scale or fill a
    full-width strip, so this is a soft tint in the brand colour that fades. */
 [data-message-id].ethora-message-highlight {
-  animation: ethoraMessageFlash 2s ease-out;
+  animation: ethoraMessageFlash 1s ease-out;
   border-radius: var(--ethora-radius-md, 12px);
 }
 
@@ -144,7 +144,7 @@
   0% {
     background-color: color-mix(
       in srgb,
-      var(--ethora-color-primary, #0052cd) 22%,
+      var(--ethora-color-primary, #0052cd) 35%,
       transparent
     );
   }
@@ -155,7 +155,7 @@
 
 /* Message highlight animation, flashed when a notification is opened. */
 .ethora-message-highlight {
-  animation: ethoraMessageHighlight 2s ease-out;
+  animation: ethoraMessageHighlight 1s ease-out;
   transition: background-color 0.3s ease;
 }
 

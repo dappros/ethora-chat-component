@@ -19,8 +19,7 @@ import SideDrawer, {
   DrawerSearchBar,
   DrawerSearchInput,
 } from '../SideDrawer/SideDrawer';
-import { buildSnippet } from './snippet';
-import { resolveSender } from './resolveSender';
+import { MessageHitList, useMessageHitActions } from './MessageHitResults';
 import {
   dayEndISO,
   dayStartISO,
@@ -197,72 +196,6 @@ const ResultsMeta = styled.div`
   color: var(--ethora-color-text-muted, #6c6c6c);
 `;
 
-const ResultList = styled.ul`
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-`;
-
-const ResultButton = styled.button`
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  width: 100%;
-  padding: var(--ethora-space-2, 8px) var(--ethora-space-3, 12px);
-  border: none;
-  border-radius: var(--ethora-radius-sm, 8px);
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: start;
-  cursor: pointer;
-
-  &:hover:not(:disabled),
-  &:focus-visible {
-    background: var(--ethora-color-bg-hover, #f0f2f5);
-  }
-  &:disabled {
-    cursor: default;
-    opacity: 0.6;
-  }
-`;
-
-const ResultHead = styled.div`
-  display: flex;
-  justify-content: space-between;
-  gap: var(--ethora-space-2, 8px);
-  font-size: var(--ethora-font-size-xs, 12px);
-  color: var(--ethora-color-text-muted, #6c6c6c);
-
-  > span:first-child {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-weight: var(--ethora-font-weight-medium, 500);
-    color: var(--ethora-color-text-secondary, #5a5f66);
-  }
-  > span:last-child {
-    flex: 0 0 auto;
-  }
-`;
-
-const Snippet = styled.div`
-  font-size: var(--ethora-font-size-sm, 14px);
-  line-height: 1.4;
-  color: var(--ethora-color-text, #141414);
-  overflow-wrap: anywhere;
-
-  mark {
-    background: var(--ethora-color-primary-soft, #e7edf9);
-    color: var(--ethora-color-primary-text, #0052cd);
-    border-radius: 3px;
-    padding: 0 1px;
-  }
-`;
-
 const MoreButton = styled.button`
   align-self: center;
   margin-top: var(--ethora-space-2, 8px);
@@ -280,21 +213,6 @@ const MoreButton = styled.button`
     cursor: default;
   }
 `;
-
-const formatWhen = (iso: string): string => {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
-  const sameYear = date.getFullYear() === new Date().getFullYear();
-  try {
-    return new Intl.DateTimeFormat(undefined, {
-      day: 'numeric',
-      month: 'short',
-      ...(sameYear ? {} : { year: 'numeric' }),
-    }).format(date);
-  } catch {
-    return date.toDateString();
-  }
-};
 
 const MessageSearchModal: React.FC<MessageSearchModalProps> = ({
   handleCloseModal,
@@ -371,37 +289,9 @@ const MessageSearchModal: React.FC<MessageSearchModalProps> = ({
     inputRef.current?.focus();
   }, []);
 
-  const senderName = (hit: MessageSearchHit): string => {
-    const room = rooms[hit.room];
-    const { name, isSelf } = resolveSender(hit, {
-      usersSet: usersSet as Record<string, any>,
-      members: room?.members as any[],
-      myXmppUsername,
-    });
-    if (isSelf) return t('search.messages.you');
-    return name || t('search.messages.someone');
-  };
-
+  const { open: openHit } = useMessageHitActions();
   const open = (hit: MessageSearchHit) => {
-    const roomJID = rooms[hit.room]
-      ? hit.room
-      : Object.keys(rooms).find((jid) => jid.split('@')[0] === hit.chatId);
-    if (!roomJID) return;
-    if (roomJID !== activeRoomJID) dispatch(setCurrentRoom({ roomJID }));
-    dispatch(
-      requestJumpToMessage({
-        roomJID,
-        ids: [hit.stanzaId, hit.messageId],
-        createdAt: hit.createdAt,
-        body: hit.body,
-        preview: {
-          roomJID,
-          sender: senderName(hit),
-          body: hit.body,
-          createdAt: hit.createdAt,
-        },
-      })
-    );
+    if (!openHit(hit)) return;
     // Phones show one pane at a time, so the panel would hide the very
     // message the tap asked for. Desktop keeps it open beside the chat, so
     // the next hit is one click away.
@@ -573,46 +463,12 @@ const MessageSearchModal: React.FC<MessageSearchModalProps> = ({
             <ResultsMeta role="status">
               {t('search.messages.count', { count: search.total })}
             </ResultsMeta>
-            <ResultList>
-              {hits.map((hit) => {
-                const room = rooms[hit.room];
-                const reachable = Boolean(
-                  room ||
-                    Object.keys(rooms).some(
-                      (jid) => jid.split('@')[0] === hit.chatId
-                    )
-                );
-                return (
-                  <li key={hitKey(hit)}>
-                    <ResultButton
-                      type="button"
-                      disabled={!reachable}
-                      onClick={() => open(hit)}
-                    >
-                      <ResultHead>
-                        <span>
-                          {scope === 'all'
-                            ? `${room?.title || t('search.messages.chat')} · ${senderName(hit)}`
-                            : senderName(hit)}
-                        </span>
-                        <span>{formatWhen(hit.createdAt)}</span>
-                      </ResultHead>
-                      <Snippet>
-                        {buildSnippet(hit.body, trimmed).map((part, index) =>
-                          part.match ? (
-                            <mark key={index}>{part.text}</mark>
-                          ) : (
-                            <React.Fragment key={index}>
-                              {part.text}
-                            </React.Fragment>
-                          )
-                        )}
-                      </Snippet>
-                    </ResultButton>
-                  </li>
-                );
-              })}
-            </ResultList>
+            <MessageHitList
+              hits={hits}
+              query={trimmed}
+              showRoom={scope === 'all'}
+              onOpen={open}
+            />
             {search.hasMore && (
               <MoreButton
                 type="button"

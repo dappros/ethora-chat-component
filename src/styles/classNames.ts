@@ -32,6 +32,9 @@ export const CHAT_ROOT_CLASS = 'ethora-chat-root';
 /** Transient highlight flashed on a message when a notification is opened. */
 export const MESSAGE_HIGHLIGHT_CLASS = 'ethora-message-highlight';
 
+/** How long the highlight stays on a message; keep equal to the CSS animation. */
+export const HIGHLIGHT_MS = 1000;
+
 /** Fixed-position container holding the in-app notification toasts. */
 export const NOTIFICATION_CONTAINER_CLASS =
   'ethora-message-notification-container';

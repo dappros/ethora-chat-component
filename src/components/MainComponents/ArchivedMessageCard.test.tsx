@@ -124,3 +124,54 @@ describe('a jump that cannot reach the message', () => {
     expect(toast).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('the flash on a message reached by a jump', () => {
+  it('adds the highlight class and drops it after 1000 ms', async () => {
+    vi.useFakeTimers();
+    try {
+      const container = document.createElement('div');
+      const el = document.createElement('div');
+      el.setAttribute('data-message-id', '1');
+      el.scrollIntoView = () => {};
+      container.appendChild(el);
+      document.body.appendChild(container);
+
+      const JumpHarness: React.FC = () => {
+        useJumpToMessage({
+          roomJID: ROOM,
+          messages: [
+            { id: '1', body: 'recent', date: '2026-09-01T00:00:00Z' } as any,
+          ],
+          visibleCount: 1,
+          setRenderWindow: () => {},
+          fetchOlderPage: async () => ({ ok: true, complete: true }),
+          containerRef: { current: container },
+          historyComplete: true,
+          isUserScrolledUpRef: { current: false },
+        });
+        return null;
+      };
+
+      renderWithProviders(<JumpHarness />, {
+        preloadedState: stateWith({
+          pendingJump: { roomJID: ROOM, ids: ['1'], at: Date.now() },
+        }),
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50);
+      });
+      expect(el.classList.contains('ethora-message-highlight')).toBe(true);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(900);
+      });
+      expect(el.classList.contains('ethora-message-highlight')).toBe(true);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100);
+      });
+      expect(el.classList.contains('ethora-message-highlight')).toBe(false);
+      container.remove();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
