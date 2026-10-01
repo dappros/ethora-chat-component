@@ -119,30 +119,37 @@ const MessageContainerBase: FC<MessageContainerProps> = ({
         !activeMessage &&
         message.id !== 'delimiter-new' &&
         renderDaySeparator()}
-      <MessageComponent
-        message={message}
-        isUser={isUser}
-        $isUser={isUser}
-        isReply={isReply}
-        className={className}
-      >
-        {!CustomMessage ? (
-          <>
-            <MessageTimestamp>
-              {messageDate.toLocaleTimeString()}
-            </MessageTimestamp>
-            <UserName>{message.user.name}: </UserName>
-            <MessageText>{message.body}</MessageText>
-          </>
-        ) : (
-          <MessageComponent
-            message={message}
-            isUser={isUser}
-            $isUser={isUser}
-            isReply={isReply}
-          />
-        )}
-      </MessageComponent>
+      {/* The anchor that "scroll to this message" looks for. MessageList has
+          always passed data-message-id to this component, but nothing here
+          forwarded it, so no bubble ever carried it: the scroll-to-message
+          on a notification or push tap silently found nothing for ordinary
+          messages. A plain block wrapper, so the row's layout is unchanged. */}
+      <div data-message-id={message.id}>
+        <MessageComponent
+          message={message}
+          isUser={isUser}
+          $isUser={isUser}
+          isReply={isReply}
+          className={className}
+        >
+          {!CustomMessage ? (
+            <>
+              <MessageTimestamp>
+                {messageDate.toLocaleTimeString()}
+              </MessageTimestamp>
+              <UserName>{message.user.name}: </UserName>
+              <MessageText>{message.body}</MessageText>
+            </>
+          ) : (
+            <MessageComponent
+              message={message}
+              isUser={isUser}
+              $isUser={isUser}
+              isReply={isReply}
+            />
+          )}
+        </MessageComponent>
+      </div>
     </Fragment>
   );
 };

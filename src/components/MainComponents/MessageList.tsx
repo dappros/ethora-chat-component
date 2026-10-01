@@ -5,6 +5,8 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useStore } from 'react-redux';
+import { RootState } from '../../roomStore';
 import {
   MessagesAnchor,
   MessagesFlow,
@@ -14,10 +16,14 @@ import {
 } from '../styled/StyledComponents';
 import { IConfig, IMessage, User } from '../../types/types';
 import Loader from '../styled/Loader';
+import styled from 'styled-components';
 import Composing from '../styled/StyledInputComponents/Composing';
 import CustomTypingIndicator from '../styled/StyledInputComponents/CustomTypingIndicator';
 import TreadLabel from '../styled/TreadLabel';
 import { MessageContainer } from './MessageContainer';
+import { OlderPage, useJumpToMessage } from './useJumpToMessage';
+import { useStickToBottom } from './useStickToBottom';
+import ArchivedMessageCard from './ArchivedMessageCard';
 import { useRoomState } from '../../hooks/useRoomState';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { useXmppClient } from '../../context/xmppProvider';
@@ -39,6 +45,20 @@ import { useT } from '../../i18n/useT';
 // things go quiet - not one write per message.
 const MARK_READ_DEBOUNCE_MS = 1000;
 
+// Floats over the top of the transcript so showing or hiding it never moves
+// the messages (the scroll compensation for a page of history relies on the
+// content height changing only by that page).
+const HistoryLoaderOverlay = styled.div`
+  position: absolute;
+  top: 8px;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+`;
+
 // Windowed rendering: only the newest RENDER_WINDOW_INITIAL messages are
 // mounted; scrolling to the top first widens the window (in
 // RENDER_WINDOW_STEP increments, with the same scroll-height compensation
@@ -48,6 +68,18 @@ const MARK_READ_DEBOUNCE_MS = 1000;
 // the battle-tested scroll/load-more machinery below.
 const RENDER_WINDOW_INITIAL = 120;
 const RENDER_WINDOW_STEP = 60;
+
+// Older history is requested while the reader is still this far from the top
+// (or 3 screens, whichever is more), so a normal scroll finds it already
+// there and never sees a spinner. The spinner is only for a reader who
+// outruns the request and reaches the very top while it is in flight.
+const PREFETCH_MIN_DISTANCE_PX = 1500;
+const PREFETCH_SCREENS = 3;
+const LOADER_TOP_THRESHOLD_PX = 80;
+const HISTORY_PAGE_SIZE = 100;
+// A scroll that never pauses must still be checked this often (a plain
+// debounce would only look once the reader stopped).
+const SCROLL_CHECK_MAX_WAIT_MS = 150;
 
 interface MessageListProps<TMessage extends IMessage> {
   CustomMessage?: React.ComponentType<{
@@ -78,7 +110,7 @@ const MessageList = <TMessage extends IMessage>({
   activeMessage,
 }: MessageListProps<TMessage>) => {
   const { CustomScrollableArea, CustomNewMessageLabel } = useCustomComponents();
-  const { composing, messages, composingList } =
+  const { composing, messages, composingList, historyComplete } =
     useRoomState(roomJID).room ?? {};
   const { user } = useChatSettingState();
   const t = useT();
@@ -156,11 +188,14 @@ const MessageList = <TMessage extends IMessage>({
   const isExpandingWindowRef = useRef<boolean>(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const flowRef = useRef<HTMLDivElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);
   const lastMessageRef = useRef<IMessage>(
     memoizedMessages[memoizedMessages.length - 1]
   );
   const isLoadingMore = useRef<boolean>(false);
+  const [isNearTop, setIsNearTop] = useState(false);
+  const firstScrollAtRef = useRef<number>(0);
   // The oldest message id we last KICKED OFF a load-more request for.
   // Guards against a busy-loop: a short conversation that never fills the
   // viewport keeps scrollTop permanently "near the top" (there's nothing
@@ -319,12 +354,25 @@ const MessageList = <TMessage extends IMessage>({
     lastRequestedFirstMessageIdRef.current = null;
   }, [roomJID]);
 
+  const checkLoadMoreRef = useRef<() => void>(() => {});
+
   const checkIfLoadMoreMessages = useCallback(() => {
     const params = getScrollParams();
 
     if (!params) return;
 
-    if (params.top >= 150 || isLoadingMore.current) return;
+    const viewportHeight = containerRef.current?.clientHeight ?? 0;
+    const prefetchDistance = Math.max(
+      PREFETCH_MIN_DISTANCE_PX,
+      viewportHeight * PREFETCH_SCREENS
+    );
+    if (params.top >= prefetchDistance || isLoadingMore.current) return;
+
+    // A search/notification jump is already paging this room's history by
+    // MAM. A second request in flight at the same time makes the server's
+    // answers interleave and one of them time out, which the jump reads as
+    // the history being unreachable.
+    if (reduxStore.getState().rooms.pendingJump?.roomJID === roomJID) return;
 
     // Older messages are already in the store but outside the render
     // window: widen the window (scroll position is compensated in the
@@ -344,19 +392,43 @@ const MessageList = <TMessage extends IMessage>({
         : firstMessage?.id;
 
     if (!firstMessageId) return;
-    if (firstMessageId === lastRequestedFirstMessageIdRef.current) return;
+
+    // Continue from the server's own cursor (the oldest ROW the last page
+    // returned), never from the oldest DISPLAYED message alone: a page made
+    // only of reactions or receipts displays nothing, the oldest message does
+    // not change, and paging would stall with plenty of history left.
+    const serverCursor =
+      reduxStore.getState().rooms.rooms[firstMessage.roomJid]?.messageStats
+        ?.firstMessageTimestamp;
+    const oldestDisplayed = Number(firstMessageId);
+    const before =
+      typeof serverCursor === 'number' && serverCursor < oldestDisplayed
+        ? serverCursor
+        : oldestDisplayed;
+
+    // A repeat of the same request (same oldest message AND same cursor) is
+    // what the guard stops; a page that only moved the cursor is progress.
+    const requestKey = `${firstMessageId}|${before}`;
+    if (requestKey === lastRequestedFirstMessageIdRef.current) return;
 
     scrollParams.current = getScrollParams();
     isLoadingMore.current = true;
-    lastRequestedFirstMessageIdRef.current = firstMessageId;
+    lastRequestedFirstMessageIdRef.current = requestKey;
 
-    loadMoreMessages(firstMessage.roomJid, 30, Number(firstMessageId)).finally(
+    loadMoreMessages(firstMessage.roomJid, HISTORY_PAGE_SIZE, before).finally(
       () => {
         isLoadingMore.current = false;
         lastMessageRef.current = memoizedMessages[memoizedMessages.length - 1];
+        // Keep the buffer above the reader topped up without waiting for the
+        // next scroll event: a reader who is still inside the prefetch
+        // distance once this page is in gets the next page right away, so a
+        // normal-speed scroll never catches up with the loader. Deferred so
+        // the new page is rendered and the scroll position compensated first.
+        setTimeout(() => checkLoadMoreRef.current(), 80);
       }
     );
   }, [loadMoreMessages, memoizedMessages.length, renderWindow]);
+  checkLoadMoreRef.current = checkIfLoadMoreMessages;
 
   // Messages actually mounted in the DOM: the newest `renderWindow` ones,
   // always widened far enough to include the unread delimiter (history can
@@ -393,6 +465,47 @@ const MessageList = <TMessage extends IMessage>({
       setRenderWindow((current) => current + appended);
     }
   }, [memoizedMessages.length, renderWindow]);
+
+  const hasUnreadDelimiter = useMemo(
+    () => memoizedMessages.some((message) => message.id === 'delimiter-new'),
+    [memoizedMessages]
+  );
+  useStickToBottom({
+    containerRef,
+    contentRef: flowRef,
+    isUserScrolledUpRef: isUserScrolledUp,
+    hasUnreadDelimiter,
+  });
+
+  const reduxStore = useStore<RootState>();
+  const fetchOlderPage = useCallback(
+    async (jid: string, before: number, max: number): Promise<OlderPage> => {
+      if (!client) return { ok: false };
+      const page = await client.getHistoryStanza(jid, max, before, undefined, {
+        source: 'active',
+      });
+      // The page is in the store by now, and so is the server's cursor for it
+      // (the <fin> handler writes it to messageStats).
+      const room = reduxStore.getState().rooms.rooms[jid];
+      return {
+        ok: page !== undefined,
+        cursor: room?.messageStats?.firstMessageTimestamp,
+        complete: Boolean(room?.historyComplete),
+      };
+    },
+    [client, reduxStore]
+  );
+
+  useJumpToMessage({
+    roomJID,
+    messages: memoizedMessages,
+    visibleCount: visibleMessages.length,
+    setRenderWindow,
+    fetchOlderPage,
+    containerRef,
+    historyComplete,
+    isUserScrolledUpRef: isUserScrolledUp,
+  });
 
   const scrollToBottom = useCallback((): void => {
     const content = containerRef.current;
@@ -435,6 +548,9 @@ const MessageList = <TMessage extends IMessage>({
         setNewMessagesCount(0);
       }
 
+      const nearTop = scrollTop <= LOADER_TOP_THRESHOLD_PX;
+      setIsNearTop((current) => (current === nearTop ? current : nearTop));
+
       lastMessageCount.current = messages.length;
       checkIfLoadMoreMessages();
     } else {
@@ -444,8 +560,20 @@ const MessageList = <TMessage extends IMessage>({
 
   const onScroll = () => {
     if (typeof window !== 'undefined') {
+      const now = Date.now();
+      if (!firstScrollAtRef.current) firstScrollAtRef.current = now;
+      // Debounce, but never starve: during a long fling the timer would be
+      // reset on every event and nothing would run until the reader stopped.
+      if (
+        timeoutRef.current &&
+        now - firstScrollAtRef.current >= SCROLL_CHECK_MAX_WAIT_MS
+      ) {
+        return;
+      }
       window.clearTimeout(timeoutRef.current);
       timeoutRef.current = window.setTimeout(() => {
+        timeoutRef.current = 0;
+        firstScrollAtRef.current = 0;
         checkAtBottomRef.current();
       }, 50);
     }
@@ -650,14 +778,18 @@ const MessageList = <TMessage extends IMessage>({
 
   return (
     <MessagesList ref={outerRef}>
+      {loading && isNearTop && (
+        <HistoryLoaderOverlay data-testid="history-loader">
+          <Loader size={24} color={config?.colors?.primary} />
+        </HistoryLoaderOverlay>
+      )}
       <MessagesScroll
         ref={containerRef}
         onScroll={onScroll}
         color={config?.colors?.primary}
       >
         <MessagesAnchor>
-          <MessagesFlow>
-            {loading && <Loader color={config?.colors?.primary} />}
+          <MessagesFlow ref={flowRef}>
             {activeMessage && (
               <React.Fragment>
                 <CustomMessage
@@ -694,6 +826,7 @@ const MessageList = <TMessage extends IMessage>({
           )}
         </ScrollToBottomButton>
       )}
+      <ArchivedMessageCard roomJID={roomJID} />
     </MessagesList>
   );
 };

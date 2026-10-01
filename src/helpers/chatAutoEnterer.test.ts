@@ -71,12 +71,28 @@ describe('chatAutoEnterer', () => {
     expect(dispatch).not.toHaveBeenCalled();
   });
 
-  it('parks a push messageId alongside the resolved room', () => {
+  it('asks the room to jump to the linked message', () => {
     setUrl(`/chat?chatId=${CHAT_ID}&messageId=42`);
-    run({ conference: CONFERENCE });
-    expect(localStorage.getItem('@ethora/chat-component-pushMessageId')).toBe('42');
-    expect(localStorage.getItem('@ethora/chat-component-pushRoomJid')).toBe(
-      `${CHAT_ID}@${CONFERENCE}`
+    const dispatch = run({ conference: CONFERENCE });
+    const jid = `${CHAT_ID}@${CONFERENCE}`;
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ payload: { roomJID: jid } })
     );
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'roomMessages/requestJumpToMessage',
+        payload: { roomJID: jid, ids: ['42'] },
+      })
+    );
+    // The old one-shot hand-off through localStorage is gone.
+    expect(localStorage.getItem('@ethora/chat-component-pushMessageId')).toBeNull();
+  });
+
+  it('accepts msgId as an alias and only opens the room without one', () => {
+    setUrl(`/chat?chatId=${CHAT_ID}&msgId=abc`);
+    expect(run({ conference: CONFERENCE })).toHaveBeenCalledTimes(2);
+    setUrl(`/chat?chatId=${CHAT_ID}`);
+    const dispatch = run({ conference: CONFERENCE });
+    expect(dispatch).toHaveBeenCalledTimes(1);
   });
 });

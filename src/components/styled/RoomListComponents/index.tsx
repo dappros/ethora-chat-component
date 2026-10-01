@@ -311,3 +311,27 @@ export const SkeletonLine = styled.div<{ $width?: string }>`
   width: ${({ $width }) => $width || '60%'};
   ${shimmerBackground}
 `;
+
+// Messages that match the room list's search box, listed under the chats that
+// match by name.
+export const MessageMatches = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: var(--ethora-space-1, 4px);
+  margin-top: var(--ethora-space-3, 12px);
+`;
+
+export const MessageMatchesTitle = styled.div`
+  padding: var(--ethora-space-2, 8px) var(--ethora-space-3, 12px) 0;
+  font-size: var(--ethora-font-size-xs, 12px);
+  font-weight: var(--ethora-font-weight-medium, 500);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ethora-color-text-muted, #6c6c6c);
+`;
+
+export const MessageMatchesNote = styled.div`
+  padding: var(--ethora-space-2, 8px) var(--ethora-space-3, 12px);
+  font-size: var(--ethora-font-size-sm, 14px);
+  color: var(--ethora-color-text-muted, #6c6c6c);
+`;
