@@ -10,7 +10,7 @@ import { IRoom } from '../../types/types';
 import { SearchInput } from '../InputComponents/Search';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
-import { BurgerMenuIcon, GlobeIcon, SearchIcon } from '../../assets/icons';
+import { BurgerMenuIcon, DiscoverIcon, SearchIcon } from '../../assets/icons';
 import { resolveIconColor } from '../../helpers/resolveIconColor';
 import Button from '../styled/Button';
 import DropdownMenu from '../DropdownMenu/DropdownMenu';
@@ -612,7 +612,7 @@ const RoomList: React.FC<RoomListProps> = ({
                             backgroundColor: 'transparent',
                           }}
                           EndIcon={
-                            <GlobeIcon color={resolveIconColor(config)} />
+                            <DiscoverIcon color={resolveIconColor(config)} />
                           }
                           onClick={() =>
                             dispatch(setActiveModal(MODAL_TYPES.PUBLIC_CHATS))
