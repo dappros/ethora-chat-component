@@ -8,6 +8,8 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
 import {
+  PendingJump,
+  clearJumpWindow,
   clearPendingJump,
   showArchivedMessage,
 } from '../../roomStore/roomsSlice';
@@ -28,6 +30,11 @@ const MAX_PAGE_FAILURES = 3;
 // Everything above the target must be mounted for it to be scrollable to, so
 // the window is widened to it plus this much, to leave room around it.
 const WINDOW_MARGIN = 15;
+// A target already in the store and at most this far from the newest message is
+// reached by the existing path (scroll, widen the render window). Anything
+// farther is fetched as a small window around it instead: mounting and
+// re-merging a thousand rows to reach it is what made a far jump lag.
+export const NEAR_LIVE_MESSAGES = 300;
 
 // How far apart the archive's timestamp and the transcript's may be for the
 // same message. They are recorded by different components, so they are not
@@ -67,6 +74,14 @@ export const findMessageIndex = (
     );
   });
 };
+
+/**
+ * How the attempt to open a window around the target went:
+ *  - found: the window is in the store; the list now renders it;
+ *  - missing: the server answered and the target is not in its archive;
+ *  - unavailable: could not ask (no archive id, request failed): page instead.
+ */
+export type WindowFetchResult = 'found' | 'missing' | 'unavailable';
 
 /** What the server said about one page of older history. */
 export interface OlderPage {
@@ -109,6 +124,13 @@ interface Options {
    * bottom, undoing the jump the moment the target loads.
    */
   isUserScrolledUpRef: MutableRefObject<boolean>;
+  /** `messages` is a jump window around an earlier target, not the live list. */
+  jumpWindowActive?: boolean;
+  /**
+   * Opens a window around a far target (and puts it in the store). Omitted
+   * where windows do not apply (threads); the paging path is used then.
+   */
+  fetchWindow?: (jump: PendingJump) => Promise<WindowFetchResult>;
 }
 
 /**
@@ -131,6 +153,8 @@ export function useJumpToMessage({
   containerRef,
   historyComplete,
   isUserScrolledUpRef,
+  jumpWindowActive = false,
+  fetchWindow,
 }: Options) {
   const dispatch = useDispatch();
   const t = useT();
@@ -144,8 +168,26 @@ export function useJumpToMessage({
   // retrigger the effect below: every retrigger used to run its cleanup, and
   // the cleanup cancelled the scroll this effect had just scheduled, so a
   // target that was already mounted was never scrolled to.
-  const latest = useRef({ t, showToast, fetchOlderPage, setRenderWindow });
-  latest.current = { t, showToast, fetchOlderPage, setRenderWindow };
+  const latest = useRef({
+    t,
+    showToast,
+    fetchOlderPage,
+    setRenderWindow,
+    fetchWindow,
+  });
+  latest.current = {
+    t,
+    showToast,
+    fetchOlderPage,
+    setRenderWindow,
+    fetchWindow,
+  };
+  // Per request: whether a window was already tried, and whether the server
+  // said the target does not exist.
+  const windowTriedAtRef = useRef<number | null>(null);
+  const windowMissingAtRef = useRef<number | null>(null);
+  const currentJumpAtRef = useRef<number | null>(null);
+  currentJumpAtRef.current = jump?.at ?? null;
   // The request whose scroll is already scheduled. Re-runs of the effect must
   // not schedule it a second time, nor cancel it.
   const scheduledAtRef = useRef<number | null>(null);
@@ -167,7 +209,12 @@ export function useJumpToMessage({
       const timers = timersRef.current;
       if (timers.frame) cancelAnimationFrame(timers.frame);
       if (timers.settle) clearTimeout(timers.settle);
-      if (timers.clear) clearTimeout(timers.clear);
+      if (timers.clear) {
+        clearTimeout(timers.clear);
+        clearInterval(
+          timers.clear as unknown as ReturnType<typeof setInterval>
+        );
+      }
     },
     []
   );
@@ -216,7 +263,16 @@ export function useJumpToMessage({
       body: jump.body,
     });
 
-    if (index >= 0) {
+    const windowAvailable =
+      Boolean(latest.current.fetchWindow) &&
+      windowTriedAtRef.current !== jump.at;
+
+    if (
+      index >= 0 &&
+      (jumpWindowActive ||
+        messages.length - index <= NEAR_LIVE_MESSAGES ||
+        !windowAvailable)
+    ) {
       const fromEnd = messages.length - index;
       if (fromEnd > visibleCount) {
         // Re-enters this effect once the wider window has rendered.
@@ -227,28 +283,57 @@ export function useJumpToMessage({
       scheduledAtRef.current = jump.at;
 
       const targetId = String(messages[index].id);
+      const findTarget = (): HTMLElement | null =>
+        Array.from(
+          containerRef.current?.querySelectorAll<HTMLElement>(
+            '[data-message-id]'
+          ) ?? []
+        ).find((node) => node.getAttribute('data-message-id') === targetId) ??
+        null;
       const scrollToTarget = () => {
         // Compared as strings instead of interpolated into a selector, so an
         // id with quotes or backslashes can never change what is matched.
-        const element =
-          Array.from(
-            containerRef.current?.querySelectorAll<HTMLElement>(
-              '[data-message-id]'
-            ) ?? []
-          ).find((node) => node.getAttribute('data-message-id') === targetId) ??
-          null;
+        const element = findTarget();
         element?.scrollIntoView({ behavior: 'auto', block: 'center' });
-        return element ?? null;
+        return element;
+      };
+
+      // The flash is started only once the rows are laid out and the scroll
+      // has settled, and its clock starts then: rendering many rows blocks the
+      // main thread, and a class added before that elapses unpainted. The node
+      // is looked up again every tick because the list can re-render and
+      // replace it; the class follows it for the rest of the flash.
+      const flash = () => {
+        const until = Date.now() + HIGHLIGHT_MS;
+        let applied: HTMLElement | null = null;
+        const apply = () => {
+          const element = findTarget();
+          if (element && element !== applied) {
+            applied?.classList.remove(MESSAGE_HIGHLIGHT_CLASS);
+            element.classList.add(MESSAGE_HIGHLIGHT_CLASS);
+            applied = element;
+          }
+        };
+        apply();
+        const interval = setInterval(() => {
+          if (Date.now() >= until) {
+            clearInterval(interval);
+            applied?.classList.remove(MESSAGE_HIGHLIGHT_CLASS);
+            findTarget()?.classList.remove(MESSAGE_HIGHLIGHT_CLASS);
+            return;
+          }
+          apply();
+        }, 50);
+        timersRef.current.clear = interval as unknown as ReturnType<
+          typeof setTimeout
+        >;
       };
 
       timersRef.current.frame = requestAnimationFrame(() => {
         const element = scrollToTarget();
         if (element) {
-          element.classList.add(MESSAGE_HIGHLIGHT_CLASS);
-          timersRef.current.clear = setTimeout(
-            () => element.classList.remove(MESSAGE_HIGHLIGHT_CLASS),
-            HIGHLIGHT_MS
-          );
+          // Two frames: layout and paint of what the scroll just brought in.
+          requestAnimationFrame(() => requestAnimationFrame(flash));
           // Images and embeds above the target finish sizing after the first
           // scroll and push it off centre; settle once more.
           timersRef.current.settle = setTimeout(scrollToTarget, 300);
@@ -258,9 +343,39 @@ export function useJumpToMessage({
       return;
     }
 
-    // Not loaded. An empty list means the room is still opening; the TTL
-    // above bounds the wait.
+    // A new request for a message outside the window now on screen: go back
+    // to the live list first (this effect re-runs with it).
+    if (jumpWindowActive) {
+      dispatch(clearJumpWindow());
+      return;
+    }
+
+    // Not loaded, or loaded but far back. An empty list means the room is
+    // still opening; the TTL above bounds the wait.
     if (messages.length === 0 || loadingRef.current) return;
+
+    if (windowMissingAtRef.current === jump.at && index < 0) {
+      finish(false);
+      return;
+    }
+
+    // Fetch only a window around the target instead of paging the whole
+    // stretch of history between it and the live tail.
+    if (windowAvailable && latest.current.fetchWindow) {
+      windowTriedAtRef.current = jump.at;
+      loadingRef.current = true;
+      const requestedAt = jump.at;
+      latest.current
+        .fetchWindow(jump)
+        .catch((): WindowFetchResult => 'unavailable')
+        .then((result) => {
+          loadingRef.current = false;
+          if (currentJumpAtRef.current !== requestedAt) return;
+          if (result === 'missing') windowMissingAtRef.current = requestedAt;
+          setTick((value) => value + 1);
+        });
+      return;
+    }
 
     const firstReal = messages.find(
       (message) => message.id !== 'delimiter-new'
@@ -313,6 +428,7 @@ export function useJumpToMessage({
     messages,
     visibleCount,
     historyComplete,
+    jumpWindowActive,
     tick,
     containerRef,
     isUserScrolledUpRef,

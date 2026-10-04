@@ -94,6 +94,25 @@ interface MamRequestState {
   // stanzas are consumed (and dropped) by routeMamStanza instead of hitting
   // the generic per-message handler one by one.
   abandoned?: boolean;
+  // A windowed query (around a jump target): its page is returned to the
+  // caller only. It must not write messageStats / historyComplete (those
+  // describe the live contiguous history) nor merge into the room's messages.
+  detached?: boolean;
+  onFin?: (fin: HistoryWindowFin) => void;
+}
+
+/** What the server's <fin> said about one windowed MAM page. */
+export interface HistoryWindowFin {
+  complete: boolean;
+  first: number | null;
+  last: number | null;
+}
+
+/** One page of a windowed history query, returned instead of stored. */
+export interface HistoryWindowPage extends HistoryWindowFin {
+  ok: boolean;
+  /** Ascending by time (oldest first), whichever direction was paged. */
+  messages: IMessage[];
 }
 
 interface HistoryQueueTask {
@@ -1636,22 +1655,30 @@ export class XmppClient implements XmppClientInterface {
           const firstMessageTimestamp = getNumberFromString(first);
           const lastMessageTimestamp = getNumberFromString(last);
 
-          store.dispatch(
-            updateRoom({
-              jid: roomJid,
-              updates: {
-                historyComplete,
-                ...(set
-                  ? {
-                      messageStats: {
-                        firstMessageTimestamp,
-                        lastMessageTimestamp,
-                      },
-                    }
-                  : {}),
-              },
-            })
-          );
+          if (request.detached) {
+            request.onFin?.({
+              complete: historyComplete,
+              first: first ? firstMessageTimestamp : null,
+              last: last ? lastMessageTimestamp : null,
+            });
+          } else {
+            store.dispatch(
+              updateRoom({
+                jid: roomJid,
+                updates: {
+                  historyComplete,
+                  ...(set
+                    ? {
+                        messageStats: {
+                          firstMessageTimestamp,
+                          lastMessageTimestamp,
+                        },
+                      }
+                    : {}),
+                },
+              })
+            );
+          }
         }
 
         clearTimeout(request.timeout);
@@ -1659,6 +1686,7 @@ export class XmppClient implements XmppClientInterface {
         this.parseMamMessages(request.messages)
           .then((messages) => {
             if (request.abandoned) {
+              if (request.detached) return;
               // The caller already gave up (resolved undefined on timeout),
               // but the archive page is real: merge it so a slow server
               // still fills the room instead of the data being dropped.
@@ -1693,7 +1721,11 @@ export class XmppClient implements XmppClientInterface {
     max: number,
     before: number | undefined,
     requestId: string,
-    timeoutMs = 10000
+    timeoutMs = 10000,
+    windowQuery?: {
+      after?: number;
+      onFin: (fin: HistoryWindowFin) => void;
+    }
   ): Promise<IMessage[] | undefined> {
     if (!chatJID) return Promise.resolve(undefined);
     // Drop the request instead of manufacturing a JID out of a non-room value.
@@ -1730,6 +1762,7 @@ export class XmppClient implements XmppClientInterface {
         startedAt: Date.now(),
         timeout,
         resolve,
+        ...(windowQuery ? { detached: true, onFin: windowQuery.onFin } : {}),
       });
 
       const message = xml(
@@ -1746,7 +1779,11 @@ export class XmppClient implements XmppClientInterface {
             'set',
             { xmlns: 'http://jabber.org/protocol/rsm' },
             xml('max', {}, max.toString()),
-            before ? xml('before', {}, before.toString()) : xml('before')
+            windowQuery?.after !== undefined
+              ? xml('after', {}, String(windowQuery.after))
+              : before
+                ? xml('before', {}, before.toString())
+                : xml('before')
           )
         )
       );
@@ -2288,6 +2325,44 @@ export class XmppClient implements XmppClientInterface {
     return await requestPromise.finally(() => {
       this.historyPreloadInFlight.delete(inFlightKey);
     });
+  };
+
+  /**
+   * One page of archive for a window around a message, RETURNED rather than
+   * stored: no setRoomMessages, no messageStats / historyComplete update, so
+   * the live history is untouched. Pass `before` for the page ending just
+   * before that archive id, or `after` for the page starting just after it
+   * (both exclusive; microsecond MAM ids). Messages come back oldest first.
+   */
+  getHistoryWindow = async (
+    chatJID: string,
+    max: number,
+    cursor: { before?: number; after?: number }
+  ): Promise<HistoryWindowPage> => {
+    const failed: HistoryWindowPage = {
+      ok: false,
+      messages: [],
+      complete: false,
+      first: null,
+      last: null,
+    };
+    if (this.status !== 'online') return failed;
+    const finBox: { value: HistoryWindowFin | null } = { value: null };
+    const messages = await this.requestMamHistory(
+      chatJID,
+      max,
+      cursor.before,
+      this.nextHistoryTaskId(),
+      8000,
+      {
+        after: cursor.after,
+        onFin: (value) => {
+          finBox.value = value;
+        },
+      }
+    );
+    if (!messages || !finBox.value) return failed;
+    return { ok: true, messages, ...finBox.value };
   };
 
   getLastMessageArchiveStanza(roomJID: string) {

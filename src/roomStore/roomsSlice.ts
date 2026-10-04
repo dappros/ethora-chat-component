@@ -162,6 +162,49 @@ export interface PendingJump {
   at: number;
 }
 
+/**
+ * A short slice of a room's archive around one message, shown INSTEAD of the
+ * live list while the reader is away from the tail (a search jump to a message
+ * far back). Separate from room.messages on purpose: it is not contiguous with
+ * the live history, so it must not touch messageStats or historyComplete.
+ */
+export interface JumpWindow {
+  roomJID: string;
+  /** Ascending by time, like room.messages. */
+  messages: IMessage[];
+  /** Id of the message the jump named, as it appears in `messages`. */
+  targetId: string;
+  /** RSM cursor (microseconds) to continue older paging from. */
+  olderCursor: number | null;
+  hasOlder: boolean;
+  /** RSM cursor (microseconds) to continue newer paging from. */
+  newerCursor: number | null;
+  hasNewer: boolean;
+}
+
+/** The window is trimmed on the far side past this many messages. */
+export const JUMP_WINDOW_MAX_MESSAGES = 300;
+
+const mergeWindowMessages = (a: IMessage[], b: IMessage[]): IMessage[] => {
+  const seen = new Set<string>();
+  const merged: IMessage[] = [];
+  for (const message of [...a, ...b]) {
+    const key = String(message.id);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(message);
+  }
+  const num = (message: IMessage) => {
+    const id = Number(message.id);
+    return Number.isFinite(id) && id > 0
+      ? id
+      : new Date(message.date).getTime();
+  };
+  // Archive ids are microsecond stanza ids and ascending in time; fall back to
+  // the date when an id is not numeric.
+  return merged.sort((x, y) => num(x) - num(y));
+};
+
 interface RoomMessagesState {
   rooms: { [jid: string]: IRoom };
   activeRoomJID: string;
@@ -202,6 +245,9 @@ interface RoomMessagesState {
   pendingJump: PendingJump | null;
   // The message a failed jump falls back to showing. Never persisted.
   archivedMessage: ArchivedMessage | null;
+  // The slice of archive around a jump target, rendered instead of the live
+  // list until the reader returns to the latest messages. Never persisted.
+  jumpWindow: JumpWindow | null;
   // The room this session is joining right now (opened by link or from
   // Discover) and is not in the room list yet. The server registers the
   // membership a few seconds after our presence join, so "not in the list"
@@ -249,6 +295,7 @@ const initialState: RoomMessagesState = {
   roomsLoadError: false,
   pendingJump: null,
   archivedMessage: null,
+  jumpWindow: null,
   joiningRoomJID: null,
   drafts: {},
 };
@@ -1184,6 +1231,59 @@ const roomsStore = createSlice({
     clearArchivedMessage: (state) => {
       state.archivedMessage = null;
     },
+    setJumpWindow: (state, action: PayloadAction<JumpWindow>) => {
+      state.jumpWindow = {
+        ...action.payload,
+        messages: mergeWindowMessages(action.payload.messages, []),
+      };
+    },
+    prependJumpWindowMessages: (
+      state,
+      action: PayloadAction<{
+        roomJID: string;
+        messages: IMessage[];
+        olderCursor: number | null;
+        hasOlder: boolean;
+      }>
+    ) => {
+      const win = state.jumpWindow;
+      if (!win || win.roomJID !== action.payload.roomJID) return;
+      win.messages = mergeWindowMessages(action.payload.messages, win.messages);
+      win.olderCursor = action.payload.olderCursor;
+      win.hasOlder = action.payload.hasOlder;
+      if (win.messages.length > JUMP_WINDOW_MAX_MESSAGES) {
+        // Reader is going up: drop the far (newest) side and page it again if
+        // they come back down.
+        win.messages = win.messages.slice(0, JUMP_WINDOW_MAX_MESSAGES);
+        const newest = Number(win.messages[win.messages.length - 1].id);
+        win.newerCursor = Number.isFinite(newest) ? newest : win.newerCursor;
+        win.hasNewer = true;
+      }
+    },
+    appendJumpWindowMessages: (
+      state,
+      action: PayloadAction<{
+        roomJID: string;
+        messages: IMessage[];
+        newerCursor: number | null;
+        hasNewer: boolean;
+      }>
+    ) => {
+      const win = state.jumpWindow;
+      if (!win || win.roomJID !== action.payload.roomJID) return;
+      win.messages = mergeWindowMessages(win.messages, action.payload.messages);
+      win.newerCursor = action.payload.newerCursor;
+      win.hasNewer = action.payload.hasNewer;
+      if (win.messages.length > JUMP_WINDOW_MAX_MESSAGES) {
+        win.messages = win.messages.slice(-JUMP_WINDOW_MAX_MESSAGES);
+        const oldest = Number(win.messages[0].id);
+        win.olderCursor = Number.isFinite(oldest) ? oldest : win.olderCursor;
+        win.hasOlder = true;
+      }
+    },
+    clearJumpWindow: (state) => {
+      state.jumpWindow = null;
+    },
     setJoiningRoom: (state, action: PayloadAction<string>) => {
       state.joiningRoomJID = action.payload || null;
     },
@@ -1257,6 +1357,7 @@ const roomsStore = createSlice({
       // Half-typed messages are user content: logging out must not leave
       // them behind for whoever logs in next.
       state.drafts = {};
+      state.jumpWindow = null;
       // Reset the rooms-load latch: without this, the second login of a
       // session would see roomsLoadedOnce still true from the first one and
       // show the "No room" CTA immediately, before the new account's own
@@ -1512,6 +1613,10 @@ export const {
   clearPendingJump,
   showArchivedMessage,
   clearArchivedMessage,
+  setJumpWindow,
+  prependJumpWindowMessages,
+  appendJumpWindowMessages,
+  clearJumpWindow,
   setJoiningRoom,
   clearJoiningRoom,
   setCurrentRoom,

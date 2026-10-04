@@ -1,6 +1,6 @@
 import { Client } from '@xmpp/client';
 import { Iso639_1Codes } from './language.model';
-import XmppClient from '../../networking/xmppClient';
+import XmppClient, { HistoryWindowPage } from '../../networking/xmppClient';
 import { IMessage } from './message.model';
 
 export interface XmppState {
@@ -87,6 +87,11 @@ export interface XmppClientInterface {
       source?: 'active' | 'send_ack' | 'background' | 'default';
     }
   ): Promise<IMessage[] | undefined>;
+  getHistoryWindow(
+    chatJID: string,
+    max: number,
+    cursor: { before?: number; after?: number }
+  ): Promise<HistoryWindowPage>;
   promoteRoomHistory(roomJID: string): void;
   setActiveRoomJid(roomJID: string | null): void;
   isActiveRoomGateOpen(): boolean;
