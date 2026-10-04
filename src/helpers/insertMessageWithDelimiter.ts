@@ -1,14 +1,24 @@
 import { IMessage } from '../types/types';
 import { isDateAfter, isDateBefore } from './dateComparison';
 
-function deepMerge(target: any, source: any): any {
-  for (const key in source) {
+const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+export function deepMerge(target: any, source: any): any {
+  for (const key of Object.keys(source)) {
+    // Never assign through keys that can reach Object.prototype.
+    if (UNSAFE_KEYS.has(key)) continue;
     if (
       source[key] &&
       typeof source[key] === 'object' &&
       !Array.isArray(source[key])
     ) {
-      target[key] = deepMerge(target[key] || {}, source[key]);
+      const existing = Object.prototype.hasOwnProperty.call(target, key)
+        ? target[key]
+        : undefined;
+      target[key] = deepMerge(
+        existing && typeof existing === 'object' ? existing : {},
+        source[key]
+      );
     } else {
       target[key] = source[key];
     }
