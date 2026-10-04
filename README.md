@@ -295,6 +295,19 @@ If no `googleLogin`, no `jwtLogin`, no `userLogin`, and no `defaultLogin`, `Logi
 `setRoomJidInPath` syncs room identity to URL path.  
 `useQRCodeChat` / `handleQRChatId` support QR/deep-link room opening.
 
+#### Deep link to a chat and a message (`?chatId=` and `?messageId=`)
+
+When no `roomJID` is passed, the chat reads these query parameters of the page URL on load:
+
+| Parameter | Meaning |
+| --- | --- |
+| `chatId` | Room to open. A bare id is expanded with `config.xmppSettings.conference`; a full JID (contains `@`) is used as is. Without a conference domain in config a bare id is ignored. |
+| `messageId` (alias `msgId`) | Optional. Open the room and jump to that message, loading older history around it if it is not in memory yet, then briefly highlight it. Matched against the message `id` and `xmppId`. Without it the link just opens the room. |
+
+Example: `https://your-app.example/chat?chatId=ROOM_ID&messageId=1781702272543611`.
+
+The same link shape is what a push notification click opens (see [Push Notifications](#push-notifications)), so tapping a push lands on the exact message. Search results use the same jump.
+
 ## Behavior Notes and Legacy Quirks
 
 - `newArch` is now default-on. If omitted, runtime uses new architecture paths.
@@ -344,7 +357,7 @@ Below is a grouped reference for all `config` options.
 | `disableHeader` | `boolean` | Hide chat header. |
 | `disableMedia` | `boolean` | Disable media sending/processing paths. |
 | `attachments` | `{ maxFiles?; maxFileSizeMb?; accept? }` | Composer attachment limits. `maxFiles` defaults to `5` (hard cap `10`, the stanza payload size); `maxFileSizeMb` adds a client-side per-file check (omit for none); `accept` is passed straight to the file picker. Picking several files sends them as **one** message. |
-| `pdfPreview` | `{ enabled?; workerSrc?; maxFileSizeMb? }` | First-page PDF thumbnails inside bubbles and in the composer tray. On by default; `enabled: false` keeps the static document card. pdf.js is code-split and only fetched when a PDF actually shows up. By default it runs on the main thread, which needs no bundler asset wiring: set `workerSrc` to a pdf.js worker URL you host to move parsing off it. `maxFileSizeMb` (default `25`) is the size past which a document is not auto-rendered. |
+| `pdfPreview` | `{ enabled?; workerSrc?; libUrl?; maxFileSizeMb? }` | First-page PDF thumbnails inside bubbles and in the composer tray. On by default; `enabled: false` keeps the static document card. pdf.js is code-split and only fetched when a PDF actually shows up. By default it runs on the main thread, which needs no bundler asset wiring: set `workerSrc` to a pdf.js worker URL you host to move parsing off it. Set `libUrl` to the URL of a pdf.js ES module build to load it at runtime instead of the copy bundled with the component (pair it with `workerSrc`); useful when you ship the component as one self-contained script and do not want pdf.js (about 1.7 MB) inside it. `maxFileSizeMb` (default `25`) is the size past which a document is not auto-rendered. |
 | `disableRooms` | `boolean` | Hide/disable room list area. |
 | `disableRoomMenu` | `boolean` | Disable room menu controls. |
 | `disableRoomMute` | `boolean` | Hide the "Mute/Unmute notifications" toggle from the chat header menu and room profile, even on a backend that supports it. |
@@ -601,6 +614,18 @@ function PushPermissionButton() {
 ```
 
 `iconPath` and `badgePath` should point to public, reachable assets (for example, files from your app `public/` directory).
+
+#### Which icon a web push shows
+
+`public/firebase-messaging-sw.js` picks the notification icon in this order:
+
+1. An icon the push itself carries: `data.icon`, then `notification.icon`, then `icon` on the payload. A push about a specific chat or sender can therefore show that chat's avatar. Only `http(s)` URLs and same-origin paths (starting with a single `/`) are accepted; anything else (`data:`, `javascript:`, a bare word) is ignored.
+2. `pushNotifications.iconPath`.
+3. The default, `/favicon-192.png` on your origin.
+
+The badge has no per-push override: it is `pushNotifications.badgePath`, then the default `/favicon-192.png`. Make sure the fallback file exists on your origin, or the OS shows a generic icon.
+
+Clicking a push opens `<origin>/chat?chatId=<room>&messageId=<message>` (or the `url` carried by the push) and calls `pushNotifications.onClick`; see the deep link section above.
 
 ## Auth Strategies
 
