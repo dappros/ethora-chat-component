@@ -81,13 +81,22 @@ const setupWorker = async (lib: PdfjsLib, workerSrc?: string) => {
   scope.pdfjsWorker = await import('pdfjs-dist/legacy/build/pdf.worker.min.mjs');
 };
 
-export const loadPdfjs = async (workerSrc?: string): Promise<PdfjsLib | null> => {
+/**
+ * `libUrl`: load pdf.js from this URL (an ES module build such as
+ * `pdfjs-dist/legacy/build/pdf.min.mjs` served by the host) instead of the
+ * copy bundled with the component. For hosts that ship the component as one
+ * self-contained script (the embeddable widget), where a bundled pdf.js is
+ * 1.7 MB that every visitor downloads whether or not a PDF ever appears.
+ */
+export const loadPdfjs = async (workerSrc?: string, libUrl?: string): Promise<PdfjsLib | null> => {
   if (typeof window === 'undefined') return null;
 
   if (!pdfjsPromise) {
     pdfjsPromise = (async () => {
       try {
-        const module = await import('pdfjs-dist/legacy/build/pdf.mjs');
+        const module = libUrl
+          ? await import(/* @vite-ignore */ libUrl)
+          : await import('pdfjs-dist/legacy/build/pdf.mjs');
         const lib = ((module as { default?: unknown })?.default ??
           module) as unknown as PdfjsLib;
 

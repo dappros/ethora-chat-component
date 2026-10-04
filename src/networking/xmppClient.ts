@@ -215,6 +215,12 @@ export class XmppClient implements XmppClientInterface {
   private criticalSendUntil = 0;
   private activeRoomBoostUntil = 0;
   private sendStartedAtById: Map<string, number> = new Map();
+  // When the current connection came online, and when each message id was
+  // last put on the wire by the send queue. drainHeap() only resends what has
+  // not gone out on this connection: anything the queue sent since 'online'
+  // is in flight and owned by the ack catch-up / failure watchdog.
+  private sessionOnlineAt = 0;
+  private lastSentAtById: Map<string, number> = new Map();
   private pendingSendIdsByRoom: Map<string, Set<string>> = new Map();
   private maxInFlightHistory = 1;
   private softPauseAfterSendMs = 0;
@@ -718,6 +724,7 @@ export class XmppClient implements XmppClientInterface {
         this.resource = jid.resource || 'default';
         ethoraLogger.log('Client is online.', new Date());
         this.status = 'online';
+        this.sessionOnlineAt = Date.now();
         this.everOnline = true;
         // Publishes this device's OMEMO keys. No-op unless the host app
         // enabled e2ee; never blocks the rest of the online handler.
@@ -1845,6 +1852,7 @@ export class XmppClient implements XmppClientInterface {
       this.sendIsActiveById.delete(messageId);
     }
     this.sendIsActiveById.delete(messageId);
+    this.lastSentAtById.delete(messageId);
 
     const pending = this.pendingSendIdsByRoom.get(roomJID);
     if (!pending) return;
@@ -2001,6 +2009,7 @@ export class XmppClient implements XmppClientInterface {
         if (ok) {
           if (nextEntry.id) {
             this.pendingSendById.delete(nextEntry.id);
+            this.lastSentAtById.set(nextEntry.id, Date.now());
           }
           if (nextEntry.createdAt) {
             const waitMs = Date.now() - nextEntry.createdAt;
@@ -2811,6 +2820,13 @@ export class XmppClient implements XmppClientInterface {
         if (!msg?.id || !msg?.roomJid) continue;
         if (hasEchoLanded(msg.roomJid, msg.id)) continue;
         if (this.isSendPending(msg.id)) continue;
+        //  5. the queue already put it on THIS connection -> its echo is simply
+        //     still on its way. This drain runs after the queue flush in the
+        //     same online handler, so a message typed while connecting was
+        //     sent by the flush, cleared from the pending map, and then sent
+        //     again here under the same id: two copies in the room.
+        const sentAt = this.lastSentAtById?.get(msg.id);
+        if (sentAt && sentAt >= (this.sessionOnlineAt || 0)) continue;
         if (isSendRetryInFlight(msg.id)) continue;
         if (isMessageMarkedFailed(msg.roomJid, msg.id)) continue;
         const isTranslate = !!msg.langSource;

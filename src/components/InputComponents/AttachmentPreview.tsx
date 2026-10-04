@@ -57,6 +57,7 @@ const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({
     width: 200,
     sizeInBytes: file.size,
     workerSrc: config?.pdfPreview?.workerSrc,
+    libUrl: config?.pdfPreview?.libUrl,
   });
 
   const renderBody = () => {
