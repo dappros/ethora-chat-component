@@ -1,11 +1,12 @@
 import React, {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from 'react';
-import { useStore } from 'react-redux';
+import { useDispatch, useSelector, useStore } from 'react-redux';
 import { RootState } from '../../roomStore';
 import {
   MessagesAnchor,
@@ -21,9 +22,31 @@ import Composing from '../styled/StyledInputComponents/Composing';
 import CustomTypingIndicator from '../styled/StyledInputComponents/CustomTypingIndicator';
 import TreadLabel from '../styled/TreadLabel';
 import { MessageContainer } from './MessageContainer';
-import { OlderPage, useJumpToMessage } from './useJumpToMessage';
+import {
+  OlderPage,
+  WindowFetchResult,
+  useJumpToMessage,
+} from './useJumpToMessage';
+import {
+  clearJumpWindow,
+  setJumpWindow,
+  prependJumpWindowMessages,
+  appendJumpWindowMessages,
+  PendingJump,
+} from '../../roomStore/roomsSlice';
+import {
+  loadJumpWindow,
+  loadNewerWindowPage,
+  loadOlderWindowPage,
+} from '../../helpers/jumpWindow';
+import {
+  mergeById,
+  replyParentId,
+  useJumpThread,
+} from '../../helpers/jumpThread';
+import { openThreadForJump } from '../../helpers/openThreadForJump';
 import { useStickToBottom } from './useStickToBottom';
-import { computeAnchoredScrollTop } from './computeAnchoredScrollTop';
+import { useScrollAnchor } from './useScrollAnchor';
 import ArchivedMessageCard from './ArchivedMessageCard';
 import { useRoomState } from '../../hooks/useRoomState';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
@@ -59,6 +82,21 @@ const HistoryLoaderOverlay = styled.div`
   justify-content: center;
   pointer-events: none;
 `;
+
+// Same overlay, pinned to the bottom edge: the jump window loading NEWER
+// messages as the reader scrolls toward the live tail.
+const HistoryLoaderOverlayBottom = styled(HistoryLoaderOverlay)`
+  top: auto;
+  bottom: 8px;
+`;
+
+// After a jump window opens or grows, a reader who has not scrolled yet still
+// needs the next page, and one failed page must not be retried in a hot loop.
+const WINDOW_RETRY_AFTER_FAILURE_MS = 3000;
+// Reaching the bottom of a window that has nothing newer means "back at the
+// latest"; ignore that for this long after the window opens, so the scroll
+// that centres the target is not read as the reader arriving there.
+const WINDOW_EXIT_GRACE_MS = 1000;
 
 // Windowed rendering: only the newest RENDER_WINDOW_INITIAL messages are
 // mounted; scrolling to the top first widens the window (in
@@ -113,6 +151,40 @@ const MessageList = <TMessage extends IMessage>({
   const { CustomScrollableArea, CustomNewMessageLabel } = useCustomComponents();
   const { composing, messages, composingList, historyComplete } =
     useRoomState(roomJID).room ?? {};
+  const dispatch = useDispatch();
+  // A short slice of archive around a far jump target, shown instead of the
+  // live list until the reader returns to the latest messages. Not for threads.
+  const jumpWindow = useSelector((state: RootState) => state.rooms.jumpWindow);
+  const joiningRoomJID = useSelector(
+    (state: RootState) => state.rooms.joiningRoomJID
+  );
+  const windowActive = !isReply && jumpWindow?.roomJID === roomJID;
+  const windowActiveRef = useRef(windowActive);
+  windowActiveRef.current = windowActive;
+  // A thread list also sees what a jump to one of its replies brought in (and
+  // any window on screen): those replies may be older than the live list.
+  const jumpThread = useJumpThread();
+  const threadExtras = useMemo(() => {
+    if (!isReply || !activeMessage) return null;
+    const fromWindow =
+      jumpWindow?.roomJID === roomJID ? jumpWindow.messages : [];
+    const fromJump =
+      jumpThread &&
+      jumpThread.roomJID === roomJID &&
+      jumpThread.parentId === String(activeMessage.id)
+        ? jumpThread.replies
+        : [];
+    if (fromWindow.length === 0 && fromJump.length === 0) return null;
+    return mergeById(fromWindow, fromJump);
+  }, [isReply, activeMessage?.id, jumpWindow, jumpThread, roomJID]);
+  const sourceMessages: IMessage[] = useMemo(() => {
+    if (windowActive) return jumpWindow.messages;
+    if (threadExtras) return mergeById(messages ?? [], threadExtras);
+    return messages;
+  }, [windowActive, jumpWindow, threadExtras, messages]);
+  const [windowLoading, setWindowLoading] = useState<'older' | 'newer' | null>(
+    null
+  );
   const { user } = useChatSettingState();
   const t = useT();
   const { client } = useXmppClient();
@@ -134,7 +206,7 @@ const MessageList = <TMessage extends IMessage>({
     // filtering the whole list per message (was O(n²) with a reference-string
     // parse in the inner loop).
     const repliesByParentId = new Map<string, IMessage[]>();
-    for (const mess of messages) {
+    for (const mess of sourceMessages) {
       const parentId = parseMessageReference(mess.mainMessage)?.id;
       if (!parentId) continue;
       const bucket = repliesByParentId.get(parentId);
@@ -145,11 +217,11 @@ const MessageList = <TMessage extends IMessage>({
       }
     }
 
-    return messages.map((message) => {
+    return sourceMessages.map((message) => {
       const reply = repliesByParentId.get(message.id) ?? [];
       return { ...message, reply };
     });
-  }, [messages]);
+  }, [sourceMessages]);
 
   const memoizedMessages = useMemo(() => {
     if (isReply) {
@@ -220,7 +292,6 @@ const MessageList = <TMessage extends IMessage>({
   const lastRequestedFirstMessageIdRef = useRef<string | null>(null);
 
   const timeoutRef = useRef<number>(0);
-  const scrollParams = useRef<{ top: number; height: number } | null>(null);
   const atBottom = useRef<boolean>(true);
   const isUserScrolledUp = useRef<boolean>(false);
   const lastComposingState = useRef<boolean>(false);
@@ -232,6 +303,8 @@ const MessageList = <TMessage extends IMessage>({
     if (config?.disableLastRead) return;
     if (!isTabVisible) return;
     if (!client || !roomJID) return;
+    // Reading a window of old history is not reading the latest messages.
+    if (windowActiveRef.current) return;
 
     const latest = messages[messages.length - 1];
     const latestTs = latest
@@ -359,8 +432,18 @@ const MessageList = <TMessage extends IMessage>({
   }, [roomJID]);
 
   const checkLoadMoreRef = useRef<() => void>(() => {});
+  const checkWindowLoadMoreRef = useRef<(fromUserScroll?: boolean) => void>(
+    () => {}
+  );
 
   const checkIfLoadMoreMessages = useCallback(() => {
+    // While a jump window is on screen the live list is not what the reader
+    // is looking at: no background prefetch of it, the window pages instead.
+    if (windowActiveRef.current) {
+      checkWindowLoadMoreRef.current();
+      return;
+    }
+
     const params = getScrollParams();
 
     if (!params) return;
@@ -384,7 +467,6 @@ const MessageList = <TMessage extends IMessage>({
     if (memoizedMessages.length > renderWindow) {
       if (isExpandingWindowRef.current) return;
       isExpandingWindowRef.current = true;
-      scrollParams.current = getScrollParams();
       setRenderWindow((current) => current + RENDER_WINDOW_STEP);
       return;
     }
@@ -415,7 +497,6 @@ const MessageList = <TMessage extends IMessage>({
     const requestKey = `${firstMessageId}|${before}`;
     if (requestKey === lastRequestedFirstMessageIdRef.current) return;
 
-    scrollParams.current = getScrollParams();
     isLoadingMore.current = true;
     lastRequestedFirstMessageIdRef.current = requestKey;
 
@@ -439,6 +520,9 @@ const MessageList = <TMessage extends IMessage>({
   // arrive after mount, so the initial window can't be the only guard - the
   // first-load scroll looks the delimiter up in the DOM).
   const visibleMessages = useMemo(() => {
+    // The jump window is bounded by the store (JUMP_WINDOW_MAX_MESSAGES) and is
+    // mounted whole; the render window only exists for the long live list.
+    if (windowActive) return memoizedMessages;
     if (memoizedMessages.length <= renderWindow) return memoizedMessages;
 
     const delimiterIndex = memoizedMessages.findIndex(
@@ -452,7 +536,7 @@ const MessageList = <TMessage extends IMessage>({
     return effectiveWindow >= memoizedMessages.length
       ? memoizedMessages
       : memoizedMessages.slice(-effectiveWindow);
-  }, [memoizedMessages, renderWindow]);
+  }, [memoizedMessages, renderWindow, windowActive]);
 
   // While the user is reading older messages, keep the window's top edge
   // stable as new messages append (otherwise each arrival would slide a row
@@ -464,6 +548,7 @@ const MessageList = <TMessage extends IMessage>({
     if (
       appended > 0 &&
       isUserScrolledUp.current &&
+      !windowActiveRef.current &&
       memoizedMessages.length > renderWindow
     ) {
       setRenderWindow((current) => current + appended);
@@ -500,6 +585,165 @@ const MessageList = <TMessage extends IMessage>({
     [client, reduxStore]
   );
 
+  // ---- Jump window (a far search jump shows a small slice around the target)
+  const windowBusyRef = useRef<'older' | 'newer' | null>(null);
+  const windowFailedAtRef = useRef({ older: 0, newer: 0 });
+  const windowOpenedAtRef = useRef(0);
+  const pendingExitScrollRef = useRef(false);
+
+  const exitWindow = useCallback(() => {
+    if (!windowActiveRef.current) return;
+    isUserScrolledUp.current = false;
+    atBottom.current = true;
+    pendingExitScrollRef.current = true;
+    setRenderWindow(RENDER_WINDOW_INITIAL);
+    setShowScrollButton(false);
+    setNewMessagesCount(0);
+    dispatch(clearJumpWindow());
+  }, [dispatch]);
+
+  // Back on the live list: land on its newest message.
+  useLayoutEffect(() => {
+    if (windowActive || !pendingExitScrollRef.current) return;
+    pendingExitScrollRef.current = false;
+    const content = containerRef.current;
+    if (content) content.scrollTop = content.scrollHeight;
+    setNewMessagesCount(0);
+    scheduleMarkRead();
+  }, [windowActive, scheduleMarkRead]);
+
+  // A window must not outlive the list that showed it.
+  useEffect(
+    () => () => {
+      if (windowActiveRef.current) dispatch(clearJumpWindow());
+    },
+    [dispatch]
+  );
+
+  useEffect(() => {
+    if (!jumpWindow?.targetId || !windowActive) return;
+    windowOpenedAtRef.current = Date.now();
+    windowFailedAtRef.current = { older: 0, newer: 0 };
+    isUserScrolledUp.current = true;
+    // A window that does not fill the viewport never scrolls, so nothing would
+    // ask for the next page: look once it has settled.
+    const timer = setTimeout(() => checkWindowLoadMoreRef.current(), 400);
+    return () => clearTimeout(timer);
+  }, [jumpWindow?.targetId, windowActive]);
+
+  const loadWindowPage = useCallback(
+    async (direction: 'older' | 'newer') => {
+      const win = reduxStore.getState().rooms.jumpWindow;
+      if (!win || win.roomJID !== roomJID || !client) return;
+      if (windowBusyRef.current) return;
+      windowBusyRef.current = direction;
+      setWindowLoading(direction);
+      try {
+        const page =
+          direction === 'older'
+            ? await loadOlderWindowPage(client, win)
+            : await loadNewerWindowPage(client, win);
+        const current = reduxStore.getState().rooms.jumpWindow;
+        // The reader left, or opened another window, while this was in flight.
+        if (!current || current.targetId !== win.targetId) return;
+        if (!page) {
+          windowFailedAtRef.current[direction] = Date.now();
+          return;
+        }
+        if ('olderCursor' in page) {
+          dispatch(prependJumpWindowMessages({ roomJID, ...page }));
+        } else {
+          dispatch(appendJumpWindowMessages({ roomJID, ...page }));
+        }
+      } catch {
+        windowFailedAtRef.current[direction] = Date.now();
+      } finally {
+        windowBusyRef.current = null;
+        setWindowLoading(null);
+        setTimeout(() => checkWindowLoadMoreRef.current(), 80);
+      }
+    },
+    [client, roomJID, dispatch, reduxStore]
+  );
+
+  checkWindowLoadMoreRef.current = (fromUserScroll = false) => {
+    const content = containerRef.current;
+    const win = reduxStore.getState().rooms.jumpWindow;
+    if (!content || !win || win.roomJID !== roomJID) return;
+    const prefetchDistance = Math.max(
+      PREFETCH_MIN_DISTANCE_PX,
+      content.clientHeight * PREFETCH_SCREENS
+    );
+    const fromBottom =
+      content.scrollHeight - content.clientHeight - content.scrollTop;
+    const now = Date.now();
+    if (
+      win.hasOlder &&
+      content.scrollTop < prefetchDistance &&
+      now - windowFailedAtRef.current.older > WINDOW_RETRY_AFTER_FAILURE_MS
+    ) {
+      loadWindowPage('older');
+    } else if (
+      win.hasNewer &&
+      fromBottom < prefetchDistance &&
+      now - windowFailedAtRef.current.newer > WINDOW_RETRY_AFTER_FAILURE_MS
+    ) {
+      loadWindowPage('newer');
+    } else if (
+      !win.hasNewer &&
+      fromUserScroll &&
+      fromBottom <= 5 &&
+      now - windowOpenedAtRef.current > WINDOW_EXIT_GRACE_MS
+    ) {
+      // Nothing newer than this is left to load: that is the live tail.
+      exitWindow();
+    }
+  };
+
+  // A jump whose target is a thread reply opens the parent's thread (the main
+  // list never shows replies); the thread list then highlights the reply.
+  const resolveReply = useCallback(
+    (jump: PendingJump, reply: IMessage, nearby?: IMessage[]) =>
+      openThreadForJump({
+        client,
+        dispatch,
+        roomJID,
+        at: jump.at,
+        reply,
+        live: messages ?? [],
+        nearby,
+      }),
+    [client, dispatch, roomJID, messages]
+  );
+
+  const fetchWindow = useCallback(
+    async (jump: PendingJump): Promise<WindowFetchResult> => {
+      if (isReply || !client?.getHistoryWindow) return 'unavailable';
+      const result = await loadJumpWindow(client, roomJID, jump.ids, {
+        createdAt: jump.createdAt,
+        body: jump.body,
+      });
+      if (result.status !== 'found') return result.status;
+      const target = result.window.messages.find(
+        (message) => String(message.id) === result.window.targetId
+      );
+      if (target && replyParentId(target)) {
+        // Not a main-list message: the window is only used to learn what the
+        // reply belongs to; it is not put on screen.
+        const opened = await resolveReply(
+          jump,
+          target,
+          result.window.messages
+        ).catch(() => false);
+        return opened ? 'found' : 'missing';
+      }
+      isUserScrolledUp.current = true;
+      dispatch(setJumpWindow(result.window));
+      return 'found';
+    },
+    [client, roomJID, isReply, dispatch, resolveReply]
+  );
+
   useJumpToMessage({
     roomJID,
     messages: memoizedMessages,
@@ -509,6 +753,16 @@ const MessageList = <TMessage extends IMessage>({
     containerRef,
     historyComplete,
     isUserScrolledUpRef: isUserScrolledUp,
+    jumpWindowActive: windowActive,
+    fetchWindow: isReply ? undefined : fetchWindow,
+    scope: isReply && activeMessage ? { threadId: String(activeMessage.id) } : 'main',
+    allMessages: sourceMessages,
+    resolveReply: isReply ? undefined : (jump, reply) => resolveReply(jump, reply),
+    roomOpening:
+      !isReply &&
+      (Boolean(loading) ||
+        joiningRoomJID === roomJID ||
+        (sourceMessages.length === 0 && !historyComplete)),
   });
 
   const scrollToBottom = useCallback((): void => {
@@ -530,6 +784,15 @@ const MessageList = <TMessage extends IMessage>({
 
   const checkAtBottom = () => {
     const content = containerRef.current;
+    if (content && windowActiveRef.current) {
+      // Reading a window of old history: never stick to the bottom, always
+      // offer the way back to the latest messages, and page both ways.
+      isUserScrolledUp.current = true;
+      atBottom.current = false;
+      setShowScrollButton(true);
+      checkWindowLoadMoreRef.current(true);
+      return;
+    }
     if (content) {
       const scrollTop = content.scrollTop;
       const scrollHeight = content.scrollHeight;
@@ -635,21 +898,6 @@ const MessageList = <TMessage extends IMessage>({
   }, []);
 
   useEffect(() => {
-    if (visibleMessages.length > 30) {
-      const content = containerRef.current;
-      if (content && scrollParams.current) {
-        // Anchor on the reader's LIVE position plus how much the list grew.
-        // The snapshot's own `top` is stale by the time a page arrives (the
-        // reader keeps scrolling up while the request is in flight), and
-        // restoring it threw them thousands of pixels back down.
-        content.scrollTop = computeAnchoredScrollTop(
-          content.scrollTop,
-          scrollParams.current.height,
-          content.scrollHeight
-        );
-      }
-      scrollParams.current = null;
-    }
     isExpandingWindowRef.current = false;
     // `renderWindow` has to be a dependency, not just `visibleMessages.length`:
     // `visibleMessages` clamps itself to at least the unread delimiter's
@@ -671,6 +919,10 @@ const MessageList = <TMessage extends IMessage>({
         isLastMessageFromUser
       ) {
         lastUserMessageId.current = lastMessage.id;
+        if (windowActiveRef.current) {
+          exitWindow();
+          return;
+        }
         scrollToBottom();
       }
     }
@@ -731,6 +983,16 @@ const MessageList = <TMessage extends IMessage>({
         : decorateMessages(visibleMessages),
     [visibleMessages, memoizedMessages, decoratedMessages]
   );
+
+  // One anchoring mechanism for every insertion above or below the reader:
+  // the rows on screen stay where they are while history is prepended, a jump
+  // window is paged, the render window widens, or rows above change height.
+  useScrollAnchor({
+    containerRef,
+    flowRef,
+    rows: visibleDecoratedMessages,
+    isStuckToBottom: () => !isUserScrolledUp.current,
+  });
 
   const renderDecoratedMessage = useCallback(
     (decorated: DecoratedMessage) => {
@@ -822,10 +1084,16 @@ const MessageList = <TMessage extends IMessage>({
 
   return (
     <MessagesList ref={outerRef}>
-      {loading && isNearTop && (
+      {((loading && isNearTop && !windowActive) ||
+        (windowActive && windowLoading === 'older')) && (
         <HistoryLoaderOverlay data-testid="history-loader">
           <Loader size={24} color={config?.colors?.primary} />
         </HistoryLoaderOverlay>
+      )}
+      {windowActive && windowLoading === 'newer' && (
+        <HistoryLoaderOverlayBottom data-testid="history-loader-bottom">
+          <Loader size={24} color={config?.colors?.primary} />
+        </HistoryLoaderOverlayBottom>
       )}
       <MessagesScroll
         ref={containerRef}
@@ -854,11 +1122,14 @@ const MessageList = <TMessage extends IMessage>({
           </MessagesFlow>
         </MessagesAnchor>
       </MessagesScroll>
-      {showScrollButton && (
+      {(showScrollButton || windowActive) && (
         <ScrollToBottomButton
-          onClick={scrollToBottom}
+          onClick={windowActive ? exitWindow : scrollToBottom}
           color={config?.colors?.iconsBg || config?.colors?.primary}
-          aria-label={t('action.scrollToBottom')}
+          aria-label={
+            windowActive ? t('action.jumpToLatest') : t('action.scrollToBottom')
+          }
+          data-testid={windowActive ? 'jump-to-latest' : undefined}
         >
           <DownArrowIcon
             color={

@@ -88,3 +88,29 @@ describe('ChatProfileModal with config.disableRoomConfig', () => {
     expect(screen.getByText('Alan Turing')).toBeTruthy();
   });
 });
+
+describe('ChatProfileModal message search entry', () => {
+  it('is hidden by default', () => {
+    renderPanel({ appId: 'app' });
+    expect(screen.queryByText('Search messages')).toBeNull();
+  });
+
+  it('shows with enableMessageSearch and an appId', () => {
+    renderPanel({ appId: 'app', enableMessageSearch: true });
+    expect(screen.getAllByText('Search messages').length).toBeGreaterThan(0);
+  });
+
+  it('stays hidden without an appId', () => {
+    renderPanel({ enableMessageSearch: true });
+    expect(screen.queryByText('Search messages')).toBeNull();
+  });
+
+  it('stays hidden when disableMessageSearch wins', () => {
+    renderPanel({
+      appId: 'app',
+      enableMessageSearch: true,
+      disableMessageSearch: true,
+    });
+    expect(screen.queryByText('Search messages')).toBeNull();
+  });
+});

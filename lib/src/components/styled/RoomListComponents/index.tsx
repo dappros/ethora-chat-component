@@ -319,19 +319,34 @@ export const MessageMatches = styled.div`
   flex-direction: column;
   gap: var(--ethora-space-1, 4px);
   margin-top: var(--ethora-space-3, 12px);
+  padding-top: var(--ethora-space-1, 4px);
+  border-top: 1px solid var(--ethora-color-border, #e6e8ec);
+  min-width: 0;
 `;
 
 export const MessageMatchesTitle = styled.div`
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--ethora-space-2, 8px);
   padding: var(--ethora-space-2, 8px) var(--ethora-space-3, 12px) 0;
   font-size: var(--ethora-font-size-xs, 12px);
   font-weight: var(--ethora-font-weight-medium, 500);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--ethora-color-text-muted, #6c6c6c);
+
+  > span:last-child {
+    letter-spacing: 0;
+    text-transform: none;
+    font-weight: var(--ethora-font-weight-normal, 400);
+    white-space: nowrap;
+  }
 `;
 
 export const MessageMatchesNote = styled.div`
   padding: var(--ethora-space-2, 8px) var(--ethora-space-3, 12px);
   font-size: var(--ethora-font-size-sm, 14px);
   color: var(--ethora-color-text-muted, #6c6c6c);
+  overflow-wrap: anywhere;
 `;

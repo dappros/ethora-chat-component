@@ -60,6 +60,7 @@ import { useMyFiles } from '../../../hooks/useMyFiles';
 import FilesList from '../../Files/FilesList';
 import { ApiFile } from '../../../types/types';
 import { withFileToken } from '../../../helpers/secureFileUrl';
+import { isMessageSearchEnabled } from '../../../helpers/isMessageSearchEnabled';
 import ChatProfileMemberRow from './ChatProfileMemberRow';
 
 interface ChatProfileModalProps {
@@ -438,7 +439,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
 
       {/* Search is otherwise reachable only from the chat header, which is
           hidden behind this very panel on a phone. */}
-      {Boolean(config?.appId) && !config?.disableMessageSearch && (
+      {isMessageSearchEnabled(config) && (
         <DrawerSection>
           <DrawerCard>
             <DrawerNavRow

@@ -26,6 +26,7 @@ import { useXmppClient } from '../../context/xmppProvider';
 import { setActiveModal } from '../../roomStore/chatSettingsSlice';
 import { RootState } from '../../roomStore';
 import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
+import { isMessageSearchEnabled } from '../../helpers/isMessageSearchEnabled';
 import { useMessageSearchShortcut } from '../../hooks/useMessageSearchShortcut';
 import { RoomMenu } from '../MenuRoom/MenuRoom';
 import { useRoomState } from '../../hooks/useRoomState';
@@ -256,8 +257,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
 
   // Search runs against the platform's archive, which is scoped by app, so it
   // needs an appId; hosts can also switch it off.
-  const messageSearchEnabled =
-    Boolean(config?.appId) && !config?.disableMessageSearch;
+  const messageSearchEnabled = isMessageSearchEnabled(config);
   const activeModal = useSelector(
     (state: RootState) => state.chatSettingStore.activeModal
   );

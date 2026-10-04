@@ -22,6 +22,7 @@ import {
 import { isOpaqueXmppUserId } from '../helpers/xmppIdShape';
 import { extractUniqueMembersFromRooms } from '../helpers/extractUniqueMembersFromRooms';
 import { getTimestampFromUnknown } from '../helpers/timestamp';
+import { isSafeKey } from './safeKey';
 
 // Body strings the server uses for call signaling broadcasts (call-token,
 // call-state ringing/ended, etc). These should never reach the chat
@@ -162,6 +163,49 @@ export interface PendingJump {
   at: number;
 }
 
+/**
+ * A short slice of a room's archive around one message, shown INSTEAD of the
+ * live list while the reader is away from the tail (a search jump to a message
+ * far back). Separate from room.messages on purpose: it is not contiguous with
+ * the live history, so it must not touch messageStats or historyComplete.
+ */
+export interface JumpWindow {
+  roomJID: string;
+  /** Ascending by time, like room.messages. */
+  messages: IMessage[];
+  /** Id of the message the jump named, as it appears in `messages`. */
+  targetId: string;
+  /** RSM cursor (microseconds) to continue older paging from. */
+  olderCursor: number | null;
+  hasOlder: boolean;
+  /** RSM cursor (microseconds) to continue newer paging from. */
+  newerCursor: number | null;
+  hasNewer: boolean;
+}
+
+/** The window is trimmed on the far side past this many messages. */
+export const JUMP_WINDOW_MAX_MESSAGES = 300;
+
+const mergeWindowMessages = (a: IMessage[], b: IMessage[]): IMessage[] => {
+  const seen = new Set<string>();
+  const merged: IMessage[] = [];
+  for (const message of [...a, ...b]) {
+    const key = String(message.id);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(message);
+  }
+  const num = (message: IMessage) => {
+    const id = Number(message.id);
+    return Number.isFinite(id) && id > 0
+      ? id
+      : new Date(message.date).getTime();
+  };
+  // Archive ids are microsecond stanza ids and ascending in time; fall back to
+  // the date when an id is not numeric.
+  return merged.sort((x, y) => num(x) - num(y));
+};
+
 interface RoomMessagesState {
   rooms: { [jid: string]: IRoom };
   activeRoomJID: string;
@@ -202,6 +246,9 @@ interface RoomMessagesState {
   pendingJump: PendingJump | null;
   // The message a failed jump falls back to showing. Never persisted.
   archivedMessage: ArchivedMessage | null;
+  // The slice of archive around a jump target, rendered instead of the live
+  // list until the reader returns to the latest messages. Never persisted.
+  jumpWindow: JumpWindow | null;
   // The room this session is joining right now (opened by link or from
   // Discover) and is not in the room list yet. The server registers the
   // membership a few seconds after our presence join, so "not in the list"
@@ -249,6 +296,7 @@ const initialState: RoomMessagesState = {
   roomsLoadError: false,
   pendingJump: null,
   archivedMessage: null,
+  jumpWindow: null,
   joiningRoomJID: null,
   drafts: {},
 };
@@ -291,9 +339,37 @@ const getNormalizedSubscribedRooms = (subscribedRooms: unknown): string[] =>
 // in-memory either - without this, the next persist round would re-serialize
 // the bad keys and presence/MAM keep targeting them.
 const isValidRoomJid = (jid: unknown): jid is string => {
-  if (typeof jid !== 'string' || !jid) return false;
+  if (!isSafeKey(jid)) return false;
   if (!jid.includes('@')) return false;
   return true;
+};
+
+/**
+ * Visits every stored copy of one message: the live copy in
+ * state.rooms[jid].messages and, when a jump window is open on that room, the
+ * window's separate copy. The window is a second list of the same messages, so
+ * every reducer that mutates ONE message must go through this or the reader
+ * sees stale edits/reactions/delivery state while away from the live tail.
+ * `matches` is an id, or a predicate when a reducer also matches on xmppId.
+ */
+const forEachMessageCopy = (
+  state: RoomMessagesState,
+  jid: string,
+  matches: string | ((message: IMessage) => boolean),
+  fn: (message: IMessage) => void
+) => {
+  const pred =
+    typeof matches === 'function'
+      ? matches
+      : (message: IMessage) => message.id === matches;
+  const live = state.rooms[jid]?.messages;
+  if (Array.isArray(live)) {
+    for (const message of live) if (pred(message)) fn(message);
+  }
+  const win = state.jumpWindow;
+  if (win && win.roomJID === jid && Array.isArray(win.messages)) {
+    for (const message of win.messages) if (pred(message)) fn(message);
+  }
 };
 
 const getMessageTimestampValue = (message: IMessage): number => {
@@ -474,6 +550,7 @@ const applyRoomUpdate = (
   jid: string,
   updates: Partial<IRoom>
 ) => {
+  if (!isSafeKey(jid)) return;
   const existingRoom = state.rooms[jid];
   if (!existingRoom) return;
 
@@ -557,6 +634,7 @@ const roomsStore = createSlice({
     },
     deleteRoom(state, action: PayloadAction<{ jid: string }>) {
       const { jid } = action.payload;
+      if (!isSafeKey(jid)) return;
       if (state.rooms[jid]) {
         delete state.rooms[jid];
       }
@@ -604,7 +682,7 @@ const roomsStore = createSlice({
     /** Drops one room's draft: what sending a message does. */
     clearRoomDraft(state, action: PayloadAction<{ jid: string }>) {
       const jid = action.payload?.jid;
-      if (!jid || !state.drafts) return;
+      if (!isSafeKey(jid) || !state.drafts) return;
       if (state.drafts[jid] !== undefined) delete state.drafts[jid];
     },
     updateRoom(
@@ -631,7 +709,7 @@ const roomsStore = createSlice({
       action: PayloadAction<{ roomJID: string; messages: IMessage[] }>
     ) {
       const { roomJID, messages } = action.payload;
-      if (state.rooms[roomJID]) {
+      if (isSafeKey(roomJID) && state.rooms[roomJID]) {
         const merged = mergeRoomMessages(
           stripCallSignals(state.rooms[roomJID].messages),
           stripCallSignals(messages),
@@ -652,7 +730,7 @@ const roomsStore = createSlice({
       action: PayloadAction<{ roomJID: string; messages: IMessage[] }>
     ) {
       const { roomJID, messages } = action.payload;
-      if (state.rooms[roomJID]) {
+      if (isSafeKey(roomJID) && state.rooms[roomJID]) {
         const enriched = stripCallSignals(messages).map((message) =>
           enrichMessageAuthor(message, state.usersSet)
         );
@@ -674,27 +752,23 @@ const roomsStore = createSlice({
       action: PayloadAction<{ roomJID: string; messageId: string }>
     ) {
       const { roomJID, messageId } = action.payload;
-      if (state.rooms[roomJID]) {
-        // Tombstone the message instead of removing it so the bubble can render
-        // a "deleted" placeholder and ordering / replies / quoting stay intact.
-        state.rooms[roomJID].messages = state.rooms[roomJID].messages.map(
-          (message) =>
-            message.id === messageId
-              ? {
-                  ...message,
-                  isDeleted: true,
-                  body: '',
-                  isMediafile: 'false',
-                  location: undefined,
-                  locationPreview: undefined,
-                  mimetype: undefined,
-                  fileName: undefined,
-                  attachments: undefined,
-                  reaction: undefined,
-                }
-              : message
-        );
-      }
+      if (!isSafeKey(roomJID)) return;
+      const tombstone = (message: IMessage) => {
+        // Tombstone the message instead of removing it so the bubble can
+        // render a "deleted" placeholder and ordering / replies / quoting
+        // stay intact. Edited in place so every copy (live + jump window)
+        // gets the same treatment.
+        message.isDeleted = true;
+        message.body = '';
+        message.isMediafile = 'false';
+        message.location = undefined;
+        message.locationPreview = undefined;
+        message.mimetype = undefined;
+        message.fileName = undefined;
+        message.attachments = undefined;
+        message.reaction = undefined;
+      };
+      forEachMessageCopy(state, roomJID, messageId, tombstone);
     },
     /**
      * Hard removal, unlike `deleteRoomMessage`'s tombstone. For optimistic
@@ -708,8 +782,15 @@ const roomsStore = createSlice({
       action: PayloadAction<{ roomJID: string; messageId: string }>
     ) {
       const { roomJID, messageId } = action.payload;
+      if (!isSafeKey(roomJID)) return;
       if (state.rooms[roomJID]) {
         state.rooms[roomJID].messages = state.rooms[roomJID].messages.filter(
+          (message) => message.id !== messageId
+        );
+      }
+      const win = state.jumpWindow;
+      if (win && win.roomJID === roomJID) {
+        win.messages = win.messages.filter(
           (message) => message.id !== messageId
         );
       }
@@ -719,28 +800,24 @@ const roomsStore = createSlice({
       action: PayloadAction<ReactionAction | undefined>
     ) => {
       const { roomJID, messageId, reactions, from, data } = action.payload;
+      if (!isSafeKey(roomJID) || !from) return;
+      const fromId = from.split('@')[0];
+      // `fromId` becomes a property name on the message's reaction map.
+      if (!isSafeKey(fromId)) return;
 
-      if (state.rooms[roomJID]) {
-        state.rooms[roomJID].messages.map((message) => {
-          if (message.id === messageId) {
-            if (from) {
-              if (!message.reaction) {
-                message.reaction = {};
-              }
-
-              const fromId = from.split('@')[0];
-              if (reactions.length === 0) {
-                delete message.reaction[fromId];
-              } else {
-                message.reaction[fromId] = {
-                  emoji: reactions,
-                  data: data,
-                };
-              }
-            }
-          }
-        });
-      }
+      forEachMessageCopy(state, roomJID, messageId, (message) => {
+        if (!message.reaction) {
+          message.reaction = {};
+        }
+        if (reactions.length === 0) {
+          delete message.reaction[fromId];
+        } else {
+          message.reaction[fromId] = {
+            emoji: reactions,
+            data: data,
+          };
+        }
+      });
     },
     // The send-failure watchdog gave up waiting for the MUC echo. This only
     // flips a DISPLAY flag - the message keeps its id and stays `pending`,
@@ -751,13 +828,17 @@ const roomsStore = createSlice({
       action: PayloadAction<{ roomJID: string; messageId: string }>
     ) {
       const { roomJID, messageId } = action.payload;
-      const message = state.rooms[roomJID]?.messages?.find(
-        (msg) => msg.id === messageId || msg.xmppId === messageId
-      );
       // No entry means the user deleted it, or the echo already collapsed
       // it into the server copy - either way there is nothing to fail.
-      if (!message || message.pending === false) return;
-      message.failed = true;
+      forEachMessageCopy(
+        state,
+        roomJID,
+        (msg) => msg.id === messageId || msg.xmppId === messageId,
+        (message) => {
+          if (message.pending === false) return;
+          message.failed = true;
+        }
+      );
     },
     // Retry: put the message back into the sending state under its ORIGINAL
     // id, so the retry send and any late echo of the first attempt land on
@@ -767,12 +848,15 @@ const roomsStore = createSlice({
       action: PayloadAction<{ roomJID: string; messageId: string }>
     ) {
       const { roomJID, messageId } = action.payload;
-      const message = state.rooms[roomJID]?.messages?.find(
-        (msg) => msg.id === messageId || msg.xmppId === messageId
+      forEachMessageCopy(
+        state,
+        roomJID,
+        (msg) => msg.id === messageId || msg.xmppId === messageId,
+        (message) => {
+          message.failed = false;
+          message.pending = true;
+        }
       );
-      if (!message) return;
-      message.failed = false;
-      message.pending = true;
     },
     setEditAction: (state, action: PayloadAction<EditAction | undefined>) => {
       const { isEdit } = action.payload;
@@ -808,21 +892,19 @@ const roomsStore = createSlice({
       }>
     ) {
       const { roomJID, messageId, text, isEdited = true } = action.payload;
-      const message = state.rooms[roomJID]?.messages.find(
-        (msg) => msg.id === messageId
-      );
-      if (!message) return;
-      message.body = text;
-      message.isEdited = isEdited;
-      // The cached translation was computed for the OLD body, and the edit
-      // relay (editMessage.xmpp.ts) carries no re-translation - so a stale
-      // entry would render as if it were a translation of text that no
-      // longer exists. `translations` is deliberately not persisted and
-      // re-syncs from the server on room open (see PERSISTED_MESSAGE_FIELDS
-      // in roomStore/index.ts), so dropping it here just means the reader
-      // sees the plain (correct) new body until the next resync instead of
-      // a mismatched one.
-      delete message.translations;
+      forEachMessageCopy(state, roomJID, messageId, (message) => {
+        message.body = text;
+        message.isEdited = isEdited;
+        // The cached translation was computed for the OLD body, and the edit
+        // relay (editMessage.xmpp.ts) carries no re-translation - so a stale
+        // entry would render as if it were a translation of text that no
+        // longer exists. `translations` is deliberately not persisted and
+        // re-syncs from the server on room open (see PERSISTED_MESSAGE_FIELDS
+        // in roomStore/index.ts), so dropping it here just means the reader
+        // sees the plain (correct) new body until the next resync instead of
+        // a mismatched one.
+        delete message.translations;
+      });
     },
     // Caches a single on-demand translation (manual mode's "Translate"
     // click, see MessageTranslate.tsx) onto the message it belongs to,
@@ -849,16 +931,16 @@ const roomsStore = createSlice({
       }>
     ) {
       const { roomJID, messageId, locale, entry } = action.payload;
-      const message = state.rooms[roomJID]?.messages.find(
-        (msg) => msg.id === messageId
-      );
-      if (!message) return;
-      if (!message.translations) message.translations = {};
-      message.translations[locale] = entry;
+      if (!isSafeKey(locale)) return;
+      forEachMessageCopy(state, roomJID, messageId, (message) => {
+        if (!message.translations) message.translations = {};
+        message.translations[locale] = entry;
+      });
     },
     addRoomMessage(state, action: PayloadAction<AddRoomMessageAction>) {
       const { roomJID, message, start } = action.payload;
 
+      if (!isSafeKey(roomJID)) return;
       if (!message?.body) return;
       // Call signaling broadcasts ("call-token", "call-state", etc.)
       // sometimes slip past the live XMPP filter (e.g. MAM history,
@@ -902,6 +984,20 @@ const roomsStore = createSlice({
           if (merged !== existing) {
             list[existingCallIdx] = merged;
           }
+          const win = state.jumpWindow;
+          if (win && win.roomJID === roomJID) {
+            const wi = win.messages.findIndex(
+              (msg) => msg.callLog?.callId === incomingCallLog.callId
+            );
+            if (wi !== -1) {
+              const wExisting = win.messages[wi];
+              const wMerged = mergeCallLogEntries(
+                wExisting,
+                message as IMessage
+              );
+              if (wMerged !== wExisting) win.messages[wi] = wMerged;
+            }
+          }
           return;
         }
       }
@@ -924,6 +1020,23 @@ const roomsStore = createSlice({
           { ...roomMessages[existingIndex] },
           { ...message, pending: false, failed: false }
         );
+        // Same reconciliation on the jump window's copy, so a message the
+        // reader is looking at there flips from "sending" to delivered too.
+        const win = state.jumpWindow;
+        if (win && win.roomJID === roomJID) {
+          const wi = win.messages.findIndex(
+            (msg) =>
+              msg.id === message.id ||
+              (message.xmppId && msg.id === message.xmppId) ||
+              (msg.xmppId && msg.xmppId === message.id)
+          );
+          if (wi !== -1) {
+            win.messages[wi] = deepMerge(
+              { ...win.messages[wi] },
+              { ...message, pending: false, failed: false }
+            );
+          }
+        }
         return;
       }
 
@@ -969,6 +1082,40 @@ const roomsStore = createSlice({
         );
       }
 
+      // A reader parked at the LIVE END of a jump window (hasNewer false: the
+      // window already reaches the tail) must see what arrives next, or the
+      // window would silently go stale while the live list moves on. The
+      // message is by definition the newest, so it is appended as-is (the
+      // window's id-based sort is not safe for client-uuid ids). While
+      // hasNewer is true the window is not adjacent to the tail, and the
+      // message must wait in room.messages until the reader returns to live.
+      const winForNew = state.jumpWindow;
+      if (
+        winForNew &&
+        winForNew.roomJID === roomJID &&
+        !winForNew.hasNewer &&
+        !start &&
+        winForNew.messages.length > 0 &&
+        !winForNew.messages.some(
+          (msg) =>
+            msg.id === updMessage.id ||
+            (updMessage.xmppId && msg.id === updMessage.xmppId) ||
+            (msg.xmppId && msg.xmppId === updMessage.id)
+        )
+      ) {
+        winForNew.messages.push({ ...updMessage });
+        if (winForNew.messages.length > JUMP_WINDOW_MAX_MESSAGES) {
+          winForNew.messages = winForNew.messages.slice(
+            -JUMP_WINDOW_MAX_MESSAGES
+          );
+          const oldest = Number(winForNew.messages[0].id);
+          winForNew.olderCursor = Number.isFinite(oldest)
+            ? oldest
+            : winForNew.olderCursor;
+          winForNew.hasOlder = true;
+        }
+      }
+
       // insertMessageWithDelimiter already places the message in order, so a
       // full O(n log n) re-sort is only needed when something is actually out
       // of order (rare: e.g. server echo with a corrected archive id).
@@ -999,6 +1146,8 @@ const roomsStore = createSlice({
       // and the walk can't change anything.
       let hasNameChanges = false;
       newUsers.forEach((user) => {
+        // xmppUsername is a property name on usersSet.
+        if (!isSafeKey(user?.xmppUsername)) return;
         const existing = state.usersSet[user.xmppUsername];
         if (
           !existing ||
@@ -1089,7 +1238,7 @@ const roomsStore = createSlice({
       }>
     ) {
       const { chatJID, composing, composingList } = action.payload;
-      if (!state.rooms[chatJID]) {
+      if (!isSafeKey(chatJID) || !state.rooms[chatJID]) {
         return;
       }
       state.rooms[chatJID].composing = composing;
@@ -1104,7 +1253,7 @@ const roomsStore = createSlice({
       }>
     ) => {
       const { chatJID, loading, loadingText } = action.payload;
-      if (chatJID && state.rooms?.[chatJID]) {
+      if (isSafeKey(chatJID) && state.rooms?.[chatJID]) {
         state.rooms[chatJID].isLoading = loading;
       }
       if (!chatJID) {
@@ -1119,7 +1268,7 @@ const roomsStore = createSlice({
       action: PayloadAction<{ chatJID: string; timestamp: number }>
     ) => {
       const { chatJID, timestamp } = action.payload;
-      if (state.rooms[chatJID]) {
+      if (isSafeKey(chatJID) && state.rooms[chatJID]) {
         const previousLastViewed = getTimestampFromUnknown(
           state.rooms[chatJID].lastViewedTimestamp
         );
@@ -1184,6 +1333,59 @@ const roomsStore = createSlice({
     clearArchivedMessage: (state) => {
       state.archivedMessage = null;
     },
+    setJumpWindow: (state, action: PayloadAction<JumpWindow>) => {
+      state.jumpWindow = {
+        ...action.payload,
+        messages: mergeWindowMessages(action.payload.messages, []),
+      };
+    },
+    prependJumpWindowMessages: (
+      state,
+      action: PayloadAction<{
+        roomJID: string;
+        messages: IMessage[];
+        olderCursor: number | null;
+        hasOlder: boolean;
+      }>
+    ) => {
+      const win = state.jumpWindow;
+      if (!win || win.roomJID !== action.payload.roomJID) return;
+      win.messages = mergeWindowMessages(action.payload.messages, win.messages);
+      win.olderCursor = action.payload.olderCursor;
+      win.hasOlder = action.payload.hasOlder;
+      if (win.messages.length > JUMP_WINDOW_MAX_MESSAGES) {
+        // Reader is going up: drop the far (newest) side and page it again if
+        // they come back down.
+        win.messages = win.messages.slice(0, JUMP_WINDOW_MAX_MESSAGES);
+        const newest = Number(win.messages[win.messages.length - 1].id);
+        win.newerCursor = Number.isFinite(newest) ? newest : win.newerCursor;
+        win.hasNewer = true;
+      }
+    },
+    appendJumpWindowMessages: (
+      state,
+      action: PayloadAction<{
+        roomJID: string;
+        messages: IMessage[];
+        newerCursor: number | null;
+        hasNewer: boolean;
+      }>
+    ) => {
+      const win = state.jumpWindow;
+      if (!win || win.roomJID !== action.payload.roomJID) return;
+      win.messages = mergeWindowMessages(win.messages, action.payload.messages);
+      win.newerCursor = action.payload.newerCursor;
+      win.hasNewer = action.payload.hasNewer;
+      if (win.messages.length > JUMP_WINDOW_MAX_MESSAGES) {
+        win.messages = win.messages.slice(-JUMP_WINDOW_MAX_MESSAGES);
+        const oldest = Number(win.messages[0].id);
+        win.olderCursor = Number.isFinite(oldest) ? oldest : win.olderCursor;
+        win.hasOlder = true;
+      }
+    },
+    clearJumpWindow: (state) => {
+      state.jumpWindow = null;
+    },
     setJoiningRoom: (state, action: PayloadAction<string>) => {
       state.joiningRoomJID = action.payload || null;
     },
@@ -1204,7 +1406,7 @@ const roomsStore = createSlice({
       action: PayloadAction<{ chatJID: string; role: string }>
     ) => {
       const { chatJID, role } = action.payload;
-      if (state.rooms[chatJID]) {
+      if (isSafeKey(chatJID) && state.rooms[chatJID]) {
         state.rooms[chatJID].role = role;
       }
     },
@@ -1213,7 +1415,7 @@ const roomsStore = createSlice({
       action: PayloadAction<{ value: boolean; chatJID?: string }>
     ) => {
       const { value, chatJID } = action.payload;
-      if (chatJID) {
+      if (isSafeKey(chatJID) && state.rooms[chatJID]) {
         state.rooms[chatJID].noMessages = value;
       }
     },
@@ -1229,7 +1431,7 @@ const roomsStore = createSlice({
       action: PayloadAction<{ roomJID: string; xmppUsername: string }>
     ) => {
       const { roomJID, xmppUsername } = action.payload;
-      if (!roomJID || !xmppUsername) return;
+      if (!isSafeKey(roomJID) || !xmppUsername) return;
       const list =
         state.presenceByRoom[roomJID] ?? (state.presenceByRoom[roomJID] = []);
       if (!list.includes(xmppUsername)) list.push(xmppUsername);
@@ -1239,6 +1441,7 @@ const roomsStore = createSlice({
       action: PayloadAction<{ roomJID: string; xmppUsername: string }>
     ) => {
       const { roomJID, xmppUsername } = action.payload;
+      if (!isSafeKey(roomJID)) return;
       const list = state.presenceByRoom[roomJID];
       if (list) {
         state.presenceByRoom[roomJID] = list.filter((u) => u !== xmppUsername);
@@ -1257,6 +1460,7 @@ const roomsStore = createSlice({
       // Half-typed messages are user content: logging out must not leave
       // them behind for whoever logs in next.
       state.drafts = {};
+      state.jumpWindow = null;
       // Reset the rooms-load latch: without this, the second login of a
       // session would see roomsLoadedOnce still true from the first one and
       // show the "No room" CTA immediately, before the new account's own
@@ -1269,24 +1473,31 @@ const roomsStore = createSlice({
       action: PayloadAction<{ id: string; chatJID: string }>
     ) => {
       const { id, chatJID } = action.payload;
+      if (!isSafeKey(chatJID) || !state.rooms[chatJID]) return;
 
-      state.rooms[chatJID].messages.map((message) => {
-        if (message.id === id) {
-          message.activeMessage = true;
-        } else {
-          message.activeMessage = false;
-        }
-      });
+      const flag = (message: IMessage) => {
+        message.activeMessage = message.id === id;
+      };
+      state.rooms[chatJID].messages.forEach(flag);
+      if (state.jumpWindow?.roomJID === chatJID) {
+        state.jumpWindow.messages.forEach(flag);
+      }
     },
     setCloseActiveMessage: (
       state,
       action: PayloadAction<{ chatJID: string }>
     ) => {
       const { chatJID } = action.payload;
+      if (!isSafeKey(chatJID) || !state.rooms[chatJID]) return;
 
-      state.rooms[chatJID].messages.map((message) => {
+      state.rooms[chatJID].messages.forEach((message) => {
         message.activeMessage = false;
       });
+      if (state.jumpWindow?.roomJID === chatJID) {
+        state.jumpWindow.messages.forEach((message) => {
+          message.activeMessage = false;
+        });
+      }
     },
     addRoomFromApi: (state, action: PayloadAction<{ room: IRoom }>) => {
       const { room } = action.payload;
@@ -1401,6 +1612,7 @@ const roomsStore = createSlice({
       }>
     ) => {
       const { jid, status } = action.payload;
+      if (!isSafeKey(jid)) return;
       const subscribedRooms = getNormalizedSubscribedRooms(
         state.subscribedRooms
       );
@@ -1431,6 +1643,7 @@ const roomsStore = createSlice({
       action: PayloadAction<{ jid: string; muted: boolean | undefined }>
     ) => {
       const { jid, muted } = action.payload;
+      if (!isSafeKey(jid)) return;
       const room = state.rooms[jid];
       if (!room) return;
       if (muted === undefined) {
@@ -1444,6 +1657,8 @@ const roomsStore = createSlice({
 
 function deepMerge(target: any, source: any): any {
   for (const key in source) {
+    // Never walk into the prototype chain through attacker-shaped keys.
+    if (!isSafeKey(key)) continue;
     if (
       source[key] &&
       typeof source[key] === 'object' &&
@@ -1512,6 +1727,10 @@ export const {
   clearPendingJump,
   showArchivedMessage,
   clearArchivedMessage,
+  setJumpWindow,
+  prependJumpWindowMessages,
+  appendJumpWindowMessages,
+  clearJumpWindow,
   setJoiningRoom,
   clearJoiningRoom,
   setCurrentRoom,

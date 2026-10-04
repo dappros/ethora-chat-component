@@ -494,6 +494,7 @@ const Message: React.FC<MessageProps> = forwardRef<
           </CustomMessagePhotoContainer>
         )}
         <CustomMessageBubble
+          data-ethora-bubble=""
           $deleted={message.isDeleted}
           $isUser={isUser}
           onContextMenu={

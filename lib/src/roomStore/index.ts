@@ -17,6 +17,7 @@ import { newMessageMidlleware } from './Middleware/newMessageMidlleware';
 import { logoutMiddleware } from './Middleware/logoutMiddleware';
 import { sessionEncryptTransform } from './persistEncryption';
 import { reactionsMiddleware } from './Middleware/reactionsMiddleware';
+import { jumpThreadMiddleware } from './Middleware/jumpThreadMiddleware';
 import { ETHORA_CHAT_COMPONENT_VERSION } from '../version';
 import { sanitizeUserForPersistentStorage } from '../helpers/authStorage';
 import { MAX_DRAFT_LENGTH, MAX_PERSISTED_DRAFTS } from './roomsSlice';
@@ -584,6 +585,9 @@ const roomsPersistConfig = {
     // A one-shot request for this page view; restoring it would scroll a
     // freshly loaded page to a message the user asked for last session.
     'pendingJump',
+    // A transient slice of archive around a jump target; it is not part of
+    // the room's contiguous history and must never come back after a reload.
+    'jumpWindow',
     // In-flight join of this page view only; a stale value would show a
     // loader for a join nobody is running.
     'joiningRoomJID',
@@ -649,7 +653,8 @@ export const store = configureStore({
       .concat(unreadMiddleware)
       .concat(newMessageMidlleware)
       .concat(logoutMiddleware)
-      .concat(reactionsMiddleware),
+      .concat(reactionsMiddleware)
+      .concat(jumpThreadMiddleware),
   // .concat(testMiddleware)
   // .concat(debugMiddleware)
   // .concat(actionLoggerMiddleware),

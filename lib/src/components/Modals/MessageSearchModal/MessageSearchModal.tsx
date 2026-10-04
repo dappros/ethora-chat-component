@@ -19,7 +19,11 @@ import SideDrawer, {
   DrawerSearchBar,
   DrawerSearchInput,
 } from '../SideDrawer/SideDrawer';
-import { MessageHitList, useMessageHitActions } from './MessageHitResults';
+import {
+  MessageHitList,
+  SecondaryPillButton,
+  useMessageHitActions,
+} from './MessageHitResults';
 import {
   dayEndISO,
   dayStartISO,
@@ -194,24 +198,6 @@ const ClearLink = styled.button`
 const ResultsMeta = styled.div`
   font-size: var(--ethora-font-size-xs, 12px);
   color: var(--ethora-color-text-muted, #6c6c6c);
-`;
-
-const MoreButton = styled.button`
-  align-self: center;
-  margin-top: var(--ethora-space-2, 8px);
-  padding: 6px 14px;
-  border: 1px solid var(--ethora-color-border, #e6e8ec);
-  border-radius: var(--ethora-radius-full, 999px);
-  background: transparent;
-  color: var(--ethora-color-text-secondary, #5a5f66);
-  font: inherit;
-  font-size: var(--ethora-font-size-sm, 14px);
-  cursor: pointer;
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: default;
-  }
 `;
 
 const MessageSearchModal: React.FC<MessageSearchModalProps> = ({
@@ -470,7 +456,7 @@ const MessageSearchModal: React.FC<MessageSearchModalProps> = ({
               onOpen={open}
             />
             {search.hasMore && (
-              <MoreButton
+              <SecondaryPillButton
                 type="button"
                 onClick={search.loadMore}
                 disabled={search.status === 'loadingMore'}
@@ -478,7 +464,7 @@ const MessageSearchModal: React.FC<MessageSearchModalProps> = ({
                 {search.status === 'loadingMore'
                   ? t('search.messages.searching')
                   : t('search.messages.loadMore')}
-              </MoreButton>
+              </SecondaryPillButton>
             )}
           </>
         )}

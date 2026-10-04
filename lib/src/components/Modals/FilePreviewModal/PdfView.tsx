@@ -106,7 +106,7 @@ const PdfViewer: React.FC<PdfViewerProps> = ({ pdfUrl }) => {
     setPageCount(0);
 
     (async () => {
-      const pdfjs = await loadPdfjs(config?.pdfPreview?.workerSrc);
+      const pdfjs = await loadPdfjs(config?.pdfPreview?.workerSrc, config?.pdfPreview?.libUrl);
       if (cancelled) return;
       if (!pdfjs || !pdfUrl) {
         setStatus('error');
@@ -139,7 +139,7 @@ const PdfViewer: React.FC<PdfViewerProps> = ({ pdfUrl }) => {
       documentRef.current = null;
       loadingTask?.destroy?.().catch(() => undefined);
     };
-  }, [pdfUrl, config?.pdfPreview?.workerSrc]);
+  }, [pdfUrl, config?.pdfPreview?.workerSrc, config?.pdfPreview?.libUrl]);
 
   useEffect(() => {
     const document = documentRef.current;

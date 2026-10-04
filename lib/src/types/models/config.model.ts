@@ -185,6 +185,13 @@ export interface IConfig {
      * thumbnails, worth overriding if your users open large documents.
      */
     workerSrc?: string;
+    /**
+     * URL of a pdf.js ES module build to load at runtime instead of the copy
+     * bundled with the component. Pair it with `workerSrc`. For hosts that
+     * ship the component as one self-contained script and do not want 1.7 MB
+     * of pdf.js in it.
+     */
+    libUrl?: string;
     /** Documents above this are not auto-rendered. Default 25. */
     maxFileSizeMb?: number;
   };
@@ -509,9 +516,17 @@ export interface IConfig {
    */
   disableUserCount?: boolean;
   /**
-   * Hide the "Search messages" button in the chat header (and so the search
-   * panel). Search is also hidden when `appId` is not set, since the archive
-   * it queries is scoped by app.
+   * Opt in to message search: the "Search messages" button in the chat header
+   * and profile panel, the Ctrl/Cmd+F shortcut inside the chat, and message
+   * matches under the chat-list search box. Off by default. Needs `appId`
+   * (the archive it queries is scoped by app) and a backend that serves
+   * `GET /v2/apps/{appId}/messages/search`.
+   */
+  enableMessageSearch?: boolean;
+  /**
+   * @deprecated Search is off unless `enableMessageSearch` is set. Kept so
+   * hosts that already pass `disableMessageSearch: true` stay off; it wins
+   * over `enableMessageSearch`.
    */
   disableMessageSearch?: boolean;
   /**
