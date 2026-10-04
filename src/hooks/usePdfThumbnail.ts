@@ -22,6 +22,7 @@ interface UsePdfThumbnailParams {
   maxBytes?: number;
   sizeInBytes?: number;
   workerSrc?: string;
+  libUrl?: string;
 }
 
 interface UsePdfThumbnailResult {
@@ -82,6 +83,7 @@ export const usePdfThumbnail = ({
   maxBytes = DEFAULT_MAX_BYTES,
   sizeInBytes,
   workerSrc,
+  libUrl,
 }: UsePdfThumbnailParams): UsePdfThumbnailResult => {
   const [status, setStatus] = useState<PdfThumbnailStatus>('idle');
   const [thumbnailUrl, setThumbnailUrl] = useState<string | undefined>();
@@ -134,7 +136,7 @@ export const usePdfThumbnail = ({
     const run = async () => {
       setStatus('loading');
 
-      const pdfjs = await loadPdfjs(workerSrc);
+      const pdfjs = await loadPdfjs(workerSrc, libUrl);
       if (cancelled) return;
       if (!pdfjs) {
         setStatus('error');
@@ -220,7 +222,7 @@ export const usePdfThumbnail = ({
     width,
     maxBytes,
     sizeInBytes,
-    workerSrc,
+    workerSrc, libUrl,
     attempt,
     forced,
     publishThumbnail,

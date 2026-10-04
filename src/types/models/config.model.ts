@@ -185,6 +185,13 @@ export interface IConfig {
      * thumbnails, worth overriding if your users open large documents.
      */
     workerSrc?: string;
+    /**
+     * URL of a pdf.js ES module build to load at runtime instead of the copy
+     * bundled with the component. Pair it with `workerSrc`. For hosts that
+     * ship the component as one self-contained script and do not want 1.7 MB
+     * of pdf.js in it.
+     */
+    libUrl?: string;
     /** Documents above this are not auto-rendered. Default 25. */
     maxFileSizeMb?: number;
   };
