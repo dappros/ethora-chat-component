@@ -24,6 +24,8 @@ const makeDrainableClient = () => {
   const instance: any = Object.create(XmppClient.prototype);
   instance.pendingSendById = new Map();
   instance.inFlightIds = new Set();
+  instance.lastSentAtById = new Map();
+  instance.sessionOnlineAt = 0;
   instance.sendMessage = vi.fn(async () => true);
   instance.sendTextMessageWithTranslateTagStanza = vi.fn(async () => true);
   return instance;
@@ -147,6 +149,35 @@ describe('drainHeap - the reconnect auto-resend', () => {
     await drain(client);
 
     expect(client.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('skips a message the queue already sent on this connection whose echo is still in flight', async () => {
+    // The widget case: type while still connecting. On 'online' the queue
+    // flush sends the message and clears its pending entry; the drain runs
+    // next in the same handler and used to send it again under the same id.
+    const instance = makeDrainableClient();
+    seedRoom();
+    seedUnsent('sent-this-session');
+    instance.sessionOnlineAt = Date.now() - 1000;
+    instance.lastSentAtById.set('sent-this-session', Date.now() - 2);
+
+    await drain(instance);
+
+    expect(instance.sendMessage).not.toHaveBeenCalled();
+    const heap = (store.getState() as any).roomHeapSlice.messageHeap;
+    expect(heap.some((m: any) => m.id === 'sent-this-session')).toBe(true);
+  });
+
+  it('still re-sends a message whose send predates the reconnect', async () => {
+    const instance = makeDrainableClient();
+    seedRoom();
+    seedUnsent('sent-before-drop');
+    instance.lastSentAtById.set('sent-before-drop', Date.now() - 5000);
+    instance.sessionOnlineAt = Date.now() - 1000;
+
+    await drain(instance);
+
+    expect(instance.sendMessage).toHaveBeenCalledTimes(1);
   });
 
   it('skips a message whose echo already landed', async () => {
