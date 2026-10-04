@@ -17,6 +17,15 @@ import { IMessage } from '../../types/types';
 import { HIGHLIGHT_MS, MESSAGE_HIGHLIGHT_CLASS } from '../../styles/classNames';
 import { useOptionalToast } from '../../context/ToastContext';
 import { useT } from '../../i18n/useT';
+import {
+  CONTENT_MATCH_WINDOW_MS,
+  JumpContent,
+} from '../../helpers/jumpWindow';
+import {
+  ownerThreadFor,
+  replyParentId,
+  useJumpThread,
+} from '../../helpers/jumpThread';
 
 // How far back a jump will page before giving up, and how long a request may
 // stay alive at all (a room that never finishes opening must not leave one
@@ -36,10 +45,13 @@ const WINDOW_MARGIN = 15;
 // re-merging a thousand rows to reach it is what made a far jump lag.
 export const NEAR_LIVE_MESSAGES = 300;
 
-// How far apart the archive's timestamp and the transcript's may be for the
-// same message. They are recorded by different components, so they are not
-// identical, but never more than a moment apart.
-const CONTENT_MATCH_WINDOW_MS = 5000;
+// A jump into a room that is still opening waits this long for its live list
+// before it stops waiting for it and asks the archive directly.
+const ROOM_OPENING_GRACE_MS = 4000;
+// Pause between checks while waiting for a room that is still opening, and how
+// many times a window request that could not be asked is repeated meanwhile.
+const ROOM_OPENING_POLL_MS = 700;
+const MAX_WINDOW_RETRIES = 6;
 
 /**
  * Index of the message a jump names.
@@ -131,6 +143,29 @@ interface Options {
    * where windows do not apply (threads); the paging path is used then.
    */
   fetchWindow?: (jump: PendingJump) => Promise<WindowFetchResult>;
+  /**
+   * Which list this instance is. A jump is fulfilled by exactly one list: the
+   * main list, or the thread its target is a reply in. The other instances
+   * stay inert for it, so one of them cannot give up (and show the archived
+   * card) while the owner is still working.
+   */
+  scope?: 'main' | { threadId: string };
+  /**
+   * The room's messages BEFORE the main list's filter (which hides thread
+   * replies). Lets the main list recognise a target that is a thread reply.
+   */
+  allMessages?: IMessage[];
+  /**
+   * Opens the thread a reply target belongs to (main list only). Resolves true
+   * when the thread is open and owns the jump from now on.
+   */
+  resolveReply?: (jump: PendingJump, reply: IMessage) => Promise<boolean>;
+  /**
+   * The room is still opening (joining, loading its first history). While it
+   * is, a request that cannot be answered yet is waited out, not counted as a
+   * failure: the card is for "the server answered and the message is absent".
+   */
+  roomOpening?: boolean;
 }
 
 /**
@@ -155,12 +190,23 @@ export function useJumpToMessage({
   isUserScrolledUpRef,
   jumpWindowActive = false,
   fetchWindow,
+  scope = 'main',
+  allMessages,
+  resolveReply,
+  roomOpening = false,
 }: Options) {
   const dispatch = useDispatch();
   const t = useT();
   const toast = useOptionalToast();
   const showToast = toast?.showToast;
   const jump = useSelector((state: RootState) => state.rooms.pendingJump);
+  const jumpThread = useJumpThread();
+  const ownerThreadId = ownerThreadFor(jumpThread, jump?.at);
+  const scopeThreadId = scope === 'main' ? null : scope.threadId;
+  const isOwner =
+    scopeThreadId === null
+      ? ownerThreadId === null
+      : ownerThreadId === scopeThreadId;
 
   const attemptsRef = useRef(0);
   const loadingRef = useRef(false);
@@ -174,6 +220,9 @@ export function useJumpToMessage({
     fetchOlderPage,
     setRenderWindow,
     fetchWindow,
+    resolveReply,
+    allMessages,
+    roomOpening,
   });
   latest.current = {
     t,
@@ -181,7 +230,12 @@ export function useJumpToMessage({
     fetchOlderPage,
     setRenderWindow,
     fetchWindow,
+    resolveReply,
+    allMessages,
+    roomOpening,
   };
+  const replyResolvedAtRef = useRef<number | null>(null);
+  const windowRetriesRef = useRef(0);
   // Per request: whether a window was already tried, and whether the server
   // said the target does not exist.
   const windowTriedAtRef = useRef<number | null>(null);
@@ -201,6 +255,7 @@ export function useJumpToMessage({
     frame?: number;
     settle?: ReturnType<typeof setTimeout>;
     clear?: ReturnType<typeof setTimeout>;
+    retry?: ReturnType<typeof setTimeout>;
   }>({});
   const [tick, setTick] = useState(0);
 
@@ -209,6 +264,7 @@ export function useJumpToMessage({
       const timers = timersRef.current;
       if (timers.frame) cancelAnimationFrame(timers.frame);
       if (timers.settle) clearTimeout(timers.settle);
+      if (timers.retry) clearTimeout(timers.retry);
       if (timers.clear) {
         clearTimeout(timers.clear);
         clearInterval(
@@ -225,10 +281,11 @@ export function useJumpToMessage({
     cursorRef.current = null;
     exhaustedRef.current = false;
     failuresRef.current = 0;
+    windowRetriesRef.current = 0;
   }, [jump?.at]);
 
   useEffect(() => {
-    if (!jump || jump.roomJID !== roomJID) return;
+    if (!jump || jump.roomJID !== roomJID || !isOwner) return;
     isUserScrolledUpRef.current = true;
 
     const finish = (reached: boolean) => {
@@ -258,10 +315,49 @@ export function useJumpToMessage({
       return;
     }
 
-    const index = findMessageIndex(messages, jump.ids, {
+    // Waiting on something the store will not announce (a room still opening):
+    // look again shortly. The TTL above bounds how long this can go on.
+    const recheckSoon = () => {
+      if (timersRef.current.retry) clearTimeout(timersRef.current.retry);
+      timersRef.current.retry = setTimeout(
+        () => setTick((value) => value + 1),
+        ROOM_OPENING_POLL_MS
+      );
+    };
+
+    const content: JumpContent = {
       createdAt: jump.createdAt,
       body: jump.body,
-    });
+    };
+
+    // A target that is a thread reply is not in this (main) list at all: it
+    // lives in its parent's thread. Open that thread, which takes the jump over.
+    if (
+      scopeThreadId === null &&
+      latest.current.resolveReply &&
+      replyResolvedAtRef.current !== jump.at
+    ) {
+      const pool = latest.current.allMessages ?? messages;
+      const rawIndex = findMessageIndex(pool, jump.ids, content);
+      const raw = rawIndex >= 0 ? pool[rawIndex] : null;
+      if (raw && replyParentId(raw)) {
+        replyResolvedAtRef.current = jump.at;
+        loadingRef.current = true;
+        const requestedAt = jump.at;
+        latest.current
+          .resolveReply(jump, raw)
+          .catch(() => false)
+          .then((opened) => {
+            loadingRef.current = false;
+            if (currentJumpAtRef.current !== requestedAt) return;
+            if (!opened) finish(false);
+            else setTick((value) => value + 1);
+          });
+        return;
+      }
+    }
+
+    const index = findMessageIndex(messages, jump.ids, content);
 
     const windowAvailable =
       Boolean(latest.current.fetchWindow) &&
@@ -351,8 +447,19 @@ export function useJumpToMessage({
     }
 
     // Not loaded, or loaded but far back. An empty list means the room is
-    // still opening; the TTL above bounds the wait.
-    if (messages.length === 0 || loadingRef.current) return;
+    // still opening: give its live list a moment (the target is usually in it),
+    // then ask the archive directly rather than wait for a history that can
+    // take ten seconds. The TTL above bounds all of it.
+    if (loadingRef.current) return;
+    if (
+      messages.length === 0 &&
+      (!latest.current.fetchWindow ||
+        (latest.current.roomOpening &&
+          Date.now() - jump.at < ROOM_OPENING_GRACE_MS))
+    ) {
+      recheckSoon();
+      return;
+    }
 
     if (windowMissingAtRef.current === jump.at && index < 0) {
       finish(false);
@@ -372,8 +479,25 @@ export function useJumpToMessage({
           loadingRef.current = false;
           if (currentJumpAtRef.current !== requestedAt) return;
           if (result === 'missing') windowMissingAtRef.current = requestedAt;
+          if (
+            result === 'unavailable' &&
+            latest.current.roomOpening &&
+            windowRetriesRef.current < MAX_WINDOW_RETRIES
+          ) {
+            // Could not ask yet (connection or room still coming up): ask
+            // again, instead of falling back to paging a room with no history.
+            windowRetriesRef.current += 1;
+            windowTriedAtRef.current = null;
+            recheckSoon();
+            return;
+          }
           setTick((value) => value + 1);
         });
+      return;
+    }
+
+    if (messages.length === 0) {
+      recheckSoon();
       return;
     }
 
@@ -405,6 +529,12 @@ export function useJumpToMessage({
       .then((page) => {
         loadingRef.current = false;
         if (!page.ok) {
+          // A room that is still opening cannot answer yet: that is not the
+          // history being unreachable, so it does not count.
+          if (latest.current.roomOpening) {
+            recheckSoon();
+            return;
+          }
           failuresRef.current += 1;
           if (failuresRef.current >= MAX_PAGE_FAILURES) {
             exhaustedRef.current = true;
@@ -430,6 +560,8 @@ export function useJumpToMessage({
     historyComplete,
     jumpWindowActive,
     tick,
+    isOwner,
+    scopeThreadId,
     containerRef,
     isUserScrolledUpRef,
     dispatch,

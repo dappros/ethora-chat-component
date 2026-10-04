@@ -1731,6 +1731,13 @@ export class XmppClient implements XmppClientInterface {
     timeoutMs = 10000,
     windowQuery?: {
       after?: number;
+      /**
+       * MAM time filter (ISO strings). With one and no before/after cursor the
+       * server answers with the FIRST page of the filtered range, oldest
+       * first, which is how a row with no archive id is located by its time.
+       */
+      start?: string;
+      end?: string;
       onFin: (fin: HistoryWindowFin) => void;
     }
   ): Promise<IMessage[] | undefined> {
@@ -1782,6 +1789,31 @@ export class XmppClient implements XmppClientInterface {
         xml(
           'query',
           { xmlns: 'urn:xmpp:mam:2', queryid: requestId },
+          windowQuery?.start || windowQuery?.end
+            ? xml(
+                'x',
+                { xmlns: 'jabber:x:data', type: 'submit' },
+                xml(
+                  'field',
+                  { var: 'FORM_TYPE', type: 'hidden' },
+                  xml('value', {}, 'urn:xmpp:mam:2')
+                ),
+                windowQuery.start
+                  ? xml(
+                      'field',
+                      { var: 'start' },
+                      xml('value', {}, windowQuery.start)
+                    )
+                  : null,
+                windowQuery.end
+                  ? xml(
+                      'field',
+                      { var: 'end' },
+                      xml('value', {}, windowQuery.end)
+                    )
+                  : null
+              )
+            : null,
           xml(
             'set',
             { xmlns: 'http://jabber.org/protocol/rsm' },
@@ -1790,7 +1822,9 @@ export class XmppClient implements XmppClientInterface {
               ? xml('after', {}, String(windowQuery.after))
               : before
                 ? xml('before', {}, before.toString())
-                : xml('before')
+                : windowQuery?.start || windowQuery?.end
+                  ? null
+                  : xml('before')
           )
         )
       );
@@ -2346,7 +2380,7 @@ export class XmppClient implements XmppClientInterface {
   getHistoryWindow = async (
     chatJID: string,
     max: number,
-    cursor: { before?: number; after?: number }
+    cursor: { before?: number; after?: number; start?: string; end?: string }
   ): Promise<HistoryWindowPage> => {
     const failed: HistoryWindowPage = {
       ok: false,
@@ -2365,6 +2399,8 @@ export class XmppClient implements XmppClientInterface {
       8000,
       {
         after: cursor.after,
+        start: cursor.start,
+        end: cursor.end,
         onFin: (value) => {
           finBox.value = value;
         },

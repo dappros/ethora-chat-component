@@ -39,6 +39,12 @@ import {
   loadNewerWindowPage,
   loadOlderWindowPage,
 } from '../../helpers/jumpWindow';
+import {
+  mergeById,
+  replyParentId,
+  useJumpThread,
+} from '../../helpers/jumpThread';
+import { openThreadForJump } from '../../helpers/openThreadForJump';
 import { useStickToBottom } from './useStickToBottom';
 import { useScrollAnchor } from './useScrollAnchor';
 import ArchivedMessageCard from './ArchivedMessageCard';
@@ -149,12 +155,33 @@ const MessageList = <TMessage extends IMessage>({
   // A short slice of archive around a far jump target, shown instead of the
   // live list until the reader returns to the latest messages. Not for threads.
   const jumpWindow = useSelector((state: RootState) => state.rooms.jumpWindow);
+  const joiningRoomJID = useSelector(
+    (state: RootState) => state.rooms.joiningRoomJID
+  );
   const windowActive = !isReply && jumpWindow?.roomJID === roomJID;
   const windowActiveRef = useRef(windowActive);
   windowActiveRef.current = windowActive;
-  const sourceMessages: IMessage[] = windowActive
-    ? jumpWindow.messages
-    : messages;
+  // A thread list also sees what a jump to one of its replies brought in (and
+  // any window on screen): those replies may be older than the live list.
+  const jumpThread = useJumpThread();
+  const threadExtras = useMemo(() => {
+    if (!isReply || !activeMessage) return null;
+    const fromWindow =
+      jumpWindow?.roomJID === roomJID ? jumpWindow.messages : [];
+    const fromJump =
+      jumpThread &&
+      jumpThread.roomJID === roomJID &&
+      jumpThread.parentId === String(activeMessage.id)
+        ? jumpThread.replies
+        : [];
+    if (fromWindow.length === 0 && fromJump.length === 0) return null;
+    return mergeById(fromWindow, fromJump);
+  }, [isReply, activeMessage?.id, jumpWindow, jumpThread, roomJID]);
+  const sourceMessages: IMessage[] = useMemo(() => {
+    if (windowActive) return jumpWindow.messages;
+    if (threadExtras) return mergeById(messages ?? [], threadExtras);
+    return messages;
+  }, [windowActive, jumpWindow, threadExtras, messages]);
   const [windowLoading, setWindowLoading] = useState<'older' | 'newer' | null>(
     null
   );
@@ -673,16 +700,48 @@ const MessageList = <TMessage extends IMessage>({
     }
   };
 
+  // A jump whose target is a thread reply opens the parent's thread (the main
+  // list never shows replies); the thread list then highlights the reply.
+  const resolveReply = useCallback(
+    (jump: PendingJump, reply: IMessage, nearby?: IMessage[]) =>
+      openThreadForJump({
+        client,
+        dispatch,
+        roomJID,
+        at: jump.at,
+        reply,
+        live: messages ?? [],
+        nearby,
+      }),
+    [client, dispatch, roomJID, messages]
+  );
+
   const fetchWindow = useCallback(
     async (jump: PendingJump): Promise<WindowFetchResult> => {
       if (isReply || !client?.getHistoryWindow) return 'unavailable';
-      const result = await loadJumpWindow(client, roomJID, jump.ids);
+      const result = await loadJumpWindow(client, roomJID, jump.ids, {
+        createdAt: jump.createdAt,
+        body: jump.body,
+      });
       if (result.status !== 'found') return result.status;
+      const target = result.window.messages.find(
+        (message) => String(message.id) === result.window.targetId
+      );
+      if (target && replyParentId(target)) {
+        // Not a main-list message: the window is only used to learn what the
+        // reply belongs to; it is not put on screen.
+        const opened = await resolveReply(
+          jump,
+          target,
+          result.window.messages
+        ).catch(() => false);
+        return opened ? 'found' : 'missing';
+      }
       isUserScrolledUp.current = true;
       dispatch(setJumpWindow(result.window));
       return 'found';
     },
-    [client, roomJID, isReply, dispatch]
+    [client, roomJID, isReply, dispatch, resolveReply]
   );
 
   useJumpToMessage({
@@ -696,6 +755,14 @@ const MessageList = <TMessage extends IMessage>({
     isUserScrolledUpRef: isUserScrolledUp,
     jumpWindowActive: windowActive,
     fetchWindow: isReply ? undefined : fetchWindow,
+    scope: isReply && activeMessage ? { threadId: String(activeMessage.id) } : 'main',
+    allMessages: sourceMessages,
+    resolveReply: isReply ? undefined : (jump, reply) => resolveReply(jump, reply),
+    roomOpening:
+      !isReply &&
+      (Boolean(loading) ||
+        joiningRoomJID === roomJID ||
+        (sourceMessages.length === 0 && !historyComplete)),
   });
 
   const scrollToBottom = useCallback((): void => {

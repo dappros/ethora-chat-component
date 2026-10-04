@@ -90,7 +90,7 @@ export interface XmppClientInterface {
   getHistoryWindow(
     chatJID: string,
     max: number,
-    cursor: { before?: number; after?: number }
+    cursor: { before?: number; after?: number; start?: string; end?: string }
   ): Promise<HistoryWindowPage>;
   promoteRoomHistory(roomJID: string): void;
   setActiveRoomJid(roomJID: string | null): void;
