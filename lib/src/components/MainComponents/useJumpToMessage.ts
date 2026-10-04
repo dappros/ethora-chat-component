@@ -22,17 +22,20 @@ import {
   JumpContent,
 } from '../../helpers/jumpWindow';
 import {
+  findMessageIndex,
+  JUMP_TTL_MS,
   ownerThreadFor,
   replyParentId,
   useJumpThread,
 } from '../../helpers/jumpThread';
+
+export { findMessageIndex };
 
 // How far back a jump will page before giving up, and how long a request may
 // stay alive at all (a room that never finishes opening must not leave one
 // armed to fire at some unrelated later moment).
 const MAX_HISTORY_PAGES = 40;
 const PAGE_SIZE = 100;
-const JUMP_TTL_MS = 60_000;
 // A page request that times out is retried this many times in a row before
 // the history is treated as unreachable.
 const MAX_PAGE_FAILURES = 3;
@@ -52,40 +55,6 @@ const ROOM_OPENING_GRACE_MS = 4000;
 // many times a window request that could not be asked is repeated meanwhile.
 const ROOM_OPENING_POLL_MS = 700;
 const MAX_WINDOW_RETRIES = 6;
-
-/**
- * Index of the message a jump names.
- *
- * By id first (message.id is the MAM stanza id for history, xmppId the client
- * message id). When the request has no id at all, which is common for archive
- * rows, by content: same text, sent within a few seconds of the same time.
- */
-export const findMessageIndex = (
-  messages: IMessage[],
-  ids: string[],
-  content?: { createdAt?: string; body?: string }
-): number => {
-  if (ids.length > 0) {
-    const byId = messages.findIndex(
-      (message) =>
-        ids.includes(String(message.id)) ||
-        (message.xmppId ? ids.includes(String(message.xmppId)) : false)
-    );
-    if (byId >= 0) return byId;
-  }
-
-  if (!content?.createdAt || !content.body) return -1;
-  const wanted = new Date(content.createdAt).getTime();
-  if (Number.isNaN(wanted)) return -1;
-  const body = content.body.trim();
-  return messages.findIndex((message) => {
-    if (String(message.body ?? '').trim() !== body) return false;
-    return (
-      Math.abs(new Date(message.date).getTime() - wanted) <=
-      CONTENT_MATCH_WINDOW_MS
-    );
-  });
-};
 
 /**
  * How the attempt to open a window around the target went:
@@ -311,7 +280,14 @@ export function useJumpToMessage({
     };
 
     if (Date.now() - jump.at > JUMP_TTL_MS) {
-      finish(false);
+      // Expired, but the message is in the live list: nothing is missing, so
+      // no "archived" card.
+      finish(
+        findMessageIndex(messages, jump.ids, {
+          createdAt: jump.createdAt,
+          body: jump.body,
+        }) >= 0
+      );
       return;
     }
 

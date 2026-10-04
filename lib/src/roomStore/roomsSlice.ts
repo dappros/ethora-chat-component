@@ -1424,6 +1424,7 @@ const roomsStore = createSlice({
       action: PayloadAction<{ roomJID: string | null }>
     ) => {
       const { roomJID } = action.payload;
+      if (roomJID !== null && !isSafeKey(roomJID)) return;
       state.activeRoomJID = roomJID;
     },
     setMemberOnline: (

@@ -1,6 +1,46 @@
 import { useSyncExternalStore } from 'react';
 import { IMessage } from '../types/types';
 import { parseMessageReference } from './parseMessageReference';
+import { CONTENT_MATCH_WINDOW_MS } from './jumpWindow';
+
+/** How long a jump request may stay pending before it is dropped. */
+export const JUMP_TTL_MS = 60_000;
+
+/**
+ * Index of the message a jump names.
+ *
+ * By id first (message.id is the MAM stanza id for history, xmppId the client
+ * message id). When the request has no id at all, which is common for archive
+ * rows, by content: same text, sent within a few seconds of the same time.
+ */
+export const findMessageIndex = (
+  messages: IMessage[],
+  ids: string[],
+  content?: { createdAt?: string; body?: string }
+): number => {
+  if (ids.length > 0) {
+    const byId = messages.findIndex(
+      (message) =>
+        ids.includes(String(message.id)) ||
+        (message.xmppId ? ids.includes(String(message.xmppId)) : false)
+    );
+    if (byId >= 0) return byId;
+  }
+
+  if (!content?.createdAt || !content.body) return -1;
+  const wanted = new Date(content.createdAt).getTime();
+  if (Number.isNaN(wanted)) return -1;
+  const body = content.body.trim();
+  return messages.findIndex((message) => {
+    if (String(message.body ?? '').trim() !== body) return false;
+    return (
+      Math.abs(new Date(message.date).getTime() - wanted) <=
+      CONTENT_MATCH_WINDOW_MS
+    );
+  });
+};
+
+
 
 /**
  * Where a jump to a thread REPLY lands, and the thread panel's parent message
