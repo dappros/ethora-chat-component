@@ -41,9 +41,11 @@ import { useXmppClient } from '../../context/xmppProvider';
 import ChatRoomItem from '../RoomComponents/ChatRoomItem';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { useT } from '../../i18n/useT';
+import { isMessageSearchEnabled } from '../../helpers/isMessageSearchEnabled';
 import { useMessageSearch } from '../Modals/MessageSearchModal/useMessageSearch';
 import {
   MessageHitList,
+  SecondaryPillButton,
   useMessageHitActions,
 } from '../Modals/MessageSearchModal/MessageHitResults';
 import { isRoomHidden } from '../../helpers/hiddenRooms';
@@ -295,8 +297,7 @@ const RoomList: React.FC<RoomListProps> = ({
   // The same box that filters chats by name also looks inside the messages:
   // typing "invoice" lists the chats called that AND the messages that say it.
   // Off wherever the message search itself is off.
-  const messageSearchEnabled =
-    Boolean(config?.appId) && !config?.disableMessageSearch;
+  const messageSearchEnabled = isMessageSearchEnabled(config);
   const messageSearch = useMessageSearch(
     messageSearchEnabled ? searchTerm : '',
     'all'
@@ -756,7 +757,12 @@ const RoomList: React.FC<RoomListProps> = ({
                       {messageSearch.items.length > 0 && (
                         <>
                           <MessageMatchesTitle>
-                            {t('search.messages.title')}
+                            <span>{t('search.messages.title')}</span>
+                            <span>
+                              {t('search.messages.count', {
+                                count: messageSearch.total,
+                              })}
+                            </span>
                           </MessageMatchesTitle>
                           <MessageHitList
                             hits={messageSearch.items}
@@ -765,13 +771,15 @@ const RoomList: React.FC<RoomListProps> = ({
                             onOpen={openMessageHit}
                           />
                           {messageSearch.hasMore && (
-                            <Button
-                              unstyled
+                            <SecondaryPillButton
+                              type="button"
                               onClick={messageSearch.loadMore}
                               disabled={messageSearch.status === 'loadingMore'}
                             >
-                              {t('search.messages.loadMore')}
-                            </Button>
+                              {messageSearch.status === 'loadingMore'
+                                ? t('search.messages.searching')
+                                : t('search.messages.loadMore')}
+                            </SecondaryPillButton>
                           )}
                         </>
                       )}
@@ -790,9 +798,12 @@ const RoomList: React.FC<RoomListProps> = ({
                       {messageSearch.status === 'error' && (
                         <MessageMatchesNote role="alert">
                           {t('search.messages.error')}{' '}
-                          <button type="button" onClick={messageSearch.retry}>
+                          <SecondaryPillButton
+                            type="button"
+                            onClick={messageSearch.retry}
+                          >
                             {t('search.messages.retry')}
-                          </button>
+                          </SecondaryPillButton>
                         </MessageMatchesNote>
                       )}
                     </MessageMatches>

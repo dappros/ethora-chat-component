@@ -119,4 +119,32 @@ describe('ChatHeader host customisation', () => {
       expect(screen.getByText('online')).toBeTruthy();
     });
   });
+
+  describe('message search entry point', () => {
+    const searchButton = () => screen.queryByLabelText('Search messages');
+
+    it('is hidden by default', () => {
+      renderHeader({ appId: 'app' });
+      expect(searchButton()).toBeNull();
+    });
+
+    it('shows with enableMessageSearch and an appId', () => {
+      renderHeader({ appId: 'app', enableMessageSearch: true });
+      expect(searchButton()).toBeTruthy();
+    });
+
+    it('stays hidden with enableMessageSearch but no appId', () => {
+      renderHeader({ enableMessageSearch: true });
+      expect(searchButton()).toBeNull();
+    });
+
+    it('stays hidden when disableMessageSearch is also set', () => {
+      renderHeader({
+        appId: 'app',
+        enableMessageSearch: true,
+        disableMessageSearch: true,
+      });
+      expect(searchButton()).toBeNull();
+    });
+  });
 });

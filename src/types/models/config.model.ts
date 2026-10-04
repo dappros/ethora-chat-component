@@ -509,9 +509,17 @@ export interface IConfig {
    */
   disableUserCount?: boolean;
   /**
-   * Hide the "Search messages" button in the chat header (and so the search
-   * panel). Search is also hidden when `appId` is not set, since the archive
-   * it queries is scoped by app.
+   * Opt in to message search: the "Search messages" button in the chat header
+   * and profile panel, the Ctrl/Cmd+F shortcut inside the chat, and message
+   * matches under the chat-list search box. Off by default. Needs `appId`
+   * (the archive it queries is scoped by app) and a backend that serves
+   * `GET /v2/apps/{appId}/messages/search`.
+   */
+  enableMessageSearch?: boolean;
+  /**
+   * @deprecated Search is off unless `enableMessageSearch` is set. Kept so
+   * hosts that already pass `disableMessageSearch: true` stay off; it wins
+   * over `enableMessageSearch`.
    */
   disableMessageSearch?: boolean;
   /**

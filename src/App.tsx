@@ -66,6 +66,7 @@ const DEV_AUTOLOGIN: Pick<IConfig, 'customLogin'> =
 const APP_CHAT_BASE_CONFIG: IConfig = {
   ...DEV_AUTOLOGIN,
   appId: '646cc8dc96d4a4dc8f7b2f2d',
+  enableMessageSearch: true,
   baseUrl: 'https://api.chat-qa.ethora.com',
   xmppSettings: {
     devServer: 'wss://xmpp.chat-qa.ethora.com/ws',
