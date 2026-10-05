@@ -46,6 +46,8 @@ import { getFileKind } from '../../helpers/fileKind';
 import { RootState, getActiveRoom } from '../../roomStore';
 import { useMentionComposer } from '../../hooks/useMentionComposer';
 import { MentionCandidate } from '../../helpers/mentions';
+import { isRoomMembersTruncated } from '../../helpers/roomUserCount';
+import { useRoomDirectory } from '../../hooks/useRoomDirectory';
 import MentionDropdown from '../InputComponents/MentionDropdown';
 import MentionPickerModal from '../InputComponents/MentionPickerModal';
 
@@ -177,10 +179,34 @@ const SendInput: React.FC<SendInputProps> = ({
   const selfUser = useSelector(
     (state: RootState) => state.chatSettingStore.user
   );
+  // Big room (usersCnt > loaded members): typing '@' loads the whole room
+  // directory once, in the background (never blocks typing); candidates are
+  // the known members plus whatever the directory has delivered so far.
+  const [mentionDirJid, setMentionDirJid] = useState<string | null>(null);
+  const membersTruncated = isRoomMembersTruncated(activeRoom);
+  const { members: directoryMembers, state: directoryState } = useRoomDirectory(
+    activeRoom?.jid,
+    membersTruncated && !!activeRoom?.jid && mentionDirJid === activeRoom.jid
+  );
+  const mentionDirLoading =
+    membersTruncated &&
+    !!activeRoom?.jid &&
+    mentionDirJid === activeRoom.jid &&
+    directoryState === 'loading';
   const roomMembers: RoomMember[] = useMemo(() => {
-    const members = Array.isArray(activeRoom?.members)
-      ? activeRoom.members
-      : [];
+    const known = Array.isArray(activeRoom?.members) ? activeRoom.members : [];
+    let members = known;
+    if (membersTruncated && directoryMembers.length > 0) {
+      const seen = new Set(
+        known.map((m) => String(m?.xmppUsername || '').split('@')[0])
+      );
+      members = [
+        ...known,
+        ...directoryMembers.filter(
+          (m) => !seen.has(String(m?.xmppUsername || '').split('@')[0])
+        ),
+      ];
+    }
     return members.map((m) => {
       const key = String(m?.xmppUsername || '');
       const localKey = key.split('@')[0];
@@ -192,13 +218,25 @@ const SendInput: React.FC<SendInputProps> = ({
         lastName: m.lastName || enriched.lastName || '',
       };
     });
-  }, [activeRoom?.members, usersSet]);
+  }, [activeRoom?.members, usersSet, membersTruncated, directoryMembers]);
 
   const mention = useMentionComposer({
     roomMembers,
     selfId: selfUser?.xmppUsername || (selfUser as any)?.id,
   });
   const mentionsEnabled = !disableMentions;
+  useEffect(() => {
+    if (!mentionsEnabled || !mention.isDropdownOpen || !membersTruncated) return;
+    if (activeRoom?.jid && mentionDirJid !== activeRoom.jid) {
+      setMentionDirJid(activeRoom.jid);
+    }
+  }, [
+    mentionsEnabled,
+    mention.isDropdownOpen,
+    membersTruncated,
+    activeRoom?.jid,
+    mentionDirJid,
+  ]);
 
   // `activeRoom.members` only gets populated by a live XMPP affiliation/
   // members-refresh event or by opening AddMembersModal/SelectUsersModal
@@ -972,6 +1010,7 @@ const SendInput: React.FC<SendInputProps> = ({
           onHoverIndex={mention.setHighlightedIndex}
           onSelect={applyMentionSelection}
           onShowAll={openMentionOverflow}
+          loading={mentionDirLoading}
         />
       )}
       {mentionsEnabled && mention.overflowOpen && (

@@ -1,4 +1,10 @@
 import React, { useMemo, useState } from 'react';
+import { dedupeMembers, memberKey } from '../../../helpers/dedupeMembers';
+import {
+  getRoomUserCount,
+  isRoomMembersTruncated,
+} from '../../../helpers/roomUserCount';
+import { useRoomDirectory } from '../../../hooks/useRoomDirectory';
 import SideDrawer, {
   DrawerCard,
   DrawerCardBody,
@@ -143,9 +149,23 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   // etc.), which re-rendered the entire modal on every such dispatch even
   // when none of it touched this room. Not depending on usersSet at all here
   // means this modal only re-renders when the room's own member list changes.
+  // Big rooms: /chats/my only returns the first 30 members (usersCnt is the
+  // true total). Opening the profile loads the whole room directory (once
+  // per room) and lists it after the known members, deduplicated.
+  const membersTruncated = isRoomMembersTruncated(activeRoom);
+  const { members: directoryMembers, state: directoryState } =
+    useRoomDirectory(activeRoom?.jid, membersTruncated);
+  const directoryLoading = membersTruncated && directoryState === 'loading';
+
   const enrichedMembers = useMemo(() => {
-    return Array.isArray(activeRoom?.members) ? activeRoom.members : [];
-  }, [activeRoom?.members]);
+    const known = Array.isArray(activeRoom?.members) ? activeRoom.members : [];
+    if (!membersTruncated || directoryMembers.length === 0) {
+      return dedupeMembers(known);
+    }
+    // Known members first, then the directory; unique by identity so no
+    // duplicate keys or inflated rows whatever the source repeats.
+    return dedupeMembers([...known, ...directoryMembers]);
+  }, [activeRoom?.members, membersTruncated, directoryMembers]);
 
   // The search box has to match against the ENRICHED name (a bare XMPP
   // affiliation entry usually has empty firstName/lastName - see the note
@@ -330,12 +350,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   }
 
   const memberCountLabel = (() => {
-    const displayCount =
-      Array.isArray(activeRoom.members) && activeRoom.members.length > 0
-        ? activeRoom.members.length
-        : typeof activeRoom.usersCnt === 'number' && activeRoom.usersCnt > 0
-          ? activeRoom.usersCnt
-          : 0;
+    const displayCount = getRoomUserCount(activeRoom);
     // Same thousands-separator convention the chat header uses for its own
     // user count (formatNumberWithCommas + the reader's UI locale), so
     // "3,510 users" in the header and the member count right next to it in
@@ -511,7 +526,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
             <DrawerList>
               {visibleMembers.map((user) => (
                 <ChatProfileMemberRow
-                  key={user.xmppUsername}
+                  key={memberKey(user) || user._id}
                   member={user}
                   isLast
                   disableClick={!!config?.disableChatInfo?.disableMembers}
@@ -527,6 +542,9 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                   onAvatarClick={handleUserAvatarClick}
                 />
               ))}
+              {directoryLoading && (
+                <DrawerLabel>{t('modal.chatProfile.membersLoadingAll')}</DrawerLabel>
+              )}
               {hasMoreMembers && (
                 <ShowMoreButton
                   type="button"
