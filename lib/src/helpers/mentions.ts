@@ -43,9 +43,16 @@ export const rankMentionCandidates = (
 
   const scored: { candidate: MentionCandidate; rank: number }[] = [];
 
+  const seenKeys = new Set<string>();
   for (const member of members) {
     const jid = memberJid(member);
     const localKey = jid.split('@')[0];
+    // Same person repeated by the source: list (and count) once.
+    const dedupeKey = localKey.toLowerCase();
+    if (dedupeKey) {
+      if (seenKeys.has(dedupeKey)) continue;
+      seenKeys.add(dedupeKey);
+    }
     if (selfKey && (localKey === selfKey || jid === selfId)) continue;
 
     const name = memberFullName(member);

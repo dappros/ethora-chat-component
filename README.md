@@ -295,6 +295,19 @@ If no `googleLogin`, no `jwtLogin`, no `userLogin`, and no `defaultLogin`, `Logi
 `setRoomJidInPath` syncs room identity to URL path.  
 `useQRCodeChat` / `handleQRChatId` support QR/deep-link room opening.
 
+#### Deep link to a chat and a message (`?chatId=` and `?messageId=`)
+
+When no `roomJID` is passed, the chat reads these query parameters of the page URL on load:
+
+| Parameter | Meaning |
+| --- | --- |
+| `chatId` | Room to open. A bare id is expanded with `config.xmppSettings.conference`; a full JID (contains `@`) is used as is. Without a conference domain in config a bare id is ignored. |
+| `messageId` (alias `msgId`) | Optional. Open the room and jump to that message, loading older history around it if it is not in memory yet, then briefly highlight it. Matched against the message `id` and `xmppId`. Without it the link just opens the room. |
+
+Example: `https://your-app.example/chat?chatId=ROOM_ID&messageId=1781702272543611`.
+
+The same link shape is what a push notification click opens (see [Push Notifications](#push-notifications)), so tapping a push lands on the exact message. Search results use the same jump.
+
 ## Behavior Notes and Legacy Quirks
 
 - `newArch` is now default-on. If omitted, runtime uses new architecture paths.
@@ -302,6 +315,7 @@ If no `googleLogin`, no `jwtLogin`, no `userLogin`, and no `defaultLogin`, `Logi
 - `defaultLogin` currently has legacy inverted behavior in `LoginWrapper`:
   - internal fallback login runs when login modes are not configured and `defaultLogin` is not set.
   - keep this in mind when migrating; prefer explicit `userLogin` / `jwtLogin` / `googleLogin`.
+- Protocol: clients omit `isSystemMessage` on the `<data>` element of normal messages; `isSystemMessage="true"` marks system messages (call logs etc.). An absent or legacy `"false"` value is read as a normal message.
 
 ## Chat Props Reference
 
@@ -336,6 +350,11 @@ Below is a grouped reference for all `config` options.
 | `initBeforeLoad` | `boolean` | Initialize XMPP before normal chat load flow. |
 | `newArch` | `boolean` | Defaults to `true`; set `false` to explicitly force legacy/old architecture paths. |
 | `useStoreConsoleEnabled` | `boolean` | Enable verbose internal logging in console. |
+| `userLookupRoute` | `'auto' \| 'v1' \| 'v2'` | Route used to look up one sender that is not in the room member list. Default `'auto'`: `GET /v1/apps/users/<xmppUsername>` first; if the backend refuses the user token there (400/401, missing route) the chat uses `GET /v2/chats/users?xmppUsername=` for 10 minutes, then tries v1 again. A 403 from v1 is treated as a per-user "not allowed" and shows the name carried on the message, or "Unknown user". `'v1'` / `'v2'` pin one route. |
+| `trustedEventSenders` | `string[]` | Who may push server `ethora-event` headlines (see Server events). Default (unset): any bare JID without a resource on the account's own XMPP domain, which is how the server sends them. Set it to pin the exact sender(s) as full bare JIDs (`admin@xmpp.example.com`) or local parts (`admin`). |
+| `historyPreload` | `{ mode?: 'staged' \| 'all' \| 'off'; topRooms?: number; concurrency?: number }` | Background message-history preload after connect, for accounts with many rooms. Default `{ mode: 'staged', topRooms: 8, concurrency: 3 }`. `staged`: the `topRooms` most recently active rooms get a full page loaded, `concurrency` at a time, and rooms the backend gave no `lastMessage` for get a one-message preview (up to 4x `topRooms` of them); every other room loads the moment it is opened. A room the user opens jumps the queue, and a reconnect only re-queues rooms that are not already preloaded. `all`: preload every room (the old behaviour; fine for a handful of rooms). `off`: no background preload at all. The room list's last message, time and unread badge come from `GET /v1/chats/my` (`lastMessage`, `unreadCount`) when the backend sends them, so they render without waiting for any history; a backend without those fields falls back to the history preload. The older `historyQoS.preloadTopKRooms` / `stagedPreloadConcurrency` are still honoured when the matching field here is not set; pinning `historyQoS.stagedPreloadEnabled: false` keeps the legacy startup catch-up path. |
+| `historyQoS.joinHistoryStanzas` | `number` | Messages the MUC service replays on every room join (sent as `<history maxstanzas="N"/>`). Default `0`: history comes from the message archive only, so connecting an account with many rooms no longer pulls the server default (up to 20 messages) per room. Raise it only if a room of yours has no archiving and relies on the join replay. |
+| `historyQoS.joinConcurrency` | `number` | Rooms joined in parallel by the background join sweep. The room list is shown as soon as `/chats/my` returns; every room is then joined in the background (the open room first, then most recent activity; a room you open while it is queued jumps the queue). Default `5`. |
 
 ### UI and Layout
 
@@ -344,13 +363,13 @@ Below is a grouped reference for all `config` options.
 | `disableHeader` | `boolean` | Hide chat header. |
 | `disableMedia` | `boolean` | Disable media sending/processing paths. |
 | `attachments` | `{ maxFiles?; maxFileSizeMb?; accept? }` | Composer attachment limits. `maxFiles` defaults to `5` (hard cap `10`, the stanza payload size); `maxFileSizeMb` adds a client-side per-file check (omit for none); `accept` is passed straight to the file picker. Picking several files sends them as **one** message. |
-| `pdfPreview` | `{ enabled?; workerSrc?; maxFileSizeMb? }` | First-page PDF thumbnails inside bubbles and in the composer tray. On by default; `enabled: false` keeps the static document card. pdf.js is code-split and only fetched when a PDF actually shows up. By default it runs on the main thread, which needs no bundler asset wiring: set `workerSrc` to a pdf.js worker URL you host to move parsing off it. `maxFileSizeMb` (default `25`) is the size past which a document is not auto-rendered. |
+| `pdfPreview` | `{ enabled?; workerSrc?; libUrl?; maxFileSizeMb? }` | First-page PDF thumbnails inside bubbles and in the composer tray. On by default; `enabled: false` keeps the static document card. pdf.js is code-split and only fetched when a PDF actually shows up. By default it runs on the main thread, which needs no bundler asset wiring: set `workerSrc` to a pdf.js worker URL you host to move parsing off it. Set `libUrl` to the URL of a pdf.js ES module build to load it at runtime instead of the copy bundled with the component (pair it with `workerSrc`); useful when you ship the component as one self-contained script and do not want pdf.js (about 1.7 MB) inside it. `maxFileSizeMb` (default `25`) is the size past which a document is not auto-rendered. |
 | `disableRooms` | `boolean` | Hide/disable room list area. |
 | `disableRoomMenu` | `boolean` | Disable room menu controls. |
 | `disableRoomMute` | `boolean` | Hide the "Mute/Unmute notifications" toggle from the chat header menu and room profile, even on a backend that supports it. |
 | `disableRoomConfig` | `boolean` | Hide every control that mutates a room's configuration, leaving the chat-details panel read-only: room avatar upload/remove, the "Delete chat" menu entry, the add-members action, and the per-member moderator menu (appoint as admin / remove member). |
 | `disableNewChatButton` | `boolean` | Hide new chat/create room action. |
-| `disableMessageSearch` | `boolean` | Hide the "Search messages" button in the chat header and the search panel behind it. The panel searches the platform's message archive (`GET /v2/apps/{appId}/messages/search`) for the current chat or all chats and jumps to the hit; it needs `appId`, and without one the button is hidden anyway. |
+| `enableMessageSearch` | `boolean` | Opt in to message search (default off): the "Search messages" button in the chat header and chat profile, Ctrl/Cmd+F inside the chat, and message matches under the chat-list search box. The panel searches the platform's message archive (`GET /v2/apps/{appId}/messages/search`, available on the QA/prod backend) for the current chat or all chats and jumps to the hit. Needs `appId`; without one it stays off. A leftover `disableMessageSearch: true` (deprecated) still forces it off. |
 | `disablePublicChatsDirectory` | `boolean` | Hide the "Discover chats" entry (in the room list menu, or as its own button when the host hides that menu with `chatHeaderSettings.disableMenu` or takes it over with `headerMenu`; `disableRoomMenu` removes it entirely): a directory of the app's public chats (`GET /v1/chats/public`, 50 per page, filtered client-side) where a chat can be joined without a link or QR code. |
 | `disableUserCount` | `boolean` | Hide the member-count subtitle in the chat header ("N users", plus the online-users popover attached to it). The 1:1 online/offline line is a presence state, not a count, so it stays. |
 | `disableChatInfo` | `{ disableHeader?; disableDescription?; disableType?; disableMembers?; hideMembers?; disableChatHeaderMenu? }` | Fine-grained chat info panel toggles. |
@@ -489,6 +508,17 @@ object to the provider as to `<Chat>` (which the [single XMPP initialization
 contract](#single-xmpp-initialization-contract) already recommends) if you want
 `'call-overlay'` crashes to reach your `onError` too.
 
+### Server events (`urn:ethora:events:1`)
+
+The server tells a user that something they display changed by sending a `type="headline"` message from its admin account with an `<ethora-event xmlns="urn:ethora:events:1" type="..." .../>` child. The payload is a pointer only; the chat re-reads the data through the normal API and never shows or stores anything from the stanza itself.
+
+| Event | Attributes | What the chat does |
+| --- | --- | --- |
+| `user-profile-updated` | `xmppUsername` (`<appId>_<userId>`), `uuid`, `appId`, `ts` | Re-fetches that user, bypassing the cache and any "not found" memory, through the same lookup route as unknown senders (`userLookupRoute`). Existing bubbles are re-named and re-pictured. If it is the signed-in user, their own profile data is updated too. Bursts within 500 ms collapse into one request. |
+| `chat-meta-updated` | `chatName` (`<appId>_<roomId>`), `appId`, `ts` | Re-fetches `GET /v1/chats/my/<chatName>` and applies only title, description, picture, type and user count to the room. Members, messages, last message and unread counters are never replaced, and the user count is never lowered. Events for rooms the chat does not hold are ignored. Debounced per room (500 ms), one request in flight, backoff after errors. |
+
+Unknown event types and malformed attributes are ignored. Trust rule: the stanza must come from a bare JID (no resource) on the session's own XMPP domain, so room occupants, other users, the `conference.` domain and other servers are ignored; `trustedEventSenders` narrows this to named senders. `xmppUsername` and `chatName` are validated (charset, length, `<appId>_` prefix) before use. The older `<user-update>` / `<chat-update>` headlines (namespace `your:custom:ns`) are still handled as before.
+
 ## Custom Widgets and Overrides
 
 You can replace key UI parts without forking the package.
@@ -601,6 +631,18 @@ function PushPermissionButton() {
 ```
 
 `iconPath` and `badgePath` should point to public, reachable assets (for example, files from your app `public/` directory).
+
+#### Which icon a web push shows
+
+`public/firebase-messaging-sw.js` picks the notification icon in this order:
+
+1. An icon the push itself carries: `data.icon`, then `notification.icon`, then `icon` on the payload. A push about a specific chat or sender can therefore show that chat's avatar. Only `http(s)` URLs and same-origin paths (starting with a single `/`) are accepted; anything else (`data:`, `javascript:`, a bare word) is ignored.
+2. `pushNotifications.iconPath`.
+3. The default, `/favicon-192.png` on your origin.
+
+The badge has no per-push override: it is `pushNotifications.badgePath`, then the default `/favicon-192.png`. Make sure the fallback file exists on your origin, or the OS shows a generic icon.
+
+Clicking a push opens `<origin>/chat?chatId=<room>&messageId=<message>` (or the `url` carried by the push) and calls `pushNotifications.onClick`; see the deep link section above.
 
 ## Auth Strategies
 

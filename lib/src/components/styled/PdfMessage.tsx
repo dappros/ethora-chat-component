@@ -62,6 +62,7 @@ const PdfMessage: React.FC<PdfMessageProps> = ({
     maxBytes:
       (previewConfig?.maxFileSizeMb ?? DEFAULT_MAX_PREVIEW_MB) * 1024 * 1024,
     workerSrc: previewConfig?.workerSrc,
+    libUrl: previewConfig?.libUrl,
   });
 
   const handleOpen = useCallback(() => {

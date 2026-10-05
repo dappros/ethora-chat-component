@@ -20,6 +20,7 @@ import RoomList from './RoomList';
 import Modal from '../Modals/Modal/Modal';
 import SidePanel from '../Modals/SidePanel/SidePanel';
 import ThreadWrapper from '../Thread/ThreadWrapper';
+import { useJumpThread } from '../../helpers/jumpThread';
 import { ModalWrapper } from '../Modals/ModalWrapper/ModalWrapper';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import useMessageLoaderQueue from '../../hooks/useMessageLoaderQueue';
@@ -166,13 +167,21 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
   // useMemo (keyed on `chats`) to re-run and re-sort for no reason.
   const roomsList = useMemo<IRoom[]>(() => Object.values(rooms), [rooms]);
 
+  // The thread's parent: the live message flagged active or, when the thread
+  // was opened on a message that exists only in a jump window (or that a jump
+  // to a thread reply fetched), the copy kept by helpers/jumpThread.
+  const jumpThread = useJumpThread();
   const activeMessage = useMemo(() => {
     if (activeRoomJID) {
-      return rooms[activeRoomJID]?.messages?.find(
+      const live = rooms[activeRoomJID]?.messages?.find(
         (message: { activeMessage: any; }) => message?.activeMessage
       );
+      if (live) return live;
+      if (jumpThread?.parent && jumpThread.roomJID === activeRoomJID) {
+        return { ...jumpThread.parent, activeMessage: true };
+      }
     }
-  }, [rooms, activeRoomJID]);
+  }, [rooms, activeRoomJID, jumpThread]);
 
   const handleChangeChat = (chat: IRoom) => {
     dispatch(setCurrentRoom({ roomJID: null }));

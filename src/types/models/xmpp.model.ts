@@ -1,6 +1,6 @@
 import { Client } from '@xmpp/client';
 import { Iso639_1Codes } from './language.model';
-import XmppClient from '../../networking/xmppClient';
+import XmppClient, { HistoryWindowPage } from '../../networking/xmppClient';
 import { IMessage } from './message.model';
 
 export interface XmppState {
@@ -29,6 +29,20 @@ export interface xmppSettingsInterface {
     stagedPreloadFirstPassSize?: number;
     stagedPreloadSecondPassSize?: number;
     stagedPreloadConcurrency?: number;
+    /**
+     * Messages the MUC service replays on every room join, sent as
+     * `<history maxstanzas="N"/>`. Default 0: history comes from MAM only, so
+     * joining many rooms no longer pulls up to the server default (20) per
+     * room. Raise it only if a host relies on the join replay (a room without
+     * MAM archiving).
+     */
+    joinHistoryStanzas?: number;
+    /**
+     * Rooms joined in parallel by the background join sweep that runs after
+     * the room list is shown (active room first, then most recent activity).
+     * Default 5.
+     */
+    joinConcurrency?: number;
   };
 }
 
@@ -87,6 +101,11 @@ export interface XmppClientInterface {
       source?: 'active' | 'send_ack' | 'background' | 'default';
     }
   ): Promise<IMessage[] | undefined>;
+  getHistoryWindow(
+    chatJID: string,
+    max: number,
+    cursor: { before?: number; after?: number; start?: string; end?: string }
+  ): Promise<HistoryWindowPage>;
   promoteRoomHistory(roomJID: string): void;
   setActiveRoomJid(roomJID: string | null): void;
   isActiveRoomGateOpen(): boolean;

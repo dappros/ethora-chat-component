@@ -1,4 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+
+const requestUsers = vi.hoisted(() => vi.fn());
+vi.mock('../../../helpers/userResolver', () => ({ requestUsers }));
+
 import { localPart, resolveSender } from './resolveSender';
 
 const hit = (over = {}) => ({
@@ -53,5 +57,21 @@ describe('resolveSender', () => {
     expect(localPart('a_b@host')).toBe('a_b');
     expect(localPart('a_b')).toBe('a_b');
     expect(localPart(undefined)).toBe('');
+  });
+});
+
+describe('resolveSender requests unknown senders', () => {
+  beforeEach(() => requestUsers.mockClear());
+
+  it('asks the resolver when nothing resolves a name', () => {
+    expect(resolveSender(hit(), { usersSet: {} }).name).toBe('');
+    expect(requestUsers).toHaveBeenCalledWith(['app1_user1']);
+  });
+
+  it('does not ask when usersSet already has the name', () => {
+    resolveSender(hit(), {
+      usersSet: { app1_user1: { firstName: 'Ada', lastName: 'L' } },
+    });
+    expect(requestUsers).not.toHaveBeenCalled();
   });
 });

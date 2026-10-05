@@ -38,6 +38,14 @@ describe('rankMentionCandidates', () => {
   });
 });
 
+describe('rankMentionCandidates duplicates', () => {
+  it('lists a repeated member once so counts are unique', () => {
+    const m = (id: string) => ({ _id: id, xmppUsername: id, firstName: id, lastName: '' }) as any;
+    const out = rankMentionCandidates('', [m('a'), m('b'), m('a'), m('b'), m('a')]);
+    expect(out.map((c) => c.jid)).toEqual(['a', 'b']);
+  });
+});
+
 describe('findActiveMentionQuery', () => {
   it('opens at the start of input', () => {
     expect(findActiveMentionQuery('@rom', 4)).toEqual({ start: 0, query: 'rom' });

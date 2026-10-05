@@ -129,21 +129,6 @@ export const ModalSectionLabel = styled.div`
   color: var(--ethora-color-text, #141414);
 `;
 
-/** 48px-min-height row used for members/blocked-users/etc. lists inside modals. */
-export const ModalListRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: var(--ethora-space-3, 12px);
-  min-height: 48px;
-  padding: 0 var(--ethora-space-2, 8px);
-  border-radius: var(--ethora-radius-sm, 8px);
-  transition: background-color var(--ethora-motion-fast, 150ms);
-
-  &:hover {
-    background-color: var(--ethora-color-bg-hover, #f0f2f5);
-  }
-`;
-
 export const ModalDescription = styled.p`
   font-size: 14px;
   margin: 0;
@@ -199,45 +184,9 @@ export const CenterContainer = styled(GroupContainer)`
   align-items: center;
 `;
 
-export const ProfileImage = styled.div`
-  width: 120px;
-  height: 120px;
-  border-radius: var(--ethora-radius-full, 10000px);
-  border: 1px solid var(--ethora-color-border, #f0f0f0);
-`;
-
-export const UserInfo = styled.div`
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-`;
-
 export const UserName = styled.div`
   color: var(--ethora-color-text, #141414);
   font-size: 24px;
-  font-weight: 400;
-`;
-
-export const UserStatus = styled.div`
-  color: var(--ethora-color-text-muted, #8c8c8c);
-  font-size: 16px;
-  font-weight: 400;
-`;
-
-export const BorderedContainer = styled.div`
-  width: 100%;
-  border-radius: var(--ethora-radius-sm, 8px);
-  border: 1px solid var(--ethora-color-border, #f0f0f0);
-  display: flex;
-  flex-direction: column;
-  padding: 16px;
-`;
-
-export const LabelData = styled.div`
-  color: var(--ethora-color-text-muted, #8c8c8c);
-  font-size: 14px;
   font-weight: 400;
 `;
 
@@ -248,14 +197,6 @@ export const Label = styled.span`
 
 export const ActionButton = styled(Button)`
   width: 100%;
-`;
-
-export const EmptySection = styled.div`
-  height: 200px;
-  border: 1px solid var(--ethora-color-border, #f0f0f0);
-  border-radius: var(--ethora-radius-sm, 8px);
-  width: 100%;
-  display: flex;
 `;
 
 export const Divider = styled.div`

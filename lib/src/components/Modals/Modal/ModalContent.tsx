@@ -11,6 +11,8 @@ import {
   SETTINGS_SUB_MODAL_TYPES,
 } from '../../../helpers/constants/MODAL_TYPES';
 import { MODAL_COMPONENTS } from '../modalComponents';
+import { useChatSettingState } from '../../../hooks/useChatSettingState';
+import { isMessageSearchEnabled } from '../../../helpers/isMessageSearchEnabled';
 
 /**
  * The store-driven modal router, minus any opinion about WHERE the panel is
@@ -33,6 +35,7 @@ interface ModalContentProps {
 
 const ModalContent: React.FC<ModalContentProps> = ({ modal, setOpenModal }) => {
   const dispatch = useDispatch();
+  const { config } = useChatSettingState();
   const handleCloseModal = () => setOpenModal();
   const handleBackButtonClick = () =>
     dispatch(setActiveModal(MODAL_TYPES.SETTINGS));
@@ -150,6 +153,10 @@ const ModalContent: React.FC<ModalContentProps> = ({ modal, setOpenModal }) => {
 
   const ModalComponent = MODAL_COMPONENTS[modal];
   if (!ModalComponent) return null;
+  // Message search is opt-in; never open its panel when it is off, however
+  // the modal was requested.
+  if (modal === MODAL_TYPES.MESSAGE_SEARCH && !isMessageSearchEnabled(config))
+    return null;
 
   const handleClose = isSubSettingsModal
     ? handleBackButtonClick

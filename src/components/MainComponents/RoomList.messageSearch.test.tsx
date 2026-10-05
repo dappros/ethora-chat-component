@@ -97,7 +97,7 @@ describe('RoomList message search', () => {
     searchMessages.mockResolvedValue(
       page([hit('m1', 'please pay the invoice today')])
     );
-    renderList({ appId: 'app' });
+    renderList({ appId: 'app', enableMessageSearch: true });
 
     await type('invoice');
 
@@ -110,12 +110,33 @@ describe('RoomList message search', () => {
   });
 
   it('never searches messages when disableMessageSearch is true', async () => {
-    renderList({ appId: 'app', disableMessageSearch: true });
+    renderList({
+      appId: 'app',
+      enableMessageSearch: true,
+      disableMessageSearch: true,
+    });
 
     await type('invoice');
 
     expect(searchMessages).not.toHaveBeenCalled();
     expect(screen.queryByTestId('room-list-message-matches')).toBeNull();
+  });
+
+  it('is off by default: no search request and no matches block', async () => {
+    renderList({ appId: 'app' });
+
+    await type('invoice');
+
+    expect(searchMessages).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('room-list-message-matches')).toBeNull();
+  });
+
+  it('stays off when enableMessageSearch is set but appId is missing', async () => {
+    renderList({ enableMessageSearch: true });
+
+    await type('invoice');
+
+    expect(searchMessages).not.toHaveBeenCalled();
   });
 
   it('never searches messages without an appId', async () => {
@@ -128,7 +149,7 @@ describe('RoomList message search', () => {
   });
 
   it('does not search for a single character', async () => {
-    renderList({ appId: 'app' });
+    renderList({ appId: 'app', enableMessageSearch: true });
 
     await type('i');
 
@@ -141,7 +162,7 @@ describe('RoomList message search', () => {
       page([hit('m1', 'please pay the invoice today')])
     );
     const onRoomClick = vi.fn();
-    const storeRef = renderList({ appId: 'app' }, onRoomClick);
+    const storeRef = renderList({ appId: 'app', enableMessageSearch: true }, onRoomClick);
 
     await type('invoice');
 
@@ -163,7 +184,7 @@ describe('RoomList message search', () => {
       page([hit('m9', 'the invoice again', 'room1@conf')])
     );
     const onRoomClick = vi.fn();
-    const storeRef = renderList({ appId: 'app' }, onRoomClick);
+    const storeRef = renderList({ appId: 'app', enableMessageSearch: true }, onRoomClick);
 
     await type('invoice');
 
@@ -174,5 +195,35 @@ describe('RoomList message search', () => {
     expect(storeRef.current.getState().rooms.pendingJump?.roomJID).toBe(
       'room1@conf'
     );
+  });
+
+  it('shows the match count and a styled single-line "Show more" button that loads the next page', async () => {
+    searchMessages
+      .mockResolvedValueOnce({
+        ...page([hit('m1', 'first invoice')]),
+        total: 2,
+        nextOffset: 1,
+      })
+      .mockResolvedValueOnce({
+        ...page([hit('m2', 'second invoice')]),
+        total: 2,
+        offset: 1,
+        nextOffset: 2,
+      });
+    renderList({ appId: 'app', enableMessageSearch: true });
+
+    await type('invoice');
+
+    const block = screen.getByTestId('room-list-message-matches');
+    expect(block.textContent).toContain('2 found');
+    const more = screen.getByRole('button', { name: 'Show more' });
+    expect(more.tagName).toBe('BUTTON');
+    expect(more).toHaveProperty('type', 'button');
+    fireEvent.click(more);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50);
+    });
+    expect(block.textContent).toContain('second');
+    expect(searchMessages).toHaveBeenCalledTimes(2);
   });
 });

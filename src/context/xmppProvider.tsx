@@ -36,6 +36,7 @@ import usePushNotifications from '../hooks/usePushNotifications';
 import { setConfig as setChatConfig } from '../roomStore/chatSettingsSlice';
 import { updatedChatLastTimestamps } from '../helpers/updatedChatLastTimestamps';
 import { runHistoryPreloadScheduler } from '../helpers/historyPreloadScheduler';
+import { resolveHistoryPreloadConfig } from '../helpers/historyPreloadConfig';
 import {
   applyResolvedUserToStore,
   resolveInitBeforeLoadUser,
@@ -156,7 +157,11 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
         ? prefetched
         : await prefetchRoomsViaRest(targetClient, signal);
     if (signal?.aborted || !items.length) return;
-    await targetClient.sendAllPresencesAndMarkReady();
+    // Rooms are joined in the background (active room first): the bootstrap
+    // (private store, history preload) must not wait for hundreds of joins.
+    void targetClient.sendAllPresencesAndMarkReady().catch((error) => {
+      console.warn('[initBeforeLoad] background join sweep failed', error);
+    });
   };
 
   const waitForOnline = (xmppClient: XmppClient, timeoutMs = 30000) =>
@@ -463,15 +468,21 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
         store.dispatch
       );
 
-      void runHistoryPreloadScheduler({
-        client: targetClient,
-        // intentionally no signal - see comment above
-        concurrency: 3,
-        pageSize: 10,
-        retryLimit: 2,
-        selectedRoomJid: store.getState().rooms.activeRoomJID || null,
-        defaultRoomJids: (config?.defaultRooms || []).map((room) => room.jid),
-      });
+      const preloadCfg = resolveHistoryPreloadConfig(config);
+      if (preloadCfg.mode !== 'off') {
+        void runHistoryPreloadScheduler({
+          client: targetClient,
+          // intentionally no signal - see comment above
+          concurrency: preloadCfg.concurrency,
+          pageSize: 10,
+          retryLimit: 2,
+          // Top-N by recent activity only (0 = every room, mode 'all');
+          // the rest load when opened.
+          roomLimit: preloadCfg.topRooms || undefined,
+          selectedRoomJid: store.getState().rooms.activeRoomJID || null,
+          defaultRoomJids: (config?.defaultRooms || []).map((room) => room.jid),
+        });
+      }
 
       completedSuccessfully = true;
       if (completedSuccessfully) {

@@ -1,4 +1,5 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
+import { dedupeMembers } from '../../helpers/dedupeMembers';
 import {
   ModalBackground,
   ModalContainer,
@@ -32,6 +33,7 @@ export const MentionPickerModal: React.FC<MentionPickerModalProps> = ({
   onClose,
 }) => {
   const t = useT();
+  const uniqueMembers = useMemo(() => dedupeMembers(members), [members]);
   const containerRef = useRef<HTMLDivElement>(null);
   // UsersList's own selectedUsers/setSelectedUsers pair is unused in
   // singleSelect mode (no checkboxes render, nothing toggles it), but the
@@ -66,7 +68,7 @@ export const MentionPickerModal: React.FC<MentionPickerModalProps> = ({
         <UsersList
           selectedUsers={unusedSelection}
           setSelectedUsers={() => {}}
-          members={members}
+          members={uniqueMembers}
           excludeUserId={selfId}
           singleSelect
           onSingleSelect={handleSingleSelect}

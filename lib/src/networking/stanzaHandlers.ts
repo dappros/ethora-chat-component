@@ -33,7 +33,12 @@ import {
 import { createRoomFromApi } from '../helpers/createRoomFromApi';
 import { MEMBERS_REFRESH_XMLNS } from './xmpp/notifyMembersChanged.xmpp';
 import XmppClient from './xmppClient';
+import { isTrustedEventSender } from './ethoraEvents';
 import { checkSingleUser } from '../helpers/checkUniqueUsers';
+import {
+  adjustUsersCnt,
+  isRoomMembersTruncated,
+} from '../helpers/roomUserCount';
 import { removeMessageFromHeapById } from '../roomStore/roomHeapSlice';
 import {
   clearSendFailureWatchdog,
@@ -498,11 +503,25 @@ const onPresenceInRoom = (stanza: Element | any) => {
   const idx = members.findIndex((m) => m.xmppUsername === nickname);
 
   let next: typeof members;
+  // A big room only carries a truncated members[] (usersCnt is the real
+  // total). A presence for a member that is simply not in the first page is
+  // indistinguishable from a new join, so never +1 from presence there; a
+  // real kick/leave of an unlisted user still counts as -1.
+  const truncated = isRoomMembersTruncated(room);
   if (isKickedOut) {
-    if (idx < 0) return;
+    if (idx < 0) {
+      if (!truncated) return;
+      store.dispatch(
+        updateRoom({
+          jid: roomJID,
+          updates: { usersCnt: adjustUsersCnt(room, -1, members.length) },
+        })
+      );
+      return;
+    }
     next = members.filter((_, i) => i !== idx);
   } else {
-    if (idx >= 0) return;
+    if (idx >= 0 || truncated) return;
     next = [
       ...members,
       {
@@ -518,7 +537,10 @@ const onPresenceInRoom = (stanza: Element | any) => {
   store.dispatch(
     updateRoom({
       jid: roomJID,
-      updates: { members: next, usersCnt: next.length },
+      updates: {
+        members: next,
+        usersCnt: adjustUsersCnt(room, isKickedOut ? -1 : 1, next.length),
+      },
     })
   );
 };
@@ -656,7 +678,13 @@ const onGetRoomInfo = (stanza: Element) => {
       if (varName === 'muc#roominfo_occupants' && value) {
         const parsed = getNumberFromString(value);
         if (typeof parsed === 'number' && parsed > 0) {
-          updates.usersCnt = parsed;
+          // A big room's API total (usersCnt > the members page) is the
+          // authority: the XMPP occupant figure may count only a page or the
+          // online occupants, so it may raise but never lower that total.
+          const known = store.getState().rooms.rooms[roomJid];
+          if (!isRoomMembersTruncated(known) || parsed > known.usersCnt) {
+            updates.usersCnt = parsed;
+          }
         }
       }
       if (varName === 'muc#roominfo_description' && value) {
@@ -792,7 +820,17 @@ const onRoomMembershipChange = (stanza: Element) => {
 
   let next: RoomMember[];
   if (affiliation === 'none' || affiliation === 'outcast') {
-    if (idx < 0) return;
+    if (idx < 0) {
+      // Truncated members[]: the leaver may exist only in the directory.
+      if (!isRoomMembersTruncated(room)) return;
+      store.dispatch(
+        updateRoom({
+          jid: roomJid,
+          updates: { usersCnt: adjustUsersCnt(room, -1, members.length) },
+        })
+      );
+      return;
+    }
     next = members.filter((_, i) => i !== idx);
   } else {
     if (idx >= 0) return;
@@ -805,7 +843,14 @@ const onRoomMembershipChange = (stanza: Element) => {
   store.dispatch(
     updateRoom({
       jid: roomJid,
-      updates: { members: next, usersCnt: next.length },
+      updates: {
+        members: next,
+        usersCnt: adjustUsersCnt(
+          room,
+          affiliation === 'none' || affiliation === 'outcast' ? -1 : 1,
+          next.length
+        ),
+      },
     })
   );
 };
@@ -974,8 +1019,10 @@ export const handleErrorMessageStanza = (
   return null;
 };
 
-const onUserUpdate = async (stanza: Element) => {
+const onUserUpdate = async (stanza: Element, xmppWs?: XmppClient) => {
   if (stanza.attrs?.type !== 'headline') return;
+  // Same trust rule as ethoraEvents: only the server's own bare JID.
+  if (!isTrustedEventSender(stanza, xmppWs as any)) return;
 
   const userUpdateElement = stanza.getChild('user-update');
   if (!userUpdateElement || userUpdateElement.attrs?.xmlns !== 'your:custom:ns') return;
@@ -1081,10 +1128,11 @@ const onUserUpdate = async (stanza: Element) => {
 };
 
 
-const onChatUpdate = async (stanza: Element) => {
+const onChatUpdate = async (stanza: Element, xmppWs?: XmppClient) => {
   if (stanza.attrs?.type !== 'headline') {
     return;
   }
+  if (!isTrustedEventSender(stanza, xmppWs as any)) return;
 
   const chatUpdateElement = stanza.getChild('chat-update');
   if (!chatUpdateElement || chatUpdateElement.attrs?.xmlns !== 'your:custom:ns') {

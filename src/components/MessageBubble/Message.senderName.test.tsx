@@ -81,13 +81,13 @@ describe('Message - sender display name does not regress to the raw xmpp id', ()
   // 50-character hex string as someone's name is itself a bug, so the
   // fallback chain drops straight through to the existing 'Unknown' literal
   // instead of the raw id.
-  it('falls back to "Unknown" rather than the raw opaque id when nothing else resolves at all', () => {
+  it('falls back to "Unknown user" rather than the raw opaque id when nothing else resolves at all', () => {
     const message = makeMessage({ user: { id: SENDER_ID } as any });
     const { getByText } = renderMessage(message, {
       [SENDER_ID]: { xmppUsername: SENDER_ID, firstName: '', lastName: '' },
     });
 
-    expect(getByText('Unknown')).toBeTruthy();
+    expect(getByText('Unknown user')).toBeTruthy();
     expect(() => getByText(SENDER_ID)).toThrow();
   });
 });

@@ -17,6 +17,7 @@ import { newMessageMidlleware } from './Middleware/newMessageMidlleware';
 import { logoutMiddleware } from './Middleware/logoutMiddleware';
 import { sessionEncryptTransform } from './persistEncryption';
 import { reactionsMiddleware } from './Middleware/reactionsMiddleware';
+import { jumpThreadMiddleware } from './Middleware/jumpThreadMiddleware';
 import { ETHORA_CHAT_COMPONENT_VERSION } from '../version';
 import { sanitizeUserForPersistentStorage } from '../helpers/authStorage';
 import { MAX_DRAFT_LENGTH, MAX_PERSISTED_DRAFTS } from './roomsSlice';
@@ -451,6 +452,39 @@ export const restoreUsersSetForRehydrate = (
   );
 };
 
+/**
+ * Per-session facts about a room that must not survive a reload. A persisted
+ * 'done' made the next page load treat the cached transcript as current:
+ * the preload sweep skipped the room and opening it returned the cache
+ * without asking the server, so anything sent while the page was closed was
+ * missing until a manual refetch. 'done'/'loading' go back to
+ * 'partial'/'idle' (the room is refetched once per session, and a page that
+ * does not overlap the cache replaces it instead of leaving a hole). The
+ * API's unread count is likewise a snapshot of that moment: the next
+ * /chats/my response re-seeds it.
+ */
+export const resetSessionRoomState = (
+  roomsMap: Record<string, IRoom>
+): Record<string, IRoom> =>
+  Object.fromEntries(
+    Object.entries(roomsMap).map(([jid, room]) => {
+      const state = room?.historyPreloadState;
+      const hasMessages = (room?.messages?.length ?? 0) > 0;
+      const next: IRoom = { ...room };
+      // 'error' is a per-session transient (a timeout, an IQ error): it must
+      // not stick across reloads, so it is demoted like 'loading' and the
+      // room is retried.
+      if (state === 'done' || state === 'loading' || state === 'error') {
+        next.historyPreloadState = hasMessages ? 'partial' : 'idle';
+      }
+      if (next.apiUnreadCount !== undefined) {
+        next.apiUnreadCount = undefined;
+        next.apiUnreadSeededAt = undefined;
+      }
+      return [jid, next];
+    })
+  );
+
 export const limitMessagesTransform = createTransform<
   any,
   any,
@@ -464,7 +498,7 @@ export const limitMessagesTransform = createTransform<
     return inboundState;
   },
   (outboundState, key) => {
-    if (key === 'rooms') return sanitizeRoomsMap(outboundState);
+    if (key === 'rooms') return resetSessionRoomState(sanitizeRoomsMap(outboundState));
     if (key === 'usersSet') return restoreUsersSetForRehydrate(outboundState);
     return outboundState;
   }
@@ -584,6 +618,9 @@ const roomsPersistConfig = {
     // A one-shot request for this page view; restoring it would scroll a
     // freshly loaded page to a message the user asked for last session.
     'pendingJump',
+    // A transient slice of archive around a jump target; it is not part of
+    // the room's contiguous history and must never come back after a reload.
+    'jumpWindow',
     // In-flight join of this page view only; a stale value would show a
     // loader for a join nobody is running.
     'joiningRoomJID',
@@ -649,7 +686,8 @@ export const store = configureStore({
       .concat(unreadMiddleware)
       .concat(newMessageMidlleware)
       .concat(logoutMiddleware)
-      .concat(reactionsMiddleware),
+      .concat(reactionsMiddleware)
+      .concat(jumpThreadMiddleware),
   // .concat(testMiddleware)
   // .concat(debugMiddleware)
   // .concat(actionLoggerMiddleware),

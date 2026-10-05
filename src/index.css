@@ -132,24 +132,85 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-/* Flash on the row a notification or a search hit scrolls to. On the row's
-   own wrapper (the data-message-id element) it must not scale or fill a
-   full-width strip, so this is a soft tint in the brand colour that fades. */
+/* Flash on the message a notification or a search hit scrolls to. The class
+   sits on the full-width row wrapper (the data-message-id element), but only
+   the bubble inside it (data-ethora-bubble) is drawn on: a soft brand-colour
+   ring that pulses outwards once, plus a brief tint over the bubble. The row,
+   avatar, name and timestamp stay untouched. */
 [data-message-id].ethora-message-highlight {
-  animation: ethoraMessageFlash 1s ease-out;
-  border-radius: var(--ethora-radius-md, 12px);
+  /* Opt out of the generic highlight below; the bubble carries this one. */
+  animation: none;
+  transition: none;
 }
 
-@keyframes ethoraMessageFlash {
+[data-message-id].ethora-message-highlight [data-ethora-bubble] {
+  animation: ethoraBubblePulse 1s ease-out forwards;
+}
+
+/* An overlay above the bubble's own (possibly opaque or gradient)
+   background, clipped to its rounded shape. */
+[data-message-id].ethora-message-highlight [data-ethora-bubble]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 1;
+  background-color: color-mix(
+    in srgb,
+    var(--ethora-color-primary, #0052cd) 22%,
+    transparent
+  );
+  animation: ethoraBubbleTint 1s ease-out forwards;
+}
+
+@keyframes ethoraBubblePulse {
   0% {
-    background-color: color-mix(
-      in srgb,
-      var(--ethora-color-primary, #0052cd) 35%,
-      transparent
-    );
+    box-shadow: 0 0 0 0
+      color-mix(in srgb, var(--ethora-color-primary, #0052cd) 55%, transparent);
+  }
+  35% {
+    box-shadow:
+      0 0 0 3px
+        color-mix(
+          in srgb,
+          var(--ethora-color-primary, #0052cd) 60%,
+          transparent
+        ),
+      0 0 14px 2px
+        color-mix(
+          in srgb,
+          var(--ethora-color-primary, #0052cd) 35%,
+          transparent
+        );
   }
   100% {
-    background-color: transparent;
+    box-shadow: 0 0 0 9px
+      color-mix(in srgb, var(--ethora-color-primary, #0052cd) 0%, transparent);
+  }
+}
+
+@keyframes ethoraBubbleTint {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* No motion: a static ring for as long as the class is present. */
+@media (prefers-reduced-motion: reduce) {
+  [data-message-id].ethora-message-highlight [data-ethora-bubble] {
+    animation: none;
+    box-shadow: 0 0 0 2px var(--ethora-color-primary, #0052cd);
+  }
+  [data-message-id].ethora-message-highlight [data-ethora-bubble]::after {
+    animation: none;
+    display: none;
   }
 }
 

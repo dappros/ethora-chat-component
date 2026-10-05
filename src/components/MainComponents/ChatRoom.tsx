@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ChatContainer, NonRoomChat } from '../styled/StyledComponents';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useStore } from 'react-redux';
 import MessageList from './MessageList';
+import { RootState } from '../../roomStore';
 import SendInput, { SendInputProps } from '../styled/SendInput';
 import CustomTypingIndicator from '../styled/StyledInputComponents/CustomTypingIndicator';
 import {
@@ -40,6 +41,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     const { CustomInputComponent } = useCustomComponents();
     const { client, providerBootstrapStatus, initMode } = useXmppClient();
     const dispatch = useDispatch();
+    const store = useStore<RootState>();
 
     const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
 
@@ -77,28 +79,49 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       [activeRoomJID]
     );
 
+    // One history request per room at a time. Everything else (historyComplete,
+    // the messages used for the fallback cursor) is read from the store at call
+    // time, so a stale render closure can never act on old values.
+    const inFlightRoomsRef = useRef<Set<string>>(new Set());
     const loadMoreMessages = useCallback(
-      async (chatJID: string, max: number, idOfMessageBefore?: number) => {
-        if (!isLoadingMore && !roomsList?.[chatJID]?.historyComplete) {
-          const lastMsgId =
-            typeof idOfMessageBefore !== 'string'
-              ? idOfMessageBefore
-              : Number(
-                  roomsList[chatJID].messages[
-                    roomsList[chatJID].messages.length - 2
-                  ].id
-                );
-          setIsLoadingMore(true);
-          client
-            ?.getHistoryStanza(chatJID, max, lastMsgId, undefined, {
-              source: 'active',
-            })
-            .then(() => {
-              setIsLoadingMore(false);
-            });
+      async (
+        chatJID: string,
+        max: number,
+        idOfMessageBefore?: number
+      ): Promise<void> => {
+        if (!client || !chatJID) return;
+        if (inFlightRoomsRef.current.has(chatJID)) return;
+        const room = store.getState().rooms.rooms?.[chatJID];
+        if (!room || room.historyComplete) return;
+
+        let before: number | undefined;
+        if (
+          typeof idOfMessageBefore === 'number' &&
+          Number.isFinite(idOfMessageBefore)
+        ) {
+          before = idOfMessageBefore;
+        } else {
+          const msgs = room.messages ?? [];
+          const fallback = msgs.length >= 2 ? msgs[msgs.length - 2] : msgs[0];
+          const n = Number(fallback?.id);
+          before = Number.isFinite(n) ? n : undefined;
+        }
+
+        inFlightRoomsRef.current.add(chatJID);
+        setIsLoadingMore(true);
+        try {
+          await client.getHistoryStanza(chatJID, max, before, undefined, {
+            source: 'active',
+          });
+        } catch {
+          // A failed page must not leave the room blocked or reject into the
+          // caller's .finally chain.
+        } finally {
+          inFlightRoomsRef.current.delete(chatJID);
+          setIsLoadingMore(inFlightRoomsRef.current.size > 0);
         }
       },
-      [client?.client?.jid]
+      [client, store]
     );
 
     const onCloseEdit = () => {

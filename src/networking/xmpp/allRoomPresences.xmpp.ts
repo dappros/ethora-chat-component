@@ -20,31 +20,85 @@ export interface AllRoomPresenceSummary {
 // out and the room got a failure backoff while actually being joined.
 export type RoomJoiner = (roomJid: string) => Promise<boolean>;
 
+export interface AllRoomPresencesOptions {
+  /** Parallel joins. Default 5. */
+  concurrency?: number;
+  /** Pause after each join, per worker. Default 30 ms. */
+  pacingMs?: number;
+  /** Rooms the connection already joined: skipped, no round trip. */
+  isJoined?: (roomJid: string) => boolean;
+  /** The room the user has open: always joined next, ahead of the queue. */
+  getActiveRoomJid?: () => string | null | undefined;
+  /** Higher = joined earlier (recent activity). Default: store order. */
+  rank?: (roomJid: string) => number;
+  /** True once this sweep is obsolete (connection dropped and replaced). */
+  isCancelled?: () => boolean;
+  /** Fired once the first wave (the active room plus one pool-width of the
+   *  most recent rooms) has settled, long before the rest of the sweep. */
+  onPriorityDone?: () => void;
+}
+
+// Joins every room in the store in the background. Order: the active room
+// first (re-read before every pick, so a room the user opens while it is
+// still queued jumps the queue), then by recent activity. Rooms discovered
+// while the sweep runs are picked up before it ends.
 export async function allRoomPresences(
   client: Client,
-  join?: RoomJoiner
+  join?: RoomJoiner,
+  options: AllRoomPresencesOptions = {}
 ): Promise<AllRoomPresenceSummary> {
-  const rooms = store.getState().rooms.rooms;
-  const allKeys = rooms && typeof rooms === 'object' ? Object.keys(rooms) : [];
-  const roomJids = allKeys.filter(isLikelyMucJid);
-  if (!roomJids.length) {
-    return { total: 0, success: 0, failed: 0, failedRooms: [], sweptRooms: [], failures: [] };
-  }
+  const concurrency = Math.max(1, Math.floor(options.concurrency || 5));
+  const pacingMs = options.pacingMs ?? 30;
+  const isJoined = options.isJoined || (() => false);
+  const rank = options.rank || (() => 0);
 
-  const settled: PromiseSettledResult<any>[] = new Array(roomJids.length);
-  // Was 3. This whole sweep re-runs from scratch on every reconnect
-  // (attachEventListeners' disconnect handler clears joinedRooms), so for a
-  // ~10-room account, raising this cuts a 4-round sweep to ~2 rounds -
-  // meaningful when a reconnect mid-load forces a full redo.
-  const concurrency = 5;
-  const queue = roomJids.map((roomJid, index) => ({ roomJid, index }));
+  const seen = new Set<string>();
+  const queue: string[] = [];
+  const collect = () => {
+    const rooms = store.getState().rooms.rooms;
+    const keys = rooms && typeof rooms === 'object' ? Object.keys(rooms) : [];
+    const fresh = keys.filter(
+      (jid) => isLikelyMucJid(jid) && !seen.has(jid) && !isJoined(jid)
+    );
+    fresh.forEach((jid) => seen.add(jid));
+    // Stable sort: equal scores keep store order.
+    fresh.sort((a, b) => rank(b) - rank(a));
+    queue.push(...fresh);
+  };
+  collect();
+
+  const sweptRooms: string[] = [];
+  const settledByJid = new Map<string, PromiseSettledResult<any>>();
+  const firstWave = Math.min(concurrency, queue.length);
+  let started = 0;
+  let waveSettled = 0;
+  let priorityFired = false;
+  const firePriority = () => {
+    if (priorityFired) return;
+    priorityFired = true;
+    options.onPriorityDone?.();
+  };
+  if (firstWave === 0) firePriority();
+
+  const pickNext = (): string | undefined => {
+    const active = options.getActiveRoomJid?.();
+    if (active) {
+      const at = queue.indexOf(active);
+      if (at >= 0) return queue.splice(at, 1)[0];
+    }
+    return queue.shift();
+  };
 
   const worker = async () => {
-    while (queue.length > 0) {
-      const next = queue.shift();
-      if (!next) return;
-      const { roomJid, index } = next;
-      // Critical: delay must be lower than timeout to avoid deterministic timeout.
+    while (!options.isCancelled?.()) {
+      if (queue.length === 0) collect();
+      const roomJid = pickNext();
+      if (!roomJid) return;
+      // Opened (and joined) by someone else while this one waited.
+      if (isJoined(roomJid)) continue;
+      const inFirstWave = started < firstWave;
+      started += 1;
+      sweptRooms.push(roomJid);
       const result = await Promise.allSettled([
         join
           ? join(roomJid).then((joined) => {
@@ -53,13 +107,24 @@ export async function allRoomPresences(
             })
           : presenceInRoom(client, roomJid, 0, 5000),
       ]);
-      settled[index] = result[0];
-      await new Promise((resolve) => setTimeout(resolve, 30));
+      settledByJid.set(roomJid, result[0]);
+      if (inFirstWave) {
+        waveSettled += 1;
+        if (waveSettled >= firstWave) firePriority();
+      }
+      if (pacingMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, pacingMs));
+      }
     }
   };
 
-  await Promise.all(
-    Array.from({ length: Math.min(concurrency, roomJids.length) }, () => worker())
+  await Promise.all(Array.from({ length: concurrency }, () => worker()));
+  firePriority();
+  const roomJids = sweptRooms;
+  const settled = roomJids.map(
+    (jid) =>
+      settledByJid.get(jid) ||
+      ({ status: 'rejected', reason: 'cancelled' } as PromiseRejectedResult)
   );
   const failedRooms: string[] = [];
   const failures: Array<{ roomJid: string; reason: string }> = [];

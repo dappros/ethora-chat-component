@@ -14,6 +14,40 @@ import { useT } from '../../../i18n/useT';
 import { buildSnippet } from './snippet';
 import { resolveSender } from './resolveSender';
 
+/**
+ * Secondary pill button used for "Show more" and "Retry" under search
+ * results, in the search panel and in the room list.
+ */
+export const SecondaryPillButton = styled.button`
+  align-self: center;
+  flex: 0 0 auto;
+  margin-top: var(--ethora-space-2, 8px);
+  padding: 6px 14px;
+  border: 1px solid var(--ethora-color-border, #e6e8ec);
+  border-radius: var(--ethora-radius-full, 999px);
+  background: transparent;
+  color: var(--ethora-color-text-secondary, #5a5f66);
+  font: inherit;
+  font-size: var(--ethora-font-size-sm, 14px);
+  line-height: 1.3;
+  white-space: nowrap;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: var(--ethora-color-bg-hover, #f0f2f5);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--ethora-color-primary, #0052cd);
+    outline-offset: 2px;
+  }
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+`;
+
 const ResultList = styled.ul`
   list-style: none;
   margin: 0;
@@ -27,6 +61,8 @@ const ResultButton = styled.button`
   flex-direction: column;
   gap: 2px;
   width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   padding: var(--ethora-space-2, 8px) var(--ethora-space-3, 12px);
   border: none;
   border-radius: var(--ethora-radius-sm, 8px);
@@ -35,10 +71,15 @@ const ResultButton = styled.button`
   font: inherit;
   text-align: start;
   cursor: pointer;
+  transition: background-color 0.15s ease;
 
   &:hover:not(:disabled),
   &:focus-visible {
     background: var(--ethora-color-bg-hover, #f0f2f5);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--ethora-color-primary, #0052cd);
+    outline-offset: -2px;
   }
   &:disabled {
     cursor: default;

@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from 'react';
+import { getRoomUserCount } from '../../helpers/roomUserCount';
 import styled from 'styled-components';
 import RoomList from './RoomList';
 import { IConfig, IRoom } from '../../types/types';
@@ -26,6 +27,7 @@ import { useXmppClient } from '../../context/xmppProvider';
 import { setActiveModal } from '../../roomStore/chatSettingsSlice';
 import { RootState } from '../../roomStore';
 import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
+import { isMessageSearchEnabled } from '../../helpers/isMessageSearchEnabled';
 import { useMessageSearchShortcut } from '../../hooks/useMessageSearchShortcut';
 import { RoomMenu } from '../MenuRoom/MenuRoom';
 import { useRoomState } from '../../hooks/useRoomState';
@@ -84,6 +86,9 @@ const HeaderInfo = styled.div`
   align-items: center;
   gap: 8px;
   cursor: pointer;
+  /* Lets the text column shrink (and ellipsize) instead of pushing the
+     action buttons off the right edge on a narrow screen. */
+  min-width: 0;
 `;
 
 const HeaderTextCol = styled.div`
@@ -126,6 +131,25 @@ const HeaderSubtitle = styled.div`
      Deliberately NOT overflow: hidden - the online-users popover hangs off
      this line (position: absolute, top: 100%) and would be clipped away. */
   height: 20px;
+  /* One line, always: the count text ellipsizes inside SubtitleText and the
+     "N online" trigger keeps its width, so nothing wraps onto the header's
+     bottom edge on a narrow screen. */
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  white-space: nowrap;
+`;
+
+const HeaderSubtitleText = styled.span`
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const HeaderSubtitleSep = styled.span`
+  flex-shrink: 0;
+  white-space: pre;
 `;
 
 const HeaderOnlineText = styled.span`
@@ -134,6 +158,7 @@ const HeaderOnlineText = styled.span`
 
 const HeaderActions = styled.div`
   display: flex;
+  flex-shrink: 0;
   gap: 4px;
   align-items: center;
 `;
@@ -224,12 +249,8 @@ const getDisplayTitle = (room: IRoom | undefined): string => {
 };
 
 const getDisplayCount = (room: IRoom | undefined): number => {
-  if (Array.isArray(room?.members) && room.members.length > 0) {
-    return room.members.length;
-  }
-  return typeof room?.usersCnt === 'number' && room.usersCnt > 0
-    ? room.usersCnt
-    : 0;
+  // usersCnt is the true total; members is capped at 30 for big rooms.
+  return getRoomUserCount(room);
 };
 
 // `showLanguageSelector` defaults to true - only an explicit `false` hides
@@ -256,8 +277,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
 
   // Search runs against the platform's archive, which is scoped by app, so it
   // needs an appId; hosts can also switch it off.
-  const messageSearchEnabled =
-    Boolean(config?.appId) && !config?.disableMessageSearch;
+  const messageSearchEnabled = isMessageSearchEnabled(config);
   const activeModal = useSelector(
     (state: RootState) => state.chatSettingStore.activeModal
   );
@@ -443,6 +463,13 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     ? callDisabledReason
     : t('header.action.startVideoCall');
 
+  const showOnlineSuffix =
+    !composing &&
+    !isPrivateRoom &&
+    !config?.disableUserCount &&
+    getDisplayCount(currentRoom) > 0 &&
+    onlineUsers.length > 0;
+
   return (
     <>
       <HeaderBar>
@@ -519,46 +546,48 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                 )}
               </HeaderTitleRow>
               <HeaderSubtitle>
-                {(() => {
-                  if (composing) {
-                    return (
-                      <Composing usersTyping={currentRoom?.composingList} />
+                <HeaderSubtitleText>
+                  {(() => {
+                    if (composing) {
+                      return (
+                        <Composing usersTyping={currentRoom?.composingList} />
+                      );
+                    }
+                    if (isPrivateRoom) {
+                      return peerOnline ? (
+                        <HeaderOnlineText>
+                          {t('presence.online')}
+                        </HeaderOnlineText>
+                      ) : (
+                        <span>{t('presence.offline')}</span>
+                      );
+                    }
+                    // config.disableUserCount drops the whole member-count
+                    // subtitle ("N users" plus the online-users popover that
+                    // hangs off it). The 1:1 online/offline line above is a
+                    // presence state, not a count, so it is untouched.
+                    if (config?.disableUserCount) return '';
+                    const displayCount = getDisplayCount(currentRoom);
+                    if (displayCount <= 0) return '';
+                    const base = t(
+                      displayCount === 1
+                        ? 'header.userCountSingular'
+                        : 'header.userCountPlural',
+                      { count: formatNumberWithCommas(displayCount, uiLocale) }
                     );
-                  }
-                  if (isPrivateRoom) {
-                    return peerOnline ? (
-                      <HeaderOnlineText>
-                        {t('presence.online')}
-                      </HeaderOnlineText>
-                    ) : (
-                      <span>{t('presence.offline')}</span>
-                    );
-                  }
-                  // config.disableUserCount drops the whole member-count
-                  // subtitle ("N users" plus the online-users popover that
-                  // hangs off it). The 1:1 online/offline line above is a
-                  // presence state, not a count, so it is untouched.
-                  if (config?.disableUserCount) return '';
-                  const displayCount = getDisplayCount(currentRoom);
-                  if (displayCount <= 0) return '';
-                  const base = t(
-                    displayCount === 1
-                      ? 'header.userCountSingular'
-                      : 'header.userCountPlural',
-                    { count: formatNumberWithCommas(displayCount, uiLocale) }
-                  );
-                  if (onlineUsers.length === 0) return base;
-                  return (
-                    <>
-                      {base} ·{' '}
-                      <OnlineUsersPopover
-                        onlineUsernames={onlineUsers}
-                        members={currentRoom?.members}
-                        myXmppUsername={myXmppUsername}
-                      />
-                    </>
-                  );
-                })()}
+                    return base;
+                  })()}
+                </HeaderSubtitleText>
+                {showOnlineSuffix && (
+                  <>
+                    <HeaderSubtitleSep> · </HeaderSubtitleSep>
+                    <OnlineUsersPopover
+                      onlineUsernames={onlineUsers}
+                      members={currentRoom?.members}
+                      myXmppUsername={myXmppUsername}
+                    />
+                  </>
+                )}
               </HeaderSubtitle>
             </HeaderTextCol>
           </HeaderInfo>

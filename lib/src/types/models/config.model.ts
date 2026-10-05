@@ -185,6 +185,13 @@ export interface IConfig {
      * thumbnails, worth overriding if your users open large documents.
      */
     workerSrc?: string;
+    /**
+     * URL of a pdf.js ES module build to load at runtime instead of the copy
+     * bundled with the component. Pair it with `workerSrc`. For hosts that
+     * ship the component as one self-contained script and do not want 1.7 MB
+     * of pdf.js in it.
+     */
+    libUrl?: string;
     /** Documents above this are not auto-rendered. Default 25. */
     maxFileSizeMb?: number;
   };
@@ -509,9 +516,17 @@ export interface IConfig {
    */
   disableUserCount?: boolean;
   /**
-   * Hide the "Search messages" button in the chat header (and so the search
-   * panel). Search is also hidden when `appId` is not set, since the archive
-   * it queries is scoped by app.
+   * Opt in to message search: the "Search messages" button in the chat header
+   * and profile panel, the Ctrl/Cmd+F shortcut inside the chat, and message
+   * matches under the chat-list search box. Off by default. Needs `appId`
+   * (the archive it queries is scoped by app) and a backend that serves
+   * `GET /v2/apps/{appId}/messages/search`.
+   */
+  enableMessageSearch?: boolean;
+  /**
+   * @deprecated Search is off unless `enableMessageSearch` is set. Kept so
+   * hosts that already pass `disableMessageSearch: true` stay off; it wins
+   * over `enableMessageSearch`.
    */
   disableMessageSearch?: boolean;
   /**
@@ -625,6 +640,44 @@ export interface IConfig {
     hideSearch?: boolean;
   };
   useStoreConsoleEnabled?: boolean;
+  /**
+   * Route for looking up one unknown sender. `'auto'` (default) tries
+   * `GET /v1/apps/users/<xmppUsername>` and, when the backend does not accept
+   * the user token there (400/401, or a missing route), remembers that for 10
+   * minutes and uses `GET /v2/chats/users?xmppUsername=` instead, probing v1
+   * again after that. `'v1'` / `'v2'` pin one route with no fallback.
+   */
+  userLookupRoute?: 'auto' | 'v1' | 'v2';
+  /**
+   * Who may push `ethora-event` headlines (`urn:ethora:events:1`,
+   * user-profile-updated / chat-meta-updated). Default (unset or empty): any
+   * bare JID without a resource on the account's own XMPP domain, which is
+   * how the server sends them (from its admin account); room occupants,
+   * other users and other domains are never trusted. Set it to pin the exact
+   * sender(s), as full bare JIDs (`admin@xmpp.example.com`) or local parts
+   * (`admin`).
+   */
+  trustedEventSenders?: string[];
+  /**
+   * Background history preload after connect. Default `{ mode: 'staged',
+   * topRooms: 8, concurrency: 3 }`.
+   * - `'staged'`: the `topRooms` most recently active rooms are preloaded
+   *   (a one-message preview pass for rooms the API gave no `lastMessage`
+   *   for, then a full page), `concurrency` at a time; every other room
+   *   loads when the user opens it.
+   * - `'all'`: preload every room (the pre-staged behaviour; for accounts
+   *   with few rooms).
+   * - `'off'`: no background preload, rooms load when opened.
+   * A room the user opens jumps the queue; a reconnect only re-queues rooms
+   * that are not already preloaded.
+   * Falls back to the older `historyQoS.preloadTopKRooms` /
+   * `stagedPreloadConcurrency` when the matching field is not set.
+   */
+  historyPreload?: {
+    mode?: 'staged' | 'all' | 'off';
+    topRooms?: number;
+    concurrency?: number;
+  };
   historyQoS?: {
     maxInFlightHistory?: number;
     softPauseAfterSendMs?: number;
@@ -640,6 +693,20 @@ export interface IConfig {
     stagedPreloadFirstPassSize?: number;
     stagedPreloadSecondPassSize?: number;
     stagedPreloadConcurrency?: number;
+    /**
+     * Messages the MUC service replays on every room join, sent as
+     * `<history maxstanzas="N"/>`. Default 0: history comes from MAM only, so
+     * joining many rooms no longer pulls up to the server default (20) per
+     * room. Raise it only if a host relies on the join replay (a room without
+     * MAM archiving).
+     */
+    joinHistoryStanzas?: number;
+    /**
+     * Rooms joined in parallel by the background join sweep that runs after
+     * the room list is shown (active room first, then most recent activity).
+     * Default 5.
+     */
+    joinConcurrency?: number;
   };
   inAppNotifications?: {
     enabled?: boolean;

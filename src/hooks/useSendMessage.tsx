@@ -694,7 +694,6 @@ export const useSendMessage = () => {
               isDeleted: false,
               xmppId: id,
               xmppFrom: `${activeRoomJID}/${user.id}`,
-              isSystemMessage: 'false',
               isMediafile: 'true',
               fileName: first.name,
               location: '',

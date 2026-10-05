@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { getRoomUserCount } from '../../../helpers/roomUserCount';
 import { useModalDismiss } from '../../../hooks/useModalDismiss';
 import { useDispatch, useSelector } from 'react-redux';
 import { getActiveRoom, RootState } from '../../../roomStore';
@@ -66,7 +67,8 @@ const SelectUsersModal: React.FC = () => {
           jid: activeRoom.jid,
           updates: {
             members: [...newMembers, ...currentMembers],
-            usersCnt: currentMembers.length + newMembers.length,
+            usersCnt:
+              getRoomUserCount(activeRoom) + newMembers.length,
           },
         })
       );

@@ -5,6 +5,9 @@ on:
   push:
     branches: [main, dev]
 
+permissions:
+  contents: read
+
 # A new push to the same branch or PR makes the running check obsolete.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}

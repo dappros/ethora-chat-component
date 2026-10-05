@@ -1,5 +1,5 @@
 import { IMessage, IRoom } from '../types/types';
-import { getTimestampFromUnknown } from './timestamp';
+import { getTimestampFromUnknown, normalizeTimestampValue } from './timestamp';
 
 export const getMessageTimestamp = (message?: IMessage): number => {
   if (!message) return 0;
@@ -32,9 +32,14 @@ export const getLastLocalMessageTimestamp = (room?: IRoom): number => {
 
 export const getRoomLastActivityScore = (room?: IRoom): number => {
   if (!room) return 0;
+  // Everything normalised to milliseconds: the MAM-derived timestamps are
+  // archive ids (microseconds), which made any room that had one outrank a
+  // room whose only signal is in ms. `lastMessage.date` is the API's seed
+  // for a room that has loaded nothing yet - the newest of all signals wins.
   return Math.max(
-    Number(room.lastMessageTimestamp || 0),
-    Number(room.messageStats?.lastMessageTimestamp || 0),
-    getLastLocalMessageTimestamp(room)
+    normalizeTimestampValue(Number(room.lastMessageTimestamp || 0)),
+    normalizeTimestampValue(Number(room.messageStats?.lastMessageTimestamp || 0)),
+    getLastLocalMessageTimestamp(room),
+    getTimestampFromUnknown(room.lastMessage?.date)
   );
 };

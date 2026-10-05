@@ -40,7 +40,9 @@ const SystemMessage: React.FC<SystemMessageProps> = ({
 }) => {
   return (
     <CustomSystemMessage>
-      <CustomSystemMessageText $primary={colors?.primary}>
+      <CustomSystemMessageText
+        data-ethora-bubble=""
+        $primary={colors?.primary}>
         {messageText}
       </CustomSystemMessageText>
     </CustomSystemMessage>

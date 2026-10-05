@@ -1,1 +1,1 @@
-export const ETHORA_CHAT_COMPONENT_VERSION = '26.9.6';
+export const ETHORA_CHAT_COMPONENT_VERSION = '26.9.8';

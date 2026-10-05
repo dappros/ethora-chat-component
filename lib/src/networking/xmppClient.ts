@@ -1,4 +1,5 @@
 import xmpp, { Client, xml } from '@xmpp/client';
+import { requestSendersOf } from '../helpers/userResolver';
 import { Element } from 'ltx';
 import { sendMediaMessage } from './xmpp/sendMediaMessage.xmpp';
 import { getChatsPrivateStoreRequest } from './xmpp/getChatsPrivateStoreRequest.xmpp';
@@ -53,18 +54,23 @@ import {
   VITE_APP_XMPP_CONFERENCE,
 } from '../config';
 import { formatError } from '../utils/formatError';
-import { toRoomJid } from '../helpers/isLikelyMucJid';
+import { toRoomJid, isLikelyMucJid } from '../helpers/isLikelyMucJid';
 import { getDataFromXml } from '../helpers/getDataFromXml';
 import { createMessageFromXml } from '../helpers/createMessageFromXml';
 import { transformCallLogMessage } from '../helpers/callLogMessage';
 import { applyMamReactions } from '../helpers/mamReactions';
 import {
   setRoomMessages,
+  replaceRoomMessages,
   setReactions,
   updateRoom,
+  applyRoomsPreloadBatch,
 } from '../roomStore/roomsSlice';
 import { ethoraLogger } from '../helpers/ethoraLogger';
-import { getRoomLastActivityScore } from '../helpers/roomActivityScore';
+import {
+  getMessageTimestamp,
+  getRoomLastActivityScore,
+} from '../helpers/roomActivityScore';
 import { getBooleanFromString } from '../helpers/getBooleanFromString';
 import { getNumberFromString } from '../helpers/getNumberFromString';
 
@@ -85,6 +91,8 @@ interface SendQueueEntry {
 interface MamRequestState {
   id: string;
   chatJID: string;
+  // The cursor this page was requested before: undefined = the LATEST page.
+  before?: number;
   messages: Element[];
   startedAt: number;
   timeout: NodeJS.Timeout;
@@ -94,6 +102,25 @@ interface MamRequestState {
   // stanzas are consumed (and dropped) by routeMamStanza instead of hitting
   // the generic per-message handler one by one.
   abandoned?: boolean;
+  // A windowed query (around a jump target): its page is returned to the
+  // caller only. It must not write messageStats / historyComplete (those
+  // describe the live contiguous history) nor merge into the room's messages.
+  detached?: boolean;
+  onFin?: (fin: HistoryWindowFin) => void;
+}
+
+/** What the server's <fin> said about one windowed MAM page. */
+export interface HistoryWindowFin {
+  complete: boolean;
+  first: number | null;
+  last: number | null;
+}
+
+/** One page of a windowed history query, returned instead of stored. */
+export interface HistoryWindowPage extends HistoryWindowFin {
+  ok: boolean;
+  /** Ascending by time (oldest first), whichever direction was paged. */
+  messages: IMessage[];
 }
 
 interface HistoryQueueTask {
@@ -116,6 +143,7 @@ interface PrivateStoreCache {
 interface HistoryInFlightEntry {
   max: number;
   promise: Promise<IMessage[] | undefined>;
+  source?: HistorySource;
 }
 
 export type XmppCredentialsProvider = () => Promise<{
@@ -151,6 +179,20 @@ export class XmppClient implements XmppClientInterface {
   private reconnecting: boolean = false;
   private reconnectPromise: Promise<void> | null = null;
   presencesReady: boolean = false;
+  // True once the first wave of the background join sweep (the active room
+  // plus the most recently active rooms) has settled. Consumers that only
+  // need "joining works" (the offline heap drain) gate on this instead of
+  // the whole sweep, which for hundreds of rooms runs for a long time.
+  priorityPresencesReady: boolean = false;
+  // Bumped on every disconnect: a sweep started on an older connection stops
+  // joining and must not mark anything ready or joined.
+  private sweepEpoch = 0;
+  // Bounded retry of rooms a sweep left unjoined (failed, or skipped while
+  // backing off): at most SWEEP_RETRY_DELAYS_MS.length rounds per connection.
+  private sweepRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  private sweepRetryRunning = false;
+  private static readonly SWEEP_RETRY_DELAYS_MS = [2000, 5000, 10000];
+  private joinConcurrency = 5;
   // sendAllPresencesAndMarkReady() is called independently from three
   // unrelated places (the online-event handler in this class, loadRooms() in
   // useChatWrapperInit.ts, and xmppProvider.tsx's initBeforeLoad path) with
@@ -196,8 +238,16 @@ export class XmppClient implements XmppClientInterface {
   private criticalSendUntil = 0;
   private activeRoomBoostUntil = 0;
   private sendStartedAtById: Map<string, number> = new Map();
+  // When the current connection came online, and when each message id was
+  // last put on the wire by the send queue. drainHeap() only resends what has
+  // not gone out on this connection: anything the queue sent since 'online'
+  // is in flight and owned by the ack catch-up / failure watchdog.
+  private sessionOnlineAt = 0;
+  private lastSentAtById: Map<string, number> = new Map();
   private pendingSendIdsByRoom: Map<string, Set<string>> = new Map();
   private maxInFlightHistory = 1;
+  // <history maxstanzas=N/> sent with every MUC join presence (0 = none).
+  private joinHistoryStanzas = 0;
   private softPauseAfterSendMs = 0;
   private activeRoomBoostTtlMs = 2000;
   private activeSendBoostMs = 2000;
@@ -496,6 +546,10 @@ export class XmppClient implements XmppClientInterface {
     this.backgroundWhileCriticalSend =
       xmppSettings?.historyQoS?.backgroundWhileCriticalSend === true;
     this.disableLastRead = xmppSettings?.disableLastRead === true;
+    this.joinConcurrency = Math.max(
+      1,
+      Math.floor(Number(xmppSettings?.historyQoS?.joinConcurrency) || 5)
+    );
     this.presenceFailureBackoffMs = Math.max(
       0,
       Number(xmppSettings?.historyQoS?.presenceFailureBackoffMs || 10000)
@@ -507,6 +561,10 @@ export class XmppClient implements XmppClientInterface {
     this.startupPrivateStoreTtlMs = Math.max(
       0,
       Number(xmppSettings?.historyQoS?.startupPrivateStoreTtlMs || 60000)
+    );
+    this.joinHistoryStanzas = Math.max(
+      0,
+      Math.floor(Number(xmppSettings?.historyQoS?.joinHistoryStanzas) || 0)
     );
     this.initializeClient();
   }
@@ -618,6 +676,10 @@ export class XmppClient implements XmppClientInterface {
 
       await this.client.stop();
       this.client = null;
+      this.sweepEpoch += 1;
+      this.clearSweepRetry();
+      this.joinedRooms.clear();
+      this.roomPresenceInFlight.clear();
       this.historyPreloadInFlight.clear();
       this.activeHistoryInFlight.clear();
       this.roomPresenceBlockedUntil.clear();
@@ -652,6 +714,10 @@ export class XmppClient implements XmppClientInterface {
       ethoraLogger.log('Disconnected from server.');
       this.status = this.authFailureDetected ? 'auth_failed' : 'offline';
       this.presencesReady = false;
+      this.priorityPresencesReady = false;
+      this.sweepEpoch += 1;
+      this.clearSweepRetry();
+      this.sendAllPresencesInFlight = null;
       this.joinedRooms.clear();
       this.roomPresenceInFlight.clear();
       this.historyPreloadInFlight.clear();
@@ -699,6 +765,7 @@ export class XmppClient implements XmppClientInterface {
         this.resource = jid.resource || 'default';
         ethoraLogger.log('Client is online.', new Date());
         this.status = 'online';
+        this.sessionOnlineAt = Date.now();
         this.everOnline = true;
         // Publishes this device's OMEMO keys. No-op unless the host app
         // enabled e2ee; never blocks the rest of the online handler.
@@ -944,16 +1011,34 @@ export class XmppClient implements XmppClientInterface {
     // one of the three independent callers just arrived late. `reconnect()`
     // explicitly resets presencesReady to false before the next online
     // cycle, so this never suppresses a sweep that's actually needed again.
-    if (this.presencesReady) {
+    // ...unless rooms appeared since (a /chats/my that returned after the
+    // sweep ran on the persisted set): then sweep just those.
+    if (this.presencesReady && !this.hasUnjoinedRooms()) {
       return;
     }
-    this.sendAllPresencesInFlight = this.runAllPresencesSweep().finally(() => {
-      this.sendAllPresencesInFlight = null;
+    const run: Promise<void> = this.runAllPresencesSweep().finally(() => {
+      if (this.sendAllPresencesInFlight === run) {
+        this.sendAllPresencesInFlight = null;
+      }
     });
-    return this.sendAllPresencesInFlight;
+    this.sendAllPresencesInFlight = run;
+    return run;
+  }
+
+  // Store rooms this connection has not joined and is not backing off from.
+  private hasUnjoinedRooms(): boolean {
+    const rooms = store.getState().rooms.rooms;
+    const now = Date.now();
+    return Object.keys(rooms || {}).some(
+      (jid) =>
+        isLikelyMucJid(jid) &&
+        !this.joinedRooms.has(jid) &&
+        now >= (this.roomPresenceBlockedUntil.get(jid) || 0)
+    );
   }
 
   private async runAllPresencesSweep() {
+    const epoch = this.sweepEpoch;
     this.presencesReady = false;
     const start = Date.now();
     let summary: AllRoomPresenceSummary = {
@@ -965,12 +1050,14 @@ export class XmppClient implements XmppClientInterface {
       failures: [],
     };
     try {
-      summary = await this.allRoomPresencesStanza();
+      summary = await this.allRoomPresencesStanza(epoch);
     } catch (error) {
       console.warn(
         `[XMPP] allRoomPresences fallback reason=${formatError(error)}`
       );
     }
+    // The connection dropped mid-sweep: a newer connection owns the state.
+    if (epoch !== this.sweepEpoch) return;
     if (summary.total > 0) {
       // Only rooms the sweep actually sent a presence for count as joined.
       // Reading the store here instead would also mark rooms that were
@@ -996,11 +1083,80 @@ export class XmppClient implements XmppClientInterface {
         .join(' | ');
       console.warn(`[XMPP] allRoomPresences failures_top3=${text}`);
     }
+    this.priorityPresencesReady = true;
     this.presencesReady = true;
+    this.scheduleSweepRetry(epoch, 0);
+  }
+
+  private clearSweepRetry() {
+    if (this.sweepRetryTimer) clearTimeout(this.sweepRetryTimer);
+    this.sweepRetryTimer = null;
+    this.sweepRetryRunning = false;
+  }
+
+  // Rooms the connection has not joined that a retry can still help: not
+  // joined, not a long-lived (hard) block. Returns the soonest moment a retry
+  // is worthwhile (0 = now) or null when nothing is left.
+  private nextSweepRetryAt(): number | null {
+    const rooms = store.getState().rooms?.rooms;
+    const now = Date.now();
+    let soonest: number | null = null;
+    Object.keys(rooms || {}).forEach((jid) => {
+      if (!isLikelyMucJid(jid) || this.joinedRooms.has(jid)) return;
+      const until = this.roomPresenceBlockedUntil.get(jid) || 0;
+      // Hard failures (1h) and invalid JIDs (24h) are not worth a retry.
+      if (until - now > Math.max(this.presenceFailureBackoffMs, 1000) * 2)
+        return;
+      const at = Math.max(until, now);
+      if (soonest === null || at < soonest) soonest = at;
+    });
+    return soonest;
+  }
+
+  private scheduleSweepRetry(epoch: number, round: number) {
+    if (epoch !== this.sweepEpoch) return;
+    const delays = XmppClient.SWEEP_RETRY_DELAYS_MS;
+    if (round >= delays.length) return;
+    const at = this.nextSweepRetryAt();
+    if (at === null) return;
+    if (this.sweepRetryTimer) clearTimeout(this.sweepRetryTimer);
+    const delay = Math.max(delays[round], at - Date.now() + 100);
+    this.sweepRetryTimer = setTimeout(() => {
+      this.sweepRetryTimer = null;
+      void this.runSweepRetry(epoch, round);
+    }, delay);
+  }
+
+  private async runSweepRetry(epoch: number, round: number) {
+    if (epoch !== this.sweepEpoch || !this.client) return;
+    // A fresh full sweep owns the pool right now: try again after it.
+    if (this.sweepRetryRunning || this.sendAllPresencesInFlight) {
+      this.scheduleSweepRetry(epoch, round);
+      return;
+    }
+    if (this.nextSweepRetryAt() === null) return;
+    this.sweepRetryRunning = true;
+    try {
+      const summary = await this.allRoomPresencesStanza(epoch);
+      if (epoch !== this.sweepEpoch) return;
+      const failed = new Set(summary.failedRooms);
+      summary.sweptRooms.forEach((jid) => {
+        if (!failed.has(jid)) this.joinedRooms.add(jid);
+      });
+      ethoraLogger.log(
+        `[XMPP] sweep_retry round=${round + 1} total=${summary.total} failed=${summary.failed}`
+      );
+    } catch (error) {
+      console.warn(`[XMPP] sweep_retry:error ${formatError(error)}`);
+    } finally {
+      this.sweepRetryRunning = false;
+    }
+    this.scheduleSweepRetry(epoch, round + 1);
   }
 
   async reconnect() {
     this.presencesReady = false;
+    this.priorityPresencesReady = false;
 
     if (this.reconnecting) {
       return this.reconnectPromise;
@@ -1036,16 +1192,31 @@ export class XmppClient implements XmppClientInterface {
     return this.reconnectPromise;
   }
 
-  async allRoomPresencesStanza(): Promise<AllRoomPresenceSummary> {
+  async allRoomPresencesStanza(
+    epoch: number = this.sweepEpoch
+  ): Promise<AllRoomPresenceSummary> {
     const start = Date.now();
     try {
-      const summary = await allRoomPresences(this.client, (roomJid) =>
-        this.ensureRoomPresence(roomJid, {
-          settleDelay: 0,
-          timeoutMs: 5000,
-          waitForJoin: true,
-          source: 'background',
-        })
+      const summary = await allRoomPresences(
+        this.client,
+        (roomJid) =>
+          this.ensureRoomPresence(roomJid, {
+            settleDelay: 0,
+            timeoutMs: 5000,
+            waitForJoin: true,
+            source: 'background',
+          }),
+        {
+          concurrency: this.joinConcurrency,
+          isJoined: (jid) => this.joinedRooms.has(jid),
+          getActiveRoomJid: () => store.getState().rooms.activeRoomJID,
+          rank: (jid) =>
+            getRoomLastActivityScore(store.getState().rooms.rooms?.[jid]),
+          isCancelled: () => epoch !== this.sweepEpoch,
+          onPriorityDone: () => {
+            if (epoch === this.sweepEpoch) this.priorityPresencesReady = true;
+          },
+        }
       );
       ethoraLogger.log(
         `[InitTiming] xmpp:allRoomPresencesStanza ${Date.now() - start}ms`
@@ -1141,7 +1312,24 @@ export class XmppClient implements XmppClientInterface {
     this.mamRequestRegistry.clear();
   }
 
+  // An in-flight history task or request older than this is aborted.
+  private static readonly HISTORY_WATCHDOG_MS = 15000;
+  // Bumped when the queue is reset, so a task of the previous connection that
+  // finishes late does not decrement the new connection's counters.
+  private historyQueueGeneration = 0;
+
+  // Gives up on a MAM request nobody will answer: resolves it undefined and
+  // keeps the registry tombstone so a late page is dropped quietly.
+  private abandonMamRequest(requestId: string) {
+    const entry = this.mamRequestRegistry.get(requestId);
+    if (!entry) return;
+    clearTimeout(entry.timeout);
+    this.mamRequestRegistry.delete(requestId);
+    entry.resolve(undefined);
+  }
+
   private clearHistoryQueue() {
+    this.historyQueueGeneration += 1;
     this.historyQueue.forEach((task) => task.resolve(undefined));
     this.historyQueue = [];
     this.historyQueueInFlight = 0;
@@ -1230,9 +1418,15 @@ export class XmppClient implements XmppClientInterface {
     );
     if (hasMamInFlight) return true;
 
+    // A key of a BACKGROUND request does not count: it is the preload's own
+    // fetch for this room, which waits in the very queue this gate holds
+    // shut. Counting it deadlocked the room (background suppressed because a
+    // request is pending, the request pending because background is
+    // suppressed) and left an opened room empty forever.
     const activeHistoryPrefix = `${activeRoomJid}:`;
-    return Array.from(this.activeHistoryInFlight.keys()).some((key) =>
-      key.startsWith(activeHistoryPrefix)
+    return Array.from(this.activeHistoryInFlight.keys()).some(
+      (key) =>
+        key.startsWith(activeHistoryPrefix) && !key.endsWith(':background')
     );
   }
 
@@ -1444,9 +1638,17 @@ export class XmppClient implements XmppClientInterface {
         `[XMPP] history_inflight_count count=${this.historyQueueInFlight}`
       );
 
-      this.executeHistoryTask(task)
-        .catch(() => {})
-        .finally(() => {
+      // Every task settles and frees its slot exactly once, whichever comes
+      // first: it finishing, or the watchdog (a hung parse/join must not hold
+      // the only history slot, and with it every room, forever).
+      const epochAtStart = this.historyQueueGeneration;
+      let released = false;
+      const release = () => {
+        if (released) return;
+        released = true;
+        clearTimeout(watchdog);
+        // clearHistoryQueue() zeroed the counters for a newer connection.
+        if (epochAtStart === this.historyQueueGeneration) {
           this.historyQueueInFlight = Math.max(
             0,
             this.historyQueueInFlight - 1
@@ -1457,11 +1659,25 @@ export class XmppClient implements XmppClientInterface {
               this.historyQueueInFlightHigh - 1
             );
           }
-          ethoraLogger.log(
-            `[XMPP] history_inflight_count count=${this.historyQueueInFlight}`
-          );
-          this.scheduleHistoryQueue();
-        });
+        }
+        ethoraLogger.log(
+          `[XMPP] history_inflight_count count=${this.historyQueueInFlight}`
+        );
+        this.scheduleHistoryQueue();
+      };
+      const watchdog = setTimeout(() => {
+        if (released) return;
+        console.warn(
+          `[XMPP] history_task_watchdog room=${task.chatJID} source=${task.source} ms=${XmppClient.HISTORY_WATCHDOG_MS}`
+        );
+        this.abandonMamRequest(task.id);
+        task.resolve(undefined);
+        release();
+      }, XmppClient.HISTORY_WATCHDOG_MS);
+
+      this.executeHistoryTask(task)
+        .catch(() => {})
+        .finally(release);
     }
   }
 
@@ -1508,28 +1724,125 @@ export class XmppClient implements XmppClientInterface {
         task.id,
         task.priority === 0 ? 2800 : 10000
       );
+      // Resolve the senders now so names are there before a bubble mounts.
+      requestSendersOf(messages);
 
       const currentEpoch = this.getRoomEpoch(task.chatJID);
       if (task.source === 'background' && task.epoch !== currentEpoch) {
         const currentMessages =
           store.getState().rooms.rooms?.[task.chatJID]?.messages || [];
+        // The epoch moves when the room is promoted (the user opened it)
+        // while this background fetch was already on the wire. Dropping the
+        // page then left the freshly opened room with NOTHING: the active
+        // request had been coalesced onto this very in-flight promise (see
+        // getHistoryStanza), so it received the empty list too and never
+        // asked again - a room that stayed at 0 messages until reopened.
+        // The page is current archive data, so keep it when the room is the
+        // active one or has nothing yet; only a stale result for a room
+        // that already shows messages is dropped.
+        const roomNow = store.getState().rooms.rooms?.[task.chatJID];
+        const roomIsEmpty = !(roomNow?.messages?.length || 0);
+        if (
+          messages &&
+          messages.length > 0 &&
+          (this.activeRoomJid === task.chatJID || roomIsEmpty)
+        ) {
+          this.storeHistoryPage(task, messages);
+          task.resolve(messages);
+          return;
+        }
         task.resolve(currentMessages);
         return;
       }
 
       if (messages && messages.length > 0) {
-        store.dispatch(
-          setRoomMessages({
-            roomJID: task.chatJID,
-            messages,
-          })
-        );
+        this.storeHistoryPage(task, messages);
       }
 
       task.resolve(messages);
     } catch {
       task.resolve(undefined);
     }
+  }
+
+  /**
+   * Writes one archive page into the store. A LATEST page (no `before`)
+   * that is full and starts after everything the room has cached means more
+   * than a page arrived while this client was away: merging it would leave a
+   * silent hole between the cache and the page, so the cache is replaced
+   * (the same "cache reset" the startup catch-up does when its anchor is
+   * missing). Anything overlapping the cache is merged as before.
+   */
+  private storeHistoryPage(
+    task: Pick<HistoryQueueTask, 'chatJID' | 'before' | 'max'>,
+    messages: IMessage[]
+  ): void {
+    const cached = store.getState().rooms.rooms?.[task.chatJID]?.messages;
+    if (!task.before && cached?.length && messages.length >= task.max) {
+      let cachedNewest = 0;
+      for (let i = cached.length - 1; i >= 0; i -= 1) {
+        const message = cached[i];
+        if (!message || message.id === 'delimiter-new' || message.pending) {
+          continue;
+        }
+        // Client-only call-log fallbacks never exist on the server.
+        if (String(message.id || '').startsWith('calllog-')) continue;
+        const ts = getMessageTimestamp(message);
+        if (ts > 0) {
+          cachedNewest = ts;
+          break;
+        }
+      }
+      const pageOldest = messages.reduce((min, message) => {
+        const ts = getMessageTimestamp(message);
+        return ts > 0 ? Math.min(min, ts) : min;
+      }, Number.MAX_SAFE_INTEGER);
+      if (cachedNewest > 0 && pageOldest > cachedNewest) {
+        store.dispatch(
+          replaceRoomMessages({ roomJID: task.chatJID, messages })
+        );
+        // The cache was dropped for this page: the cursor of the dropped
+        // range no longer borders what is shown. Archive ids are the message
+        // ids (microseconds); anything else cannot serve as a cursor.
+        const pageOldestId = messages.reduce((min, message) => {
+          const id = Number(message?.id);
+          return Number.isFinite(id) && id > 1e14 ? Math.min(min, id) : min;
+        }, Number.MAX_SAFE_INTEGER);
+        const knownStats =
+          store.getState().rooms.rooms?.[task.chatJID]?.messageStats;
+        if (pageOldestId !== Number.MAX_SAFE_INTEGER && knownStats) {
+          store.dispatch(
+            updateRoom({
+              jid: task.chatJID,
+              updates: {
+                messageStats: {
+                  ...knownStats,
+                  firstMessageTimestamp: pageOldestId,
+                },
+              },
+            })
+          );
+        }
+        return;
+      }
+    }
+    store.dispatch(setRoomMessages({ roomJID: task.chatJID, messages }));
+    this.clearPreloadError(task.chatJID);
+  }
+
+  // A page arrived for a room an earlier preload marked 'error' (opening the
+  // room fetches regardless of that state): the failure is stale, so the room
+  // goes back to the retryable 'partial'.
+  private clearPreloadError(chatJID: string): void {
+    if (
+      store.getState().rooms.rooms?.[chatJID]?.historyPreloadState !== 'error'
+    )
+      return;
+    store.dispatch(
+      applyRoomsPreloadBatch({
+        rooms: [{ jid: chatJID, historyPreloadState: 'partial' }],
+      })
+    );
   }
 
   private async parseMamMessages(messages: Element[]): Promise<IMessage[]> {
@@ -1593,7 +1906,17 @@ export class XmppClient implements XmppClientInterface {
     // live are dispatched to the store.
     const { deferred } = applyMamReactions(parsed, reactionStanzas);
     for (const reaction of deferred) {
-      store.dispatch(setReactions(reaction));
+      // A store/middleware failure on one reaction must not fail the whole
+      // archive page (it would resolve as a timeout and mark the room
+      // 'error').
+      try {
+        store.dispatch({
+          ...setReactions(reaction),
+          meta: { fromHistory: true },
+        });
+      } catch (error) {
+        warnMamRowSkipped(error);
+      }
     }
 
     return parsed;
@@ -1636,22 +1959,45 @@ export class XmppClient implements XmppClientInterface {
           const firstMessageTimestamp = getNumberFromString(first);
           const lastMessageTimestamp = getNumberFromString(last);
 
-          store.dispatch(
-            updateRoom({
-              jid: roomJid,
-              updates: {
-                historyComplete,
-                ...(set
-                  ? {
-                      messageStats: {
-                        firstMessageTimestamp,
-                        lastMessageTimestamp,
-                      },
-                    }
-                  : {}),
-              },
-            })
-          );
+          if (request.detached) {
+            request.onFin?.({
+              complete: historyComplete,
+              first: first ? firstMessageTimestamp : null,
+              last: last ? lastMessageTimestamp : null,
+            });
+          } else {
+            // A LATEST-page answer that arrives after the reader (or the
+            // opening fill) already paged further back must not pull the
+            // paging cursor forward again: the list would ask for the page it
+            // already holds, see the same request, and stop, leaving a room
+            // of receipts showing one message.
+            const knownRoom = store.getState().rooms.rooms?.[roomJid];
+            const knownCursor = knownRoom?.messageStats?.firstMessageTimestamp;
+            const keepOlderCursor =
+              request.before === undefined &&
+              (knownRoom?.messages?.length || 0) > 0 &&
+              typeof knownCursor === 'number' &&
+              knownCursor > 0 &&
+              knownCursor < firstMessageTimestamp;
+            store.dispatch(
+              updateRoom({
+                jid: roomJid,
+                updates: {
+                  historyComplete,
+                  ...(set
+                    ? {
+                        messageStats: {
+                          firstMessageTimestamp: keepOlderCursor
+                            ? (knownCursor as number)
+                            : firstMessageTimestamp,
+                          lastMessageTimestamp,
+                        },
+                      }
+                    : {}),
+                },
+              })
+            );
+          }
         }
 
         clearTimeout(request.timeout);
@@ -1659,6 +2005,7 @@ export class XmppClient implements XmppClientInterface {
         this.parseMamMessages(request.messages)
           .then((messages) => {
             if (request.abandoned) {
+              if (request.detached) return;
               // The caller already gave up (resolved undefined on timeout),
               // but the archive page is real: merge it so a slow server
               // still fills the room instead of the data being dropped.
@@ -1693,7 +2040,18 @@ export class XmppClient implements XmppClientInterface {
     max: number,
     before: number | undefined,
     requestId: string,
-    timeoutMs = 10000
+    timeoutMs = 10000,
+    windowQuery?: {
+      after?: number;
+      /**
+       * MAM time filter (ISO strings). With one and no before/after cursor the
+       * server answers with the FIRST page of the filtered range, oldest
+       * first, which is how a row with no archive id is located by its time.
+       */
+      start?: string;
+      end?: string;
+      onFin: (fin: HistoryWindowFin) => void;
+    }
   ): Promise<IMessage[] | undefined> {
     if (!chatJID) return Promise.resolve(undefined);
     // Drop the request instead of manufacturing a JID out of a non-room value.
@@ -1726,10 +2084,12 @@ export class XmppClient implements XmppClientInterface {
       this.mamRequestRegistry.set(requestId, {
         id: requestId,
         chatJID: fixedChatJid,
+        before,
         messages: [],
         startedAt: Date.now(),
         timeout,
         resolve,
+        ...(windowQuery ? { detached: true, onFin: windowQuery.onFin } : {}),
       });
 
       const message = xml(
@@ -1742,11 +2102,42 @@ export class XmppClient implements XmppClientInterface {
         xml(
           'query',
           { xmlns: 'urn:xmpp:mam:2', queryid: requestId },
+          windowQuery?.start || windowQuery?.end
+            ? xml(
+                'x',
+                { xmlns: 'jabber:x:data', type: 'submit' },
+                xml(
+                  'field',
+                  { var: 'FORM_TYPE', type: 'hidden' },
+                  xml('value', {}, 'urn:xmpp:mam:2')
+                ),
+                windowQuery.start
+                  ? xml(
+                      'field',
+                      { var: 'start' },
+                      xml('value', {}, windowQuery.start)
+                    )
+                  : null,
+                windowQuery.end
+                  ? xml(
+                      'field',
+                      { var: 'end' },
+                      xml('value', {}, windowQuery.end)
+                    )
+                  : null
+              )
+            : null,
           xml(
             'set',
             { xmlns: 'http://jabber.org/protocol/rsm' },
             xml('max', {}, max.toString()),
-            before ? xml('before', {}, before.toString()) : xml('before')
+            windowQuery?.after !== undefined
+              ? xml('after', {}, String(windowQuery.after))
+              : before
+                ? xml('before', {}, before.toString())
+                : windowQuery?.start || windowQuery?.end
+                  ? null
+                  : xml('before')
           )
         )
       );
@@ -1808,6 +2199,7 @@ export class XmppClient implements XmppClientInterface {
       this.sendIsActiveById.delete(messageId);
     }
     this.sendIsActiveById.delete(messageId);
+    this.lastSentAtById.delete(messageId);
 
     const pending = this.pendingSendIdsByRoom.get(roomJID);
     if (!pending) return;
@@ -1830,7 +2222,16 @@ export class XmppClient implements XmppClientInterface {
     id?: string;
     source?: HistorySource;
   }): Promise<IMessage[] | undefined> {
-    const source = params.source || 'default';
+    // The room the user has open is never "background": a preload fetch for
+    // it (the scheduler's page, or its follow-up pages) enqueued after the
+    // room was promoted would otherwise sit at background priority behind
+    // the active-room gate.
+    const source: HistorySource =
+      (params.source || 'default') === 'background' &&
+      this.activeRoomJid &&
+      params.chatJID === this.activeRoomJid
+        ? 'active'
+        : params.source || 'default';
     const taskId = params.id || this.nextHistoryTaskId();
     const priority = this.getHistoryPriority(source);
     const epoch = this.getRoomEpoch(params.chatJID);
@@ -1964,6 +2365,7 @@ export class XmppClient implements XmppClientInterface {
         if (ok) {
           if (nextEntry.id) {
             this.pendingSendById.delete(nextEntry.id);
+            this.lastSentAtById.set(nextEntry.id, Date.now());
           }
           if (nextEntry.createdAt) {
             const waitMs = Date.now() - nextEntry.createdAt;
@@ -2146,13 +2548,30 @@ export class XmppClient implements XmppClientInterface {
       return result === OWN_TIMEOUT ? false : result;
     }
 
-    const promise = this.wrapWithConnectionCheck(async () => {
-      await presenceInRoom(this.client, roomJID, settleDelay, timeoutMs);
+    // A join that outlives its connection (socket dropped while it waited)
+    // must not write into the NEW connection's state: neither joined nor a
+    // failure backoff.
+    const joinEpoch = this.sweepEpoch;
+    const promise: Promise<boolean> = this.wrapWithConnectionCheck(async () => {
+      await presenceInRoom(
+        this.client,
+        roomJID,
+        settleDelay,
+        timeoutMs,
+        this.joinHistoryStanzas
+      );
+      if (joinEpoch !== this.sweepEpoch) return false;
       this.joinedRooms.add(roomJID);
       this.roomPresenceBlockedUntil.delete(roomJID);
       return true;
     })
       .catch(async (error) => {
+        if (joinEpoch !== this.sweepEpoch) {
+          ethoraLogger.log(
+            `[XMPP] room_presence_stale_failure_ignored room=${roomJID}`
+          );
+          return false;
+        }
         const normalizedError = String(formatError(error));
         // Permanent / long-lived failures: server says "you are not a member"
         // or "this room/domain doesn't exist". No point retrying for hours.
@@ -2183,7 +2602,10 @@ export class XmppClient implements XmppClientInterface {
         return false;
       })
       .finally(() => {
-        this.roomPresenceInFlight.delete(roomJID);
+        // The map was cleared on disconnect: only drop our own entry.
+        if (this.roomPresenceInFlight.get(roomJID) === promise) {
+          this.roomPresenceInFlight.delete(roomJID);
+        }
       });
 
     this.roomPresenceInFlight.set(roomJID, promise);
@@ -2225,8 +2647,11 @@ export class XmppClient implements XmppClientInterface {
       coalesceRoom?: boolean;
       skipIfPreloaded?: boolean;
       source?: HistorySource;
+      // Internal: this call is the single re-issue after a watchdog abort or
+      // a reused request that produced nothing.
+      reissued?: boolean;
     }
-  ) => {
+  ): Promise<IMessage[] | undefined> => {
     const source = options?.source || 'default';
     const shouldCoalesceActive =
       source === 'active' || source === 'send_ack' || options?.coalesceRoom;
@@ -2243,14 +2668,51 @@ export class XmppClient implements XmppClientInterface {
       }
     }
 
-    if (existingInFlight) {
+    // A one-message teaser page (the staged preload's preview pass) must not
+    // stand in for the full page an opened room asks for: wait for it to
+    // finish, then issue the real request below instead of reusing it.
+    const existingIsTeaser =
+      !!existingInFlight &&
+      existingInFlight.max < Math.min(max, 5) &&
+      (source === 'active' || source === 'send_ack');
+    if (existingInFlight && existingIsTeaser) {
+      this.promoteRoomHistory(chatJID);
+      await existingInFlight.promise.catch(() => undefined);
+      // A sibling active request (the room-open effect fires one too) may
+      // have issued the real page while this one waited: share it.
+      const sibling = this.historyPreloadInFlight.get(inFlightKey);
+      if (sibling && sibling !== existingInFlight) return sibling.promise;
+    }
+
+    if (existingInFlight && !existingIsTeaser) {
       if (source === 'active' || source === 'send_ack') {
         this.promoteRoomHistory(chatJID);
       }
       ethoraLogger.log(
         `[XMPP] history_inflight_reuse room=${chatJID} source=${source} requestedMax=${max} existingMax=${existingInFlight.max}`
       );
-      return existingInFlight.promise;
+      const reused = await existingInFlight.promise;
+      // The request we piggybacked on may have been a background one that was
+      // discarded or aborted, settling with no stored page: an opened room
+      // must not stay empty because of it, so ask again once as ourselves.
+      if (
+        (source === 'active' || source === 'send_ack') &&
+        !options?.reissued &&
+        existingInFlight.source === 'background' &&
+        !(reused && reused.length > 0)
+      ) {
+        const room = store.getState().rooms.rooms?.[chatJID];
+        if (!(room?.messages?.length || 0) && room?.historyComplete !== true) {
+          ethoraLogger.log(
+            `[XMPP] history_inflight_reissue room=${chatJID} reason=reused_empty`
+          );
+          return this.getHistoryStanza(chatJID, max, before, otherStanzaId, {
+            ...options,
+            reissued: true,
+          });
+        }
+      }
+      return reused;
     }
 
     if (shouldCoalesceActive) {
@@ -2262,32 +2724,145 @@ export class XmppClient implements XmppClientInterface {
       }
     }
 
-    const requestPromise = this.enqueueHistoryTask({
+    const requestPromise = this.guardHistoryRequest(
+      this.enqueueHistoryTask({
+        chatJID,
+        max,
+        before,
+        id: otherStanzaId,
+        source,
+      }),
       chatJID,
-      max,
       before,
-      id: otherStanzaId,
-      source,
-    });
-    this.historyPreloadInFlight.set(inFlightKey, {
+      source
+    );
+    const entry: HistoryInFlightEntry = {
       max,
-      promise: requestPromise,
-    });
+      promise: requestPromise.then((r) => r.messages),
+      source,
+    };
+    this.historyPreloadInFlight.set(inFlightKey, entry);
+    const activeKey = shouldCoalesceActive
+      ? `${chatJID}:${String(before || '')}:${source}`
+      : null;
+    if (activeKey) this.activeHistoryInFlight.set(activeKey, entry.promise);
 
-    if (shouldCoalesceActive) {
-      const inFlightKey = `${chatJID}:${String(before || '')}:${source}`;
-      this.activeHistoryInFlight.set(inFlightKey, requestPromise);
-      return requestPromise.finally(() => {
-        this.historyPreloadInFlight.delete(
-          this.getHistoryInFlightKey(chatJID, before)
-        );
-        this.activeHistoryInFlight.delete(inFlightKey);
+    // Keys are released exactly once, and only if they are still ours (a
+    // newer request may have replaced them after a watchdog abort).
+    const settled = await requestPromise.finally(() => {
+      if (this.historyPreloadInFlight.get(inFlightKey) === entry) {
+        this.historyPreloadInFlight.delete(inFlightKey);
+      }
+      if (
+        activeKey &&
+        this.activeHistoryInFlight.get(activeKey) === entry.promise
+      ) {
+        this.activeHistoryInFlight.delete(activeKey);
+      }
+    });
+    if (
+      settled.aborted &&
+      (source === 'active' || source === 'send_ack') &&
+      !options?.reissued
+    ) {
+      return this.getHistoryStanza(chatJID, max, before, otherStanzaId, {
+        ...options,
+        reissued: true,
       });
     }
+    return settled.messages;
+  };
 
-    return await requestPromise.finally(() => {
-      this.historyPreloadInFlight.delete(inFlightKey);
+  // Settles a history request no later than the watchdog: a task that never
+  // ran (stuck behind a gate) or never answered is dropped from the queue and
+  // resolves as aborted, so its in-flight keys are released.
+  private guardHistoryRequest(
+    request: Promise<IMessage[] | undefined>,
+    chatJID: string,
+    before: number | undefined,
+    source: HistorySource
+  ): Promise<{ messages: IMessage[] | undefined; aborted: boolean }> {
+    return new Promise((resolve) => {
+      let done = false;
+      // A background request may legitimately wait a long time in the queue
+      // (hundreds of rooms, one slot): only its execution is watched, by the
+      // queue worker. Everything else is expected to run promptly.
+      const timer =
+        source === 'background'
+          ? null
+          : setTimeout(() => {
+              if (done) return;
+              done = true;
+              console.warn(
+                `[XMPP] history_request_watchdog room=${chatJID} before=${String(before || '')}`
+              );
+              const stuck = this.historyQueue.filter(
+                (task) => task.chatJID === chatJID && task.before === before
+              );
+              stuck.forEach((task) => {
+                this.abandonMamRequest(task.id);
+                task.resolve(undefined);
+              });
+              this.historyQueue = this.historyQueue.filter(
+                (task) => !(task.chatJID === chatJID && task.before === before)
+              );
+              resolve({ messages: undefined, aborted: true });
+            }, XmppClient.HISTORY_WATCHDOG_MS);
+      request.then(
+        (messages) => {
+          if (done) return;
+          done = true;
+          if (timer) clearTimeout(timer);
+          resolve({ messages, aborted: false });
+        },
+        () => {
+          if (done) return;
+          done = true;
+          if (timer) clearTimeout(timer);
+          resolve({ messages: undefined, aborted: false });
+        }
+      );
     });
+  }
+
+  /**
+   * One page of archive for a window around a message, RETURNED rather than
+   * stored: no setRoomMessages, no messageStats / historyComplete update, so
+   * the live history is untouched. Pass `before` for the page ending just
+   * before that archive id, or `after` for the page starting just after it
+   * (both exclusive; microsecond MAM ids). Messages come back oldest first.
+   */
+  getHistoryWindow = async (
+    chatJID: string,
+    max: number,
+    cursor: { before?: number; after?: number; start?: string; end?: string }
+  ): Promise<HistoryWindowPage> => {
+    const failed: HistoryWindowPage = {
+      ok: false,
+      messages: [],
+      complete: false,
+      first: null,
+      last: null,
+    };
+    if (this.status !== 'online') return failed;
+    const finBox: { value: HistoryWindowFin | null } = { value: null };
+    const messages = await this.requestMamHistory(
+      chatJID,
+      max,
+      cursor.before,
+      this.nextHistoryTaskId(),
+      8000,
+      {
+        after: cursor.after,
+        start: cursor.start,
+        end: cursor.end,
+        onFin: (value) => {
+          finBox.value = value;
+        },
+      }
+    );
+    if (!messages || !finBox.value) return failed;
+    return { ok: true, messages, ...finBox.value };
   };
 
   getLastMessageArchiveStanza(roomJID: string) {
@@ -2736,6 +3311,13 @@ export class XmppClient implements XmppClientInterface {
         if (!msg?.id || !msg?.roomJid) continue;
         if (hasEchoLanded(msg.roomJid, msg.id)) continue;
         if (this.isSendPending(msg.id)) continue;
+        //  5. the queue already put it on THIS connection -> its echo is simply
+        //     still on its way. This drain runs after the queue flush in the
+        //     same online handler, so a message typed while connecting was
+        //     sent by the flush, cleared from the pending map, and then sent
+        //     again here under the same id: two copies in the room.
+        const sentAt = this.lastSentAtById?.get(msg.id);
+        if (sentAt && sentAt >= (this.sessionOnlineAt || 0)) continue;
         if (isSendRetryInFlight(msg.id)) continue;
         if (isMessageMarkedFailed(msg.roomJid, msg.id)) continue;
         const isTranslate = !!msg.langSource;

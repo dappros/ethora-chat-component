@@ -22,12 +22,20 @@ const HEX24 = '[0-9a-fA-F]{24}';
 // system/local entries that never went through the appId_userId join).
 // Anchored end to end so a human handle that merely contains 24 hex chars
 // somewhere (unlikely, but not impossible) is never caught by accident.
-const OPAQUE_XMPP_USER_ID_RE = new RegExp(`^${HEX24}(?:_${HEX24})?$`);
+const UUID =
+  '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
+// `<appId>_<uuid>` or `<appId>_<hex24>`, optionally followed by further
+// `_<token>` segments (appId is hex24 on most deployments, any alphanumeric
+// token on others). A bare id, or a two-segment mongo id, is the original
+// shape.
+const OPAQUE_XMPP_USER_ID_RE = new RegExp(
+  `^(?:${HEX24}(?:_${HEX24})?|[A-Za-z0-9]+_(?:${HEX24}|${UUID})(?:_[0-9A-Za-z-]+)*)$`
+);
 
 /**
  * True when `value` (a full JID or already-bare local part) is a
  * machine-generated Ethora id rather than anything a human would recognize
- * as their own name - `<24 hex>_<24 hex>` (appId_userId) or a bare 24-hex
+ * as their own name - `<24 hex>_<24 hex>`, `<appId>_<uuid>` or a bare 24-hex
  * id. Kept narrow on purpose: a handle a person actually picked is never
  * this shape, so it is never mistaken for one.
  */
