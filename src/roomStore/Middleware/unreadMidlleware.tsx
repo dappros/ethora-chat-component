@@ -88,6 +88,33 @@ const computeUnreadForRoom = (
     }
   }
 
+  // Server-reported unread (GET /v1/chats/my `unreadCount`) as a floor for
+  // rooms whose history is not loaded (or only partly) - the room list can
+  // show a badge without a MAM round-trip per room. No double counting:
+  //  - messages newer than the seed time are counted on top of the API
+  //    number (they arrived after the server computed it);
+  //  - older loaded messages are NOT added (the API number already covers
+  //    them), and the result is max(local, api + newer) so a fully loaded
+  //    room where the two agree stays exact;
+  //  - once the user has read past the API's last message (lastViewed >=
+  //    its date) the API number is stale and ignored.
+  const apiUnread = room.apiUnreadCount;
+  if (typeof apiUnread === 'number' && apiUnread > 0) {
+    const seededAt = getTimestampFromUnknown(room.apiUnreadSeededAt);
+    const apiLastTs = getTimestampFromUnknown(room.lastMessage?.date);
+    const readPastApi =
+      lastViewed > 0 && apiLastTs > 0 && lastViewed >= apiLastTs;
+    if (!readPastApi) {
+      const newerThanSeed = countableMessages.filter(
+        (msg: IMessage) => getMessageTimestamp(msg) > seededAt
+      ).length;
+      const apiTotal = apiUnread + newerThanSeed;
+      if (apiTotal >= countableMessages.length) {
+        return { unread: apiTotal, unreadCapped: false };
+      }
+    }
+  }
+
   return {
     unread: countableMessages.length,
     unreadCapped,

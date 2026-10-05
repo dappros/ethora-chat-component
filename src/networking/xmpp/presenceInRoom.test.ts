@@ -94,3 +94,36 @@ describe('presenceInRoom', () => {
     await assertion;
   });
 });
+
+describe('presenceInRoom join history', () => {
+  const sentX = async (historyArg?: number) => {
+    const client = makeClient();
+    const roomJID = 'room1@conference.example.com';
+    // delay 0 / short timeout: we only inspect the stanza that was sent.
+    const p =
+      historyArg === undefined
+        ? presenceInRoom(client, roomJID, 0, 50)
+        : presenceInRoom(client, roomJID, 0, 50, historyArg);
+    p.catch(() => {});
+    await Promise.resolve();
+    await Promise.resolve();
+    const presence = client.send.mock.calls[0][0];
+    return presence.getChild('x', 'http://jabber.org/protocol/muc');
+  };
+
+  it('asks the MUC service to replay no history by default', async () => {
+    const x = await sentX();
+    expect(x).toBeDefined();
+    expect(x.getChild('history')?.attrs.maxstanzas).toBe('0');
+  });
+
+  it('honours an explicit joinHistoryStanzas value', async () => {
+    const x = await sentX(20);
+    expect(x.getChild('history')?.attrs.maxstanzas).toBe('20');
+  });
+
+  it('treats a negative or non-finite value as 0', async () => {
+    expect((await sentX(-3)).getChild('history')?.attrs.maxstanzas).toBe('0');
+    expect((await sentX(NaN)).getChild('history')?.attrs.maxstanzas).toBe('0');
+  });
+});

@@ -12,7 +12,10 @@ export const useHeapSender = (client: XmppClient | null) => {
 
   const sendHeapMessages = useCallback(async () => {
     if (!client || queue.length === 0) return;
-    if (!client.presencesReady) {
+    // Gate on the first wave of the background join sweep, not the whole
+    // sweep (minutes for hundreds of rooms). Each message then waits for its
+    // OWN room below.
+    if (!client.priorityPresencesReady) {
       console.warn('Presences not ready, delaying heap send');
       return;
     }
@@ -26,6 +29,19 @@ export const useHeapSender = (client: XmppClient | null) => {
         }
         inFlightRef.current.set(msg.id, Date.now());
         try {
+          // Rooms the sweep has not reached yet are joined now (deduped with
+          // the sweep's own join); a room that cannot be joined keeps its
+          // message queued for the next attempt.
+          const joined = await client.presenceInRoomStanza(
+            msg.roomJid,
+            0,
+            5000,
+            true
+          );
+          if (!joined) {
+            inFlightRef.current.delete(msg.id);
+            continue;
+          }
           if (msg.langSource) {
             await client.sendTextMessageWithTranslateTagStanza(
               msg.roomJid,
@@ -71,13 +87,13 @@ export const useHeapSender = (client: XmppClient | null) => {
   // Auto-trigger when presences become ready or queue changes
   const prevReadyRef = useRef<boolean>(false);
   useEffect(() => {
-    const nowReady = !!client?.presencesReady;
+    const nowReady = !!client?.priorityPresencesReady;
     const wasReady = prevReadyRef.current;
     prevReadyRef.current = nowReady;
     if (!wasReady && nowReady && queue.length > 0) {
       sendHeapMessages();
     }
-  }, [client?.presencesReady, queue.length, sendHeapMessages]);
+  }, [client?.priorityPresencesReady, queue.length, sendHeapMessages]);
 
   // Cleanup in-flight entries when messages leave the queue (acked)
   useEffect(() => {

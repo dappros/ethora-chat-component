@@ -452,6 +452,39 @@ export const restoreUsersSetForRehydrate = (
   );
 };
 
+/**
+ * Per-session facts about a room that must not survive a reload. A persisted
+ * 'done' made the next page load treat the cached transcript as current:
+ * the preload sweep skipped the room and opening it returned the cache
+ * without asking the server, so anything sent while the page was closed was
+ * missing until a manual refetch. 'done'/'loading' go back to
+ * 'partial'/'idle' (the room is refetched once per session, and a page that
+ * does not overlap the cache replaces it instead of leaving a hole). The
+ * API's unread count is likewise a snapshot of that moment: the next
+ * /chats/my response re-seeds it.
+ */
+export const resetSessionRoomState = (
+  roomsMap: Record<string, IRoom>
+): Record<string, IRoom> =>
+  Object.fromEntries(
+    Object.entries(roomsMap).map(([jid, room]) => {
+      const state = room?.historyPreloadState;
+      const hasMessages = (room?.messages?.length ?? 0) > 0;
+      const next: IRoom = { ...room };
+      // 'error' is a per-session transient (a timeout, an IQ error): it must
+      // not stick across reloads, so it is demoted like 'loading' and the
+      // room is retried.
+      if (state === 'done' || state === 'loading' || state === 'error') {
+        next.historyPreloadState = hasMessages ? 'partial' : 'idle';
+      }
+      if (next.apiUnreadCount !== undefined) {
+        next.apiUnreadCount = undefined;
+        next.apiUnreadSeededAt = undefined;
+      }
+      return [jid, next];
+    })
+  );
+
 export const limitMessagesTransform = createTransform<
   any,
   any,
@@ -465,7 +498,7 @@ export const limitMessagesTransform = createTransform<
     return inboundState;
   },
   (outboundState, key) => {
-    if (key === 'rooms') return sanitizeRoomsMap(outboundState);
+    if (key === 'rooms') return resetSessionRoomState(sanitizeRoomsMap(outboundState));
     if (key === 'usersSet') return restoreUsersSetForRehydrate(outboundState);
     return outboundState;
   }

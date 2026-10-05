@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { runHistoryPreloadScheduler } from './historyPreloadScheduler';
 import { store } from '../roomStore';
-import { addRoom, deleteAllRooms } from '../roomStore/roomsSlice';
+import { addRoom, deleteAllRooms, updateRoom } from '../roomStore/roomsSlice';
 import { IRoom } from '../types/types';
 
 const ROOM_A = 'rooma@conference.xmpp.example.com';
@@ -91,5 +91,96 @@ describe('historyPreloadScheduler, an empty MAM page is inconclusive, not done',
 
     expect(stateOf(ROOM_B).historyPreloadState).toBe('done');
     expect(stateOf(ROOM_B).messages.length).toBeGreaterThan(0);
+  });
+});
+
+describe('historyPreloadScheduler, reaction-only pages follow the cursor', () => {
+  const realMsg = (id: string) => ({
+    id,
+    body: 'real',
+    date: new Date().toISOString(),
+    roomJid: ROOM_A,
+    user: { id: 'peer@example.com', name: 'Peer' },
+  });
+  const setCursor = (cursor: number) =>
+    store.dispatch(
+      updateRoom({
+        jid: ROOM_A,
+        updates: {
+          messageStats: {
+            firstMessageTimestamp: cursor,
+            lastMessageTimestamp: cursor + 100,
+          },
+        } as any,
+      })
+    );
+
+  beforeEach(() => {
+    store.dispatch(deleteAllRooms());
+  });
+
+  it('pages back by the server cursor until something displayable arrives', async () => {
+    seedRoom(ROOM_A);
+    let call = 0;
+    const getHistoryStanza = vi.fn(async () => {
+      call += 1;
+      if (call < 3) {
+        setCursor(1000 - call);
+        return [];
+      }
+      return [realMsg('m1')];
+    });
+
+    await runHistoryPreloadScheduler({
+      client: makeClient(getHistoryStanza),
+      concurrency: 1,
+      pageSize: 15,
+      retryLimit: 0,
+    });
+
+    expect(getHistoryStanza).toHaveBeenCalledTimes(3);
+    expect((getHistoryStanza.mock.calls as any[])[1][2]).toBe(999);
+    expect((getHistoryStanza.mock.calls as any[])[2][2]).toBe(998);
+    expect(stateOf(ROOM_A).historyPreloadState).toBe('done');
+    expect(stateOf(ROOM_A).messages.length).toBe(1);
+  });
+
+  it('is bounded and ends partial, not error, when nothing displayable is found', async () => {
+    seedRoom(ROOM_A);
+    let call = 0;
+    const getHistoryStanza = vi.fn(async () => {
+      call += 1;
+      setCursor(1000 - call);
+      return [];
+    });
+
+    await runHistoryPreloadScheduler({
+      client: makeClient(getHistoryStanza),
+      concurrency: 1,
+      pageSize: 1,
+      retryLimit: 2,
+    });
+
+    expect(getHistoryStanza).toHaveBeenCalledTimes(5);
+    expect(stateOf(ROOM_A).historyPreloadState).toBe('partial');
+  });
+
+  it('a real failure ends in error, and a later sweep retries it to success', async () => {
+    seedRoom(ROOM_A);
+    await runHistoryPreloadScheduler({
+      client: makeClient(vi.fn().mockResolvedValue(undefined)),
+      concurrency: 1,
+      pageSize: 10,
+      retryLimit: 0,
+    });
+    expect(stateOf(ROOM_A).historyPreloadState).toBe('error');
+
+    await runHistoryPreloadScheduler({
+      client: makeClient(vi.fn().mockResolvedValue([realMsg('m2')])),
+      concurrency: 1,
+      pageSize: 10,
+      retryLimit: 0,
+    });
+    expect(stateOf(ROOM_A).historyPreloadState).toBe('done');
   });
 });
