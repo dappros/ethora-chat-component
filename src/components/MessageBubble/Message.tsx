@@ -5,6 +5,7 @@ import React, {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react';
 import { IUser, MessageProps } from '../../types/types';
 import { useUsersSet } from '../../hooks/useRoomState';
@@ -54,6 +55,11 @@ import {
 } from '../../helpers/quickReplies';
 import { useSendMessage } from '../../hooks/useSendMessage';
 import { isOpaqueXmppUserId } from '../../helpers/xmppUsername';
+import {
+  requestUsers,
+  subscribeUserResolver,
+  getUserLookupStatus,
+} from '../../helpers/userResolver';
 import { parseBotMarkup, stripBotMarkup } from '../../helpers/botMarkup';
 import styled from 'styled-components';
 import {
@@ -64,6 +70,10 @@ import { resendMessage } from '../../utils/resendMessage';
 
 // Inherits CustomMessageTimestamp's colour/size - just the WhatsApp/
 // Telegram-style italic to read as a tag, not a second timestamp.
+// Shown instead of a name while the sender's profile is still being looked
+// up: short and fixed so the bubble does not jump when the name arrives.
+const SENDER_NAME_PLACEHOLDER = '\u2026';
+
 const EditedLabel = styled.span`
   font-style: italic;
 `;
@@ -159,13 +169,54 @@ const Message: React.FC<MessageProps> = forwardRef<
   // always IS the raw id. Showing either as a "name" is the bug this whole
   // change is about - fall through to 'Unknown' instead, same as a sender
   // usersSet has never heard of.
+  // 'Deleted User' baked into message.user.name only means "not resolved at
+  // insert time"; whether the user is truly gone is the resolver's 404 below.
   const safeMessageName =
-    message.user?.name && !isOpaqueXmppUserId(message.user.name)
+    message.user?.name &&
+    message.user.name !== 'Deleted User' &&
+    !isOpaqueXmppUserId(message.user.name)
       ? message.user.name
       : '';
   const safeSenderLocal = isOpaqueXmppUserId(senderLocal) ? '' : senderLocal;
-  const senderDisplayName =
-    usersSetDisplayName || safeMessageName || safeSenderLocal || 'Unknown';
+  // Ask the backend for a sender nobody has told us about (big rooms ship
+  // only 30 members). The resolver debounces and de-duplicates.
+  useEffect(() => {
+    if (!senderEntry && senderLocal) requestUsers([senderLocal]);
+  }, [senderEntry, senderLocal]);
+  const lookupStatus = useSyncExternalStore(
+    subscribeUserResolver,
+    () => getUserLookupStatus(senderLocal),
+    () => 'pending' as const
+  );
+  // The sender's own name stamped on the stanza's <data> by clients of this
+  // SDK. It is only the LAST resort (older backends and clients), used once
+  // the lookup has finished without a name, and it is never written into
+  // usersSet. insertion-time enrichment may have baked it into
+  // message.user.name, so a message name equal to it counts as <data>, not
+  // as a member/usersSet name.
+  const dataFull = String((message as any)?.fullName || '').trim();
+  const dataComposed =
+    dataFull ||
+    `${String((message as any)?.senderFirstName || '').trim()} ${String(
+      (message as any)?.senderLastName || ''
+    ).trim()}`.trim();
+  const trustedMessageName =
+    safeMessageName && safeMessageName !== dataComposed ? safeMessageName : '';
+  const lookupPending = lookupStatus === 'pending';
+  // Chain: usersSet (member or lookup result) > a name from a member/seed >
+  // loading placeholder while the lookup runs > <data> name > readable id >
+  // Unknown user (Deleted User only when the backend confirmed 404).
+  const senderNamePending =
+    !usersSetDisplayName && !trustedMessageName && lookupPending;
+  const unresolvedPlaceholder =
+    lookupStatus === 'notfound' ? 'Deleted User' : t('user.unknown');
+  const senderDisplayName = senderNamePending
+    ? SENDER_NAME_PLACEHOLDER
+    : usersSetDisplayName ||
+      trustedMessageName ||
+      dataComposed ||
+      safeSenderLocal ||
+      unresolvedPlaceholder;
   // usersSet first, same reason as the name above: a message restored from
   // the persist cache never carries an avatar URL at all (profileImage is
   // deliberately absent from PERSISTED_MESSAGE_USER_FIELDS - it's exactly
@@ -243,7 +294,10 @@ const Message: React.FC<MessageProps> = forwardRef<
   };
 
   const avatarClickable =
-    !profilesDisabled && senderDisplayName !== 'Deleted User';
+    !profilesDisabled &&
+    !senderNamePending &&
+    senderDisplayName !== 'Deleted User' &&
+    senderDisplayName !== unresolvedPlaceholder;
 
   const handleUserAvatarClick = (user: IUser): void => {
     if (profilesDisabled || user?.name === 'Deleted User') return;
@@ -506,7 +560,15 @@ const Message: React.FC<MessageProps> = forwardRef<
           onTouchEnd={!config?.disableInteractions ? handleTouchEnd : undefined}
         >
           {!isUser && (
-            <CustomUserName $isUser={isUser} $color={config?.colors?.primary}>
+            <CustomUserName
+              $isUser={isUser}
+              $color={config?.colors?.primary}
+              style={
+                senderNamePending
+                  ? { opacity: 0.5, minWidth: '1.5em', display: 'inline-block' }
+                  : undefined
+              }
+            >
               {senderDisplayName}
             </CustomUserName>
           )}

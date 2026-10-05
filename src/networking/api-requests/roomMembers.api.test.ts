@@ -12,7 +12,11 @@ vi.mock('../../roomStore', () => ({
   store: { getState: () => getStateMock() },
 }));
 
-import { getUserByXmppUsername } from './roomMembers.api';
+import {
+  getUserByXmppUsername,
+  resetUserLookupRoute,
+  setUserLookupRoute,
+} from './roomMembers.api';
 
 // Regression for the bug where user X permanently saw a brand-new user Y's
 // raw xmpp id as their display name for the rest of the session: this
@@ -28,12 +32,15 @@ import { getUserByXmppUsername } from './roomMembers.api';
 describe('getUserByXmppUsername', () => {
   beforeEach(() => {
     httpGetMock.mockReset();
+    resetUserLookupRoute();
+    setUserLookupRoute('v2');
     getStateMock.mockReset();
     getStateMock.mockReturnValue({ chatSettingStore: { appId: 'app1' } });
     vi.useFakeTimers();
   });
 
   afterEach(() => {
+    setUserLookupRoute(null);
     vi.useRealTimers();
   });
 
@@ -127,5 +134,30 @@ describe('getUserByXmppUsername', () => {
     expect(await getUserByXmppUsername('', 'token')).toBeNull();
     expect(await getUserByXmppUsername(undefined, 'token')).toBeNull();
     expect(httpGetMock).not.toHaveBeenCalled();
+  });
+
+  it('auto route: v1 first, v2 fallback on 400 remembered, email/tags dropped', async () => {
+    setUserLookupRoute(null);
+    httpGetMock.mockImplementation((url: string) =>
+      url.startsWith('/v1/')
+        ? Promise.reject({ response: { status: 400 } })
+        : Promise.resolve({
+            data: {
+              result: {
+                xmppUsername: 'app1_a',
+                firstName: 'A',
+                lastName: 'B',
+                email: 'a@x.test',
+                tags: ['t'],
+              },
+            },
+          })
+    );
+    const first = await getUserByXmppUsername('app1_a', 'token');
+    expect(first).toEqual({ xmppUsername: 'app1_a', firstName: 'A', lastName: 'B' });
+    await getUserByXmppUsername('app1_c', 'token');
+    const urls = httpGetMock.mock.calls.map((c) => c[0]);
+    expect(urls.filter((u) => u.startsWith('/v1/')).length).toBe(1);
+    expect(urls.filter((u) => u === '/v2/chats/users').length).toBe(2);
   });
 });

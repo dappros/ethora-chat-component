@@ -1,3 +1,5 @@
+import { requestUsers } from '../../../helpers/userResolver';
+
 interface PersonLike {
   _id?: string;
   id?: string;
@@ -47,5 +49,9 @@ export function resolveSender(
       members?.find((member) => hit.fromUserId && member._id === hit.fromUserId)
     ) ||
     '';
+  // Search hits can come from senders nobody has loaded (big rooms ship only
+  // 30 members): ask the resolver, the name appears on the next render once
+  // usersSet has it. Debounced and de-duplicated there.
+  if (!name) requestUsers([from]);
   return { name, isSelf: false };
 }
