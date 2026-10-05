@@ -117,6 +117,7 @@ const PREFETCH_MIN_DISTANCE_PX = 1500;
 const PREFETCH_SCREENS = 3;
 // Consecutive history pages that added nothing to the list before auto-paging stops.
 const MAX_IDLE_AUTO_PAGES = 40;
+const NO_PROGRESS_RETRY_MS = 1000;
 const LOADER_TOP_THRESHOLD_PX = 80;
 const HISTORY_PAGE_SIZE = 100;
 // A scroll that never pauses must still be checked this often (a plain
@@ -295,6 +296,10 @@ const MessageList = <TMessage extends IMessage>({
   const lastRequestedFirstMessageIdRef = useRef<string | null>(null);
   const idleLoadsRef = useRef(0);
   const idleLoadsLenRef = useRef(-1);
+  // Request keys that already got their one delayed retry after a request
+  // settled without moving the oldest message or the cursor.
+  const retriedKeysRef = useRef<Set<string>>(new Set());
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const timeoutRef = useRef<number>(0);
   const atBottom = useRef<boolean>(true);
@@ -434,11 +439,62 @@ const MessageList = <TMessage extends IMessage>({
     // room last attempted - don't let a stale guard block its first
     // legitimate load-more.
     lastRequestedFirstMessageIdRef.current = null;
+    retriedKeysRef.current = new Set();
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
   }, [roomJID]);
+
+  // The paging cursor moved (or regressed through another path) or the
+  // history completed: the repeat guard no longer describes the room, so a
+  // request key seen before is allowed again. Idle auto page cap still bounds
+  // any loop.
+  const pagingCursor = useSelector(
+    (state: RootState) =>
+      state.rooms.rooms[roomJID]?.messageStats?.firstMessageTimestamp
+  );
+  const roomHistoryComplete = useSelector((state: RootState) =>
+    Boolean(state.rooms.rooms[roomJID]?.historyComplete)
+  );
+  useEffect(() => {
+    lastRequestedFirstMessageIdRef.current = null;
+    retriedKeysRef.current = new Set();
+  }, [pagingCursor, roomHistoryComplete]);
+
+  useEffect(
+    () => () => {
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    },
+    []
+  );
 
   const checkLoadMoreRef = useRef<() => void>(() => {});
   const checkWindowLoadMoreRef = useRef<(fromUserScroll?: boolean) => void>(
     () => {}
+  );
+
+  // After a request settled, if the guard still holds the same key nothing
+  // moved (oldest id and cursor identical). Allow exactly one retry per key
+  // after ~1 s, then stay stopped until the cursor, historyComplete or the
+  // room changes (those clear the retried set).
+  const scheduleNoProgressRetry = useCallback(
+    (key: string) => {
+      if (retriedKeysRef.current.has(key)) return;
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+      const forRoom = roomJID;
+      retryTimerRef.current = setTimeout(() => {
+        retryTimerRef.current = null;
+        if (forRoom !== roomJID) return;
+        if (lastRequestedFirstMessageIdRef.current !== key) return;
+        if (reduxStore.getState().rooms.rooms[forRoom]?.historyComplete) return;
+        retriedKeysRef.current.add(key);
+        lastRequestedFirstMessageIdRef.current = null;
+        checkLoadMoreRef.current();
+      }, NO_PROGRESS_RETRY_MS);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [roomJID]
   );
 
   const checkIfLoadMoreMessages = useCallback(() => {
@@ -522,6 +578,7 @@ const MessageList = <TMessage extends IMessage>({
     loadMoreMessages(firstMessage.roomJid, HISTORY_PAGE_SIZE, before).finally(
       () => {
         isLoadingMore.current = false;
+        scheduleNoProgressRetry(requestKey);
         lastMessageRef.current = memoizedMessages[memoizedMessages.length - 1];
         // Keep the buffer above the reader topped up without waiting for the
         // next scroll event: a reader who is still inside the prefetch
@@ -531,7 +588,12 @@ const MessageList = <TMessage extends IMessage>({
         setTimeout(() => checkLoadMoreRef.current(), 80);
       }
     );
-  }, [loadMoreMessages, memoizedMessages.length, renderWindow]);
+  }, [
+    loadMoreMessages,
+    memoizedMessages.length,
+    renderWindow,
+    scheduleNoProgressRetry,
+  ]);
   checkLoadMoreRef.current = checkIfLoadMoreMessages;
 
   // A list that does not fill the viewport cannot scroll, so no scroll event
@@ -575,6 +637,7 @@ const MessageList = <TMessage extends IMessage>({
         isLoadingMore.current = true;
         loadMoreMessages(roomJID, HISTORY_PAGE_SIZE, cursor).finally(() => {
           isLoadingMore.current = false;
+          scheduleNoProgressRetry(key);
           setTimeout(() => checkLoadMoreRef.current(), 80);
         });
         return;
@@ -590,6 +653,7 @@ const MessageList = <TMessage extends IMessage>({
     historyComplete,
     memoizedMessages.length,
     loadMoreMessages,
+    pagingCursor,
   ]);
 
   // Messages actually mounted in the DOM: the newest `renderWindow` ones,
