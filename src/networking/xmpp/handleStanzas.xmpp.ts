@@ -23,6 +23,7 @@ import {
 } from '../stanzaHandlers';
 import XmppClient from '../xmppClient';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
+import { onEthoraEvent } from '../ethoraEvents';
 import { onCallTokenMessage } from '../callTokenStanza';
 import { accountDomain, isE2eeEnabled } from '../../e2ee';
 import { decryptStanzaInPlace, encryptedCarrier } from '../../e2ee/stanza';
@@ -61,6 +62,12 @@ export function handleStanza(stanza: Element, xmppWs: XmppClient) {
     void decryptAndRedispatch(stanza, xmppWs).catch((err) =>
       ethoraLogger.log('OMEMO: failed to handle encrypted stanza', err)
     );
+    return;
+  }
+
+  // Server push pointers (urn:ethora:events:1), also when wrapped by mucsub.
+  // Claims any stanza that carries one, trusted or not, so it goes no further.
+  if (stanza?.name === 'message' && onEthoraEvent(stanza, xmppWs)) {
     return;
   }
 
