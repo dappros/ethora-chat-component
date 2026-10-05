@@ -315,6 +315,7 @@ The same link shape is what a push notification click opens (see [Push Notificat
 - `defaultLogin` currently has legacy inverted behavior in `LoginWrapper`:
   - internal fallback login runs when login modes are not configured and `defaultLogin` is not set.
   - keep this in mind when migrating; prefer explicit `userLogin` / `jwtLogin` / `googleLogin`.
+- Protocol: clients omit `isSystemMessage` on the `<data>` element of normal messages; `isSystemMessage="true"` marks system messages (call logs etc.). An absent or legacy `"false"` value is read as a normal message.
 
 ## Chat Props Reference
 

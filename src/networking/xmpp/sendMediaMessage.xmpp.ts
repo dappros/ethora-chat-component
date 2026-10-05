@@ -32,7 +32,6 @@ export async function sendMediaMessage(
     senderFirstName: data.firstName,
     senderLastName: data.lastName,
     senderWalletAddress: data.walletAddress,
-    isSystemMessage: false,
     tokenAmount: '0',
     receiverMessageId: '0',
     mucname: data.chatName,
