@@ -114,6 +114,8 @@ const RENDER_WINDOW_STEP = 60;
 // outruns the request and reaches the very top while it is in flight.
 const PREFETCH_MIN_DISTANCE_PX = 1500;
 const PREFETCH_SCREENS = 3;
+// Consecutive history pages that added nothing to the list before auto-paging stops.
+const MAX_IDLE_AUTO_PAGES = 40;
 const LOADER_TOP_THRESHOLD_PX = 80;
 const HISTORY_PAGE_SIZE = 100;
 // A scroll that never pauses must still be checked this often (a plain
@@ -290,6 +292,8 @@ const MessageList = <TMessage extends IMessage>({
   // older history changes which message is oldest, so real pagination is
   // unaffected.
   const lastRequestedFirstMessageIdRef = useRef<string | null>(null);
+  const idleLoadsRef = useRef(0);
+  const idleLoadsLenRef = useRef(-1);
 
   const timeoutRef = useRef<number>(0);
   const atBottom = useRef<boolean>(true);
@@ -461,6 +465,11 @@ const MessageList = <TMessage extends IMessage>({
     // the history being unreachable.
     if (reduxStore.getState().rooms.pendingJump?.roomJID === roomJID) return;
 
+    const widened = memoizedMessages.length > renderWindow;
+    // Nothing older on the server: only the render window can still grow.
+    if (!widened && reduxStore.getState().rooms.rooms[roomJID]?.historyComplete)
+      return;
+
     // Older messages are already in the store but outside the render
     // window: widen the window (scroll position is compensated in the
     // effect below) instead of asking the server.
@@ -497,6 +506,15 @@ const MessageList = <TMessage extends IMessage>({
     const requestKey = `${firstMessageId}|${before}`;
     if (requestKey === lastRequestedFirstMessageIdRef.current) return;
 
+    // Hard stop for a long run of pages that add nothing to the list (an
+    // archive that is almost all receipts): a reader scroll re-arms it.
+    if (memoizedMessages.length !== idleLoadsLenRef.current) {
+      idleLoadsLenRef.current = memoizedMessages.length;
+      idleLoadsRef.current = 0;
+    }
+    if (idleLoadsRef.current >= MAX_IDLE_AUTO_PAGES) return;
+    idleLoadsRef.current += 1;
+
     isLoadingMore.current = true;
     lastRequestedFirstMessageIdRef.current = requestKey;
 
@@ -514,6 +532,64 @@ const MessageList = <TMessage extends IMessage>({
     );
   }, [loadMoreMessages, memoizedMessages.length, renderWindow]);
   checkLoadMoreRef.current = checkIfLoadMoreMessages;
+
+  // A list that does not fill the viewport cannot scroll, so no scroll event
+  // ever asks for older history (a first page made of receipts displays one
+  // message and the archive behind it stays unreachable). Ask without one;
+  // the chain in checkIfLoadMoreMessages then pages until the viewport fills.
+  // Threads have their own loader (ThreadWrapper); a jump window pages itself.
+  useEffect(() => {
+    idleLoadsRef.current = 0;
+    idleLoadsLenRef.current = -1;
+  }, [roomJID]);
+
+  useEffect(() => {
+    if (isReply || windowActive || loading || historyComplete) return;
+    if (!roomJID) return;
+    const timer = setTimeout(() => {
+      if (windowActiveRef.current || isLoadingMore.current) return;
+      if (reduxStore.getState().rooms.pendingJump?.roomJID === roomJID) return;
+      const content = containerRef.current;
+      if (!content) return;
+      const room = reduxStore.getState().rooms.rooms[roomJID];
+      if (room?.historyComplete) return;
+      const prefetchDistance = Math.max(
+        PREFETCH_MIN_DISTANCE_PX,
+        content.clientHeight * PREFETCH_SCREENS
+      );
+      const unfilled =
+        content.scrollHeight <= content.clientHeight ||
+        content.scrollTop < prefetchDistance;
+      if (!unfilled || isUserScrolledUp.current) return;
+
+      if (memoizedMessages.length === 0) {
+        // Nothing displayed to anchor on: continue from the server cursor.
+        const cursor = room?.messageStats?.firstMessageTimestamp;
+        if (typeof cursor !== 'number') return;
+        const key = `none|${cursor}`;
+        if (key === lastRequestedFirstMessageIdRef.current) return;
+        if (idleLoadsRef.current >= MAX_IDLE_AUTO_PAGES) return;
+        idleLoadsRef.current += 1;
+        lastRequestedFirstMessageIdRef.current = key;
+        isLoadingMore.current = true;
+        loadMoreMessages(roomJID, HISTORY_PAGE_SIZE, cursor).finally(() => {
+          isLoadingMore.current = false;
+          setTimeout(() => checkLoadMoreRef.current(), 80);
+        });
+        return;
+      }
+      checkLoadMoreRef.current();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [
+    roomJID,
+    isReply,
+    windowActive,
+    loading,
+    historyComplete,
+    memoizedMessages.length,
+    loadMoreMessages,
+  ]);
 
   // Messages actually mounted in the DOM: the newest `renderWindow` ones,
   // always widened far enough to include the unread delimiter (history can
@@ -819,6 +895,7 @@ const MessageList = <TMessage extends IMessage>({
       setIsNearTop((current) => (current === nearTop ? current : nearTop));
 
       lastMessageCount.current = messages.length;
+      idleLoadsRef.current = 0;
       checkIfLoadMoreMessages();
     } else {
       timeoutRef.current = null;
