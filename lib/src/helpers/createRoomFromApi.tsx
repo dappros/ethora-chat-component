@@ -114,7 +114,13 @@ export const createRoomFromApi = (
     // members. Header reads usersCnt directly; injecting 1 lies to the user
     // and races with XMPP's authoritative muc#roominfo_occupants update.
     // 0 means "unknown - wait for XMPP", which the header treats as empty.
-    const apiMembersCount = members.length || usersArrayLength;
+    // /chats/my caps members at 30 for big rooms but reports the true total
+    // as usersCnt, so prefer the API total over the truncated array length.
+    const apiTotal = Number((room as { usersCnt?: unknown })?.usersCnt);
+    const apiMembersCount =
+      Number.isFinite(apiTotal) && apiTotal > 0
+        ? Math.max(apiTotal, members.length)
+        : members.length || usersArrayLength;
 
     const resolvedTitle =
       room?.type === 'private'
@@ -122,6 +128,15 @@ export const createRoomFromApi = (
         : String(room?.title || '').trim();
 
     const jid = `${room.name}@${service}`;
+
+    // Feature-detected per room: a backend that sends no `unreadCount`
+    // (prod) leaves this undefined and the local MAM-based count is the only
+    // source, exactly as before.
+    const rawUnread = (room as { unreadCount?: unknown })?.unreadCount;
+    const apiUnreadCount =
+      typeof rawUnread === 'number' && Number.isFinite(rawUnread)
+        ? Math.max(0, Math.floor(rawUnread))
+        : undefined;
 
     const roomData: IRoom = {
       ...room,
@@ -134,7 +149,9 @@ export const createRoomFromApi = (
       isLoading: false,
       roomBg: null,
       icon: room?.picture !== 'none' ? room?.picture : null,
-      unreadMessages: 0,
+      unreadMessages: apiUnreadCount ?? 0,
+      apiUnreadCount,
+      apiUnreadSeededAt: apiUnreadCount === undefined ? undefined : Date.now(),
       unreadCapped: false,
       lastViewedTimestamp: 0,
       historyPreloadState: 'idle',

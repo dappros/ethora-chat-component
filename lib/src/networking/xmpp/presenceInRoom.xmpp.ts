@@ -18,7 +18,13 @@ export const presenceInRoom = async (
   client: Client,
   roomJID: string,
   delay = 2000,
-  timeoutMs = 2000
+  timeoutMs = 2000,
+  // How many of the room's recent messages the MUC service replays on join
+  // (RFC 6121 / XEP-0045 <history/>). Default 0: history comes from MAM only.
+  // Without the element the server replays its default (ejabberd: up to 20
+  // stanzas) for EVERY room joined, which for an account with many rooms is
+  // N rooms * 20 messages of wire traffic that MAM then fetches again.
+  historyStanzas = 0
 ): Promise<Element> => {
   if (!isValidMucJid(roomJID)) {
     return Promise.reject(
@@ -87,7 +93,17 @@ export const presenceInRoom = async (
         to: `${roomJID}/${client.jid?.getLocal()}`,
         id: stanzaId,
       },
-      xml('x', { xmlns: 'http://jabber.org/protocol/muc' })
+      xml(
+        'x',
+        { xmlns: 'http://jabber.org/protocol/muc' },
+        xml('history', {
+          maxstanzas: String(
+            Number.isFinite(historyStanzas) && historyStanzas > 0
+              ? Math.floor(historyStanzas)
+              : 0
+          ),
+        })
+      )
     );
 
     client

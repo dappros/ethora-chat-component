@@ -21,6 +21,11 @@ interface HistoryPreloadSchedulerOptions {
   // (teaser) pass uses 'partial' so the second, bigger-page pass still
   // processes those rooms; only 'done' short-circuits future preloads.
   completionState?: 'done' | 'partial';
+  // Teaser pass: skip rooms that already have a list preview (loaded
+  // messages, or an API `lastMessage` seed from /chats/my). The pass exists
+  // only to fill that preview, so for those rooms it would be a wasted MAM
+  // query. `roomLimit` then counts the rooms that actually needed one.
+  skipApiPreview?: boolean;
 }
 
 interface QueueItem {
@@ -34,6 +39,10 @@ interface QueueItem {
 const DEFAULT_CONCURRENCY = 3;
 const DEFAULT_PAGE_SIZE = 10;
 const DEFAULT_RETRY_LIMIT = 2;
+// How many older pages one room may pull when its newest page has rows but
+// nothing displayable (reactions only). Bounds the worst case per room.
+const MAX_EMPTY_PAGE_FOLLOWS = 4;
+const FOLLOW_PAGE_SIZE = 10;
 
 // Marker for "MAM returned an empty page for a room the server hasn't
 // declared complete" - retried like a failure, but never terminal.
@@ -84,6 +93,19 @@ const getRoomPriority = (
   if (defaultRoomJids.has(jid)) return 1;
   return 2;
 };
+
+// A room list preview that came from /chats/my: a seeded `lastMessage` and no
+// loaded messages. Exported for the scheduler's tests.
+export const hasApiPreview = (room?: IRoom): boolean =>
+  !!room &&
+  (room.messages?.length ?? 0) === 0 &&
+  !!String(room.lastMessage?.body || '').trim();
+
+// Anything the room list can already render a preview from.
+const hasListPreview = (room?: IRoom): boolean =>
+  !!room &&
+  ((room.messages?.length ?? 0) > 0 ||
+    !!String(room.lastMessage?.body || '').trim());
 
 const shouldPauseForVisibility = (): boolean => {
   if (typeof document === 'undefined') return false;
@@ -139,6 +161,7 @@ const runHistoryPreloadSweep = async (
     defaultRoomJids = [],
     forceReload = false,
     completionState = 'done',
+    skipApiPreview = false,
   } = options;
 
   if (signal?.aborted) return;
@@ -167,10 +190,26 @@ const runHistoryPreloadSweep = async (
       }
       return a.jid.localeCompare(b.jid);
     });
-  const queue: QueueItem[] =
-    roomLimit && roomLimit > 0
-      ? sortedQueue.slice(0, roomLimit)
-      : sortedQueue;
+  // Top-N by recent activity FIRST, then drop what needs no work. Filtering
+  // 'done' rooms before the cut would let every reconnect slide the window
+  // down the list (the 8 done rooms vanish, the next 8 get preloaded), so the
+  // "top N" would quietly grow into "all" over a few reconnects.
+  //
+  // The teaser pass is the exception: it counts rooms that still LACK a
+  // preview, because a room the API gave no `lastMessage` for ranks at the
+  // bottom of an activity sort (no signal at all) and would otherwise never
+  // get one.
+  const needsWork = (item: QueueItem): boolean => {
+    const room = rooms[item.jid];
+    if (!forceReload && room?.historyPreloadState === 'done') return false;
+    if (skipApiPreview && hasListPreview(room)) return false;
+    return true;
+  };
+  const withLimit = (items: QueueItem[]) =>
+    roomLimit && roomLimit > 0 ? items.slice(0, roomLimit) : items;
+  const queue: QueueItem[] = skipApiPreview
+    ? withLimit(sortedQueue.filter(needsWork))
+    : withLimit(sortedQueue).filter(needsWork);
 
   ethoraLogger.log(
     '[HistoryScheduler] history_queue_order',
@@ -184,189 +223,243 @@ const runHistoryPreloadSweep = async (
   const inFlightByRoom = new Map<string, Promise<void>>();
   let consecutiveErrorCount = 0;
 
-  while (queue.length > 0) {
-    if (signal?.aborted) {
+  // Rooms that no longer need this sweep's work: preloaded by another path
+  // (the user opened them, a parallel bootstrap, an earlier sweep) or gone.
+  // Checked when an item is PICKED, before the 'loading' flag is written.
+  // The old loop flagged the whole batch 'loading' first and only then asked
+  // "is it already done?" - which could never be true, so every reconnect or
+  // follow-up sweep refetched rooms that were done and flickered them
+  // through 'loading'.
+  const isSatisfied = (jid: string): boolean => {
+    const current = store.getState().rooms.rooms[jid];
+    if (!current) return true;
+    if (forceReload) return false;
+    return current.historyPreloadState === 'done';
+  };
+
+  const pickNext = (): QueueItem | null => {
+    const now = Date.now();
+    const activeJid = store.getState().rooms.activeRoomJID;
+    // A room the user opened while the sweep runs jumps the queue (the
+    // client's own history queue already serves it at top priority; this
+    // keeps the sweep from spending a slot on lower rooms first).
+    let best = -1;
+    for (let index = 0; index < queue.length; index += 1) {
+      const item = queue[index];
+      if (item.readyAt > now || inFlightByRoom.has(item.jid)) continue;
+      if (best === -1) {
+        best = index;
+        continue;
+      }
+      if (activeJid && item.jid === activeJid) {
+        best = index;
+        break;
+      }
+    }
+    if (best === -1) return null;
+    return queue.splice(best, 1)[0];
+  };
+
+  const processItem = async (item: QueueItem): Promise<void> => {
+    if (isSatisfied(item.jid)) {
+      // Nothing to fetch. Leave the state alone: stamping 'done' on a room
+      // that is merely missing would resurrect it as a ghost entry.
       return;
     }
 
-    if (!client.isActiveRoomGateOpen()) {
-      await sleep(80);
-      continue;
-    }
-
-    if (shouldPauseForVisibility()) {
-      await sleep(250);
-      continue;
-    }
-
-    const now = Date.now();
-    const readyItems = queue.filter(
-      (item) =>
-        item.readyAt <= now &&
-        !inFlightByRoom.has(item.jid)
-    );
-
-    if (readyItems.length === 0) {
-      await sleep(60);
-      continue;
-    }
-
-    const batch = readyItems.slice(0, Math.max(1, concurrency));
-
     store.dispatch(
       applyRoomsPreloadBatch({
-        rooms: batch.map((item) => ({
-          jid: item.jid,
-          historyPreloadState: 'loading',
-        })),
+        rooms: [{ jid: item.jid, historyPreloadState: 'loading' }],
       })
     );
 
-    await Promise.all(
-      batch.map(async (item) => {
-        const queueIndex = queue.findIndex((queued) => queued.jid === item.jid);
-        if (queueIndex !== -1) {
-          queue.splice(queueIndex, 1);
-        }
-
-        const task = (async () => {
-          const currentRoom = store.getState().rooms.rooms[item.jid];
-          if (
-            !currentRoom ||
-            (!forceReload && currentRoom.historyPreloadState === 'done')
-          ) {
-            store.dispatch(
-              applyRoomsPreloadBatch({
-                rooms: [
-                  {
-                    jid: item.jid,
-                    historyPreloadState: 'done',
-                  },
-                ],
-              })
-            );
-            return;
-          }
-
-          try {
-            const fetchedMessages = await client.getHistoryStanza(
-              item.jid,
-              pageSize,
-              undefined,
-              undefined,
-              {
-                coalesceRoom: true,
-                skipIfPreloaded: !forceReload,
-                source: 'background',
-              }
-            );
-
-            if (signal?.aborted) return;
-
-            if (typeof fetchedMessages === 'undefined') {
-              throw new Error('history_timeout');
-            }
-
-            const nextRoom = store.getState().rooms.rooms[item.jid];
-            const unreadCapped = computeUnreadCapped(
-              nextRoom,
-              fetchedMessages,
-              pageSize
-            );
-
-            // An empty page for a room the server hasn't declared complete
-            // is almost always "not joined / archive not ready yet", not
-            // "this room has no messages". Marking it 'done' froze the room
-            // with an empty transcript forever: the sidebar preview stayed
-            // blank and no later pass retried it, while opening the room by
-            // hand still worked (getHistoryStanza's skipIfPreloaded gate
-            // also requires messages.length, so the manual path refetched).
-            // Leave such rooms 'partial' - retryable - and don't overwrite
-            // whatever messages they already have with an empty array.
-            const isInconclusiveEmptyPage =
-              fetchedMessages.length === 0 && nextRoom?.historyComplete !== true;
-
-            if (isInconclusiveEmptyPage) {
-              // Retry within this sweep (the room is usually just not
-              // joined yet); EMPTY_PAGE_ERROR keeps the final state
-              // retryable instead of the terminal 'error'.
-              throw new Error(EMPTY_PAGE_ERROR);
-            }
-
-            store.dispatch(
-              applyRoomsPreloadBatch({
-                rooms: [
-                  {
-                    jid: item.jid,
-                    messages: fetchedMessages,
-                    unreadCapped,
-                    historyPreloadState: completionState,
-                  },
-                ],
-              })
-            );
-            consecutiveErrorCount = 0;
-          } catch (error) {
-            const isEmptyPage =
-              (error as Error)?.message === EMPTY_PAGE_ERROR;
-            const retries = item.attempts + 1;
-            const canRetry = retries <= retryLimit;
-
-            if (canRetry) {
-              const jitter = Math.floor(Math.random() * 120);
-              const backoff = Math.min(1600, 240 * 2 ** item.attempts) + jitter;
-              queue.push({
-                ...item,
-                attempts: retries,
-                readyAt: Date.now() + backoff,
-                activityScore: item.activityScore,
-              });
-            } else {
-              store.dispatch(
-                applyRoomsPreloadBatch({
-                  rooms: [
-                    {
-                      jid: item.jid,
-                      // An empty page is inconclusive, not a failure: keep
-                      // it retryable so a later pass (or opening the room)
-                      // can still fill it in, and so the sidebar doesn't
-                      // settle on the "Room created" placeholder.
-                      historyPreloadState: isEmptyPage ? 'partial' : 'error',
-                    },
-                  ],
-                })
-              );
-            }
-
-            // An empty page says nothing about connection health - only
-            // real failures should trip the circuit breaker below.
-            if (isEmptyPage) return;
-            consecutiveErrorCount += 1;
-            if (consecutiveErrorCount >= 3) {
-              await sleep(300);
-              consecutiveErrorCount = 0;
-            }
-          }
-        })();
-
-        inFlightByRoom.set(item.jid, task);
-
-        await task.finally(() => {
-          inFlightByRoom.delete(item.jid);
+    try {
+      const fetchPage = (max: number, before?: number) =>
+        client.getHistoryStanza(item.jid, max, before, undefined, {
+          coalesceRoom: true,
+          skipIfPreloaded: !forceReload,
+          source: 'background',
         });
-      })
-    );
 
-    await new Promise((resolve) => {
-      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-        (window as any).requestIdleCallback(() => resolve(null), {
-          timeout: 120,
-        });
-        return;
+      let fetchedMessages = await fetchPage(pageSize);
+
+      if (signal?.aborted) return;
+
+      if (typeof fetchedMessages === 'undefined') {
+        throw new Error('history_timeout');
       }
-      setTimeout(resolve, 0);
-    });
-  }
+
+      // A page can hold rows and still yield nothing displayable: a room
+      // whose newest archive rows are reactions or receipts parses to an
+      // empty list. That page is inconclusive, not a failure. Follow the
+      // server's RSM cursor (the fin <first> the client stored as
+      // messageStats.firstMessageTimestamp) to the older pages until
+      // something displayable turns up, the archive is exhausted or the
+      // budget is spent.
+      let pagesFetched = 1;
+      let followedCursor = false;
+      let lastCursor: number | undefined;
+      while (
+        fetchedMessages.length === 0 &&
+        pagesFetched < MAX_EMPTY_PAGE_FOLLOWS + 1
+      ) {
+        const roomNow = store.getState().rooms.rooms[item.jid];
+        if (roomNow?.historyComplete === true) break;
+        const cursor = roomNow?.messageStats?.firstMessageTimestamp;
+        // No cursor means the server returned no rows at all (not joined /
+        // archive not ready): nothing to follow, the retry path handles it.
+        if (!cursor || !Number.isFinite(cursor) || cursor === lastCursor) break;
+        lastCursor = cursor;
+        followedCursor = true;
+        const older = await fetchPage(
+          Math.max(pageSize, FOLLOW_PAGE_SIZE),
+          cursor
+        );
+        if (signal?.aborted) return;
+        if (typeof older === 'undefined') throw new Error('history_timeout');
+        pagesFetched += 1;
+        fetchedMessages = older;
+      }
+
+      const nextRoom = store.getState().rooms.rooms[item.jid];
+      const unreadCapped = computeUnreadCapped(
+        nextRoom,
+        fetchedMessages,
+        pageSize
+      );
+
+      // An empty page for a room the server hasn't declared complete is
+      // almost always "not joined / archive not ready yet", not "this room
+      // has no messages". Marking it 'done' froze the room with an empty
+      // transcript forever. When we followed the cursor and the budget ran
+      // out the archive does have rows (just no displayable ones yet), so
+      // that settles as 'partial' straight away instead of retrying the
+      // same pages. Without a cursor, retry within this sweep.
+      const isInconclusiveEmptyPage =
+        fetchedMessages.length === 0 && nextRoom?.historyComplete !== true;
+
+      if (isInconclusiveEmptyPage) {
+        if (followedCursor) {
+          store.dispatch(
+            applyRoomsPreloadBatch({
+              rooms: [{ jid: item.jid, historyPreloadState: 'partial' }],
+            })
+          );
+          consecutiveErrorCount = 0;
+          return;
+        }
+        throw new Error(EMPTY_PAGE_ERROR);
+      }
+
+      store.dispatch(
+        applyRoomsPreloadBatch({
+          rooms: [
+            {
+              jid: item.jid,
+              messages: fetchedMessages,
+              unreadCapped,
+              historyPreloadState: completionState,
+            },
+          ],
+        })
+      );
+      consecutiveErrorCount = 0;
+    } catch (error) {
+      const isEmptyPage = (error as Error)?.message === EMPTY_PAGE_ERROR;
+      const retries = item.attempts + 1;
+      const canRetry = retries <= retryLimit;
+
+      if (canRetry) {
+        const jitter = Math.floor(Math.random() * 120);
+        const backoff = Math.min(1600, 240 * 2 ** item.attempts) + jitter;
+        queue.push({
+          ...item,
+          attempts: retries,
+          readyAt: Date.now() + backoff,
+          activityScore: item.activityScore,
+        });
+      } else {
+        store.dispatch(
+          applyRoomsPreloadBatch({
+            rooms: [
+              {
+                jid: item.jid,
+                // An empty page is inconclusive, not a failure: keep it
+                // retryable so a later pass (or opening the room) can still
+                // fill it in, and so the sidebar doesn't settle on the
+                // "Room created" placeholder.
+                historyPreloadState: isEmptyPage ? 'partial' : 'error',
+              },
+            ],
+          })
+        );
+      }
+
+      // An empty page says nothing about connection health - only real
+      // failures should trip the circuit breaker below.
+      if (isEmptyPage) return;
+      consecutiveErrorCount += 1;
+      if (consecutiveErrorCount >= 3) {
+        await sleep(300);
+        consecutiveErrorCount = 0;
+      }
+    }
+  };
+
+  // A worker pool, not batches: the old loop took `concurrency` rooms,
+  // awaited ALL of them, and only then started the next batch, so one slow
+  // room (a 10s MAM timeout) idled the other slots and held the whole queue
+  // behind it. Each worker now pulls the next room the moment it is free.
+  let activeWorkers = 0;
+  const worker = async (): Promise<void> => {
+    while (true) {
+      if (signal?.aborted) return;
+      if (queue.length === 0 && activeWorkers === 0) return;
+
+      if (!client.isActiveRoomGateOpen()) {
+        await sleep(80);
+        continue;
+      }
+
+      if (shouldPauseForVisibility()) {
+        await sleep(250);
+        continue;
+      }
+
+      const item = pickNext();
+      if (!item) {
+        // Queue is empty (another worker may still push a retry) or every
+        // remaining item is backing off / in flight.
+        if (queue.length === 0 && activeWorkers === 0) return;
+        await sleep(60);
+        continue;
+      }
+
+      activeWorkers += 1;
+      const task = processItem(item);
+      inFlightByRoom.set(item.jid, task);
+      try {
+        await task;
+      } finally {
+        inFlightByRoom.delete(item.jid);
+        activeWorkers -= 1;
+      }
+
+      await new Promise((resolve) => {
+        if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+          (window as any).requestIdleCallback(() => resolve(null), {
+            timeout: 120,
+          });
+          return;
+        }
+        setTimeout(resolve, 0);
+      });
+    }
+  };
+
+  await Promise.all(
+    Array.from({ length: Math.max(1, concurrency) }, () => worker())
+  );
 };
 
 export default runHistoryPreloadScheduler;

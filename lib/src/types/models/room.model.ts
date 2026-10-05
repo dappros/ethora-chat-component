@@ -70,6 +70,16 @@ export interface IRoom {
   lastViewedTimestamp?: number;
   unreadBaselineTimestamp?: number;
   unreadMessages?: number;
+  /**
+   * Unread count the server reported for this room in `GET /v1/chats/my`
+   * (`unreadCount`) and when it was read. Only present on backends that send
+   * it. The unread middleware uses it as a floor while the local message
+   * list is too short to count from (history not loaded yet): it lets the
+   * room list show a badge without a MAM round-trip per room. Ignored once
+   * the user has read past the API's last message, and cleared on open.
+   */
+  apiUnreadCount?: number;
+  apiUnreadSeededAt?: number;
   noMessages?: boolean;
   role?: string;
 
@@ -124,6 +134,8 @@ export interface ApiRoom {
   description?: string;
   picture?: string;
   members?: RoomMember[];
+  /** True total; `members` is capped at 30 for big public rooms. */
+  usersCnt?: number;
   createdBy?: string;
   appId?: any;
 
@@ -135,6 +147,9 @@ export interface ApiRoom {
 
   /** See IRoom.muted - only present when the backend supports per-chat mute. */
   muted?: boolean;
+
+  /** See IRoom.apiUnreadCount - only present when the backend sends it. */
+  unreadCount?: number;
 
   /** See ApiRoomLastMessage - only present when the backend supports it. */
   lastMessage?: ApiRoomLastMessage;

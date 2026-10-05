@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from 'react';
+import { getRoomUserCount } from '../../helpers/roomUserCount';
 import styled from 'styled-components';
 import RoomList from './RoomList';
 import { IConfig, IRoom } from '../../types/types';
@@ -225,12 +226,8 @@ const getDisplayTitle = (room: IRoom | undefined): string => {
 };
 
 const getDisplayCount = (room: IRoom | undefined): number => {
-  if (Array.isArray(room?.members) && room.members.length > 0) {
-    return room.members.length;
-  }
-  return typeof room?.usersCnt === 'number' && room.usersCnt > 0
-    ? room.usersCnt
-    : 0;
+  // usersCnt is the true total; members is capped at 30 for big rooms.
+  return getRoomUserCount(room);
 };
 
 // `showLanguageSelector` defaults to true - only an explicit `false` hides

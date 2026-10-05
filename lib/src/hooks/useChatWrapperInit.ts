@@ -5,7 +5,6 @@ import XmppClient from '../networking/xmppClient';
 import { AppDispatch, RootState, persistor, store } from '../roomStore';
 import { useXmppClient } from '../context/xmppProvider';
 import { chatAutoEnterer } from '../helpers/chatAutoEnterer';
-import { initRoomsPresence } from '../helpers/initRoomsPresence';
 import { updatedChatLastTimestamps } from '../helpers/updatedChatLastTimestamps';
 import { updateMessagesTillLast } from '../helpers/updateMessagesTillLast';
 import { refreshAuthTokensQuietly } from '../networking/authRefresh';
@@ -26,6 +25,10 @@ import { clearHeap } from '../roomStore/roomHeapSlice';
 import { ensureScopedChatCache } from '../helpers/cacheScope';
 import { ethoraLogger } from '../helpers/ethoraLogger';
 import { runHistoryPreloadScheduler } from '../helpers/historyPreloadScheduler';
+import {
+  resolveHistoryPreloadConfig,
+  TEASER_ROOM_FACTOR,
+} from '../helpers/historyPreloadConfig';
 import { toBaseLanguage } from '../helpers/toBaseLanguage';
 
 interface useChatWrapperInitProps {
@@ -137,6 +140,32 @@ export const hasHostRefreshedSession = (user: {
   xmppPassword?: string;
 }): boolean => Boolean(user?.xmppUsername && user?.xmppPassword);
 
+// Fire-and-forget: never awaited by the room list, never throws.
+export const startBackgroundJoinSweep = (client: {
+  sendAllPresencesAndMarkReady: () => Promise<unknown>;
+}) => {
+  void Promise.resolve()
+    .then(() => client.sendAllPresencesAndMarkReady())
+    .catch((error) => {
+      console.warn('[loadRooms] background join sweep failed', error);
+    });
+};
+
+// The room list is usable as soon as /chats/my has returned (rooms are seeded
+// with lastMessage / unread / usersCnt): the loading state ends right there
+// and joining every room happens in the background (open room first, then
+// recent activity). Resolves without waiting for any join.
+export const loadRoomsThenJoinInBackground = async <T,>(
+  client: { sendAllPresencesAndMarkReady: () => Promise<unknown> },
+  fetchRooms: () => Promise<T>,
+  onListReady: () => void
+): Promise<T> => {
+  const rooms = await fetchRooms();
+  startBackgroundJoinSweep(client);
+  onListReady();
+  return rooms;
+};
+
 const useChatWrapperInit = ({
   roomJID,
   wasAutoSelected,
@@ -207,7 +236,7 @@ const useChatWrapperInit = ({
           'initClient:wait_online:start',
           'online:send_presence:start',
           'online:all_room_presences:start',
-          'bg:initRoomsPresence:start',
+          'bg:joinSweep:start',
           'bg:getChatsPrivateStore:start',
           'bg:stagedPreload:start',
           'bg:updateMessagesTillLast:start',
@@ -237,27 +266,6 @@ const useChatWrapperInit = ({
           return;
         }
         setTimeout(check, 200);
-      };
-      check();
-    });
-  };
-
-  const waitForPresencesReady = async (
-    targetClient: XmppClient,
-    timeoutMs = 12000
-  ): Promise<boolean> => {
-    const startedAt = Date.now();
-    return new Promise<boolean>((resolve) => {
-      const check = () => {
-        if (targetClient.presencesReady) {
-          resolve(true);
-          return;
-        }
-        if (Date.now() - startedAt > timeoutMs) {
-          resolve(false);
-          return;
-        }
-        setTimeout(check, 150);
       };
       check();
     });
@@ -299,48 +307,19 @@ const useChatWrapperInit = ({
     const clientKey =
       targetClient.client?.jid?.toString() || targetClient.username || 'xmpp-client';
 
-    // Presence-join readiness (all rooms) and history preload used to run
-    // strictly sequentially: preload waited on the ENTIRE presence sweep
-    // finishing (up to a 12s poll) before fetching a single message. MAM
-    // history fetches don't actually require the room to be joined first
-    // (getHistoryStanza never checks `joinedRooms`), so the two are
-    // independent XMPP operations sharing one connection - no reason to
-    // serialize them. Presence readiness now runs as its own fire-and-forget
-    // branch; the private-store + history-preload branch below starts
-    // immediately once the client is online.
+    // Joining every room is its own background branch, independent of the
+    // history preload below (MAM does not need a joined room) and of the
+    // room list (already rendered). The sweep dedups with the one started by
+    // the client's `online` event and loadRooms, so this is a no-op when one
+    // is running or done; it only (re)starts a sweep when nothing is.
     void (async () => {
       const online = await waitForClientOnline(targetClient);
       if (!online) return;
-
-      await waitForPresencesReady(targetClient);
-
+      if (presenceBootstrappedClientsRef.current.has(clientKey)) return;
+      presenceBootstrappedClientsRef.current.add(clientKey);
       if (roomsList && Object.keys(roomsList).length > 0) {
-        if (!presenceBootstrappedClientsRef.current.has(clientKey)) {
-          presenceBootstrappedClientsRef.current.add(clientKey);
-          // Dedup: sendAllPresencesAndMarkReady (fired from xmppClient `online`
-          // event) already joins every room from the persisted store and
-          // populates `joinedRooms`. If that pass completed, skip the legacy
-          // initRoomsPresence sweep - it would re-iterate the same JIDs and
-          // (for already-joined rooms) just no-op via the joinedRooms guard,
-          // but still adds an N*35ms serial walk and listener churn.
-          // Rooms that failed in the all-presences pass will be retried
-          // lazily when the user opens them (presenceInRoomStanza in
-          // useRoomInitialization) or by the existing roomPresenceBlockedUntil
-          // backoff path.
-          if (targetClient.presencesReady) {
-            ethoraLogger.log(
-              '[InitTiming] bg:initRoomsPresence:skipped reason=presences_already_sent'
-            );
-          } else {
-            mark('bg:initRoomsPresence:start');
-            try {
-              await initRoomsPresence(targetClient, roomsList);
-              logDuration('bg:initRoomsPresence', 'bg:initRoomsPresence:start');
-            } catch (error) {
-              console.warn('[InitTiming] bg:initRoomsPresence:error', error);
-            }
-          }
-        }
+        mark('bg:joinSweep:start');
+        startBackgroundJoinSweep(targetClient);
       }
     })();
 
@@ -371,26 +350,11 @@ const useChatWrapperInit = ({
       if (hasSyncedHistoryRef.current) return;
       if (catchupBootstrappedClientsRef.current.has(clientKey)) return;
       catchupBootstrappedClientsRef.current.add(clientKey);
-      const stagedPreloadEnabled = Boolean(
-        config?.historyQoS?.stagedPreloadEnabled
-      );
-
-      const stagedFirstPassSize = Math.max(
-        1,
-        Number(config?.historyQoS?.stagedPreloadFirstPassSize || 1)
-      );
-      const stagedSecondPassSize = Math.max(
-        1,
-        Number(config?.historyQoS?.stagedPreloadSecondPassSize || 15)
-      );
-      const stagedConcurrency = Math.max(
-        1,
-        Number(config?.historyQoS?.stagedPreloadConcurrency || 3)
-      );
-      const preloadTopKRooms = Math.max(
-        1,
-        Number(config?.historyQoS?.preloadTopKRooms || 20)
-      );
+      const preloadCfg = resolveHistoryPreloadConfig(config);
+      const stagedPreloadEnabled = preloadCfg.mode !== 'legacy';
+      const stagedFirstPassSize = preloadCfg.firstPassSize;
+      const stagedSecondPassSize = preloadCfg.secondPassSize;
+      const stagedConcurrency = preloadCfg.concurrency;
 
       mark(
         stagedPreloadEnabled
@@ -400,32 +364,43 @@ const useChatWrapperInit = ({
       try {
         await waitForActiveRoomReady();
 
-        if (stagedPreloadEnabled) {
+        if (preloadCfg.mode === 'off') {
+          // No background preload: rooms load when the user opens them.
+        } else if (stagedPreloadEnabled) {
           const defaultRoomJids = (config?.defaultRooms || []).map(
             (room) => room.jid
           );
-          const hasActiveRoom = Boolean(store.getState().rooms.activeRoomJID);
-          const firstPassConcurrency = hasActiveRoom ? 1 : stagedConcurrency;
 
+          // Pass 1 (teaser): a one-message page so the room list shows a
+          // preview. Rooms whose preview already came from /chats/my
+          // (`lastMessage`) are skipped, so with a current backend this
+          // pass costs nothing.
           await runHistoryPreloadScheduler({
             client: targetClient,
-            concurrency: firstPassConcurrency,
+            concurrency: stagedConcurrency,
             pageSize: stagedFirstPassSize,
             retryLimit: 2,
-            roomLimit: preloadTopKRooms,
+            // Counts rooms still LACKING a preview, so allow a wider net
+            // than the full-page pass (those pages are the expensive ones).
+            roomLimit: preloadCfg.topRooms
+              ? preloadCfg.topRooms * TEASER_ROOM_FACTOR
+              : undefined,
             selectedRoomJid: store.getState().rooms.activeRoomJID || null,
             defaultRoomJids,
+            skipApiPreview: true,
             // Teaser pass: mark rooms 'partial' so the second pass below
             // still fetches the real page (marking them 'done' here made
             // the second pass skip every room, leaving 1-message rooms).
             completionState: 'partial',
           });
 
+          // Pass 2: the real page, for the same top-N rooms only.
           await runHistoryPreloadScheduler({
             client: targetClient,
             concurrency: stagedConcurrency,
             pageSize: stagedSecondPassSize,
             retryLimit: 2,
+            roomLimit: preloadCfg.topRooms || undefined,
             selectedRoomJid: store.getState().rooms.activeRoomJID || null,
             defaultRoomJids,
           });
@@ -515,10 +490,15 @@ const useChatWrapperInit = ({
         setIsLoading({ loading: true, loadingText: 'Loading chats...' })
       );
     mark('loadRooms:start');
-    const rooms = await syncRooms(client, config);
-    logDuration('loadRooms', 'loadRooms:start');
-    await client.sendAllPresencesAndMarkReady();
-    dispatch(setIsLoading({ loading: false, loadingText: undefined }));
+    const rooms = await loadRoomsThenJoinInBackground(
+      client,
+      async () => {
+        const fetched = await syncRooms(client, config);
+        logDuration('loadRooms', 'loadRooms:start');
+        return fetched;
+      },
+      () => dispatch(setIsLoading({ loading: false, loadingText: undefined }))
+    );
     return rooms;
   };
 

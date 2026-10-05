@@ -44,6 +44,12 @@ const Row = styled.div<{ $highlighted: boolean }>`
   }
 `;
 
+const LoadingRow = styled.div`
+  padding: 10px 14px;
+  font-size: var(--ethora-font-size, 16px);
+  opacity: 0.6;
+`;
+
 const ShowAllRow = styled(Row)`
   color: var(--ethora-color-primary-text, var(--ethora-color-primary, #0052cd));
   font-weight: 600;
@@ -58,6 +64,8 @@ interface MentionDropdownProps {
   onSelect: (candidate: MentionCandidate) => void;
   onShowAll: () => void;
   onHoverIndex: (index: number) => void;
+  /** More people are still being loaded in the background. */
+  loading?: boolean;
 }
 
 export const MentionDropdown: React.FC<MentionDropdownProps> = ({
@@ -68,10 +76,11 @@ export const MentionDropdown: React.FC<MentionDropdownProps> = ({
   onSelect,
   onShowAll,
   onHoverIndex,
+  loading = false,
 }) => {
   const t = useT();
 
-  if (candidates.length === 0 && !hasOverflow) return null;
+  if (candidates.length === 0 && !hasOverflow && !loading) return null;
 
   return (
     <Dropdown role="listbox">
@@ -104,6 +113,11 @@ export const MentionDropdown: React.FC<MentionDropdownProps> = ({
         >
           {t('mention.showAll', { count: totalCount })}
         </ShowAllRow>
+      )}
+      {loading && (
+        <LoadingRow role="status" aria-live="polite">
+          {t('mention.loadingMembers')}
+        </LoadingRow>
       )}
     </Dropdown>
   );

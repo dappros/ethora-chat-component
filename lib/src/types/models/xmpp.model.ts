@@ -29,6 +29,20 @@ export interface xmppSettingsInterface {
     stagedPreloadFirstPassSize?: number;
     stagedPreloadSecondPassSize?: number;
     stagedPreloadConcurrency?: number;
+    /**
+     * Messages the MUC service replays on every room join, sent as
+     * `<history maxstanzas="N"/>`. Default 0: history comes from MAM only, so
+     * joining many rooms no longer pulls up to the server default (20) per
+     * room. Raise it only if a host relies on the join replay (a room without
+     * MAM archiving).
+     */
+    joinHistoryStanzas?: number;
+    /**
+     * Rooms joined in parallel by the background join sweep that runs after
+     * the room list is shown (active room first, then most recent activity).
+     * Default 5.
+     */
+    joinConcurrency?: number;
   };
 }
 

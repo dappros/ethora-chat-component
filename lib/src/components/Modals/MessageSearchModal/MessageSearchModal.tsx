@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { dedupeMembers } from '../../../helpers/dedupeMembers';
 import styled from 'styled-components';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../../roomStore';
@@ -14,6 +15,8 @@ import {
 import { SearchIcon } from '../../../assets/icons';
 import { useT } from '../../../i18n/useT';
 import { useIsMobileViewport } from '../../../hooks/useIsMobileViewport';
+import { useRoomDirectory } from '../../../hooks/useRoomDirectory';
+import { isRoomMembersTruncated } from '../../../helpers/roomUserCount';
 import SideDrawer, {
   DrawerHint,
   DrawerSearchBar,
@@ -253,14 +256,31 @@ const MessageSearchModal: React.FC<MessageSearchModalProps> = ({
 
   // Who can be picked as the sender: this room's members, or everyone the
   // app knows when searching across chats.
+  // A big room only carries its first 30 members (usersCnt is the true
+  // total), so in 'This chat' scope the sender filter loads the whole room
+  // directory (once per room) as soon as the filters are opened.
+  const searchedRoom = activeRoomJID ? rooms[activeRoomJID] : undefined;
+  const { members: directoryMembers } = useRoomDirectory(
+    activeRoomJID || undefined,
+    scope === 'chat' &&
+      isRoomMembersTruncated(searchedRoom) &&
+      (filtersOpen || senderQuery.trim() !== '')
+  );
   const senderCandidates = useMemo(() => {
     if (!senderQuery.trim()) return [];
-    const people =
-      scope === 'chat'
-        ? ((activeRoomJID && rooms[activeRoomJID]?.members) as any[]) || []
-        : Object.values(usersSet || {});
+    let people: any[];
+    if (scope === 'chat') {
+      const known = ((activeRoomJID && rooms[activeRoomJID]?.members) as any[]) || [];
+      if (directoryMembers.length > 0) {
+        people = dedupeMembers([...known, ...directoryMembers]);
+      } else {
+        people = known;
+      }
+    } else {
+      people = Object.values(usersSet || {});
+    }
     return matchPeople(people as any[], senderQuery);
-  }, [senderQuery, scope, rooms, activeRoomJID, usersSet]);
+  }, [senderQuery, scope, rooms, activeRoomJID, usersSet, directoryMembers]);
 
   // A backwards range has no honest result, so it searches nothing (and says
   // so) instead of quietly dropping the dates.

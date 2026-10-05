@@ -124,7 +124,7 @@ export async function getRoomByName(
 
   const shared = createSharedRequest((sharedSignal) =>
     http
-      .get(`/v1/chats/my/${chatName}`, {
+      .get(`/v1/chats/my/${encodeURIComponent(chatName)}`, {
         headers: {
           Authorization: token,
         },

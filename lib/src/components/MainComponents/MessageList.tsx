@@ -60,6 +60,7 @@ import { DecoratedMessage } from '../../types/models/customComponents.model';
 import { parseMessageReference } from '../../helpers/parseMessageReference';
 import { useLoaderDebug } from '../../hooks/useLoaderDebug';
 import { useT } from '../../i18n/useT';
+import { requestSendersOf } from '../../helpers/userResolver';
 
 // How long the active room must sit quiet (no new "mark as read" trigger)
 // before we persist the read-state to the server's private store. Each new
@@ -726,6 +727,7 @@ const MessageList = <TMessage extends IMessage>({
           windowFailedAtRef.current[direction] = Date.now();
           return;
         }
+        requestSendersOf((page as any).messages);
         if ('olderCursor' in page) {
           dispatch(prependJumpWindowMessages({ roomJID, ...page }));
         } else {
@@ -814,6 +816,7 @@ const MessageList = <TMessage extends IMessage>({
         return opened ? 'found' : 'missing';
       }
       isUserScrolledUp.current = true;
+      requestSendersOf(result.window.messages);
       dispatch(setJumpWindow(result.window));
       return 'found';
     },

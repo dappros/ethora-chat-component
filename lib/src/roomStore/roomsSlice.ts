@@ -23,6 +23,7 @@ import { isOpaqueXmppUserId } from '../helpers/xmppIdShape';
 import { extractUniqueMembersFromRooms } from '../helpers/extractUniqueMembersFromRooms';
 import { getTimestampFromUnknown } from '../helpers/timestamp';
 import { isSafeKey } from './safeKey';
+import { capUsersSet, mergeUsersSet } from './usersSetCap';
 
 // Body strings the server uses for call signaling broadcasts (call-token,
 // call-state ringing/ended, etc). These should never reach the chat
@@ -567,7 +568,17 @@ const applyRoomUpdate = (
     const floor = Array.isArray(newMembers) ? newMembers.length : 0;
     merged.usersCnt = Math.max(incoming, floor);
   } else if (Array.isArray(updates.members)) {
-    merged.usersCnt = updates.members.length;
+    // A members-only refresh of a truncated big room (usersCnt > the first
+    // page) must not collapse the true total to the page length.
+    const prevMembers = Array.isArray(existingRoom.members)
+      ? existingRoom.members.length
+      : 0;
+    const prevCnt =
+      typeof existingRoom.usersCnt === 'number' ? existingRoom.usersCnt : 0;
+    merged.usersCnt =
+      prevCnt > prevMembers
+        ? Math.max(prevCnt, updates.members.length)
+        : updates.members.length;
   }
   state.rooms[jid] = merged;
 };
@@ -592,7 +603,12 @@ const roomsStore = createSlice({
         title: roomData.title || existing?.title || roomData.title,
         usersCnt: (() => {
           if (Array.isArray(roomData.members)) {
-            return roomData.members.length;
+            // /chats/my caps members (30) on big rooms but reports the true
+            // total in usersCnt: never shrink the count to the page size.
+            return typeof roomData.usersCnt === 'number' &&
+              roomData.usersCnt > roomData.members.length
+              ? roomData.usersCnt
+              : roomData.members.length;
           }
           if (typeof roomData.usersCnt === 'number' && roomData.usersCnt > 0) {
             return roomData.usersCnt;
@@ -1145,10 +1161,12 @@ const roomsStore = createSlice({
       // with the same name fields, messages were already enriched on insert
       // and the walk can't change anything.
       let hasNameChanges = false;
+      let addedUsers = false;
       newUsers.forEach((user) => {
         // xmppUsername is a property name on usersSet.
         if (!isSafeKey(user?.xmppUsername)) return;
         const existing = state.usersSet[user.xmppUsername];
+        if (!existing) addedUsers = true;
         if (
           !existing ||
           existing.firstName !== user.firstName ||
@@ -1158,6 +1176,7 @@ const roomsStore = createSlice({
         }
         state.usersSet[user.xmppUsername] = user;
       });
+      if (addedUsers) capUsersSet(state.usersSet);
       if (!hasNameChanges) return;
 
       const updatedUsernames = new Set(newUsers.map((u) => u.xmppUsername));
@@ -1280,6 +1299,8 @@ const roomsStore = createSlice({
         const isEnteringActive = state.activeRoomJID === chatJID;
         if (isEnteringActive) {
           state.rooms[chatJID].unreadMessages = 0;
+          state.rooms[chatJID].apiUnreadCount = undefined;
+          state.rooms[chatJID].apiUnreadSeededAt = undefined;
         }
         const delimiterCutoff = isEnteringActive
           ? previousLastViewed > 0
@@ -1426,6 +1447,13 @@ const roomsStore = createSlice({
       const { roomJID } = action.payload;
       if (roomJID !== null && !isSafeKey(roomJID)) return;
       state.activeRoomJID = roomJID;
+      // Opening a room reads it: the server's earlier unread count no longer
+      // applies (the unread middleware would otherwise bring it back the
+      // moment the user leaves the room again).
+      if (roomJID && state.rooms[roomJID]?.apiUnreadCount !== undefined) {
+        state.rooms[roomJID].apiUnreadCount = undefined;
+        state.rooms[roomJID].apiUnreadSeededAt = undefined;
+      }
     },
     setMemberOnline: (
       state,
@@ -1516,7 +1544,12 @@ const roomsStore = createSlice({
         title: room.title || existing?.title || room.title,
         usersCnt: (() => {
           if (Array.isArray(room.members)) {
-            return room.members.length;
+            // /chats/my caps members (30) on big rooms but reports the true
+            // total in usersCnt: never shrink the count to the page size.
+            return typeof room.usersCnt === 'number' &&
+              room.usersCnt > room.members.length
+              ? room.usersCnt
+              : room.members.length;
           }
           if (typeof room.usersCnt === 'number' && room.usersCnt > 0) {
             return room.usersCnt;
@@ -1536,6 +1569,21 @@ const roomsStore = createSlice({
         // set.
         lastMessage: room.lastMessage ?? existing?.lastMessage,
         unreadMessages: existing?.unreadMessages ?? room.unreadMessages ?? 0,
+        // Server-reported unread: the freshest API value wins while the
+        // user is not looking at the room; one being read right now keeps
+        // none (see setCurrentRoom). Absent from the response = keep what
+        // an earlier, richer response set.
+        ...(state.activeRoomJID === room.jid && state.isChatUiVisible
+          ? { apiUnreadCount: undefined, apiUnreadSeededAt: undefined }
+          : room.apiUnreadCount !== undefined
+            ? {
+                apiUnreadCount: room.apiUnreadCount,
+                apiUnreadSeededAt: room.apiUnreadSeededAt ?? Date.now(),
+              }
+            : {
+                apiUnreadCount: existing?.apiUnreadCount,
+                apiUnreadSeededAt: existing?.apiUnreadSeededAt,
+              }),
         lastViewedTimestamp:
           existing?.lastViewedTimestamp ?? room.lastViewedTimestamp ?? 0,
         unreadBaselineTimestamp:
@@ -1597,7 +1645,9 @@ const roomsStore = createSlice({
     },
     updateUsersSet: (state, action: PayloadAction<{ rooms: ApiRoom[] }>) => {
       const { rooms } = action.payload;
-      state.usersSet = extractUniqueMembersFromRooms(rooms).object;
+      // Merge, not overwrite: /chats/my lists at most 30 members of a big
+      // room, and wiping usersSet here dropped every sender resolved lazily.
+      mergeUsersSet(state.usersSet, extractUniqueMembersFromRooms(rooms).object);
     },
     setOpenReportModal: (state, action: PayloadAction<{ isOpen: boolean }>) => {
       if (!state.reportRoom) {
