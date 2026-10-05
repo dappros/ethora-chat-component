@@ -72,8 +72,8 @@ export function handleStanza(stanza: Element, xmppWs: XmppClient) {
   }
 
   if (stanza?.attrs?.type === 'headline') {
-    onUserUpdate(stanza);
-    onChatUpdate(stanza);
+    onUserUpdate(stanza, xmppWs);
+    onChatUpdate(stanza, xmppWs);
     return;
   }
 

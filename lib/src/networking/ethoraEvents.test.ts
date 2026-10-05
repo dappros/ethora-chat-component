@@ -325,15 +325,79 @@ describe('trust and robustness', () => {
     expect(userCalls()).toHaveLength(1);
   });
 
-  it('old user-update / chat-update headlines still work', async () => {
-    handleStanza(
-      parse(
-        `<message type='headline' from='x'><chat-update xmlns='your:custom:ns' chatName='${CHAT}' title='Legacy'/></message>`
-      ),
-      ws
+  const legacyChat = (from: string) =>
+    parse(
+      `<message type='headline' from='${from}'><chat-update xmlns='your:custom:ns' chatName='${CHAT}' title='Legacy'/></message>`
     );
+  const legacyUser = (from: string) =>
+    parse(
+      `<message type='headline' from='${from}'><user-update xmlns='your:custom:ns' xmppUsername='${uid(1)}' firstName='Spoof' lastName='Q'/></message>`
+    );
+  const nameOf = () =>
+    (store.getState() as any).rooms.usersSet?.[uid(1)]?.firstName;
+
+  it('legacy chat-update and user-update still work from the trusted server sender', async () => {
+    handleStanza(legacyChat(ADMIN), ws);
+    handleStanza(legacyUser(ADMIN), ws);
     await vi.advanceTimersByTimeAsync(10);
     expect(room().title).toBe('Legacy');
+    expect(nameOf()).toBe('Spoof');
     expect(get).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['room jid', JID],
+    ['room occupant', `${JID}/someone`],
+    ['user full jid', `${uid(2)}@${HOST}/web`],
+    ['user bare jid on another domain', `admin@other.example.com`],
+    ['conference domain', CONF],
+    ['malformed jid', 'x@y@xmpp.example.com'],
+  ])('legacy handlers ignore a headline from %s', async (_n, from) => {
+    handleStanza(legacyChat(from), ws);
+    handleStanza(legacyUser(from), ws);
+    await vi.advanceTimersByTimeAsync(10);
+    expect(room().title).toBe('Old title');
+    expect(nameOf()).toBeUndefined();
+  });
+
+  it('legacy handlers honor trustedEventSenders', async () => {
+    store.dispatch(
+      setConfig({ appId: APP, trustedEventSenders: ['admin'] } as any)
+    );
+    handleStanza(legacyChat(`other@${HOST}`), ws);
+    expect(room().title).toBe('Old title');
+    handleStanza(legacyChat(ADMIN), ws);
+    await vi.advanceTimersByTimeAsync(10);
+    expect(room().title).toBe('Legacy');
+  });
+});
+
+describe('reserved names in ids', () => {
+  const bad = [
+    `${APP}___proto__`,
+    `${APP}_constructor`,
+    `${APP}_hasOwnProperty`,
+    `${APP}_prototype`,
+    `${APP}_toString`,
+    `${APP}_valueOf`,
+    `${APP}_${'a'.repeat(24)}___proto__`,
+    `${APP}_a_constructor`,
+    `${APP}__defineGetter__`,
+  ];
+  it.each(bad)('user-profile-updated with %s sends nothing', async (id) => {
+    handleStanza(evUser(id), ws);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(get).not.toHaveBeenCalled();
+  });
+  it.each(bad)('chat-meta-updated with %s sends nothing', async (id) => {
+    handleStanza(evChat(id), ws);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(get).not.toHaveBeenCalled();
+  });
+  it('ordinary uuid style ids are still accepted', async () => {
+    get.mockResolvedValue(userAnswer(`${APP}_123e4567-e89b-12d3-a456-426614174000`, 'U'));
+    handleStanza(evUser(`${APP}_123e4567-e89b-12d3-a456-426614174000`), ws);
+    await vi.advanceTimersByTimeAsync(900);
+    expect(userCalls()).toHaveLength(1);
   });
 });

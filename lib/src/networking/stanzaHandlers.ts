@@ -33,6 +33,7 @@ import {
 import { createRoomFromApi } from '../helpers/createRoomFromApi';
 import { MEMBERS_REFRESH_XMLNS } from './xmpp/notifyMembersChanged.xmpp';
 import XmppClient from './xmppClient';
+import { isTrustedEventSender } from './ethoraEvents';
 import { checkSingleUser } from '../helpers/checkUniqueUsers';
 import {
   adjustUsersCnt,
@@ -1018,8 +1019,10 @@ export const handleErrorMessageStanza = (
   return null;
 };
 
-const onUserUpdate = async (stanza: Element) => {
+const onUserUpdate = async (stanza: Element, xmppWs?: XmppClient) => {
   if (stanza.attrs?.type !== 'headline') return;
+  // Same trust rule as ethoraEvents: only the server's own bare JID.
+  if (!isTrustedEventSender(stanza, xmppWs as any)) return;
 
   const userUpdateElement = stanza.getChild('user-update');
   if (!userUpdateElement || userUpdateElement.attrs?.xmlns !== 'your:custom:ns') return;
@@ -1125,10 +1128,11 @@ const onUserUpdate = async (stanza: Element) => {
 };
 
 
-const onChatUpdate = async (stanza: Element) => {
+const onChatUpdate = async (stanza: Element, xmppWs?: XmppClient) => {
   if (stanza.attrs?.type !== 'headline') {
     return;
   }
+  if (!isTrustedEventSender(stanza, xmppWs as any)) return;
 
   const chatUpdateElement = stanza.getChild('chat-update');
   if (!chatUpdateElement || chatUpdateElement.attrs?.xmlns !== 'your:custom:ns') {
