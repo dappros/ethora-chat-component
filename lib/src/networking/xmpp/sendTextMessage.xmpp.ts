@@ -48,7 +48,6 @@ export const sendTextMessage = async (
       senderJID: client.jid?.toString(),
       senderWalletAddress: walletAddress,
       roomJid: roomJID,
-      isSystemMessage: false,
       tokenAmount: 0,
       quickReplies: '',
       notDisplayedValue: '',
