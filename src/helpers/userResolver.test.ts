@@ -69,6 +69,29 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+describe('requestUsers reserved names', () => {
+  it('sends 0 requests for ids ending in a reserved object name', async () => {
+    requestUsers([
+      `${APP}___proto__`,
+      `${APP}_constructor`,
+      `${APP}_hasOwnProperty`,
+      `${APP}_prototype`,
+      `${APP}_toString`,
+      `${APP}_valueOf`,
+      `${APP}_${'a'.repeat(24)}___proto__`,
+    ]);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(get).not.toHaveBeenCalled();
+    expect(({} as any).polluted).toBeUndefined();
+  });
+  it('still looks up uuid style ids', async () => {
+    get.mockResolvedValue(ok(1));
+    requestUsers([`${APP}_123e4567-e89b-12d3-a456-426614174000`]);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(get).toHaveBeenCalled();
+  });
+});
+
 describe('requestUsers', () => {
   it('debounces a burst into one pass and de-duplicates ids and JIDs', async () => {
     get.mockImplementation((_u, cfg) =>

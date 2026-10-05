@@ -1,7 +1,7 @@
 import type { Element } from 'ltx';
 import { store } from '../roomStore';
 import { updateRoom } from '../roomStore/roomsSlice';
-import { isSafeKey } from '../roomStore/safeKey';
+import { isSafeKey, hasSafeIdSegments } from '../roomStore/safeKey';
 import { getRoomByName } from './api-requests/rooms.api';
 import { createRoomFromApi } from '../helpers/createRoomFromApi';
 import { getRoomUserCount } from '../helpers/roomUserCount';
@@ -85,6 +85,7 @@ const isSafeEventKey = (value: unknown): value is string => {
   if (!isSafeKey(value)) return false;
   if (value.length > MAX_KEY_LENGTH || !KEY_SHAPE.test(value)) return false;
   if (!value.includes('_')) return false;
+  if (!hasSafeIdSegments(value)) return false;
   const appId = sessionAppId();
   if (appId && !value.startsWith(`${appId}_`)) return false;
   return true;

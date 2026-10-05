@@ -7,7 +7,7 @@ import { dedupeMembers } from './dedupeMembers';
 import { store } from '../roomStore';
 import { insertUsers } from '../roomStore/roomsSlice';
 import { updateUser } from '../roomStore/chatSettingsSlice';
-import { isSafeKey } from '../roomStore/safeKey';
+import { isSafeKey, hasSafeIdSegments } from '../roomStore/safeKey';
 import { normalizeXmppUsername } from './xmppUsername';
 import { toLocalPart } from './xmppIdShape';
 import type { RoomMember } from '../types/types';
@@ -117,6 +117,7 @@ const isLookupable = (id: string): boolean => {
   if (!id || /\s/.test(id) || !isSafeKey(id)) return false;
   // Only appId_userId shaped ids can exist on the backend.
   if (!id.includes('_')) return false;
+  if (!hasSafeIdSegments(id)) return false;
   const appId = store.getState().chatSettingStore?.appId || '';
   if (appId && (id === appId || id === `${appId}_${appId}`)) return false;
   return true;
