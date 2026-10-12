@@ -664,6 +664,94 @@ export class Omemo {
   }
 
   /**
+   * Sends an ephemeral, end-to-end encrypted control signal to a room's
+   * members. Same OMEMO envelope as `encryptGroupMessage`, but it is NOT a
+   * chat message: no fallback <body>, no <store> hint, and MAM/carbons are
+   * asked to drop it (`no-store` / `no-permanent-store` / `no-copy`).
+   *
+   * The use case is handing a LiveKit call's media key to the other
+   * participants without the server - or anyone relaying the stanza - ever
+   * seeing it. The payload rides inside the SCE envelope exactly like a
+   * message body would, so the server observes ciphertext only.
+   *
+   * Returns true when at least one recipient device was reachable (so the
+   * caller knows the key actually went out), false when nobody in the room
+   * has published an OMEMO device yet. Unlike `encryptGroupMessage` it does
+   * not throw on an empty recipient set: a call simply falls back to plaintext
+   * media rather than failing, and the caller decides what to surface.
+   */
+  async sendGroupSignal(
+    roomJid: string,
+    members: string[],
+    content: Element[],
+    id: string
+  ): Promise<boolean> {
+    return this.serial(async () => {
+      const room = bare(roomJid);
+      const recipients = Array.from(
+        new Set([...members.map(bare), this.jid].filter(Boolean))
+      );
+
+      const envelope = xml(
+        'envelope',
+        { xmlns: NS_SCE },
+        xml('content', {}, ...content),
+        xml('rpad', {}, toBase64(randomBytes(randomInt(0, 48)))),
+        xml('time', { stamp: new Date().toISOString() }),
+        xml('to', { jid: room }),
+        xml('from', { jid: this.jid })
+      );
+      const { keyMaterial, payload } = encryptPayload(
+        new TextEncoder().encode(envelope.toString())
+      );
+
+      const blocks: Element[] = [];
+      for (const jid of recipients) {
+        let keys = await this.encryptKey(jid, keyMaterial);
+        if (keys.length === 0 && jid !== this.jid) {
+          this.deviceLists.delete(jid);
+          keys = await this.encryptKey(jid, keyMaterial);
+        }
+        if (keys.length > 0) blocks.push(xml('keys', { jid }, ...keys));
+      }
+      if (blocks.length === 0) return false;
+
+      // We never encrypt to this device, so the room's echo of our own signal
+      // would be undecryptable - cache the plaintext under its id so the
+      // receive seam resolves it to 'own' (and the call layer ignores it)
+      // instead of logging a decrypt failure.
+      await this.store.set(messageKey(room, id), {
+        content: content.map((c) => c.toString()).join(''),
+        trust: 'own',
+      } satisfies Decrypted);
+
+      await this.xmpp.send(
+        xml(
+          'message',
+          { type: 'groupchat', to: room, id },
+          xml(
+            'encrypted',
+            { xmlns: NS_OMEMO },
+            xml('header', { sid: String(this.deviceId) }, ...blocks),
+            xml('payload', {}, toBase64(payload))
+          ),
+          xml('encryption', {
+            xmlns: 'urn:xmpp:eme:0',
+            namespace: NS_OMEMO,
+            name: 'OMEMO',
+          }),
+          // Ephemeral: this is signaling, not a message. Keep it out of the
+          // archive and off carbons so it never resurfaces as chat history.
+          xml('no-store', { xmlns: 'urn:xmpp:hints' }),
+          xml('no-permanent-store', { xmlns: 'urn:xmpp:hints' }),
+          xml('no-copy', { xmlns: 'urn:xmpp:hints' })
+        )
+      );
+      return true;
+    });
+  }
+
+  /**
    * Empty OMEMO message: completes a session the peer started. It targets one
    * device, so it goes straight to that member's real JID rather than through
    * the room.

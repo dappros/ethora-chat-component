@@ -12,9 +12,12 @@ import {
   declineIncomingCall,
   endCall,
   resetCall,
+  setCallE2eeKey,
   setCallError,
   setCallPhase,
 } from '../../roomStore/callSlice';
+import { isE2eeEnabled, isE2eeRoom } from '../../e2ee';
+import { distributeCallKey, generateCallKey } from '../../e2ee/callKey';
 import { addRoomMessage } from '../../roomStore/roomsSlice';
 import { buildLocalCallLogMessage } from '../../helpers/callLogMessage';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
@@ -420,6 +423,48 @@ export const VideoCallOverlay: React.FC = () => {
   const enabled = videoCallsConfig?.enabled === true;
   const livekitUrl = (videoCallsConfig?.livekitUrl || '').trim();
   const primaryColor = config?.colors?.primary || DEFAULT_PRIMARY;
+
+  // Caller side of call E2EE: once an outgoing call has its room, mint a fresh
+  // media key, apply it to our own session, and hand it to the peer over OMEMO
+  // (encrypted end-to-end, so the server never sees it). The callee receives
+  // it via onCallKeyStanza into call.e2eeKey. No-op unless E2EE is configured
+  // and the room is one the backend marked e2ee.
+  const callE2eeEnabled = videoCallsConfig?.e2ee?.enabled === true;
+  const e2eeDistributedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!callE2eeEnabled) return;
+    if (call.direction !== 'outgoing') return;
+    const roomJid = call.roomJid;
+    if (!roomJid || call.phase === 'idle' || call.phase === 'error') return;
+    if (e2eeDistributedRef.current === roomJid) return;
+    if (!isE2eeEnabled() || !isE2eeRoom(roomJid)) return;
+    e2eeDistributedRef.current = roomJid;
+    const key = call.e2eeKey || generateCallKey();
+    if (!call.e2eeKey) {
+      dispatch(setCallE2eeKey({ key, callId: call.callId || null }));
+    }
+    void distributeCallKey(roomJid, call.callId || '', key);
+  }, [
+    callE2eeEnabled,
+    call.direction,
+    call.roomJid,
+    call.phase,
+    call.callId,
+    call.e2eeKey,
+    dispatch,
+  ]);
+  useEffect(() => {
+    if (call.phase === 'idle') e2eeDistributedRef.current = null;
+  }, [call.phase]);
+  // Whether THIS call should be end-to-end encrypted: the feature is on, the
+  // chat's OMEMO is running (app gate), and the room is one the backend marked
+  // e2ee. LiveKit needs the key provider at Room construction, so the session
+  // is armed from this flag rather than waiting for the key.
+  const callIsE2ee =
+    callE2eeEnabled &&
+    !!call.roomJid &&
+    isE2eeEnabled() &&
+    isE2eeRoom(call.roomJid);
   // The overlay is mounted beside the chat (in XmppProvider), not inside the
   // chat root that carries the colour tokens, so in the dark scheme it
   // carries them itself. Light is left exactly as before (no tokens applied
@@ -726,6 +771,9 @@ export const VideoCallOverlay: React.FC = () => {
                 onConnected={() => dispatch(setCallPhase('in-call'))}
                 onError={(message) => dispatch(setCallError(message))}
                 onHangup={() => terminateCall('ended')}
+                e2ee={callIsE2ee}
+                e2eeKey={call.e2eeKey}
+                e2eeWorkerFactory={videoCallsConfig?.e2ee?.workerFactory}
               />
             </div>
           </div>
