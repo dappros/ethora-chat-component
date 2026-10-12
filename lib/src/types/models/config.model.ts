@@ -48,6 +48,32 @@ export interface VideoCallsConfig {
   showScreenShare?: boolean;
   /** Custom icons for the call control bar / ring screen. See VideoCallIcons. */
   icons?: VideoCallIcons;
+  /**
+   * End-to-end encrypt the call media (LiveKit insertable streams). The media
+   * key is exchanged over OMEMO - the same channel the chat uses - so the SFU
+   * and the server never see it, which makes the call private even from the
+   * operator. The trust model is OMEMO's (blind-trust-before-verification on
+   * device fingerprints).
+   *
+   * Requires the chat's own encryption to be on (`config.e2ee.enabled`) and a
+   * room the backend marked `e2ee`. A call that cannot set E2EE up - an
+   * unsupported browser, an insecure (non-HTTPS) context, or a peer with no
+   * published OMEMO device - falls back to a normal (transport-encrypted)
+   * call rather than failing.
+   */
+  e2ee?: {
+    enabled: boolean;
+    /**
+     * Supplies the Web Worker LiveKit needs for insertable-stream E2EE. The
+     * library stays bundler-agnostic, so the host app creates it, typically:
+     *   () => new Worker(
+     *     new URL('livekit-client/e2ee-worker', import.meta.url),
+     *     { type: 'module' }
+     *   )
+     * Without a factory, call E2EE stays off.
+     */
+    workerFactory?: () => Worker;
+  };
 }
 
 export interface FBConfig {
