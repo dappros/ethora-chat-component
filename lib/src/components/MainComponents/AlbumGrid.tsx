@@ -8,7 +8,7 @@ import { getAlbumLayout } from '../../helpers/albumLayout';
 import { setActiveFile, setActiveModal } from '../../roomStore/chatSettingsSlice';
 import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 import { useT } from '../../i18n/useT';
-import { MediaUploadOverlay } from './MediaUploadOverlay';
+import { MediaUploadOverlay, RetryIcon } from './MediaUploadOverlay';
 
 const IMAGE_FALLBACK =
   'https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg';
@@ -58,17 +58,29 @@ const Tile = styled.button<{ $dimmed: boolean }>`
   }
 `;
 
-const MoreOverlay = styled.span`
+const MoreOverlay = styled.span<{ $failed: boolean }>`
   position: absolute;
   inset: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgba(9, 16, 32, 0.55);
+  gap: 4px;
+  background: ${({ $failed }) => ($failed ? 'rgba(185, 28, 28, 0.62)' : 'rgba(9, 16, 32, 0.55)')};
   color: #fff;
   font-size: var(--ethora-font-size-xl, 22px);
   font-weight: 600;
   pointer-events: none;
+`;
+
+const MoreRetryBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
 `;
 
 export interface AlbumGridItem {
@@ -93,6 +105,16 @@ const AlbumGrid: React.FC<AlbumGridProps> = ({ items, onRetry }) => {
   const dispatch = useDispatch();
   const layout = useMemo(() => getAlbumLayout(items.length), [items.length]);
   const visibleItems = items.slice(0, layout.visible);
+  // Failed files folded behind the "+N" cell. They have no tile of their own,
+  // so the +N cell is the only way to reach them from the grid.
+  const hiddenFailedIndices = useMemo(
+    () =>
+      items
+        .slice(layout.visible)
+        .filter(({ attachment }) => attachment.uploadStatus === 'failed')
+        .map(({ index }) => index),
+    [items, layout.visible]
+  );
 
   const openAttachment = useCallback(
     (attachment: IAttachment, fileName: string) => {
@@ -124,9 +146,20 @@ const AlbumGrid: React.FC<AlbumGridProps> = ({ items, onRetry }) => {
         const failed = attachment.uploadStatus === 'failed';
         const pending = attachment.uploadStatus === 'uploading';
         const showMore = position === layout.visible - 1 && layout.hidden > 0;
+        // Only the +N cell can stand for hidden failures; any other cell keeps
+        // its own behaviour.
+        const moreFailed = showMore && hiddenFailedIndices.length > 0;
         const dimmed = pending || (!failed && !attachment.location);
+        const inert = dimmed && !failed && !moreFailed;
 
         const handleClick = () => {
+          if (moreFailed) {
+            // Retry the tile's own failure too, if it has one, then every
+            // hidden failure. Each goes through the same per-index callback.
+            if (failed) onRetry?.(index);
+            hiddenFailedIndices.forEach((hiddenIndex) => onRetry?.(hiddenIndex));
+            return;
+          }
           if (failed) {
             onRetry?.(index);
             return;
@@ -135,18 +168,20 @@ const AlbumGrid: React.FC<AlbumGridProps> = ({ items, onRetry }) => {
           openAttachment(attachment, fileName);
         };
 
-        const label = failed
-          ? t('attachment.retryUpload', { file: fileName })
-          : fileName;
+        const label = moreFailed
+          ? t('attachment.hiddenFailed', { count: hiddenFailedIndices.length })
+          : failed
+            ? t('attachment.retryUpload', { file: fileName })
+            : fileName;
 
         return (
           <Tile
             key={attachment.attachmentId || `${index}-${fileName}`}
             type="button"
-            $dimmed={dimmed && !failed}
+            $dimmed={inert}
             aria-label={label}
             title={fileName}
-            disabled={dimmed && !failed}
+            disabled={inert}
             onClick={handleClick}
             style={{ gridColumn: cell.column, gridRow: cell.row }}
           >
@@ -170,7 +205,16 @@ const AlbumGrid: React.FC<AlbumGridProps> = ({ items, onRetry }) => {
               />
             )}
             {failed && <MediaUploadOverlay status="failed" />}
-            {showMore && <MoreOverlay>{t('attachment.moreCount', { count: layout.hidden })}</MoreOverlay>}
+            {showMore && (
+              <MoreOverlay $failed={moreFailed}>
+                <span>{t('attachment.moreCount', { count: layout.hidden })}</span>
+                {moreFailed && (
+                  <MoreRetryBadge>
+                    <RetryIcon size={14} />
+                  </MoreRetryBadge>
+                )}
+              </MoreOverlay>
+            )}
           </Tile>
         );
       })}

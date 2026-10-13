@@ -7,7 +7,7 @@ import { RootState } from '../../roomStore';
 import { getMessageAttachments } from '../../helpers/attachments';
 import { appendFileToken } from '../../helpers/secureFileUrl';
 import { deleteRoomMessage } from '../../roomStore/roomsSlice';
-import { retryMediaSend } from '../../helpers/mediaSendRetry';
+import { requestMediaRetry } from '../../helpers/mediaSendRetry';
 import AttachmentList from './AttachmentList';
 import SealedAttachmentList from './SealedAttachmentList';
 
@@ -117,7 +117,7 @@ const MediaMessage: React.FC<MediaMessageProps> = ({
   // else the callback simply finds nothing to run.
   const handleRetryAttachment = (index: number) => {
     if (!messageId) return;
-    void retryMediaSend(messageId, index);
+    requestMediaRetry(messageId, index);
   };
 
   return (

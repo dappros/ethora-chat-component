@@ -958,9 +958,11 @@ export const useSendMessage = () => {
         }
       };
 
-      registerMediaRetry(id, (index?: number) =>
+      registerMediaRetry(id, (indices?: number[]) =>
         run(
-          missingIndices().filter((position) => index === undefined || position === index)
+          missingIndices().filter(
+            (position) => indices === undefined || indices.includes(position)
+          )
         )
       );
 
