@@ -192,8 +192,8 @@ export interface IConfig {
   /** Composer attachment limits. Applies to the built-in SendInput. */
   attachments?: {
     /**
-     * How many files one message may carry. Defaults to 5 and is hard-capped
-     * at 10 by the stanza payload (MAX_ATTACHMENTS_PER_MESSAGE).
+     * How many files one message may carry. Defaults to 10, which is also the
+     * hard cap set by the stanza payload (MAX_ATTACHMENTS_PER_MESSAGE).
      */
     maxFiles?: number;
     /** Per-file ceiling in MB. Omit to skip the client-side size check. */
