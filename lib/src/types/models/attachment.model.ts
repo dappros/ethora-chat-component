@@ -30,4 +30,14 @@ export interface IAttachment {
   expiresAt?: string;
   isVisible?: boolean;
   isPrivate?: boolean;
+  /**
+   * Local-only state of an outgoing attachment, set by the sender while its
+   * message is still being sent. Never written to the wire.
+   *   uploading - the file is going up (or every file is up and the message
+   *               is waiting on its siblings); `uploadProgress` is 0 to 100.
+   *   failed    - this file did not upload; the message is held until it
+   *               is retried.
+   */
+  uploadStatus?: 'uploading' | 'failed';
+  uploadProgress?: number;
 }

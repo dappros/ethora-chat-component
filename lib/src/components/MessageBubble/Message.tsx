@@ -68,6 +68,7 @@ import {
   shouldTagOutgoingTranslateSource,
 } from '../../utils/translateModePolicy';
 import { resendMessage } from '../../utils/resendMessage';
+import { retryMediaSend } from '../../helpers/mediaSendRetry';
 
 // Inherits CustomMessageTimestamp's colour/size - just the WhatsApp/
 // Telegram-style italic to read as a tag, not a second timestamp.
@@ -575,6 +576,12 @@ const Message: React.FC<MessageProps> = forwardRef<
 
   const handleRetrySend = () => {
     if (!isFailed) return;
+    // A media message's files are held for their own uploads; retrying it
+    // re-runs those and sends the album, never the text resend path.
+    if (message?.isMediafile === 'true') {
+      void retryMediaSend(message.id);
+      return;
+    }
     // The bubble flips straight back to "sending" (setMessageSendRetrying),
     // so the button this click came from unmounts - that is the first line
     // of defence against a double tap. resendMessage holds the second one,

@@ -202,7 +202,12 @@ const canFallBackToLegacyUpload = (error: unknown): boolean => {
   return status !== 401 && status !== 413;
 };
 
-const postUpload = (endpoint: string, formData: FormData, token: string) =>
+const postUpload = (
+  endpoint: string,
+  formData: FormData,
+  token: string,
+  onProgress?: (percent: number) => void
+) =>
   http.post(endpoint, formData, {
     headers: {
       Authorization: token,
@@ -211,6 +216,12 @@ const postUpload = (endpoint: string, formData: FormData, token: string) =>
     // Uploads are bounded by the file size and the user's link, not by
     // latency: opt out of the instance-wide 20s timeout.
     timeout: 0,
+    onUploadProgress: onProgress
+      ? (event) => {
+          if (!event.total) return;
+          onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
+        }
+      : undefined,
   });
 
 export interface UploadFileOptions {
@@ -221,6 +232,8 @@ export interface UploadFileOptions {
    * BEFORE the secure/legacy split so both routes carry it.
    */
   clientEncrypted?: boolean;
+  /** Upload progress for this request, 0 to 100. */
+  onProgress?: (percent: number) => void;
 }
 
 export async function uploadFile(
@@ -239,7 +252,7 @@ export async function uploadFile(
     secureData.append('chatName', activeRoomJID.split('@')[0]);
 
     try {
-      return await postUpload(SECURE_UPLOAD_ENDPOINT, secureData, token);
+      return await postUpload(SECURE_UPLOAD_ENDPOINT, secureData, token, options.onProgress);
     } catch (error) {
       if (!canFallBackToLegacyUpload(error)) throw error;
 
@@ -251,7 +264,7 @@ export async function uploadFile(
     }
   }
 
-  return postUpload(LEGACY_UPLOAD_ENDPOINT, formData, token);
+  return postUpload(LEGACY_UPLOAD_ENDPOINT, formData, token, options.onProgress);
 }
 
 export async function ensureUserFromMy(

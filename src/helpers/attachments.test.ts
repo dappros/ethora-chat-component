@@ -168,3 +168,37 @@ describe('getAttachmentName', () => {
     expect(getAttachmentName({ location: '' })).toBe('MediaFile');
   });
 });
+
+describe('local upload state on outgoing attachments', () => {
+  it('keeps uploading/failed state through parsing', () => {
+    const parsed = parseAttachments([
+      { originalName: 'a.png', mimetype: 'image/png', uploadStatus: 'uploading', uploadProgress: 40 },
+      { originalName: 'b.png', mimetype: 'image/png', uploadStatus: 'failed' },
+    ]);
+    expect(parsed[0]).toMatchObject({ uploadStatus: 'uploading', uploadProgress: 40 });
+    expect(parsed[1]).toMatchObject({ uploadStatus: 'failed', uploadProgress: 0 });
+  });
+
+  it('drops unknown status values and clamps progress', () => {
+    const parsed = parseAttachments([
+      { originalName: 'a.png', uploadStatus: 'bogus', uploadProgress: 500 },
+    ]);
+    expect(parsed[0].uploadStatus).toBeUndefined();
+    expect(parsed[0].uploadProgress).toBeUndefined();
+
+    const clamped = parseAttachments([
+      { originalName: 'a.png', uploadStatus: 'uploading', uploadProgress: 500 },
+    ]);
+    expect(clamped[0].uploadProgress).toBe(100);
+  });
+
+  it('never puts local state on the wire', () => {
+    const wire = JSON.parse(
+      serializeAttachments([
+        { location: 'https://x/a', originalName: 'a', uploadStatus: 'failed', uploadProgress: 9 },
+      ])
+    );
+    expect(wire[0]).not.toHaveProperty('uploadStatus');
+    expect(wire[0]).not.toHaveProperty('uploadProgress');
+  });
+});

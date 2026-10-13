@@ -1,4 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
+import { requestComposerFocus } from '../../helpers/composerFocus';
+import { isMobileViewportNow } from '../../hooks/useIsMobileViewport';
 import { IConfig, IMessage, IRoom, LastMessage } from '../../types/types';
 import { ProfileImagePlaceholder } from '../MainComponents/ProfileImagePlaceholder';
 import {
@@ -32,6 +34,9 @@ interface ChatRoomItemProps {
   performClick: (chat: IRoom) => void;
   config: IConfig;
 }
+
+/** Same breakpoint RoomList and ChatWrapper treat as a phone-sized screen. */
+const MOBILE_BREAKPOINT_PX = 767;
 
 const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
   chat,
@@ -203,6 +208,18 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
     }
   };
 
+  // Every activation of a row (click or Enter) asks the composer for focus,
+  // including a click on the chat that is already open: performClick may
+  // return early there, so the request is made here, before it.
+  // Mobile is skipped: focusing the input would pop the on-screen keyboard
+  // up over the room the user just chose.
+  const activateChat = () => {
+    if (!isMobileViewportNow(MOBILE_BREAKPOINT_PX)) {
+      requestComposerFocus(chat?.jid);
+    }
+    performClick(chat);
+  };
+
   return (
     <ChatItem
       active={isChatActive}
@@ -225,7 +242,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
       // their focus and their ring.
       onClick={(e) => {
         if (e.detail > 0) e.currentTarget.blur();
-        performClick(chat);
+        activateChat();
       }}
       bg={config?.colors?.primary}
       data-testid={RoomListTestIds.roomRow}
@@ -236,7 +253,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          performClick(chat);
+          activateChat();
         }
       }}
     >

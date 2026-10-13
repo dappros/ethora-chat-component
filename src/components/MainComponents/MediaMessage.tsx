@@ -7,6 +7,7 @@ import { RootState } from '../../roomStore';
 import { getMessageAttachments } from '../../helpers/attachments';
 import { appendFileToken } from '../../helpers/secureFileUrl';
 import { deleteRoomMessage } from '../../roomStore/roomsSlice';
+import { retryMediaSend } from '../../helpers/mediaSendRetry';
 import AttachmentList from './AttachmentList';
 import SealedAttachmentList from './SealedAttachmentList';
 
@@ -111,8 +112,20 @@ const MediaMessage: React.FC<MediaMessageProps> = ({
     return <SealedAttachmentList attachments={attachments} keys={sealedKeys} />;
   }
 
+  // A failed file in an outgoing message can be sent again from its tile.
+  // Only the sender's optimistic copy has a registered retry; for anything
+  // else the callback simply finds nothing to run.
+  const handleRetryAttachment = (index: number) => {
+    if (!messageId) return;
+    void retryMediaSend(messageId, index);
+  };
+
   return (
-    <AttachmentList attachments={attachments} onUnavailable={handleUnavailable} />
+    <AttachmentList
+      attachments={attachments}
+      onUnavailable={handleUnavailable}
+      onRetryAttachment={messageId ? handleRetryAttachment : undefined}
+    />
   );
 };
 

@@ -4,10 +4,12 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
   addRoomMessage,
   editRoomMessage,
-  removeRoomMessage,
   setEditAction,
+  setMediaUploadState,
 } from '../roomStore/roomsSlice';
 import { uploadFile } from '../networking/api-requests/auth.api';
+import { mapWithConcurrency } from '../helpers/mapWithConcurrency';
+import { registerMediaRetry, unregisterMediaRetry } from '../helpers/mediaSendRetry';
 import { isE2eeRoom } from '../e2ee';
 import { sealFileForUpload } from '../e2ee/fileEnvelope';
 import {
@@ -15,6 +17,7 @@ import {
   serializeAttachments,
 } from '../helpers/attachments';
 import { IAttachment } from '../types/types';
+import { toUploadedAttachment } from '../helpers/attachments';
 import { RootState, store } from '../roomStore';
 import { useChatSettingState } from './useChatSettingState';
 import { addMessageToHeap } from '../roomStore/roomHeapSlice';
@@ -27,6 +30,9 @@ import { armSendFailureWatchdog } from '../helpers/sendFailureWatchdog';
 import { shouldTagOutgoingTranslateSource as shouldTagTranslateSource } from '../utils/translateModePolicy';
 
 const DEFAULT_TIMEOUT_MS = 300000;
+
+/** Files of one message uploaded at the same time. */
+export const MEDIA_UPLOAD_CONCURRENCY = 4;
 
 // Moved to utils/translateModePolicy so the message bubble's retry control
 // can reuse it; re-exported here because that is where hosts and the
@@ -632,6 +638,20 @@ export const useSendMessage = () => {
     [editAction, client, dispatch, user, handleMessageSent, handleMessageFailed]
   );
 
+  /**
+   * Sends one message carrying every file in `data`, in the order the user
+   * picked them.
+   *
+   * Each file is its own upload, run with at most MEDIA_UPLOAD_CONCURRENCY
+   * in flight, so one slow file does not hold the rest back and each tile
+   * reports its own progress. The message is only stanza'd once EVERY file
+   * is up: a failed upload holds the whole message (the tile is marked and
+   * can be retried) rather than sending a silently incomplete album.
+   *
+   * Resolves true when the message was delivered, false when it is still
+   * waiting on a retry (or was never sent). The composer uses that to decide
+   * whether the caption may go out now.
+   */
   const sendMedia = useCallback(
     async (
       data: File | File[] | Blob,
@@ -640,10 +660,10 @@ export const useSendMessage = () => {
       isReply = false,
       isChecked = false,
       mainMessage = ''
-    ) => {
+    ): Promise<boolean> => {
       if (isLastMessageFromUserAndProcessing(activeRoomJID)) {
         ethoraLogger.log('Cannot send media: Message sending is currently blocked');
-        return;
+        return false;
       }
 
       // One send = one message, whatever the caller handed us. Voice notes
@@ -656,7 +676,7 @@ export const useSendMessage = () => {
 
       if (files.length === 0) {
         ethoraLogger.log('Cannot send media: no files');
-        return;
+        return false;
       }
 
       markMessageSending(activeRoomJID, true);
@@ -666,14 +686,24 @@ export const useSendMessage = () => {
       const optimisticTimestamp = Date.now();
       const optimisticDate = new Date(optimisticTimestamp).toISOString();
       const first = files[0];
-      const optimisticAttachments: IAttachment[] = files.map((file) => ({
+      const isE2ee = isE2eeRoom(activeRoomJID);
+
+      // Everything below is indexed by the file's place in the selection,
+      // which is the order the stanza must carry - never by finish order.
+      let items: IAttachment[] = files.map((file) => ({
         location: '',
-        locationPreview: '',
         mimetype: file.type || type,
         originalName: file.name,
         fileName: file.name,
         size: file.size?.toString(),
+        uploadStatus: 'uploading',
+        uploadProgress: 0,
       }));
+      const uploaded: Array<IAttachment | undefined> = files.map(() => undefined);
+      const rawResults: Array<any | undefined> = files.map(() => undefined);
+      const sealedKeys: Array<string | undefined> = files.map(() => undefined);
+      let delivered = false;
+      let running = false;
 
       if (!config?.disableSentLogic) {
         dispatch(
@@ -701,7 +731,7 @@ export const useSendMessage = () => {
               mimetype: type,
               originalName: first.name,
               size: first.size?.toString(),
-              attachments: optimisticAttachments,
+              attachments: items,
               isReply,
               showInChannel: `${isChecked}`,
               mainMessage,
@@ -710,65 +740,92 @@ export const useSendMessage = () => {
         );
       }
 
-      try {
-        // POST /files/ already answers with a `results` array, so the whole
-        // group is one request - and one failure boundary.
-        const mediaData = new FormData();
+      const publish = (flags: { pending?: boolean; failed?: boolean } = {}) => {
+        if (config?.disableSentLogic) return;
+        dispatch(
+          setMediaUploadState({
+            roomJID: activeRoomJID,
+            messageId: id,
+            attachments: items,
+            ...flags,
+          })
+        );
+      };
 
-        // In an e2ee room the attachment is sealed before it leaves the
-        // browser: what goes up is opaque bytes under a random name, so the
-        // server never sees the file, its type or its filename, and never
-        // renders a thumbnail of it into a bucket. The per-file keys ride in
-        // the OMEMO-encrypted <body> of the stanza below - `location` and the
-        // rest of <data> stay readable, and now say nothing.
-        const e2ee = isE2eeRoom(activeRoomJID);
-        let sealedKeys: string[] | undefined;
+      const patchItem = (index: number, patch: Partial<IAttachment>) => {
+        items = items.map((item, position) =>
+          position === index ? { ...item, ...patch } : item
+        );
+        publish();
+      };
 
-        if (e2ee) {
-          const sealed = await Promise.all(files.map(sealFileForUpload));
-          sealed.forEach((item) =>
-            mediaData.append(
-              'files',
-              new File([item.ciphertext as BlobPart], item.filename, {
-                type: 'application/octet-stream',
-              })
-            )
+      const missingIndices = () =>
+        uploaded.reduce<number[]>(
+          (acc, item, index) => (item ? acc : [...acc, index]),
+          []
+        );
+
+      const uploadOne = async (index: number): Promise<void> => {
+        const file = files[index];
+        patchItem(index, { uploadStatus: 'uploading', uploadProgress: 0 });
+
+        // In an e2ee room each file is sealed before it leaves the browser:
+        // what goes up is opaque bytes under a random name, so the server
+        // never sees the file, its type or its filename. The per-file keys
+        // ride in the OMEMO-encrypted <body> of the stanza.
+        const form = new FormData();
+        let key: string | undefined;
+        if (isE2ee) {
+          const sealed = await sealFileForUpload(file);
+          form.append(
+            'files',
+            new File([sealed.ciphertext as BlobPart], sealed.filename, {
+              type: 'application/octet-stream',
+            })
           );
-          sealedKeys = sealed.map((item) => item.keyMaterial);
+          key = sealed.keyMaterial;
         } else {
-          files.forEach((file) => mediaData.append('files', file));
+          form.append('files', file);
         }
 
-        const response = await uploadFile(mediaData, activeRoomJID, {
-          clientEncrypted: e2ee,
+        const response = await uploadFile(form, activeRoomJID, {
+          clientEncrypted: isE2ee,
+          onProgress: (percent) => patchItem(index, { uploadProgress: percent }),
         });
 
-        const results: any[] = Array.isArray(response?.data?.results)
-          ? response.data.results
-          : [];
-        if (results.length === 0) {
+        const raw = Array.isArray(response?.data?.results)
+          ? response.data.results[0]
+          : undefined;
+        if (!raw) {
           throw new Error('media_upload_empty_response');
         }
 
-        const attachments: IAttachment[] = results.map((item) => ({
-          attachmentId: item?._id,
-          location: item?.location,
-          locationPreview: item?.locationPreview,
-          mimetype: item?.mimetype,
-          originalName: item?.originalname,
-          fileName: item?.filename,
-          size: item?.size?.toString?.() ?? item?.size,
-          duration: item?.duration,
-          ownerKey: item?.ownerKey,
-          userId: item?.userId,
-          createdAt: item?.createdAt,
-          updatedAt: item?.updatedAt,
-          expiresAt: item?.expiresAt,
-          isVisible: item?.isVisible,
-          isPrivate: item?.isPrivate,
-        }));
+        const attachment = toUploadedAttachment(raw);
+        uploaded[index] = attachment;
+        rawResults[index] = raw;
+        sealedKeys[index] = key;
 
-        const [head] = results;
+        // The bytes are up but the message is not: keep the tile in its
+        // "waiting" state. A clear file already has a usable URL to preview
+        // with; a sealed one would only show ciphertext, so it stays blank.
+        patchItem(
+          index,
+          isE2ee
+            ? { uploadStatus: 'uploading', uploadProgress: 100 }
+            : {
+                uploadStatus: 'uploading',
+                uploadProgress: 100,
+                location: attachment.location,
+                locationPreview: attachment.locationPreview,
+              }
+        );
+      };
+
+      const sendAssembled = async (): Promise<void> => {
+        const raws = rawResults as any[];
+        const attachments = uploaded as IAttachment[];
+        const [head] = raws;
+
         const messagePayload = {
           firstName: user.firstName,
           lastName: user.lastName,
@@ -800,7 +857,7 @@ export const useSendMessage = () => {
           __v: head.__v,
           // Consumed by sendMediaMessage, which puts them inside the encrypted
           // <body>. Never stamped onto <data>: that rides in the clear.
-          e2eeKeys: sealedKeys,
+          e2eeKeys: isE2ee ? (sealedKeys as string[]) : undefined,
         };
 
         const mediaSent = await sendWithActiveRoomRetry(
@@ -812,18 +869,9 @@ export const useSendMessage = () => {
           throw new Error('media_send_failed');
         }
 
-        // Replace the optimistic attachment placeholders with the real ones.
-        //
-        // The optimistic bubble carries an `attachments` array built from the
-        // picked File, so its `location` is ''. The room echo that follows
-        // does NOT carry `attachments` - a single-file stanza deliberately
-        // omits it - and the store merges an echo key-by-key, so the stale
-        // array survives while only the flat fields get the real URL.
-        // getMessageAttachments prefers `attachments`, so the bubble kept
-        // reading location '' until a reload dropped the optimistic remnant:
-        // a spinner that never resolved for plain media, and "could not be
-        // opened" for a sealed one. The sender knows the truth here, so it
-        // says so rather than waiting for an echo that will not carry it.
+        // Replace the optimistic placeholders with the real attachments. The
+        // echo that follows carries no `attachments`, so the sender says what
+        // it knows here rather than waiting for an echo that will not.
         if (!config?.disableSentLogic) {
           dispatch(
             addRoomMessage({
@@ -846,6 +894,9 @@ export const useSendMessage = () => {
           );
         }
 
+        delivered = true;
+        unregisterMediaRetry(id);
+
         emitMessageSent({
           message: 'media',
           roomJID: activeRoomJID,
@@ -858,24 +909,62 @@ export const useSendMessage = () => {
             fileData: Array.isArray(data) ? data : first,
             fileType: type,
             messageId: id,
-            uploadResults: results,
+            uploadResults: raws,
           },
         });
-      } catch (error) {
-        console.error('Upload failed:', error);
-        // The optimistic bubble would otherwise sit at "sending..." forever.
-        if (!config?.disableSentLogic) {
-          dispatch(removeRoomMessage({ roomJID: activeRoomJID, messageId: id }));
+      };
+
+      /**
+       * Uploads `indices` (a retry passes only the files that failed), then
+       * sends once nothing is missing. Any failure leaves the message in the
+       * failed state with its tiles marked, ready for a retry.
+       */
+      const run = async (indices: number[]): Promise<boolean> => {
+        if (delivered || running) return false;
+        running = true;
+        markMessageSending(activeRoomJID, true);
+        publish({ pending: true, failed: false });
+
+        try {
+          await mapWithConcurrency(indices, MEDIA_UPLOAD_CONCURRENCY, async (index) => {
+            try {
+              await uploadOne(index);
+            } catch (error) {
+              console.error('Upload failed:', error);
+              patchItem(index, { uploadStatus: 'failed', uploadProgress: 0 });
+            }
+          });
+
+          if (missingIndices().length > 0) {
+            throw new Error('media_upload_failed');
+          }
+          // Success needs no publish: the final addRoomMessage in
+          // sendAssembled already replaced the attachments and cleared the flags.
+          await sendAssembled();
+          return true;
+        } catch (error) {
+          console.error('Media send failed:', error);
+          publish({ pending: false, failed: true });
+          handleMessageFailed({
+            message: 'media',
+            roomJID: activeRoomJID,
+            error: error as Error,
+            messageType: 'media',
+          });
+          return false;
+        } finally {
+          running = false;
+          markMessageSending(activeRoomJID, false);
         }
-        handleMessageFailed({
-          message: 'media',
-          roomJID: activeRoomJID,
-          error: error as Error,
-          messageType: 'media',
-        });
-      } finally {
-        markMessageSending(activeRoomJID, false);
-      }
+      };
+
+      registerMediaRetry(id, (index?: number) =>
+        run(
+          missingIndices().filter((position) => index === undefined || position === index)
+        )
+      );
+
+      return run(files.map((_, index) => index));
     },
     [
       client,
@@ -888,6 +977,7 @@ export const useSendMessage = () => {
       markMessageSending,
       emitMessageSent,
       sendWithActiveRoomRetry,
+      dispatch,
     ]
   );
 

@@ -43,6 +43,10 @@ import { parseMessageBody } from '../../helpers/parseMessageBody';
 import { useT } from '../../i18n/useT';
 import { MAX_ATTACHMENTS_PER_MESSAGE } from '../../helpers/attachments';
 import { getFileKind } from '../../helpers/fileKind';
+import {
+  subscribeComposerFocus,
+  takeComposerFocusRequest,
+} from '../../helpers/composerFocus';
 import { RootState, getActiveRoom } from '../../roomStore';
 import { useMentionComposer } from '../../hooks/useMentionComposer';
 import { MentionCandidate } from '../../helpers/mentions';
@@ -88,11 +92,14 @@ export interface SendInputProps {
   /**
    * Receives a `File[]` for picked attachments (one message, N files) and a
    * `Blob` for voice notes. Single files still arrive as a one-element array.
+   * Resolving to `false` means the message was not delivered (yet), so a
+   * caption typed with the files is kept in the composer instead of going
+   * out ahead of its media.
    */
   sendMedia: (
     data: File[] | File | Blob,
     type: string
-  ) => void | Promise<void>;
+  ) => void | boolean | Promise<void | boolean>;
   isLoading: boolean;
   editMessage?: string;
   config?: IConfig;
@@ -111,7 +118,7 @@ export interface SendInputProps {
   onSendMedia?: (
     data: File[] | File | Blob,
     type: string
-  ) => void | Promise<void>;
+  ) => void | boolean | Promise<void | boolean>;
   placeholderText?: string;
   /** Disables the @-mention autocomplete (e.g. for a composer variant that
    * doesn't want it). Defaults to enabled. */
@@ -123,6 +130,13 @@ export interface SendInputProps {
    * live composers would otherwise overwrite each other's text.
    */
   disableDrafts?: boolean;
+  /**
+   * Take focus whenever the room list hands the composer a chat switch (a
+   * click on a room row, even one that is already open). Set on the main
+   * composer only: a second composer on the same screen must not steal focus.
+   * Mobile never requests it, so the keyboard does not pop up uninvited.
+   */
+  focusOnRoomSwitch?: boolean;
 }
 
 const SendInput: React.FC<SendInputProps> = ({
@@ -144,6 +158,7 @@ const SendInput: React.FC<SendInputProps> = ({
   placeholderText,
   disableMentions,
   disableDrafts,
+  focusOnRoomSwitch,
 }) => {
   const t = useT();
   const [message, setMessage] = useState('');
@@ -789,6 +804,21 @@ const SendInput: React.FC<SendInputProps> = ({
   flushDraftRef.current = flushDraft;
   useEffect(() => () => flushDraftRef.current(), []);
 
+  // Chat switch from the room list. The request is parked in composerFocus
+  // until this composer claims it, so it works whether the composer was
+  // already mounted or only mounts after the switch: the effect runs after
+  // the commit, when the textarea/input exists.
+  const [focusRequestTick, setFocusRequestTick] = useState(0);
+  useEffect(() => {
+    if (!focusOnRoomSwitch) return;
+    return subscribeComposerFocus(() => setFocusRequestTick((tick) => tick + 1));
+  }, [focusOnRoomSwitch]);
+  useEffect(() => {
+    if (!focusOnRoomSwitch) return;
+    if (!takeComposerFocusRequest(activeRoomJid)) return;
+    activeElRef.current?.focus();
+  }, [focusOnRoomSwitch, activeRoomJid, focusRequestTick]);
+
   const effectiveSendMessage = onSendMessage || sendMessage;
   const effectiveSendMedia = onSendMedia || sendMedia;
   const hasTextContent = useCallback(
@@ -803,11 +833,11 @@ const SendInput: React.FC<SendInputProps> = ({
       const outgoing = formatMessage ? formatMessage(message) : message;
       const trailingText = hasTextContent(outgoing) ? outgoing : null;
 
-      let mediaPromise: void | Promise<void> = undefined;
+      let mediaPromise: void | boolean | Promise<void | boolean> = undefined;
 
       if (filePreviews.length > 0) {
-        // The whole tray goes as one message; sendMedia uploads it in a
-        // single request and emits a single stanza.
+        // The whole tray goes as one message: every file uploads in
+        // parallel and the message is stanza'd once all of them are up.
         mediaPromise = effectiveSendMedia(filePreviews, 'media');
         setIsRecording(false);
       } else if (audioUrl) {
@@ -837,10 +867,21 @@ const SendInput: React.FC<SendInputProps> = ({
       if (trailingText) {
         // Wait for the media stanza to land before sending the caption so
         // recipients see media-then-text order on the wire.
+        let delivered: unknown = true;
         try {
-          await mediaPromise;
+          delivered = await mediaPromise;
         } catch {
-          // Media sender owns its own error reporting; still emit the caption.
+          // Media sender owns its own error reporting.
+          delivered = false;
+        }
+        if (delivered === false) {
+          // The files are held on the message for a retry; the caption must
+          // not reach the room ahead of them. Put it back in the composer,
+          // ahead of anything typed since.
+          setMessage((prev) =>
+            prev.trim() ? `${trailingText}\n${prev}` : trailingText
+          );
+          return;
         }
         effectiveSendMessage(trailingText, mention.mentionSpans);
       }

@@ -63,9 +63,9 @@ const setup = () => {
   return { store, result };
 };
 
-/** Pull the files back out of the FormData the hook built. */
+/** Pull the files back out of the FormData the hook built, one per upload. */
 const uploadedFiles = () =>
-  (uploadFile.mock.calls[0][0] as FormData).getAll('files') as File[];
+  uploadFile.mock.calls.map(([form]) => (form as FormData).getAll('files')[0] as File);
 
 const uploadOptions = () => uploadFile.mock.calls[0][2];
 
@@ -96,7 +96,7 @@ describe('sendMedia in an e2ee room', () => {
     expect(sent.type).toBe('application/octet-stream');
     expect(sent.name).not.toContain('contract');
     expect(sent.name).not.toContain('.pdf');
-    expect(uploadOptions()).toEqual({ clientEncrypted: true });
+    expect(uploadOptions()).toMatchObject({ clientEncrypted: true });
 
     // The bytes on the wire are not the file.
     const onTheWire = new TextDecoder().decode(await sent.arrayBuffer());
@@ -127,10 +127,12 @@ describe('sendMedia in an e2ee room', () => {
     expect(new TextDecoder().decode(opened.bytes)).toBe('the actual contents');
   });
 
-  it('seals every file of a group with its own key', async () => {
-    uploadFile.mockResolvedValue({
-      data: { results: [sealedUploadResult(0), sealedUploadResult(1)] },
-    });
+  it('seals every file of a group with its own key, in selection order', async () => {
+    // Each upload answers with its own result; the sealed name is opaque,
+    // so the test matches uploads to keys by decryption, not by name.
+    uploadFile.mockImplementation(async () => ({
+      data: { results: [sealedUploadResult(uploadFile.mock.calls.length)] },
+    }));
     const { result } = setup();
     const files = [
       new File(['first'], 'a.txt', { type: 'text/plain' }),
@@ -147,13 +149,24 @@ describe('sendMedia in an e2ee room', () => {
     expect(payload.e2eeKeys).toHaveLength(2);
     expect(payload.e2eeKeys[0]).not.toBe(payload.e2eeKeys[1]);
 
-    const sent = uploadedFiles();
-    const opened = await Promise.all(
-      sent.map(async (f, i) =>
-        openSealedFile(new Uint8Array(await f.arrayBuffer()), payload.e2eeKeys[i])
-      )
+    // Every key opens exactly one upload; the stanza's key i must open the
+    // i-th picked file, whatever order the uploads ran in.
+    const sent = await Promise.all(
+      uploadedFiles().map(async (f) => new Uint8Array(await f.arrayBuffer()))
     );
-    expect(opened.map((o) => o.meta.originalname)).toEqual(['a.txt', 'b.txt']);
+    const openedInOrder = payload.e2eeKeys.map((key: string) => {
+      const match = sent
+        .map((bytes) => {
+          try {
+            return openSealedFile(bytes, key);
+          } catch {
+            return null;
+          }
+        })
+        .find((opened) => opened !== null);
+      return match;
+    });
+    expect(openedInOrder.map((o: any) => o?.meta.originalname)).toEqual(['a.txt', 'b.txt']);
   });
 });
 
@@ -186,7 +199,7 @@ describe('sendMedia in a plain room', () => {
     const [sent] = uploadedFiles();
     expect(sent.name).toBe('contract-final.pdf');
     expect(sent.type).toBe('application/pdf');
-    expect(uploadOptions()).toEqual({ clientEncrypted: false });
+    expect(uploadOptions()).toMatchObject({ clientEncrypted: false });
 
     const payload = sendMediaMessageStanza.mock.calls[0][1] as any;
     expect(payload.e2eeKeys).toBeUndefined();
