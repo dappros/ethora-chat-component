@@ -1,77 +1,17 @@
-import React, { useCallback, useMemo } from 'react';
-import { useDispatch } from 'react-redux';
+import React, { useMemo } from 'react';
 import { IAttachment } from '../../types/types';
 import { getAttachmentName } from '../../helpers/attachments';
 import { getFileKind } from '../../helpers/fileKind';
-import {
-  AttachmentGrid,
-  AttachmentStack,
-  AttachmentTile,
-  PdfThumbnailSkeleton,
-} from '../styled/StyledInputComponents/MediaComponents';
-import {
-  setActiveFile,
-  setActiveModal,
-} from '../../roomStore/chatSettingsSlice';
-import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
+import { AttachmentStack } from '../styled/StyledInputComponents/MediaComponents';
 import CustomMessageImage from '../styled/MessageImage';
 import CustomMessageVideo from '../styled/VideoMessage';
 import AudioMessage from '../styled/AudioMessage';
 import PdfMessage from '../styled/PdfMessage';
 import FileDownload from '../styled/UnsupportedType';
-
-const IMAGE_FALLBACK =
-  'https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg';
-
-/**
- * One tile inside a multi-file message. Images and videos collapse to a
- * square crop so a mixed group still reads as a grid; everything else keeps
- * its own row renderer, just denser.
- */
-const AttachmentTileItem: React.FC<{ attachment: IAttachment }> = ({
-  attachment,
-}) => {
-  const dispatch = useDispatch();
-  const fileName = getAttachmentName(attachment);
-  const kind = getFileKind(attachment.mimetype, fileName);
-
-  const handleOpen = useCallback(() => {
-    if (!attachment.location) return;
-    dispatch(
-      setActiveFile({
-        fileName,
-        fileURL: attachment.location,
-        mimetype: attachment.mimetype || '',
-      })
-    );
-    dispatch(setActiveModal(MODAL_TYPES.FILE_PREVIEW));
-  }, [attachment.location, attachment.mimetype, dispatch, fileName]);
-
-  // Still uploading: no URL to point at yet.
-  if (!attachment.location) {
-    return (
-      <AttachmentTile disabled aria-label={fileName}>
-        <PdfThumbnailSkeleton />
-      </AttachmentTile>
-    );
-  }
-
-  return (
-    <AttachmentTile onClick={handleOpen} title={fileName}>
-      {kind === 'video' ? (
-        <video src={attachment.location} preload="metadata" muted />
-      ) : (
-        <img
-          src={attachment.locationPreview || attachment.location}
-          alt={fileName}
-          onError={(event) => {
-            (event.target as HTMLImageElement).src = IMAGE_FALLBACK;
-          }}
-        />
-      )}
-    </AttachmentTile>
-  );
-};
+import AlbumGrid, { AlbumGridItem } from './AlbumGrid';
+import { MediaUploadOverlay } from './MediaUploadOverlay';
+import styled from 'styled-components';
+import { useT } from '../../i18n/useT';
 
 /** Full-width renderer: what a single-file message has always looked like. */
 const AttachmentRow: React.FC<{
@@ -140,43 +80,110 @@ const AttachmentRow: React.FC<{
   }
 };
 
+const StatusWrap = styled.div`
+  position: relative;
+  min-width: 0;
+`;
+
+const RetryHit = styled.button`
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: var(--ethora-radius-md, 12px);
+
+  &:focus-visible {
+    outline: 2px solid var(--ethora-color-primary, #0052cd);
+    outline-offset: -2px;
+  }
+`;
+
+/** A row renderer plus the upload/failed badge while the file is outgoing. */
+const AttachmentRowWithStatus: React.FC<{
+  attachment: IAttachment;
+  compact: boolean;
+  onUnavailable?: () => void;
+  onRetry?: () => void;
+}> = ({ attachment, compact, onUnavailable, onRetry }) => {
+  const t = useT();
+  if (!attachment.uploadStatus) {
+    return (
+      <AttachmentRow
+        attachment={attachment}
+        compact={compact}
+        onUnavailable={onUnavailable}
+      />
+    );
+  }
+  const failed = attachment.uploadStatus === 'failed';
+  return (
+    <StatusWrap>
+      <AttachmentRow attachment={attachment} compact={compact} onUnavailable={onUnavailable} />
+      <MediaUploadOverlay
+        status={attachment.uploadStatus}
+        progress={attachment.uploadProgress}
+      />
+      {failed && onRetry && (
+        <RetryHit
+          type="button"
+          onClick={onRetry}
+          aria-label={t('attachment.retryUpload', {
+            file: getAttachmentName(attachment),
+          })}
+        />
+      )}
+    </StatusWrap>
+  );
+};
+
 interface AttachmentListProps {
   attachments: IAttachment[];
   /** See CustomMessageImage's `onUnavailable` - only wired to the full-width
-   * single-image renderer (AttachmentRow), not the multi-file grid tiles,
-   * since one dead thumbnail there shouldn't tombstone a message that still
-   * has other live attachments. */
+   * single-image renderer (AttachmentRow), not the album tiles, since one
+   * dead thumbnail there shouldn't tombstone a message that still has other
+   * live attachments. */
   onUnavailable?: () => void;
+  /** Re-sends the file at this index of `attachments` after a failed upload. */
+  onRetryAttachment?: (index: number) => void;
 }
 
 const AttachmentList: React.FC<AttachmentListProps> = ({
   attachments,
   onUnavailable,
+  onRetryAttachment,
 }) => {
   const { tiles, rows } = useMemo(() => {
+    const indexed: AlbumGridItem[] = attachments.map((attachment, index) => ({
+      attachment,
+      index,
+    }));
     if (attachments.length < 2) {
-      return { tiles: [] as IAttachment[], rows: attachments };
+      return { tiles: [] as AlbumGridItem[], rows: indexed };
     }
 
-    const tileable: IAttachment[] = [];
-    const rowed: IAttachment[] = [];
+    const tileable: AlbumGridItem[] = [];
+    const rowed: AlbumGridItem[] = [];
 
-    attachments.forEach((attachment) => {
+    indexed.forEach((item) => {
       const kind = getFileKind(
-        attachment.mimetype,
-        getAttachmentName(attachment)
+        item.attachment.mimetype,
+        getAttachmentName(item.attachment)
       );
       if (kind === 'image' || kind === 'video') {
-        tileable.push(attachment);
+        tileable.push(item);
       } else {
-        rowed.push(attachment);
+        rowed.push(item);
       }
     });
 
-    // A lone picture next to documents looks wrong cropped into a square -
-    // give it the normal renderer and let the documents stack under it.
+    // A lone picture next to documents looks wrong in an album - give it the
+    // normal renderer, in the order it was picked.
     if (tileable.length === 1) {
-      return { tiles: [], rows: [...tileable, ...rowed] };
+      return { tiles: [] as AlbumGridItem[], rows: indexed };
     }
 
     return { tiles: tileable, rows: rowed };
@@ -191,21 +198,15 @@ const AttachmentList: React.FC<AttachmentListProps> = ({
   return (
     <AttachmentStack>
       {tiles.length > 0 && (
-        <AttachmentGrid $columns={Math.min(tiles.length, tiles.length === 3 ? 3 : 2)}>
-          {tiles.map((attachment, index) => (
-            <AttachmentTileItem
-              key={attachment.attachmentId || `${attachment.location}-${index}`}
-              attachment={attachment}
-            />
-          ))}
-        </AttachmentGrid>
+        <AlbumGrid items={tiles} onRetry={onRetryAttachment} />
       )}
-      {rows.map((attachment, index) => (
-        <AttachmentRow
+      {rows.map(({ attachment, index }) => (
+        <AttachmentRowWithStatus
           key={attachment.attachmentId || `${attachment.location}-${index}`}
           onUnavailable={onUnavailable}
           attachment={attachment}
           compact={compact}
+          onRetry={onRetryAttachment ? () => onRetryAttachment(index) : undefined}
         />
       ))}
     </AttachmentStack>
