@@ -349,6 +349,13 @@ const en: UiStringTable = {
   'modal.chatProfile.aboutSection': 'About',
   'modal.chatProfile.membersSection': 'Members',
   'modal.chatProfile.filesShowLess': 'Show less',
+  'notification.newMessage': 'New message',
+  'notification.photo': 'Photo',
+  'notification.video': 'Video',
+  'notification.audio': 'Voice message',
+  'notification.file': 'File',
+  'notification.photos': '{count} photos',
+  'notification.attachments': '{count} attachments',
 };
 
 const fr: UiStringTable = {
@@ -694,6 +701,13 @@ const fr: UiStringTable = {
   'modal.chatProfile.aboutSection': 'À propos',
   'modal.chatProfile.membersSection': 'Membres',
   'modal.chatProfile.filesShowLess': 'Afficher moins',
+  'notification.newMessage': 'Nouveau message',
+  'notification.photo': 'Photo',
+  'notification.video': 'Vidéo',
+  'notification.audio': 'Message vocal',
+  'notification.file': 'Fichier',
+  'notification.photos': '{count} photos',
+  'notification.attachments': '{count} pièces jointes',
 };
 
 const es: UiStringTable = {
@@ -1034,6 +1048,13 @@ const es: UiStringTable = {
   'modal.chatProfile.aboutSection': 'Acerca de',
   'modal.chatProfile.membersSection': 'Miembros',
   'modal.chatProfile.filesShowLess': 'Mostrar menos',
+  'notification.newMessage': 'Mensaje nuevo',
+  'notification.photo': 'Foto',
+  'notification.video': 'Video',
+  'notification.audio': 'Mensaje de voz',
+  'notification.file': 'Archivo',
+  'notification.photos': '{count} fotos',
+  'notification.attachments': '{count} archivos adjuntos',
 };
 
 const pt: UiStringTable = {
@@ -1376,6 +1397,13 @@ const pt: UiStringTable = {
   'modal.chatProfile.aboutSection': 'Sobre',
   'modal.chatProfile.membersSection': 'Membros',
   'modal.chatProfile.filesShowLess': 'Mostrar menos',
+  'notification.newMessage': 'Nova mensagem',
+  'notification.photo': 'Foto',
+  'notification.video': 'Vídeo',
+  'notification.audio': 'Mensagem de voz',
+  'notification.file': 'Arquivo',
+  'notification.photos': '{count} fotos',
+  'notification.attachments': '{count} anexos',
 };
 
 const ht: UiStringTable = {
@@ -1714,6 +1742,13 @@ const ht: UiStringTable = {
   'modal.chatProfile.aboutSection': 'Konsènan',
   'modal.chatProfile.membersSection': 'Manm',
   'modal.chatProfile.filesShowLess': 'Montre mwens',
+  'notification.newMessage': 'Nouvo mesaj',
+  'notification.photo': 'Foto',
+  'notification.video': 'Videyo',
+  'notification.audio': 'Mesaj vokal',
+  'notification.file': 'Fichye',
+  'notification.photos': '{count} foto',
+  'notification.attachments': '{count} atachman',
 };
 
 const zh: UiStringTable = {
@@ -2045,6 +2080,13 @@ const zh: UiStringTable = {
   'modal.chatProfile.aboutSection': '关于',
   'modal.chatProfile.membersSection': '成员',
   'modal.chatProfile.filesShowLess': '收起',
+  'notification.newMessage': '新消息',
+  'notification.photo': '照片',
+  'notification.video': '视频',
+  'notification.audio': '语音消息',
+  'notification.file': '文件',
+  'notification.photos': '{count} 张照片',
+  'notification.attachments': '{count} 个附件',
 };
 
 // Built-in tables keyed by base language. Add a language here (plus the code

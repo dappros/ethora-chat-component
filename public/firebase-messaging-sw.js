@@ -151,8 +151,25 @@ async function checkAssetAvailability(url) {
   }
 }
 
+// `<appId>_<userId>` (24-hex ids, or an appId and a uuid) is a machine id,
+// never something to put in a notification title.
+const OPAQUE_ID_RE =
+  /^(?:[0-9a-f]{24}(?:_[0-9a-f]{24})?|[a-z0-9]+_(?:[0-9a-f]{24}|[0-9a-f-]{36})(?:_[0-9a-z-]+)*)$/i;
+
+function isOpaqueId(value) {
+  const text = String(value || '').trim();
+  return !!text && OPAQUE_ID_RE.test(text.split('@')[0]);
+}
+
 function pickTitle(raw = {}, data = {}, notification = {}) {
-  return notification.title || raw.title || data.title || 'New Message';
+  const title = notification.title || raw.title || data.title || '';
+  return title && !isOpaqueId(title) ? title : 'New Message';
+}
+
+// One notification per chat: a newer message in the same room replaces it.
+function roomTag(data = {}) {
+  const jid = String(data.jid || '').split('@')[0];
+  return jid ? `ethora-room-${jid}` : '';
 }
 
 function pickBody(raw = {}, data = {}, notification = {}) {
@@ -449,8 +466,8 @@ async function handlePush(raw = {}, source = 'push') {
     icon,
     badge,
     image,
-    tag: isCall ? `call:${callId || dedupKey}` : dedupKey,
-    renotify: isCall,
+    tag: isCall ? `call:${callId || dedupKey}` : roomTag(data) || dedupKey,
+    renotify: isCall || !!roomTag(data),
     requireInteraction: isCall,
     // Spread the ORIGINAL payload first so the click handler's isCallPush()
     // sees the full call fields (callId/callToken/kind/room); our routing
