@@ -78,6 +78,15 @@ describe('Message - delivery/read tick status', () => {
     expect(path?.getAttribute('stroke')).toBe('#0052CD');
   });
 
+  it('renders no tick and no tick tooltip for an own message that failed to send', () => {
+    const { container } = renderMessage(
+      makeMessage({ failed: true }),
+      makeRoom()
+    );
+    expect(container.querySelector('svg path')).toBeNull();
+    expect(container.querySelector('.tick-tooltip')).toBeNull();
+  });
+
   it('does not count a watermark from before this message as seen', () => {
     const { container } = renderMessage(
       makeMessage({ id: 'm2' }),
