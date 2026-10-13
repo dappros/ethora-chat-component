@@ -58,7 +58,26 @@ export const normalizeAttachment = (raw: unknown): IAttachment | null => {
     expiresAt: asOptionalString(source.expiresAt),
     isVisible: asOptionalBoolean(source.isVisible),
     isPrivate: asOptionalBoolean(source.isPrivate),
+    ...normalizeUploadState(source),
   };
+};
+
+/**
+ * Local upload state rides along on optimistic attachments only; it is
+ * never serialised, so a received attachment never carries it.
+ */
+const normalizeUploadState = (
+  source: Record<string, unknown>
+): Pick<IAttachment, 'uploadStatus' | 'uploadProgress'> => {
+  const status = source.uploadStatus === 'uploading' || source.uploadStatus === 'failed'
+    ? source.uploadStatus
+    : undefined;
+  if (!status) return {};
+  const progress =
+    typeof source.uploadProgress === 'number' && Number.isFinite(source.uploadProgress)
+      ? Math.min(100, Math.max(0, source.uploadProgress))
+      : 0;
+  return { uploadStatus: status, uploadProgress: progress };
 };
 
 /** Accepts the parsed array, the raw JSON string, or junk. Never throws. */
@@ -127,6 +146,29 @@ export const getMessageAttachments = (
 
   return legacy ? [legacy] : [];
 };
+
+/**
+ * Maps one object from POST /files/ `results` to the attachment a sent
+ * message carries. Field names here follow the API's own spelling
+ * (`originalname`, `filename`), not the wire attribute names.
+ */
+export const toUploadedAttachment = (raw: any): IAttachment => ({
+  attachmentId: raw?._id,
+  location: raw?.location,
+  locationPreview: raw?.locationPreview,
+  mimetype: raw?.mimetype,
+  originalName: raw?.originalname,
+  fileName: raw?.filename,
+  size: raw?.size?.toString?.() ?? raw?.size,
+  duration: raw?.duration,
+  ownerKey: raw?.ownerKey,
+  userId: raw?.userId,
+  createdAt: raw?.createdAt,
+  updatedAt: raw?.updatedAt,
+  expiresAt: raw?.expiresAt,
+  isVisible: raw?.isVisible,
+  isPrivate: raw?.isPrivate,
+});
 
 /** Name to show for an attachment, with the URL tail as the last resort. */
 export const getAttachmentName = (attachment: IAttachment): string =>

@@ -3,6 +3,7 @@ import {
   AddRoomMessageAction,
   ApiRoom,
   EditAction,
+  IAttachment,
   IMessage,
   IRoom,
   ReactionAction,
@@ -853,6 +854,32 @@ const roomsStore = createSlice({
         (message) => {
           if (message.pending === false) return;
           message.failed = true;
+        }
+      );
+    },
+    // Multi-file send in flight: replaces the optimistic attachment list
+    // (per-file progress / failed state) and the message's sending flags.
+    // Unlike addRoomMessage this never forces `pending`/`failed` back to a
+    // fixed value, and it is a no-op once the message has been removed.
+    setMediaUploadState(
+      state,
+      action: PayloadAction<{
+        roomJID: string;
+        messageId: string;
+        attachments?: IAttachment[];
+        pending?: boolean;
+        failed?: boolean;
+      }>
+    ) {
+      const { roomJID, messageId, attachments, pending, failed } = action.payload;
+      forEachMessageCopy(
+        state,
+        roomJID,
+        (msg) => msg.id === messageId || msg.xmppId === messageId,
+        (message) => {
+          if (attachments !== undefined) message.attachments = attachments;
+          if (pending !== undefined) message.pending = pending;
+          if (failed !== undefined) message.failed = failed;
         }
       );
     },
@@ -1805,6 +1832,7 @@ export const {
   setEditAction,
   setMessageSendFailed,
   setMessageSendRetrying,
+  setMediaUploadState,
   editRoomMessage,
   setMessageTranslation,
   setComposing,
