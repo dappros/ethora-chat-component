@@ -1,21 +1,16 @@
 import { downloadFile } from '../../../helpers/downloadFile';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import styled from 'styled-components';
-import { CenterContainer } from '../styledModalComponents';
-import { PresenceModalContainerFullScreen } from '../motionVariants';
+import { useDispatch, useSelector } from 'react-redux';
 import { useIsModalExiting } from '../../../context/ModalTransitionContext';
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
-  FileIcon,
+  CloseIcon,
   SaveIcon,
   ZoomInIcon,
   ZoomOutIcon,
   ZoomResetIcon,
 } from '../../../assets/icons';
-import ModalHeaderComponent from '../ModalHeaderComponent';
-import { useDispatch, useSelector } from 'react-redux';
-import Button from '../../styled/Button';
 import { RootState, getActiveRoom } from '../../../roomStore';
 import { FullScreenVideo } from '../../styled/VideoMessage';
 import { setActiveFile } from '../../../roomStore/chatSettingsSlice';
@@ -25,7 +20,7 @@ import ImageLightbox, {
   MAX_SCALE,
   MIN_SCALE,
 } from './ImageLightbox';
-import { ethoraLogger } from '../../../helpers/ethoraLogger';
+import { MessageAvatarPhoto } from '../../MessageBubble/MessageAvatarPhoto';
 import {
   appendFileToken,
   isSecureFileUrl,
@@ -33,70 +28,61 @@ import {
   withFileToken,
 } from '../../../helpers/secureFileUrl';
 import { useT } from '../../../i18n/useT';
-import { getFileExtension, getFileKind } from '../../../helpers/fileKind';
+import {
+  FileKind,
+  getFileExtension,
+  getFileKind,
+} from '../../../helpers/fileKind';
 import {
   collectRoomImages,
   findGalleryIndex,
 } from '../../../helpers/roomImageGallery';
+import { ethoraLogger } from '../../../helpers/ethoraLogger';
+import {
+  ActionGroup,
+  AudioCard,
+  BottomBar,
+  ControlRow,
+  Counter,
+  ErrorPanel,
+  ExternalLinkGlyph,
+  FileCard,
+  IconButton,
+  MediaFrame,
+  NavButton,
+  SenderName,
+  SenderText,
+  Stage,
+  SubLine,
+  Thumb,
+  ThumbImage,
+  ThumbStrip,
+  TopBar,
+  TopIdentity,
+  ViewerSurface,
+  ZoomGroup,
+  formatViewerDate,
+  withRetryMarker,
+} from './ViewerChrome';
 
-const IMAGE_FALLBACK =
-  'https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg';
+const isEditableTarget = (target: EventTarget | null): boolean => {
+  const element = target as HTMLElement | null;
+  const tag = element?.tagName;
+  return (
+    tag === 'INPUT' ||
+    tag === 'TEXTAREA' ||
+    tag === 'SELECT' ||
+    Boolean(element?.isContentEditable)
+  );
+};
 
-const Stage = styled.div`
-  position: relative;
-  display: flex;
-  flex: 1 1 auto;
-  width: 100%;
-  min-height: 0;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-`;
+const prefersReducedMotion = (): boolean =>
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const NavButton = styled(Button)`
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 44px;
-  height: 44px;
-  border-radius: var(--ethora-radius-full, 999px);
-  background-color: var(--ethora-color-bg, #fff);
-  box-shadow: var(--ethora-shadow-md, 0 4px 12px rgba(16, 24, 40, 0.1));
-  z-index: 2;
-`;
-
-const PreviousButton = styled(NavButton)`
-  left: 8px;
-`;
-
-const NextButton = styled(NavButton)`
-  right: 8px;
-`;
-
-const HeaderControls = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`;
-
-/* Narrow screens are touch screens: pinch and double-tap already cover zoom,
-   and four icon buttons plus the counter do not fit next to the title. */
-const ZoomControls = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-
-  @media (max-width: 480px) {
-    display: none;
-  }
-`;
-
-const PositionLabel = styled.span`
-  font-size: var(--ethora-font-size-sm, 14px);
-  color: var(--ethora-color-text-secondary, #5a5f66);
-  white-space: nowrap;
-  padding: 0 4px;
-`;
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), audio[controls], video[controls], [tabindex]:not([tabindex="-1"])';
 
 interface FilePreviewModalProps {
   handleCloseModal: any;
@@ -107,17 +93,15 @@ interface FilePreviewModalProps {
  *
  * Images get a real lightbox: previous/next across every image loaded for
  * the room (see helpers/roomImageGallery for exactly what that set is),
- * wheel/pinch zoom with bounded panning, double-click/double-tap to toggle
- * fit, arrow-key and swipe navigation. Video, PDF and unsupported files take
- * the same paths they always did and get no navigation chrome, so opening a
- * PDF is the experience it was before.
+ * a thumbnail strip, wheel/pinch zoom with bounded panning, double-click or
+ * double-tap to toggle fit, arrow and swipe navigation, and a blurred
+ * low-resolution stand-in while the full picture loads. Video, audio, PDF and
+ * other files each get their own view; none of them get gallery chrome.
  *
- * Escape, initial focus and focus restore are NOT handled here: the modal
- * layer (Modals/Modal/Modal.tsx) already runs `useModalDismiss` around every
- * entry in MODAL_COMPONENTS, this one included. Adding a second Escape
- * listener would double-handle the key and fight that hook's focus restore,
- * so the only key listener below is for the arrows, and it explicitly leaves
- * every other key (Escape included) alone.
+ * Escape and initial focus are handled by useModalDismiss at the modal layer
+ * (Modals/Modal/ModalContent.tsx), which also restores focus to the opener on
+ * close. This component adds the Tab trap and the arrow and zoom keys, and it
+ * leaves Escape alone so the key is not handled twice.
  */
 const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
   handleCloseModal,
@@ -125,7 +109,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
   const dispatch = useDispatch();
   const t = useT();
   // Modal.tsx keeps this mounted for the exit animation's duration after
-  // close; fade it out for that window instead of letting it just vanish.
+  // close; the surface plays its own exit for that window.
   const isClosing = useIsModalExiting();
   const { activeFile: openedFile } = useSelector(
     (state: RootState) => state.chatSettingStore
@@ -145,10 +129,18 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
     (state: RootState) => getActiveRoom(state)?.messages
   );
 
+  const surfaceRef = useRef<HTMLDivElement>(null);
   const lightboxRef = useRef<ImageLightboxHandle>(null);
+  const thumbRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [scale, setScale] = useState(MIN_SCALE);
+  // The URL whose image failed to load, and the retry count for it. Keyed by
+  // URL so moving to another picture never inherits an error or a retry.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const [retry, setRetry] = useState<{ url: string; count: number } | null>(
+    null
+  );
 
-  const kind = getFileKind(activeFile?.mimetype, activeFile?.fileName);
+  const kind: FileKind = getFileKind(activeFile?.mimetype, activeFile?.fileName);
 
   const gallery = useMemo(() => collectRoomImages(roomMessages), [roomMessages]);
   // Only images page. A PDF/video/other file is simply not in the gallery,
@@ -160,6 +152,36 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
   const hasGallery = index >= 0 && gallery.length > 1;
   const hasPrevious = hasGallery && index > 0;
   const hasNext = hasGallery && index < gallery.length - 1;
+
+  // The gallery entry carries the sender, date and low-res copy. A file opened
+  // outside the gallery has none of them and shows its name alone.
+  const current = index >= 0 ? gallery[index] : undefined;
+  const displayName = current?.fileName || activeFile.fileName;
+  const senderName = useMemo(() => {
+    const sender = current?.sender;
+    if (!sender) return '';
+    const fullName = [sender.firstName, sender.lastName]
+      .filter(Boolean)
+      .join(' ');
+    return fullName || sender.username || '';
+  }, [current]);
+  const dateText = formatViewerDate(current?.date);
+
+  const hasSource = Boolean(activeFile.fileURL);
+  const imageFailed =
+    kind === 'image' && (!hasSource || failedUrl === activeFile.fileURL);
+
+  const imageSrc = useMemo(() => {
+    const base = appendFileToken(activeFile.fileURL, fileToken);
+    if (retry?.url === activeFile.fileURL) {
+      return withRetryMarker(base, retry.count);
+    }
+    return base;
+  }, [activeFile.fileURL, fileToken, retry]);
+
+  const previewSrc = current?.previewURL
+    ? appendFileToken(current.previewURL, fileToken)
+    : undefined;
 
   const goTo = useCallback(
     (nextIndex: number) => {
@@ -188,39 +210,76 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
     if (hasNext) goTo(index + 1);
   }, [goTo, hasNext, index]);
 
-  // Arrows only. Escape stays with useModalDismiss at the modal layer.
+  // Warm the neighbours so the next arrow press lands on a decoded picture.
   useEffect(() => {
-    if (!hasGallery || typeof document === 'undefined') return undefined;
+    if (!hasGallery || typeof Image === 'undefined') return;
+    [index - 1, index + 1].forEach((neighbour) => {
+      const entry = gallery[neighbour];
+      if (!entry) return;
+      const src = appendFileToken(entry.fileURL, fileToken);
+      if (src) new Image().src = src;
+    });
+  }, [hasGallery, index, gallery, fileToken]);
+
+  // Keep the active thumbnail in view when the picture changes.
+  useEffect(() => {
+    if (!hasGallery) return;
+    const thumb = thumbRefs.current[index];
+    thumb?.scrollIntoView?.({
+      block: 'nearest',
+      inline: 'center',
+      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+    });
+  }, [hasGallery, index]);
+
+  // The page behind the viewer must not scroll while it is open.
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, []);
+
+  // Arrows navigate the gallery; + / - / 0 drive the image zoom. Escape stays
+  // with useModalDismiss at the modal layer.
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
       if (event.defaultPrevented) return;
       if (event.altKey || event.ctrlKey || event.metaKey) return;
+      // Never steal a key from a text field the viewer may sit above.
+      if (isEditableTarget(event.target)) return;
 
-      // Never steal an arrow key from a text field: the viewer can be opened
-      // over surfaces that keep an editable element focused.
-      const target = event.target as HTMLElement | null;
-      const tag = target?.tagName;
-      if (
-        tag === 'INPUT' ||
-        tag === 'TEXTAREA' ||
-        tag === 'SELECT' ||
-        target?.isContentEditable
-      ) {
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        if (!hasGallery) return;
+        event.preventDefault();
+        if (event.key === 'ArrowLeft') {
+          goPrevious();
+        } else {
+          goNext();
+        }
         return;
       }
 
-      event.preventDefault();
-      if (event.key === 'ArrowLeft') {
-        goPrevious();
-      } else {
-        goNext();
+      if (kind !== 'image' || imageFailed) return;
+      if (event.key === '+' || event.key === '=') {
+        event.preventDefault();
+        lightboxRef.current?.zoomIn();
+      } else if (event.key === '-' || event.key === '_') {
+        event.preventDefault();
+        lightboxRef.current?.zoomOut();
+      } else if (event.key === '0') {
+        event.preventDefault();
+        lightboxRef.current?.reset();
       }
     };
 
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [hasGallery, goPrevious, goNext]);
+  }, [hasGallery, goPrevious, goNext, kind, imageFailed]);
 
   const saveClick = () => {
     // The old code appended the whole file name as the extension for
@@ -230,14 +289,21 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
     const hasOwnExtension = !!getFileExtension(activeFile.fileName);
     const fallbackExtension =
       kind === 'image' ? 'png' : kind === 'video' ? 'mp4' : 'bin';
-    const downloadName = hasOwnExtension
+    const name = hasOwnExtension
       ? activeFile.fileName
       : `MEDIA-ETHORA.${fallbackExtension}`;
 
-    downloadFile(withFileToken(activeFile.fileURL), downloadName).catch(
-      (err) => {
-        ethoraLogger.log(err);
-      }
+    downloadFile(withFileToken(activeFile.fileURL), name).catch((err) => {
+      ethoraLogger.log(err);
+    });
+  };
+
+  const openInNewTab = () => {
+    if (!hasSource) return;
+    window.open(
+      withFileToken(activeFile.fileURL),
+      '_blank',
+      'noopener,noreferrer'
     );
   };
 
@@ -246,153 +312,256 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
     handleCloseModal?.();
   };
 
-  const imageAlt = activeFile?.fileName || t('modal.filePreview.imageAlt');
+  // A press on the empty backdrop closes; a press on anything inside the
+  // stage (the picture, the arrows, the video) is that element's own business.
+  const onStageClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.target === event.currentTarget) closeModal();
+  };
 
-  const getMediaComponent = useMemo(() => {
+  const handleImageError = () => {
+    if (isSecureFileUrl(activeFile.fileURL)) {
+      void requestFileTokenRecovery();
+    }
+    setFailedUrl(activeFile.fileURL);
+  };
+
+  const tryAgain = () => {
+    setRetry({
+      url: activeFile.fileURL,
+      count: (retry?.url === activeFile.fileURL ? retry.count : 0) + 1,
+    });
+    setFailedUrl(null);
+  };
+
+  // Tab stays inside the viewer. Focus starts inside (useModalDismiss), so
+  // wrapping between the first and last control is enough.
+  const onSurfaceKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Tab' || !surfaceRef.current) return;
+    const focusable = Array.from(
+      surfaceRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)
+    ).filter((el) => !el.hasAttribute('disabled'));
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = document.activeElement as HTMLElement | null;
+    const outside = !active || !surfaceRef.current.contains(active);
+    if (event.shiftKey && (active === first || outside)) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && (active === last || outside)) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
+  const imageAlt = activeFile.fileName || t('modal.filePreview.imageAlt');
+  const unsupportedText = t('modal.filePreview.unsupported');
+  const sourceURL = appendFileToken(activeFile.fileURL, fileToken);
+
+  let media: React.ReactNode;
+  let mediaFit: 'media' | 'content' = 'media';
+  if (imageFailed) {
+    mediaFit = 'content';
+    media = <ErrorPanel onRetry={tryAgain} onDownload={saveClick} />;
+  } else {
     switch (kind) {
       case 'image':
-        return (
+        media = (
           <ImageLightbox
             ref={lightboxRef}
-            src={
-              appendFileToken(activeFile.fileURL, fileToken) || IMAGE_FALLBACK
-            }
+            src={imageSrc}
+            previewSrc={previewSrc}
             alt={imageAlt}
+            loadingLabel={t('modal.filePreview.loading')}
             onScaleChange={setScale}
             onSwipeLeft={goNext}
             onSwipeRight={goPrevious}
-            onError={(e) => {
-              if (isSecureFileUrl(activeFile.fileURL)) {
-                requestFileTokenRecovery();
-              }
-              (e.target as HTMLImageElement).src = IMAGE_FALLBACK;
-            }}
+            onError={handleImageError}
           />
         );
+        break;
       case 'video':
-        return (
-          <FullScreenVideo
-            src={appendFileToken(activeFile.fileURL, fileToken)}
-            controls
-            autoPlay={false}
-          />
-        );
+        media = <FullScreenVideo src={sourceURL} controls autoPlay={false} />;
+        break;
+      case 'audio':
+        mediaFit = 'content';
+        media = <AudioCard fileName={displayName} src={sourceURL} />;
+        break;
       case 'pdf':
-        return (
-          <PdfViewer pdfUrl={appendFileToken(activeFile.fileURL, fileToken)} />
-        );
+        media = <PdfViewer pdfUrl={sourceURL} />;
+        break;
       default:
-        return (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-          >
-            <FileIcon style={{ minWidth: '100px', minHeight: '100px' }} />
-            <div
-              style={{
-                backgroundColor: 'var(--ethora-color-bg-subtle, #F5F7FA)',
-                borderRadius: 'var(--ethora-radius-lg, 16px)',
-                display: 'flex',
-                padding: '16px',
-                color: 'var(--ethora-color-text, #141414)',
-              }}
-            >
-              {t('modal.filePreview.unsupported')}
-            </div>
-          </div>
+        mediaFit = 'content';
+        media = (
+          <FileCard
+            fileName={displayName}
+            unsupportedText={unsupportedText}
+            onDownload={saveClick}
+          />
         );
     }
-  }, [activeFile, fileToken, imageAlt, kind, goNext, goPrevious, t]);
+  }
+
+  const showImageControls = kind === 'image' && !imageFailed;
 
   return (
-    <PresenceModalContainerFullScreen
+    <ViewerSurface
+      ref={surfaceRef}
+      role="dialog"
+      aria-modal="true"
       aria-label={t('modal.filePreview.title')}
+      data-testid="file-viewer"
       $closing={isClosing}
+      onKeyDown={onSurfaceKeyDown}
     >
-      <ModalHeaderComponent
-        handleCloseModal={closeModal}
-        headerTitle={t('modal.filePreview.title')}
-        rightMenu={
-          <HeaderControls>
-            {hasGallery && (
-              <PositionLabel data-testid="lightbox-position" aria-live="polite">
-                {t('modal.filePreview.position', {
-                  current: index + 1,
+      <TopBar>
+        <TopIdentity>
+          {current?.sender && (
+            <MessageAvatarPhoto
+              src={current.sender.photo}
+              username={senderName || current.sender.username}
+            />
+          )}
+          <SenderText>
+            {senderName && <SenderName>{senderName}</SenderName>}
+            <SubLine>
+              {[dateText, displayName].filter(Boolean).join(' · ') ||
+                t('modal.filePreview.title')}
+            </SubLine>
+          </SenderText>
+        </TopIdentity>
+        <ActionGroup>
+          <IconButton
+            type="button"
+            onClick={saveClick}
+            aria-label={t('action.save')}
+            title={t('action.save')}
+          >
+            <SaveIcon color="currentColor" />
+          </IconButton>
+          <IconButton
+            type="button"
+            onClick={openInNewTab}
+            disabled={!hasSource}
+            aria-label={t('modal.filePreview.openExternally')}
+            title={t('modal.filePreview.openExternally')}
+          >
+            <ExternalLinkGlyph />
+          </IconButton>
+          <IconButton
+            type="button"
+            onClick={closeModal}
+            aria-label={t('modal.filePreview.close')}
+            title={t('modal.filePreview.close')}
+          >
+            <CloseIcon color="currentColor" />
+          </IconButton>
+        </ActionGroup>
+      </TopBar>
+
+      <Stage onClick={onStageClick} data-testid="file-viewer-stage">
+        {hasGallery && (
+          <NavButton
+            type="button"
+            $side="left"
+            onClick={goPrevious}
+            disabled={!hasPrevious}
+            aria-label={t('modal.filePreview.previousImage')}
+          >
+            <ChevronLeftIcon color="currentColor" />
+          </NavButton>
+        )}
+        <MediaFrame $fit={mediaFit}>{media}</MediaFrame>
+        {hasGallery && (
+          <NavButton
+            type="button"
+            $side="right"
+            onClick={goNext}
+            disabled={!hasNext}
+            aria-label={t('modal.filePreview.nextImage')}
+          >
+            <ChevronRightIcon color="currentColor" />
+          </NavButton>
+        )}
+      </Stage>
+
+      <BottomBar>
+        {hasGallery && (
+          <ThumbStrip
+            role="group"
+            aria-label={t('modal.filePreview.thumbnails')}
+            data-testid="file-viewer-thumbnails"
+          >
+            {gallery.map((item, i) => (
+              <Thumb
+                key={item.key}
+                ref={(el) => {
+                  thumbRefs.current[i] = el;
+                }}
+                type="button"
+                $active={i === index}
+                aria-label={t('modal.filePreview.showImage', {
+                  current: i + 1,
                   total: gallery.length,
                 })}
-              </PositionLabel>
-            )}
-            {kind === 'image' && (
-              <ZoomControls>
-                <Button
-                  onClick={() => lightboxRef.current?.zoomOut()}
-                  disabled={scale <= MIN_SCALE}
-                  aria-label={t('modal.filePreview.zoomOut')}
-                >
-                  <ZoomOutIcon />
-                </Button>
-                <Button
-                  onClick={() => lightboxRef.current?.zoomIn()}
-                  disabled={scale >= MAX_SCALE}
-                  aria-label={t('modal.filePreview.zoomIn')}
-                >
-                  <ZoomInIcon />
-                </Button>
-                <Button
-                  onClick={() => lightboxRef.current?.reset()}
-                  disabled={scale <= MIN_SCALE}
-                  aria-label={t('modal.filePreview.resetZoom')}
-                >
-                  <ZoomResetIcon />
-                </Button>
-              </ZoomControls>
-            )}
-            <Button onClick={saveClick} aria-label={t('action.save')}>
-              <SaveIcon />
-            </Button>
-          </HeaderControls>
-        }
-      />
-
-      <CenterContainer
-        style={{
-          display: 'flex',
-          flex: '1 1 auto',
-          height: '100%',
-          minHeight: 0,
-          justifyContent: 'center',
-          overflow: 'hidden',
-          padding: '16px',
-          width: '90%',
-        }}
-      >
-        <Stage>
-          {hasGallery && (
-            <PreviousButton
-              onClick={goPrevious}
-              disabled={!hasPrevious}
-              aria-label={t('modal.filePreview.previousImage')}
-            >
-              <ChevronLeftIcon />
-            </PreviousButton>
+                aria-current={i === index ? 'true' : undefined}
+                onClick={() => goTo(i)}
+              >
+                <ThumbImage
+                  src={appendFileToken(item.previewURL || item.fileURL, fileToken)}
+                  alt=""
+                  loading="lazy"
+                  draggable={false}
+                />
+              </Thumb>
+            ))}
+          </ThumbStrip>
+        )}
+        <ControlRow>
+          <span />
+          {hasGallery ? (
+            <Counter data-testid="lightbox-position" aria-live="polite">
+              {t('modal.filePreview.position', {
+                current: index + 1,
+                total: gallery.length,
+              })}
+            </Counter>
+          ) : (
+            <span />
           )}
-          {getMediaComponent}
-          {hasGallery && (
-            <NextButton
-              onClick={goNext}
-              disabled={!hasNext}
-              aria-label={t('modal.filePreview.nextImage')}
-            >
-              <ChevronRightIcon />
-            </NextButton>
+          {showImageControls ? (
+            <ZoomGroup>
+              <IconButton
+                type="button"
+                onClick={() => lightboxRef.current?.zoomOut()}
+                disabled={scale <= MIN_SCALE}
+                aria-label={t('modal.filePreview.zoomOut')}
+              >
+                <ZoomOutIcon color="currentColor" />
+              </IconButton>
+              <IconButton
+                type="button"
+                onClick={() => lightboxRef.current?.zoomIn()}
+                disabled={scale >= MAX_SCALE}
+                aria-label={t('modal.filePreview.zoomIn')}
+              >
+                <ZoomInIcon color="currentColor" />
+              </IconButton>
+              <IconButton
+                type="button"
+                onClick={() => lightboxRef.current?.reset()}
+                disabled={scale <= MIN_SCALE}
+                aria-label={t('modal.filePreview.resetZoom')}
+              >
+                <ZoomResetIcon color="currentColor" />
+              </IconButton>
+            </ZoomGroup>
+          ) : (
+            <span />
           )}
-        </Stage>
-      </CenterContainer>
-    </PresenceModalContainerFullScreen>
+        </ControlRow>
+      </BottomBar>
+    </ViewerSurface>
   );
 };
 
