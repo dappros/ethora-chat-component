@@ -23,6 +23,9 @@ export interface IAttachment {
   /** Bytes, as a string - that is how it travels on the wire. */
   size?: string;
   duration?: string;
+  /** Natural pixel size, when the storage recorded it. Sizes the solo preview box. */
+  width?: number;
+  height?: number;
   ownerKey?: string;
   userId?: string;
   createdAt?: string;

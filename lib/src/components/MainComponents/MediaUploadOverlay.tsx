@@ -1,13 +1,13 @@
 import React from 'react';
-import styled from 'styled-components';
-import { MediaSpinner } from '../styled/StyledInputComponents/MediaComponents';
+import styled, { css } from 'styled-components';
 import { useT } from '../../i18n/useT';
+import { reducedMotion } from '../../styles/motion';
 
 const Scrim = styled.div<{ $failed: boolean }>`
   position: absolute;
   inset: 0;
-  z-index: 1;
-  /* The spinner hides itself on tiny tiles by measuring this box. */
+  z-index: 2;
+  /* The ring hides itself on tiny boxes by measuring this box. */
   container-type: size;
   display: flex;
   flex-direction: column;
@@ -16,19 +16,59 @@ const Scrim = styled.div<{ $failed: boolean }>`
   gap: 6px;
   padding: 8px;
   box-sizing: border-box;
+  border-radius: inherit;
   text-align: center;
   color: #fff;
   font-size: var(--ethora-font-size-xs, 12px);
   font-weight: 500;
-  background: ${({ $failed }) =>
-    $failed ? 'rgba(185, 28, 28, 0.62)' : 'rgba(9, 16, 32, 0.48)'};
   pointer-events: none;
+  ${({ $failed }) =>
+    $failed
+      ? css`
+          background: rgba(185, 28, 28, 0.62);
+          background: color-mix(in srgb, var(--ethora-color-danger, #d02b1f) 62%, rgba(9, 16, 32, 0.35));
+        `
+      : css`
+          background: rgba(9, 16, 32, 0.34);
+          -webkit-backdrop-filter: blur(6px) saturate(1.1);
+          backdrop-filter: blur(6px) saturate(1.1);
+        `}
+
+  @container (max-width: 64px) {
+    .upload-ring {
+      display: none;
+    }
+  }
 `;
 
-/** White variant of the shared spinner, for the dark scrim over the image. */
-const OverlaySpinner = styled(MediaSpinner)`
-  border-color: rgba(255, 255, 255, 0.35);
-  border-top-color: #fff;
+const RING_PX = 40;
+const RING_STROKE = 3;
+const RING_RADIUS = (RING_PX - RING_STROKE) / 2;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+
+const RingWrap = styled.span`
+  position: relative;
+  flex: none;
+  display: block;
+  width: ${RING_PX}px;
+  height: ${RING_PX}px;
+  aspect-ratio: 1 / 1;
+`;
+
+const RingArc = styled.circle`
+  transition: stroke-dashoffset 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  ${reducedMotion}
+`;
+
+const Percent = styled.span`
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 `;
 
 const RetryGlyph = styled.span`
@@ -54,9 +94,52 @@ export const RetryIcon: React.FC<{ size?: number }> = ({ size = 16 }) => (
   </svg>
 );
 
-const Percent = styled.span`
-  font-variant-numeric: tabular-nums;
-`;
+/**
+ * Thin circular progress ring. The SVG is a fixed 40px square with a
+ * viewBox, so it can never stretch; the arc is drawn by moving the dash
+ * offset from the full circumference (empty) down to zero (complete).
+ */
+export const ProgressRing: React.FC<{ percent: number; children?: React.ReactNode }> = ({
+  percent,
+  children,
+}) => {
+  const clamped = Math.min(100, Math.max(0, percent));
+  const offset = RING_CIRCUMFERENCE * (1 - clamped / 100);
+  const center = RING_PX / 2;
+  return (
+    <RingWrap className="upload-ring" aria-hidden="true">
+      <svg
+        width={RING_PX}
+        height={RING_PX}
+        viewBox={`0 0 ${RING_PX} ${RING_PX}`}
+        style={{ display: 'block' }}
+      >
+        <circle
+          cx={center}
+          cy={center}
+          r={RING_RADIUS}
+          fill="none"
+          stroke="rgba(255, 255, 255, 0.3)"
+          strokeWidth={RING_STROKE}
+        />
+        <RingArc
+          cx={center}
+          cy={center}
+          r={RING_RADIUS}
+          fill="none"
+          stroke="#fff"
+          strokeWidth={RING_STROKE}
+          strokeLinecap="round"
+          strokeDasharray={RING_CIRCUMFERENCE}
+          strokeDashoffset={offset}
+          transform={`rotate(-90 ${center} ${center})`}
+          data-testid="upload-ring-arc"
+        />
+      </svg>
+      {children}
+    </RingWrap>
+  );
+};
 
 interface MediaUploadOverlayProps {
   /** `uploading` covers "waiting for the siblings" too; `failed` is a retry prompt. */
@@ -65,10 +148,10 @@ interface MediaUploadOverlayProps {
 }
 
 /**
- * State badge laid over an outgoing attachment: a spinner with the upload
- * percentage while it goes up, and a retry glyph once it has failed. The
- * parent owns the click, so this stays pointer-transparent and can sit
- * inside a button without nesting interactive elements.
+ * State layer over an outgoing attachment: a frosted scrim with a progress
+ * ring while it goes up, and a tinted scrim with a retry glyph once it has
+ * failed. The parent owns the click, so this stays pointer-transparent and
+ * can sit inside a button without nesting interactive elements.
  */
 export const MediaUploadOverlay: React.FC<MediaUploadOverlayProps> = ({
   status,
@@ -89,9 +172,10 @@ export const MediaUploadOverlay: React.FC<MediaUploadOverlayProps> = ({
 
   const rounded = Math.round(progress);
   return (
-    <Scrim $failed={false} role="status">
-      <OverlaySpinner aria-hidden="true" />
-      {rounded < 100 && <Percent>{`${rounded}%`}</Percent>}
+    <Scrim $failed={false} role="status" aria-label={t('media.uploadProgress', { percent: rounded })}>
+      <ProgressRing percent={progress}>
+        {rounded < 100 && <Percent>{`${rounded}%`}</Percent>}
+      </ProgressRing>
     </Scrim>
   );
 };

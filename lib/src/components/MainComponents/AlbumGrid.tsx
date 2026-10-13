@@ -4,16 +4,16 @@ import { useDispatch } from 'react-redux';
 import { IAttachment } from '../../types/types';
 import { getAttachmentName } from '../../helpers/attachments';
 import { getFileKind } from '../../helpers/fileKind';
-import { getAlbumLayout } from '../../helpers/albumLayout';
+import {
+  ALBUM_GAP_PX,
+  getAlbumLayout,
+  getTileBorderRadius,
+} from '../../helpers/albumLayout';
 import { setActiveFile, setActiveModal } from '../../roomStore/chatSettingsSlice';
 import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 import { useT } from '../../i18n/useT';
+import MediaSurface from '../styled/MediaSurface';
 import { MediaUploadOverlay, RetryIcon } from './MediaUploadOverlay';
-
-const IMAGE_FALLBACK =
-  'https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg';
-
-const GRID_GAP_PX = 4;
 
 const Grid = styled.div<{
   $columns: string;
@@ -24,16 +24,15 @@ const Grid = styled.div<{
   grid-template-columns: ${({ $columns }) => $columns};
   grid-template-rows: ${({ $rows }) => $rows};
   aspect-ratio: ${({ $aspectRatio }) => $aspectRatio};
-  gap: ${GRID_GAP_PX}px;
+  gap: ${ALBUM_GAP_PX}px;
   width: 100%;
-  max-width: 360px;
+  max-width: min(360px, 100%);
   min-width: 0;
   box-sizing: border-box;
-  border-radius: var(--ethora-radius-md, 12px);
   overflow: hidden;
 `;
 
-const Tile = styled.button<{ $dimmed: boolean }>`
+const Tile = styled.button<{ $dimmed: boolean; $radius: string }>`
   position: relative;
   min-width: 0;
   min-height: 0;
@@ -41,35 +40,36 @@ const Tile = styled.button<{ $dimmed: boolean }>`
   padding: 0;
   border: 0;
   overflow: hidden;
+  isolation: isolate;
+  border-radius: ${({ $radius }) => $radius};
   cursor: ${({ $dimmed }) => ($dimmed ? 'default' : 'pointer')};
-  background: var(--ethora-color-bg-subtle, #eef2f8);
-
-  img,
-  video {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
+  background: var(--ethora-color-bg-subtle, #f3f6fc);
 
   &:focus-visible {
     outline: 2px solid var(--ethora-color-primary, #0052cd);
-    outline-offset: -2px;
+    outline-offset: 2px;
   }
 `;
 
 const MoreOverlay = styled.span<{ $failed: boolean }>`
   position: absolute;
   inset: 0;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  background: ${({ $failed }) => ($failed ? 'rgba(185, 28, 28, 0.62)' : 'rgba(9, 16, 32, 0.55)')};
+  gap: 6px;
   color: #fff;
-  font-size: var(--ethora-font-size-xl, 22px);
+  background: ${({ $failed }) =>
+    $failed
+      ? 'color-mix(in srgb, var(--ethora-color-danger, #d02b1f) 55%, rgba(9, 16, 32, 0.2))'
+      : 'rgba(8, 12, 24, 0.22)'};
+  font-size: 28px;
   font-weight: 600;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.35);
   pointer-events: none;
 `;
 
@@ -77,10 +77,11 @@ const MoreRetryBadge = styled.span`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.2);
+  text-shadow: none;
 `;
 
 export interface AlbumGridItem {
@@ -143,6 +144,7 @@ const AlbumGrid: React.FC<AlbumGridProps> = ({ items, onRetry }) => {
         const fileName = getAttachmentName(attachment);
         const kind = getFileKind(attachment.mimetype, fileName);
         const cell = layout.placements[position];
+        const radius = getTileBorderRadius(layout, position);
         const failed = attachment.uploadStatus === 'failed';
         const pending = attachment.uploadStatus === 'uploading';
         const showMore = position === layout.visible - 1 && layout.hidden > 0;
@@ -151,6 +153,7 @@ const AlbumGrid: React.FC<AlbumGridProps> = ({ items, onRetry }) => {
         const moreFailed = showMore && hiddenFailedIndices.length > 0;
         const dimmed = pending || (!failed && !attachment.location);
         const inert = dimmed && !failed && !moreFailed;
+        const isVideo = kind === 'video';
 
         const handleClick = () => {
           if (moreFailed) {
@@ -179,25 +182,26 @@ const AlbumGrid: React.FC<AlbumGridProps> = ({ items, onRetry }) => {
             key={attachment.attachmentId || `${index}-${fileName}`}
             type="button"
             $dimmed={inert}
+            $radius={radius}
             aria-label={label}
             title={fileName}
             disabled={inert}
             onClick={handleClick}
             style={{ gridColumn: cell.column, gridRow: cell.row }}
           >
-            {attachment.location ? (
-              kind === 'video' ? (
-                <video src={attachment.location} preload="metadata" muted />
-              ) : (
-                <img
-                  src={attachment.locationPreview || attachment.location}
-                  alt={fileName}
-                  onError={(event) => {
-                    (event.target as HTMLImageElement).src = IMAGE_FALLBACK;
-                  }}
-                />
-              )
-            ) : null}
+            <MediaSurface
+              kind={isVideo ? 'video' : 'image'}
+              src={attachment.location || ''}
+              previewSrc={attachment.locationPreview}
+              alt={fileName}
+              variant="fill"
+              duration={attachment.duration}
+              pending={pending}
+              radius={radius}
+              interactive={!inert && !failed && !showMore}
+              blurred={showMore}
+              chrome={!showMore}
+            />
             {pending && (
               <MediaUploadOverlay
                 status="uploading"
