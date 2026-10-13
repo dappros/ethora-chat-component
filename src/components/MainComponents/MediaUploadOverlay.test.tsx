@@ -27,36 +27,45 @@ const declarationsFor = (el: Element) => {
   return decls.join(';');
 };
 
-describe('MediaUploadOverlay spinner', () => {
-  it('renders the spinner as a fixed circle that a flex column cannot squash', () => {
+const ringArc = (container: HTMLElement) =>
+  container.querySelector('[data-testid="upload-ring-arc"]') as SVGCircleElement;
+
+describe('MediaUploadOverlay progress ring', () => {
+  it('draws the ring as a fixed 40px square that a flex column cannot squash', () => {
     const { container } = renderWithProviders(
       <MediaUploadOverlay status="uploading" progress={40} />,
     );
-    const spinner = container.querySelector('span[aria-hidden="true"]:empty') as HTMLElement;
-    const decls = declarationsFor(spinner);
+    const ring = container.querySelector('.upload-ring') as HTMLElement;
+    const decls = declarationsFor(ring);
 
-    expect(spinner).not.toBeNull();
+    expect(ring).not.toBeNull();
     expect(decls).toMatch(/flex:none/);
-    expect(decls).toMatch(/width:24px/);
-    expect(decls).toMatch(/height:24px/);
-    expect(decls).toMatch(/border-radius:50%/);
+    expect(decls).toMatch(/width:40px/);
+    expect(decls).toMatch(/height:40px/);
+    expect(decls).toMatch(/aspect-ratio:1\/1/);
+    expect(ring.querySelector('svg')).toHaveAttribute('viewBox', '0 0 40 40');
   });
 
-  it('hides the spinner on tiny tiles via the scrim container query', () => {
+  it('moves the arc with the stroke dash offset as the upload advances', () => {
+    const { container, rerender } = renderWithProviders(
+      <MediaUploadOverlay status="uploading" progress={0} />,
+    );
+    const circumference = 2 * Math.PI * ((40 - 3) / 2);
+    expect(Number(ringArc(container).getAttribute('stroke-dashoffset'))).toBeCloseTo(circumference, 3);
+
+    rerender(<MediaUploadOverlay status="uploading" progress={50} />);
+    expect(Number(ringArc(container).getAttribute('stroke-dashoffset'))).toBeCloseTo(circumference / 2, 3);
+  });
+
+  it('hides the ring on tiny boxes via the scrim container query', () => {
     const { container } = renderWithProviders(
       <MediaUploadOverlay status="uploading" progress={40} />,
     );
     const scrim = screen.getByRole('status');
-    const spinner = container.querySelector('span[aria-hidden="true"]:empty') as HTMLElement;
 
     expect(declarationsFor(scrim)).toMatch(/container-type:size/);
-    expect(declarationsFor(spinner)).toMatch(/display:none/);
-    const classAlternation = generatedClasses(spinner).join('|');
-    expect(emittedCss()).toMatch(
-      new RegExp(
-        `@container\\(min-width:48px\\)and\\(min-height:48px\\)\\{\\.(${classAlternation})\\{display:block;\\}\\}`,
-      ),
-    );
+    expect(emittedCss()).toMatch(/@container\(max-width:64px\)/);
+    expect(container.querySelector('.upload-ring')).not.toBeNull();
   });
 
   it('keeps the percentage readout while uploading', () => {
@@ -65,9 +74,10 @@ describe('MediaUploadOverlay spinner', () => {
     expect(screen.getByText('40%')).toBeInTheDocument();
   });
 
-  it('shows no spinner for a failed upload', () => {
+  it('shows no ring for a failed upload, only the retry prompt', () => {
     const { container } = renderWithProviders(<MediaUploadOverlay status="failed" />);
 
-    expect(container.querySelector('span[aria-hidden="true"]:empty')).toBeNull();
+    expect(container.querySelector('.upload-ring')).toBeNull();
+    expect(screen.getByText('Upload failed')).toBeInTheDocument();
   });
 });

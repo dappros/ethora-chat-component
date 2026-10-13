@@ -1,5 +1,6 @@
 import { IAttachment, IMessage } from '../types/types';
 import { safeJsonParse } from './safeJson';
+import { parseDimension } from './mediaBox';
 
 /**
  * Hard ceiling on how many attachments we will serialise into a stanza.
@@ -51,6 +52,7 @@ export const normalizeAttachment = (raw: unknown): IAttachment | null => {
     fileName,
     size: asOptionalString(source.size),
     duration: asOptionalString(source.duration),
+    ...optionalDimensions(source),
     ownerKey: asOptionalString(source.ownerKey),
     userId: asOptionalString(source.userId),
     createdAt: asOptionalString(source.createdAt),
@@ -59,6 +61,18 @@ export const normalizeAttachment = (raw: unknown): IAttachment | null => {
     isVisible: asOptionalBoolean(source.isVisible),
     isPrivate: asOptionalBoolean(source.isPrivate),
     ...normalizeUploadState(source),
+  };
+};
+
+/** Pixel size, only when the source carries a usable one. */
+const optionalDimensions = (
+  source: Record<string, unknown>
+): Pick<IAttachment, 'width' | 'height'> => {
+  const width = parseDimension(source.width);
+  const height = parseDimension(source.height);
+  return {
+    ...(width !== undefined ? { width } : {}),
+    ...(height !== undefined ? { height } : {}),
   };
 };
 

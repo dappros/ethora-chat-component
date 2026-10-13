@@ -8,6 +8,7 @@ import CustomMessageVideo from '../styled/VideoMessage';
 import AudioMessage from '../styled/AudioMessage';
 import PdfMessage from '../styled/PdfMessage';
 import FileDownload from '../styled/UnsupportedType';
+import MediaSurface from '../styled/MediaSurface';
 import AlbumGrid, { AlbumGridItem } from './AlbumGrid';
 import { MediaUploadOverlay } from './MediaUploadOverlay';
 import styled from 'styled-components';
@@ -25,6 +26,18 @@ const AttachmentRow: React.FC<{
   // Optimistic attachment: the upload has not returned a URL yet, so every
   // renderer below would point at nothing. Show the file's identity instead.
   if (!attachment.location) {
+    if (kind === 'image' || kind === 'video') {
+      return (
+        <MediaSurface
+          kind={kind}
+          variant="solo"
+          src=""
+          alt={fileName}
+          dims={{ width: attachment.width, height: attachment.height }}
+          pending
+        />
+      );
+    }
     return (
       <FileDownload
         fileURL=""
@@ -43,6 +56,8 @@ const AttachmentRow: React.FC<{
           fileURL={attachment.location}
           mimetype={attachment.mimetype || ''}
           locationPreview={attachment.locationPreview}
+          width={attachment.width}
+          height={attachment.height}
           onUnavailable={onUnavailable}
         />
       );
@@ -52,6 +67,9 @@ const AttachmentRow: React.FC<{
           fileName={fileName}
           fileURL={attachment.location}
           mimetype={attachment.mimetype || ''}
+          duration={attachment.duration}
+          width={attachment.width}
+          height={attachment.height}
         />
       );
     case 'audio':
@@ -83,6 +101,9 @@ const AttachmentRow: React.FC<{
 const StatusWrap = styled.div`
   position: relative;
   min-width: 0;
+  max-width: 100%;
+  border-radius: var(--ethora-radius-md, 14px);
+  overflow: hidden;
 `;
 
 const RetryHit = styled.button`

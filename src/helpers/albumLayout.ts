@@ -9,6 +9,13 @@
  *   5+ items 2 x 2 showing the first four, the last cell carries "+N"
  */
 
+/** Gap between neighbouring tiles. */
+export const ALBUM_GAP_PX = 3;
+/** Radius of a tile corner that sits on the bubble's own corner. */
+export const ALBUM_OUTER_RADIUS_PX = 14;
+/** Radius of every other tile corner, the ones that face a neighbour. */
+export const ALBUM_INNER_RADIUS_PX = 3;
+
 export interface AlbumCellPlacement {
   /** CSS `grid-column` value. */
   column: string;
@@ -92,4 +99,57 @@ export const getAlbumLayout = (count: number): AlbumLayout => {
     visible,
     hidden: Math.max(0, total - visible),
   };
+};
+
+/**
+ * Which corners of one tile lie on the bubble's outer edge. Only those get
+ * the large radius; corners that face a neighbour get the small inner one.
+ */
+export interface TileCorners {
+  topLeft: boolean;
+  topRight: boolean;
+  bottomRight: boolean;
+  bottomLeft: boolean;
+}
+
+const OUTER_CORNERS: Record<AlbumLayout['kind'], TileCorners[]> = {
+  full: [{ topLeft: true, topRight: true, bottomRight: true, bottomLeft: true }],
+  pair: [
+    { topLeft: true, topRight: false, bottomRight: false, bottomLeft: true },
+    { topLeft: false, topRight: true, bottomRight: true, bottomLeft: false },
+  ],
+  // Hero: the tall left cell owns both left corners; the right column owns
+  // its top-right and bottom-right corners respectively.
+  hero: [
+    { topLeft: true, topRight: false, bottomRight: false, bottomLeft: true },
+    { topLeft: false, topRight: true, bottomRight: false, bottomLeft: false },
+    { topLeft: false, topRight: false, bottomRight: true, bottomLeft: false },
+  ],
+  quad: [
+    { topLeft: true, topRight: false, bottomRight: false, bottomLeft: false },
+    { topLeft: false, topRight: true, bottomRight: false, bottomLeft: false },
+    { topLeft: false, topRight: false, bottomRight: false, bottomLeft: true },
+    { topLeft: false, topRight: false, bottomRight: true, bottomLeft: false },
+  ],
+};
+
+/** Outer-corner flags for the tile at `position` (0-based) of `layout`. */
+export const getTileCorners = (layout: AlbumLayout, position: number): TileCorners => {
+  const corners = OUTER_CORNERS[layout.kind][position];
+  if (!corners) {
+    return { topLeft: false, topRight: false, bottomRight: false, bottomLeft: false };
+  }
+  return { ...corners };
+};
+
+/** CSS `border-radius` shorthand (TL TR BR BL) for one tile. */
+export const getTileBorderRadius = (layout: AlbumLayout, position: number): string => {
+  const c = getTileCorners(layout, position);
+  const px = (outer: boolean) => `${outer ? ALBUM_OUTER_RADIUS_PX : ALBUM_INNER_RADIUS_PX}px`;
+  return [
+    px(c.topLeft),
+    px(c.topRight),
+    px(c.bottomRight),
+    px(c.bottomLeft),
+  ].join(' ');
 };

@@ -1,131 +1,58 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import styled from 'styled-components';
-import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 import { useDispatch } from 'react-redux';
-import {
-  setActiveFile,
-  setActiveModal,
-} from '../../roomStore/chatSettingsSlice';
-import { MediaLoadingSkeleton } from './StyledInputComponents/MediaComponents';
+import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
+import { setActiveFile, setActiveModal } from '../../roomStore/chatSettingsSlice';
+import MediaSurface from './MediaSurface';
 
-interface CustomMessageVideoProps {
-  fileName: string;
-  fileURL: string;
-  mimetype: string;
-}
-
-export const Container = styled.div`
-  margin: 0;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
-
+/** Full-size player used by the preview modal. Kept here with the bubble video. */
 export const FullScreenVideo = styled.video`
   width: 100%;
   height: 100%;
   object-fit: contain;
 `;
 
-export const FixedSizeVideo = styled.video`
-  width: 300px;
-  height: 200px;
-  object-fit: cover;
-  border-radius: var(--ethora-radius-lg, 16px);
-`;
+interface CustomMessageVideoProps {
+  fileName: string;
+  fileURL: string;
+  mimetype: string;
+  /** Length in seconds, when the attachment recorded one. */
+  duration?: string;
+  width?: number;
+  height?: number;
+}
 
-export const ModalContent = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  border-radius: 10px;
-`;
-
-export const ButtonContainer = styled.div`
-  display: flex;
-  position: absolute;
-  top: 8px;
-  right: 8px;
-`;
-
-export const IconButton = styled.button`
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: gray;
-  [data-ethora-color-scheme='dark'] & {
-    color: var(--ethora-color-text-muted);
-  }
-  font-size: 36px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  pointer-events: auto;
-`;
-
+/**
+ * A single video in a bubble: the first frame with a glass play button and,
+ * when known, a duration chip. A click opens the preview modal, which holds
+ * the controls.
+ */
 const CustomMessageVideo: React.FC<CustomMessageVideoProps> = ({
   fileName,
   fileURL,
   mimetype,
+  duration,
+  width,
+  height,
 }) => {
   const dispatch = useDispatch();
-  // Preload off-DOM, same pattern as CustomMessageImage: the skeleton stays
-  // up until the first frame is actually decoded, so there's no blank gap
-  // between skeleton-hides and video-paints while it's still downloading.
-  const [ready, setReady] = useState(false);
 
-  useEffect(() => {
-    setReady(false);
-    if (!fileURL) return;
-    let cancelled = false;
-    const preloader = document.createElement('video');
-    preloader.preload = 'auto';
-    preloader.muted = true;
-    preloader.onloadeddata = () => {
-      if (!cancelled) setReady(true);
-    };
-    preloader.onerror = () => {
-      // Can't recover a broken video URL the way images retry with a fresh
-      // fileToken - just stop waiting and let the real <video> element
-      // surface the error itself (native controls show it).
-      if (!cancelled) setReady(true);
-    };
-    preloader.src = fileURL;
-    return () => {
-      cancelled = true;
-      preloader.src = '';
-    };
-  }, [fileURL]);
-
-  const handleOpen = (e: React.MouseEvent<HTMLVideoElement, MouseEvent>) => {
+  const handleOpen = () => {
     dispatch(setActiveFile({ fileName, fileURL, mimetype }));
     dispatch(setActiveModal(MODAL_TYPES.FILE_PREVIEW));
-    e.preventDefault();
-    e.stopPropagation();
   };
 
-  if (!fileURL || !ready) {
-    return (
-      <Container>
-        <MediaLoadingSkeleton $width={300} $height={200} />
-      </Container>
-    );
-  }
-
   return (
-    <Container>
-      <FixedSizeVideo
-        src={fileURL}
-        controls
-        autoPlay={false}
-        onClick={(e) => handleOpen(e)}
-        style={{ cursor: 'pointer', maxWidth: '100%' }}
-      />
-    </Container>
+    <MediaSurface
+      kind="video"
+      variant="solo"
+      src={fileURL}
+      alt={fileName}
+      duration={duration}
+      dims={{ width, height }}
+      pending={false}
+      onOpen={handleOpen}
+    />
   );
 };
 

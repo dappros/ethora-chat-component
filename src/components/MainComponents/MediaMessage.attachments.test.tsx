@@ -49,7 +49,7 @@ describe('MediaMessage', () => {
     globalThis.Image = RealImage;
   });
 
-  it('renders a legacy single-file image message unchanged', async () => {
+  it('blurs the preview up to the full image once it has loaded', async () => {
     renderMessage({
       mimetype: 'image/png',
       location: 'https://files.example/a.png',
@@ -57,8 +57,10 @@ describe('MediaMessage', () => {
       originalName: 'a.png',
     });
 
+    // The preview is only a stand-in: once the full file is decoded it is
+    // the picture that stays, and the preview sits blurred underneath it.
     const image = (await screen.findByAltText('a.png')) as HTMLImageElement;
-    expect(image.src).toBe('https://files.example/a-thumb.png');
+    expect(image.src).toBe('https://files.example/a.png');
   });
 
   it('gives a PDF its own card instead of the generic file box', () => {
@@ -86,7 +88,7 @@ describe('MediaMessage', () => {
     expect(screen.getByText('PDF')).toBeInTheDocument();
   });
 
-  it('renders every attachment of a multi-file message', () => {
+  it('renders every attachment of a multi-file message', async () => {
     renderMessage({
       mimetype: 'image/png',
       location: 'https://files.example/one.png',
@@ -110,8 +112,8 @@ describe('MediaMessage', () => {
       ],
     });
 
-    expect(screen.getByAltText('one.png')).toBeInTheDocument();
-    expect(screen.getByAltText('two.png')).toBeInTheDocument();
+    expect(await screen.findByAltText('one.png')).toBeInTheDocument();
+    expect(await screen.findByAltText('two.png')).toBeInTheDocument();
     expect(screen.getByText('three.pdf')).toBeInTheDocument();
   });
 
