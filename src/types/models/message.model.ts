@@ -67,6 +67,9 @@ export interface IMessage {
   mainMessage?: string;
   reply?: IReply[];
   reaction?: Record<string, ReactionMessage>;
+  // Delivery receipts (XEP-0184): xmppUsername -> ms-epoch timestamp the
+  // <received/> stanza for this message's stanza-id was observed at.
+  receivedBy?: Record<string, number>;
   fileName?: string;
   translations?: TranslationObject;
   langSource?: Iso639_1Codes;

@@ -20,8 +20,9 @@ import {
   MessageFooter,
 } from '../styled/StyledComponents';
 import MediaMessage from '../MainComponents/MediaMessage';
-import { useDispatch, useSelector } from 'react-redux';
+import { shallowEqual, useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
+import { createUserNameFromSetUser } from '../../helpers/createUserNameFromSetUser';
 
 import { Avatar } from './Avatar';
 import MessageInteractions from './MessageInteractions';
@@ -39,7 +40,7 @@ import { useXmppClient } from '../../context/xmppProvider';
 import { MessageReaction } from './MessageReaction';
 import MessageTranslate from './MessageTranslate';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
-import { DoubleTick, LockOffIcon } from '../../assets/icons';
+import { DoubleTick, LockOffIcon, SingleTick } from '../../assets/icons';
 import { parseMessageBody } from '../../helpers/parseMessageBody';
 import URLPreviewCard from './URLPreviewCard';
 import { useMessageHeapState } from '../../hooks/useMessageHeapState';
@@ -115,6 +116,38 @@ const RetryButton = styled.button`
 
 const firstUrlRegex =
   /(https?:\/\/[\w.-]+(?:\.[\w.-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=.]+)/;
+
+// Hover-only (no click) status tooltip on the sent/delivered/seen tick -
+// same CSS-hover convention as MessageReaction.tsx's emoji tooltip.
+const TickStatusWrapper = styled.span`
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+
+  &:hover .tick-tooltip {
+    visibility: visible;
+    opacity: 1;
+  }
+`;
+
+const TickTooltip = styled.span`
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.2s;
+  position: absolute;
+  bottom: 120%;
+  right: 0;
+  background-color: #333;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 1;
+`;
+
+const NO_VIEWERS: string[] = [];
 
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
@@ -418,6 +451,61 @@ const Message: React.FC<MessageProps> = forwardRef<
 
   const isPending = idSet.has(message.id) || message?.pending || false;
 
+  // Delivery/read tick status (XEP-0184/XEP-0333) - "seen" wins over
+  // "delivered" wins over plain "sent". lastDisplayedByUser is a room-level
+  // watermark (last message id each user has displayed), so "seen" means
+  // some other user's watermark is at-or-after this message. The selector
+  // resolves the reader list itself and returns a small array (compared
+  // shallowly), so a bubble does not re-render on every new room message,
+  // and only own messages do the lookup at all.
+  const seenBy = useSelector((state: RootState): string[] => {
+    if (!isUser) return NO_VIEWERS;
+    const room = state.rooms.rooms[message.roomJid];
+    const watermark = room?.lastDisplayedByUser;
+    if (!watermark || !room?.messages?.length) return NO_VIEWERS;
+    const viewers = Object.keys(watermark).filter(
+      (xmppUsername) => xmppUsername !== user?.xmppUsername
+    );
+    if (!viewers.length) return NO_VIEWERS;
+    const indexOf = (id: string): number => {
+      for (let i = room.messages.length - 1; i >= 0; i--) {
+        if (room.messages[i].id === id) return i;
+      }
+      return -1;
+    };
+    const thisIndex = indexOf(message.id);
+    if (thisIndex === -1) return NO_VIEWERS;
+    return viewers.filter((xmppUsername) => {
+      const displayedIndex = indexOf(watermark[xmppUsername]);
+      return displayedIndex >= thisIndex;
+    });
+  }, shallowEqual);
+  const roomType = useSelector(
+    (state: RootState) => state.rooms.rooms[message.roomJid]?.type
+  );
+  const isGroupRoom = roomType !== 'private';
+
+  const tickInfo = useMemo(() => {
+    const receivedBy = Object.keys(message.receivedBy || {});
+    const status: 'sent' | 'delivered' | 'seen' =
+      seenBy.length > 0 ? 'seen' : receivedBy.length > 0 ? 'delivered' : 'sent';
+    const nameOf = (xmppUsername: string) =>
+      createUserNameFromSetUser(usersSet, xmppUsername);
+
+    let tooltip: string;
+    if (status === 'seen') {
+      tooltip = isGroupRoom ? `Read by ${seenBy.map(nameOf).join(', ')}` : 'Read';
+    } else if (status === 'delivered') {
+      tooltip = isGroupRoom
+        ? `Delivered to ${receivedBy.map(nameOf).join(', ')}`
+        : 'Delivered';
+    } else {
+      tooltip = 'Sent';
+    }
+    return { status, tooltip };
+  }, [message.receivedBy, seenBy, usersSet, isGroupRoom]);
+  const readStatus = tickInfo.status;
+
   // "failed" is only ever a prompt to retry, never a claim the message was
   // not delivered - the server may have taken it and simply not echoed yet.
   // A late echo clears the flag (see addRoomMessage), so a message the
@@ -675,7 +763,20 @@ const Message: React.FC<MessageProps> = forwardRef<
               hour: '2-digit',
               minute: '2-digit',
             })}
-            {sentLogicEnabled && isUser && !isPending && <DoubleTick />}
+            {sentLogicEnabled && isUser && !isPending && (
+              <TickStatusWrapper>
+                {readStatus === 'sent' ? (
+                  <SingleTick color="#8C8C8C" />
+                ) : (
+                  <DoubleTick
+                    stroke={readStatus === 'seen' ? '#0052CD' : '#8C8C8C'}
+                  />
+                )}
+                <TickTooltip className="tick-tooltip">
+                  {tickInfo.tooltip}
+                </TickTooltip>
+              </TickStatusWrapper>
+            )}
           </CustomMessageTimestamp>
           {quickReplies.length > 0 && !message.isDeleted && (
             <QuickReplies

@@ -69,6 +69,10 @@ export interface IRoom {
   composingList?: string[];
   lastViewedTimestamp?: number;
   unreadBaselineTimestamp?: number;
+  // Read markers (XEP-0333): xmppUsername -> stanza-id of the last message
+  // they've displayed. Room-level watermark (not per-message displayedBy)
+  // to keep read-marker updates O(1) instead of O(messages).
+  lastDisplayedByUser?: Record<string, string>;
   unreadMessages?: number;
   /**
    * Unread count the server reported for this room in `GET /v1/chats/my`
