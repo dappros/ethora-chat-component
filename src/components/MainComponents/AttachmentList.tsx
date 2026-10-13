@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { IAttachment } from '../../types/types';
 import { getAttachmentName } from '../../helpers/attachments';
 import { getFileKind } from '../../helpers/fileKind';
@@ -10,7 +10,7 @@ import PdfMessage from '../styled/PdfMessage';
 import FileDownload from '../styled/UnsupportedType';
 import MediaSurface from '../styled/MediaSurface';
 import AlbumGrid, { AlbumGridItem } from './AlbumGrid';
-import { MediaUploadOverlay } from './MediaUploadOverlay';
+import { MediaUploadOverlay, SCRIM_FADE_MS } from './MediaUploadOverlay';
 import styled from 'styled-components';
 import { useT } from '../../i18n/useT';
 
@@ -25,7 +25,7 @@ const AttachmentRow: React.FC<{
 
   // Optimistic attachment: the upload has not returned a URL yet, so every
   // renderer below would point at nothing. Show the file's identity instead.
-  if (!attachment.location) {
+  if (!attachment.location && !(kind === 'image' && attachment.localUrl)) {
     if (kind === 'image' || kind === 'video') {
       return (
         <MediaSurface
@@ -58,6 +58,7 @@ const AttachmentRow: React.FC<{
           locationPreview={attachment.locationPreview}
           width={attachment.width}
           height={attachment.height}
+          localUrl={attachment.localUrl}
           onUnavailable={onUnavailable}
         />
       );
@@ -131,7 +132,28 @@ const AttachmentRowWithStatus: React.FC<{
   onRetry?: () => void;
 }> = ({ attachment, compact, onUnavailable, onRetry }) => {
   const t = useT();
-  if (!attachment.uploadStatus) {
+  const status = attachment.uploadStatus;
+  // Once a tile has been uploading, its wrapper stays for good so the
+  // picture underneath is not remounted, and the scrim fades out instead of
+  // snapping away when the upload finishes.
+  const [wrapped, setWrapped] = useState(Boolean(status));
+  const [leaving, setLeaving] = useState(false);
+  const wasUploading = useRef(Boolean(status));
+  useEffect(() => {
+    if (status) {
+      wasUploading.current = true;
+      setWrapped(true);
+      setLeaving(false);
+      return;
+    }
+    if (!wasUploading.current) return;
+    wasUploading.current = false;
+    setLeaving(true);
+    const timer = setTimeout(() => setLeaving(false), SCRIM_FADE_MS);
+    return () => clearTimeout(timer);
+  }, [status]);
+
+  if (!wrapped) {
     return (
       <AttachmentRow
         attachment={attachment}
@@ -140,14 +162,17 @@ const AttachmentRowWithStatus: React.FC<{
       />
     );
   }
-  const failed = attachment.uploadStatus === 'failed';
+  const failed = status === 'failed';
   return (
     <StatusWrap>
       <AttachmentRow attachment={attachment} compact={compact} onUnavailable={onUnavailable} />
-      <MediaUploadOverlay
-        status={attachment.uploadStatus}
-        progress={attachment.uploadProgress}
-      />
+      {(status || leaving) && (
+        <MediaUploadOverlay
+          status={status ?? 'uploading'}
+          progress={status ? attachment.uploadProgress : 100}
+          leaving={!status}
+        />
+      )}
       {failed && onRetry && (
         <RetryHit
           type="button"
@@ -223,7 +248,11 @@ const AttachmentList: React.FC<AttachmentListProps> = ({
       )}
       {rows.map(({ attachment, index }) => (
         <AttachmentRowWithStatus
-          key={attachment.attachmentId || `${attachment.location}-${index}`}
+          key={
+            attachment.localUrl ||
+            attachment.attachmentId ||
+            `${attachment.location}-${index}`
+          }
           onUnavailable={onUnavailable}
           attachment={attachment}
           compact={compact}

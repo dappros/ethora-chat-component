@@ -12,6 +12,8 @@ interface CustomMessageImageProps {
   /** Natural size from the attachment, when the storage kept it. */
   width?: number;
   height?: number;
+  /** Sender's own blob URL, shown at once while the server copy loads. */
+  localUrl?: string;
   /**
    * Called only once the server itself says the file is gone (404/410),
    * not merely when the <img> failed to load. The only known cause in
@@ -34,6 +36,7 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
   locationPreview,
   width,
   height,
+  localUrl,
   onUnavailable,
 }) => {
   const dispatch = useDispatch();
@@ -51,8 +54,10 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
       previewSrc={locationPreview}
       alt={fileName}
       dims={{ width, height }}
-      pending={false}
+      localSrc={localUrl}
+      pending={!fileURL}
       onOpen={handleOpen}
+      openDisabled={!fileURL}
       onGone={onUnavailable}
     />
   );

@@ -43,4 +43,10 @@ export interface IAttachment {
    */
   uploadStatus?: 'uploading' | 'failed';
   uploadProgress?: number;
+  /**
+   * Local-only `blob:` URL of the sender's own picture, so an outgoing image
+   * shows at once and stays on screen while the server copy loads. Never
+   * written to the wire.
+   */
+  localUrl?: string;
 }

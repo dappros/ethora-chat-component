@@ -64,7 +64,7 @@ describe('MediaUploadOverlay progress ring', () => {
     const scrim = screen.getByRole('status');
 
     expect(declarationsFor(scrim)).toMatch(/container-type:size/);
-    expect(emittedCss()).toMatch(/@container\(max-width:64px\)/);
+    expect(emittedCss()).toMatch(/@container\(max-width:63px\)/);
     expect(container.querySelector('.upload-ring')).not.toBeNull();
   });
 

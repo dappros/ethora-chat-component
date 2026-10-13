@@ -5,10 +5,15 @@ export type MediaProbeStatus = 'idle' | 'loading' | 'recovering' | 'loaded' | 'e
 
 export interface MediaProbe {
   status: MediaProbeStatus;
-  /** Natural size, known once `status` is 'loaded'. */
+  /**
+   * Natural size. Known once `status` is 'loaded', and usually sooner: it is
+   * read from the first decoded header while the bytes are still arriving.
+   */
   width: number;
   height: number;
 }
+
+const EARLY_SIZE_POLL_MS = 40;
 
 const IDLE: MediaProbe = { status: 'idle', width: 0, height: 0 };
 
@@ -57,7 +62,15 @@ export const useMediaProbe = (url: string | undefined, onGone?: () => void): Med
     };
 
     const image = new Image();
+    // The size is known as soon as the header is parsed, long before onload
+    // for a big file: publish it so the box can be sized early.
+    let early: ReturnType<typeof setInterval> | undefined;
+    const stopEarly = () => {
+      if (early !== undefined) clearInterval(early);
+      early = undefined;
+    };
     image.onload = () => {
+      stopEarly();
       if (cancelled) return;
       setProbe({
         status: 'loaded',
@@ -66,6 +79,7 @@ export const useMediaProbe = (url: string | undefined, onGone?: () => void): Med
       });
     };
     image.onerror = () => {
+      stopEarly();
       if (cancelled) return;
       if (isSecureFileUrl(url)) {
         setProbe({ status: 'recovering', width: 0, height: 0 });
@@ -82,9 +96,21 @@ export const useMediaProbe = (url: string | undefined, onGone?: () => void): Med
       reportIfGone();
     };
     image.src = url;
+    if (image.complete === false) {
+      early = setInterval(() => {
+        if (cancelled || !(image.naturalWidth > 0 && image.naturalHeight > 0)) return;
+        stopEarly();
+        setProbe((current) =>
+          current.status === 'loading'
+            ? { status: 'loading', width: image.naturalWidth, height: image.naturalHeight }
+            : current
+        );
+      }, EARLY_SIZE_POLL_MS);
+    }
 
     return () => {
       cancelled = true;
+      stopEarly();
       image.onload = null;
       image.onerror = null;
     };

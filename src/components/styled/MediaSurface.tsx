@@ -2,21 +2,34 @@ import React, { useState } from 'react';
 import styled, { css, keyframes } from 'styled-components';
 import { ImageUnavailableState } from '../MainComponents/ImageUnavailable';
 import { useMediaProbe } from '../../hooks/useMediaProbe';
-import { reducedMotion, shimmerBackground } from '../../styles/motion';
+import { reducedMotion, shimmer } from '../../styles/motion';
 import {
-  fitMediaBox,
+  computeSoloBox,
   formatDuration,
+  SoloBox,
   parseDimension,
   SOLO_DEFAULT_BOX,
   SOLO_VIDEO_DEFAULT_BOX,
 } from '../../helpers/mediaBox';
 
-/** Image reveal once the full file is decoded. */
-const FADE_IN_MS = 180;
+/** Crossfade from the skeleton or the blurred preview to the sharp image. */
+const FADE_IN_MS = 220;
+/** The solo box easing to its real ratio once the size is known. */
+const BOX_EASE_MS = 160;
 
 const revealIn = keyframes`
   from { opacity: 0; }
   to { opacity: 1; }
+`;
+
+const revealOut = keyframes`
+  from { opacity: 1; }
+  to { opacity: 0; }
+`;
+
+const sweep = keyframes`
+  from { transform: translateX(-100%); }
+  to { transform: translateX(260%); }
 `;
 
 /**
@@ -57,7 +70,17 @@ interface StageProps {
   $zoom: boolean;
   /** Blur and dim the picture behind the "+N" count. */
   $blurred: boolean;
+  /** A picture smaller than its frame sits on a soft neutral tile. */
+  $tile?: boolean;
 }
+
+/** Solo stages ease their size when the real ratio replaces the placeholder. */
+const soloTransition = css`
+  transition:
+    width ${BOX_EASE_MS}ms ease,
+    aspect-ratio ${BOX_EASE_MS}ms ease;
+  ${reducedMotion}
+`;
 
 /** The clipped box every media state is drawn into. */
 const Stage = styled.div<StageProps>`
@@ -70,7 +93,18 @@ const Stage = styled.div<StageProps>`
   isolation: isolate;
   border-radius: ${({ $radius }) => $radius};
   background-color: var(--ethora-color-bg-subtle, #f3f6fc);
+  ${({ $tile }) =>
+    $tile
+      ? css`
+          background-color: color-mix(
+            in srgb,
+            var(--ethora-color-text, #141414) 7%,
+            var(--ethora-color-bg-subtle, #f3f6fc)
+          );
+        `
+      : ''}
   cursor: ${({ $cursor }) => $cursor};
+  ${({ $variant }) => ($variant === 'solo' ? soloTransition : '')}
   ${hairline}
   ${({ $zoom }) => ($zoom ? hoverZoom : '')}
   ${({ $blurred }) =>
@@ -104,14 +138,95 @@ const SoloTrigger = styled.button`
   }
 `;
 
-const Skeleton = styled.div<{ $shimmer: boolean }>`
+/**
+ * A soft band sweeping across the neutral skeleton every 1.4s. Both tones are
+ * mixed from the text colour, so the band reads in light and dark alike.
+ */
+const skeletonShimmer = css`
+  background: linear-gradient(
+    90deg,
+    var(--ethora-color-bg-subtle, #f3f6fc) 25%,
+    var(--ethora-color-bg-hover, #e9eef7) 37%,
+    var(--ethora-color-bg-subtle, #f3f6fc) 63%
+  );
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--ethora-color-text, #141414) 3%, var(--ethora-color-bg-subtle, #f3f6fc)) 25%,
+    color-mix(in srgb, var(--ethora-color-text, #141414) 9%, var(--ethora-color-bg-subtle, #f3f6fc)) 37%,
+    color-mix(in srgb, var(--ethora-color-text, #141414) 3%, var(--ethora-color-bg-subtle, #f3f6fc)) 63%
+  );
+  background-size: 400% 100%;
+  animation: ${shimmer} 1.4s ease infinite;
+  ${reducedMotion}
+`;
+
+const Skeleton = styled.div<{ $shimmer: boolean; $leaving?: boolean }>`
   position: absolute;
   inset: 0;
+  /* The glyph shows only when the box is big enough to carry it. */
+  container-type: size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   ${({ $shimmer }) =>
     $shimmer
-      ? shimmerBackground
+      ? skeletonShimmer
       : css`
           background-color: var(--ethora-color-bg-subtle, #f3f6fc);
+        `}
+  ${({ $leaving }) =>
+    $leaving
+      ? css`
+          animation: ${revealOut} ${FADE_IN_MS}ms ease both;
+          pointer-events: none;
+          ${reducedMotion}
+          @media (prefers-reduced-motion: reduce) {
+            opacity: 0;
+          }
+        `
+      : ''}
+`;
+
+const SkeletonGlyph = styled.svg`
+  display: none;
+  width: 28px;
+  height: 28px;
+  color: var(--ethora-color-text, #141414);
+  opacity: 0.2;
+
+  @container (min-width: 96px) and (min-height: 96px) {
+    display: block;
+  }
+`;
+
+/** Thin bar along the bottom edge while the full file is still coming down. */
+const LoadBar = styled.div`
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  height: 2px;
+  overflow: hidden;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.22);
+`;
+
+const LoadBarFill = styled.div<{ $value?: number }>`
+  height: 100%;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.25);
+  ${({ $value }) =>
+    $value === undefined
+      ? css`
+          width: 38%;
+          animation: ${sweep} 1.2s ease-in-out infinite;
+          ${reducedMotion}
+        `
+      : css`
+          width: ${Math.min(100, Math.max(0, $value))}%;
+          transition: width 200ms ease;
+          ${reducedMotion}
         `}
 `;
 
@@ -129,9 +244,11 @@ const PreviewLayer = styled(Layer)<{ $blurred: boolean }>`
     $blurred
       ? css`
           filter: blur(14px) saturate(1.05);
-          transform: scale(1.08);
+          transform: scale(1.06);
         `
       : ''}
+  animation: ${revealIn} ${FADE_IN_MS}ms ease both;
+  ${reducedMotion}
 `;
 
 const FullLayer = styled(Layer)`
@@ -240,6 +357,8 @@ export interface MediaSurfaceProps {
   radius?: string;
   /** Solo only: opens the preview. Omit for tiles, which own the click. */
   onOpen?: () => void;
+  /** The opener exists but cannot act yet (no file URL): keeps the element tree stable. */
+  openDisabled?: boolean;
   /** Clickable item: zoom cursor and hover zoom. Defaults to `Boolean(onOpen)`. */
   interactive?: boolean;
   /** Blur and dim the picture, used behind the "+N" count. */
@@ -248,6 +367,10 @@ export interface MediaSurfaceProps {
   chrome?: boolean;
   /** Called only when the server confirms the file is gone. */
   onGone?: () => void;
+  /** Sender's own picture (blob URL): shown sharp and at once, ahead of `src`. */
+  localSrc?: string;
+  /** 0 to 100 download progress of `src`, when known; otherwise a quiet sweep. */
+  loadProgress?: number;
 }
 
 /**
@@ -270,44 +393,78 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
   interactive,
   blurred = false,
   chrome = true,
+  localSrc,
+  loadProgress,
+  openDisabled = false,
 }) => {
   const isImage = kind === 'image';
+  const local = useMediaProbe(isImage && localSrc ? localSrc : undefined);
+  const localReady = local.status === 'loaded';
   const full = useMediaProbe(isImage && src ? src : undefined, onGone);
   const hasPreview = isImage && Boolean(previewSrc) && previewSrc !== src;
   const low = useMediaProbe(hasPreview ? previewSrc : undefined, onGone);
 
   const durationLabel = kind === 'video' ? formatDuration(duration) : '';
-  const isInteractive = interactive ?? Boolean(onOpen);
+  const isInteractive = interactive ?? (Boolean(onOpen) && !openDisabled);
   const cursor = !isInteractive
     ? 'default'
     : isImage
       ? 'zoom-in'
       : 'pointer';
 
-  // Solo boxes are sized before anything loads when the storage kept the
-  // dimensions; otherwise the first decoded size takes over.
-  let solo: { width: number; height: number } =
-    kind === 'video' ? SOLO_VIDEO_DEFAULT_BOX : SOLO_DEFAULT_BOX;
+  // The size is settled as early as anything can say it: what the storage
+  // recorded, then the sender's own file, then the first decoded header of
+  // the full image, and last a downscaled preview (whose ratio alone is
+  // trusted). Until then a neutral 4:3 box is reserved and it eases to the
+  // real ratio, so the list does not jump.
+  let solo: SoloBox | null = null;
+  let placeholder = false;
   if (variant === 'solo') {
-    const knownW = parseDimension(dims?.width);
-    const knownH = parseDimension(dims?.height);
-    const natural =
-      fitMediaBox(knownW, knownH) ??
-      (full.status === 'loaded' ? fitMediaBox(full.width, full.height) : null) ??
-      (low.status === 'loaded' ? fitMediaBox(low.width, low.height) : null);
-    if (natural) solo = natural;
+    if (kind === 'video') {
+      const { width, height } = SOLO_VIDEO_DEFAULT_BOX;
+      solo = { width, height, imageWidth: width, imageHeight: height, mode: 'fit' };
+    } else {
+      solo =
+        computeSoloBox(parseDimension(dims?.width), parseDimension(dims?.height)) ??
+        (localReady ? computeSoloBox(local.width, local.height) : null) ??
+        computeSoloBox(full.width, full.height) ??
+        (low.width > 0 ? computeSoloBox(low.width, low.height, { ratioOnly: true }) : null);
+      if (!solo) {
+        placeholder = true;
+        const { width, height } = SOLO_DEFAULT_BOX;
+        solo = { width, height, imageWidth: width, imageHeight: height, mode: 'fit' };
+      }
+    }
   }
+  const natural = solo?.mode === 'natural';
 
-  const soloStyle: React.CSSProperties | undefined =
-    variant === 'solo'
+  const soloStyle: React.CSSProperties | undefined = solo
+    ? {
+        // A definite width (the stage caps it at 100%): a percentage here
+        // collapses inside the shrink-wrapped bubble.
+        width: `${solo.width}px`,
+        aspectRatio: `${solo.width} / ${solo.height}`,
+        height: 'auto',
+      }
+    : undefined;
+
+  // A natural-size picture is drawn at its own size, centred on the tile.
+  const layerStyle: React.CSSProperties | undefined =
+    natural && solo
       ? {
-          // A definite width (the stage caps it at 100%): a percentage here
-          // collapses inside the shrink-wrapped bubble.
-          width: `${solo.width}px`,
-          aspectRatio: `${solo.width} / ${solo.height}`,
-          height: 'auto',
+          width: `${solo.imageWidth}px`,
+          height: `${solo.imageHeight}px`,
+          margin: 'auto',
+          objectFit: 'contain',
         }
       : undefined;
+
+  const fullLoaded = full.status === 'loaded';
+  const lowLoaded = low.status === 'loaded';
+  const showLocal = localReady && !fullLoaded;
+  const anyPicture = fullLoaded || lowLoaded || localReady;
+  const showLoadBar =
+    isImage && Boolean(src) && lowLoaded && !localReady && !fullLoaded && full.status !== 'error';
 
   let body: React.ReactNode;
   if (kind === 'video') {
@@ -316,30 +473,55 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
     ) : (
       <Skeleton $shimmer={pending} />
     );
-  } else if (!src) {
-    body = <Skeleton $shimmer={pending} />;
-  } else if (full.status === 'loaded') {
-    body = (
-      <>
-        {low.status === 'loaded' && (
-          <PreviewLayer src={previewSrc} alt="" aria-hidden="true" $blurred />
-        )}
-        <FullLayer data-media-layer="full" src={src} alt={alt} />
-      </>
-    );
-  } else if (low.status === 'loaded') {
-    body = (
-      <PreviewLayer
-        data-media-layer="preview"
-        src={previewSrc}
-        alt={alt}
-        $blurred={full.status !== 'error'}
-      />
-    );
-  } else if (full.status === 'error' && (!hasPreview || low.status === 'error')) {
+  } else if (
+    src &&
+    full.status === 'error' &&
+    !localReady &&
+    (!hasPreview || low.status === 'error')
+  ) {
     body = <ImageUnavailableState compact={variant === 'fill'} />;
   } else {
-    body = <Skeleton $shimmer />;
+    body = (
+      <>
+        {!anyPicture ? (
+          <Skeleton $shimmer={Boolean(src) || pending}>
+            <SkeletonGlyph viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect x="3" y="4" width="18" height="16" rx="3" stroke="currentColor" strokeWidth="1.6" />
+              <circle cx="9" cy="10" r="1.7" fill="currentColor" />
+              <path d="M4 18l5-5 4 4 3-3 4 4" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" />
+            </SkeletonGlyph>
+          </Skeleton>
+        ) : (
+          <Skeleton key="skeleton-out" $shimmer={false} $leaving />
+        )}
+        {lowLoaded && !natural && !localReady && (
+          <PreviewLayer
+            data-media-layer={fullLoaded ? undefined : 'preview'}
+            src={previewSrc}
+            alt={fullLoaded ? '' : alt}
+            aria-hidden={fullLoaded ? 'true' : undefined}
+            $blurred={fullLoaded || full.status !== 'error'}
+          />
+        )}
+        {localReady && (
+          <Layer
+            data-media-layer={showLocal ? 'local' : undefined}
+            src={localSrc}
+            alt={showLocal ? alt : ''}
+            aria-hidden={showLocal ? undefined : 'true'}
+            style={layerStyle}
+          />
+        )}
+        {fullLoaded && (
+          <FullLayer data-media-layer="full" src={src} alt={alt} style={layerStyle} />
+        )}
+        {showLoadBar && (
+          <LoadBar data-testid="media-load-bar" aria-hidden="true">
+            <LoadBarFill $value={loadProgress} />
+          </LoadBar>
+        )}
+      </>
+    );
   }
 
   const stage = (
@@ -347,11 +529,13 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
       $variant={variant}
       $radius={radius}
       $cursor={cursor}
-      $zoom={isImage && isInteractive}
+      $zoom={isImage && isInteractive && !natural}
       $blurred={blurred}
+      $tile={natural}
       style={soloStyle}
       data-testid="media-surface"
       data-state={kind === 'video' ? 'video' : full.status}
+      data-mode={solo ? (placeholder ? 'placeholder' : solo.mode) : undefined}
     >
       {body}
       {chrome && kind === 'video' && src && (
@@ -370,6 +554,7 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
       <SoloTrigger
         type="button"
         aria-label={alt}
+        disabled={openDisabled}
         onClick={onOpen}
         style={{ maxWidth: '100%' }}
       >
