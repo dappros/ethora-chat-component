@@ -4,9 +4,12 @@ import { useT } from '../../i18n/useT';
 
 /**
  * Our own "image could not be loaded" illustration. Pure inline SVG: no
- * raster, no <image>, no href, so nothing external is ever requested. The
- * colours come from the primary token through currentColor, so it follows
- * the host brand and the dark scheme.
+ * raster, no <image>, no href, so nothing external is ever requested. A soft
+ * photo card (rolling hills, a sun, a cloud) stays calm and intact; the
+ * "unavailable" cue is a small badge on its corner. Colours come from the
+ * primary token through currentColor, so it follows the host brand and the
+ * dark scheme. The badge ring defaults to the subtle surface the art sits
+ * on and can be overridden with --ethora-unavailable-ring.
  */
 const ArtWrap = styled.span`
   display: inline-flex;
@@ -19,59 +22,110 @@ export interface ImageUnavailableArtProps {
   size?: number;
 }
 
-export const ImageUnavailableArt: React.FC<ImageUnavailableArtProps> = ({ size = 96 }) => (
-  <ArtWrap aria-hidden="true" data-testid="image-unavailable-art">
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 96 96"
-      fill="none"
-     
-      focusable="false"
-    >
-      {/* Soft picture frame, a low-opacity tint of the brand blue. */}
-      <rect
-        x="12"
-        y="18"
-        width="72"
-        height="60"
-        rx="14"
-        fill="currentColor"
-        fillOpacity="0.12"
-      />
-      <rect
-        x="12.75"
-        y="18.75"
-        width="70.5"
-        height="58.5"
-        rx="13.25"
-        stroke="currentColor"
-        strokeOpacity="0.4"
-        strokeWidth="1.5"
-      />
-      {/* Sun and mountain ridge, the classic "picture" motif. */}
-      <circle cx="36" cy="38" r="6.5" fill="currentColor" fillOpacity="0.45" />
-      <path
-        d="M19 67 L39 48 L52 60 L61 52 L77 67 Z"
-        fill="currentColor"
-        fillOpacity="0.32"
-      />
-      {/* Cut-out slash, then the accent line on top of it: "not available". */}
-      <path
-        d="M22 22 L74 74"
-        stroke="var(--ethora-color-bg, #ffffff)"
-        strokeWidth="9"
-        strokeLinecap="round"
-      />
-      <path
-        d="M22 22 L74 74"
-        stroke="currentColor"
-        strokeWidth="3.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  </ArtWrap>
-);
+const RING = 'var(--ethora-unavailable-ring, var(--ethora-color-bg-subtle, #f3f6fc))';
+const WARM = 'var(--ethora-unavailable-accent, #e8920c)';
+
+export const ImageUnavailableArt: React.FC<ImageUnavailableArtProps> = ({ size = 96 }) => {
+  const uid = React.useId().replace(/:/g, '');
+  const clipId = `iu-clip-${uid}`;
+  const fillId = `iu-fill-${uid}`;
+  const small = size <= 40;
+  return (
+    <ArtWrap aria-hidden="true" data-testid="image-unavailable-art">
+      <svg width={size} height={size} viewBox="0 0 96 96" fill="none" focusable="false">
+        <defs>
+          <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="currentColor" stopOpacity="0.16" />
+            <stop offset="1" stopColor="currentColor" stopOpacity="0.05" />
+          </linearGradient>
+          <clipPath id={clipId}>
+            <rect x="12" y="20" width="66" height="56" rx="15" />
+          </clipPath>
+        </defs>
+
+        {!small && (
+          <rect
+            x="20"
+            y="14"
+            width="62"
+            height="54"
+            rx="14"
+            transform="rotate(-6 51 41)"
+            fill="currentColor"
+            fillOpacity="0.07"
+            stroke="currentColor"
+            strokeOpacity="0.16"
+            strokeWidth="1"
+          />
+        )}
+
+        {/* Front card: solid underlay keeps it legible, gradient tints it. */}
+        <rect
+          x="12"
+          y="20"
+          width="66"
+          height="56"
+          rx="15"
+          fill="var(--ethora-color-bg, #ffffff)"
+          fillOpacity="0.55"
+        />
+        <rect x="12" y="20" width="66" height="56" rx="15" fill={`url(#${fillId})`} />
+
+        <g clipPath={`url(#${clipId})`}>
+          {!small && (
+            <>
+              <circle cx="31" cy="39" r="10.5" fill="currentColor" fillOpacity="0.1" />
+              <path
+                d="M52 37.5h12a3.75 3.75 0 0 0 0-7.5 5 5 0 0 0-9.4-1.2A4.4 4.4 0 0 0 52 37.5Z"
+                fill="currentColor"
+                fillOpacity="0.28"
+              />
+            </>
+          )}
+          <circle cx="31" cy="39" r={small ? 6 : 5.5} fill="currentColor" fillOpacity="0.55" />
+          <path
+            d="M10 63C22 51 34 50 45 56S66 62 80 50V80H10Z"
+            fill="currentColor"
+            fillOpacity="0.24"
+          />
+          <path
+            d="M10 69C24 61 37 62 49 67S68 71 80 63V80H10Z"
+            fill="currentColor"
+            fillOpacity="0.34"
+          />
+        </g>
+        <rect
+          x="12.5"
+          y="20.5"
+          width="65"
+          height="55"
+          rx="14.5"
+          stroke="currentColor"
+          strokeOpacity="0.28"
+        />
+
+        {!small && (
+          <>
+            <path
+              d="M84 22v6M81 25h6"
+              stroke="currentColor"
+              strokeOpacity="0.5"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+            />
+          </>
+        )}
+
+        {/* Unavailable badge on the corner: ring, warm tint, "!" glyph. */}
+        <circle cx="74" cy="72" r="15" fill={RING} />
+        <circle cx="74" cy="72" r="12" fill={WARM} fillOpacity="0.2" />
+        <circle cx="74" cy="72" r="12" stroke={WARM} strokeOpacity="0.35" strokeWidth="1" />
+        <path d="M74 66.5v6.5" stroke={WARM} strokeWidth="2.4" strokeLinecap="round" />
+        <circle cx="74" cy="77.4" r="1.5" fill={WARM} />
+      </svg>
+    </ArtWrap>
+  );
+};
 
 const Box = styled.div<{ $compact: boolean }>`
   position: absolute;
