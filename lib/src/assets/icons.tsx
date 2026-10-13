@@ -1044,7 +1044,7 @@ export const InSendingIcon = ({
   </svg>
 );
 
-export const DoubleTick = ({ fill = '#fff', color = '#0052CD', ...props }) => (
+export const DoubleTick = ({ stroke = '#8C8C8C', ...props }) => (
   <svg
     width="16"
     height="16"
@@ -1055,7 +1055,7 @@ export const DoubleTick = ({ fill = '#fff', color = '#0052CD', ...props }) => (
   >
     <path
       d="M1.75 9.75L4.25 12.25M7.75 8.25L10.25 5.75M5.75 9.75L8.25 12.25L14.25 5.75"
-      stroke="#16A34A"
+      stroke={stroke}
       strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"

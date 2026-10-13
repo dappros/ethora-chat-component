@@ -9,6 +9,8 @@ import {
   setComposing,
   setCurrentRoom,
   setReactions,
+  setReceivedReceipt,
+  setDisplayedMarker,
   setRoomRole,
   setMemberOnline,
   setMemberOffline,
@@ -86,7 +88,9 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
     !stanza.getChild('subject') &&
     !stanza.is('iq') &&
     stanza?.attrs?.id !== 'deleteMessageStanza' &&
-    !stanza?.attrs?.id?.includes('message-reaction')
+    !stanza?.attrs?.id?.includes('message-reaction') &&
+    !stanza?.attrs?.id?.includes('message-received') &&
+    !stanza?.attrs?.id?.includes('message-displayed')
   ) {
     let parsed: Awaited<ReturnType<typeof getDataFromXml>>;
     try {
@@ -181,6 +185,13 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
     const appLoadTime = (window as any)._ethoraAppLoadTime || Date.now();
     const isWithinCatchupPeriod = Date.now() - appLoadTime < 2000;
 
+    // XEP-0184: ack every live message from someone else so their client can
+    // flip the tick from sent -> delivered. Skip our own echo, system
+    // messages, and MAM/catch-up replays (those aren't "just delivered").
+    if (!currentUserMessage && !isSystemMessage && !isHistory) {
+      xmppClient?.sendReceivedReceiptStanza(message.id, roomJID);
+    }
+
     const decision = shouldShowXmppToast({
       config: state.chatSettingStore.config,
       tabVisible: document.visibilityState === 'visible',
@@ -270,6 +281,52 @@ const onDeleteMessage = async (stanza: Element) => {
   }
 };
 
+// XEP-0184 delivery receipt, broadcast to the room (see
+// sendReceivedReceipt.xmpp.ts for why the real sender travels in the
+// <received> `from` attr rather than the stanza's own rewritten `from`).
+const onReceivedReceipt = async (stanza: Element) => {
+  if (!stanza?.attrs?.id?.includes('message-received')) return;
+  const received = stanza.getChild('received');
+  if (!received) return;
+
+  const messageId = received.attrs.id;
+  const from: string = received.attrs.from || '';
+  const fromXmppUsername = from.split('@')[0];
+  const roomJID = stanza.attrs.from?.split('/')[0];
+  if (!messageId || !fromXmppUsername || !roomJID) return;
+
+  store.dispatch(
+    setReceivedReceipt({
+      roomJID,
+      messageId,
+      fromXmppUsername,
+      timestamp: Date.now(),
+    })
+  );
+};
+
+// XEP-0333 read marker - room-level watermark (see setDisplayedMarker
+// reducer / lastDisplayedByUser on IRoom), not a per-message field.
+const onDisplayedMarker = async (stanza: Element) => {
+  if (!stanza?.attrs?.id?.includes('message-displayed')) return;
+  const displayed = stanza.getChild('displayed');
+  if (!displayed) return;
+
+  const messageId = displayed.attrs.id;
+  const from: string = displayed.attrs.from || '';
+  const xmppUsername = from.split('@')[0];
+  const roomJID = stanza.attrs.from?.split('/')[0];
+  if (!messageId || !xmppUsername || !roomJID) return;
+
+  store.dispatch(
+    setDisplayedMarker({
+      roomJID,
+      xmppUsername,
+      messageId,
+    })
+  );
+};
+
 const onEditMessage = async (stanza: Element) => {
   if (stanza?.attrs?.id?.includes('edit-message')) {
     const stanzaId = stanza.getChild('stanza-id');
@@ -340,7 +397,7 @@ const onReactionHistory = async (stanza: any) => {
   }
 };
 
-const onMessageHistory = async (stanza: any) => {
+const onMessageHistory = async (stanza: any, xmppClient?: XmppClient) => {
   if (
     stanza.is('message') &&
     (stanza.children[0] as any)?.attrs?.xmlns === 'urn:xmpp:mam:2'
@@ -359,16 +416,16 @@ const onMessageHistory = async (stanza: any) => {
       ...rest,
     });
 
-    const message = transformCallLogMessage(
-      rawMessage,
-      store.getState().chatSettingStore.user?.xmppUsername || ''
-    );
+    const currentXmppUsername =
+      store.getState().chatSettingStore.user?.xmppUsername || '';
+    const message = transformCallLogMessage(rawMessage, currentXmppUsername);
 
     // Same as the live path: insert first, enrich the sender name async so a
     // cold profile lookup never delays history rendering.
+    const roomJID = stanza.attrs.from;
     store.dispatch(
       addRoomMessage({
-        roomJID: stanza.attrs.from,
+        roomJID,
         message,
       })
     );
@@ -379,6 +436,19 @@ const onMessageHistory = async (stanza: any) => {
         }
       })
       .catch(() => {});
+
+    // XEP-0184: a message delivered while we were offline (MAM catch-up)
+    // never reaches the live-message ack path (onRealtimeMessage guards on
+    // !isHistory), so without this it would sit at "sent" forever even
+    // once we've actually received it. Dedup lives on the client so
+    // repeated MAM fetches of the same page don't re-send the ack.
+    const isSystemMessage = message.isSystemMessage === 'true';
+    if (
+      !isCurrentUserMessage(message.user?.id, currentXmppUsername) &&
+      !isSystemMessage
+    ) {
+      xmppClient?.sendHistoryReceivedReceiptStanza(roomJID, message.id);
+    }
   }
 };
 
@@ -1220,6 +1290,8 @@ export {
   onDeleteMessage,
   onEditMessage,
   onReactionMessage,
+  onReceivedReceipt,
+  onDisplayedMarker,
   onChatInvite,
   onRoomKicked,
   onRoomMembershipChange,

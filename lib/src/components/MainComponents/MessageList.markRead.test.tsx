@@ -9,9 +9,10 @@ import MessageList from './MessageList';
 // XmppProvider (and its connection setup) by mocking just the client it
 // needs for the realtime private-store write under test.
 const actionSetTimestampToPrivateStoreStanza = vi.fn();
+const sendDisplayedMarkerStanza = vi.fn();
 vi.mock('../../context/xmppProvider', () => ({
   useXmppClient: () => ({
-    client: { actionSetTimestampToPrivateStoreStanza },
+    client: { actionSetTimestampToPrivateStoreStanza, sendDisplayedMarkerStanza },
   }),
 }));
 
@@ -33,6 +34,7 @@ describe('MessageList real-time mark-read', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     actionSetTimestampToPrivateStoreStanza.mockClear();
+    sendDisplayedMarkerStanza.mockClear();
     // jsdom doesn't implement scrollTo - MessageList calls it unconditionally
     // when following the conversation to the bottom.
     window.HTMLElement.prototype.scrollTo = vi.fn();
