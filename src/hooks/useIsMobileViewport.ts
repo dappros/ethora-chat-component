@@ -26,3 +26,12 @@ export const useIsMobileViewport = (breakpoint = 480): boolean => {
 
   return isMobile;
 };
+
+/**
+ * Non-hook form of the same check, for event handlers that need the answer
+ * at the moment of the event rather than as render state.
+ */
+export const isMobileViewportNow = (breakpoint = 480): boolean =>
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia(`(max-width: ${breakpoint}px)`).matches;

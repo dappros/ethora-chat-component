@@ -450,6 +450,8 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             isMessageProcessing:
               isLastMessageFromUserAndProcessing(activeRoomJID),
             multiline: true,
+            // Chat switches from the room list land the caret here (desktop).
+            focusOnRoomSwitch: true,
             // No placeholderText here on purpose: SendInput falls back to
             // t('input.placeholder'), and passing a hardcoded English
             // string overrode that - the composer stayed "Type message" in
