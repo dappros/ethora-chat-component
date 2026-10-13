@@ -1,3 +1,4 @@
+import { downloadFile } from '../../../helpers/downloadFile';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import styled from 'styled-components';
 import { CenterContainer } from '../styledModalComponents';
@@ -222,40 +223,22 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
   }, [hasGallery, goPrevious, goNext]);
 
   const saveClick = () => {
-    fetch(withFileToken(activeFile.fileURL), {
-      method: 'GET',
-      headers: {},
-    })
-      .then((response) => {
-        // The old code appended the whole file name as the extension for
-        // anything that was not an image or video, so `report.pdf` saved as
-        // `MEDIA-ETHORA.report.pdf`. Keep the user's own name when we have
-        // one, and only synthesise an extension when we do not.
-        const hasOwnExtension = !!getFileExtension(activeFile.fileName);
-        const fallbackExtension =
-          kind === 'image' ? 'png' : kind === 'video' ? 'mp4' : 'bin';
-        const downloadName = hasOwnExtension
-          ? activeFile.fileName
-          : `MEDIA-ETHORA.${fallbackExtension}`;
+    // The old code appended the whole file name as the extension for
+    // anything that was not an image or video, so `report.pdf` saved as
+    // `MEDIA-ETHORA.report.pdf`. Keep the user's own name when we have
+    // one, and only synthesise an extension when we do not.
+    const hasOwnExtension = !!getFileExtension(activeFile.fileName);
+    const fallbackExtension =
+      kind === 'image' ? 'png' : kind === 'video' ? 'mp4' : 'bin';
+    const downloadName = hasOwnExtension
+      ? activeFile.fileName
+      : `MEDIA-ETHORA.${fallbackExtension}`;
 
-        response.arrayBuffer().then(function (buffer) {
-          if (typeof window === 'undefined') {
-            return;
-          }
-          const url = window.URL.createObjectURL(new Blob([buffer]));
-          const link = document.createElement('a');
-          link.href = url;
-          link.setAttribute('download', downloadName);
-          document.body.appendChild(link);
-          link.click();
-          // Both the node and the blob outlived every download before this.
-          link.remove();
-          window.URL.revokeObjectURL(url);
-        });
-      })
-      .catch((err) => {
+    downloadFile(withFileToken(activeFile.fileURL), downloadName).catch(
+      (err) => {
         ethoraLogger.log(err);
-      });
+      }
+    );
   };
 
   const closeModal = () => {
