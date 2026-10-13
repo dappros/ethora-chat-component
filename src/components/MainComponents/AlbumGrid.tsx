@@ -25,8 +25,10 @@ const Grid = styled.div<{
   grid-template-rows: ${({ $rows }) => $rows};
   aspect-ratio: ${({ $aspectRatio }) => $aspectRatio};
   gap: ${ALBUM_GAP_PX}px;
-  width: 100%;
-  max-width: min(360px, 100%);
+  /* A definite width: the bubble shrink-wraps its content, so a percentage
+     width here would collapse the album to its tiny intrinsic size. */
+  width: 360px;
+  max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
   overflow: hidden;
@@ -117,6 +119,21 @@ const AlbumGrid: React.FC<AlbumGridProps> = ({ items, onRetry }) => {
     [items, layout.visible]
   );
 
+  // Every openable item, so the viewer can page through the whole album even
+  // when the room's loaded messages do not carry it.
+  const siblings = useMemo(
+    () =>
+      items
+        .filter(({ attachment }) => Boolean(attachment.location))
+        .map(({ attachment }) => ({
+          fileName: getAttachmentName(attachment),
+          fileURL: attachment.location,
+          mimetype: attachment.mimetype || '',
+          previewURL: attachment.locationPreview || undefined,
+        })),
+    [items]
+  );
+
   const openAttachment = useCallback(
     (attachment: IAttachment, fileName: string) => {
       if (!attachment.location) return;
@@ -125,11 +142,12 @@ const AlbumGrid: React.FC<AlbumGridProps> = ({ items, onRetry }) => {
           fileName,
           fileURL: attachment.location,
           mimetype: attachment.mimetype || '',
+          siblings,
         })
       );
       dispatch(setActiveModal(MODAL_TYPES.FILE_PREVIEW));
     },
-    [dispatch]
+    [dispatch, siblings]
   );
 
   return (
