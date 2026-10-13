@@ -1,12 +1,14 @@
 import React from 'react';
 import styled from 'styled-components';
-import Loader from '../styled/Loader';
+import { MediaSpinner } from '../styled/StyledInputComponents/MediaComponents';
 import { useT } from '../../i18n/useT';
 
 const Scrim = styled.div<{ $failed: boolean }>`
   position: absolute;
   inset: 0;
   z-index: 1;
+  /* The spinner hides itself on tiny tiles by measuring this box. */
+  container-type: size;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -21,6 +23,12 @@ const Scrim = styled.div<{ $failed: boolean }>`
   background: ${({ $failed }) =>
     $failed ? 'rgba(185, 28, 28, 0.62)' : 'rgba(9, 16, 32, 0.48)'};
   pointer-events: none;
+`;
+
+/** White variant of the shared spinner, for the dark scrim over the image. */
+const OverlaySpinner = styled(MediaSpinner)`
+  border-color: rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
 `;
 
 const RetryGlyph = styled.span`
@@ -82,7 +90,7 @@ export const MediaUploadOverlay: React.FC<MediaUploadOverlayProps> = ({
   const rounded = Math.round(progress);
   return (
     <Scrim $failed={false} role="status">
-      <Loader size={24} color="#fff" />
+      <OverlaySpinner aria-hidden="true" />
       {rounded < 100 && <Percent>{`${rounded}%`}</Percent>}
     </Scrim>
   );
