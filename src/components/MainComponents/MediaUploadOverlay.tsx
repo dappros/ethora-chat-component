@@ -33,6 +33,19 @@ const RetryGlyph = styled.span`
   background: rgba(255, 255, 255, 0.18);
 `;
 
+/** The circular-arrow retry mark, shared by the failed tile and the "+N" badge. */
+export const RetryIcon: React.FC<{ size?: number }> = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <path
+      d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2.5v3h-3"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 const Percent = styled.span`
   font-variant-numeric: tabular-nums;
 `;
@@ -59,15 +72,7 @@ export const MediaUploadOverlay: React.FC<MediaUploadOverlayProps> = ({
     return (
       <Scrim $failed>
         <RetryGlyph aria-hidden="true">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path
-              d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2.5v3h-3"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <RetryIcon />
         </RetryGlyph>
         <span>{t('attachment.uploadFailed')}</span>
       </Scrim>
