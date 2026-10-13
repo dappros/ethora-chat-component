@@ -774,7 +774,7 @@ const Message: React.FC<MessageProps> = forwardRef<
               hour: '2-digit',
               minute: '2-digit',
             })}
-            {sentLogicEnabled && isUser && !isPending && (
+            {sentLogicEnabled && isUser && !isPending && !isFailed && (
               <TickStatusWrapper>
                 {readStatus === 'sent' ? (
                   <SingleTick color="#8C8C8C" />
