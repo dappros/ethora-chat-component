@@ -15,7 +15,6 @@ import {
   CustomMessageBubble,
   CustomMessageText,
   CustomUserName,
-  CustomMessagePhoto,
   CustomMessagePhotoContainer,
   MessageFooter,
 } from '../styled/StyledComponents';
@@ -24,7 +23,7 @@ import { shallowEqual, useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
 import { createUserNameFromSetUser } from '../../helpers/createUserNameFromSetUser';
 
-import { Avatar } from './Avatar';
+import { MessageAvatarPhoto } from './MessageAvatarPhoto';
 import MessageInteractions from './MessageInteractions';
 import {
   setActiveModal,
@@ -663,14 +662,11 @@ const Message: React.FC<MessageProps> = forwardRef<
             }
             style={avatarClickable ? undefined : { cursor: 'default' }}
           >
-            {senderProfileImage ? (
-              <CustomMessagePhoto src={senderProfileImage} alt="userIcon" />
-            ) : (
-              <Avatar
-                username={senderDisplayName}
-                style={{ cursor: avatarClickable ? 'pointer' : 'default' }}
-              />
-            )}
+            <MessageAvatarPhoto
+              src={senderProfileImage}
+              username={senderDisplayName}
+              style={{ cursor: avatarClickable ? 'pointer' : 'default' }}
+            />
           </CustomMessagePhotoContainer>
         )}
         <CustomMessageBubble

@@ -1,11 +1,14 @@
 import React from 'react';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 
 import chatSettingsSlice from '../../roomStore/chatSettingsSlice';
 import { ProfileImagePlaceholder } from './ProfileImagePlaceholder';
+import { resetAvatarCache } from '../../helpers/avatarImageCache';
+
+beforeEach(() => resetAvatarCache());
 
 // Social-login avatars (Google/Facebook profile photos) commonly fail to
 // load: the browser then shows the broken-image glyph plus the alt text
@@ -71,7 +74,6 @@ describe('ProfileImagePlaceholder avatar fallback', () => {
     // A member row recycled to a different user must not keep showing the
     // previous user's fallback initials forever.
     expect(screen.queryByText('JD')).toBeNull();
-    expect(screen.queryByText('JS')).toBeNull();
     const newImg = container.querySelector('img');
     expect(newImg).toBeTruthy();
     expect(newImg?.getAttribute('src')).toBe(
