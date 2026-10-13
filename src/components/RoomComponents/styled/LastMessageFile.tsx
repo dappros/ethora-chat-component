@@ -1,4 +1,4 @@
-import React, { FC } from 'react';
+import React, { FC, useState } from 'react';
 import styled from 'styled-components';
 import { LastMessage } from '../../../types/types';
 import {
@@ -31,11 +31,12 @@ const LastMessageFile: FC<LastMessageFileProps> = ({
   // the name line (and its trailing ":") entirely rather than rendering a
   // bare colon.
   const name = user?.name;
+  const [failedPreview, setFailedPreview] = useState<string | null>(null);
   return (
     <LastRoomMessageContainer>
       {name && <LastRoomMessageName>{name}</LastRoomMessageName>}
       <LastRoomMessageMedia>
-        {locationPreview ? (
+        {locationPreview && failedPreview !== locationPreview ? (
           <img
             src={appendFileToken(locationPreview, fileToken)}
             alt={locationPreview}
@@ -45,12 +46,12 @@ const LastMessageFile: FC<LastMessageFileProps> = ({
               maxWidth: '20px',
               maxHeight: '20px',
             }}
-            onError={(e) => {
+            onError={() => {
               if (isSecureFileUrl(locationPreview)) {
                 requestFileTokenRecovery();
               }
-              (e.target as HTMLImageElement).src =
-                'https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg';
+              // No remote placeholder: fall back to the inline file icon.
+              setFailedPreview(locationPreview);
             }}
           />
         ) : (

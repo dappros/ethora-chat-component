@@ -34,8 +34,9 @@ import {
   getFileKind,
 } from '../../../helpers/fileKind';
 import {
-  collectRoomImages,
+  collectRoomMedia,
   findGalleryIndex,
+  galleryFromFiles,
 } from '../../../helpers/roomImageGallery';
 import { ethoraLogger } from '../../../helpers/ethoraLogger';
 import {
@@ -56,6 +57,8 @@ import {
   SubLine,
   Thumb,
   ThumbImage,
+  ThumbPlayBadge,
+  ThumbVideoGlyph,
   ThumbStrip,
   TopBar,
   TopIdentity,
@@ -142,11 +145,25 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
 
   const kind: FileKind = getFileKind(activeFile?.mimetype, activeFile?.fileName);
 
-  const gallery = useMemo(() => collectRoomImages(roomMessages), [roomMessages]);
-  // Only images page. A PDF/video/other file is simply not in the gallery,
-  // so `index` is -1 and no navigation chrome renders for it.
+  const roomGallery = useMemo(() => collectRoomMedia(roomMessages), [roomMessages]);
+  const siblings = activeFile.siblings;
+  // The room's loaded messages are the gallery. When the opened file is not
+  // among them (an album whose message is outside the loaded window), the
+  // list the opener passed along is used instead, so paging still works.
+  const gallery = useMemo(() => {
+    if (findGalleryIndex(roomGallery, activeFile) >= 0) return roomGallery;
+    const fromSiblings = galleryFromFiles(siblings);
+    return findGalleryIndex(fromSiblings, activeFile) >= 0
+      ? fromSiblings
+      : roomGallery;
+  }, [roomGallery, siblings, activeFile]);
+  // Images and videos page. A PDF/audio/other file is simply not in the
+  // gallery, so `index` is -1 and no navigation chrome renders for it.
   const index = useMemo(
-    () => (kind === 'image' ? findGalleryIndex(gallery, activeFile) : -1),
+    () =>
+      kind === 'image' || kind === 'video'
+        ? findGalleryIndex(gallery, activeFile)
+        : -1,
     [gallery, activeFile, kind]
   );
   const hasGallery = index >= 0 && gallery.length > 1;
@@ -196,10 +213,12 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
           fileName: target.fileName,
           fileURL: target.fileURL,
           mimetype: target.mimetype,
+          // Keep the opener's list so paging never loses it.
+          siblings,
         })
       );
     },
-    [dispatch, gallery]
+    [dispatch, gallery, siblings]
   );
 
   const goPrevious = useCallback(() => {
@@ -215,7 +234,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
     if (!hasGallery || typeof Image === 'undefined') return;
     [index - 1, index + 1].forEach((neighbour) => {
       const entry = gallery[neighbour];
-      if (!entry) return;
+      if (!entry || entry.kind !== 'image') return;
       const src = appendFileToken(entry.fileURL, fileToken);
       if (src) new Image().src = src;
     });
@@ -255,6 +274,9 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
 
       if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
         if (!hasGallery) return;
+        // Arrows seek inside a focused video or audio player.
+        const tag = (event.target as HTMLElement | null)?.tagName;
+        if (tag === 'VIDEO' || tag === 'AUDIO') return;
         event.preventDefault();
         if (event.key === 'ArrowLeft') {
           goPrevious();
@@ -381,7 +403,14 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
         );
         break;
       case 'video':
-        media = <FullScreenVideo src={sourceURL} controls autoPlay={false} />;
+        media = (
+          <FullScreenVideo
+            key={sourceURL}
+            src={sourceURL}
+            controls
+            autoPlay={false}
+          />
+        );
         break;
       case 'audio':
         mediaFit = 'content';
@@ -454,7 +483,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
             aria-label={t('modal.filePreview.close')}
             title={t('modal.filePreview.close')}
           >
-            <CloseIcon color="currentColor" />
+            <CloseIcon color="currentColor" width={20} height={20} />
           </IconButton>
         </ActionGroup>
       </TopBar>
@@ -507,12 +536,20 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
                 aria-current={i === index ? 'true' : undefined}
                 onClick={() => goTo(i)}
               >
-                <ThumbImage
-                  src={appendFileToken(item.previewURL || item.fileURL, fileToken)}
-                  alt=""
-                  loading="lazy"
-                  draggable={false}
-                />
+                {item.kind === 'video' && !item.previewURL ? (
+                  <ThumbVideoGlyph />
+                ) : (
+                  <ThumbImage
+                    src={appendFileToken(
+                      item.previewURL || item.fileURL,
+                      fileToken
+                    )}
+                    alt=""
+                    loading="lazy"
+                    draggable={false}
+                  />
+                )}
+                {item.kind === 'video' && <ThumbPlayBadge />}
               </Thumb>
             ))}
           </ThumbStrip>

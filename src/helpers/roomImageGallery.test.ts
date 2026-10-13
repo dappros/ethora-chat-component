@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { collectRoomImages, findGalleryIndex } from './roomImageGallery';
+import {
+  collectRoomImages,
+  collectRoomMedia,
+  findGalleryIndex,
+  galleryFromFiles,
+} from './roomImageGallery';
 import { IMessage } from '../types/types';
 
 const message = (overrides: Partial<IMessage>): IMessage =>
@@ -181,5 +186,42 @@ describe('findGalleryIndex', () => {
       })
     ).toBe(-1);
     expect(findGalleryIndex(images, undefined)).toBe(-1);
+  });
+});
+
+describe('collectRoomMedia', () => {
+  const messages = [
+    message({ id: 'a', location: 'https://f.example/a.png', mimetype: 'image/png', originalName: 'a.png' }),
+    message({ id: 'b', location: 'https://f.example/b.mp4', mimetype: 'video/mp4', originalName: 'b.mp4' }),
+    message({ id: 'c', location: 'https://f.example/c.pdf', mimetype: 'application/pdf', originalName: 'c.pdf' }),
+  ];
+
+  it('pages through images and videos but not documents', () => {
+    const media = collectRoomMedia(messages);
+    expect(media.map((m) => [m.fileName, m.kind])).toEqual([
+      ['a.png', 'image'],
+      ['b.mp4', 'video'],
+    ]);
+  });
+
+  it('keeps collectRoomImages image-only', () => {
+    expect(collectRoomImages(messages).map((m) => m.fileName)).toEqual(['a.png']);
+  });
+});
+
+describe('galleryFromFiles', () => {
+  it('builds entries from an album list and drops items it cannot show', () => {
+    const entries = galleryFromFiles([
+      { fileName: 'a.png', fileURL: 'https://f.example/a.png', mimetype: 'image/png' },
+      { fileName: 'b.mp4', fileURL: 'https://f.example/b.mp4', mimetype: 'video/mp4' },
+      { fileName: 'c.pdf', fileURL: 'https://f.example/c.pdf', mimetype: 'application/pdf' },
+      { fileName: 'd.png', fileURL: '', mimetype: 'image/png' },
+    ]);
+    expect(entries.map((e) => e.fileName)).toEqual(['a.png', 'b.mp4']);
+    expect(findGalleryIndex(entries, { fileName: 'b.mp4', fileURL: 'https://f.example/b.mp4', mimetype: 'video/mp4' })).toBe(1);
+  });
+
+  it('is empty for no input', () => {
+    expect(galleryFromFiles(undefined)).toEqual([]);
   });
 });

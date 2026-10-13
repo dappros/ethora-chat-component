@@ -3,6 +3,7 @@ import styled, { css, keyframes } from 'styled-components';
 import { reducedMotion } from '../../../styles/motion';
 import { getFileExtension } from '../../../helpers/fileKind';
 import { useT } from '../../../i18n/useT';
+import { ImageUnavailableArt } from '../../MainComponents/ImageUnavailable';
 
 /*
  * Chrome for the full-screen media viewer. The viewer is a dark surface over
@@ -217,9 +218,18 @@ export const ThumbStrip = styled.div`
   padding: 4px 4px;
   scrollbar-width: thin;
   scrollbar-color: ${VIEWER_SURFACE_HOVER} transparent;
+
+  /* Touch users scroll by swipe; the bar only adds noise there. */
+  @media (pointer: coarse) {
+    scrollbar-width: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
 `;
 
 export const Thumb = styled.button<{ $active: boolean }>`
+  position: relative;
   flex: 0 0 auto;
   width: 48px;
   height: 48px;
@@ -254,6 +264,40 @@ export const ThumbImage = styled.img`
   object-fit: cover;
   pointer-events: none;
 `;
+
+/** Small play triangle over a video's thumbnail. */
+export const ThumbPlayBadge = () => (
+  <span
+    aria-hidden="true"
+    style={{
+      position: 'absolute',
+      inset: 0,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      pointerEvents: 'none',
+      color: '#fff',
+      background: 'rgba(0, 0, 0, 0.25)',
+    }}
+  >
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" />
+    </svg>
+  </span>
+);
+
+/** Stand-in thumbnail for a video that has no poster image. */
+export const ThumbVideoGlyph = () => (
+  <span
+    aria-hidden="true"
+    style={{
+      display: 'block',
+      width: '100%',
+      height: '100%',
+      background: 'linear-gradient(135deg, #2a3350, #151a2b)',
+    }}
+  />
+);
 
 export const ControlRow = styled.div`
   display: grid;
@@ -361,6 +405,20 @@ const SecondaryButton = styled(ButtonBase)`
   }
 `;
 
+/**
+ * Our unavailable-picture art, set on the viewer's dark card. The art cuts
+ * its slash out in the page background token, so that token is pinned to the
+ * card's own composite colour here instead of the light chat background.
+ */
+const ErrorArt = styled.span`
+  display: inline-flex;
+  --ethora-color-bg: #14171f;
+  color: ${VIEWER_TEXT};
+  > span {
+    color: #9cc0ff;
+  }
+`;
+
 interface ErrorPanelProps {
   onRetry: () => void;
   onDownload: () => void;
@@ -374,7 +432,9 @@ export const ErrorPanel: React.FC<ErrorPanelProps> = ({
   const t = useT();
   return (
     <Panel role="alert" data-testid="file-viewer-error">
-      <BrokenImageGlyph />
+      <ErrorArt>
+        <ImageUnavailableArt size={88} />
+      </ErrorArt>
       <PanelTitle>{t('modal.filePreview.unavailable')}</PanelTitle>
       <PanelActions>
         <SecondaryButton type="button" onClick={onRetry}>
@@ -501,15 +561,6 @@ export const DownloadGlyph = () => (
     <path d="M12 4v11" />
     <path d="M7 10l5 5 5-5" />
     <path d="M5 20h14" />
-  </svg>
-);
-
-export const BrokenImageGlyph = () => (
-  <svg {...glyphProps} width={56} height={56} strokeWidth={1.2}>
-    <rect x="3" y="4" width="18" height="16" rx="2.5" />
-    <circle cx="9" cy="10" r="1.8" />
-    <path d="M21 16l-5-5-8 9" />
-    <path d="M4 4l16 16" />
   </svg>
 );
 
