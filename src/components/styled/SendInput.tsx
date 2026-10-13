@@ -55,7 +55,7 @@ import { useRoomDirectory } from '../../hooks/useRoomDirectory';
 import MentionDropdown from '../InputComponents/MentionDropdown';
 import MentionPickerModal from '../InputComponents/MentionPickerModal';
 
-const DEFAULT_MAX_FILES = 5;
+const DEFAULT_MAX_FILES = MAX_ATTACHMENTS_PER_MESSAGE;
 
 /** Typing pause after which the composer commits its text as a draft. */
 const DRAFT_SAVE_DEBOUNCE_MS = 400;

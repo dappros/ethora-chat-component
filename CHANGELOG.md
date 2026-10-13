@@ -4,6 +4,10 @@ All notable changes to this package are documented here. For cross-SDK release n
 
 ## Unreleased
 
+### Changed
+
+- The composer now accepts up to 10 attachments per message by default (was 5). `config.attachments.maxFiles` still overrides it, and 10 remains the hard cap.
+
 ### Added
 
 - `config.colors.ownMessageBackground` / `otherMessageBackground` / `inputBackground`: background colours for own/other message bubbles and the message input bar (were hardcoded `#E7EDF9` / `#FFFFFF` / `#fff`).
