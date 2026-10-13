@@ -166,3 +166,16 @@ describe('AlbumGrid failures hidden behind the +N cell', () => {
     expect(screen.queryByRole('status')).toBeNull();
   });
 });
+
+describe('AlbumGrid viewer hand-off', () => {
+  it('passes every openable item so the viewer can page the whole album', () => {
+    const { storeRef } = setup(itemsFor(10));
+
+    fireEvent.click(tiles()[2]);
+
+    const active = storeRef.current.getState().chatSettingStore.activeFile;
+    expect(active.fileURL).toBe('https://files.example/3.png');
+    expect(active.siblings).toHaveLength(10);
+    expect(active.siblings[9].fileURL).toBe('https://files.example/10.png');
+  });
+});

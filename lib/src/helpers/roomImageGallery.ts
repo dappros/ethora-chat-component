@@ -21,6 +21,8 @@ export interface GallerySender {
 }
 
 export interface GalleryImage extends ModalFile {
+  /** What the entry renders as. Images zoom; videos play. */
+  kind: 'image' | 'video';
   /** Stable per message+slot, so two identical URLs are still two entries. */
   key: string;
   /** Low-resolution copy shown blurred while the full image loads. */
@@ -56,6 +58,16 @@ export interface GalleryImage extends ModalFile {
  */
 export const collectRoomImages = (
   messages?: Partial<IMessage>[] | null
+): GalleryImage[] => collectRoomMedia(messages, ['image']);
+
+/**
+ * Same walk as `collectRoomImages`, but the viewer's gallery also pages
+ * through videos, so an album of photos and clips opens as one sequence.
+ * PDFs, audio and other files are still excluded.
+ */
+export const collectRoomMedia = (
+  messages?: Partial<IMessage>[] | null,
+  kinds: Array<'image' | 'video'> = ['image', 'video']
 ): GalleryImage[] => {
   if (!Array.isArray(messages)) return [];
 
@@ -70,9 +82,12 @@ export const collectRoomImages = (
       // Empty location = still uploading; there is nothing to open yet.
       if (!attachment.location) return;
       const fileName = getAttachmentName(attachment);
-      if (getFileKind(attachment.mimetype, fileName) !== 'image') return;
+      const kind = getFileKind(attachment.mimetype, fileName);
+      if (kind !== 'image' && kind !== 'video') return;
+      if (!kinds.includes(kind)) return;
 
       images.push({
+        kind,
         key: `${message.id ?? messageIndex}:${slot}`,
         fileName,
         fileURL: attachment.location,
@@ -122,4 +137,32 @@ export const findGalleryIndex = (
   return images.findIndex(
     (image) => withoutFileToken(image.fileURL) === target
   );
+};
+
+/**
+ * Builds gallery entries from the file list a caller handed over with the
+ * open request (an album grid passes all of its tiles). Items without a
+ * location, or that are neither image nor video, are dropped.
+ */
+export const galleryFromFiles = (
+  files?: ModalFile[] | null
+): GalleryImage[] => {
+  if (!Array.isArray(files)) return [];
+  const entries: GalleryImage[] = [];
+  files.forEach((file, slot) => {
+    if (!file?.fileURL) return;
+    const kind = getFileKind(file.mimetype, file.fileName);
+    if (kind !== 'image' && kind !== 'video') return;
+    entries.push({
+      kind,
+      key: `album:${slot}`,
+      fileName: file.fileName,
+      fileURL: file.fileURL,
+      mimetype: file.mimetype || '',
+      previewURL: file.previewURL,
+      date: file.date,
+      sender: file.sender,
+    });
+  });
+  return entries;
 };

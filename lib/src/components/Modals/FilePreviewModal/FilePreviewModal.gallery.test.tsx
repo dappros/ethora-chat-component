@@ -244,4 +244,32 @@ describe('FilePreviewModal gallery navigation', () => {
       'Shared image'
     );
   });
+
+  it('pages through the opener\'s album when the room holds none of it', () => {
+    const siblings = ['a', 'b', 'c'].map((name) => ({
+      fileName: `${name}.png`,
+      fileURL: `${SECURE}/${name}.png`,
+      mimetype: 'image/png',
+    }));
+    renderWithProviders(<FilePreviewModal handleCloseModal={vi.fn()} />, {
+      preloadedState: stateWith({ ...siblings[1], siblings }, []),
+    });
+
+    expect(screen.getByTestId('lightbox-position')).toHaveTextContent('2 of 3');
+  });
+
+  it('includes videos in the gallery', () => {
+    renderWithProviders(<FilePreviewModal handleCloseModal={vi.fn()} />, {
+      preloadedState: stateWith(
+        { fileName: 'two.png', fileURL: `${SECURE}/two.png`, mimetype: 'image/png' },
+        [
+          imageMessage('1', 'one.png'),
+          { ...imageMessage('2', 'two.png') },
+          { ...imageMessage('3', 'clip.mp4'), mimetype: 'video/mp4' },
+        ]
+      ),
+    });
+
+    expect(screen.getByTestId('lightbox-position')).toHaveTextContent('2 of 3');
+  });
 });

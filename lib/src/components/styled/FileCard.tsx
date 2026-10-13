@@ -162,7 +162,7 @@ const FileCard = forwardRef<HTMLButtonElement, FileCardProps>(
           )}
         </Body>
         <Affordance aria-hidden="true">
-          <DownloadIcon width={14} height={14} />
+          <DownloadIcon color="currentColor" width={14} height={14} />
         </Affordance>
       </Card>
     );

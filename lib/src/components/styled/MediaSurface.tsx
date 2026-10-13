@@ -198,7 +198,7 @@ const PlayGlyph: React.FC = () => (
   </svg>
 );
 
-const VideoLayer: React.FC<{ src: string; label: string; compact: boolean }> = ({ src, label, compact }) => {
+const VideoLayer: React.FC<{ src: string; label: string; compact: boolean; poster?: string }> = ({ src, label, compact, poster }) => {
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   if (failed) return <ImageUnavailableState compact={compact} />;
@@ -208,6 +208,7 @@ const VideoLayer: React.FC<{ src: string; label: string; compact: boolean }> = (
       <VideoLayerEl
         data-media-layer="full"
         src={src}
+        poster={poster}
         aria-label={label}
         muted
         playsInline
@@ -300,7 +301,9 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
   const soloStyle: React.CSSProperties | undefined =
     variant === 'solo'
       ? {
-          width: `min(${solo.width}px, 100%)`,
+          // A definite width (the stage caps it at 100%): a percentage here
+          // collapses inside the shrink-wrapped bubble.
+          width: `${solo.width}px`,
           aspectRatio: `${solo.width} / ${solo.height}`,
           height: 'auto',
         }
@@ -309,7 +312,7 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
   let body: React.ReactNode;
   if (kind === 'video') {
     body = src ? (
-      <VideoLayer key={src} src={src} label={alt} compact={variant === 'fill'} />
+      <VideoLayer key={src} src={src} poster={previewSrc || undefined} label={alt} compact={variant === 'fill'} />
     ) : (
       <Skeleton $shimmer={pending} />
     );
