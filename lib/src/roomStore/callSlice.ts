@@ -28,6 +28,13 @@ export interface CallState {
   // name format "<userA>-<userB>" minus our own username.
   peerXmppUsername: string | null;
   token: string | null;
+  // Base64 media key for end-to-end encrypted calls, delivered over OMEMO
+  // (never through the server). Null when the call is not E2EE or the key has
+  // not arrived yet. Fed to LiveKit's ExternalE2EEKeyProvider in the session.
+  e2eeKey: string | null;
+  // The callId the e2eeKey belongs to, so a key from a stale/overlapping call
+  // can be told apart from the current one.
+  e2eeKeyCallId: string | null;
   error: string | null;
   startedAt: number | null;
   // When the call actually connected (phase -> 'in-call'). Null until then.
@@ -45,6 +52,8 @@ const initialState: CallState = {
   callId: null,
   peerXmppUsername: null,
   token: null,
+  e2eeKey: null,
+  e2eeKeyCallId: null,
   error: null,
   startedAt: null,
   connectedAt: null,
@@ -78,6 +87,10 @@ const callSlice = createSlice({
       state.peerXmppUsername = action.payload.peerXmppUsername || null;
       state.callId = null;
       state.token = null;
+      // Fresh call: drop any key left over from a previous one. The caller
+      // mints and distributes a new one for this call.
+      state.e2eeKey = null;
+      state.e2eeKeyCallId = null;
       state.error = null;
       state.startedAt = Date.now();
       state.connectedAt = null;
@@ -165,6 +178,15 @@ const callSlice = createSlice({
       if (state.phase === 'idle') return;
       state.kind = action.payload;
     },
+    // The end-to-end media key for the current call, arrived over OMEMO (as
+    // the caller's own generated key, or decrypted from the peer's signal).
+    setCallE2eeKey(
+      state,
+      action: PayloadAction<{ key: string; callId: string | null }>
+    ) {
+      state.e2eeKey = action.payload.key;
+      state.e2eeKeyCallId = action.payload.callId;
+    },
     resetCall() {
       return resetState();
     },
@@ -184,6 +206,7 @@ export const {
   setCallError,
   setCallPhase,
   setCallKind,
+  setCallE2eeKey,
   resetCall,
 } = callSlice.actions;
 

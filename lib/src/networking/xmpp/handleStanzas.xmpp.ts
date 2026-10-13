@@ -25,6 +25,7 @@ import XmppClient from '../xmppClient';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
 import { onEthoraEvent } from '../ethoraEvents';
 import { onCallTokenMessage } from '../callTokenStanza';
+import { onCallKeyStanza } from '../callKeyStanza';
 import { accountDomain, isE2eeEnabled } from '../../e2ee';
 import { decryptStanzaInPlace, encryptedCarrier } from '../../e2ee/stanza';
 
@@ -78,6 +79,13 @@ export function handleStanza(stanza: Element, xmppWs: XmppClient) {
   }
 
   if (stanza?.name === 'message' && onCallTokenMessage(stanza)) {
+    return;
+  }
+
+  // Decrypted call-key signal (E2EE calls): lift the media key into the call
+  // slice and swallow it, so it never renders as a chat message. Only non-inert
+  // once the OMEMO seam above has rewritten an <encrypted> stanza in place.
+  if (stanza?.name === 'message' && onCallKeyStanza(stanza)) {
     return;
   }
 

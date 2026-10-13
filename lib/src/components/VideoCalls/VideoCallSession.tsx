@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ConnectionState,
+  ExternalE2EEKeyProvider,
   Room,
   RoomConnectOptions,
   RoomEvent,
   RoomOptions,
   Track,
   VideoPresets,
+  isE2EESupported,
 } from 'livekit-client';
 import {
   RoomAudioRenderer,
@@ -47,6 +49,19 @@ interface VideoCallSessionProps {
   onConnected?: () => void;
   onError?: (message: string) => void;
   onHangup: () => void;
+  /** Request end-to-end encryption of the media for this call. */
+  e2ee?: boolean;
+  /** The shared media key (base64), delivered over OMEMO. May arrive late. */
+  e2eeKey?: string | null;
+  /** Host-supplied factory for the LiveKit E2EE worker (see VideoCallsConfig). */
+  e2eeWorkerFactory?: () => Worker;
+  /**
+   * A remote participant just joined the LiveKit room. The key owner uses this
+   * to re-send the E2EE media key over OMEMO: the newcomer is online now, so a
+   * peer who missed the ephemeral key at call start (e.g. woken by push) still
+   * receives it. See VideoCallOverlay.
+   */
+  onParticipantJoined?: () => void;
 }
 
 const DEFAULT_PRIMARY = '#0052CD';
@@ -1235,12 +1250,46 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
   onConnected,
   onError,
   onHangup,
+  e2ee = false,
+  e2eeKey,
+  e2eeWorkerFactory,
+  onParticipantJoined,
 }) => {
   const isAudioOnly = kind === 'audio';
   // Read the initial device state from refs so the connect effect stays
   // dependency-stable (it must run exactly once - see the callback refs below).
   const startCameraRef = useRef(startWithCameraOn);
   const startMicRef = useRef(startWithMicOn);
+
+  // E2EE is possible only with a host-supplied worker, in a secure context,
+  // and a browser that supports insertable streams. When any of those is
+  // missing the call still runs - just transport-encrypted, not end-to-end -
+  // so the key provider/worker are simply never created.
+  const canE2ee =
+    Boolean(e2ee) &&
+    typeof e2eeWorkerFactory === 'function' &&
+    typeof window !== 'undefined' &&
+    window.isSecureContext &&
+    isE2EESupported();
+
+  // Create the key provider + worker once per session. Keeping them in a memo
+  // keeps `roomOptions` (and therefore `room`) stable, so the connect effect
+  // still runs exactly once.
+  const e2eeSetup = useMemo(() => {
+    if (!canE2ee || !e2eeWorkerFactory) return undefined;
+    try {
+      return {
+        keyProvider: new ExternalE2EEKeyProvider(),
+        worker: e2eeWorkerFactory(),
+      };
+    } catch (err) {
+      console.warn('call E2EE: could not initialise key provider/worker', err);
+      return undefined;
+    }
+    // e2eeWorkerFactory is treated as stable (it comes from config); the worker
+    // must be created only once, so it is deliberately not a dependency.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canE2ee]);
 
   const roomOptions: RoomOptions = useMemo(
     () => ({
@@ -1250,11 +1299,50 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
       adaptiveStream: { pixelDensity: 'screen' },
       dynacast: true,
       singlePeerConnection: false,
+      ...(e2eeSetup
+        ? {
+            e2ee: {
+              keyProvider: e2eeSetup.keyProvider,
+              worker: e2eeSetup.worker,
+            },
+          }
+        : {}),
     }),
-    []
+    [e2eeSetup]
   );
 
   const room = useMemo(() => new Room(roomOptions), [roomOptions]);
+
+  // Apply the shared key and turn encryption on once the key arrives (it is
+  // exchanged over OMEMO, which can land before or after this session mounts).
+  // Both peers set the same key, so the SFU only ever forwards opaque frames.
+  useEffect(() => {
+    if (!e2eeSetup || !e2eeKey) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        await e2eeSetup.keyProvider.setKey(e2eeKey);
+        if (!cancelled) await room.setE2EEEnabled(true);
+      } catch (err) {
+        console.warn('call E2EE: failed to enable encryption', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [e2eeSetup, e2eeKey, room]);
+
+  // Tear the worker down with the session so it does not leak between calls.
+  useEffect(
+    () => () => {
+      try {
+        e2eeSetup?.worker.terminate();
+      } catch {
+        // worker may already be gone; nothing to do
+      }
+    },
+    [e2eeSetup]
+  );
 
   const connectOptions = useMemo(
     (): RoomConnectOptions => ({ autoSubscribe: true }),
@@ -1270,10 +1358,26 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
   // a "call ended" log - so accepting a call instantly tore it down.
   const onConnectedRef = useRef(onConnected);
   const onErrorRef = useRef(onError);
+  const onParticipantJoinedRef = useRef(onParticipantJoined);
   useEffect(() => {
     onConnectedRef.current = onConnected;
     onErrorRef.current = onError;
-  }, [onConnected, onError]);
+    onParticipantJoinedRef.current = onParticipantJoined;
+  }, [onConnected, onError, onParticipantJoined]);
+
+  // Re-send the E2EE media key whenever a remote participant joins. The key is
+  // distributed over OMEMO once at call start, as an ephemeral signal the
+  // server does not store; a peer who was offline then (woken by the call
+  // push) would otherwise join with encryption armed but no key. Firing on the
+  // live join means the newcomer is online, so the re-sent key reaches them.
+  // Kept out of the connect effect so it never re-runs room.connect.
+  useEffect(() => {
+    const onJoin = () => onParticipantJoinedRef.current?.();
+    room.on(RoomEvent.ParticipantConnected, onJoin);
+    return () => {
+      room.off(RoomEvent.ParticipantConnected, onJoin);
+    };
+  }, [room]);
 
   // Device (camera/mic) permission/availability problems - shown as a
   // dismissible hint, never fail the whole call.
