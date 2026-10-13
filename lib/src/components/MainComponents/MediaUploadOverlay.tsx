@@ -1,9 +1,17 @@
 import React from 'react';
-import styled, { css } from 'styled-components';
+import styled, { css, keyframes } from 'styled-components';
 import { useT } from '../../i18n/useT';
 import { reducedMotion } from '../../styles/motion';
 
-const Scrim = styled.div<{ $failed: boolean }>`
+/** How long the scrim takes to fade once the upload is done. */
+export const SCRIM_FADE_MS = 180;
+
+const scrimOut = keyframes`
+  from { opacity: 1; }
+  to { opacity: 0; }
+`;
+
+const Scrim = styled.div<{ $failed: boolean; $leaving?: boolean }>`
   position: absolute;
   inset: 0;
   z-index: 2;
@@ -14,7 +22,9 @@ const Scrim = styled.div<{ $failed: boolean }>`
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 8px;
+  /* No padding: a container query measures the content box, and the ring
+     must appear exactly when the whole 64px box can hold it. */
+  padding: 0;
   box-sizing: border-box;
   border-radius: inherit;
   text-align: center;
@@ -34,8 +44,36 @@ const Scrim = styled.div<{ $failed: boolean }>`
           backdrop-filter: blur(6px) saturate(1.1);
         `}
 
-  @container (max-width: 64px) {
+  ${({ $leaving }) =>
+    $leaving
+      ? css`
+          animation: ${scrimOut} ${SCRIM_FADE_MS}ms ease both;
+          ${reducedMotion}
+          @media (prefers-reduced-motion: reduce) {
+            opacity: 0;
+          }
+        `
+      : ''}
+
+  .upload-failed-label {
+    padding: 0 8px;
+  }
+
+  /* The ring is a fixed circle: it appears only when the box can hold it. */
+  @container (max-width: 63px) {
     .upload-ring {
+      display: none;
+    }
+  }
+
+  @container (max-height: 63px) {
+    .upload-ring {
+      display: none;
+    }
+  }
+
+  @container (max-width: 99px) {
+    .upload-failed-label {
       display: none;
     }
   }
@@ -145,6 +183,8 @@ interface MediaUploadOverlayProps {
   /** `uploading` covers "waiting for the siblings" too; `failed` is a retry prompt. */
   status: 'uploading' | 'failed';
   progress?: number;
+  /** Upload is done: fade the scrim out instead of leaving it up. */
+  leaving?: boolean;
 }
 
 /**
@@ -156,6 +196,7 @@ interface MediaUploadOverlayProps {
 export const MediaUploadOverlay: React.FC<MediaUploadOverlayProps> = ({
   status,
   progress = 0,
+  leaving = false,
 }) => {
   const t = useT();
 
@@ -165,14 +206,14 @@ export const MediaUploadOverlay: React.FC<MediaUploadOverlayProps> = ({
         <RetryGlyph aria-hidden="true">
           <RetryIcon />
         </RetryGlyph>
-        <span>{t('attachment.uploadFailed')}</span>
+        <span className="upload-failed-label">{t('attachment.uploadFailed')}</span>
       </Scrim>
     );
   }
 
   const rounded = Math.round(progress);
   return (
-    <Scrim $failed={false} role="status" aria-label={t('media.uploadProgress', { percent: rounded })}>
+    <Scrim $failed={false} $leaving={leaving} role="status" aria-label={t('media.uploadProgress', { percent: rounded })}>
       <ProgressRing percent={progress}>
         {rounded < 100 && <Percent>{`${rounded}%`}</Percent>}
       </ProgressRing>

@@ -698,6 +698,12 @@ export const useSendMessage = () => {
         size: file.size?.toString(),
         uploadStatus: 'uploading',
         uploadProgress: 0,
+        // The sender's own picture, so it shows at once at its real size.
+        // Skipped in an e2ee room, where the optimistic bubble stays blank.
+        ...(!isE2ee && typeof URL !== 'undefined' && URL.createObjectURL
+          && (file.type || type || '').startsWith('image/')
+          ? { localUrl: URL.createObjectURL(file) }
+          : {}),
       }));
       const uploaded: Array<IAttachment | undefined> = files.map(() => undefined);
       const rawResults: Array<any | undefined> = files.map(() => undefined);
@@ -882,7 +888,13 @@ export const useSendMessage = () => {
                 // addRoomMessage drops anything with no body, so this patch
                 // has to carry the one the bubble already has.
                 body: 'media',
-                attachments,
+                // Keep the local picture on screen until the server copy
+                // has loaded; it is never serialised.
+                attachments: attachments.map((attachment, index) =>
+                  items[index]?.localUrl
+                    ? { ...attachment, localUrl: items[index].localUrl }
+                    : attachment
+                ),
                 location: head.location,
                 locationPreview: head.locationPreview,
                 mimetype: head.mimetype,

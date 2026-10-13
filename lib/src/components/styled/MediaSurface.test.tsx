@@ -36,6 +36,9 @@ const declarationsFor = (el: Element) => {
   return decls.join(';');
 };
 
+const hasHoverZoom = (el: Element) =>
+  generatedClasses(el).some((cls) => emittedCss().includes(`.${cls}:hover[data-media-layer='full']{transform:scale(1.03)`));
+
 const RealImage = globalThis.Image;
 const RealFetch = globalThis.fetch;
 
@@ -73,7 +76,7 @@ describe('MediaSurface loading and unavailable states', () => {
     const image = await screen.findByAltText('photo.png');
     expect(image).toHaveAttribute('src', url);
     expect(image).toHaveAttribute('data-media-layer', 'full');
-    expect(declarationsFor(image)).toMatch(/animation:.*180ms/);
+    expect(declarationsFor(image)).toMatch(/animation:.*220ms/);
   });
 
   it('blurs the preview while the full file is still loading, then swaps to the full image', async () => {
@@ -167,6 +170,124 @@ describe('MediaSurface loading and unavailable states', () => {
     const stage = screen.getByTestId('media-surface');
     expect(stage.firstElementChild).not.toHaveStyle({ animation: 'none' });
     expect(declarationsFor(stage.firstElementChild as Element)).not.toMatch(/shimmer/);
+  });
+});
+
+describe('MediaSurface solo sizing and loading states', () => {
+  beforeEach(() => {
+    probes = [];
+    class ProbeImage {
+      src = '';
+      naturalWidth = 0;
+      naturalHeight = 0;
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      constructor() {
+        probes.push(this as unknown as Probe);
+      }
+    }
+    globalThis.Image = ProbeImage as unknown as typeof Image;
+    globalThis.fetch = vi.fn(async () => ({ status: 200 })) as never;
+  });
+  afterEach(() => {
+    globalThis.Image = RealImage;
+    globalThis.fetch = RealFetch;
+  });
+
+  const loadWith = (url: string, width: number, height: number) => {
+    const probe = probes.filter((p) => p.src === url).pop();
+    if (probe) {
+      probe.naturalWidth = width;
+      probe.naturalHeight = height;
+    }
+    settle(url, 'load');
+  };
+
+  it('reserves a neutral 4:3 box while the size is unknown, then eases to the real ratio', async () => {
+    const url = 'https://files.example/phone.png';
+    renderWithProviders(<MediaSurface kind="image" variant="solo" src={url} alt="phone.png" pending={false} />);
+    const stage = screen.getByTestId('media-surface') as HTMLElement;
+    expect(stage).toHaveAttribute('data-mode', 'placeholder');
+    expect(stage.style.aspectRatio).toBe('320 / 240');
+    expect(emittedCss()).toMatch(/transition:width160msease,aspect-ratio160msease/);
+
+    loadWith(url, 390, 844);
+    await screen.findByAltText('phone.png');
+    expect(stage.style.aspectRatio).toBe('176 / 380');
+    expect(stage).toHaveAttribute('data-mode', 'fit');
+  });
+
+  it('takes the ratio from a downscaled preview before the full image arrives', async () => {
+    const full = 'https://files.example/full.png';
+    const preview = 'https://files.example/thumb.png';
+    renderWithProviders(
+      <MediaSurface kind="image" variant="solo" src={full} previewSrc={preview} alt="full.png" pending={false} />,
+    );
+    loadWith(preview, 100, 200);
+    await waitFor(() =>
+      expect((screen.getByTestId('media-surface') as HTMLElement).style.aspectRatio).toBe('190 / 380'),
+    );
+    expect(screen.getByTestId('media-load-bar')).toBeInTheDocument();
+  });
+
+  it('shows a tiny picture at natural size on a tile, with no hover zoom', async () => {
+    const url = 'https://files.example/icon.png';
+    renderWithProviders(
+      <MediaSurface kind="image" variant="solo" src={url} alt="icon.png" pending={false} onOpen={() => undefined} />,
+    );
+    loadWith(url, 24, 24);
+    const image = await screen.findByAltText('icon.png');
+    const stage = screen.getByTestId('media-surface') as HTMLElement;
+    expect(stage).toHaveAttribute('data-mode', 'natural');
+    expect(stage.style.width).toBe('64px');
+    expect((image as HTMLElement).style.width).toBe('24px');
+    expect((image as HTMLElement).style.height).toBe('24px');
+    expect(hasHoverZoom(stage)).toBe(false);
+  });
+
+  it('keeps zoom for a normal picture', async () => {
+    const url = 'https://files.example/normal.png';
+    renderWithProviders(
+      <MediaSurface kind="image" variant="solo" src={url} alt="normal.png" pending={false} onOpen={() => undefined} />,
+    );
+    loadWith(url, 800, 600);
+    await screen.findByAltText('normal.png');
+    expect(hasHoverZoom(screen.getByTestId('media-surface'))).toBe(true);
+  });
+
+  it('shows the sender\'s local picture at its real size before the server file exists', async () => {
+    const local = 'blob:ethora-test/1';
+    renderWithProviders(
+      <MediaSurface kind="image" variant="solo" src="" localSrc={local} alt="mine.png" pending />,
+    );
+    loadWith(local, 600, 1200);
+    const image = await screen.findByAltText('mine.png');
+    expect(image).toHaveAttribute('src', local);
+    expect((screen.getByTestId('media-surface') as HTMLElement).style.aspectRatio).toBe('190 / 380');
+  });
+
+  it('keeps the local picture on screen while the server copy loads', async () => {
+    const local = 'blob:ethora-test/2';
+    const url = 'https://files.example/mine.png';
+    const { container } = renderWithProviders(
+      <MediaSurface kind="image" variant="solo" src={url} localSrc={local} alt="mine.png" pending={false} />,
+    );
+    loadWith(local, 800, 600);
+    await screen.findByAltText('mine.png');
+    expect(container.querySelector('[data-media-layer="local"]')).not.toBeNull();
+    loadWith(url, 800, 600);
+    await waitFor(() => expect(container.querySelector('[data-media-layer="full"]')).not.toBeNull());
+    expect(container.querySelector('[data-media-layer="local"]')).toBeNull();
+  });
+
+  it('turns off every motion under prefers-reduced-motion', async () => {
+    const url = 'https://files.example/rm.png';
+    renderWithProviders(<MediaSurface kind="image" variant="solo" src={url} alt="rm.png" pending={false} />);
+    loadWith(url, 800, 600);
+    await screen.findByAltText('rm.png');
+    const css = emittedCss();
+    expect(css).toMatch(/@media\(prefers-reduced-motion:reduce\)\{[^}]*animation:none!important/);
+    expect(css).toMatch(/@media\(prefers-reduced-motion:reduce\)\{[^}]*transition:none!important/);
   });
 });
 

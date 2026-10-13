@@ -53,6 +53,7 @@ export const normalizeAttachment = (raw: unknown): IAttachment | null => {
     size: asOptionalString(source.size),
     duration: asOptionalString(source.duration),
     ...optionalDimensions(source),
+    ...optionalLocalUrl(source),
     ownerKey: asOptionalString(source.ownerKey),
     userId: asOptionalString(source.userId),
     createdAt: asOptionalString(source.createdAt),
@@ -75,6 +76,12 @@ const optionalDimensions = (
     ...(height !== undefined ? { height } : {}),
   };
 };
+
+/** The sender's own blob URL; anything that is not a blob URL is dropped. */
+const optionalLocalUrl = (source: Record<string, unknown>): Pick<IAttachment, 'localUrl'> =>
+  typeof source.localUrl === 'string' && source.localUrl.startsWith('blob:')
+    ? { localUrl: source.localUrl }
+    : {};
 
 /**
  * Local upload state rides along on optimistic attachments only; it is
