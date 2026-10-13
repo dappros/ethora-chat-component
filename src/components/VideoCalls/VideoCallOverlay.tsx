@@ -456,6 +456,19 @@ export const VideoCallOverlay: React.FC = () => {
   useEffect(() => {
     if (call.phase === 'idle') e2eeDistributedRef.current = null;
   }, [call.phase]);
+  // Re-send the already-generated key when a peer joins the LiveKit room. The
+  // caller owns the key (it was dispatched by the effect above), so only the
+  // outgoing side re-distributes; the joiner is online now, so the ephemeral
+  // OMEMO signal reaches a peer who missed it at call start (e.g. woken by the
+  // call push). Same key, so no rekey is needed for the 1-to-1 case; the newly
+  // online peer simply receives it. No-op until the key exists.
+  const redistributeCallKey = useCallback(() => {
+    if (!callE2eeEnabled || call.direction !== 'outgoing') return;
+    const roomJid = call.roomJid;
+    if (!roomJid || !call.e2eeKey) return;
+    if (!isE2eeEnabled() || !isE2eeRoom(roomJid)) return;
+    void distributeCallKey(roomJid, call.callId || '', call.e2eeKey);
+  }, [callE2eeEnabled, call.direction, call.roomJid, call.callId, call.e2eeKey]);
   // Whether THIS call should be end-to-end encrypted: the feature is on, the
   // chat's OMEMO is running (app gate), and the room is one the backend marked
   // e2ee. LiveKit needs the key provider at Room construction, so the session
@@ -774,6 +787,7 @@ export const VideoCallOverlay: React.FC = () => {
                 e2ee={callIsE2ee}
                 e2eeKey={call.e2eeKey}
                 e2eeWorkerFactory={videoCallsConfig?.e2ee?.workerFactory}
+                onParticipantJoined={redistributeCallKey}
               />
             </div>
           </div>
