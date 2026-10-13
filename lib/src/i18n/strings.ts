@@ -189,6 +189,7 @@ const en: UiStringTable = {
   'attachment.dropHint': 'Drop files here to attach',
   'attachment.uploadFailed': 'Upload failed',
   'attachment.retryUpload': 'Retry upload of {file}',
+  'attachment.hiddenFailed': '{count} failed, tap to retry',
   'attachment.moreCount': '+{count}',
   'modal.filePreview.openExternally': 'Open in a new tab',
   'modal.filePreview.pdfUnavailable':
@@ -525,6 +526,7 @@ const fr: UiStringTable = {
   'attachment.dropHint': 'Déposez les fichiers ici pour les joindre',
   'attachment.uploadFailed': 'Échec de l’envoi',
   'attachment.retryUpload': 'Réessayer l’envoi de {file}',
+  'attachment.hiddenFailed': '{count} échec(s), appuyez pour réessayer',
   'attachment.moreCount': '+{count}',
   'modal.filePreview.openExternally': 'Ouvrir dans un nouvel onglet',
   'modal.filePreview.pdfUnavailable':
@@ -864,6 +866,7 @@ const es: UiStringTable = {
   'attachment.dropHint': 'Suelta los archivos aquí para adjuntarlos',
   'attachment.uploadFailed': 'Error al subir',
   'attachment.retryUpload': 'Reintentar la subida de {file}',
+  'attachment.hiddenFailed': '{count} fallido(s), toca para reintentar',
   'attachment.moreCount': '+{count}',
   'modal.filePreview.openExternally': 'Abrir en una pestaña nueva',
   'modal.filePreview.pdfUnavailable':
@@ -1201,6 +1204,7 @@ const pt: UiStringTable = {
   'attachment.dropHint': 'Solte os arquivos aqui para anexar',
   'attachment.uploadFailed': 'Falha no envio',
   'attachment.retryUpload': 'Tentar enviar {file} novamente',
+  'attachment.hiddenFailed': '{count} falharam, toque para tentar novamente',
   'attachment.moreCount': '+{count}',
   'modal.filePreview.openExternally': 'Abrir num novo separador',
   'modal.filePreview.pdfUnavailable':
@@ -1537,6 +1541,7 @@ const ht: UiStringTable = {
   'attachment.dropHint': 'Lage fichye yo isit la pou tache yo',
   'attachment.uploadFailed': 'Telechaj echwe',
   'attachment.retryUpload': 'Re-eseye telechaje {file}',
+  'attachment.hiddenFailed': '{count} echwe, tape pou re-eseye',
   'attachment.moreCount': '+{count}',
   'modal.filePreview.openExternally': 'Louvri nan yon nouvo onglè',
   'modal.filePreview.pdfUnavailable':
@@ -1871,6 +1876,7 @@ const zh: UiStringTable = {
   'attachment.dropHint': '将文件拖放到此处以添加附件',
   'attachment.uploadFailed': '上传失败',
   'attachment.retryUpload': '重新上传 {file}',
+  'attachment.hiddenFailed': '{count} 个失败，点击重试',
   'attachment.moreCount': '+{count}',
   'modal.filePreview.openExternally': '在新标签页中打开',
   'modal.filePreview.pdfUnavailable': '此 PDF 无法在此显示，但仍可打开或下载。',

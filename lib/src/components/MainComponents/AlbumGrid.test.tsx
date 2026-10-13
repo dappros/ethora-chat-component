@@ -94,3 +94,75 @@ describe('AlbumGrid layouts', () => {
     expect(onRetry).toHaveBeenCalledWith(1);
   });
 });
+
+describe('AlbumGrid failures hidden behind the +N cell', () => {
+  it('shows a retry badge on +N and retries the hidden failed index on tap', () => {
+    const onRetry = vi.fn();
+    const items = itemsFor(5);
+    items[4] = {
+      index: 4,
+      attachment: attachment(5, { location: '', uploadStatus: 'failed' }),
+    };
+    const { storeRef } = setup(items, onRetry);
+
+    const more = tiles()[3];
+    expect(within(more).getByText('+1')).toBeInTheDocument();
+    expect(more).toHaveAccessibleName('1 failed, tap to retry');
+    // The hidden failure is not drawn as a tile of its own.
+    expect(screen.queryByText('Upload failed')).toBeNull();
+
+    fireEvent.click(more);
+
+    expect(onRetry).toHaveBeenCalledTimes(1);
+    expect(onRetry).toHaveBeenCalledWith(4);
+    expect(storeRef.current.getState().chatSettingStore.activeModal).toBeUndefined();
+  });
+
+  it('retries every hidden failed index when several are folded behind +N', () => {
+    const onRetry = vi.fn();
+    const items = itemsFor(6);
+    items[4] = { index: 4, attachment: attachment(5, { location: '', uploadStatus: 'failed' }) };
+    items[5] = { index: 5, attachment: attachment(6, { location: '', uploadStatus: 'failed' }) };
+    setup(items, onRetry);
+
+    const more = tiles()[3];
+    expect(within(more).getByText('+2')).toBeInTheDocument();
+    expect(more).toHaveAccessibleName('2 failed, tap to retry');
+
+    fireEvent.click(more);
+
+    expect(onRetry.mock.calls).toEqual([[4], [5]]);
+  });
+
+  it('keeps opening the preview when no hidden item failed', () => {
+    const onRetry = vi.fn();
+    const { storeRef } = setup(itemsFor(5), onRetry);
+
+    const more = tiles()[3];
+    expect(within(more).getByText('+1')).toBeInTheDocument();
+    expect(more).toHaveAccessibleName('photo-4.png');
+
+    fireEvent.click(more);
+
+    expect(onRetry).not.toHaveBeenCalled();
+    expect(storeRef.current.getState().chatSettingStore.activeFile).toMatchObject({
+      fileURL: 'https://files.example/4.png',
+    });
+  });
+
+  it('shows nothing new for a hidden item that is still uploading', () => {
+    const onRetry = vi.fn();
+    const items = itemsFor(5);
+    items[4] = {
+      index: 4,
+      attachment: attachment(5, { location: '', uploadStatus: 'uploading', uploadProgress: 10 }),
+    };
+    setup(items, onRetry);
+
+    const more = tiles()[3];
+    expect(more).toHaveAccessibleName('photo-4.png');
+    expect(screen.queryByText(/failed, tap to retry/)).toBeNull();
+    expect(screen.queryByText('Upload failed')).toBeNull();
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+});
