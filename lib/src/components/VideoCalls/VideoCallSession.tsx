@@ -55,6 +55,13 @@ interface VideoCallSessionProps {
   e2eeKey?: string | null;
   /** Host-supplied factory for the LiveKit E2EE worker (see VideoCallsConfig). */
   e2eeWorkerFactory?: () => Worker;
+  /**
+   * A remote participant just joined the LiveKit room. The key owner uses this
+   * to re-send the E2EE media key over OMEMO: the newcomer is online now, so a
+   * peer who missed the ephemeral key at call start (e.g. woken by push) still
+   * receives it. See VideoCallOverlay.
+   */
+  onParticipantJoined?: () => void;
 }
 
 const DEFAULT_PRIMARY = '#0052CD';
@@ -1246,6 +1253,7 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
   e2ee = false,
   e2eeKey,
   e2eeWorkerFactory,
+  onParticipantJoined,
 }) => {
   const isAudioOnly = kind === 'audio';
   // Read the initial device state from refs so the connect effect stays
@@ -1350,10 +1358,26 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
   // a "call ended" log - so accepting a call instantly tore it down.
   const onConnectedRef = useRef(onConnected);
   const onErrorRef = useRef(onError);
+  const onParticipantJoinedRef = useRef(onParticipantJoined);
   useEffect(() => {
     onConnectedRef.current = onConnected;
     onErrorRef.current = onError;
-  }, [onConnected, onError]);
+    onParticipantJoinedRef.current = onParticipantJoined;
+  }, [onConnected, onError, onParticipantJoined]);
+
+  // Re-send the E2EE media key whenever a remote participant joins. The key is
+  // distributed over OMEMO once at call start, as an ephemeral signal the
+  // server does not store; a peer who was offline then (woken by the call
+  // push) would otherwise join with encryption armed but no key. Firing on the
+  // live join means the newcomer is online, so the re-sent key reaches them.
+  // Kept out of the connect effect so it never re-runs room.connect.
+  useEffect(() => {
+    const onJoin = () => onParticipantJoinedRef.current?.();
+    room.on(RoomEvent.ParticipantConnected, onJoin);
+    return () => {
+      room.off(RoomEvent.ParticipantConnected, onJoin);
+    };
+  }, [room]);
 
   // Device (camera/mic) permission/availability problems - shown as a
   // dismissible hint, never fail the whole call.

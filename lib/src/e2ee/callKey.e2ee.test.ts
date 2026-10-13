@@ -118,6 +118,39 @@ describe('call key over OMEMO', () => {
     expect(decrypted?.content).toContain('ethora:call:e2ee:0');
   });
 
+  it('can be re-sent so a peer who missed the first signal still gets the key', async () => {
+    // Models the ParticipantConnected re-distribution: the key is sent once at
+    // call start and again when the peer actually joins. A peer woken by the
+    // call push was offline for the first (ephemeral) signal, so recovering the
+    // key from the re-send is what makes E2EE work for them.
+    const pep: Pep = new Map();
+    const aliceClient = fakeClient(pep, ALICE);
+    const alice = await Omemo.create(aliceClient as never, ALICE, createMemoryStore());
+    const bob = await Omemo.create(
+      fakeClient(pep, BOB) as never,
+      BOB,
+      createMemoryStore()
+    );
+
+    const key = generateCallKey();
+    // 1) call start - the peer is treated as having missed this one.
+    expect(
+      await alice.sendGroupSignal(ROOM, [ALICE, BOB], [callKeyElement('call-3', key)], 'sig-3a')
+    ).toBe(true);
+    // 2) re-sent on join. Same key: no rekey needed for the 1-to-1 case.
+    expect(
+      await alice.sendGroupSignal(ROOM, [ALICE, BOB], [callKeyElement('call-3', key)], 'sig-3b')
+    ).toBe(true);
+
+    expect(aliceClient.sent.length).toBe(2);
+    expect(aliceClient.sent[0].attrs.id).not.toBe(aliceClient.sent[1].attrs.id);
+
+    // Bob decrypts only the re-send (he missed the first) and still recovers it.
+    const decrypted = await bob.decrypt(aliceClient.sent[1], ALICE, ROOM);
+    expect(decrypted?.error).toBeUndefined();
+    expect(decrypted?.content).toContain(key);
+  });
+
   it('returns false when no member has an OMEMO device', async () => {
     const pep: Pep = new Map();
     const alice = await Omemo.create(
