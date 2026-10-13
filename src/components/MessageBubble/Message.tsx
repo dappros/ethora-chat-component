@@ -33,7 +33,11 @@ import {
 } from '../../roomStore/chatSettingsSlice';
 import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 import { BottomReplyContainer } from './BottomReplyContainer';
-import { setActiveMessage, setEditAction } from '../../roomStore/roomsSlice';
+import {
+  removeRoomMessage,
+  setActiveMessage,
+  setEditAction,
+} from '../../roomStore/roomsSlice';
 import { MessageReply } from './MessageReply';
 import { DeletedMessage } from './DeletedMessage';
 import { useXmppClient } from '../../context/xmppProvider';
@@ -68,7 +72,7 @@ import {
   shouldTagOutgoingTranslateSource,
 } from '../../utils/translateModePolicy';
 import { resendMessage } from '../../utils/resendMessage';
-import { retryMediaSend } from '../../helpers/mediaSendRetry';
+import { hasMediaRetry, retryMediaSend } from '../../helpers/mediaSendRetry';
 
 // Inherits CustomMessageTimestamp's colour/size - just the WhatsApp/
 // Telegram-style italic to read as a tag, not a second timestamp.
@@ -89,6 +93,14 @@ const FailedNotice = styled.div`
   justify-content: flex-end;
   gap: 8px;
   margin-top: 4px;
+  color: var(--ethora-color-danger, #d92d20);
+  font-family: var(--ethora-font-family, 'Open Sans', sans-serif);
+  font-size: var(--ethora-font-size-xs, 0.75rem);
+`;
+
+const FailedNote = styled.div`
+  margin-top: 2px;
+  text-align: right;
   color: var(--ethora-color-danger, #d92d20);
   font-family: var(--ethora-font-family, 'Open Sans', sans-serif);
   font-size: var(--ethora-font-size-xs, 0.75rem);
@@ -517,6 +529,13 @@ const Message: React.FC<MessageProps> = forwardRef<
   // server accepted can never stay in this state.
   const sentLogicEnabled = !config?.disableSentLogic;
   const isFailed = Boolean(sentLogicEnabled && isUser && message?.failed);
+  // A failed media message keeps its File objects and retry runner only in
+  // memory. After a reload the message can still be in the persisted store
+  // with no runner behind it, and a Retry button there would do nothing. In
+  // that case offer Remove instead, which drops the optimistic message.
+  const mediaRetryLost = Boolean(
+    isFailed && message?.isMediafile === 'true' && !hasMediaRetry(message.id)
+  );
 
   // Buttons the bot attached to this message. Only ever shown on incoming
   // messages: an outgoing bubble carrying them would mean the user is
@@ -573,6 +592,14 @@ const Message: React.FC<MessageProps> = forwardRef<
     },
     [config?.eventHandlers, message.id, message.roomJid, sendMessage]
   );
+
+  const handleRemoveLostMedia = () => {
+    // Hard removal: the optimistic message never reached the server, so a
+    // tombstone would read as a deleted message that was never sent.
+    dispatch(
+      removeRoomMessage({ roomJID: message.roomJid, messageId: message.id })
+    );
+  };
 
   const handleRetrySend = () => {
     if (!isFailed) return;
@@ -798,7 +825,22 @@ const Message: React.FC<MessageProps> = forwardRef<
               onSelect={handleQuickReply}
             />
           )}
-          {isFailed && (
+          {isFailed && mediaRetryLost && (
+            <>
+              <FailedNotice>
+                <span>{t('message.notDelivered')}</span>
+                <RetryButton
+                  type="button"
+                  onClick={handleRemoveLostMedia}
+                  aria-label={t('message.removeAriaLabel')}
+                >
+                  {t('message.remove')}
+                </RetryButton>
+              </FailedNotice>
+              <FailedNote>{t('message.mediaLostNote')}</FailedNote>
+            </>
+          )}
+          {isFailed && !mediaRetryLost && (
             <FailedNotice>
               <span>{t('message.notDelivered')}</span>
               <RetryButton
