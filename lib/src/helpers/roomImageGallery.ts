@@ -11,9 +11,24 @@ import { withoutFileToken } from './secureFileUrl';
  * download action, the secure `?ft=` token treatment, the alt text - keeps
  * reading exactly the fields it read when a single file was opened by hand.
  */
+export interface GallerySender {
+  id?: string;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  /** Profile photo URL, when the sender has one. */
+  photo?: string;
+}
+
 export interface GalleryImage extends ModalFile {
   /** Stable per message+slot, so two identical URLs are still two entries. */
   key: string;
+  /** Low-resolution copy shown blurred while the full image loads. */
+  previewURL?: string;
+  /** Message timestamp (ISO), shown in the viewer's header. */
+  date?: string;
+  /** Who posted it; the viewer header shows their name and avatar. */
+  sender?: GallerySender;
 }
 
 /**
@@ -62,6 +77,20 @@ export const collectRoomImages = (
         fileName,
         fileURL: attachment.location,
         mimetype: attachment.mimetype || '',
+        previewURL: attachment.locationPreview || undefined,
+        date:
+          message.date instanceof Date
+            ? message.date.toISOString()
+            : message.date,
+        sender: message.user
+          ? {
+              id: message.user.id,
+              username: message.user.username,
+              firstName: message.user.firstName,
+              lastName: message.user.lastName,
+              photo: message.user.profileImage || undefined,
+            }
+          : undefined,
       });
     });
   });
