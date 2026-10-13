@@ -406,14 +406,15 @@ const SecondaryButton = styled(ButtonBase)`
 `;
 
 /**
- * Our unavailable-picture art, set on the viewer's dark card. The art cuts
- * its slash out in the page background token, so that token is pinned to the
- * card's own composite colour here instead of the light chat background.
+ * Our unavailable-picture art, set on the viewer's dark card. The badge ring
+ * is pinned to the card's own composite colour instead of the light chat
+ * surface, and the art takes the viewer's light brand blue.
  */
 const ErrorArt = styled.span`
   display: inline-flex;
+  --ethora-unavailable-ring: #14171f;
   --ethora-color-bg: #14171f;
-  color: ${VIEWER_TEXT};
+  --ethora-unavailable-accent: #f5b544;
   > span {
     color: #9cc0ff;
   }
