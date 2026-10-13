@@ -494,16 +494,20 @@ const Message: React.FC<MessageProps> = forwardRef<
 
     let tooltip: string;
     if (status === 'seen') {
-      tooltip = isGroupRoom ? `Read by ${seenBy.map(nameOf).join(', ')}` : 'Read';
+      tooltip = isGroupRoom
+        ? t('message.receipt.readBy', { names: seenBy.map(nameOf).join(', ') })
+        : t('message.receipt.read');
     } else if (status === 'delivered') {
       tooltip = isGroupRoom
-        ? `Delivered to ${receivedBy.map(nameOf).join(', ')}`
-        : 'Delivered';
+        ? t('message.receipt.deliveredTo', {
+            names: receivedBy.map(nameOf).join(', '),
+          })
+        : t('message.receipt.delivered');
     } else {
-      tooltip = 'Sent';
+      tooltip = t('message.receipt.sent');
     }
     return { status, tooltip };
-  }, [message.receivedBy, seenBy, usersSet, isGroupRoom]);
+  }, [message.receivedBy, seenBy, usersSet, isGroupRoom, t]);
   const readStatus = tickInfo.status;
 
   // "failed" is only ever a prompt to retry, never a claim the message was
