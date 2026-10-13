@@ -8,7 +8,7 @@ import React, {
   ReactNode,
   useEffect,
 } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch, useSelector, useStore } from 'react-redux';
 import styled from 'styled-components';
 import { IMessage } from '../types/models/message.model';
 import { MessageNotificationData } from '../components/MessageNotification/MessageNotificationToast';
@@ -23,6 +23,7 @@ import {
   buildNotificationUrl,
 } from '../utils/notificationPolicy';
 import { showBrowserNotification } from '../utils/notificationUtils';
+import { buildNotificationContent } from '../utils/messageNotificationContent';
 import { ethoraLogger } from '../helpers/ethoraLogger';
 import {
   useResolvedColorScheme,
@@ -79,6 +80,7 @@ export const MessageNotificationProvider: React.FC<{
   );
   const isTabVisible = useTabVisibility();
   const dispatch = useDispatch();
+  const reduxStore = useStore<RootState>();
   const activeRoomJID = useSelector((state: RootState) => state.rooms.activeRoomJID);
   // True exactly while the chat UI (ChatWrapper) is mounted - see
   // useChatWrapperInit's mount/unmount effect. Distinct from activeRoomJID:
@@ -323,8 +325,23 @@ export const MessageNotificationProvider: React.FC<{
       });
 
       if (osPushDecision.show) {
-        const title = roomName || 'New message';
-        const body = message.body || 'You have a new message.';
+        // Title/body come from the store (profile name, room name, message
+        // text or attachment label), not from the raw stanza ids the caller
+        // may only have; null means this message must not raise an alert.
+        const state = reduxStore.getState();
+        const content = buildNotificationContent({
+          message,
+          roomJID,
+          room: state.rooms.rooms[roomJID],
+          usersSet: state.rooms.usersSet,
+          currentXmppUsername: state.chatSettingStore?.user?.xmppUsername,
+          activeRoomJID: state.rooms.activeRoomJID,
+          tabVisible: isTabVisible,
+          locale: config?.i18n?.locale || state.chatSettingStore?.langSource,
+          strings: config?.i18n?.strings,
+        });
+        if (!content) return;
+
         const notificationIcon = config?.pushNotifications?.iconPath || '/favicon.ico';
         const notificationBadge =
           config?.pushNotifications?.badgePath ||
@@ -336,14 +353,16 @@ export const MessageNotificationProvider: React.FC<{
         );
 
         void showBrowserNotification(
-          title,
+          content.title,
           {
-            body: `${senderName}: ${body}`,
+            body: content.body,
             icon: notificationIcon,
             badge: notificationBadge,
-            tag: 'ethora-notification',
+            // One entry per room; a newer message replaces it and re-alerts.
+            tag: content.tag,
+            renotify: true,
             data: { url, roomJID, messageId: message.id },
-          },
+          } as NotificationOptions & { data?: any },
           config?.pushNotifications?.serviceWorkerScope || '/',
           () => {
             window.focus();
@@ -352,7 +371,7 @@ export const MessageNotificationProvider: React.FC<{
         );
       }
     },
-    [config, isEnabled, isTabVisible, isChatUiVisible, isLoggedIn, showToastNotification, navigateToMessage]
+    [config, reduxStore, isEnabled, isTabVisible, isChatUiVisible, isLoggedIn, showToastNotification, navigateToMessage]
   );
 
   // Register the callback with the global manager - gated on isLoggedIn so
