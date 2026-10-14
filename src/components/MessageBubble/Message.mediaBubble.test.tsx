@@ -65,6 +65,7 @@ const makeMessage = (overrides: Partial<IMessage> = {}): IMessage =>
 
 const mediaMessage = (attachments: IAttachment[], overrides: Partial<IMessage> = {}) =>
   makeMessage({
+    body: 'media',
     isMediafile: 'true',
     attachments,
     mimetype: attachments[0]?.mimetype,

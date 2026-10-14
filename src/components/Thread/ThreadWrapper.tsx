@@ -179,11 +179,11 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
         roomJid,
         true,
         isChecked,
-        createMainMessageForThread(activeMessage),
+        createMainMessageForThread(activeMessage, t),
         mentions
       );
     },
-    [activeMessage, isChecked, roomJid, sendMs]
+    [activeMessage, isChecked, roomJid, sendMs, t]
   );
 
   const sendMedia = useCallback(
@@ -194,11 +194,11 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
         roomJid,
         true,
         isChecked,
-        createMainMessageForThread(activeMessage),
+        createMainMessageForThread(activeMessage, t),
         caption
       );
     },
-    [activeMessage, isChecked, roomJid, sendMessageMedia]
+    [activeMessage, isChecked, roomJid, sendMessageMedia, t]
   );
 
   const sendStartComposing = useCallback(() => {

@@ -61,6 +61,8 @@ const MediaMessage: React.FC<MediaMessageProps> = ({
         originalName: message?.originalName,
         fileName: message?.fileName,
         size: message?.size,
+        duration: (message as any)?.duration,
+        mediaDuration: (message as any)?.mediaDuration,
       }).map((attachment) => ({
         ...attachment,
         location: appendFileToken(attachment.location, fileToken),
@@ -76,6 +78,8 @@ const MediaMessage: React.FC<MediaMessageProps> = ({
       message?.originalName,
       message?.fileName,
       message?.size,
+      (message as any)?.duration,
+      (message as any)?.mediaDuration,
       location,
       locationPreview,
       mimeType,

@@ -6,6 +6,7 @@ import { IMessage } from '../../types/models/message.model';
 import { RootState } from '../../roomStore';
 import { stripBotMarkup } from '../../helpers/botMarkup';
 import { isSvgFile } from '../../helpers/fileKind';
+import { getAttachmentName, getMessageAttachments, isMediaMessage } from '../../helpers/attachments';
 import { getMessageCaption } from '../../helpers/caption';
 
 export interface MessageNotificationData {
@@ -242,23 +243,25 @@ const formatTime = (timestamp: number): string => {
 };
 
 const mediaPreviewLabel = (message: IMessage): string => {
-  if (
-    message.mimetype?.startsWith('image/') &&
-    !isSvgFile(message.mimetype, message.originalName || message.fileName)
-  ) {
+  // Read the kind off the normalised attachment, so a file sent with no
+  // mimetype (or octet-stream) is still a photo, video or audio by its name.
+  const [first] = getMessageAttachments(message);
+  const mimetype = first?.mimetype ?? message.mimetype;
+  const name = first ? getAttachmentName(first) : message.originalName || message.fileName;
+  if (mimetype?.startsWith('image/') && !isSvgFile(mimetype, name)) {
     return '📷 Photo';
   }
-  if (message.mimetype?.startsWith('video/')) {
+  if (mimetype?.startsWith('video/')) {
     return '🎥 Video';
   }
-  if (message.mimetype?.startsWith('audio/')) {
+  if (mimetype?.startsWith('audio/')) {
     return '🎵 Audio';
   }
   return '📎 File';
 };
 
 const getMessagePreview = (message: IMessage): string => {
-  if (message.isMediafile === 'true') {
+  if (isMediaMessage(message)) {
     const label = mediaPreviewLabel(message);
     const caption = getMessageCaption(message);
     return caption ? `${label}, ${caption}` : label;
@@ -350,7 +353,7 @@ const MessageNotificationToast: React.FC<MessageNotificationToastProps> = ({
         <Avatar $photoURL={userPhotoURL} data-testid="notification-avatar" />
         <MessageBody>
           <SenderName>{senderName}</SenderName>
-          {message.isMediafile === 'true' ? (
+          {isMediaMessage(message) ? (
             <MediaIndicator>{messagePreview}</MediaIndicator>
           ) : (
             <MessageText>{messagePreview}</MessageText>

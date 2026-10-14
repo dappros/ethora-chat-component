@@ -73,7 +73,7 @@ import {
 } from '../../utils/translateModePolicy';
 import { resendMessage } from '../../utils/resendMessage';
 import { hasMediaRetry, retryMediaSend } from '../../helpers/mediaSendRetry';
-import { getMessageAttachments } from '../../helpers/attachments';
+import { getMessageAttachments, isMediaMessage } from '../../helpers/attachments';
 import { getMessageCaption } from '../../helpers/caption';
 import {
   getMediaBlockMode,
@@ -648,7 +648,7 @@ const Message: React.FC<MessageProps> = forwardRef<
 
   // A media bubble lays out its files as one block (see AttachmentList). When
   // that block is only pictures or videos, the time floats over it as a pill.
-  const isMediaBubble = message?.isMediafile === 'true' && !message?.isDeleted;
+  const isMediaBubble = isMediaMessage(message);
   const mediaAttachments = isMediaBubble ? getMessageAttachments(message) : [];
   const mediaBlockMode = getMediaBlockMode(mediaAttachments);
   const showsTranslateRow =
@@ -787,7 +787,7 @@ const Message: React.FC<MessageProps> = forwardRef<
               color={config?.colors?.primary}
             />
           )}
-          {message?.isMediafile === 'true' && !message?.isDeleted ? (
+          {isMediaBubble ? (
             <>
               <MediaMessage
                 mimeType={message.mimetype}

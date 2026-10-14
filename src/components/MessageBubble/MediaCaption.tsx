@@ -1,9 +1,8 @@
 import React from 'react';
 import styled from 'styled-components';
-import { IMentionSpan } from '../../types/types';
 import { CustomMessageText } from '../styled/StyledComponents';
 import { MentionClickHandler, parseMessageBody } from '../../helpers/parseMessageBody';
-import { getMessageCaption } from '../../helpers/caption';
+import { resolveMessageCaption } from '../../helpers/caption';
 
 /**
  * The text a media message carries under its files (under the cards when there
@@ -25,20 +24,21 @@ const CaptionText = styled(CustomMessageText)`
 `;
 
 interface MediaCaptionProps {
-  message: { caption?: unknown; captionMentions?: IMentionSpan[] };
+  /** The message: its caption, or the text a legacy sender put in `body`. */
+  message: object;
   onMentionClick?: MentionClickHandler;
 }
 
 const MediaCaption: React.FC<MediaCaptionProps> = ({ message, onMentionClick }) => {
-  const caption = getMessageCaption(message);
-  if (!caption) return null;
+  const resolved = resolveMessageCaption(message);
+  if (!resolved) return null;
 
   return (
     <CaptionText data-testid="media-caption">
       <div className="message-body">
         {parseMessageBody({
-          text: caption,
-          mentions: message.captionMentions,
+          text: resolved.text,
+          mentions: resolved.mentions,
           onMentionClick,
         })}
       </div>
