@@ -73,4 +73,22 @@ describe('AttachmentList media block', () => {
     );
     expect(block()).toHaveAttribute('data-mode', 'plain');
   });
+
+  it('renders every picture and video as one album ahead of the cards, in picked order', () => {
+    // Picked: svg, picture, pdf, video, picture.
+    renderWithProviders(<AttachmentList attachments={[svg, img(1), pdf, video, img(2)]} />);
+    const grid = screen.getByTestId('album-grid');
+    expect(grid.querySelectorAll('button')).toHaveLength(3);
+    const cards = within(block()).getAllByRole('button').filter((b) => b.getAttribute('title')?.match(/logo\.svg|doc\.pdf/));
+    expect(cards.map((c) => c.getAttribute('title'))).toEqual(['logo.svg', 'doc.pdf']);
+    cards.forEach((card) => {
+      expect(grid.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+  });
+
+  it('shows a PDF card with its size and no page count', () => {
+    renderWithProviders(<AttachmentList attachments={[{ ...pdf, size: '331469' }]} />);
+    expect(screen.getByText('323.7 KB')).toBeTruthy();
+    expect(screen.queryByText(/\bpages?\b/i)).toBeNull();
+  });
 });

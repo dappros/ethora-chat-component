@@ -2,13 +2,18 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { IAttachment, ModalFile } from '../../types/types';
 import { getAttachmentName } from '../../helpers/attachments';
 import { getFileKind } from '../../helpers/fileKind';
+import {
+  getMediaBlockMode,
+  MediaBlockMode,
+  partitionAttachments,
+} from '../../helpers/mediaBubble';
 import CustomMessageImage from '../styled/MessageImage';
 import CustomMessageVideo from '../styled/VideoMessage';
 import AudioMessage from '../styled/AudioMessage';
 import PdfMessage from '../styled/PdfMessage';
 import FileDownload from '../styled/UnsupportedType';
 import MediaSurface from '../styled/MediaSurface';
-import AlbumGrid, { AlbumGridItem } from './AlbumGrid';
+import AlbumGrid from './AlbumGrid';
 import { MediaUploadOverlay, SCRIM_FADE_MS } from './MediaUploadOverlay';
 import styled from 'styled-components';
 import { useT } from '../../i18n/useT';
@@ -183,16 +188,6 @@ const AttachmentRowWithStatus: React.FC<{
   );
 };
 
-/**
- * How the message's files share one column:
- *  - album: the grid sets the block, `--ethora-media-w` wide; cards stretch to it.
- *  - solo: one picture or video; the block shrink-wraps the picture (at most
- *    the media width) and any cards stretch to that.
- *  - files: documents only; the media width, capped so a lone card is no bar.
- *  - plain: voice notes only, which keep their own width.
- */
-export type MediaBlockMode = 'album' | 'solo' | 'files' | 'plain';
-
 const MediaBlock = styled.div<{ $mode: MediaBlockMode; $cards: boolean }>`
   display: flex;
   flex-direction: column;
@@ -206,8 +201,9 @@ const MediaBlock = styled.div<{ $mode: MediaBlockMode; $cards: boolean }>`
       case 'files':
         return `width: min(${MEDIA_WIDTH_CSS}, ${FILE_ONLY_MAX_WIDTH_PX}px);`;
       case 'solo':
-        // A card under a tiny picture must still be readable.
-        return `width: fit-content; max-width: min(100%, ${MEDIA_WIDTH_CSS});${
+        // A card under a tiny picture must still be readable. The block sits
+        // centred so a tiny picture is centred in its minimum-width bubble.
+        return `width: fit-content; max-width: min(100%, ${MEDIA_WIDTH_CSS}); align-self: center;${
           $cards ? ` min-width: min(100%, 240px);` : ''
         }`;
       default:
@@ -231,62 +227,21 @@ const AttachmentList: React.FC<AttachmentListProps> = ({
   sender,
   date,
 }) => {
-  const { tiles, rows } = useMemo(() => {
-    const indexed: AlbumGridItem[] = attachments.map((attachment, index) => ({
-      attachment,
-      index,
-    }));
-    if (attachments.length < 2) {
-      return { tiles: [] as AlbumGridItem[], rows: indexed };
-    }
-
-    const tileable: AlbumGridItem[] = [];
-    const rowed: AlbumGridItem[] = [];
-
-    indexed.forEach((item) => {
-      const kind = getFileKind(
-        item.attachment.mimetype,
-        getAttachmentName(item.attachment)
-      );
-      if (kind === 'image' || kind === 'video') {
-        tileable.push(item);
-      } else {
-        rowed.push(item);
-      }
-    });
-
-    // A lone picture next to documents looks wrong in an album - give it the
-    // normal renderer, in the order it was picked.
-    if (tileable.length === 1) {
-      return { tiles: [] as AlbumGridItem[], rows: indexed };
-    }
-
-    return { tiles: tileable, rows: rowed };
-  }, [attachments]);
+  const { tiles, rows } = useMemo(
+    () => partitionAttachments(attachments),
+    [attachments]
+  );
 
   if (attachments.length === 0) {
     return null;
   }
 
   const compact = attachments.length > 1;
-  const kindOf = (item: AlbumGridItem) =>
-    getFileKind(item.attachment.mimetype, getAttachmentName(item.attachment));
-  const hasSoloMedia = rows.some((item) => {
-    const kind = kindOf(item);
-    return kind === 'image' || kind === 'video';
-  });
-  const hasCards = rows.some((item) => {
-    const kind = kindOf(item);
+  const hasCards = rows.some(({ attachment }) => {
+    const kind = getFileKind(attachment.mimetype, getAttachmentName(attachment));
     return kind !== 'image' && kind !== 'video' && kind !== 'audio';
   });
-  const mode: MediaBlockMode =
-    tiles.length > 0
-      ? 'album'
-      : hasSoloMedia
-        ? 'solo'
-        : hasCards
-          ? 'files'
-          : 'plain';
+  const mode = getMediaBlockMode(attachments);
 
   return (
     <MediaBlock $mode={mode} $cards={hasCards} data-testid="media-block" data-mode={mode}>
