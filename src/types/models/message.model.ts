@@ -134,6 +134,12 @@ export interface MessageProps {
   message: IMessage;
   isUser: boolean;
   isReply: boolean;
+  /**
+   * False when the next message comes from the same sender (a run). The last
+   * message of a run carries the bubble tail and the larger gap below it.
+   * Omitted means last.
+   */
+  isLastInGroup?: boolean;
 }
 
 export interface MediaMessageType {}
