@@ -8,7 +8,7 @@ In this guide you will get an overview of the contribution workflow from opening
 
 ## New contributor guide
 
-To get an overview of the project, read the [README](README.md). Here are some resources to help you get started with open source contributions:
+To get an overview of the project, read the [README](README.md). Branch names, commits, local CI and releases are described in [docs/WORKFLOW.md](docs/WORKFLOW.md). Here are some resources to help you get started with open source contributions:
 
 - [Finding ways to contribute to open source on GitHub](https://docs.github.com/en/get-started/exploring-projects-on-github/finding-ways-to-contribute-to-open-source-on-github)
 - [Set up Git](https://docs.github.com/en/get-started/quickstart/set-up-git)
