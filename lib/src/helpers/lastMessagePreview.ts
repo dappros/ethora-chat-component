@@ -47,6 +47,8 @@ type PreviewSource = Partial<LastMessage> & {
   location?: string;
   /** The caption the sender typed with the files, carried on the message. */
   caption?: unknown;
+  duration?: unknown;
+  mediaDuration?: unknown;
 };
 
 const attachmentsOf = (message: PreviewSource): IAttachment[] =>
@@ -58,6 +60,8 @@ const attachmentsOf = (message: PreviewSource): IAttachment[] =>
     originalName: message.originalName,
     fileName: message.fileName ?? message.filename,
     size: message.size,
+    duration: message.duration,
+    mediaDuration: message.mediaDuration,
   });
 
 /**
@@ -120,26 +124,15 @@ export const deriveMediaPreview = (
   if (!isFlaggedMedia(message) && attachments.length === 0) return undefined;
 
   const sealed = options.sealed === true || message.clientEncrypted === 'true';
-  const body = String(message.body ?? '').trim();
-  // Some senders put their own name or email in `body` next to the media;
-  // that is not a caption.
-  const echoesSender = (options.senderNames ?? []).some(
-    (name) => {
-      const n = String(name || '').trim().toLowerCase();
-      const b = body.toLowerCase();
-      return Boolean(n && b && (n === b || n.split(/\s+/).every((p) => p === b)));
-    }
-  );
-  // A caption carried on the message wins. It only exists here once the
-  // message was read (sealed captions are decrypted before they land), so
-  // it is shown in a sealed room too. The body fallback is for older senders
-  // that put their text in `body` and is never trusted for a sealed row.
-  const carriedCaption = getMessageCaption(message as { caption?: unknown });
-  const caption =
-    carriedCaption ??
-    (!sealed && body && body.toLowerCase() !== MEDIA_BODY && !echoesSender
-      ? body
-      : undefined);
+  // The same rule as the bubble: a carried caption, a caption alias, or a
+  // real `body` (older senders put their text there). Never read for a
+  // sealed row. `isMedia` because a thin backend `lastMessage` only says it
+  // is media by its id.
+  const caption = getMessageCaption(message, {
+    isMedia: true,
+    sealed,
+    senderNames: options.senderNames,
+  });
 
   if (attachments.length === 0) {
     // Flagged as media but the payload said nothing more (a thin backend

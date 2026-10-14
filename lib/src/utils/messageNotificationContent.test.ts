@@ -65,11 +65,11 @@ describe('buildNotificationContent', () => {
     })!;
     expect(photo.body).toBe('Alice Smith: Photo');
     const video = build({
-      message: msg({ body: 'v', mimetype: 'video/mp4', location: 'https://x/v.mp4' }),
+      message: msg({ body: 'v.mp4', mimetype: 'video/mp4', location: 'https://x/v.mp4' }),
     })!;
     expect(video.body).toBe('Alice Smith: Video');
     const file = build({
-      message: msg({ body: 'f', mimetype: 'application/pdf', location: 'https://x/f.pdf' }),
+      message: msg({ body: 'f.pdf', mimetype: 'application/pdf', location: 'https://x/f.pdf' }),
     })!;
     expect(file.body).toBe('Alice Smith: File');
     const photos = build({
@@ -88,7 +88,7 @@ describe('buildNotificationContent', () => {
   it('localises labels', () => {
     const c = build({
       locale: 'fr',
-      message: msg({ body: 'v', mimetype: 'video/mp4', location: 'https://x/v.mp4' }),
+      message: msg({ body: 'v.mp4', mimetype: 'video/mp4', location: 'https://x/v.mp4' }),
     })!;
     expect(c.body).toBe('Alice Smith: Vidéo');
   });

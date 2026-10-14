@@ -3,8 +3,7 @@
 // serve the live XMPP path, the foreground push path and the tests.
 import { IMessage } from '../types/models/message.model';
 import { IRoom, RoomMember } from '../types/models/room.model';
-import { getAttachmentName, getMessageAttachments } from '../helpers/attachments';
-import { isSvgFile } from '../helpers/fileKind';
+import { getMediaLabel } from '../helpers/mediaLabel';
 import { resolveSenderDisplayName } from '../helpers/createUserNameFromSetUser';
 import { isOpaqueXmppUserId, toLocalPart } from '../helpers/xmppIdShape';
 import { interpolate, resolveStringTable } from '../i18n/strings';
@@ -88,31 +87,6 @@ const truncate = (text: string): string => {
     : clean;
 };
 
-const attachmentLabel = (
-  message: IMessage,
-  t: (key: string, vars?: Record<string, string | number>) => string
-): string => {
-  const attachments = getMessageAttachments(message);
-  if (attachments.length === 0) return '';
-  const kindOf = (mime?: string, name?: string) => {
-    const m = String(mime || '').toLowerCase();
-    if (isSvgFile(mime, name)) return 'file';
-    if (m.startsWith('image/')) return 'photo';
-    if (m.startsWith('video/')) return 'video';
-    if (m.startsWith('audio/')) return 'audio';
-    return 'file';
-  };
-  const kinds = new Set(attachments.map((a) => kindOf(a.mimetype, getAttachmentName(a))));
-  if (attachments.length > 1) {
-    if (kinds.size === 1 && kinds.has('photo')) {
-      return t('notification.photos', { count: attachments.length });
-    }
-    return t('notification.attachments', { count: attachments.length });
-  }
-  const [kind] = Array.from(kinds);
-  return t(`notification.${kind}`);
-};
-
 export const getNotificationTag = (roomJID: string): string =>
   roomJID ? `ethora-room-${toLocalPart(roomJID)}` : 'ethora-notification';
 
@@ -137,7 +111,7 @@ export const buildNotificationContent = (
     interpolate(table[key] ?? key, vars);
 
   const rawBody = typeof message.body === 'string' ? message.body.trim() : '';
-  const label = attachmentLabel(message, t);
+  const label = getMediaLabel(message, t);
   // A stanza with neither text nor a file (chat state, receipt, marker) says
   // nothing a person needs to be told about.
   if (!rawBody && !label) return null;
