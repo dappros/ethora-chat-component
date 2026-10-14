@@ -1,3 +1,4 @@
+import { safeImageUrl } from '../../helpers/safeUrl';
 import React from 'react';
 import { useDispatch } from 'react-redux';
 import { setActiveFile, setActiveModal } from '../../roomStore/chatSettingsSlice';
@@ -40,7 +41,7 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
     <MediaSurface
       kind="image"
       variant="solo"
-      src={fileURL}
+      src={safeImageUrl(fileURL)}
       previewSrc={locationPreview}
       alt={fileName}
       mimetype={mimetype}

@@ -1,3 +1,4 @@
+import { safeImageUrl } from '../../helpers/safeUrl';
 import React, { useCallback, useMemo } from 'react';
 import styled from 'styled-components';
 import { useDispatch } from 'react-redux';
@@ -224,7 +225,7 @@ const AlbumGrid: React.FC<AlbumGridProps> = ({ items, onRetry, sender, date }) =
           >
             <MediaSurface
               kind={isVideo ? 'video' : 'image'}
-              src={attachment.location || ''}
+              src={safeImageUrl(attachment.location)}
               previewSrc={attachment.locationPreview}
               alt={fileName}
               mimetype={attachment.mimetype}

@@ -1,3 +1,4 @@
+import { safeImageUrl } from '../../helpers/safeUrl';
 import React, { useState } from 'react';
 import styled, { css, keyframes } from 'styled-components';
 import { ImageUnavailableState } from '../MainComponents/ImageUnavailable';
@@ -541,7 +542,7 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
         {lowLoaded && !previewOnly && !natural && !localReady && (
           <PreviewLayer
             data-media-layer={fullLoaded ? undefined : 'preview'}
-            src={low.url}
+            src={safeImageUrl(low.url)}
             alt={fullLoaded ? '' : alt}
             aria-hidden={fullLoaded ? 'true' : undefined}
             $blurred={fullLoaded || full.status !== 'error'}
@@ -550,17 +551,17 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
         {localReady && (
           <Layer
             data-media-layer={showLocal ? 'local' : undefined}
-            src={localSrc}
+            src={safeImageUrl(localSrc)}
             alt={showLocal ? alt : ''}
             aria-hidden={showLocal ? undefined : 'true'}
             style={layerStyle}
           />
         )}
         {fullLoaded && (
-          <FullLayer data-media-layer="full" src={full.url} alt={alt} style={layerStyle} />
+          <FullLayer data-media-layer="full" src={safeImageUrl(full.url)} alt={alt} style={layerStyle} />
         )}
         {previewIsPicture && !localReady && (
-          <FullLayer data-media-layer="full" src={low.url} alt={alt} style={layerStyle} />
+          <FullLayer data-media-layer="full" src={safeImageUrl(low.url)} alt={alt} style={layerStyle} />
         )}
         {showLoadBar && (
           <LoadBar data-testid="media-load-bar" aria-hidden="true">

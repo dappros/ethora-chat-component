@@ -8,7 +8,9 @@ import reducer, {
   setMemberOnline,
   setMessageTranslation,
   setPushSubscriptionStatus,
+  setDisplayedMarker,
   setReactions,
+  setReceivedReceipt,
   setRoomDraft,
   setRoomMuted,
   setRoomRole,
@@ -148,5 +150,85 @@ describe('reducers ignore unsafe dynamic keys', () => {
     );
     expect(s.rooms[ROOM].role).toBe('moderator');
     expect(s.usersSet.alice).toBeDefined();
+  });
+});
+
+describe('receipt and marker reducers guard both keys', () => {
+  it.each(UNSAFE)('setReceivedReceipt ignores unsafe room and user %s', (bad) => {
+    const start = withRoom();
+    let s = start;
+    expect(() => {
+      s = reducer(
+        s,
+        setReceivedReceipt({
+          roomJID: bad,
+          messageId: '1',
+          fromXmppUsername: 'alice',
+          timestamp: 5,
+        })
+      );
+      s = reducer(
+        s,
+        setReceivedReceipt({
+          roomJID: ROOM,
+          messageId: '1',
+          fromXmppUsername: bad,
+          timestamp: 5,
+        })
+      );
+    }).not.toThrow();
+    expect(s).toBe(start);
+    expect(s.rooms[ROOM].messages[0].receivedBy).toBeUndefined();
+    clean();
+  });
+
+  it.each(UNSAFE)('setDisplayedMarker ignores unsafe room and user %s', (bad) => {
+    const start = withRoom();
+    let s = start;
+    expect(() => {
+      s = reducer(
+        s,
+        setDisplayedMarker({ roomJID: bad, xmppUsername: 'alice', messageId: '1' })
+      );
+      s = reducer(
+        s,
+        setDisplayedMarker({ roomJID: ROOM, xmppUsername: bad, messageId: '1' })
+      );
+    }).not.toThrow();
+    expect(s).toBe(start);
+    expect(({} as any).lastDisplayedByUser).toBeUndefined();
+    expect(({} as any).messages).toBeUndefined();
+    clean();
+  });
+
+  it('setReceivedReceipt and setDisplayedMarker still record normal keys', () => {
+    let s = withRoom();
+    s = reducer(
+      s,
+      setReceivedReceipt({
+        roomJID: ROOM,
+        messageId: '1',
+        fromXmppUsername: 'alice',
+        timestamp: 42,
+      })
+    );
+    s = reducer(
+      s,
+      setDisplayedMarker({ roomJID: ROOM, xmppUsername: 'alice', messageId: '1' })
+    );
+    expect(s.rooms[ROOM].messages[0].receivedBy).toEqual({ alice: 42 });
+    expect(s.rooms[ROOM].lastDisplayedByUser).toEqual({ alice: '1' });
+    clean();
+  });
+
+  it('an echo carrying constructor and prototype keys merges only the normal fields', () => {
+    const s0 = withRoom();
+    const payload = JSON.parse(
+      '{"id":"1","body":"edited","date":"","user":{"id":"u"},"constructor":{"prototype":{"polluted":true}},"prototype":{"polluted":true},"reaction":{"constructor":{"polluted":true}}}'
+    );
+    const s = reducer(s0, addRoomMessage({ roomJID: ROOM, message: payload } as any));
+    expect(s.rooms[ROOM].messages[0].body).toBe('edited');
+    expect(Object.keys(s.rooms[ROOM].messages[0].reaction ?? {})).toEqual([]);
+    clean();
   });
 });

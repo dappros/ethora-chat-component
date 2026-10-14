@@ -8,6 +8,7 @@ import { stripBotMarkup } from '../../helpers/botMarkup';
 import { isSvgFile } from '../../helpers/fileKind';
 import { getAttachmentName, getMessageAttachments, isMediaMessage } from '../../helpers/attachments';
 import { getMessageCaption } from '../../helpers/caption';
+import { safeImageUrl } from '../../helpers/safeUrl';
 
 export interface MessageNotificationData {
   id: string;
@@ -175,10 +176,15 @@ const Avatar = styled.div<{ $photoURL?: string }>`
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: ${({ $photoURL }) =>
-    $photoURL
-      ? `url(${$photoURL}) center/cover`
-      : 'var(--ethora-color-icons-bg, #E7EDF9)'};
+  background: ${({ $photoURL }) => {
+    // Only a safe image URL, quoted so it cannot close the url() early.
+    const photo = safeImageUrl($photoURL).replace(/["\\\r\n\f]/g, (ch) =>
+      encodeURIComponent(ch)
+    );
+    return photo
+      ? `url("${photo}") center/cover`
+      : 'var(--ethora-color-icons-bg, #E7EDF9)';
+  }};
   flex-shrink: 0;
 
   @media (max-width: 768px) {

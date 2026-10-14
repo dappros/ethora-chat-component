@@ -1,3 +1,4 @@
+import { safeImageUrl } from '../../helpers/safeUrl';
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { useSelector } from 'react-redux';
@@ -368,9 +369,11 @@ const FilesList: React.FC<FilesListProps> = ({
               title={repairFilenameEncoding(file.originalname)}
             >
               <ThumbImage
-                src={appendFileToken(
-                  file.locationPreview || file.location,
-                  fileToken
+                src={safeImageUrl(
+                  appendFileToken(
+                    file.locationPreview || file.location,
+                    fileToken
+                  )
                 )}
                 alt={repairFilenameEncoding(file.originalname)}
                 loading="lazy"

@@ -1,3 +1,4 @@
+import { safeImageUrl } from '../../../helpers/safeUrl';
 import { downloadFile } from '../../../helpers/downloadFile';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -554,9 +555,8 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
                   <ThumbVideoGlyph />
                 ) : (
                   <ThumbImage
-                    src={appendFileToken(
-                      item.previewURL || item.fileURL,
-                      fileToken
+                    src={safeImageUrl(
+                      appendFileToken(item.previewURL || item.fileURL, fileToken)
                     )}
                     alt=""
                     loading="lazy"

@@ -6,6 +6,7 @@ import {
   isSecureFileUrl,
   requestFileTokenRecovery,
 } from '../helpers/secureFileUrl';
+import { safeImageUrl } from '../helpers/safeUrl';
 import {
   getLoadedAvatarUrl,
   hasAvatarFailed,
@@ -42,7 +43,8 @@ export const useAvatarImage = (
   onLoad: () => void;
   onError: () => void;
 } => {
-  const base = rawSrc || '';
+  // Only a safe image URL ever reaches the cache, the token logic and <img>.
+  const base = safeImageUrl(rawSrc);
   const secure = isSecureFileUrl(base);
   const fileToken = useSelector((state: RootState) =>
     secure ? state.chatSettingStore?.user?.fileToken || '' : ''
