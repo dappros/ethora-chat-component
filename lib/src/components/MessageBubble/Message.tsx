@@ -817,6 +817,7 @@ const Message: React.FC<MessageProps> = forwardRef<
               replies={quickReplies}
               messageId={message.id}
               accentColor={config?.colors?.primary}
+              colorScheme={config?.colorScheme}
               answered={hasAnsweredQuickReplies(message.id)}
               onSelect={handleQuickReply}
             />
