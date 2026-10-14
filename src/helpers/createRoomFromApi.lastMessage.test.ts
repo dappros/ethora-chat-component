@@ -74,4 +74,45 @@ describe('createRoomFromApi - seeds `lastMessage` from the API for the room-list
     expect(room?.lastMessage?.user?.name).toBe('');
     expect(room?.lastMessage?.body).toBe('no sender info');
   });
+
+  it('keeps a media last message that arrives with an empty body', () => {
+    const room = createRoomFromApi(
+      {
+        ...baseApiRoom,
+        lastMessage: {
+          body: '',
+          messageId: 'm2',
+          fromUserId: 'bob-id',
+          senderFirstName: 'Bob',
+          mimetype: 'image/jpeg',
+          fileName: 'p.jpg',
+          location: 'https://f/p.jpg',
+          locationPreview: 'https://f/p-small.jpg',
+        },
+      },
+      'conference.example.com'
+    );
+    expect(room?.lastMessage).toMatchObject({
+      body: 'media',
+      isMediafile: 'true',
+      mimetype: 'image/jpeg',
+      locationPreview: 'https://f/p-small.jpg',
+    });
+  });
+
+  it('lifts a flat duration into an attachment for a voice message', () => {
+    const room = createRoomFromApi(
+      {
+        ...baseApiRoom,
+        lastMessage: {
+          body: 'media',
+          mimetype: 'application/octet-stream',
+          duration: 7,
+          location: 'https://f/v',
+        },
+      },
+      'conference.example.com'
+    );
+    expect((room?.lastMessage as any).attachments[0].duration).toBe('7');
+  });
 });

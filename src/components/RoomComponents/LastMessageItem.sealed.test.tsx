@@ -77,7 +77,7 @@ describe('room-list preview without sealing', () => {
     });
 
     expect(screen.queryByText('Encrypted file')).toBeNull();
-    expect(screen.getByText('audio')).toBeTruthy();
+    expect(screen.getByText('Voice message')).toBeTruthy();
   });
 
   it('still previews an ordinary image', () => {

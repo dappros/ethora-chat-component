@@ -69,8 +69,22 @@ const mapApiLastMessage = (
   apiLastMessage: ApiRoom['lastMessage'],
   roomJid: string
 ): LastMessage | undefined => {
-  const body = String(apiLastMessage?.body || '').trim();
-  if (!apiLastMessage || !body) return undefined;
+  if (!apiLastMessage) return undefined;
+  const hasMedia = Boolean(
+    String(apiLastMessage.isMediafile) === 'true' ||
+      apiLastMessage.mimetype ||
+      apiLastMessage.location ||
+      apiLastMessage.fileName ||
+      apiLastMessage.originalName ||
+      (Array.isArray(apiLastMessage.attachments)
+        ? apiLastMessage.attachments.length
+        : apiLastMessage.attachments)
+  );
+  // A media last message may arrive with an empty body; give it the same
+  // placeholder the sender uses so the preview is not dropped.
+  const body =
+    String(apiLastMessage.body || '').trim() || (hasMedia ? 'media' : '');
+  if (!body) return undefined;
 
   const senderName = `${apiLastMessage.senderFirstName || ''} ${
     apiLastMessage.senderLastName || ''
@@ -83,6 +97,33 @@ const mapApiLastMessage = (
     body,
     date: apiLastMessage.createdAt,
     isDeleted: false,
+    ...(hasMedia
+      ? {
+          isMediafile: 'true',
+          mimetype: apiLastMessage.mimetype,
+          fileName: apiLastMessage.fileName,
+          originalName: apiLastMessage.originalName,
+          location: apiLastMessage.location,
+          locationPreview: apiLastMessage.locationPreview,
+          // The duration only has a home on an attachment, so a flat
+          // single-file payload that carries one is lifted into one.
+          attachments: (apiLastMessage.attachments ??
+            (apiLastMessage.duration !== undefined
+              ? [
+                  {
+                    location: apiLastMessage.location ?? '',
+                    locationPreview: apiLastMessage.locationPreview,
+                    mimetype: apiLastMessage.mimetype,
+                    fileName: apiLastMessage.fileName,
+                    originalName: apiLastMessage.originalName,
+                    duration: String(apiLastMessage.duration),
+                  },
+                ]
+              : undefined)) as never,
+          clientEncrypted:
+            String(apiLastMessage.clientEncrypted) === 'true' ? 'true' : undefined,
+        }
+      : {}),
     user: {
       id: apiLastMessage.fromUserId || apiLastMessage.from || '',
       name: senderName,
