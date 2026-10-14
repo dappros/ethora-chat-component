@@ -125,11 +125,13 @@ describe('compactMessageForPersist', () => {
       'notDisplayedValue',
       'push',
       'translations',
-      'reaction',
       'reply',
     ]) {
       expect(compact[junk], junk).toBeUndefined();
     }
+    // Not junk: the archive does not re-deliver a reaction for a cached
+    // message (see persistReactions.test.ts).
+    expect(compact.reaction).toEqual({ bob: { emoji: ['👍'], data: {} } });
   });
 
   // quickReplies used to be junk (every legacy sender stamps an empty
