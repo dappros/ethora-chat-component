@@ -912,7 +912,11 @@ const roomsStore = createSlice({
     ) => {
       const { roomJID, messageId, fromXmppUsername, timestamp } =
         action.payload;
-      if (!fromXmppUsername || !state.rooms[roomJID]) return;
+      // Both keys become property names (room, then the receipt map): an
+      // unsafe key must never reach the write, not even through a read that
+      // resolves to Object.prototype.
+      if (!isSafeKey(roomJID) || !isSafeKey(fromXmppUsername)) return;
+      if (!state.rooms[roomJID]) return;
 
       state.rooms[roomJID].messages.forEach((message) => {
         if (message.id === messageId) {
@@ -932,7 +936,8 @@ const roomsStore = createSlice({
       }>
     ) => {
       const { roomJID, xmppUsername, messageId } = action.payload;
-      if (!xmppUsername || !state.rooms[roomJID]) return;
+      if (!isSafeKey(roomJID) || !isSafeKey(xmppUsername)) return;
+      if (!state.rooms[roomJID]) return;
 
       if (!state.rooms[roomJID].lastDisplayedByUser) {
         state.rooms[roomJID].lastDisplayedByUser = {};
@@ -1772,17 +1777,17 @@ const roomsStore = createSlice({
 });
 
 function deepMerge(target: any, source: any): any {
-  for (const key in source) {
-    // Never walk into the prototype chain through attacker-shaped keys.
+  // Own keys only, and never a key that would reach Object.prototype.
+  for (const key of Object.keys(source)) {
     if (!isSafeKey(key)) continue;
-    if (
-      source[key] &&
-      typeof source[key] === 'object' &&
-      !Array.isArray(source[key])
-    ) {
-      target[key] = deepMerge(target[key] || {}, source[key]);
+    const value = source[key];
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const current = Object.prototype.hasOwnProperty.call(target, key)
+        ? target[key]
+        : undefined;
+      target[key] = deepMerge(current || {}, value);
     } else {
-      target[key] = source[key];
+      target[key] = value;
     }
   }
   return target;
