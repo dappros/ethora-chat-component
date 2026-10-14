@@ -262,9 +262,10 @@ const REFETCHED_ROOM_FIELDS = ['members', 'composing', 'composingList'] as const
 // onto every received message (senderFirstName/senderWalletAddress/
 // tokenAmount/push/photo/fullName...), derived state that is
 // recomputed on render (reply), or data that re-syncs from the server on
-// room open (reaction via the reaction-history query, translations inside
-// the MAM stanza). Whitelisting instead of blacklisting means new junk
-// fields can never silently re-bloat the snapshot.
+// room open (translations inside the MAM stanza). Reactions are the
+// exception: they ride along, trimmed (see compactReaction).
+// Whitelisting instead of blacklisting means new junk fields can never
+// silently re-bloat the snapshot.
 const PERSISTED_MESSAGE_FIELDS: (keyof IMessage)[] = [
   'id',
   'xmppId',
@@ -301,6 +302,13 @@ const PERSISTED_MESSAGE_FIELDS: (keyof IMessage)[] = [
   // reload: without it a message that asked a question repaints from cache
   // with its answer options missing until MAM re-delivers the stanza.
   'quickReplies',
+  // `reaction` is persisted too, in a trimmed form (see compactReaction). The
+  // archive only re-delivers a reaction when its stanza falls inside a page
+  // that is actually fetched, and a cached transcript is by design NOT
+  // re-fetched (the latest page is merged onto it and the backfill continues
+  // from the cache's oldest message), so a cached bubble whose reaction stanza
+  // sits in the skipped middle would otherwise repaint with no reaction chip.
+  'reaction',
 ];
 
 // The sender identity that rides along on every message over the wire
@@ -341,8 +349,32 @@ const pickDefined = <T extends object>(
   return result;
 };
 
+// A reaction entry is {emoji, data}; `data` is the whole <data/> attribute bag
+// of the reaction stanza. Chips only read the reactor's first/last name (the
+// tooltip), so only those two survive into storage.
+const compactReaction = (
+  reaction: IMessage['reaction']
+): IMessage['reaction'] | undefined => {
+  if (!reaction || typeof reaction !== 'object') return undefined;
+  const out: NonNullable<IMessage['reaction']> = {};
+  for (const [reactor, entry] of Object.entries(reaction)) {
+    if (!entry || !Array.isArray(entry.emoji) || entry.emoji.length === 0) {
+      continue;
+    }
+    const data: Record<string, string> = {};
+    const { senderFirstName, senderLastName } = entry.data || {};
+    if (senderFirstName) data.senderFirstName = senderFirstName;
+    if (senderLastName) data.senderLastName = senderLastName;
+    out[reactor] = { emoji: entry.emoji, data };
+  }
+  return Object.keys(out).length ? out : undefined;
+};
+
 export const compactMessageForPersist = (message: IMessage): IMessage => {
   const compact = pickDefined(message, PERSISTED_MESSAGE_FIELDS) as IMessage;
+  const reaction = compactReaction(message?.reaction);
+  if (reaction) compact.reaction = reaction;
+  else delete compact.reaction;
   if (message?.user && typeof message.user === 'object') {
     compact.user = pickDefined(
       message.user,
@@ -389,6 +421,10 @@ export const optimizePersistedRooms = (
           room?.usersCnt ??
           (Array.isArray(room?.members) ? room.members.length : undefined),
         messages: tail.map(compactMessageForPersist),
+        // Stamps that this transcript was saved WITH its reactions, so a cache
+        // written before reactions were persisted can be told apart on reload
+        // (see dropReactionlessCaches).
+        ...(tail.length ? { reactionsCached: true } : {}),
       } as IRoom;
       REFETCHED_ROOM_FIELDS.forEach((field) => {
         delete (compactRoom as unknown as Record<string, unknown>)[field];
@@ -489,6 +525,34 @@ export const resetSessionRoomState = (
     })
   );
 
+/**
+ * A transcript cached by a build that did not persist reactions repaints every
+ * bubble without its reaction chips, and the archive will not re-deliver them
+ * for the cached middle (the latest page is merged onto the cache and the
+ * backfill resumes from the cache's oldest message). Such a cache is dropped
+ * once - the room shell stays, the transcript is refetched from MAM - exactly
+ * like the cache-budget eviction, except the paging cursors go with it: a
+ * stale first/last id would make the backfill start behind the dropped range.
+ */
+export const dropReactionlessCaches = (
+  roomsMap: Record<string, IRoom>
+): Record<string, IRoom> =>
+  Object.fromEntries(
+    Object.entries(roomsMap).map(([jid, room]) => {
+      if (!room?.messages?.length || room.reactionsCached) return [jid, room];
+      return [
+        jid,
+        {
+          ...room,
+          messages: [] as IMessage[],
+          messageStats: undefined,
+          historyComplete: false,
+          historyPreloadState: 'idle',
+        } as IRoom,
+      ];
+    })
+  );
+
 export const limitMessagesTransform = createTransform<
   any,
   any,
@@ -502,7 +566,11 @@ export const limitMessagesTransform = createTransform<
     return inboundState;
   },
   (outboundState, key) => {
-    if (key === 'rooms') return resetSessionRoomState(sanitizeRoomsMap(outboundState));
+    if (key === 'rooms') {
+      return resetSessionRoomState(
+        dropReactionlessCaches(sanitizeRoomsMap(outboundState))
+      );
+    }
     if (key === 'usersSet') return restoreUsersSetForRehydrate(outboundState);
     return outboundState;
   }
