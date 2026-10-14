@@ -224,20 +224,43 @@ export const SendButton = styled.button`
   }
 `;
 
+/**
+ * How far a reaction row hangs below the bubble's bottom edge, in px. The row
+ * straddles the edge, so half of it (12px) is inside the bubble and the other
+ * half is the only space the message row reserves below it.
+ */
+export const REACTION_HANG_PX = 12;
+/** Vertical gap below a message that is followed by the same sender, in px. */
+export const RUN_GAP_PX = 2;
+/** Vertical gap below the last message of a run, before the next sender, in px. */
+export const SENDER_GAP_PX = 8;
+/** Side gutter of a message row, so a bubble's tail is not clipped, in px. */
+export const MESSAGE_ROW_GUTTER_PX = 6;
+
 export const CustomMessageContainer = styled.div<{
   $isUser: boolean;
   $reply: boolean;
   /** The bubble carries a reaction row that hangs below its bottom edge. */
   $reaction?: boolean;
+  /** False when the next message comes from the same sender (a run). */
+  $lastInGroup?: boolean;
 }>`
   display: flex;
   flex-direction: ${(props) => (props.$isUser ? 'row-reverse' : 'row')};
   align-items: flex-end;
-  margin: 10px 0;
+  /* No top margin: the gap to a message is the one below the previous row. */
+  margin: 0;
+  padding: 0 ${MESSAGE_ROW_GUTTER_PX}px;
   gap: 5px;
   position: relative;
   margin-bottom: ${(props) =>
-    props.$reply ? '40px' : props.$reaction ? '14px' : '10px'};
+    props.$reply
+      ? '40px'
+      : props.$reaction
+        ? `${REACTION_HANG_PX}px`
+        : props.$lastInGroup === false
+          ? `${RUN_GAP_PX}px`
+          : `${SENDER_GAP_PX}px`};
 `;
 
 // 16px radius, with a smaller radius on the corner nearest the avatar (the
@@ -283,18 +306,72 @@ export const bubblePadding = (props: {
 // Telegram-style. Own-message background defaults to the primary-soft token;
 // other-message gets a neutral surface plus a 1px border since it no longer
 // has a tint of its own to separate it from the page background.
-/** How far a reaction row hangs below the bubble's bottom edge, in px. */
-export const REACTION_HANG_PX = 12;
+/** Background of a bubble: the own tint, the other surface, or the deleted grey. */
+const bubbleFill = (props: { $isUser: boolean; $deleted: boolean }) =>
+  props.$deleted
+    ? 'var(--ethora-color-bg-subtle, #dfdfdf)'
+    : props.$isUser
+      ? 'var(--ethora-own-message-bg, var(--ethora-color-primary-soft, #E7EDF9))'
+      : 'var(--ethora-other-message-bg, var(--ethora-color-bg, #FFFFFF))';
+
+/** The 1px border of someone else's bubble, which the tail's outline reuses. */
+const BUBBLE_BORDER_CSS = 'var(--ethora-color-border, #E6E8EC)';
+
+/** Corner radius where a tail attaches: the bottom corner on the tail side. */
+export const TAIL_CORNER_RADIUS_PX = 4;
+/** Tail box: 10px wide, 12px tall, 6px of it outside the bubble edge. */
+export const TAIL_WIDTH_PX = 10;
+export const TAIL_HEIGHT_PX = 12;
+
+// The tail is a clipped box whose top-left (own: top-right, mirrored) corner
+// starts inside the bubble and curves out to a slightly rounded tip flush with
+// the bottom edge. Own tails point right, others point left.
+const TAIL_OWN_PATH = 'M0 0 C0 7 3 11 8.5 11.9 Q10 12 8 12 L0 12 Z';
+const TAIL_OTHER_PATH = 'M10 0 C10 7 7 11 1.5 11.9 Q0 12 2 12 L10 12 Z';
+
+/**
+ * The speech-bubble tail on the bottom outer corner: own messages point out
+ * of the bottom right, others out of the bottom left. Others' bubbles get a
+ * 1px outline in the border colour from a second, 1px larger shape behind.
+ */
+const bubbleTail = (props: { $isUser: boolean; $deleted: boolean }) => css`
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    ${props.$isUser ? 'right: -7px;' : 'left: -7px;'}
+    width: ${TAIL_WIDTH_PX}px;
+    height: ${TAIL_HEIGHT_PX}px;
+    background-color: ${bubbleFill(props)};
+    clip-path: path('${props.$isUser ? TAIL_OWN_PATH : TAIL_OTHER_PATH}');
+    pointer-events: none;
+  }
+  ${props.$isUser
+    ? ''
+    : css`
+        &::before {
+          content: '';
+          position: absolute;
+          bottom: -2px;
+          left: -8px;
+          width: ${TAIL_WIDTH_PX}px;
+          height: ${TAIL_HEIGHT_PX}px;
+          background-color: ${BUBBLE_BORDER_CSS};
+          clip-path: path('${TAIL_OTHER_PATH}');
+          pointer-events: none;
+        }
+      `}
+`;
 
 export const CustomMessageBubble = styled.div<{
   $isUser: boolean;
   $deleted: boolean;
-  /** The bubble has reactions: its bottom padding grows so the row's upper half clears the content. */
-  $reactions?: boolean;
   /** The bubble carries a media block (pictures, videos, cards, voice notes). */
   $media?: boolean;
   /** Its only media is one solo picture or video: the bubble hugs it. */
   $solo?: boolean;
+  /** Last of its sender's run, and not a media-only bubble: it gets the tail. */
+  $tail?: boolean;
 }>`
   max-width: ${(props) =>
     props.$media
@@ -304,52 +381,39 @@ export const CustomMessageBubble = styled.div<{
   min-width: ${(props) => (props.$media ? '120px' : '15%')};
   ${(props) => (props.$media && props.$solo ? 'width: fit-content;' : '')}
   padding: ${(props) => bubblePadding(props)};
-  ${(props) =>
-    props.$reactions
-      ? `padding-bottom: calc(${props.$media ? MEDIA_BUBBLE_INSET_PX : TEXT_BUBBLE_INSET_Y_PX}px - ${bubbleBordered(props) ? 1 : 0}px + ${REACTION_HANG_PX}px);`
-      : ''}
-  border-radius: ${(props) =>
-    props.$isUser
-      ? `${BUBBLE_RADIUS_PX}px ${BUBBLE_RADIUS_PX}px var(--ethora-radius-sm, 8px) ${BUBBLE_RADIUS_PX}px`
-      : `${BUBBLE_RADIUS_PX}px ${BUBBLE_RADIUS_PX}px ${BUBBLE_RADIUS_PX}px var(--ethora-radius-sm, 8px)`};
+  border-radius: ${(props) => {
+    const small = props.$tail
+      ? `${TAIL_CORNER_RADIUS_PX}px`
+      : 'var(--ethora-radius-sm, 8px)';
+    return props.$isUser
+      ? `${BUBBLE_RADIUS_PX}px ${BUBBLE_RADIUS_PX}px ${small} ${BUBBLE_RADIUS_PX}px`
+      : `${BUBBLE_RADIUS_PX}px ${BUBBLE_RADIUS_PX}px ${BUBBLE_RADIUS_PX}px ${small}`;
+  }};
   color: var(--ethora-color-text, #141414);
   text-align: left;
   display: flex;
   flex-direction: column;
-  background-color: ${(props) =>
-    props.$deleted
-      ? 'var(--ethora-color-bg-subtle, #dfdfdf)'
-      : props.$isUser
-        ? 'var(--ethora-own-message-bg, var(--ethora-color-primary-soft, #E7EDF9))'
-        : 'var(--ethora-other-message-bg, var(--ethora-color-bg, #FFFFFF))'};
+  background-color: ${(props) => bubbleFill(props)};
   border: ${(props) =>
     !props.$deleted && !props.$isUser
-      ? '1px solid var(--ethora-color-border, #E6E8EC)'
+      ? `1px solid ${BUBBLE_BORDER_CSS}`
       : '1px solid transparent'};
   position: relative;
-  /* Overflow stays visible: the reaction row hangs below the bottom edge. */
+  /* Overflow stays visible: the tail and the reaction row sit outside the edge. */
   overflow: visible;
-  /* The reaction row straddles the bottom edge on the side the bubble hugs:
-     right for own messages (right edge of the screen), left for others. */
+  ${(props) => (props.$tail ? bubbleTail(props) : '')}
+  /* The reaction row straddles the bottom edge on the left, inset 8px. The
+     time is bottom right and the tail is on the outer corner, so the row never
+     covers either. */
   & > .reaction-row {
     position: absolute;
     /* Anchored by its first row: that row straddles the bottom edge, and any
-       wrapped rows fall below it. */
-    top: calc(100% - ${REACTION_HANG_PX}px);
-    ${(props) => (props.$isUser ? 'right: 8px;' : 'left: 8px;')}
+       wrapped rows fall below it. Every bubble has a 1px border, so the
+       padding box is 2px shorter than the bubble: 11px, not 12px, up from it. */
+    top: calc(100% - ${REACTION_HANG_PX - 1}px);
+    left: 8px;
     z-index: 2;
   }
-  /* Reaction chips on an own bubble sit on the tinted surface: a white veil
-     reads cleaner there than a primary tint would. */
-  ${(props) =>
-    props.$isUser
-      ? css`
-          --ethora-reaction-chip-bg: rgba(255, 255, 255, 0.55);
-          [data-ethora-color-scheme='dark'] & {
-            --ethora-reaction-chip-bg: rgba(255, 255, 255, 0.12);
-          }
-        `
-      : ''}
 `;
 
 export const CustomMessageText = styled.div`
@@ -389,9 +453,7 @@ export const CustomUserName = styled.span<{
 `;
 
 export const CustomMessageTimestamp = styled.span<{
-  /** Own message: the bubble hugs the right edge, so the time sits bottom-left. */
-  $own?: boolean;
-  /** Media bubble: the row sits under the media with 2px 8px 4px padding. */
+  /** Media bubble: the row sits under the media with 0 8px 4px padding. */
   $media?: boolean;
   /** Text bubble: the time floats at the end of the last line of text. */
   $inline?: boolean;
@@ -401,13 +463,13 @@ export const CustomMessageTimestamp = styled.span<{
   $bordered?: boolean;
 }>`
   font-size: var(--ethora-font-size-xs, 0.75rem);
-  align-self: ${(props) => (props.$own ? 'flex-start' : 'flex-end')};
+  align-self: flex-end;
   color: var(--ethora-color-text-muted, #8f8f8f);
   display: flex;
   gap: 4px;
   align-items: center;
   justify-content: center;
-  ${(props) => (props.$media && !props.$overlay ? 'padding: 2px 8px 4px;' : '')}
+  ${(props) => (props.$media && !props.$overlay ? 'padding: 0 8px 4px;' : '')}
   ${(props) =>
     props.$inline
       ? `
@@ -421,7 +483,7 @@ export const CustomMessageTimestamp = styled.span<{
       ? `
     position: absolute;
     z-index: 2;
-    ${props.$own ? 'left' : 'right'}: ${MEDIA_BUBBLE_INSET_PX + MEDIA_TIME_PILL_OFFSET_PX - (props.$bordered ? 1 : 0)}px;
+    right: ${MEDIA_BUBBLE_INSET_PX + MEDIA_TIME_PILL_OFFSET_PX - (props.$bordered ? 1 : 0)}px;
     bottom: ${MEDIA_BUBBLE_INSET_PX + MEDIA_TIME_PILL_OFFSET_PX - (props.$bordered ? 1 : 0)}px;
     align-self: auto;
     padding: 2px 7px;
