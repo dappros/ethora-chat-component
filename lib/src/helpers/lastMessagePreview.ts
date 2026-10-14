@@ -19,6 +19,8 @@ export type MediaPreviewKind =
   | 'voice'
   | 'audio'
   | 'file'
+  /** Media of unknown type: a thin backend payload that only says "media". */
+  | 'attachment'
   | 'sealed';
 
 export interface MediaPreview {
@@ -55,8 +57,28 @@ const attachmentsOf = (message: PreviewSource): IAttachment[] =>
     size: message.size,
   });
 
+/**
+ * Message ids the SDK's own senders mint: `send-media-message:<uuid>` for an
+ * upload. The QA backend's `GET /chats/my` `lastMessage` for a media message
+ * carries NOTHING else about the file: no `isMediafile`, no `mimetype`, no
+ * `attachments`, just `body: "media"` and this `messageId`.
+ */
+const MEDIA_ID_PREFIX = 'send-media-message';
+const TEXT_ID_PREFIXES = ['send-text-message', 'send-translate-message', 'local'];
+
+/**
+ * A thin payload that only says "media": the placeholder body, or the media
+ * id prefix. A literal text message "media" is told apart by its text id.
+ */
+const isPlaceholderMedia = (message: PreviewSource): boolean => {
+  const id = String(message.id ?? '');
+  if (id.startsWith(MEDIA_ID_PREFIX)) return true;
+  if (String(message.body ?? '').trim() !== MEDIA_BODY) return false;
+  return !TEXT_ID_PREFIXES.some((prefix) => id.startsWith(prefix));
+};
+
 const isFlaggedMedia = (message: PreviewSource): boolean =>
-  String(message.isMediafile) === 'true';
+  String(message.isMediafile) === 'true' || isPlaceholderMedia(message);
 
 const kindOf = (attachment: IAttachment): MediaPreviewKind => {
   const name = getAttachmentName(attachment);
@@ -87,7 +109,7 @@ export const hasMediaPreview = (message?: PreviewSource | null): boolean =>
  */
 export const deriveMediaPreview = (
   message?: PreviewSource | null,
-  options: { sealed?: boolean } = {}
+  options: { sealed?: boolean; senderNames?: string[] } = {}
 ): MediaPreview | undefined => {
   if (!message || message.isDeleted) return undefined;
 
@@ -96,13 +118,24 @@ export const deriveMediaPreview = (
 
   const sealed = options.sealed === true || message.clientEncrypted === 'true';
   const body = String(message.body ?? '').trim();
+  // Some senders put their own name or email in `body` next to the media;
+  // that is not a caption.
+  const echoesSender = (options.senderNames ?? []).some(
+    (name) => {
+      const n = String(name || '').trim().toLowerCase();
+      const b = body.toLowerCase();
+      return Boolean(n && b && (n === b || n.split(/\s+/).every((p) => p === b)));
+    }
+  );
   const caption =
-    !sealed && body && body.toLowerCase() !== MEDIA_BODY ? body : undefined;
+    !sealed && body && body.toLowerCase() !== MEDIA_BODY && !echoesSender
+      ? body
+      : undefined;
 
   if (attachments.length === 0) {
     // Flagged as media but the payload said nothing more (a thin backend
     // `lastMessage`): a generic file row beats a blank line.
-    return { kind: sealed ? 'sealed' : 'file', count: 1, caption };
+    return { kind: sealed ? 'sealed' : 'attachment', count: 1, caption };
   }
 
   const first = attachments[0];
@@ -136,4 +169,22 @@ export const deriveMediaPreview = (
   }
 
   return preview;
+};
+
+/**
+ * Which message the room row previews: the newest real message already in the
+ * room's `messages[]` (a live stanza or history), else the backend's
+ * `lastMessage` seed. Entries with neither text nor media (markers, receipts,
+ * state-only stanzas) are skipped.
+ */
+export const pickPreviewSource = <T extends PreviewSource>(
+  messages: T[] | undefined,
+  lastMessage?: T | null
+): T | undefined => {
+  for (let i = (messages?.length ?? 0) - 1; i >= 0; i--) {
+    const m = messages![i];
+    if (!m) continue;
+    if (m.isDeleted || m.body || m.emoji || hasMediaPreview(m)) return m;
+  }
+  return lastMessage ?? undefined;
 };

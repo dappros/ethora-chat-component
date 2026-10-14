@@ -15,7 +15,7 @@ import {
   NewMessageMarker,
 } from './styled/StyledRoomComponents';
 import LastMessageItem from './LastMessageItem';
-import { hasMediaPreview } from '../../helpers/lastMessagePreview';
+import { hasMediaPreview, pickPreviewSource } from '../../helpers/lastMessagePreview';
 import { useRoomPresence } from '../../hooks/useRoomPresence';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { useT } from '../../i18n/useT';
@@ -80,11 +80,10 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
   // `chat.messages` stops being empty and this branch is never reached
   // again for that room, so a live message always wins and a stale API
   // value can never overwrite it.
-  const lastLiveMessage =
-    (chat?.messages?.length ?? 0) > 0
-      ? chat.messages[chat.messages.length - 1]
-      : undefined;
-  const previewSourceMessage = lastLiveMessage ?? chat?.lastMessage;
+  const previewSourceMessage = pickPreviewSource<IMessage | LastMessage>(
+    chat?.messages,
+    chat?.lastMessage
+  );
 
   const previewSenderRawId = String(previewSourceMessage?.user?.id || '');
   const previewSenderLocalId = previewSenderRawId.split('@')[0];
