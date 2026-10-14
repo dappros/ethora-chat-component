@@ -33,8 +33,30 @@ export const isPdfFile = (mimetype?: string, name?: string): boolean => {
   return getFileExtension(name) === 'pdf';
 };
 
+/**
+ * SVG is deliberately not an image here. It does not render reliably as a
+ * message picture, can be blocked by the host's CSP, and is a script
+ * injection vector when opened directly. It is treated as a plain file.
+ */
+export const isSvgFile = (mimetype?: string, name?: string): boolean => {
+  const mime = String(mimetype || '')
+    .toLowerCase()
+    .split(';')[0]
+    .trim();
+  if (mime === 'image/svg+xml' || mime === 'image/svg') return true;
+  const ext = getFileExtension(name);
+  return ext === 'svg' || ext === 'svgz';
+};
+
+/** True when the file renders as a picture (never for SVG). */
+export const isRasterImage = (mimetype?: string, name?: string): boolean =>
+  String(mimetype || '').toLowerCase().startsWith('image/') &&
+  !isSvgFile(mimetype, name);
+
 export const getFileKind = (mimetype?: string, name?: string): FileKind => {
   const mime = String(mimetype || '').toLowerCase();
+
+  if (isSvgFile(mime, name)) return 'file';
 
   // PDF first: it is the one type that is regularly mislabelled as
   // octet-stream, and octet-stream is claimed by the audio branch below.

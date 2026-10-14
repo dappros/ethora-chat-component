@@ -165,3 +165,13 @@ describe('deriveMediaPreview', () => {
     ).toBeUndefined();
   });
 });
+
+describe('deriveMediaPreview with SVG', () => {
+  it('shows an svg as a file, not a photo', () => {
+    const p = deriveMediaPreview({
+      body: 'media',
+      attachments: [att({ mimetype: 'image/svg+xml', originalName: 'logo.svg' })],
+    } as never);
+    expect(p?.kind).toBe('file');
+  });
+});

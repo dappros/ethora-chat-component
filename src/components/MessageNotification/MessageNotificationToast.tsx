@@ -5,6 +5,7 @@ import styled, { keyframes } from 'styled-components';
 import { IMessage } from '../../types/models/message.model';
 import { RootState } from '../../roomStore';
 import { stripBotMarkup } from '../../helpers/botMarkup';
+import { isSvgFile } from '../../helpers/fileKind';
 
 export interface MessageNotificationData {
   id: string;
@@ -241,7 +242,10 @@ const formatTime = (timestamp: number): string => {
 
 const getMessagePreview = (message: IMessage): string => {
   if (message.isMediafile === 'true') {
-    if (message.mimetype?.startsWith('image/')) {
+    if (
+      message.mimetype?.startsWith('image/') &&
+      !isSvgFile(message.mimetype, message.originalName || message.fileName)
+    ) {
       return '📷 Photo';
     }
     if (message.mimetype?.startsWith('video/')) {

@@ -3,7 +3,8 @@
 // serve the live XMPP path, the foreground push path and the tests.
 import { IMessage } from '../types/models/message.model';
 import { IRoom, RoomMember } from '../types/models/room.model';
-import { getMessageAttachments } from '../helpers/attachments';
+import { getAttachmentName, getMessageAttachments } from '../helpers/attachments';
+import { isSvgFile } from '../helpers/fileKind';
 import { resolveSenderDisplayName } from '../helpers/createUserNameFromSetUser';
 import { isOpaqueXmppUserId, toLocalPart } from '../helpers/xmppIdShape';
 import { interpolate, resolveStringTable } from '../i18n/strings';
@@ -92,14 +93,15 @@ const attachmentLabel = (
 ): string => {
   const attachments = getMessageAttachments(message);
   if (attachments.length === 0) return '';
-  const kindOf = (mime?: string) => {
+  const kindOf = (mime?: string, name?: string) => {
     const m = String(mime || '').toLowerCase();
+    if (isSvgFile(mime, name)) return 'file';
     if (m.startsWith('image/')) return 'photo';
     if (m.startsWith('video/')) return 'video';
     if (m.startsWith('audio/')) return 'audio';
     return 'file';
   };
-  const kinds = new Set(attachments.map((a) => kindOf(a.mimetype)));
+  const kinds = new Set(attachments.map((a) => kindOf(a.mimetype, getAttachmentName(a))));
   if (attachments.length > 1) {
     if (kinds.size === 1 && kinds.has('photo')) {
       return t('notification.photos', { count: attachments.length });

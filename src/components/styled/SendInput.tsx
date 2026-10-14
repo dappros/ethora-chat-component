@@ -42,7 +42,7 @@ import {
 import { parseMessageBody } from '../../helpers/parseMessageBody';
 import { useT } from '../../i18n/useT';
 import { MAX_ATTACHMENTS_PER_MESSAGE } from '../../helpers/attachments';
-import { getFileKind } from '../../helpers/fileKind';
+import { getFileKind, isRasterImage } from '../../helpers/fileKind';
 import {
   subscribeComposerFocus,
   takeComposerFocusRequest,
@@ -519,7 +519,7 @@ const SendInput: React.FC<SendInputProps> = ({
       if (!attachmentsEnabled) return;
       const pasted = Array.from(event.clipboardData?.files || []);
       const images = pasted.filter((file) =>
-        String(file.type || '').startsWith('image/')
+        isRasterImage(file.type, file.name)
       );
       // Anything else - plain text above all - falls through to the normal
       // paste, so text still lands in the input untouched.

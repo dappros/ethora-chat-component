@@ -3,7 +3,7 @@ import { useDispatch } from 'react-redux';
 import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 import { setActiveFile, setActiveModal } from '../../roomStore/chatSettingsSlice';
 import { FileIcon } from '../../assets/icons';
-import { formatFileName, formatFileSize, getFileExtension } from '../../helpers/fileKind';
+import { formatFileName, formatFileSize, getFileExtension, isSvgFile } from '../../helpers/fileKind';
 import { isSecureFileUrl, requestFileTokenRecovery } from '../../helpers/secureFileUrl';
 import FileCard from './FileCard';
 
@@ -34,7 +34,12 @@ const FileDownload: React.FC<FileDownloadProps> = ({
 
   const ext = getFileExtension(fileName).toUpperCase();
   const formattedSize = formatFileSize(size);
-  const showPreview = Boolean(locationPreview) && !previewBroken;
+  // Never draw an SVG, even as a thumbnail: it is shown as a plain file.
+  const showPreview =
+    Boolean(locationPreview) &&
+    !previewBroken &&
+    !isSvgFile(mimetype, fileName) &&
+    !isSvgFile(undefined, locationPreview?.split(/[?#]/)[0]);
 
   return (
     <FileCard
