@@ -135,7 +135,7 @@ const SoloTrigger = styled.button`
   color: inherit;
   text-align: start;
   cursor: inherit;
-  border-radius: var(--ethora-radius-md, 14px);
+  border-radius: var(--ethora-radius-md, 12px);
 
   &:focus-visible {
     outline: 2px solid var(--ethora-color-primary, #0052cd);
@@ -391,7 +391,7 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
   dims,
   duration,
   pending = true,
-  radius = 'var(--ethora-radius-md, 14px)',
+  radius = 'var(--ethora-radius-md, 12px)',
   onOpen,
   interactive,
   blurred = false,

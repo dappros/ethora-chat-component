@@ -6,6 +6,8 @@ All notable changes to this package are documented here. For cross-SDK release n
 
 ### Changed
 
+- Text typed together with attached files now travels inside the media message as its caption (`caption` and `captionMentions` on the `<data>` element; sealed inside the envelope in e2ee rooms, never in clear). One stanza, one bubble: it was sent as a separate text message before. The caption renders under the media (under the file cards when there are any), and the time then sits in the normal bottom-right row instead of the glass pill over the picture. Hosts that override `sendMedia` (for example through `CustomInputComponent` / `onSendMedia`, or a custom `useSendMessage`) receive the caption as a new third argument `caption?: { text: string; mentions?: IMentionSpan[] }` and must send it with the media instead of sending a second text message. `sendMessageMedia(data, type, roomJID, isReply, isChecked, mainMessage, caption)` takes it as its 7th argument.
+- Bubble spacing reworked: bubble radius 18px; media bubbles use a 6px inset on every side with concentric 12px media corners; text bubbles 8px 12px with the time on the last line of short text; media-only bubbles show the time as a glass pill 8px inside the media corner; captions use 8px 10px 4px; file cards use 10px 12px padding, a 40px icon tile and a 32px download button.
 - The composer now accepts up to 10 attachments per message by default (was 5). `config.attachments.maxFiles` still overrides it, and 10 remains the hard cap.
 
 ### Added

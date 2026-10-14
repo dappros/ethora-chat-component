@@ -59,7 +59,7 @@ describe('album tile corners', () => {
     const layout = getAlbumLayout(count);
     return layout.placements.map((_, position) => getTileBorderRadius(layout, position));
   };
-  const outer = '14px';
+  const outer = '12px';
   const inner = '3px';
 
   it('rounds only the outer corners of a 2-up pair', () => {

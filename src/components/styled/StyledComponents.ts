@@ -245,31 +245,37 @@ export const CustomMessageContainer = styled.div<{
 // other-message gets a neutral surface plus a 1px border since it no longer
 // has a tint of its own to separate it from the page background.
 /**
- * Visual inset between a bubble's edge and what it holds, in px. Every side
- * gets the same value. A bubble with a 1px border (anyone else's message)
- * takes one px less of padding so the visual inset still matches.
+ * Visual inset between a bubble's edge and what it holds, in px. A bubble with
+ * a 1px border (anyone else's message) takes one px less of padding so the
+ * visual inset still matches.
  *
- * Media bubbles (pictures, videos, file cards, voice notes) use 6px, the
- * Telegram-style compact inset that the media block, cards and time row align
- * to. Text-only bubbles use 10px.
+ * Media bubbles (pictures, videos, file cards, voice notes) use 6px on every
+ * side, the compact Telegram-style inset that the media block aligns to. Text
+ * bubbles use 8px vertical and 12px horizontal.
  */
 export const MEDIA_BUBBLE_INSET_PX = 6;
-export const TEXT_BUBBLE_INSET_PX = 10;
+export const TEXT_BUBBLE_INSET_Y_PX = 8;
+export const TEXT_BUBBLE_INSET_X_PX = 12;
+/** Bubble corner radius; media inside it is concentric (radius minus inset). */
+export const BUBBLE_RADIUS_PX = 18;
+export const MEDIA_RADIUS_PX = BUBBLE_RADIUS_PX - MEDIA_BUBBLE_INSET_PX;
 /** Glass time pill over media: how far it sits inside the media edge, in px. */
-export const MEDIA_TIME_PILL_OFFSET_PX = 6;
+export const MEDIA_TIME_PILL_OFFSET_PX = 8;
 
 const bubbleBordered = (props: { $isUser: boolean; $deleted: boolean }) =>
   !props.$deleted && !props.$isUser;
 
-const bubbleInsetPx = (props: { $media?: boolean }) =>
-  props.$media ? MEDIA_BUBBLE_INSET_PX : TEXT_BUBBLE_INSET_PX;
-
-/** Padding that yields the visual inset, net of the border. */
-export const bubblePaddingPx = (props: {
+/** Padding (CSS shorthand value) that yields the visual inset, net of the border. */
+export const bubblePadding = (props: {
   $isUser: boolean;
   $deleted: boolean;
   $media?: boolean;
-}) => bubbleInsetPx(props) - (bubbleBordered(props) ? 1 : 0);
+}) => {
+  const border = bubbleBordered(props) ? 1 : 0;
+  const y = (props.$media ? MEDIA_BUBBLE_INSET_PX : TEXT_BUBBLE_INSET_Y_PX) - border;
+  const x = (props.$media ? MEDIA_BUBBLE_INSET_PX : TEXT_BUBBLE_INSET_X_PX) - border;
+  return y === x ? `${y}px` : `${y}px ${x}px`;
+};
 
 // 16px radius, with a smaller radius on the corner nearest the avatar (the
 // "tail" side) so the bubble reads as pointing at its sender, iMessage/
@@ -291,11 +297,11 @@ export const CustomMessageBubble = styled.div<{
   /* Room for the glass time pill over a media-only bubble. */
   min-width: ${(props) => (props.$media ? '120px' : '15%')};
   ${(props) => (props.$media && props.$solo ? 'width: fit-content;' : '')}
-  padding: ${(props) => `${bubblePaddingPx(props)}px`};
+  padding: ${(props) => bubblePadding(props)};
   border-radius: ${(props) =>
     props.$isUser
-      ? 'var(--ethora-radius-lg, 16px) var(--ethora-radius-lg, 16px) var(--ethora-radius-sm, 8px) var(--ethora-radius-lg, 16px)'
-      : 'var(--ethora-radius-lg, 16px) var(--ethora-radius-lg, 16px) var(--ethora-radius-lg, 16px) var(--ethora-radius-sm, 8px)'};
+      ? `${BUBBLE_RADIUS_PX}px ${BUBBLE_RADIUS_PX}px var(--ethora-radius-sm, 8px) ${BUBBLE_RADIUS_PX}px`
+      : `${BUBBLE_RADIUS_PX}px ${BUBBLE_RADIUS_PX}px ${BUBBLE_RADIUS_PX}px var(--ethora-radius-sm, 8px)`};
   color: var(--ethora-color-text, #141414);
   text-align: left;
   display: flex;
@@ -319,9 +325,23 @@ export const CustomMessageText = styled.div`
   font-family: var(--ethora-font-family, 'Open Sans', sans-serif);
   font-size: var(--ethora-font-size, 15px);
   line-height: 1.45;
+
+  /* The markdown paragraphs carry their own 12px margins (inline style); at the
+     ends of a bubble they would double the padding. */
+  .message-body p:first-child {
+    margin-top: 0 !important;
+  }
+  .message-body p:last-child {
+    margin-bottom: 0 !important;
+  }
 `;
 
-export const CustomUserName = styled.span<{ $isUser: boolean; $color?: string }>`
+export const CustomUserName = styled.span<{
+  $isUser: boolean;
+  $color?: string;
+  /** Inside a media bubble (6px inset): 4px more so it lines up with the caption. */
+  $media?: boolean;
+}>`
   font-family: var(--ethora-font-family, 'Open Sans', sans-serif);
   font-weight: 600;
   font-size: var(--ethora-font-size-lg, 18px);
@@ -331,12 +351,15 @@ export const CustomUserName = styled.span<{ $isUser: boolean; $color?: string }>
   [data-ethora-color-scheme='dark'] & {
     color: var(--ethora-color-primary-text, var(--ethora-color-primary, #0052CD));
   }
-  margin-bottom: 8px;
+  margin-bottom: ${(props) => (props.$media ? '4px' : '2px')};
+  ${(props) => (props.$media ? 'padding: 0 4px;' : '')}
 `;
 
 export const CustomMessageTimestamp = styled.span<{
-  /** Media bubble: the row sits 4px under the media. */
+  /** Media bubble: the row sits under the media with 2px 8px 4px padding. */
   $media?: boolean;
+  /** Text bubble: the time floats at the end of the last line of text. */
+  $inline?: boolean;
   /** Glass pill over the media's bottom right corner (media-only bubbles). */
   $overlay?: boolean;
   /** Whether the bubble has its 1px border (it shifts the pill by one px). */
@@ -349,7 +372,15 @@ export const CustomMessageTimestamp = styled.span<{
   gap: 4px;
   align-items: center;
   justify-content: center;
-  ${(props) => (props.$media && !props.$overlay ? 'margin-top: 4px;' : '')}
+  ${(props) => (props.$media && !props.$overlay ? 'padding: 2px 8px 4px;' : '')}
+  ${(props) =>
+    props.$inline
+      ? `
+    margin-left: auto;
+    align-self: last baseline;
+    line-height: 1.2;
+  `
+      : ''}
   ${(props) =>
     props.$overlay
       ? `
