@@ -1,4 +1,4 @@
-import styled from 'styled-components';
+import styled, { css } from 'styled-components';
 import { fadeInAnimation, scaleInAnimation } from '../../styles/motion';
 import {
   MEDIA_WIDTH_CSS,
@@ -227,7 +227,8 @@ export const SendButton = styled.button`
 export const CustomMessageContainer = styled.div<{
   $isUser: boolean;
   $reply: boolean;
-  $reaction: boolean;
+  /** The bubble carries a reaction row that hangs below its bottom edge. */
+  $reaction?: boolean;
 }>`
   display: flex;
   flex-direction: ${(props) => (props.$isUser ? 'row-reverse' : 'row')};
@@ -236,7 +237,7 @@ export const CustomMessageContainer = styled.div<{
   gap: 5px;
   position: relative;
   margin-bottom: ${(props) =>
-    props.$reply || props.$reaction ? '40px' : '10px'};
+    props.$reply ? '40px' : props.$reaction ? '14px' : '10px'};
 `;
 
 // 16px radius, with a smaller radius on the corner nearest the avatar (the
@@ -282,9 +283,14 @@ export const bubblePadding = (props: {
 // Telegram-style. Own-message background defaults to the primary-soft token;
 // other-message gets a neutral surface plus a 1px border since it no longer
 // has a tint of its own to separate it from the page background.
+/** How far a reaction row hangs below the bubble's bottom edge, in px. */
+export const REACTION_HANG_PX = 12;
+
 export const CustomMessageBubble = styled.div<{
   $isUser: boolean;
   $deleted: boolean;
+  /** The bubble has reactions: its bottom padding grows so the row's upper half clears the content. */
+  $reactions?: boolean;
   /** The bubble carries a media block (pictures, videos, cards, voice notes). */
   $media?: boolean;
   /** Its only media is one solo picture or video: the bubble hugs it. */
@@ -298,6 +304,10 @@ export const CustomMessageBubble = styled.div<{
   min-width: ${(props) => (props.$media ? '120px' : '15%')};
   ${(props) => (props.$media && props.$solo ? 'width: fit-content;' : '')}
   padding: ${(props) => bubblePadding(props)};
+  ${(props) =>
+    props.$reactions
+      ? `padding-bottom: calc(${props.$media ? MEDIA_BUBBLE_INSET_PX : TEXT_BUBBLE_INSET_Y_PX}px - ${bubbleBordered(props) ? 1 : 0}px + ${REACTION_HANG_PX}px);`
+      : ''}
   border-radius: ${(props) =>
     props.$isUser
       ? `${BUBBLE_RADIUS_PX}px ${BUBBLE_RADIUS_PX}px var(--ethora-radius-sm, 8px) ${BUBBLE_RADIUS_PX}px`
@@ -317,6 +327,29 @@ export const CustomMessageBubble = styled.div<{
       ? '1px solid var(--ethora-color-border, #E6E8EC)'
       : '1px solid transparent'};
   position: relative;
+  /* Overflow stays visible: the reaction row hangs below the bottom edge. */
+  overflow: visible;
+  /* The reaction row straddles the bottom edge on the side the bubble hugs:
+     right for own messages (right edge of the screen), left for others. */
+  & > .reaction-row {
+    position: absolute;
+    /* Anchored by its first row: that row straddles the bottom edge, and any
+       wrapped rows fall below it. */
+    top: calc(100% - ${REACTION_HANG_PX}px);
+    ${(props) => (props.$isUser ? 'right: 8px;' : 'left: 8px;')}
+    z-index: 2;
+  }
+  /* Reaction chips on an own bubble sit on the tinted surface: a white veil
+     reads cleaner there than a primary tint would. */
+  ${(props) =>
+    props.$isUser
+      ? css`
+          --ethora-reaction-chip-bg: rgba(255, 255, 255, 0.55);
+          [data-ethora-color-scheme='dark'] & {
+            --ethora-reaction-chip-bg: rgba(255, 255, 255, 0.12);
+          }
+        `
+      : ''}
 `;
 
 export const CustomMessageText = styled.div`
@@ -356,6 +389,8 @@ export const CustomUserName = styled.span<{
 `;
 
 export const CustomMessageTimestamp = styled.span<{
+  /** Own message: the bubble hugs the right edge, so the time sits bottom-left. */
+  $own?: boolean;
   /** Media bubble: the row sits under the media with 2px 8px 4px padding. */
   $media?: boolean;
   /** Text bubble: the time floats at the end of the last line of text. */
@@ -366,7 +401,7 @@ export const CustomMessageTimestamp = styled.span<{
   $bordered?: boolean;
 }>`
   font-size: var(--ethora-font-size-xs, 0.75rem);
-  align-self: flex-end;
+  align-self: ${(props) => (props.$own ? 'flex-start' : 'flex-end')};
   color: var(--ethora-color-text-muted, #8f8f8f);
   display: flex;
   gap: 4px;
@@ -386,7 +421,7 @@ export const CustomMessageTimestamp = styled.span<{
       ? `
     position: absolute;
     z-index: 2;
-    right: ${MEDIA_BUBBLE_INSET_PX + MEDIA_TIME_PILL_OFFSET_PX - (props.$bordered ? 1 : 0)}px;
+    ${props.$own ? 'left' : 'right'}: ${MEDIA_BUBBLE_INSET_PX + MEDIA_TIME_PILL_OFFSET_PX - (props.$bordered ? 1 : 0)}px;
     bottom: ${MEDIA_BUBBLE_INSET_PX + MEDIA_TIME_PILL_OFFSET_PX - (props.$bordered ? 1 : 0)}px;
     align-self: auto;
     padding: 2px 7px;
