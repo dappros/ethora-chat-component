@@ -6,18 +6,23 @@ import {
 } from './StyledRoomComponents';
 import { LastMessage } from '../../../types/types';
 
-interface LastMessageEmojiProps extends Pick<LastMessage, 'user' | 'body'> {}
+interface LastTextMessageProps extends Pick<LastMessage, 'user' | 'body'> {}
 
-const LastTextMessage: FC<LastMessageEmojiProps> = ({ user, body }) => {
-  // An empty name (e.g. an opaque xmpp id nobody should ever see - see
-  // isOpaqueXmppUserId / withAuthorFallback) omits the name line entirely
-  // rather than rendering an empty row: the body alone reads fine, a blank
-  // line above it does not.
+const LastTextMessage: FC<LastTextMessageProps> = ({ user, body }) => {
+  // An empty name (nothing resolved one, or only an opaque xmpp id exists)
+  // omits line 1 entirely: the message then centres in the block instead of
+  // sitting under an empty row.
   const name = user?.name;
   return (
-    <LastRoomMessageContainer>
-      {name && <LastRoomMessageName>{name}</LastRoomMessageName>}
-      <LastRoomMessageText>{body || 'Chat created'}</LastRoomMessageText>
+    <LastRoomMessageContainer data-testid="last-message-block">
+      {name && (
+        <LastRoomMessageName data-testid="last-message-name">
+          {name}
+        </LastRoomMessageName>
+      )}
+      <LastRoomMessageText data-testid="last-message-line">
+        {body || 'Chat created'}
+      </LastRoomMessageText>
     </LastRoomMessageContainer>
   );
 };
