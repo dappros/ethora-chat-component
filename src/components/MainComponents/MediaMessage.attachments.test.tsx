@@ -136,4 +136,36 @@ describe('MediaMessage', () => {
     renderMessage({ mimetype: undefined, location: undefined });
     expect(screen.getByText('Unsupported media type')).toBeInTheDocument();
   });
+
+  it('renders an svg as a file card, never as an image or album tile', () => {
+    const { container } = renderMessage({
+      attachments: [
+        {
+          location: 'https://files.example/a.png',
+          mimetype: 'image/png',
+          originalName: 'a.png',
+        },
+        {
+          location: 'https://files.example/logo.svg',
+          mimetype: 'image/svg+xml',
+          originalName: 'logo.svg',
+          size: '2048',
+        },
+      ] as never,
+    });
+    expect(container.querySelector('img[src$="logo.svg"]')).toBeNull();
+    expect(screen.getByLabelText('logo.svg')).toBeTruthy();
+    expect(screen.getByText('SVG')).toBeTruthy();
+  });
+
+  it('shows a repaired file name for a mojibake pdf', () => {
+    renderMessage({
+      mimetype: 'application/pdf',
+      location: 'https://files.example/a.pdf',
+      originalName: Array.from(new TextEncoder().encode('Список.pdf'))
+        .map((b) => String.fromCharCode(b))
+        .join(''),
+    });
+    expect(screen.getByText('Список.pdf')).toBeTruthy();
+  });
 });

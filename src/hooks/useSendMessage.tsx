@@ -18,6 +18,8 @@ import {
 } from '../helpers/attachments';
 import { IAttachment } from '../types/types';
 import { toUploadedAttachment } from '../helpers/attachments';
+import { isRasterImage } from '../helpers/fileKind';
+import { repairFilenameEncoding } from '../helpers/repairFilenameEncoding';
 import { RootState, store } from '../roomStore';
 import { useChatSettingState } from './useChatSettingState';
 import { addMessageToHeap } from '../roomStore/roomHeapSlice';
@@ -701,7 +703,7 @@ export const useSendMessage = () => {
         // The sender's own picture, so it shows at once at its real size.
         // Skipped in an e2ee room, where the optimistic bubble stays blank.
         ...(!isE2ee && typeof URL !== 'undefined' && URL.createObjectURL
-          && (file.type || type || '').startsWith('image/')
+          && isRasterImage(file.type || type, file.name)
           ? { localUrl: URL.createObjectURL(file) }
           : {}),
       }));
@@ -843,7 +845,7 @@ export const useSendMessage = () => {
           location: head.location,
           locationPreview: head.locationPreview,
           mimetype: head.mimetype,
-          originalName: head?.originalname,
+          originalName: head?.originalname && repairFilenameEncoding(head.originalname),
           ownerKey: head?.ownerKey,
           size: head.size,
           duration: head?.duration,
@@ -898,7 +900,7 @@ export const useSendMessage = () => {
                 location: head.location,
                 locationPreview: head.locationPreview,
                 mimetype: head.mimetype,
-                originalName: head?.originalname,
+                originalName: head?.originalname && repairFilenameEncoding(head.originalname),
                 fileName: head.filename,
                 size: head.size?.toString?.() ?? head.size,
               } as never,

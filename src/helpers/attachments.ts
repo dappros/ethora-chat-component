@@ -1,6 +1,7 @@
 import { IAttachment, IMessage } from '../types/types';
 import { safeJsonParse } from './safeJson';
 import { parseDimension } from './mediaBox';
+import { repairFilenameEncoding } from './repairFilenameEncoding';
 
 /**
  * Hard ceiling on how many attachments we will serialise into a stanza.
@@ -15,6 +16,12 @@ const asOptionalString = (value: unknown): string | undefined => {
   if (typeof value === 'string') return value || undefined;
   if (typeof value === 'number') return String(value);
   return undefined;
+};
+
+/** A file name from the wire/API, with UTF-8-read-as-Latin-1 mojibake undone. */
+const asOptionalFileName = (value: unknown): string | undefined => {
+  const name = asOptionalString(value);
+  return name === undefined ? undefined : repairFilenameEncoding(name);
 };
 
 const asOptionalBoolean = (value: unknown): boolean | undefined => {
@@ -35,9 +42,9 @@ export const normalizeAttachment = (raw: unknown): IAttachment | null => {
   const source = raw as Record<string, unknown>;
   const location = asOptionalString(source.location) ?? '';
   const originalName =
-    asOptionalString(source.originalName) ?? asOptionalString(source.originalname);
+    asOptionalFileName(source.originalName) ?? asOptionalFileName(source.originalname);
   const mimetype = asOptionalString(source.mimetype);
-  const fileName = asOptionalString(source.fileName) ?? asOptionalString(source.filename);
+  const fileName = asOptionalFileName(source.fileName) ?? asOptionalFileName(source.filename);
 
   if (!location && !originalName && !mimetype && !fileName) {
     return null;
@@ -178,8 +185,14 @@ export const toUploadedAttachment = (raw: any): IAttachment => ({
   location: raw?.location,
   locationPreview: raw?.locationPreview,
   mimetype: raw?.mimetype,
-  originalName: raw?.originalname,
-  fileName: raw?.filename,
+  originalName:
+    typeof raw?.originalname === 'string'
+      ? repairFilenameEncoding(raw.originalname)
+      : raw?.originalname,
+  fileName:
+    typeof raw?.filename === 'string'
+      ? repairFilenameEncoding(raw.filename)
+      : raw?.filename,
   size: raw?.size?.toString?.() ?? raw?.size,
   duration: raw?.duration,
   ownerKey: raw?.ownerKey,
