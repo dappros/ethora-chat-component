@@ -294,6 +294,7 @@ export const SkeletonAvatar = styled.div`
   height: 44px;
   border-radius: var(--ethora-radius-full, 999px);
   flex-shrink: 0;
+  position: relative;
   ${shimmerBackground}
 `;
 
@@ -308,6 +309,7 @@ export const SkeletonLines = styled.div`
 export const SkeletonLine = styled.div<{ $width?: string }>`
   height: 10px;
   border-radius: var(--ethora-radius-sm, 8px);
+  position: relative;
   width: ${({ $width }) => $width || '60%'};
   ${shimmerBackground}
 `;

@@ -48,6 +48,7 @@ const SkeletonBox = styled.div<{ $width?: number; $height?: number }>`
   aspect-ratio: ${({ $width, $height }) =>
     $width && $height ? `${$width} / ${$height}` : DEFAULT_MEDIA_ASPECT_RATIO};
   /* Lets the spinner's container query measure this box, not the viewport. */
+  position: relative;
   container-type: size;
   border-radius: var(--ethora-radius-md, 16px);
   ${shimmerBackground}
@@ -259,6 +260,7 @@ export const PdfThumbnailFrame = styled.div<{ $compact: boolean }>`
 
 /** Sits on the thumbnail while pdf.js parses so the row does not pop in. */
 export const PdfThumbnailSkeleton = styled.div`
+  position: relative;
   width: 100%;
   height: 100%;
   ${shimmerBackground}

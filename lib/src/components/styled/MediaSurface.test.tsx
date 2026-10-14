@@ -224,6 +224,28 @@ describe('MediaSurface loading and unavailable states', () => {
     expect(stage.style.aspectRatio).toBe('190 / 380');
   });
 
+  it('sweeps a soft band left to right, every 2s, after a 120ms delay (resting off the left edge)', () => {
+    renderWithProviders(
+      <MediaSurface kind="image" variant="fill" src="https://files.example/loading.png" alt="loading.png" pending={false} />,
+    );
+    const skeleton = screen.getByTestId('media-surface').firstElementChild as Element;
+    const band = generatedClasses(skeleton)
+      .map((cls) => emittedCss().match(new RegExp(`\\.${cls}::after\\{([^}]*)\\}`))?.[1] ?? '')
+      .join(';');
+    expect(band).toMatch(/animation:[\w-]+2000msease-in-out120msinfinitebackwards/);
+    expect(band).toMatch(/transform:translateX\(-100%\);/);
+  });
+
+  it('keeps the skeleton static under reduced motion, with the band hidden', () => {
+    renderWithProviders(
+      <MediaSurface kind="image" variant="fill" src="https://files.example/loading.png" alt="loading.png" pending={false} />,
+    );
+    const skeleton = screen.getByTestId('media-surface').firstElementChild as Element;
+    expect(emittedCss()).toMatch(
+      new RegExp(`@media\\(prefers-reduced-motion:reduce\\)\\{\\.${generatedClasses(skeleton)[0]}::after\\{display:none`),
+    );
+  });
+
   it('shows a flat neutral box, not a shimmer, for an upload that has no URL and is not pending', () => {
     renderWithProviders(
       <MediaSurface kind="image" variant="fill" src="" alt="idle.png" pending={false} />,
