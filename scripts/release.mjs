@@ -15,11 +15,13 @@ const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 const { name } = pkg;
 
 function sh(cmd, args, options = {}) {
-  return execFileSync(cmd, args, {
+  // With stdio 'inherit' execFileSync returns null, so guard before trimming.
+  const out = execFileSync(cmd, args, {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
     ...options,
-  }).trim();
+  });
+  return out ? out.trim() : '';
 }
 
 const git = (...args) => sh('git', args);
@@ -116,12 +118,25 @@ function release(args) {
     return;
   }
 
-  sh('npm', ['version', version, '--no-git-tag-version'], { stdio: 'inherit' });
-  const changed = git('diff', '--name-only').split('\n').filter(Boolean);
-  if (changed.length === 0) fail('npm version changed nothing');
-  git('add', '--', ...changed);
-  git('commit', '-m', `chore(release): ${tag}`);
-  git('tag', '-a', tag, '-m', tag);
+  // The tree was clean when we started, so if anything fails below we can put
+  // back exactly the files that npm version touched, and nothing else.
+  let changed = [];
+  try {
+    sh('npm', ['version', version, '--no-git-tag-version'], { stdio: 'inherit' });
+    changed = git('diff', '--name-only').split('\n').filter(Boolean);
+    if (changed.length === 0) throw new Error('npm version changed nothing');
+    git('add', '--', ...changed);
+    git('commit', '-m', `chore(release): ${tag}`);
+    git('tag', '-a', tag, '-m', tag);
+  } catch (err) {
+    try {
+      git('reset', '-q', '--', ...changed);
+      git('checkout', '--', ...changed);
+    } catch {
+      // Nothing to restore, or already restored.
+    }
+    fail(`release aborted, version bump undone: ${String(err.stderr || err.message).trim()}`);
+  }
   console.log(`committed and tagged ${tag}`);
 
   if (push) {
