@@ -1,9 +1,18 @@
-import { FC, useId, useMemo, useRef, useState } from 'react';
+import {
+  FC,
+  RefObject,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { css, keyframes, styled } from 'styled-components';
 import { getEmojiNativeById, useEmojiData } from '../../helpers/lazyEmoji';
 import { ReactionMessage } from '../../types/types';
 import { MOTION_EASE, reducedMotion } from '../../styles/motion';
 import { useT } from '../../i18n/useT';
+import { REACTION_HANG_PX } from '../styled/StyledComponents';
 
 /** Distinct emojis shown before the "+N" chip takes over the rest. */
 const MAX_VISIBLE_REACTIONS = 6;
@@ -204,6 +213,12 @@ interface MessageReactionProps {
   reaction: Record<string, ReactionMessage>;
   changeReaction: (reaction: string) => void;
   userName?: string;
+  /**
+   * Reports how far the chip rows hang below the bubble's bottom edge, in px,
+   * whenever their rendered height changes (one row hangs REACTION_HANG_PX).
+   * The message row uses it to reserve room for every wrapped row.
+   */
+  onHangChange?: (hangPx: number) => void;
 }
 
 interface ReactionDetails {
@@ -309,16 +324,44 @@ const ReactionChip: FC<ReactionChipProps> = ({
   );
 };
 
+/**
+ * Measures the chip container and reports how far it hangs below the bubble.
+ * The container's top sits REACTION_HANG_PX above the bubble's bottom edge, so
+ * the hang is its height minus that overlap. Re-measured on every resize, so a
+ * wrap to another row grows the reserve too.
+ */
+const useReactionHang = (
+  ref: RefObject<HTMLDivElement | null>,
+  onHangChange: ((hangPx: number) => void) | undefined,
+  active: boolean
+) => {
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || !onHangChange) return;
+    const report = () =>
+      onHangChange(
+        Math.max(REACTION_HANG_PX, el.offsetHeight - REACTION_HANG_PX)
+      );
+    report();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(report);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref, onHangChange, active]);
+};
+
 export const MessageReaction: FC<MessageReactionProps> = ({
   reaction,
   color,
   changeReaction,
   userName,
+  onHangChange,
 }) => {
   useEmojiData();
   const t = useT();
   const memoEmoji = getEmojiNativeById;
   const [expanded, setExpanded] = useState(false);
+  const rowRef = useRef<HTMLDivElement>(null);
 
   const reactionDetails = useMemo(() => {
     if (!reaction) {
@@ -343,9 +386,10 @@ export const MessageReaction: FC<MessageReactionProps> = ({
     return result;
   }, [reaction]);
 
-  if (!reaction) return null;
+  const entries = reaction ? Object.entries(reactionDetails) : [];
+  useReactionHang(rowRef, onHangChange, entries.length > 0);
 
-  const entries = Object.entries(reactionDetails);
+  if (!reaction) return null;
   if (entries.length === 0) return null;
 
   const overflowing = entries.length > MAX_VISIBLE_REACTIONS && !expanded;
@@ -355,7 +399,7 @@ export const MessageReaction: FC<MessageReactionProps> = ({
   const hiddenCount = entries.length - MAX_VISIBLE_REACTIONS;
 
   return (
-    <ReactionContainer className="reaction-row">
+    <ReactionContainer ref={rowRef} className="reaction-row">
       {visible.map(([emoji, details]) => {
         const glyph = memoEmoji(emoji);
         return (

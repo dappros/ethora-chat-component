@@ -1,10 +1,16 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
+import { cleanup } from '@testing-library/react';
 import { renderWithProviders } from '../../test/renderWithProviders';
 import { Message } from './Message';
 import { IAttachment, IMessage, IRoom } from '../../types/types';
 import { MessageContainer } from '../MainComponents/MessageContainer';
-import { REACTION_HANG_PX, RUN_GAP_PX, SENDER_GAP_PX } from '../styled/StyledComponents';
+import {
+  REACTION_CLEAR_PX,
+  REACTION_HANG_PX,
+  RUN_GAP_PX,
+  SENDER_GAP_PX,
+} from '../styled/StyledComponents';
 
 vi.mock('../../context/xmppProvider', () => ({
   useXmppClient: () => ({ client: { sendMessageReactionStanza: vi.fn() } }),
@@ -241,11 +247,49 @@ describe('Message bottom spacing', () => {
     expect(declarationsFor(rowOf())).toContain('margin:0');
   });
 
-  it('reserves exactly 12px below a row with reactions, and no extra bubble padding', () => {
+  it('reserves the 12px hang plus a 4px clear gap below a row with reactions', () => {
     renderBubble(makeMessage({ reaction: reactions } as Partial<IMessage>), false, true);
     expect(REACTION_HANG_PX).toBe(12);
-    expect(declarationsFor(rowOf())).toContain('margin-bottom:12px');
+    expect(REACTION_CLEAR_PX).toBe(4);
+    expect(declarationsFor(rowOf())).toContain('margin-bottom:16px');
+    expect(declarationsFor(rowOf())).not.toContain('margin-bottom:12px');
     expect(declarationsFor(bubble())).not.toContain('padding-bottom');
+  });
+
+  it('reserves 16px with reactions inside a run too, not the 2px run gap', () => {
+    renderBubble(makeMessage({ reaction: reactions } as Partial<IMessage>), false, false);
+    expect(declarationsFor(rowOf())).toContain('margin-bottom:16px');
+    expect(declarationsFor(rowOf())).not.toContain(`margin-bottom:${RUN_GAP_PX}px`);
+  });
+
+  it('keeps the 8px sender gap and the 2px run gap when there are no reactions', () => {
+    renderBubble(makeMessage(), false, true);
+    expect(declarationsFor(rowOf())).toContain('margin-bottom:8px');
+    expect(declarationsFor(rowOf())).not.toContain('z-index:1');
+    cleanup();
+    renderBubble(makeMessage(), false, false);
+    expect(declarationsFor(rowOf())).toContain('margin-bottom:2px');
+  });
+
+  it('paints a row with reactions above the rows after it', () => {
+    renderBubble(makeMessage({ reaction: reactions } as Partial<IMessage>), false, true);
+    expect(declarationsFor(rowOf())).toContain('position:relative');
+    expect(declarationsFor(rowOf())).toContain('z-index:1');
+  });
+
+  it('grows the reserve with the measured height of wrapped chip rows', () => {
+    // Two chip rows: 24px + 4px gap + 24px = 52px tall, 40px hang below the bubble.
+    const spy = vi
+      .spyOn(HTMLElement.prototype, 'offsetHeight', 'get')
+      .mockImplementation(function (this: HTMLElement) {
+        return this.classList.contains('reaction-row') ? 52 : 0;
+      });
+    try {
+      renderBubble(makeMessage({ reaction: reactions } as Partial<IMessage>), false, true);
+      expect(declarationsFor(rowOf())).toContain('margin-bottom:44px');
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('gives the row a 6px side gutter so the tail is not clipped', () => {
