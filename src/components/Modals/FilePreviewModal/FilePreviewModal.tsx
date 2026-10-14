@@ -509,7 +509,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
             $side="left"
             onClick={goPrevious}
             disabled={!hasPrevious}
-            aria-label={t('modal.filePreview.previousImage')}
+            aria-label={t('modal.filePreview.previousItem')}
           >
             <ChevronLeftIcon color="currentColor" />
           </NavButton>
@@ -521,7 +521,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
             $side="right"
             onClick={goNext}
             disabled={!hasNext}
-            aria-label={t('modal.filePreview.nextImage')}
+            aria-label={t('modal.filePreview.nextItem')}
           >
             <ChevronRightIcon color="currentColor" />
           </NavButton>
@@ -543,7 +543,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
                 }}
                 type="button"
                 $active={i === index}
-                aria-label={t('modal.filePreview.showImage', {
+                aria-label={t('modal.filePreview.showItem', {
                   current: i + 1,
                   total: gallery.length,
                 })}

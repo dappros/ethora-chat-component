@@ -131,18 +131,18 @@ describe('FilePreviewModal viewer', () => {
       preloadedState: stateWith(openFile('one.png')),
     });
 
-    expect(screen.getByLabelText('Show image 1 of 3')).toHaveAttribute(
+    expect(screen.getByLabelText('Show item 1 of 3')).toHaveAttribute(
       'aria-current',
       'true'
     );
 
-    fireEvent.click(screen.getByLabelText('Show image 3 of 3'));
+    fireEvent.click(screen.getByLabelText('Show item 3 of 3'));
 
     expect(screen.getByTestId('image-lightbox-image')).toHaveAttribute(
       'src',
       expect.stringContaining('three.png')
     );
-    expect(screen.getByLabelText('Show image 3 of 3')).toHaveAttribute(
+    expect(screen.getByLabelText('Show item 3 of 3')).toHaveAttribute(
       'aria-current',
       'true'
     );

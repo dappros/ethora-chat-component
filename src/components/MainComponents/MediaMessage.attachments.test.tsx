@@ -73,7 +73,7 @@ describe('MediaMessage', () => {
 
     expect(screen.getByText('PDF')).toBeInTheDocument();
     expect(screen.getByText('report.pdf')).toBeInTheDocument();
-    expect(screen.getByText('2.00 KB')).toBeInTheDocument();
+    expect(screen.getByText('2 KB')).toBeInTheDocument();
   });
 
   // Storage labels anything it cannot sniff as octet-stream, which used to

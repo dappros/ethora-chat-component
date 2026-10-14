@@ -74,7 +74,9 @@ const PdfMessage: React.FC<PdfMessageProps> = ({
   const isRendering = !previewSrc && status === 'loading';
   const formattedSize = formatFileSize(size);
 
-  const pageLabel = pageCount ? t('attachment.pages', { count: pageCount }) : undefined;
+  const pageLabel = pageCount
+    ? t(pageCount === 1 ? 'attachment.page' : 'attachment.pages', { count: pageCount })
+    : undefined;
 
   return (
     <FileCard

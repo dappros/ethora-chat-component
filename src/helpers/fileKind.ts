@@ -82,16 +82,20 @@ export const formatFileSize = (sizeInBytes?: string | number): string => {
     return '';
   }
 
+  // One decimal at most: 323.7 KB, 6.8 MB, 2 KB.
+  const withUnit = (value: number, unit: string) =>
+    `${Number(value.toFixed(1))} ${unit}`;
+
   if (size < 1024) {
     return `${size} B`;
   }
   if (size < 1024 ** 2) {
-    return `${(size / 1024).toFixed(2)} KB`;
+    return withUnit(size / 1024, 'KB');
   }
   if (size < 1024 ** 3) {
-    return `${(size / 1024 ** 2).toFixed(2)} MB`;
+    return withUnit(size / 1024 ** 2, 'MB');
   }
-  return `${(size / 1024 ** 3).toFixed(2)} GB`;
+  return withUnit(size / 1024 ** 3, 'GB');
 };
 
 /** Middle-truncates the base name, always keeping the extension visible. */
