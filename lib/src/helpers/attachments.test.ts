@@ -6,6 +6,7 @@ import {
   normalizeAttachment,
   parseAttachments,
   serializeAttachments,
+  toUploadedAttachment,
 } from './attachments';
 import { IAttachment } from '../types/types';
 
@@ -200,5 +201,38 @@ describe('local upload state on outgoing attachments', () => {
     );
     expect(wire[0]).not.toHaveProperty('uploadStatus');
     expect(wire[0]).not.toHaveProperty('uploadProgress');
+  });
+});
+
+describe('file name repair at the normalisation point', () => {
+  const broken = Array.from(new TextEncoder().encode('Список.pdf'))
+    .map((b) => String.fromCharCode(b))
+    .join('');
+
+  it('repairs originalName from the wire', () => {
+    expect(normalizeAttachment({ location: 'x', originalName: broken })?.originalName).toBe(
+      'Список.pdf'
+    );
+  });
+
+  it('repairs the legacy single-file path', () => {
+    const [attachment] = getMessageAttachments({
+      location: 'https://x/f.pdf',
+      mimetype: 'application/pdf',
+      originalName: broken,
+    } as never);
+    expect(attachment.originalName).toBe('Список.pdf');
+  });
+
+  it('repairs the upload result mapping', () => {
+    expect(toUploadedAttachment({ originalname: broken, filename: broken }).originalName).toBe(
+      'Список.pdf'
+    );
+  });
+
+  it('keeps correct names', () => {
+    expect(normalizeAttachment({ location: 'x', originalName: 'Список.pdf' })?.originalName).toBe(
+      'Список.pdf'
+    );
   });
 });

@@ -1,4 +1,5 @@
 import { ApiFile } from '../../types/types';
+import { isSvgFile } from '../../helpers/fileKind';
 
 export type FileCategory = 'media' | 'documents' | 'audio';
 
@@ -9,15 +10,22 @@ export type FileCategory = 'media' | 'documents' | 'audio';
  * with thumbnails); audio/* gets its own chip; everything else falls back
  * to "Documents".
  */
-export function getFileCategory(mimetype?: string | null): FileCategory {
+export function getFileCategory(
+  mimetype?: string | null,
+  name?: string | null
+): FileCategory {
   const type = (mimetype || '').toLowerCase();
+  if (isSvgFile(type, name || undefined)) return 'documents';
   if (type.startsWith('image/') || type.startsWith('video/')) return 'media';
   if (type.startsWith('audio/')) return 'audio';
   return 'documents';
 }
 
-export function isPreviewable(file: Pick<ApiFile, 'mimetype'>): boolean {
+export function isPreviewable(
+  file: Pick<ApiFile, 'mimetype'> & { originalname?: string }
+): boolean {
   const type = (file.mimetype || '').toLowerCase();
+  if (isSvgFile(type, file.originalname)) return false;
   return (
     type.startsWith('image/') ||
     type.startsWith('video/') ||

@@ -225,3 +225,23 @@ describe('galleryFromFiles', () => {
     expect(galleryFromFiles(undefined)).toEqual([]);
   });
 });
+
+describe('SVG is not gallery media', () => {
+  it('skips svg attachments', () => {
+    const images = collectRoomImages([
+      message({
+        id: 'a',
+        location: 'https://files.example.com/logo.svg',
+        mimetype: 'image/svg+xml',
+        originalName: 'logo.svg',
+      }),
+      message({
+        id: 'b',
+        location: 'https://files.example.com/two.jpg',
+        mimetype: 'image/jpeg',
+        originalName: 'two.jpg',
+      }),
+    ]);
+    expect(images.map((i) => i.fileURL)).toEqual(['https://files.example.com/two.jpg']);
+  });
+});

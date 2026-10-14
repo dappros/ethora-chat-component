@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import { ApiFile } from '../../types/types';
 import { RootState } from '../../roomStore';
 import { getFileCategory, formatBytes } from './fileCategory';
+import { repairFilenameEncoding } from '../../helpers/repairFilenameEncoding';
 import { appendFileToken } from '../../helpers/secureFileUrl';
 import { FileIcon, DownloadIcon, DeleteIcon } from '../../assets/icons';
 import { useT } from '../../i18n/useT';
@@ -337,8 +338,8 @@ const FilesList: React.FC<FilesListProps> = ({
     }
   };
 
-  const mediaItems = items.filter((f) => getFileCategory(f.mimetype) === 'media');
-  const otherItems = items.filter((f) => getFileCategory(f.mimetype) !== 'media');
+  const mediaItems = items.filter((f) => getFileCategory(f.mimetype, f.originalname) === 'media');
+  const otherItems = items.filter((f) => getFileCategory(f.mimetype, f.originalname) !== 'media');
 
   const requestDelete = (file: ApiFile) => setConfirmingId(file._id);
   const cancelDelete = () => setConfirmingId(null);
@@ -363,15 +364,15 @@ const FilesList: React.FC<FilesListProps> = ({
                   onPreview(file);
                 }
               }}
-              aria-label={file.originalname}
-              title={file.originalname}
+              aria-label={repairFilenameEncoding(file.originalname)}
+              title={repairFilenameEncoding(file.originalname)}
             >
               <ThumbImage
                 src={appendFileToken(
                   file.locationPreview || file.location,
                   fileToken
                 )}
-                alt={file.originalname}
+                alt={repairFilenameEncoding(file.originalname)}
                 loading="lazy"
               />
               {!compact && confirmingId === file._id && (
@@ -430,9 +431,9 @@ const FilesList: React.FC<FilesListProps> = ({
                 </RowIconWrap>
                 <RowMain
                   onClick={() => onPreview(file)}
-                  aria-label={file.originalname}
+                  aria-label={repairFilenameEncoding(file.originalname)}
                 >
-                  <RowName>{file.originalname}</RowName>
+                  <RowName>{repairFilenameEncoding(file.originalname)}</RowName>
                   <RowMeta>
                     <RowMetaText>{formatBytes(file.size)}</RowMetaText>
                     {file.createdAt && <RowMetaText>&middot;</RowMetaText>}

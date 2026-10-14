@@ -6,6 +6,7 @@ import { RootState } from '../../roomStore';
 import { useMyFiles } from '../../hooks/useMyFiles';
 import { ApiFile } from '../../types/types';
 import { getFileCategory, isPreviewable, FileCategory } from './fileCategory';
+import { repairFilenameEncoding } from '../../helpers/repairFilenameEncoding';
 import { withFileToken } from '../../helpers/secureFileUrl';
 import FilesList from './FilesList';
 import { SearchIcon, FileIcon } from '../../assets/icons';
@@ -197,7 +198,7 @@ const FilesPanel: React.FC = () => {
   const visibleItems = useMemo(() => {
     const query = search.trim().toLowerCase();
     return items.filter((file) => {
-      if (filter !== 'all' && getFileCategory(file.mimetype) !== filter) {
+      if (filter !== 'all' && getFileCategory(file.mimetype, file.originalname) !== filter) {
         return false;
       }
       if (query && !file.originalname?.toLowerCase().includes(query)) {
@@ -216,7 +217,7 @@ const FilesPanel: React.FC = () => {
     if (isPreviewable(file)) {
       dispatch(
         setActiveFile({
-          fileName: file.originalname,
+          fileName: repairFilenameEncoding(file.originalname),
           fileURL: file.location,
           mimetype: file.mimetype || '',
         })
@@ -235,7 +236,7 @@ const FilesPanel: React.FC = () => {
     if (!url || typeof document === 'undefined') return;
     const link = document.createElement('a');
     link.href = url;
-    link.download = file.originalname || 'file';
+    link.download = repairFilenameEncoding(file.originalname || '') || 'file';
     document.body.appendChild(link);
     link.click();
     link.remove();

@@ -5,6 +5,8 @@ import {
   getFileExtension,
   getFileKind,
   isPdfFile,
+  isRasterImage,
+  isSvgFile,
 } from './fileKind';
 
 describe('getFileKind', () => {
@@ -85,5 +87,25 @@ describe('formatFileName', () => {
 
   it('survives a name with no extension', () => {
     expect(formatFileName('README', 4)).toBe('R...');
+  });
+});
+
+describe('SVG is a plain file, never an image', () => {
+  it.each([
+    ['image/svg+xml', 'logo.svg'],
+    ['image/svg+xml', undefined],
+    ['image/svg+xml; charset=utf-8', 'x'],
+    ['application/octet-stream', 'logo.svg'],
+    ['image/png', 'logo.svgz'],
+    ['', 'LOGO.SVG'],
+  ])('%s %s', (mime, name) => {
+    expect(getFileKind(mime, name)).toBe('file');
+    expect(isSvgFile(mime, name)).toBe(true);
+    expect(isRasterImage(mime, name)).toBe(false);
+  });
+
+  it('keeps real images as images', () => {
+    expect(getFileKind('image/png', 'a.png')).toBe('image');
+    expect(isRasterImage('image/jpeg', 'a.jpg')).toBe(true);
   });
 });
