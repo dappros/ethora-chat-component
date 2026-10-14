@@ -230,6 +230,8 @@ export const SendButton = styled.button`
  * half is the only space the message row reserves below it.
  */
 export const REACTION_HANG_PX = 12;
+/** Clear space between the lowest reaction chip and the next bubble, in px. */
+export const REACTION_CLEAR_PX = 4;
 /** Vertical gap below a message that is followed by the same sender, in px. */
 export const RUN_GAP_PX = 2;
 /** Vertical gap below the last message of a run, before the next sender, in px. */
@@ -244,6 +246,11 @@ export const CustomMessageContainer = styled.div<{
   $reaction?: boolean;
   /** False when the next message comes from the same sender (a run). */
   $lastInGroup?: boolean;
+  /**
+   * How far the reaction chips hang below the bubble, in px, as measured by
+   * MessageReaction (one row is REACTION_HANG_PX). Only used with $reaction.
+   */
+  $reactionHang?: number;
 }>`
   display: flex;
   flex-direction: ${(props) => (props.$isUser ? 'row-reverse' : 'row')};
@@ -253,14 +260,19 @@ export const CustomMessageContainer = styled.div<{
   padding: 0 ${MESSAGE_ROW_GUTTER_PX}px;
   gap: 5px;
   position: relative;
-  margin-bottom: ${(props) =>
-    props.$reply
-      ? '40px'
-      : props.$reaction
-        ? `${REACTION_HANG_PX}px`
-        : props.$lastInGroup === false
-          ? `${RUN_GAP_PX}px`
-          : `${SENDER_GAP_PX}px`};
+  /* A row with chips paints above the rows after it, so the next bubble and
+     its tail never cover the chips that hang into the gap. */
+  ${(props) => (props.$reaction ? 'z-index: 1;' : '')}
+  margin-bottom: ${(props) => {
+    const gap = props.$reply
+      ? 40
+      : props.$lastInGroup === false
+        ? RUN_GAP_PX
+        : SENDER_GAP_PX;
+    if (!props.$reaction) return `${gap}px`;
+    const hang = props.$reactionHang ?? REACTION_HANG_PX;
+    return `${Math.max(gap, hang + REACTION_CLEAR_PX)}px`;
+  }};
 `;
 
 // 16px radius, with a smaller radius on the corner nearest the avatar (the

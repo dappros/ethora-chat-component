@@ -17,6 +17,7 @@ import {
   CustomUserName,
   CustomMessagePhotoContainer,
   MessageFooter,
+  REACTION_HANG_PX,
 } from '../styled/StyledComponents';
 import MediaMessage from '../MainComponents/MediaMessage';
 import MediaCaption from './MediaCaption';
@@ -300,6 +301,9 @@ const Message: React.FC<MessageProps> = forwardRef<
   );
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  // How far the reaction chips hang below the bubble, measured by
+  // MessageReaction, so the row reserves room for every wrapped chip row.
+  const [reactionHang, setReactionHang] = useState(REACTION_HANG_PX);
 
   useEffect(() => {
     if (message && message.body && typeof message.body === 'string') {
@@ -744,6 +748,7 @@ const Message: React.FC<MessageProps> = forwardRef<
         $isUser={isUser}
         $reply={!!message?.reply?.length}
         $reaction={hasReactions}
+        $reactionHang={reactionHang}
         $lastInGroup={isLastInGroup}
         ref={ref}
       >
@@ -889,6 +894,7 @@ const Message: React.FC<MessageProps> = forwardRef<
           {message.reaction && (
             <MessageReaction
               reaction={message.reaction}
+              onHangChange={setReactionHang}
               changeReaction={
                 interactionsDisabled ? () => undefined : handleReactionMessage
               }

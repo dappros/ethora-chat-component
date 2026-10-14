@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { fireEvent, screen, within } from '@testing-library/react';
 import { renderWithProviders } from '../../test/renderWithProviders';
 import { MessageReaction } from './MessageReaction';
@@ -327,5 +327,103 @@ describe('MessageReaction colours match the pre-redesign chip', () => {
     const css = chipCss(chips(container)[0]);
     expect(css).not.toContain('color-mix');
     expect(css).not.toContain('reaction-chip-bg');
+  });
+});
+
+describe('MessageReaction hang reporting', () => {
+  type Observed = {
+    callback: () => void;
+    observe: ReturnType<typeof vi.fn>;
+    disconnect: ReturnType<typeof vi.fn>;
+  };
+  let observers: Observed[] = [];
+  let rowHeight = 24;
+  const originalRO = globalThis.ResizeObserver;
+  const originalHeight = Object.getOwnPropertyDescriptor(
+    HTMLElement.prototype,
+    'offsetHeight'
+  );
+
+  const installStubs = () => {
+    observers = [];
+    globalThis.ResizeObserver = class {
+      constructor(callback: () => void) {
+        const entry: Observed = {
+          callback,
+          observe: vi.fn(),
+          disconnect: vi.fn(),
+        };
+        observers.push(entry);
+        return entry as unknown as ResizeObserver;
+      }
+    } as unknown as typeof ResizeObserver;
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+      configurable: true,
+      get(this: HTMLElement) {
+        return this.classList.contains('reaction-row') ? rowHeight : 0;
+      },
+    });
+  };
+
+  afterEach(() => {
+    globalThis.ResizeObserver = originalRO;
+    if (originalHeight) {
+      Object.defineProperty(HTMLElement.prototype, 'offsetHeight', originalHeight);
+    }
+  });
+
+  const renderWithHang = (onHangChange: (px: number) => void) =>
+    renderWithProviders(
+      <MessageReaction
+        reaction={{ bob: reactor('Bob', 'Lee', ['+1']) }}
+        color="#0052CD"
+        changeReaction={vi.fn()}
+        userName={ME}
+        onHangChange={onHangChange}
+      />
+    );
+
+  it('reports the 12px hang of a single chip row on mount', () => {
+    installStubs();
+    rowHeight = 24;
+    const onHangChange = vi.fn();
+    renderWithHang(onHangChange);
+    expect(onHangChange).toHaveBeenLastCalledWith(12);
+    expect(observers[0].observe).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports the taller hang when the chips wrap to a second row', () => {
+    installStubs();
+    rowHeight = 52;
+    const onHangChange = vi.fn();
+    renderWithHang(onHangChange);
+    expect(onHangChange).toHaveBeenLastCalledWith(40);
+  });
+
+  it('re-reports when the row resizes, and disconnects on unmount', () => {
+    installStubs();
+    rowHeight = 24;
+    const onHangChange = vi.fn();
+    const { unmount } = renderWithHang(onHangChange);
+    rowHeight = 80;
+    observers[0].callback();
+    expect(onHangChange).toHaveBeenLastCalledWith(68);
+    unmount();
+    expect(observers[0].disconnect).toHaveBeenCalled();
+  });
+
+  it('reports nothing and observes nothing when there are no reactions', () => {
+    installStubs();
+    const onHangChange = vi.fn();
+    renderWithProviders(
+      <MessageReaction
+        reaction={{}}
+        color="#0052CD"
+        changeReaction={vi.fn()}
+        onHangChange={onHangChange}
+      />
+    );
+    expect(onHangChange).not.toHaveBeenCalled();
+    expect(observers).toHaveLength(0);
   });
 });
