@@ -19,6 +19,7 @@ import {
   MessageFooter,
 } from '../styled/StyledComponents';
 import MediaMessage from '../MainComponents/MediaMessage';
+import MediaCaption from './MediaCaption';
 import { shallowEqual, useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
 import { createUserNameFromSetUser } from '../../helpers/createUserNameFromSetUser';
@@ -704,12 +705,15 @@ const Message: React.FC<MessageProps> = forwardRef<
             />
           )}
           {message?.isMediafile === 'true' && !message?.isDeleted ? (
-            <MediaMessage
-              mimeType={message.mimetype}
-              locationPreview={message.locationPreview}
-              location={message?.location}
-              message={message}
-            />
+            <>
+              <MediaMessage
+                mimeType={message.mimetype}
+                locationPreview={message.locationPreview}
+                location={message?.location}
+                message={message}
+              />
+              <MediaCaption message={message} onMentionClick={handleMentionClick} />
+            </>
           ) : (
             // Muted while unsent so the bubble reads as "not landed yet"
             // without shouting - the danger tone belongs on the notice below,

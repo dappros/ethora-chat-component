@@ -93,6 +93,13 @@ export interface IMessage {
   // @-mentions carried by this message's body, decoded from the `mentions`
   // JSON attribute on the stanza's <data> element (see getDataFromXml.ts).
   mentions?: IMentionSpan[];
+  // Text typed with the attachments of a media message, sent inside that same
+  // message (never as a separate text stanza). `body` stays "media" for it.
+  // Read it through getMessageCaption() (helpers/caption.ts). On a sealed
+  // message it arrives inside the encrypted envelope, never on <data>.
+  caption?: string;
+  // @-mention spans into `caption`, the same way `mentions` indexes `body`.
+  captionMentions?: IMentionSpan[];
   // Present when this message is a call-log entry derived from a
   // `<data type="call-state">` stanza (see helpers/callLogMessage.ts).
   callLog?: {

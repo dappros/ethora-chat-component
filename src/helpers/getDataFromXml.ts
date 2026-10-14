@@ -8,7 +8,8 @@ import { parseAttachments } from './attachments';
 import { parseQuickReplies } from './quickReplies';
 import { getTimestampFromUnknown } from './timestamp';
 import { normalizeXmppUsername } from './xmppUsername';
-import { parseSealedMediaBody } from '../e2ee/fileEnvelope';
+import { parseSealedMediaPayload } from '../e2ee/fileEnvelope';
+import { getMessageCaption, normalizeCaptionMentions } from './caption';
 
 const getLocalpartFromJid = (jid?: string): string | undefined => {
   const value = String(jid || '').trim();
@@ -136,18 +137,44 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
     dataAttrs.mentions = Array.isArray(parsedMentions) ? parsedMentions : [];
   }
 
-  // A sealed attachment carries its per-file keys in the (OMEMO-decrypted)
-  // <body> rather than on <data>, which rides in the clear. Lift them onto
-  // the data attrs - where createMessageFromXml spreads them onto IMessage -
-  // and put <body> back to what a media message normally says, so nothing
-  // downstream renders the key JSON as message text.
+  // A sealed attachment carries its per-file keys - and its caption, if the
+  // sender typed one - in the (OMEMO-decrypted) <body> rather than on <data>,
+  // which rides in the clear. Lift them onto the data attrs - where
+  // createMessageFromXml spreads them onto IMessage - and put <body> back to
+  // what a media message normally says, so nothing downstream renders the key
+  // JSON as message text.
   let body = rawBody;
   if (dataAttrs.clientEncrypted === 'true') {
-    const keys = parseSealedMediaBody(body);
-    if (keys) {
-      dataAttrs.e2eeKeys = keys;
+    // The envelope is the only place a sealed caption may come from, so any
+    // caption attribute the sender also wrote in the clear is discarded, with
+    // or without a readable envelope.
+    delete dataAttrs.caption;
+    delete dataAttrs.captionMentions;
+    const sealed = parseSealedMediaPayload(body);
+    if (sealed) {
+      dataAttrs.e2eeKeys = sealed.keys;
+      if (sealed.caption) dataAttrs.caption = sealed.caption;
+      if (sealed.captionMentions) dataAttrs.captionMentions = sealed.captionMentions;
       body = 'media';
     }
+  }
+
+  // A plain-room caption: `caption` is the text, `captionMentions` its spans
+  // (JSON, like `mentions`). Blank captions are dropped so a message without
+  // one never carries an empty attribute.
+  if ('caption' in dataAttrs) {
+    const caption = getMessageCaption({ caption: dataAttrs.caption });
+    if (caption) {
+      dataAttrs.caption = caption;
+      const spans = normalizeCaptionMentions(dataAttrs.captionMentions, caption);
+      if (spans) dataAttrs.captionMentions = spans;
+      else delete dataAttrs.captionMentions;
+    } else {
+      delete dataAttrs.caption;
+      delete dataAttrs.captionMentions;
+    }
+  } else if ('captionMentions' in dataAttrs) {
+    delete dataAttrs.captionMentions;
   }
 
   // `quickReplies` carries bot-offered buttons as a JSON string (the format

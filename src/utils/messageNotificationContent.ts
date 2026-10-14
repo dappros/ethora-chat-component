@@ -9,6 +9,7 @@ import { resolveSenderDisplayName } from '../helpers/createUserNameFromSetUser';
 import { isOpaqueXmppUserId, toLocalPart } from '../helpers/xmppIdShape';
 import { interpolate, resolveStringTable } from '../i18n/strings';
 import { isCurrentUserMessage } from './notificationPolicy';
+import { getMessageCaption } from '../helpers/caption';
 
 export const MAX_NOTIFICATION_BODY_LENGTH = 120;
 
@@ -146,7 +147,16 @@ export const buildNotificationContent = (
   // only that something arrived. (An undecryptable placeholder body is
   // covered by the same rule.)
   const generic = !!room?.e2ee || GENERIC_BODY_RE.test(rawBody);
-  const text = generic ? t('notification.newMessage') : label || truncate(rawBody);
+  // A media message's caption is its text: "Photo, look at this". Never
+  // shown for an e2ee room, where the notification stays generic.
+  const caption = getMessageCaption(message);
+  const text = generic
+    ? t('notification.newMessage')
+    : caption
+      ? label
+        ? `${label}, ${truncate(caption)}`
+        : truncate(caption)
+      : label || truncate(rawBody);
 
   const senderName = resolveNotificationSenderName(
     message,

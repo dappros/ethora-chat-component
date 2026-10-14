@@ -6,6 +6,7 @@ import { IMessage } from '../../types/models/message.model';
 import { RootState } from '../../roomStore';
 import { stripBotMarkup } from '../../helpers/botMarkup';
 import { isSvgFile } from '../../helpers/fileKind';
+import { getMessageCaption } from '../../helpers/caption';
 
 export interface MessageNotificationData {
   id: string;
@@ -240,21 +241,27 @@ const formatTime = (timestamp: number): string => {
   return date.toLocaleDateString();
 };
 
+const mediaPreviewLabel = (message: IMessage): string => {
+  if (
+    message.mimetype?.startsWith('image/') &&
+    !isSvgFile(message.mimetype, message.originalName || message.fileName)
+  ) {
+    return '📷 Photo';
+  }
+  if (message.mimetype?.startsWith('video/')) {
+    return '🎥 Video';
+  }
+  if (message.mimetype?.startsWith('audio/')) {
+    return '🎵 Audio';
+  }
+  return '📎 File';
+};
+
 const getMessagePreview = (message: IMessage): string => {
   if (message.isMediafile === 'true') {
-    if (
-      message.mimetype?.startsWith('image/') &&
-      !isSvgFile(message.mimetype, message.originalName || message.fileName)
-    ) {
-      return '📷 Photo';
-    }
-    if (message.mimetype?.startsWith('video/')) {
-      return '🎥 Video';
-    }
-    if (message.mimetype?.startsWith('audio/')) {
-      return '🎵 Audio';
-    }
-    return '📎 File';
+    const label = mediaPreviewLabel(message);
+    const caption = getMessageCaption(message);
+    return caption ? `${label}, ${caption}` : label;
   }
   if (message.isSystemMessage === 'true') {
     return message.body || 'System message';
