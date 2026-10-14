@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo } from 'react';
 import styled from 'styled-components';
 import { useDispatch } from 'react-redux';
-import { IAttachment } from '../../types/types';
+import { IAttachment, ModalFile } from '../../types/types';
 import { getAttachmentName } from '../../helpers/attachments';
 import { getFileKind } from '../../helpers/fileKind';
 import {
@@ -96,6 +96,9 @@ interface AlbumGridProps {
   items: AlbumGridItem[];
   /** Called with the failed tile's index when the user asks to retry it. */
   onRetry?: (index: number) => void;
+  /** Who posted the album and when, handed to the viewer header. */
+  sender?: ModalFile['sender'];
+  date?: string;
 }
 
 /**
@@ -103,7 +106,7 @@ interface AlbumGridProps {
  * from getAlbumLayout; a tile tap opens that file in the preview modal, and
  * a tile still in flight or failed shows its state over the thumbnail.
  */
-const AlbumGrid: React.FC<AlbumGridProps> = ({ items, onRetry }) => {
+const AlbumGrid: React.FC<AlbumGridProps> = ({ items, onRetry, sender, date }) => {
   const t = useT();
   const dispatch = useDispatch();
   const layout = useMemo(() => getAlbumLayout(items.length), [items.length]);
@@ -130,8 +133,10 @@ const AlbumGrid: React.FC<AlbumGridProps> = ({ items, onRetry }) => {
           fileURL: attachment.location,
           mimetype: attachment.mimetype || '',
           previewURL: attachment.locationPreview || undefined,
+          sender,
+          date,
         })),
-    [items]
+    [items, sender, date]
   );
 
   const openAttachment = useCallback(
@@ -142,6 +147,8 @@ const AlbumGrid: React.FC<AlbumGridProps> = ({ items, onRetry }) => {
           fileName,
           fileURL: attachment.location,
           mimetype: attachment.mimetype || '',
+          sender,
+          date,
           siblings,
         })
       );

@@ -37,8 +37,15 @@ describe('Avatar - getInitials', () => {
     expect(container.textContent).toBe('A');
   });
 
-  it('falls back to "??" when there is nothing to derive initials from', () => {
-    const { container } = renderWithProviders(<Avatar />);
-    expect(container.textContent).toBe('??');
+  it('shows a person glyph, never "?", when there is nothing to derive initials from', () => {
+    const { container, getByTestId } = renderWithProviders(<Avatar />);
+    expect(container.textContent).toBe('');
+    expect(container.textContent).not.toContain('?');
+    expect(getByTestId('avatar-unknown-glyph')).toBeTruthy();
+  });
+
+  it('treats a blank name as unknown', () => {
+    const { container } = renderWithProviders(<Avatar username="   " />);
+    expect(container.textContent).not.toContain('?');
   });
 });
