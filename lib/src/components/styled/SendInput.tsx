@@ -54,6 +54,7 @@ import { isRoomMembersTruncated } from '../../helpers/roomUserCount';
 import { useRoomDirectory } from '../../hooks/useRoomDirectory';
 import MentionDropdown from '../InputComponents/MentionDropdown';
 import MentionPickerModal from '../InputComponents/MentionPickerModal';
+import type { CaptionInput } from '../../helpers/caption';
 
 const DEFAULT_MAX_FILES = MAX_ATTACHMENTS_PER_MESSAGE;
 
@@ -92,13 +93,13 @@ export interface SendInputProps {
   /**
    * Receives a `File[]` for picked attachments (one message, N files) and a
    * `Blob` for voice notes. Single files still arrive as a one-element array.
-   * Resolving to `false` means the message was not delivered (yet), so a
-   * caption typed with the files is kept in the composer instead of going
-   * out ahead of its media.
+   * Text typed with the files arrives as `caption` and is sent inside that
+   * same media message, so it can never land as a separate bubble.
    */
   sendMedia: (
     data: File[] | File | Blob,
-    type: string
+    type: string,
+    caption?: CaptionInput
   ) => void | boolean | Promise<void | boolean>;
   isLoading: boolean;
   editMessage?: string;
@@ -117,7 +118,8 @@ export interface SendInputProps {
   ) => void | Promise<void>;
   onSendMedia?: (
     data: File[] | File | Blob,
-    type: string
+    type: string,
+    caption?: CaptionInput
   ) => void | boolean | Promise<void | boolean>;
   placeholderText?: string;
   /** Disables the @-mention autocomplete (e.g. for a composer variant that
@@ -832,16 +834,18 @@ const SendInput: React.FC<SendInputProps> = ({
     async (audioUrl?: Blob) => {
       const outgoing = formatMessage ? formatMessage(message) : message;
       const trailingText = hasTextContent(outgoing) ? outgoing : null;
-
-      let mediaPromise: void | boolean | Promise<void | boolean> = undefined;
+      // The caption is part of the media message: one send, one bubble.
+      const caption: CaptionInput | undefined = trailingText
+        ? { text: trailingText, mentions: mention.mentionSpans }
+        : undefined;
 
       if (filePreviews.length > 0) {
         // The whole tray goes as one message: every file uploads in
         // parallel and the message is stanza'd once all of them are up.
-        mediaPromise = effectiveSendMedia(filePreviews, 'media');
+        effectiveSendMedia(filePreviews, 'media', caption);
         setIsRecording(false);
       } else if (audioUrl) {
-        mediaPromise = effectiveSendMedia(audioUrl, 'audio/');
+        effectiveSendMedia(audioUrl, 'audio/', caption);
         setIsRecording(false);
       } else {
         if (!trailingText) {
@@ -863,28 +867,6 @@ const SendInput: React.FC<SendInputProps> = ({
       setFilePreviews([]);
       setAttachmentNotice(null);
       setTextareaHeight(40);
-
-      if (trailingText) {
-        // Wait for the media stanza to land before sending the caption so
-        // recipients see media-then-text order on the wire.
-        let delivered: unknown = true;
-        try {
-          delivered = await mediaPromise;
-        } catch {
-          // Media sender owns its own error reporting.
-          delivered = false;
-        }
-        if (delivered === false) {
-          // The files are held on the message for a retry; the caption must
-          // not reach the room ahead of them. Put it back in the composer,
-          // ahead of anything typed since.
-          setMessage((prev) =>
-            prev.trim() ? `${trailingText}\n${prev}` : trailingText
-          );
-          return;
-        }
-        effectiveSendMessage(trailingText, mention.mentionSpans);
-      }
     },
     [
       effectiveSendMedia,

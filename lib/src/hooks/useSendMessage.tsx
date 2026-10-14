@@ -30,6 +30,7 @@ import { scheduleAckCatchup } from '../helpers/scheduleAckCatchup';
 import { IMentionSpan } from '../types/types';
 import { armSendFailureWatchdog } from '../helpers/sendFailureWatchdog';
 import { shouldTagOutgoingTranslateSource as shouldTagTranslateSource } from '../utils/translateModePolicy';
+import { CaptionInput, normalizeCaptionInput } from '../helpers/caption';
 
 const DEFAULT_TIMEOUT_MS = 300000;
 
@@ -650,9 +651,12 @@ export const useSendMessage = () => {
    * is up: a failed upload holds the whole message (the tile is marked and
    * can be retried) rather than sending a silently incomplete album.
    *
+   * `caption` is the text typed with the files. It is part of this one
+   * message (the optimistic bubble shows it, the stanza carries it, a retry
+   * re-sends it with the files) and never goes out as a separate text message.
+   *
    * Resolves true when the message was delivered, false when it is still
-   * waiting on a retry (or was never sent). The composer uses that to decide
-   * whether the caption may go out now.
+   * waiting on a retry (or was never sent).
    */
   const sendMedia = useCallback(
     async (
@@ -661,7 +665,8 @@ export const useSendMessage = () => {
       activeRoomJID: string,
       isReply = false,
       isChecked = false,
-      mainMessage = ''
+      mainMessage = '',
+      caption?: CaptionInput
     ): Promise<boolean> => {
       if (isLastMessageFromUserAndProcessing(activeRoomJID)) {
         ethoraLogger.log('Cannot send media: Message sending is currently blocked');
@@ -689,6 +694,7 @@ export const useSendMessage = () => {
       const optimisticDate = new Date(optimisticTimestamp).toISOString();
       const first = files[0];
       const isE2ee = isE2eeRoom(activeRoomJID);
+      const captionFields = normalizeCaptionInput(caption);
 
       // Everything below is indexed by the file's place in the selection,
       // which is the order the stanza must carry - never by finish order.
@@ -743,6 +749,12 @@ export const useSendMessage = () => {
               isReply,
               showInChannel: `${isChecked}`,
               mainMessage,
+              ...(captionFields
+                ? {
+                    caption: captionFields.caption,
+                    captionMentions: captionFields.mentions,
+                  }
+                : {}),
             },
           })
         );
@@ -856,6 +868,11 @@ export const useSendMessage = () => {
           // single-file stanzas stay byte-identical to what we sent before.
           attachments:
             attachments.length > 1 ? serializeAttachments(attachments) : undefined,
+          // The caption and its spans travel on the media message itself.
+          // sendMediaMessage decides where they go: <data> in a plain room,
+          // the sealed envelope in an e2ee one.
+          caption: captionFields?.caption,
+          captionMentions: captionFields?.mentions,
           wrappable: true,
           roomJid: activeRoomJID,
           showInChannel: isChecked,
@@ -903,6 +920,12 @@ export const useSendMessage = () => {
                 originalName: head?.originalname && repairFilenameEncoding(head.originalname),
                 fileName: head.filename,
                 size: head.size?.toString?.() ?? head.size,
+                ...(captionFields
+                  ? {
+                      caption: captionFields.caption,
+                      captionMentions: captionFields.mentions,
+                    }
+                  : {}),
               } as never,
             })
           );

@@ -113,20 +113,27 @@ describe('caption sent with a media message', () => {
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
     const file = new File(['x'], 'photo.png', { type: 'image/png', lastModified: 1 });
     fireEvent.change(fileInput, { target: { files: [file] } });
+    return file;
   };
 
-  it('sends the caption once the media is delivered', async () => {
+  it('hands the caption to the media send and never sends it as a text message', async () => {
     const { container, input, sendMedia, sendMessage } = renderComposer();
-    pickFile(container);
+    const file = pickFile(container);
     fireEvent.change(input, { target: { value: 'look at this' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Send' }));
 
-    await waitFor(() => expect(sendMedia).toHaveBeenCalled());
-    await waitFor(() => expect(sendMessage).toHaveBeenCalledWith('look at this', expect.anything()));
+    await waitFor(() => expect(sendMedia).toHaveBeenCalledTimes(1));
+    expect(sendMedia).toHaveBeenCalledWith([file], 'media', {
+      text: 'look at this',
+      mentions: expect.anything(),
+    });
+    expect(sendMessage).not.toHaveBeenCalled();
   });
 
-  it('keeps the caption in the composer when the media was not delivered', async () => {
+  it('clears the composer at once, even when the media is not delivered', async () => {
+    // The caption is part of the media message now: a failed upload keeps it
+    // on that message (for the retry), so it is not put back in the composer.
     const undelivered = vi.fn(async () => false);
     const { container, input, sendMessage } = renderComposer({
       sendMedia: undelivered,
@@ -136,8 +143,8 @@ describe('caption sent with a media message', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Send' }));
 
-    await waitFor(() => expect(input.value).toBe('look at this'));
+    await waitFor(() => expect(input.value).toBe(''));
+    expect(undelivered).toHaveBeenCalledTimes(1);
     expect(sendMessage).not.toHaveBeenCalled();
-    expect(undelivered).toHaveBeenCalled();
   });
 });

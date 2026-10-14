@@ -1,8 +1,13 @@
 import { IMessage } from "../types/types";
+import { getMessageCaption } from "./caption";
 
 export const createMainMessageForThread = (message: IMessage): string => {
+  // A media message's reply preview reads its caption when it has one. A
+  // sealed caption stays out: this JSON rides in the clear <data> of the reply.
+  const caption =
+    message.clientEncrypted === 'true' ? undefined : getMessageCaption(message);
   const data = {
-    text: message.body,
+    text: caption ?? message.body,
     id: message.id,
     userName: message.user.name,
     createdAt: message.date,

@@ -293,6 +293,10 @@ const PERSISTED_MESSAGE_FIELDS: (keyof IMessage)[] = [
   'langSource',
   'callLog',
   'mentions',
+  // The media message's own caption and its spans; without them a reloaded
+  // caption message would repaint as a bare media bubble.
+  'caption',
+  'captionMentions',
   // Bot buttons. Bounded (a handful of short labels) and load-bearing on
   // reload: without it a message that asked a question repaints from cache
   // with its answer options missing until MAM re-delivers the stanza.

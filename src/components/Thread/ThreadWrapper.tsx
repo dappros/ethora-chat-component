@@ -14,6 +14,7 @@ import Loader from '../styled/Loader';
 import { useT } from '../../i18n/useT';
 import { parseMessageReference } from '../../helpers/parseMessageReference';
 import { IMentionSpan } from '../../types/types';
+import type { CaptionInput } from '../../helpers/caption';
 import { useXmppClient } from '../../context/xmppProvider';
 import MessageList from '../MainComponents/MessageList';
 import ModalHeaderComponent from '../Modals/ModalHeaderComponent';
@@ -186,14 +187,15 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
   );
 
   const sendMedia = useCallback(
-    (data: any, type: string) => {
+    (data: any, type: string, caption?: CaptionInput) => {
       return sendMessageMedia(
         data,
         type,
         roomJid,
         true,
         isChecked,
-        createMainMessageForThread(activeMessage)
+        createMainMessageForThread(activeMessage),
+        caption
       );
     },
     [activeMessage, isChecked, roomJid, sendMessageMedia]
