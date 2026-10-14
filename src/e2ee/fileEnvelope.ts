@@ -21,7 +21,7 @@
 import { randomBytes, toBase64, fromBase64, toHex } from './crypto';
 import { decryptPayload, encryptPayload } from './ratchet';
 
-/** `ETHOFILE` — lets a decoder reject anything that is not one of ours. */
+/** `ETHOFILE` - lets a decoder reject anything that is not one of ours. */
 const MAGIC = Uint8Array.from([0x45, 0x54, 0x48, 0x4f, 0x46, 0x49, 0x4c, 0x45]);
 const VERSION = 1;
 const HEADER_OFFSET = MAGIC.length + 1 + 4;
