@@ -667,11 +667,18 @@ const Message: React.FC<MessageProps> = forwardRef<
 
   // A short text message shows its time at the end of the last line of text
   // instead of on a line of its own.
+  // An own bubble hugs the right edge, so its time sits bottom-left on its own
+  // line; only other people's short text shares a line with the time (right).
   const timeInline =
-    !isMediaBubble && !message.isDeleted && !translationDisplay.hasTranslation;
+    !isMediaBubble &&
+    !isUser &&
+    !message.isDeleted &&
+    !translationDisplay.hasTranslation;
+  const hasReactions = !!message.reaction && Object.keys(message.reaction).length > 0;
 
   const timeNode = (
     <CustomMessageTimestamp
+      $own={!!isUser}
       $inline={timeInline}
       $media={isMediaBubble}
       $overlay={timeOverPicture}
@@ -727,9 +734,7 @@ const Message: React.FC<MessageProps> = forwardRef<
         key={message.id}
         $isUser={isUser}
         $reply={!!message?.reply?.length}
-        $reaction={
-          message?.reaction && !!Object.keys(message?.reaction)?.length
-        }
+        $reaction={hasReactions}
         ref={ref}
       >
         {!isUser && (
@@ -753,6 +758,7 @@ const Message: React.FC<MessageProps> = forwardRef<
         )}
         <CustomMessageBubble
           data-ethora-bubble=""
+          $reactions={hasReactions}
           $deleted={message.isDeleted}
           $isUser={isUser}
           $media={isMediaBubble}
@@ -868,6 +874,19 @@ const Message: React.FC<MessageProps> = forwardRef<
             </CustomMessageText>
           )}
 
+          {/* Inside the bubble, under the content: media, then caption, then
+              the reaction row, then the time row (see MessageReaction). */}
+          {message.reaction && (
+            <MessageReaction
+              reaction={message.reaction}
+              changeReaction={
+                interactionsDisabled ? () => undefined : handleReactionMessage
+              }
+              color={config.colors?.primary || '#0052CD'}
+              userName={`${user.firstName} ${user.lastName}`}
+            />
+          )}
+
           {showsTranslateRow && (
             <MessageTranslate
               message={message}
@@ -926,16 +945,6 @@ const Message: React.FC<MessageProps> = forwardRef<
               color={config.colors?.primary}
             />
           ) : null}
-          {message.reaction && (
-            <MessageReaction
-              reaction={message.reaction}
-              changeReaction={
-                interactionsDisabled ? () => undefined : handleReactionMessage
-              }
-              color={config.colors?.primary || '#0052CD'}
-              userName={`${user.firstName} ${user.lastName}`}
-            />
-          )}
         </MessageFooter>
       </CustomMessageContainer>
 
