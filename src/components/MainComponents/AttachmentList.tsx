@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { IAttachment } from '../../types/types';
+import { IAttachment, ModalFile } from '../../types/types';
 import { getAttachmentName } from '../../helpers/attachments';
 import { getFileKind } from '../../helpers/fileKind';
 import { AttachmentStack } from '../styled/StyledInputComponents/MediaComponents';
@@ -183,11 +183,16 @@ interface AttachmentListProps {
   attachments: IAttachment[];
   /** Re-sends the file at this index of `attachments` after a failed upload. */
   onRetryAttachment?: (index: number) => void;
+  /** Who posted the message and when; the viewer header shows both. */
+  sender?: ModalFile['sender'];
+  date?: string;
 }
 
 const AttachmentList: React.FC<AttachmentListProps> = ({
   attachments,
   onRetryAttachment,
+  sender,
+  date,
 }) => {
   const { tiles, rows } = useMemo(() => {
     const indexed: AlbumGridItem[] = attachments.map((attachment, index) => ({
@@ -231,7 +236,12 @@ const AttachmentList: React.FC<AttachmentListProps> = ({
   return (
     <AttachmentStack>
       {tiles.length > 0 && (
-        <AlbumGrid items={tiles} onRetry={onRetryAttachment} />
+        <AlbumGrid
+          items={tiles}
+          onRetry={onRetryAttachment}
+          sender={sender}
+          date={date}
+        />
       )}
       {rows.map(({ attachment, index }) => (
         <AttachmentRowWithStatus

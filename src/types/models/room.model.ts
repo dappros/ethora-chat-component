@@ -126,6 +126,19 @@ export interface ApiRoomLastMessage {
   isOwn?: boolean;
   senderFirstName?: string;
   senderLastName?: string;
+  /**
+   * Media fields, present when the last message is a file. Any subset may be
+   * sent: a thin payload can carry just `mimetype` and `fileName`.
+   */
+  isMediafile?: string | boolean;
+  mimetype?: string;
+  fileName?: string;
+  originalName?: string;
+  location?: string;
+  locationPreview?: string;
+  duration?: string | number;
+  attachments?: unknown;
+  clientEncrypted?: string | boolean;
 }
 
 export interface ApiRoom {

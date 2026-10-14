@@ -14,6 +14,8 @@ import { withoutFileToken } from './secureFileUrl';
 export interface GallerySender {
   id?: string;
   username?: string;
+  /** The message's own display name, when it has one. */
+  name?: string;
   firstName?: string;
   lastName?: string;
   /** Profile photo URL, when the sender has one. */
@@ -56,6 +58,27 @@ export interface GalleryImage extends ModalFile {
  * Non-images (video, PDF, audio, arbitrary files) are excluded, so opening a
  * PDF simply produces an empty gallery and no navigation chrome.
  */
+/** The sender fields the viewer header needs, or undefined for no sender. */
+export const senderFromMessage = (
+  message?: Partial<IMessage> | null
+): GallerySender | undefined =>
+  message?.user
+    ? {
+        id: message.user.id,
+        username: message.user.username,
+        name: message.user.name,
+        firstName: message.user.firstName,
+        lastName: message.user.lastName,
+        photo: message.user.profileImage || undefined,
+      }
+    : undefined;
+
+/** ISO date string for a message, as the viewer header wants it. */
+export const isoDateFromMessage = (
+  message?: Partial<IMessage> | null
+): string | undefined =>
+  message?.date instanceof Date ? message.date.toISOString() : message?.date;
+
 export const collectRoomImages = (
   messages?: Partial<IMessage>[] | null
 ): GalleryImage[] => collectRoomMedia(messages, ['image']);
@@ -93,19 +116,8 @@ export const collectRoomMedia = (
         fileURL: attachment.location,
         mimetype: attachment.mimetype || '',
         previewURL: attachment.locationPreview || undefined,
-        date:
-          message.date instanceof Date
-            ? message.date.toISOString()
-            : message.date,
-        sender: message.user
-          ? {
-              id: message.user.id,
-              username: message.user.username,
-              firstName: message.user.firstName,
-              lastName: message.user.lastName,
-              photo: message.user.profileImage || undefined,
-            }
-          : undefined,
+        date: isoDateFromMessage(message),
+        sender: senderFromMessage(message),
       });
     });
   });

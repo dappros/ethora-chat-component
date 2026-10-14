@@ -14,6 +14,7 @@ export interface ModalFile {
   sender?: {
     id?: string;
     username?: string;
+    name?: string;
     firstName?: string;
     lastName?: string;
     photo?: string;

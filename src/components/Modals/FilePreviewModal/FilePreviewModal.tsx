@@ -38,6 +38,7 @@ import {
   findGalleryIndex,
   galleryFromFiles,
 } from '../../../helpers/roomImageGallery';
+import { resolveViewerSender } from '../../../helpers/viewerSender';
 import { ethoraLogger } from '../../../helpers/ethoraLogger';
 import {
   ActionGroup,
@@ -131,6 +132,14 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
   const roomMessages = useSelector(
     (state: RootState) => getActiveRoom(state)?.messages
   );
+  const usersSet = useSelector((state: RootState) => state.rooms.usersSet);
+  const me = useSelector((state: RootState) => state.chatSettingStore.user);
+  const peerRoomName = useSelector((state: RootState) => {
+    const room = getActiveRoom(state);
+    return room?.type === 'private'
+      ? String(room?.title || room?.name || '')
+      : '';
+  });
 
   const surfaceRef = useRef<HTMLDivElement>(null);
   const lightboxRef = useRef<ImageLightboxHandle>(null);
@@ -174,15 +183,20 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
   // outside the gallery has none of them and shows its name alone.
   const current = index >= 0 ? gallery[index] : undefined;
   const displayName = current?.fileName || activeFile.fileName;
-  const senderName = useMemo(() => {
-    const sender = current?.sender;
-    if (!sender) return '';
-    const fullName = [sender.firstName, sender.lastName]
-      .filter(Boolean)
-      .join(' ');
-    return fullName || sender.username || '';
-  }, [current]);
-  const dateText = formatViewerDate(current?.date);
+  // Never "??": a sender nobody can name has no name line and a glyph avatar.
+  const headerSender = current?.sender ?? activeFile.sender;
+  const resolvedSender = useMemo(
+    () =>
+      resolveViewerSender({
+        sender: headerSender,
+        usersSet,
+        me: me as any,
+        peerRoomName,
+      }),
+    [headerSender, usersSet, me, peerRoomName]
+  );
+  const senderName = resolvedSender.name;
+  const dateText = formatViewerDate(current?.date ?? activeFile.date);
 
   const hasSource = Boolean(activeFile.fileURL);
   const imageFailed =
@@ -445,10 +459,10 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
     >
       <TopBar>
         <TopIdentity>
-          {current?.sender && (
+          {headerSender && (
             <MessageAvatarPhoto
-              src={current.sender.photo}
-              username={senderName || current.sender.username}
+              src={resolvedSender.photo}
+              username={senderName}
             />
           )}
           <SenderText>

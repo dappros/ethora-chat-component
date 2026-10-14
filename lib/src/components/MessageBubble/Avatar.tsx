@@ -34,6 +34,25 @@ const AvatarCircle = styled.div<{ $bgColor: string; $textColor?: string }>`
   }
 `;
 
+/**
+ * Neutral stand-in for a sender nobody could name. Placeholder punctuation
+ * such as "??" reads as a rendering bug, so an unknown sender gets a person
+ * silhouette instead.
+ */
+const PersonGlyph: React.FC = () => (
+  <svg
+    width="22"
+    height="22"
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    aria-hidden="true"
+    data-testid="avatar-unknown-glyph"
+  >
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 20c0-3.9 3.6-6 8-6s8 2.1 8 6v1H4v-1z" />
+  </svg>
+);
+
 export const Avatar: React.FC<AvatarProps> = ({
   username,
   firstName,
@@ -49,7 +68,9 @@ export const Avatar: React.FC<AvatarProps> = ({
   const { backgroundColor: hashedBg } = nameToColor(
     username ? username : firstName
   );
-  const backgroundColor = iconsBg || hashedBg;
+  const hasName = Boolean((username || firstName || '').trim());
+  const backgroundColor =
+    iconsBg || (hasName ? hashedBg : 'rgba(128, 138, 152, 0.45)');
 
   const getInitials = () => {
     // Same permissive rule as ProfileImagePlaceholder.getTwoUppercaseLetters
@@ -84,12 +105,14 @@ export const Avatar: React.FC<AvatarProps> = ({
         return `${singleInitial}`;
       }
     }
-    return '??';
+    return '';
   };
+
+  const initials = getInitials();
 
   return (
     <AvatarCircle style={style} $bgColor={backgroundColor} $textColor={iconColor}>
-      {getInitials()}
+      {initials || <PersonGlyph />}
     </AvatarCircle>
   );
 };

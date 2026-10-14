@@ -15,6 +15,7 @@ import {
   NewMessageMarker,
 } from './styled/StyledRoomComponents';
 import LastMessageItem from './LastMessageItem';
+import { hasMediaPreview } from '../../helpers/lastMessagePreview';
 import { useRoomPresence } from '../../hooks/useRoomPresence';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { useT } from '../../i18n/useT';
@@ -153,7 +154,15 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
   const lastRawMessage = previewSourceMessage;
   const lastMessage = useMemo(
     () => withAuthorFallback(lastRawMessage),
-    [chat?.jid, lastRawMessage?.id, lastRawMessage?.body, withAuthorFallback]
+    [
+      chat?.jid,
+      lastRawMessage?.id,
+      lastRawMessage?.body,
+      // An upload finishing patches the attachments in under the same id and
+      // the same placeholder body.
+      (lastRawMessage as IMessage | undefined)?.attachments,
+      withAuthorFallback,
+    ]
   );
 
   const formatTimeToHHMM = (
@@ -356,9 +365,10 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
             minWidth: 0,
             // Fixed, not content-sized: a room with no preview yet (history
             // still loading) must not come out shorter than its neighbours
-            // either. The preview itself is a single 20px line - see
+            // either. The preview itself is a single 20px line (28px with a media thumbnail) - see
             // LastRoomMessageContainer.
-            height: '20px',
+            // A thumbnail row (image / video) is 28px; every text row is 20px.
+            minHeight: '20px',
           }}
         >
           {chat.composing ? (
@@ -366,8 +376,13 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
               usersTyping={chat.composingList}
               style={{ color: 'var(--ethora-color-text, #141414)' }}
             />
-          ) : lastMessage?.body || lastMessage?.isDeleted ? (
-            <LastMessageItem lastMessage={lastMessage} />
+          ) : lastMessage?.body ||
+          lastMessage?.isDeleted ||
+          hasMediaPreview(lastMessage) ? (
+            <LastMessageItem
+              lastMessage={lastMessage as LastMessage}
+              sealed={chat?.e2ee === true}
+            />
           ) : (chat?.messages?.length ?? 0) === 0 &&
             // Show "Room created" once the history attempt has settled, not only
             // when the MAM <fin complete> arrived. Newly created / empty rooms

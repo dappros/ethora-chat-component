@@ -7,6 +7,7 @@ import { RootState } from '../../roomStore';
 import { getMessageAttachments } from '../../helpers/attachments';
 import { appendFileToken } from '../../helpers/secureFileUrl';
 import { requestMediaRetry } from '../../helpers/mediaSendRetry';
+import { isoDateFromMessage, senderFromMessage } from '../../helpers/roomImageGallery';
 import AttachmentList from './AttachmentList';
 import SealedAttachmentList from './SealedAttachmentList';
 
@@ -115,6 +116,8 @@ const MediaMessage: React.FC<MediaMessageProps> = ({
     <AttachmentList
       attachments={attachments}
       onRetryAttachment={messageId ? handleRetryAttachment : undefined}
+      sender={senderFromMessage(message)}
+      date={isoDateFromMessage(message)}
     />
   );
 };
