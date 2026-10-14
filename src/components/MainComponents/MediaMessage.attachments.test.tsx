@@ -4,6 +4,7 @@ import { screen } from '@testing-library/react';
 import { renderWithProviders } from '../../test/renderWithProviders';
 import MediaMessage from './MediaMessage';
 import { IMessage } from '../../types/types';
+import { resetMediaProbeCaches } from '../../hooks/useMediaProbe';
 
 vi.mock('../../hooks/usePdfThumbnail', () => ({
   usePdfThumbnail: () => ({ status: 'idle', retry: () => undefined }),
@@ -36,6 +37,7 @@ describe('MediaMessage', () => {
   // successful network fetch would.
   const RealImage = globalThis.Image;
   beforeEach(() => {
+    resetMediaProbeCaches();
     class FakeImage {
       onload: null | (() => void) = null;
       onerror: null | (() => void) = null;
@@ -49,7 +51,7 @@ describe('MediaMessage', () => {
     globalThis.Image = RealImage;
   });
 
-  it('blurs the preview up to the full image once it has loaded', async () => {
+  it('shows the sharp preview in the bubble without fetching the original', async () => {
     renderMessage({
       mimetype: 'image/png',
       location: 'https://files.example/a.png',
@@ -57,10 +59,8 @@ describe('MediaMessage', () => {
       originalName: 'a.png',
     });
 
-    // The preview is only a stand-in: once the full file is decoded it is
-    // the picture that stays, and the preview sits blurred underneath it.
     const image = (await screen.findByAltText('a.png')) as HTMLImageElement;
-    expect(image.src).toBe('https://files.example/a.png');
+    expect(image.src).toBe('https://files.example/a-thumb.png');
   });
 
   it('gives a PDF its own card instead of the generic file box', () => {

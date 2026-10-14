@@ -365,8 +365,6 @@ export interface MediaSurfaceProps {
   blurred?: boolean;
   /** Show the play badge and duration chip on videos. Defaults to true. */
   chrome?: boolean;
-  /** Called only when the server confirms the file is gone. */
-  onGone?: () => void;
   /** Sender's own picture (blob URL): shown sharp and at once, ahead of `src`. */
   localSrc?: string;
   /** 0 to 100 download progress of `src`, when known; otherwise a quiet sweep. */
@@ -389,7 +387,6 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
   pending = true,
   radius = 'var(--ethora-radius-md, 14px)',
   onOpen,
-  onGone,
   interactive,
   blurred = false,
   chrome = true,
@@ -400,9 +397,21 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
   const isImage = kind === 'image';
   const local = useMediaProbe(isImage && localSrc ? localSrc : undefined);
   const localReady = local.status === 'loaded';
-  const full = useMediaProbe(isImage && src ? src : undefined, onGone);
   const hasPreview = isImage && Boolean(previewSrc) && previewSrc !== src;
-  const low = useMediaProbe(hasPreview ? previewSrc : undefined, onGone);
+  // A bubble or a grid tile is at most a few hundred pixels wide, which the
+  // storage's preview already covers: draw that sharp and leave the original
+  // alone (a phone photo is several megabytes). The original is fetched only
+  // as a fallback when the preview fails, or for a small picture the
+  // attachment says is shown at its natural size (a preview would upscale).
+  const recordedBox =
+    variant === 'solo'
+      ? computeSoloBox(parseDimension(dims?.width), parseDimension(dims?.height))
+      : null;
+  const previewOnly = hasPreview && recordedBox?.mode !== 'natural';
+  const low = useMediaProbe(hasPreview ? previewSrc : undefined);
+  const full = useMediaProbe(
+    isImage && src && (!previewOnly || low.status === 'error') ? src : undefined
+  );
 
   const durationLabel = kind === 'video' ? formatDuration(duration) : '';
   const isInteractive = interactive ?? (Boolean(onOpen) && !openDisabled);
@@ -463,8 +472,21 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
   const lowLoaded = low.status === 'loaded';
   const showLocal = localReady && !fullLoaded;
   const anyPicture = fullLoaded || lowLoaded || localReady;
+  // The sharp preview stands in for the original (see `previewOnly`).
+  const previewIsPicture = previewOnly && lowLoaded && !fullLoaded;
   const showLoadBar =
-    isImage && Boolean(src) && lowLoaded && !localReady && !fullLoaded && full.status !== 'error';
+    isImage &&
+    Boolean(src) &&
+    !previewOnly &&
+    lowLoaded &&
+    !localReady &&
+    !fullLoaded &&
+    full.status !== 'error';
+  const mainStatus = previewOnly && low.status !== 'error' ? low.status : full.status;
+  const retryAll = () => {
+    low.retry();
+    full.retry();
+  };
 
   let body: React.ReactNode;
   if (kind === 'video') {
@@ -479,7 +501,12 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
     !localReady &&
     (!hasPreview || low.status === 'error')
   ) {
-    body = <ImageUnavailableState compact={variant === 'fill'} />;
+    body = (
+      <ImageUnavailableState
+        compact={variant === 'fill'}
+        onRetry={variant === 'solo' ? retryAll : undefined}
+      />
+    );
   } else {
     body = (
       <>
@@ -494,10 +521,10 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
         ) : (
           <Skeleton key="skeleton-out" $shimmer={false} $leaving />
         )}
-        {lowLoaded && !natural && !localReady && (
+        {lowLoaded && !previewOnly && !natural && !localReady && (
           <PreviewLayer
             data-media-layer={fullLoaded ? undefined : 'preview'}
-            src={previewSrc}
+            src={low.url}
             alt={fullLoaded ? '' : alt}
             aria-hidden={fullLoaded ? 'true' : undefined}
             $blurred={fullLoaded || full.status !== 'error'}
@@ -513,7 +540,10 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
           />
         )}
         {fullLoaded && (
-          <FullLayer data-media-layer="full" src={src} alt={alt} style={layerStyle} />
+          <FullLayer data-media-layer="full" src={full.url} alt={alt} style={layerStyle} />
+        )}
+        {previewIsPicture && !localReady && (
+          <FullLayer data-media-layer="full" src={low.url} alt={alt} style={layerStyle} />
         )}
         {showLoadBar && (
           <LoadBar data-testid="media-load-bar" aria-hidden="true">
@@ -534,7 +564,7 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
       $tile={natural}
       style={soloStyle}
       data-testid="media-surface"
-      data-state={kind === 'video' ? 'video' : full.status}
+      data-state={kind === 'video' ? 'video' : mainStatus}
       data-mode={solo ? (placeholder ? 'placeholder' : solo.mode) : undefined}
     >
       {body}
