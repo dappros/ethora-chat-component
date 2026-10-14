@@ -41,27 +41,26 @@ const reactionPop = keyframes`
   }
 `;
 
-// A chip is a pill: 24px tall, 8px side padding, 12px radius. Its resting
-// tint is the bubble's --ethora-reaction-chip-bg when the bubble sets one (own
-// bubbles do), otherwise the primary colour at 6%. `backwards` fill so the pop
-// does not hold its end frame and override the hover transform.
+// A chip is a pill: 24px tall, 8px side padding, 12px radius. Its fill and
+// border are the same as before the redesign: the page surface with the
+// tokenized border, and the primary colour for the emoji text. A chip the
+// current user reacted with is filled with the primary colour instead.
+// `backwards` fill so the pop does not hold its end frame and override the
+// hover transform.
 const chipBase = css<{ $accent: string }>`
   box-sizing: border-box;
   height: 24px;
   margin: 0;
   padding: 0 8px;
   border-radius: 12px;
-  border: 1px solid transparent;
+  border: 1px solid var(--ethora-color-border, #e6e8ec);
   display: inline-flex;
   align-items: center;
   gap: 4px;
   max-width: 100%;
   font: inherit;
-  color: var(--ethora-color-text, #141414);
-  background-color: var(
-    --ethora-reaction-chip-bg,
-    color-mix(in srgb, ${({ $accent }) => $accent} 6%, transparent)
-  );
+  color: ${({ $accent }) => $accent};
+  background-color: var(--ethora-color-bg, #ffffff);
   cursor: pointer;
   white-space: nowrap;
   /* Ring in the page colour so a chip reads as separate from the bubble edge
@@ -75,11 +74,7 @@ const chipBase = css<{ $accent: string }>`
   ${reducedMotion}
 
   &:hover {
-    background-color: color-mix(
-      in srgb,
-      ${({ $accent }) => $accent} 12%,
-      transparent
-    );
+    background-color: var(--ethora-color-bg-hover, #f0f2f5);
     transform: translateY(-1px);
     box-shadow:
       0 0 0 2px var(--ethora-color-bg, #ffffff),
@@ -96,27 +91,15 @@ const chipBase = css<{ $accent: string }>`
   }
 `;
 
-// Own reaction (aria-pressed) is the highlighted state. It is declared after
-// :hover so it wins, and it gets its own hover step so the chip still reacts.
+// The reaction the current user sent (aria-pressed) is the filled state: the
+// primary colour behind white emoji text, as the chip was before the redesign.
 const ReactionBox = styled.button<{ $accent: string }>`
   ${chipBase}
 
-  &[aria-pressed='true'] {
-    background-color: color-mix(
-      in srgb,
-      ${({ $accent }) => $accent} 14%,
-      transparent
-    );
-    border-color: color-mix(in srgb, ${({ $accent }) => $accent} 45%, transparent);
-    color: ${({ $accent }) => $accent};
-  }
-
+  &[aria-pressed='true'],
   &[aria-pressed='true']:hover {
-    background-color: color-mix(
-      in srgb,
-      ${({ $accent }) => $accent} 18%,
-      transparent
-    );
+    background-color: ${({ $accent }) => $accent};
+    color: #fff;
   }
 `;
 

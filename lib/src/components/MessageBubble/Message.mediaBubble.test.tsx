@@ -152,7 +152,7 @@ describe('Message bubble time placement', () => {
     renderBubble(mediaMessage([image(1), pdf]), true);
     const css = declarationsFor(timeEl());
     expect(css).not.toContain('position:absolute');
-    expect(css).toContain('padding:2px8px4px');
+    expect(css).toContain('padding:08px4px');
   });
 
   it('keeps the normal bottom row for a lone document', () => {

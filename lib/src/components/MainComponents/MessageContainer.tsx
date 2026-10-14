@@ -19,6 +19,7 @@ interface MessageContainerProps {
     isUser: boolean;
     $isUser?: boolean;
     isReply: boolean;
+    isLastInGroup?: boolean;
   }>;
   message: IMessage;
   activeMessage: IMessage;
@@ -26,6 +27,8 @@ interface MessageContainerProps {
   xmppUsername: string;
   isReply: boolean;
   showDateLabel: boolean;
+  /** False when the next row is the same sender's message (a run continues). */
+  isLastInGroup?: boolean;
   className?: string;
 }
 
@@ -37,6 +40,7 @@ const MessageContainerBase: FC<MessageContainerProps> = ({
   xmppUsername,
   showDateLabel,
   isReply,
+  isLastInGroup,
   className,
 }) => {
   const { CustomDaySeparator, CustomNewMessageLabel } = useCustomComponents();
@@ -130,6 +134,7 @@ const MessageContainerBase: FC<MessageContainerProps> = ({
           isUser={isUser}
           $isUser={isUser}
           isReply={isReply}
+          isLastInGroup={isLastInGroup}
           className={className}
         >
           {!CustomMessage ? (

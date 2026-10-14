@@ -171,7 +171,7 @@ const NO_VIEWERS: string[] = [];
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
   MessageProps
->(({ message, isUser, isReply }, ref) => {
+>(({ message, isUser, isReply, isLastInGroup: lastInRun }, ref) => {
   const { client } = useXmppClient();
   const { sendMessage } = useSendMessage();
   const t = useT();
@@ -666,19 +666,28 @@ const Message: React.FC<MessageProps> = forwardRef<
     !previewUrl;
 
   // A short text message shows its time at the end of the last line of text
-  // instead of on a line of its own.
-  // An own bubble hugs the right edge, so its time sits bottom-left on its own
-  // line; only other people's short text shares a line with the time (right).
+  // instead of on a line of its own. The time always sits bottom right, for
+  // own and other people's bubbles alike.
   const timeInline =
-    !isMediaBubble &&
-    !isUser &&
-    !message.isDeleted &&
-    !translationDisplay.hasTranslation;
+    !isMediaBubble && !message.isDeleted && !translationDisplay.hasTranslation;
   const hasReactions = !!message.reaction && Object.keys(message.reaction).length > 0;
+  // The tail marks the last bubble of a sender's run. Media-only bubbles (the
+  // time floats over the picture) and system or deleted rows get none.
+  const isLastInGroup = lastInRun !== false;
+  const isMediaOnly =
+    isMediaBubble &&
+    usesMediaOverlayTime(mediaAttachments, {
+      hasCaption: Boolean(getMessageCaption(message)),
+    });
+  const showsTail =
+    isLastInGroup &&
+    !message.isDeleted &&
+    !message.callLog &&
+    message.isSystemMessage !== 'true' &&
+    !isMediaOnly;
 
   const timeNode = (
     <CustomMessageTimestamp
-      $own={!!isUser}
       $inline={timeInline}
       $media={isMediaBubble}
       $overlay={timeOverPicture}
@@ -735,6 +744,7 @@ const Message: React.FC<MessageProps> = forwardRef<
         $isUser={isUser}
         $reply={!!message?.reply?.length}
         $reaction={hasReactions}
+        $lastInGroup={isLastInGroup}
         ref={ref}
       >
         {!isUser && (
@@ -758,8 +768,8 @@ const Message: React.FC<MessageProps> = forwardRef<
         )}
         <CustomMessageBubble
           data-ethora-bubble=""
-          $reactions={hasReactions}
           $deleted={message.isDeleted}
+          $tail={showsTail}
           $isUser={isUser}
           $media={isMediaBubble}
           $solo={isMediaBubble && mediaBlockMode === 'solo'}

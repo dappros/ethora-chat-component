@@ -278,3 +278,54 @@ describe('Message reaction placement', () => {
     expect(caption.compareDocumentPosition(chip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
+
+describe('MessageReaction colours match the pre-redesign chip', () => {
+  /** Declarations of the chip's own styled class (pseudo-rules excluded). */
+  const chipCss = (el: Element) => {
+    const css = Array.from(document.querySelectorAll('style'))
+      .map((style) => style.textContent ?? '')
+      .join('')
+      .replace(/\s+/g, '');
+    const classes = el.className
+      .toString()
+      .split(' ')
+      .filter((name) => name && !name.startsWith('sc-'));
+    return classes
+      .flatMap((cls) =>
+        Array.from(css.matchAll(new RegExp(`\\.${cls}\\{([^}]*)\\}`, 'g'))).map(
+          (m) => m[1]
+        )
+      )
+      .join(';');
+  };
+
+  it('keeps the page surface fill and the tokenized border on a chip', () => {
+    const { container } = renderReaction({ bob: reactor('Bob', 'Lee', ['+1']) });
+    const css = chipCss(chips(container)[0]);
+    expect(css).toContain('background-color:var(--ethora-color-bg,#ffffff)');
+    expect(css).toContain('border:1pxsolid var(--ethora-color-border,#e6e8ec)'.replace(/\s/g, ''));
+  });
+
+  it('colours the emoji text with the primary colour when it is not the user own reaction', () => {
+    const { container } = renderReaction({ bob: reactor('Bob', 'Lee', ['+1']) });
+    expect(chipCss(chips(container)[0])).toContain('color:#0052CD');
+  });
+
+  it('fills the user own reaction with the primary colour and white text', () => {
+    const { container } = renderReaction({ me: reactor('Me', 'User', ['+1']) });
+    const chip = chips(container)[0];
+    expect(chip.getAttribute('aria-pressed')).toBe('true');
+    const css = Array.from(document.querySelectorAll('style'))
+      .map((style) => style.textContent ?? '')
+      .join('')
+      .replace(/\s+/g, '');
+    expect(css).toMatch(/\[aria-pressed='true'\]:hover\{background-color:#0052CD;color:#fff/);
+  });
+
+  it('does not add a primary tint or a white veil to the chip', () => {
+    const { container } = renderReaction({ bob: reactor('Bob', 'Lee', ['+1']) });
+    const css = chipCss(chips(container)[0]);
+    expect(css).not.toContain('color-mix');
+    expect(css).not.toContain('reaction-chip-bg');
+  });
+});
