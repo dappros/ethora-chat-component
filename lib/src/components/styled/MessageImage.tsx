@@ -14,15 +14,6 @@ interface CustomMessageImageProps {
   height?: number;
   /** Sender's own blob URL, shown at once while the server copy loads. */
   localUrl?: string;
-  /**
-   * Called only once the server itself says the file is gone (404/410),
-   * not merely when the <img> failed to load. The only known cause in
-   * practice is the file having been deleted from the Files panel without
-   * a matching message found locally to tombstone up front (see
-   * FilesPanel.tsx's handleDelete) - the caller uses this to flip the
-   * message to the normal "deleted" placeholder.
-   */
-  onUnavailable?: () => void;
 }
 
 /**
@@ -37,7 +28,6 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
   width,
   height,
   localUrl,
-  onUnavailable,
 }) => {
   const dispatch = useDispatch();
 
@@ -58,7 +48,6 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
       pending={!fileURL}
       onOpen={handleOpen}
       openDisabled={!fileURL}
-      onGone={onUnavailable}
     />
   );
 };

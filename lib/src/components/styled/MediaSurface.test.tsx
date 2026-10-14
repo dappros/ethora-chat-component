@@ -5,6 +5,7 @@ import { renderWithProviders } from '../../test/renderWithProviders';
 import MediaSurface from './MediaSurface';
 import FileCard from './FileCard';
 import { ImageUnavailableArt } from '../MainComponents/ImageUnavailable';
+import { MEDIA_STALL_MS, resetMediaProbeCaches } from '../../hooks/useMediaProbe';
 
 // Controllable preloader: the test decides when each URL loads or fails.
 type Probe = { src: string; onload: null | (() => void); onerror: null | (() => void); naturalWidth: number; naturalHeight: number };
@@ -44,6 +45,7 @@ const RealFetch = globalThis.fetch;
 
 describe('MediaSurface loading and unavailable states', () => {
   beforeEach(() => {
+    resetMediaProbeCaches();
     probes = [];
     class ProbeImage {
       src = '';
@@ -79,25 +81,52 @@ describe('MediaSurface loading and unavailable states', () => {
     expect(declarationsFor(image)).toMatch(/animation:.*220ms/);
   });
 
-  it('blurs the preview while the full file is still loading, then swaps to the full image', async () => {
+  it('draws the sharp preview in a tile and never requests the original', async () => {
     const full = 'https://files.example/full.png';
     const preview = 'https://files.example/thumb.png';
-    const { container } = renderWithProviders(
+    renderWithProviders(
       <MediaSurface kind="image" variant="fill" src={full} previewSrc={preview} alt="full.png" />,
     );
 
-    settle(preview, 'load');
-    const blurred = await waitFor(() => {
-      const el = container.querySelector('[data-media-layer="preview"]');
-      expect(el).not.toBeNull();
-      return el as HTMLElement;
-    });
-    expect(declarationsFor(blurred)).toMatch(/blur\(14px/);
+    // Only the preview is requested: the original is a multi-megabyte file
+    // that a tile a few hundred pixels wide cannot show.
+    expect(probes.map((p) => p.src)).toEqual([preview]);
 
+    settle(preview, 'load');
+    const image = await screen.findByAltText('full.png');
+    expect(image).toHaveAttribute('src', preview);
+    expect(declarationsFor(image)).not.toMatch(/blur/);
+    expect(probes.map((p) => p.src)).toEqual([preview]);
+  });
+
+  it('falls back to the original only when the preview fails', async () => {
+    const full = 'https://files.example/full.png';
+    const preview = 'https://files.example/thumb.png';
+    renderWithProviders(
+      <MediaSurface kind="image" variant="fill" src={full} previewSrc={preview} alt="full.png" />,
+    );
+
+    settle(preview, 'error');
+    await waitFor(() => expect(probes.map((p) => p.src)).toContain(full));
     settle(full, 'load');
     const image = await screen.findByAltText('full.png');
     expect(image).toHaveAttribute('src', full);
-    expect(image).toHaveAttribute('data-media-layer', 'full');
+  });
+
+  it('uses the original for a small picture shown at its natural size', async () => {
+    const full = 'https://files.example/icon.png';
+    const preview = 'https://files.example/icon-thumb.png';
+    renderWithProviders(
+      <MediaSurface
+        kind="image"
+        variant="solo"
+        src={full}
+        previewSrc={preview}
+        alt="icon.png"
+        dims={{ width: 64, height: 64 }}
+      />,
+    );
+    expect(probes.map((p) => p.src)).toContain(full);
   });
 
   it('renders the unavailable state with no image and no external request', async () => {
@@ -124,31 +153,63 @@ describe('MediaSurface loading and unavailable states', () => {
     expect(emittedCss()).toMatch(/@container\(max-width:119px\)/);
   });
 
-  it('reports the file as gone only when the server confirms it', async () => {
+  // The storage host answering 404 is not proof the sender deleted the
+  // file (a freshly uploaded file can 404 on the secure host too), so the
+  // surface only ever shows "unavailable" and never asks the server.
+  it('never probes the server or tombstones on a failed load, it offers a retry', async () => {
     const url = 'https://files.example/deleted.png';
-    const onGone = vi.fn();
     globalThis.fetch = vi.fn(async () => ({ status: 404 })) as never;
     renderWithProviders(
-      <MediaSurface kind="image" variant="solo" src={url} alt="deleted.png" onGone={onGone} />,
+      <MediaSurface kind="image" variant="solo" src={url} alt="deleted.png" />,
     );
 
     settle(url, 'error');
+    await screen.findByRole('img', { name: 'Image unavailable' });
+    expect(globalThis.fetch).not.toHaveBeenCalled();
 
-    await waitFor(() => expect(onGone).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByTestId('media-retry'));
+    await waitFor(() => expect(screen.getByTestId('media-surface')).toHaveAttribute('data-state', 'loading'));
+    expect(probes.filter((p) => p.src === url)).toHaveLength(2);
+    settle(url, 'load');
+    expect(await screen.findByAltText('deleted.png')).toHaveAttribute('src', url);
   });
 
-  it('does not report a file as gone on a transient failure', async () => {
-    const url = 'https://files.example/flaky.png';
-    const onGone = vi.fn();
-    globalThis.fetch = vi.fn(async () => ({ status: 503 })) as never;
-    renderWithProviders(
-      <MediaSurface kind="image" variant="solo" src={url} alt="flaky.png" onGone={onGone} />,
+  it('flips to unavailable when no byte arrives within the stall limit', async () => {
+    vi.useFakeTimers();
+    try {
+      const url = 'https://files.example/hung.png';
+      class HungImage {
+        src = '';
+        complete = false;
+        naturalWidth = 0;
+        naturalHeight = 0;
+        onload: null | (() => void) = null;
+        onerror: null | (() => void) = null;
+      }
+      globalThis.Image = HungImage as unknown as typeof Image;
+      renderWithProviders(<MediaSurface kind="image" variant="solo" src={url} alt="hung.png" />);
+      expect(screen.getByTestId('media-surface')).toHaveAttribute('data-state', 'loading');
+      await act(async () => {
+        vi.advanceTimersByTime(MEDIA_STALL_MS + 50);
+      });
+      expect(screen.getByTestId('media-surface')).toHaveAttribute('data-state', 'error');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps the picture on screen when only the viewer token rotates', async () => {
+    const first = 'https://secure-files.example/a.png?ft=one';
+    const second = 'https://secure-files.example/a.png?ft=two';
+    const { rerender } = renderWithProviders(
+      <MediaSurface kind="image" variant="solo" src={first} alt="a.png" />,
     );
+    settle(first, 'load');
+    await screen.findByAltText('a.png');
 
-    settle(url, 'error');
-
-    await screen.findByRole('img', { name: 'Image unavailable' });
-    expect(onGone).not.toHaveBeenCalled();
+    rerender(<MediaSurface kind="image" variant="solo" src={second} alt="a.png" />);
+    expect(probes.filter((p) => p.src === second)).toHaveLength(0);
+    expect(screen.getByAltText('a.png')).toHaveAttribute('src', first);
   });
 
   it('sizes a solo image from its natural ratio, clamped to 320 x 380', async () => {
@@ -175,6 +236,7 @@ describe('MediaSurface loading and unavailable states', () => {
 
 describe('MediaSurface solo sizing and loading states', () => {
   beforeEach(() => {
+    resetMediaProbeCaches();
     probes = [];
     class ProbeImage {
       src = '';
@@ -227,7 +289,7 @@ describe('MediaSurface solo sizing and loading states', () => {
     await waitFor(() =>
       expect((screen.getByTestId('media-surface') as HTMLElement).style.aspectRatio).toBe('190 / 380'),
     );
-    expect(screen.getByTestId('media-load-bar')).toBeInTheDocument();
+    expect(screen.queryByTestId('media-load-bar')).toBeNull();
   });
 
   it('shows a tiny picture at natural size on a tile, with no hover zoom', async () => {

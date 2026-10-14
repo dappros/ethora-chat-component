@@ -1,12 +1,11 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useT } from '../../i18n/useT';
 import styled from 'styled-components';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { IMessage } from '../../types/types';
 import { RootState } from '../../roomStore';
 import { getMessageAttachments } from '../../helpers/attachments';
 import { appendFileToken } from '../../helpers/secureFileUrl';
-import { deleteRoomMessage } from '../../roomStore/roomsSlice';
 import { requestMediaRetry } from '../../helpers/mediaSendRetry';
 import AttachmentList from './AttachmentList';
 import SealedAttachmentList from './SealedAttachmentList';
@@ -36,7 +35,6 @@ const MediaMessage: React.FC<MediaMessageProps> = ({
   message,
 }) => {
   const t = useT();
-  const dispatch = useDispatch();
   // Secure (v2) file URLs are membership-gated: append the viewer's own
   // fileToken at render time. Public (v1) URLs pass through untouched.
   // Subscribed via useSelector so a token refresh re-renders the media
@@ -84,19 +82,12 @@ const MediaMessage: React.FC<MediaMessageProps> = ({
     ]
   );
 
-  // Last-resort fallback for a file deleted from the Files panel without a
-  // local message match to tombstone up front (different room history not
-  // loaded locally, or a backend that doesn't round-trip attachmentId - see
-  // findMessagesForFile.ts): once the browser confirms the URL is really
-  // dead (not just slow), flip this message to the normal deleted-message
-  // placeholder instead of leaving a broken-image card in the transcript.
-  const roomJid = message?.roomJid;
+  // A file that fails to load is only ever shown as unavailable (with a
+  // retry). It is never tombstoned from here: the storage host answering 404
+  // (or being unreachable, expired, CORS-blocked) is not proof the sender
+  // deleted it, and a tombstone is persisted and wipes the attachment. A
+  // real deletion arrives as a delete stanza or from the Files panel.
   const messageId = message?.id;
-  const isDeleted = message?.isDeleted;
-  const handleUnavailable = useCallback(() => {
-    if (!roomJid || !messageId || isDeleted) return;
-    dispatch(deleteRoomMessage({ roomJID: roomJid, messageId }));
-  }, [dispatch, roomJid, messageId, isDeleted]);
 
   if (attachments.length === 0) {
     return <UnsupportedMedia>{t('media.unsupported')}</UnsupportedMedia>;
@@ -123,7 +114,6 @@ const MediaMessage: React.FC<MediaMessageProps> = ({
   return (
     <AttachmentList
       attachments={attachments}
-      onUnavailable={handleUnavailable}
       onRetryAttachment={messageId ? handleRetryAttachment : undefined}
     />
   );
