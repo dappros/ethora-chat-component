@@ -17,13 +17,13 @@ const Card = styled.button<{ $compact: boolean }>`
   max-width: 100%;
   box-sizing: border-box;
   margin: 0;
-  padding: ${({ $compact }) => ($compact ? '6px 8px' : '8px 10px')};
+  padding: 10px 12px;
   font: inherit;
   color: inherit;
   text-align: start;
   cursor: pointer;
   border: 1px solid var(--ethora-color-border, #e6e8ec);
-  border-radius: var(--ethora-radius-md, 14px);
+  border-radius: var(--ethora-radius-md, 12px);
   background-color: var(--ethora-color-bg-subtle, #f3f6fc);
   transition: background-color 150ms cubic-bezier(0.2, 0.8, 0.2, 1);
 
@@ -44,10 +44,10 @@ const IconTile = styled.span<{ $tone: 'pdf' | 'neutral' }>`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   overflow: hidden;
-  border-radius: 10px;
+  border-radius: 8px;
   color: ${({ $tone }) =>
     $tone === 'pdf' ? '#d93025' : 'var(--ethora-color-primary, #0052cd)'};
   background-color: ${({ $tone }) =>
@@ -114,8 +114,8 @@ const Affordance = styled.span`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   color: var(--ethora-color-text-secondary, #53575a);
   background-color: var(--ethora-color-bg, #ffffff);

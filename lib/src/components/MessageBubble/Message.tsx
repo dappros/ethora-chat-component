@@ -74,6 +74,7 @@ import {
 import { resendMessage } from '../../utils/resendMessage';
 import { hasMediaRetry, retryMediaSend } from '../../helpers/mediaSendRetry';
 import { getMessageAttachments } from '../../helpers/attachments';
+import { getMessageCaption } from '../../helpers/caption';
 import {
   getMediaBlockMode,
   usesMediaOverlayTime,
@@ -650,12 +651,75 @@ const Message: React.FC<MessageProps> = forwardRef<
   const isMediaBubble = message?.isMediafile === 'true' && !message?.isDeleted;
   const mediaAttachments = isMediaBubble ? getMessageAttachments(message) : [];
   const mediaBlockMode = getMediaBlockMode(mediaAttachments);
+  const showsTranslateRow =
+    !isUser &&
+    Boolean(config?.translates?.enabled) &&
+    effectiveTranslateMode === 'manual';
   const timeOverPicture =
     isMediaBubble &&
     !isFailed &&
-    usesMediaOverlayTime(mediaAttachments) &&
+    usesMediaOverlayTime(mediaAttachments, {
+      hasCaption: Boolean(getMessageCaption(message)),
+    }) &&
     !(quickReplies.length > 0) &&
+    !showsTranslateRow &&
     !previewUrl;
+
+  // A short text message shows its time at the end of the last line of text
+  // instead of on a line of its own.
+  const timeInline =
+    !isMediaBubble && !message.isDeleted && !translationDisplay.hasTranslation;
+
+  const timeNode = (
+    <CustomMessageTimestamp
+      $inline={timeInline}
+      $media={isMediaBubble}
+      $overlay={timeOverPicture}
+      $bordered={!message.isDeleted && !isUser}
+    >
+      {sentLogicEnabled && isUser && isPending && !isFailed && 'sending...'}
+      {message.isEdited && !message.isDeleted && (
+        <EditedLabel>{t('message.edited')}</EditedLabel>
+      )}
+      {message.unencrypted && (
+        <span
+          title={t('e2ee.notEncryptedHint')}
+          style={{ display: 'inline-flex', flexShrink: 0 }}
+        >
+          <LockOffIcon
+            width={14}
+            height={14}
+            role="img"
+            aria-label={t('e2ee.notEncrypted')}
+          />
+        </span>
+      )}
+      {new Date(message.date).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      })}
+      {sentLogicEnabled && isUser && !isPending && !isFailed && (
+        <TickStatusWrapper>
+          {timeOverPicture ? (
+            readStatus === 'sent' ? (
+              <SingleTick color="#FFFFFF" />
+            ) : (
+              <DoubleTick
+                stroke={readStatus === 'seen' ? '#7DB3FF' : '#FFFFFF'}
+              />
+            )
+          ) : readStatus === 'sent' ? (
+            <SingleTick color="#8C8C8C" />
+          ) : (
+            <DoubleTick
+              stroke={readStatus === 'seen' ? '#0052CD' : '#8C8C8C'}
+            />
+          )}
+          <TickTooltip className="tick-tooltip">{tickInfo.tooltip}</TickTooltip>
+        </TickStatusWrapper>
+      )}
+    </CustomMessageTimestamp>
+  );
 
   return (
     <>
@@ -704,6 +768,7 @@ const Message: React.FC<MessageProps> = forwardRef<
           {!isUser && (
             <CustomUserName
               $isUser={isUser}
+              $media={isMediaBubble}
               $color={config?.colors?.primary}
               style={
                 senderNamePending
@@ -730,13 +795,30 @@ const Message: React.FC<MessageProps> = forwardRef<
                 location={message?.location}
                 message={message}
               />
-              <MediaCaption message={message} onMentionClick={handleMentionClick} />
+              <MediaCaption
+                message={message}
+                onMentionClick={handleMentionClick}
+              />
             </>
           ) : (
             // Muted while unsent so the bubble reads as "not landed yet"
             // without shouting - the danger tone belongs on the notice below,
             // which is the part carrying the action.
-            <CustomMessageText style={{ opacity: isFailed ? 0.6 : 1 }}>
+            <CustomMessageText
+              style={{
+                opacity: isFailed ? 0.6 : 1,
+                // Short text and its time share one line; a longer text
+                // fills the width and the time wraps below it, right-aligned.
+                ...(timeInline
+                  ? {
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      alignItems: 'last baseline',
+                      columnGap: 12,
+                    }
+                  : null),
+              }}
+            >
               {message.isDeleted && message.id !== 'delimiter-new' ? (
                 <DeletedMessage />
               ) : (
@@ -757,7 +839,7 @@ const Message: React.FC<MessageProps> = forwardRef<
                   const mentionsForDisplay =
                     displayText === message.body ? message.mentions : undefined;
                   const body = (
-                    <div className="message-body">
+                    <div className="message-body" style={{ minWidth: 0 }}>
                       {parseMessageBody({
                         text: displayText,
                         mentions: mentionsForDisplay,
@@ -782,69 +864,18 @@ const Message: React.FC<MessageProps> = forwardRef<
                   );
                 })()
               )}
+              {timeInline && timeNode}
             </CustomMessageText>
           )}
 
-          {!isUser &&
-            config?.translates?.enabled &&
-            effectiveTranslateMode === 'manual' && (
-              <MessageTranslate
-                message={message}
-                config={config}
-                isUser={isUser}
-              />
-            )}
-          <CustomMessageTimestamp
-            $media={isMediaBubble}
-            $overlay={timeOverPicture}
-            $bordered={!message.isDeleted && !isUser}
-          >
-            {sentLogicEnabled &&
-              isUser &&
-              isPending &&
-              !isFailed &&
-              'sending...'}
-            {message.isEdited && !message.isDeleted && (
-              <EditedLabel>{t('message.edited')}</EditedLabel>
-            )}
-            {message.unencrypted && (
-              <span
-                title={t('e2ee.notEncryptedHint')}
-                style={{ display: 'inline-flex', flexShrink: 0 }}
-              >
-                <LockOffIcon
-                  width={14}
-                  height={14}
-                  role="img"
-                  aria-label={t('e2ee.notEncrypted')}
-                />
-              </span>
-            )}
-            {new Date(message.date).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-            {sentLogicEnabled && isUser && !isPending && !isFailed && (
-              <TickStatusWrapper>
-                {timeOverPicture ? (
-                  readStatus === 'sent' ? (
-                    <SingleTick color="#FFFFFF" />
-                  ) : (
-                    <DoubleTick stroke="#FFFFFF" />
-                  )
-                ) : readStatus === 'sent' ? (
-                  <SingleTick color="#8C8C8C" />
-                ) : (
-                  <DoubleTick
-                    stroke={readStatus === 'seen' ? '#0052CD' : '#8C8C8C'}
-                  />
-                )}
-                <TickTooltip className="tick-tooltip">
-                  {tickInfo.tooltip}
-                </TickTooltip>
-              </TickStatusWrapper>
-            )}
-          </CustomMessageTimestamp>
+          {showsTranslateRow && (
+            <MessageTranslate
+              message={message}
+              config={config}
+              isUser={isUser}
+            />
+          )}
+          {!timeInline && timeNode}
           {quickReplies.length > 0 && !message.isDeleted && (
             <QuickReplies
               replies={quickReplies}

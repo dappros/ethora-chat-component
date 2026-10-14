@@ -104,15 +104,15 @@ const timeEl = () =>
   ) as HTMLElement;
 
 describe('Message bubble padding', () => {
-  it('gives a text bubble one visual inset on every side (own: 10px)', () => {
+  it('gives a text bubble 8px vertical and 12px horizontal padding (own)', () => {
     renderBubble(makeMessage(), true);
-    expect(declarationsFor(bubble())).toContain('padding:10px');
+    expect(declarationsFor(bubble())).toContain('padding:8px12px');
   });
 
-  it('nets the 1px border off a text bubble from someone else, keeping 10px visual', () => {
+  it('nets the 1px border off a text bubble from someone else, keeping 8px 12px visual', () => {
     renderBubble(makeMessage(), false);
     const css = declarationsFor(bubble());
-    expect(css).toContain('padding:9px');
+    expect(css).toContain('padding:7px11px');
     expect(css).toContain('border:1pxsolid');
   });
 
@@ -151,12 +151,34 @@ describe('Message bubble time placement', () => {
     renderBubble(mediaMessage([image(1), pdf]), true);
     const css = declarationsFor(timeEl());
     expect(css).not.toContain('position:absolute');
-    expect(css).toContain('margin-top:4px');
+    expect(css).toContain('padding:2px8px4px');
   });
 
   it('keeps the normal bottom row for a lone document', () => {
     renderBubble(mediaMessage([pdf]), true);
     expect(declarationsFor(timeEl())).not.toContain('position:absolute');
+  });
+});
+
+describe('Message bubble time placement with a caption', () => {
+  it('puts the time in the normal row under the caption, not over the picture', () => {
+    renderBubble(mediaMessage([image(1)], { caption: 'Look at this' }), true);
+    expect(screen.getByTestId('media-caption')).toHaveTextContent('Look at this');
+    expect(declarationsFor(timeEl())).not.toContain('position:absolute');
+  });
+
+  it('keeps the overlay time for the same picture without a caption', () => {
+    renderBubble(mediaMessage([image(1)]), true);
+    expect(declarationsFor(timeEl())).toContain('position:absolute');
+  });
+
+  it('shows the caption after the file cards', () => {
+    renderBubble(mediaMessage([image(1), image(2), pdf], { caption: 'Docs' }), true);
+    const block = screen.getByTestId('media-block');
+    const caption = screen.getByTestId('media-caption');
+    expect(
+      block.compareDocumentPosition(caption) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 });
 

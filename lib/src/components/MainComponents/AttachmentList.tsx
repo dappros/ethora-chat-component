@@ -110,7 +110,7 @@ const StatusWrap = styled.div`
   position: relative;
   min-width: 0;
   max-width: 100%;
-  border-radius: var(--ethora-radius-md, 14px);
+  border-radius: var(--ethora-radius-md, 12px);
   overflow: hidden;
 `;
 
@@ -191,7 +191,7 @@ const AttachmentRowWithStatus: React.FC<{
 const MediaBlock = styled.div<{ $mode: MediaBlockMode; $cards: boolean }>`
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   max-width: 100%;
   box-sizing: border-box;
   ${({ $mode, $cards }) => {

@@ -12,7 +12,7 @@
 /** Gap between neighbouring tiles. */
 export const ALBUM_GAP_PX = 3;
 /** Radius of a tile corner that sits on the bubble's own corner. */
-export const ALBUM_OUTER_RADIUS_PX = 14;
+export const ALBUM_OUTER_RADIUS_PX = 12;
 /** Radius of every other tile corner, the ones that face a neighbour. */
 export const ALBUM_INNER_RADIUS_PX = 3;
 
