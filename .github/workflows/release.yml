@@ -1,0 +1,123 @@
+name: Release
+
+# Publishes @ethora/chat-component to npm.
+#
+# Two ways in:
+#   - Push a tag vYY.M.D on main (npm run release -- --yes --push does this locally).
+#   - Run this workflow by hand (Actions > Release > Run workflow). It bumps and
+#     tags main, then publishes that tag in the same run.
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'yy.m.d without leading zeros. Empty = the next date-based version.'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  # Manual runs only. A tag pushed with GITHUB_TOKEN does not start other
+  # workflows, so the publish jobs live in this file and run after this job.
+  tag:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.bump.outputs.tag }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Bump, commit, tag and push
+        id: bump
+        env:
+          REQUESTED: ${{ inputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -n "$REQUESTED" ]; then
+            node scripts/release.mjs --yes --push "$REQUESTED"
+          else
+            node scripts/release.mjs --yes --push
+          fi
+          echo "tag=v$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+  verify:
+    needs: tag
+    if: ${{ always() && (needs.tag.result == 'success' || needs.tag.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.tag.outputs.tag || github.ref_name }}
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check tag, version, npm and origin/main
+        env:
+          TAG: ${{ needs.tag.outputs.tag || github.ref_name }}
+        run: node scripts/release.mjs verify "$TAG"
+
+      - name: Local CI checks
+        run: npm run ci:local
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    # Optional approval gate. Create the environment in repo settings with
+    # required reviewers to approve every publish.
+    environment: npm-release
+    steps:
+      - name: Checkout the release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.tag.outputs.tag || github.ref_name }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: https://registry.npmjs.org
+
+      # npm trusted publishing (OIDC) needs npm 11.5.1 or newer.
+      - name: Use npm 11 for trusted publishing
+        run: npm install -g npm@^11.5.1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Publish with provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public
+
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.tag.outputs.tag || github.ref_name }}
+        run: gh release create "$TAG" --title "$TAG" --generate-notes --verify-tag
