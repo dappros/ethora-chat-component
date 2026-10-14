@@ -35,7 +35,13 @@ const LastMessageItem: FC<LastMessageItemProps> = ({ lastMessage, sealed }) => {
     return <LastMessageSealed {...lastMessage} />;
   }
 
-  const media = deriveMediaPreview(lastMessage, { sealed });
+  const media = deriveMediaPreview(lastMessage, {
+    sealed,
+    senderNames: [
+      String(lastMessage.user?.name ?? ''),
+      String(lastMessage.user?.id ?? '').split('@')[0],
+    ],
+  });
   if (media) {
     return <LastMessageMedia preview={media} name={lastMessage.user?.name} />;
   }

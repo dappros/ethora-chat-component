@@ -144,7 +144,7 @@ describe('deriveMediaPreview', () => {
 
   it('backend payload with only the media flag still renders a row', () => {
     const p = deriveMediaPreview({ body: 'media', isMediafile: 'true' } as never);
-    expect(p).toMatchObject({ kind: 'file', count: 1 });
+    expect(p).toMatchObject({ kind: 'attachment', count: 1 });
   });
 
   it('stanza shape: legacy single file fields on the message', () => {

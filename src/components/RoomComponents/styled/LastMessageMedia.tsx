@@ -23,6 +23,27 @@ export const MEDIA_THUMB_PX = 28;
 const MediaContainer = styled(LastRoomMessageContainer)<{ $tall: boolean }>`
   height: ${({ $tall }) => ($tall ? `${MEDIA_THUMB_PX}px` : '20px')};
   line-height: ${({ $tall }) => ($tall ? `${MEDIA_THUMB_PX}px` : '20px')};
+  display: flex;
+  align-items: center;
+  min-width: 0;
+
+  /* A long sender name gives way first; the media label stays readable. */
+  > ${LastRoomMessageName} {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 55%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  > span {
+    flex-shrink: 0;
+  }
+  > ${LastRoomMessageName} {
+    flex-shrink: 1;
+  }
+  > ${LastRoomMessageText} {
+    flex-shrink: 1;
+  }
 `;
 
 const Tile = styled.span`
@@ -185,6 +206,9 @@ const LastMessageMedia: FC<LastMessageMediaProps> = ({ preview, name }) => {
       break;
     case 'sealed':
       label = t('media.sealedFile');
+      break;
+    case 'attachment':
+      label = t('lastMessage.attachment');
       break;
     default:
       label =
