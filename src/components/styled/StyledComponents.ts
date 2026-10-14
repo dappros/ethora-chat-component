@@ -244,17 +244,54 @@ export const CustomMessageContainer = styled.div<{
 // Telegram-style. Own-message background defaults to the primary-soft token;
 // other-message gets a neutral surface plus a 1px border since it no longer
 // has a tint of its own to separate it from the page background.
+/**
+ * Visual inset between a bubble's edge and what it holds, in px. Every side
+ * gets the same value. A bubble with a 1px border (anyone else's message)
+ * takes one px less of padding so the visual inset still matches.
+ *
+ * Media bubbles (pictures, videos, file cards, voice notes) use 6px, the
+ * Telegram-style compact inset that the media block, cards and time row align
+ * to. Text-only bubbles use 10px.
+ */
+export const MEDIA_BUBBLE_INSET_PX = 6;
+export const TEXT_BUBBLE_INSET_PX = 10;
+/** Glass time pill over media: how far it sits inside the media edge, in px. */
+export const MEDIA_TIME_PILL_OFFSET_PX = 6;
+
+const bubbleBordered = (props: { $isUser: boolean; $deleted: boolean }) =>
+  !props.$deleted && !props.$isUser;
+
+const bubbleInsetPx = (props: { $media?: boolean }) =>
+  props.$media ? MEDIA_BUBBLE_INSET_PX : TEXT_BUBBLE_INSET_PX;
+
+/** Padding that yields the visual inset, net of the border. */
+export const bubblePaddingPx = (props: {
+  $isUser: boolean;
+  $deleted: boolean;
+  $media?: boolean;
+}) => bubbleInsetPx(props) - (bubbleBordered(props) ? 1 : 0);
+
+// 16px radius, with a smaller radius on the corner nearest the avatar (the
+// "tail" side) so the bubble reads as pointing at its sender, iMessage/
+// Telegram-style. Own-message background defaults to the primary-soft token;
+// other-message gets a neutral surface plus a 1px border since it no longer
+// has a tint of its own to separate it from the page background.
 export const CustomMessageBubble = styled.div<{
   $isUser: boolean;
   $deleted: boolean;
-  /** The bubble carries a media block: its content is as wide as that block (the bubble
-   *  is content-box, so 34px of padding and border come on top), up to 82% overall. */
+  /** The bubble carries a media block (pictures, videos, cards, voice notes). */
   $media?: boolean;
+  /** Its only media is one solo picture or video: the bubble hugs it. */
+  $solo?: boolean;
 }>`
   max-width: ${(props) =>
-    props.$media ? `min(${MEDIA_WIDTH_CSS}, calc(82% - 34px))` : '70%'};
-  min-width: 15%;
-  padding: 8px 16px;
+    props.$media
+      ? `min(${MEDIA_WIDTH_CSS}, calc(82% - ${2 * MEDIA_BUBBLE_INSET_PX + 2}px))`
+      : '70%'};
+  /* Room for the glass time pill over a media-only bubble. */
+  min-width: ${(props) => (props.$media ? '120px' : '15%')};
+  ${(props) => (props.$media && props.$solo ? 'width: fit-content;' : '')}
+  padding: ${(props) => `${bubblePaddingPx(props)}px`};
   border-radius: ${(props) =>
     props.$isUser
       ? 'var(--ethora-radius-lg, 16px) var(--ethora-radius-lg, 16px) var(--ethora-radius-sm, 8px) var(--ethora-radius-lg, 16px)'
@@ -297,7 +334,14 @@ export const CustomUserName = styled.span<{ $isUser: boolean; $color?: string }>
   margin-bottom: 8px;
 `;
 
-export const CustomMessageTimestamp = styled.span`
+export const CustomMessageTimestamp = styled.span<{
+  /** Media bubble: the row sits 4px under the media. */
+  $media?: boolean;
+  /** Glass pill over the media's bottom right corner (media-only bubbles). */
+  $overlay?: boolean;
+  /** Whether the bubble has its 1px border (it shifts the pill by one px). */
+  $bordered?: boolean;
+}>`
   font-size: var(--ethora-font-size-xs, 0.75rem);
   align-self: flex-end;
   color: var(--ethora-color-text-muted, #8f8f8f);
@@ -305,6 +349,27 @@ export const CustomMessageTimestamp = styled.span`
   gap: 4px;
   align-items: center;
   justify-content: center;
+  ${(props) => (props.$media && !props.$overlay ? 'margin-top: 4px;' : '')}
+  ${(props) =>
+    props.$overlay
+      ? `
+    position: absolute;
+    z-index: 2;
+    right: ${MEDIA_BUBBLE_INSET_PX + MEDIA_TIME_PILL_OFFSET_PX - (props.$bordered ? 1 : 0)}px;
+    bottom: ${MEDIA_BUBBLE_INSET_PX + MEDIA_TIME_PILL_OFFSET_PX - (props.$bordered ? 1 : 0)}px;
+    align-self: auto;
+    padding: 2px 7px;
+    border-radius: 999px;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.45);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    font-size: 11px;
+    line-height: 1.4;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  `
+      : ''}
 `;
 
 export const CustomMessagePhoto = styled.img`
