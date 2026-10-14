@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import styled, { css, keyframes } from 'styled-components';
 import { ImageUnavailableState } from '../MainComponents/ImageUnavailable';
 import { useMediaProbe } from '../../hooks/useMediaProbe';
-import { reducedMotion, shimmer } from '../../styles/motion';
+import { reducedMotion, shimmerBackground } from '../../styles/motion';
 import {
   computeSoloBox,
   formatDuration,
@@ -138,28 +138,6 @@ const SoloTrigger = styled.button`
   }
 `;
 
-/**
- * A soft band sweeping across the neutral skeleton every 1.4s. Both tones are
- * mixed from the text colour, so the band reads in light and dark alike.
- */
-const skeletonShimmer = css`
-  background: linear-gradient(
-    90deg,
-    var(--ethora-color-bg-subtle, #f3f6fc) 25%,
-    var(--ethora-color-bg-hover, #e9eef7) 37%,
-    var(--ethora-color-bg-subtle, #f3f6fc) 63%
-  );
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--ethora-color-text, #141414) 3%, var(--ethora-color-bg-subtle, #f3f6fc)) 25%,
-    color-mix(in srgb, var(--ethora-color-text, #141414) 9%, var(--ethora-color-bg-subtle, #f3f6fc)) 37%,
-    color-mix(in srgb, var(--ethora-color-text, #141414) 3%, var(--ethora-color-bg-subtle, #f3f6fc)) 63%
-  );
-  background-size: 400% 100%;
-  animation: ${shimmer} 1.4s ease infinite;
-  ${reducedMotion}
-`;
-
 const Skeleton = styled.div<{ $shimmer: boolean; $leaving?: boolean }>`
   position: absolute;
   inset: 0;
@@ -170,7 +148,7 @@ const Skeleton = styled.div<{ $shimmer: boolean; $leaving?: boolean }>`
   justify-content: center;
   ${({ $shimmer }) =>
     $shimmer
-      ? skeletonShimmer
+      ? shimmerBackground
       : css`
           background-color: var(--ethora-color-bg-subtle, #f3f6fc);
         `}
