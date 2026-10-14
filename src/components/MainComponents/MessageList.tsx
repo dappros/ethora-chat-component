@@ -22,6 +22,7 @@ import Composing from '../styled/StyledInputComponents/Composing';
 import CustomTypingIndicator from '../styled/StyledInputComponents/CustomTypingIndicator';
 import TreadLabel from '../styled/TreadLabel';
 import { MessageContainer } from './MessageContainer';
+import { usePaneWidthVar } from '../../hooks/usePaneWidthVar';
 import {
   OlderPage,
   WindowFetchResult,
@@ -1144,6 +1145,8 @@ const MessageList = <TMessage extends IMessage>({
   // One anchoring mechanism for every insertion above or below the reader:
   // the rows on screen stay where they are while history is prepended, a jump
   // window is paged, the render window widens, or rows above change height.
+  usePaneWidthVar(containerRef);
+
   useScrollAnchor({
     containerRef,
     flowRef,

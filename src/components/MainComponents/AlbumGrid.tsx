@@ -15,9 +15,6 @@ import { useT } from '../../i18n/useT';
 import MediaSurface from '../styled/MediaSurface';
 import { MediaUploadOverlay, RetryIcon } from './MediaUploadOverlay';
 
-const ALBUM_PREFERRED_WIDTH_PX = 360;
-const ALBUM_MAX_WIDTH_PX = 480;
-
 const Grid = styled.div<{
   $columns: string;
   $rows: string;
@@ -35,26 +32,13 @@ const Grid = styled.div<{
 `;
 
 /**
- * Sizes the album. The bubble shrink-wraps its content, and a percentage
- * width contributes nothing to that, so the `::before` sizer carries a
- * definite preferred width (360px) and the box then stretches to whatever
- * width the bubble actually has, capped at 480px. Album-only: the bubble
- * wraps the album at 360px (or its own max-width on a phone). Wider because
- * of a caption or name: the album grows with it, up to the cap.
+ * The album fills the media block, whose width the attachment list sets from
+ * the pane (see MEDIA_WIDTH_RULE); the grid's aspect ratio gives it height.
  */
 const AlbumBox = styled.div`
   align-self: stretch;
   width: 100%;
   min-width: 0;
-  max-width: ${ALBUM_MAX_WIDTH_PX}px;
-
-  &::before {
-    content: '';
-    display: block;
-    width: ${ALBUM_PREFERRED_WIDTH_PX}px;
-    max-width: 100%;
-    height: 0;
-  }
 `;
 
 const Tile = styled.button<{ $dimmed: boolean; $radius: string }>`
@@ -243,6 +227,7 @@ const AlbumGrid: React.FC<AlbumGridProps> = ({ items, onRetry, sender, date }) =
               src={attachment.location || ''}
               previewSrc={attachment.locationPreview}
               alt={fileName}
+              mimetype={attachment.mimetype}
               variant="fill"
               duration={attachment.duration}
               pending={pending}

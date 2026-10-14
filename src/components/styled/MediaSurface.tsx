@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import styled, { css, keyframes } from 'styled-components';
 import { ImageUnavailableState } from '../MainComponents/ImageUnavailable';
 import { useMediaProbe } from '../../hooks/useMediaProbe';
+import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion';
+import { isGifFile } from '../../helpers/fileKind';
 import { reducedMotion, shimmerBackground } from '../../styles/motion';
 import {
   computeSoloBox,
@@ -9,7 +11,10 @@ import {
   SoloBox,
   parseDimension,
   SOLO_DEFAULT_BOX,
+  SOLO_MIN_SHORT_SIDE_PX,
   SOLO_VIDEO_DEFAULT_BOX,
+  MEDIA_WIDTH_CSS,
+  SOLO_MAX_HEIGHT_CSS,
 } from '../../helpers/mediaBox';
 
 /** Crossfade from the skeleton or the blurred preview to the sharp image. */
@@ -287,6 +292,27 @@ export const DurationChip = styled.span`
   pointer-events: none;
 `;
 
+/** Small "GIF" pill, bottom-left, on an animated picture. */
+export const GifChip = styled.span`
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  z-index: 1;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  -webkit-backdrop-filter: blur(10px) saturate(1.4);
+  backdrop-filter: blur(10px) saturate(1.4);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.3;
+  pointer-events: none;
+`;
+
 const PlayGlyph: React.FC = () => (
   <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
     <path d="M4.5 2.8v12.4L15 9z" fill="currentColor" />
@@ -341,6 +367,8 @@ export interface MediaSurfaceProps {
   interactive?: boolean;
   /** Blur and dim the picture, used behind the "+N" count. */
   blurred?: boolean;
+  /** MIME type of the file; `image/gif` makes the picture animate in place. */
+  mimetype?: string;
   /** Show the play badge and duration chip on videos. Defaults to true. */
   chrome?: boolean;
   /** Sender's own picture (blob URL): shown sharp and at once, ahead of `src`. */
@@ -371,8 +399,14 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
   localSrc,
   loadProgress,
   openDisabled = false,
+  mimetype,
 }) => {
   const isImage = kind === 'image';
+  const reducedMotionPref = usePrefersReducedMotion();
+  const isGif = isImage && (isGifFile(mimetype, alt) || isGifFile(undefined, src));
+  // An animated picture needs the original: the storage's preview is a still.
+  // With reduced motion the still is exactly what is wanted.
+  const animate = isGif && !reducedMotionPref;
   const local = useMediaProbe(isImage && localSrc ? localSrc : undefined);
   const localReady = local.status === 'loaded';
   const hasPreview = isImage && Boolean(previewSrc) && previewSrc !== src;
@@ -385,7 +419,7 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
     variant === 'solo'
       ? computeSoloBox(parseDimension(dims?.width), parseDimension(dims?.height))
       : null;
-  const previewOnly = hasPreview && recordedBox?.mode !== 'natural';
+  const previewOnly = hasPreview && !animate && recordedBox?.mode !== 'natural';
   const low = useMediaProbe(hasPreview ? previewSrc : undefined);
   const full = useMediaProbe(
     isImage && src && (!previewOnly || low.status === 'error') ? src : undefined
@@ -425,13 +459,18 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
   }
   const natural = solo?.mode === 'natural';
 
+  // The picture's own size, then the pane's shared media width, then the
+  // height cap turned into a width at this ratio. A definite length (not a
+  // percentage) so it still counts inside the shrink-wrapped bubble.
+  const soloRatio = solo ? Math.round((solo.width / solo.height) * 10000) / 10000 : 1;
   const soloStyle: React.CSSProperties | undefined = solo
     ? {
-        // A definite width (the stage caps it at 100%): a percentage here
-        // collapses inside the shrink-wrapped bubble.
-        width: `${solo.width}px`,
+        width: natural
+          ? `min(${solo.width}px, ${MEDIA_WIDTH_CSS})`
+          : `min(${solo.width}px, ${MEDIA_WIDTH_CSS}, calc(${SOLO_MAX_HEIGHT_CSS} * ${soloRatio}))`,
         aspectRatio: `${solo.width} / ${solo.height}`,
         height: 'auto',
+        minHeight: `${Math.min(solo.height, SOLO_MIN_SHORT_SIDE_PX)}px`,
       }
     : undefined;
 
@@ -546,6 +585,7 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
       data-mode={solo ? (placeholder ? 'placeholder' : solo.mode) : undefined}
     >
       {body}
+      {chrome && isGif && anyPicture && <GifChip aria-hidden="true">GIF</GifChip>}
       {chrome && kind === 'video' && src && (
         <>
           <PlayBadge aria-hidden="true">

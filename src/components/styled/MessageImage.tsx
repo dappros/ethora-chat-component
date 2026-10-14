@@ -17,8 +17,8 @@ interface CustomMessageImageProps {
 }
 
 /**
- * A single picture in a bubble: its natural aspect ratio, clamped to 320 x
- * 380. A click opens the preview modal at this file.
+ * A single picture in a bubble: its natural aspect ratio, sized to the
+ * pane's shared media width. A click opens the preview modal at this file.
  */
 const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
   fileURL,
@@ -43,6 +43,7 @@ const CustomMessageImage: React.FC<CustomMessageImageProps> = ({
       src={fileURL}
       previewSrc={locationPreview}
       alt={fileName}
+      mimetype={mimetype}
       dims={{ width, height }}
       localSrc={localUrl}
       pending={!fileURL}

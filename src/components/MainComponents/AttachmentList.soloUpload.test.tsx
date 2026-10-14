@@ -47,7 +47,7 @@ describe('solo image upload', () => {
     );
     load(LOCAL, 600, 1200);
     expect(await screen.findByAltText('me.png')).toHaveAttribute('src', LOCAL);
-    expect((screen.getByTestId('media-surface') as HTMLElement).style.aspectRatio).toBe('190 / 380');
+    expect((screen.getByTestId('media-surface') as HTMLElement).style.aspectRatio).toBe('392 / 784');
     expect(screen.getByRole('status')).toBeInTheDocument();
     expect(screen.getByText('40%')).toBeInTheDocument();
   });

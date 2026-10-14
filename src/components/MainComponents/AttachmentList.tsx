@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { IAttachment, ModalFile } from '../../types/types';
 import { getAttachmentName } from '../../helpers/attachments';
 import { getFileKind } from '../../helpers/fileKind';
-import { AttachmentStack } from '../styled/StyledInputComponents/MediaComponents';
 import CustomMessageImage from '../styled/MessageImage';
 import CustomMessageVideo from '../styled/VideoMessage';
 import AudioMessage from '../styled/AudioMessage';
@@ -13,6 +12,10 @@ import AlbumGrid, { AlbumGridItem } from './AlbumGrid';
 import { MediaUploadOverlay, SCRIM_FADE_MS } from './MediaUploadOverlay';
 import styled from 'styled-components';
 import { useT } from '../../i18n/useT';
+import {
+  FILE_ONLY_MAX_WIDTH_PX,
+  MEDIA_WIDTH_CSS,
+} from '../../helpers/mediaBox';
 
 /** Full-width renderer: what a single-file message has always looked like. */
 const AttachmentRow: React.FC<{
@@ -32,6 +35,7 @@ const AttachmentRow: React.FC<{
           variant="solo"
           src=""
           alt={fileName}
+          mimetype={attachment.mimetype}
           dims={{ width: attachment.width, height: attachment.height }}
           pending
         />
@@ -179,6 +183,39 @@ const AttachmentRowWithStatus: React.FC<{
   );
 };
 
+/**
+ * How the message's files share one column:
+ *  - album: the grid sets the block, `--ethora-media-w` wide; cards stretch to it.
+ *  - solo: one picture or video; the block shrink-wraps the picture (at most
+ *    the media width) and any cards stretch to that.
+ *  - files: documents only; the media width, capped so a lone card is no bar.
+ *  - plain: voice notes only, which keep their own width.
+ */
+export type MediaBlockMode = 'album' | 'solo' | 'files' | 'plain';
+
+const MediaBlock = styled.div<{ $mode: MediaBlockMode; $cards: boolean }>`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 100%;
+  box-sizing: border-box;
+  ${({ $mode, $cards }) => {
+    switch ($mode) {
+      case 'album':
+        return `width: ${MEDIA_WIDTH_CSS};`;
+      case 'files':
+        return `width: min(${MEDIA_WIDTH_CSS}, ${FILE_ONLY_MAX_WIDTH_PX}px);`;
+      case 'solo':
+        // A card under a tiny picture must still be readable.
+        return `width: fit-content; max-width: min(100%, ${MEDIA_WIDTH_CSS});${
+          $cards ? ` min-width: min(100%, 240px);` : ''
+        }`;
+      default:
+        return '';
+    }
+  }}
+`;
+
 interface AttachmentListProps {
   attachments: IAttachment[];
   /** Re-sends the file at this index of `attachments` after a failed upload. */
@@ -232,9 +269,27 @@ const AttachmentList: React.FC<AttachmentListProps> = ({
   }
 
   const compact = attachments.length > 1;
+  const kindOf = (item: AlbumGridItem) =>
+    getFileKind(item.attachment.mimetype, getAttachmentName(item.attachment));
+  const hasSoloMedia = rows.some((item) => {
+    const kind = kindOf(item);
+    return kind === 'image' || kind === 'video';
+  });
+  const hasCards = rows.some((item) => {
+    const kind = kindOf(item);
+    return kind !== 'image' && kind !== 'video' && kind !== 'audio';
+  });
+  const mode: MediaBlockMode =
+    tiles.length > 0
+      ? 'album'
+      : hasSoloMedia
+        ? 'solo'
+        : hasCards
+          ? 'files'
+          : 'plain';
 
   return (
-    <AttachmentStack>
+    <MediaBlock $mode={mode} $cards={hasCards} data-testid="media-block" data-mode={mode}>
       {tiles.length > 0 && (
         <AlbumGrid
           items={tiles}
@@ -255,7 +310,7 @@ const AttachmentList: React.FC<AttachmentListProps> = ({
           onRetry={onRetryAttachment ? () => onRetryAttachment(index) : undefined}
         />
       ))}
-    </AttachmentStack>
+    </MediaBlock>
   );
 };
 

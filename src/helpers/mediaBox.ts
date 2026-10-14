@@ -3,12 +3,47 @@
  * the rules (clamping, never upscaling, duration formatting) are testable.
  */
 
-export const SOLO_IMAGE_MAX_WIDTH_PX = 320;
-export const SOLO_IMAGE_MAX_HEIGHT_PX = 380;
+/**
+ * Reference box a solo picture is fitted into. It is the largest the
+ * responsive media width ever gets (see MEDIA_WIDTH_CSS), so a picture is
+ * never upscaled past what the widest pane could show; the real, smaller cap
+ * for the current pane is applied in CSS from the shared width variable.
+ */
+export const SOLO_IMAGE_MAX_WIDTH_PX = 560;
+export const SOLO_IMAGE_MAX_HEIGHT_PX = 784;
 /** Box used while a solo image's dimensions are still unknown: 4:3. */
-export const SOLO_DEFAULT_BOX = { width: 320, height: 240 } as const;
+export const SOLO_DEFAULT_BOX = { width: 560, height: 420 } as const;
 /** Box used while a solo video's dimensions are unknown: 16:9. */
-export const SOLO_VIDEO_DEFAULT_BOX = { width: 320, height: 180 } as const;
+export const SOLO_VIDEO_DEFAULT_BOX = { width: 560, height: 315 } as const;
+
+/**
+ * The ONE width of the media block of a message: the album grid, a solo
+ * picture or video and the file cards under them all share it.
+ *
+ * `--ethora-pane-w` is the width of the message list pane (not the
+ * viewport), written by the message list's ResizeObserver, so a chat embedded
+ * in a narrow host sizes itself to that host. A container query would do the
+ * same, but `container-type` contains layout, which turns the list into the
+ * containing block of the context menu's `position: fixed` overlay.
+ *
+ *   pane 390   -> 300 (the bubble then clips it to its own width)
+ *   pane 700   -> 340
+ *   pane 1000  -> 430
+ *   pane 1400  -> 550
+ *   pane 1600+ -> 560
+ */
+export const MEDIA_WIDTH_VAR = '--ethora-media-w';
+export const PANE_WIDTH_VAR = '--ethora-pane-w';
+export const MEDIA_WIDTH_RULE =
+  'clamp(300px, calc(var(--ethora-pane-w, 800px) * 0.3 + 130px), 560px)';
+/** Use inside a stylesheet or inline style; falls back when the list did not set it. */
+export const MEDIA_WIDTH_CSS = 'var(--ethora-media-w, 340px)';
+/** A lone file card is capped so it does not become a giant bar. */
+export const FILE_ONLY_MAX_WIDTH_PX = 360;
+/** Tallest a solo picture gets, relative to the media width. */
+export const SOLO_MAX_HEIGHT_FACTOR = 1.4;
+/** CSS length of the tallest a solo picture may be: 60vh, or 1.4 x the media width. */
+export const SOLO_MAX_HEIGHT_CSS = `min(60vh, calc(${SOLO_MAX_HEIGHT_FACTOR} * ${MEDIA_WIDTH_CSS}))`;
 
 export interface MediaBox {
   width: number;
@@ -26,8 +61,8 @@ const isPositive = (value: number | undefined): value is number =>
 export const fitMediaBox = (
   naturalWidth: number | undefined,
   naturalHeight: number | undefined,
-  maxWidth = SOLO_IMAGE_MAX_WIDTH_PX,
-  maxHeight = SOLO_IMAGE_MAX_HEIGHT_PX
+  maxWidth = 320,
+  maxHeight = 380
 ): MediaBox | null => {
   if (!isPositive(naturalWidth) || !isPositive(naturalHeight)) return null;
   const scale = Math.min(1, maxWidth / naturalWidth, maxHeight / naturalHeight);
@@ -69,7 +104,8 @@ export interface SoloBox {
 /**
  * The size policy of a single picture in a bubble.
  *
- *  - Inside 320 x 380 at its own aspect ratio, never upscaled.
+ *  - Inside the max box (560 x 784 by default) at its own aspect ratio,
+ *    never upscaled. CSS narrows it to the pane's media width and height.
  *  - Tiny (longest side < 120): natural size on a tile of at least 64px.
  *  - Extreme ratio (beyond 3:1 or 1:3): the shorter side is lifted to 96px
  *    and the picture is cover-cropped (the viewer shows all of it).
@@ -82,12 +118,14 @@ export interface SoloBox {
 export const computeSoloBox = (
   naturalWidth: number | undefined,
   naturalHeight: number | undefined,
-  options: { ratioOnly?: boolean } = {}
+  options: { ratioOnly?: boolean; maxWidth?: number; maxHeight?: number } = {}
 ): SoloBox | null => {
   if (!isPositive(naturalWidth) || !isPositive(naturalHeight)) return null;
   const w = naturalWidth;
   const h = naturalHeight;
   const ratioOnly = Boolean(options.ratioOnly);
+  const maxWidth = isPositive(options.maxWidth) ? options.maxWidth : SOLO_IMAGE_MAX_WIDTH_PX;
+  const maxHeight = isPositive(options.maxHeight) ? options.maxHeight : SOLO_IMAGE_MAX_HEIGHT_PX;
 
   if (!ratioOnly && Math.max(w, h) < SOLO_TINY_MAX_SIDE_PX) {
     const imageWidth = Math.max(1, Math.round(w));
@@ -103,8 +141,8 @@ export const computeSoloBox = (
 
   const fitScale = Math.min(
     ratioOnly ? Infinity : 1,
-    SOLO_IMAGE_MAX_WIDTH_PX / w,
-    SOLO_IMAGE_MAX_HEIGHT_PX / h
+    maxWidth / w,
+    maxHeight / h
   );
   const fw = Math.max(1, Math.round(w * fitScale));
   const fh = Math.max(1, Math.round(h * fitScale));

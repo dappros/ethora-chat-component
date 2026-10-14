@@ -7,10 +7,13 @@ const Card = styled.button<{ $compact: boolean }>`
   flex-direction: row;
   align-items: center;
   gap: 10px;
-  /* Definite width + max-width, not min(300px, 100%): a percentage inside
-     min() makes the card contribute its whole nowrap file name to the
-     bubble's intrinsic width, which blew bubbles up to their max-width. */
-  width: 300px;
+  /* Fills the media block it sits in (AttachmentList sets that width).
+     Written as width: 0 + min-width: 100% rather than width: 100%: a
+     percentage width contributes the card's whole nowrap file name to the
+     bubble's intrinsic width and blew bubbles up to their max-width, while
+     this contributes nothing and still stretches to the block. */
+  width: 0;
+  min-width: 100%;
   max-width: 100%;
   box-sizing: border-box;
   margin: 0;

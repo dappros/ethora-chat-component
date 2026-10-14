@@ -61,7 +61,7 @@ const LAYOUTS: Record<AlbumLayout['kind'], Omit<AlbumLayout, 'visible' | 'hidden
     kind: 'hero',
     columns: '2fr 1fr',
     rows: '1fr 1fr',
-    aspectRatio: '1 / 1',
+    aspectRatio: '4 / 3',
     placements: [
       { column: '1', row: '1 / span 2' },
       { column: '2', row: '1' },
