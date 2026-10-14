@@ -1,3 +1,4 @@
+import { safeImageUrl } from '../../../helpers/safeUrl';
 import React, {
   useCallback,
   useEffect,
@@ -534,7 +535,7 @@ const ImageLightbox = React.forwardRef<ImageLightboxHandle, ImageLightboxProps>(
       >
         {previewSrc && (
           <BlurPreview
-            src={previewSrc}
+            src={safeImageUrl(previewSrc)}
             alt=""
             aria-hidden="true"
             draggable={false}
@@ -581,7 +582,7 @@ const ImageLightbox = React.forwardRef<ImageLightboxHandle, ImageLightboxProps>(
         <ZoomableImage
           ref={imageRef}
           data-testid="image-lightbox-image"
-          src={src}
+          src={safeImageUrl(src)}
           alt={alt}
           draggable={false}
           onLoad={() => setLoaded(true)}

@@ -1,3 +1,4 @@
+import { safeImageUrl } from '../../helpers/safeUrl';
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
@@ -48,7 +49,7 @@ const FileDownload: React.FC<FileDownloadProps> = ({
       icon={
         showPreview ? (
           <img
-            src={locationPreview}
+            src={safeImageUrl(locationPreview)}
             alt=""
             onError={() => {
               if (isSecureFileUrl(locationPreview)) {

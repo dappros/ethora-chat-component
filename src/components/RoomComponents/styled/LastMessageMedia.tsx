@@ -1,3 +1,4 @@
+import { safeImageUrl } from '../../../helpers/safeUrl';
 import React, { FC, useState } from 'react';
 import styled from 'styled-components';
 import { useSelector } from 'react-redux';
@@ -204,7 +205,7 @@ const LastMessageMedia: FC<LastMessageMediaProps> = ({ preview, name }) => {
         <Tile data-testid="last-message-tile">
           {showThumb ? (
             <TileImg
-              src={appendFileToken(thumbUrl, fileToken)}
+              src={safeImageUrl(appendFileToken(thumbUrl, fileToken))}
               alt=""
               loading="lazy"
               decoding="async"

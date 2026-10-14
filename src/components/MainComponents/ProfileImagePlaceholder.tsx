@@ -1,3 +1,4 @@
+import { safeImageUrl } from '../../helpers/safeUrl';
 import React, { useEffect, useMemo } from 'react';
 import { EditIcon } from '../../assets/icons';
 import {
@@ -150,7 +151,7 @@ export const ProfileImagePlaceholder: React.FC<
         {!imageLoaded && (placeholderIcon ?? getInitials())}
         {showImage && (
           <AvatarImage
-            src={image.src}
+            src={safeImageUrl(image.src)}
             alt={avatarAlt}
             size={size}
             referrerPolicy="no-referrer"

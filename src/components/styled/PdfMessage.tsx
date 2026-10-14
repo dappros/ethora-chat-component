@@ -1,3 +1,4 @@
+import { safeImageUrl } from '../../helpers/safeUrl';
 import React, { useCallback } from 'react';
 import { useDispatch } from 'react-redux';
 import styled from 'styled-components';
@@ -86,7 +87,7 @@ const PdfMessage: React.FC<PdfMessageProps> = ({
       aria-label={fileName}
       icon={
         previewSrc ? (
-          <Thumb src={previewSrc} alt="" />
+          <Thumb src={safeImageUrl(previewSrc)} alt="" />
         ) : isRendering ? (
           <PdfThumbnailSkeleton />
         ) : (

@@ -1,6 +1,7 @@
 import React, { CSSProperties } from 'react';
 import { Avatar } from './Avatar';
 import { useAvatarImage } from '../../hooks/useAvatarImage';
+import { safeImageUrl } from '../../helpers/safeUrl';
 
 interface MessageAvatarPhotoProps {
   /** Sender photo URL; empty renders the initials circle alone. */
@@ -32,7 +33,7 @@ export const MessageAvatarPhoto: React.FC<MessageAvatarPhotoProps> = ({
     <div style={{ position: 'relative', width: 40, height: 40 }}>
       {!loaded && <Avatar username={username} style={style} />}
       <img
-        src={image.src}
+        src={safeImageUrl(image.src)}
         alt="userIcon"
         loading="lazy"
         decoding="async"
