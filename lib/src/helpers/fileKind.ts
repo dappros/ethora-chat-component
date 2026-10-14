@@ -112,3 +112,10 @@ export const formatFileName = (name: string, maxLength: number): string => {
 
   return `${baseName.substring(0, room)}...${extension}`;
 };
+
+/** An animated-picture candidate: image/gif, or a name or URL ending in .gif. */
+export const isGifFile = (mimetype?: string, nameOrUrl?: string): boolean => {
+  if ((mimetype || '').toLowerCase().split(';')[0].trim() === 'image/gif') return true;
+  const path = (nameOrUrl || '').split(/[?#]/)[0].toLowerCase();
+  return path.endsWith('.gif');
+};

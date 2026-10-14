@@ -1,5 +1,10 @@
 import styled from 'styled-components';
 import { fadeInAnimation, scaleInAnimation } from '../../styles/motion';
+import {
+  MEDIA_WIDTH_CSS,
+  MEDIA_WIDTH_RULE,
+  MEDIA_WIDTH_VAR,
+} from '../../helpers/mediaBox';
 
 export const ChatContainer = styled.div`
   display: flex;
@@ -65,6 +70,9 @@ export const MessagesScroll = styled.div<{ color?: string }>`
   /* MessageList compensates for history prepended above the reader itself;
      the browser's own anchoring on top of that moves them twice. */
   overflow-anchor: none;
+  /* One width for the media block of every message (album, picture, file
+     cards), from this pane's own width, not the viewport. */
+  ${MEDIA_WIDTH_VAR}: ${MEDIA_WIDTH_RULE};
   top: 0;
   left: 0;
   right: 0;
@@ -239,8 +247,12 @@ export const CustomMessageContainer = styled.div<{
 export const CustomMessageBubble = styled.div<{
   $isUser: boolean;
   $deleted: boolean;
+  /** The bubble carries a media block: its content is as wide as that block (the bubble
+   *  is content-box, so 34px of padding and border come on top), up to 82% overall. */
+  $media?: boolean;
 }>`
-  max-width: 70%;
+  max-width: ${(props) =>
+    props.$media ? `min(${MEDIA_WIDTH_CSS}, calc(82% - 34px))` : '70%'};
   min-width: 15%;
   padding: 8px 16px;
   border-radius: ${(props) =>

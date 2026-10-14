@@ -212,7 +212,7 @@ describe('MediaSurface loading and unavailable states', () => {
     expect(screen.getByAltText('a.png')).toHaveAttribute('src', first);
   });
 
-  it('sizes a solo image from its natural ratio, clamped to 320 x 380', async () => {
+  it('sizes a solo image from its natural ratio, fitted to the 560 x 784 reference box', async () => {
     const url = 'https://files.example/tall.png';
     renderWithProviders(
       <MediaSurface kind="image" variant="solo" src={url} alt="tall.png" dims={{ width: 600, height: 1200 }} />,
@@ -221,7 +221,7 @@ describe('MediaSurface loading and unavailable states', () => {
     await screen.findByAltText('tall.png');
 
     const stage = screen.getByTestId('media-surface') as HTMLElement;
-    expect(stage.style.aspectRatio).toBe('190 / 380');
+    expect(stage.style.aspectRatio).toBe('392 / 784');
   });
 
   it('sweeps a soft band left to right, every 2s, after a 120ms delay (resting off the left edge)', () => {
@@ -292,12 +292,12 @@ describe('MediaSurface solo sizing and loading states', () => {
     renderWithProviders(<MediaSurface kind="image" variant="solo" src={url} alt="phone.png" pending={false} />);
     const stage = screen.getByTestId('media-surface') as HTMLElement;
     expect(stage).toHaveAttribute('data-mode', 'placeholder');
-    expect(stage.style.aspectRatio).toBe('320 / 240');
+    expect(stage.style.aspectRatio).toBe('560 / 420');
     expect(emittedCss()).toMatch(/transition:width160msease,aspect-ratio160msease/);
 
     loadWith(url, 390, 844);
     await screen.findByAltText('phone.png');
-    expect(stage.style.aspectRatio).toBe('176 / 380');
+    expect(stage.style.aspectRatio).toBe('362 / 784');
     expect(stage).toHaveAttribute('data-mode', 'fit');
   });
 
@@ -309,7 +309,7 @@ describe('MediaSurface solo sizing and loading states', () => {
     );
     loadWith(preview, 100, 200);
     await waitFor(() =>
-      expect((screen.getByTestId('media-surface') as HTMLElement).style.aspectRatio).toBe('190 / 380'),
+      expect((screen.getByTestId('media-surface') as HTMLElement).style.aspectRatio).toBe('392 / 784'),
     );
     expect(screen.queryByTestId('media-load-bar')).toBeNull();
   });
@@ -323,7 +323,7 @@ describe('MediaSurface solo sizing and loading states', () => {
     const image = await screen.findByAltText('icon.png');
     const stage = screen.getByTestId('media-surface') as HTMLElement;
     expect(stage).toHaveAttribute('data-mode', 'natural');
-    expect(stage.style.width).toBe('64px');
+    expect(stage.style.width).toBe('min(64px, var(--ethora-media-w, 340px))');
     expect((image as HTMLElement).style.width).toBe('24px');
     expect((image as HTMLElement).style.height).toBe('24px');
     expect(hasHoverZoom(stage)).toBe(false);
@@ -347,7 +347,7 @@ describe('MediaSurface solo sizing and loading states', () => {
     loadWith(local, 600, 1200);
     const image = await screen.findByAltText('mine.png');
     expect(image).toHaveAttribute('src', local);
-    expect((screen.getByTestId('media-surface') as HTMLElement).style.aspectRatio).toBe('190 / 380');
+    expect((screen.getByTestId('media-surface') as HTMLElement).style.aspectRatio).toBe('392 / 784');
   });
 
   it('keeps the local picture on screen while the server copy loads', async () => {

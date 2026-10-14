@@ -673,6 +673,7 @@ const Message: React.FC<MessageProps> = forwardRef<
           data-ethora-bubble=""
           $deleted={message.isDeleted}
           $isUser={isUser}
+          $media={message?.isMediafile === 'true' && !message?.isDeleted}
           onContextMenu={
             !config?.disableInteractions ? handleContextMenu : undefined
           }
