@@ -17,7 +17,6 @@ All notable changes to this package are documented here. For cross-SDK release n
 - Media last-message preview in the room list: thumbnail when available, otherwise a type label.
 - Message reactions redesigned: chips straddle the bubble edge, with a tooltip listing reactors and a +N overflow.
 - Bot quick-reply buttons restyled.
-- `@mention` autocomplete, highlighting, and clickable mentions that open the profile.
 - Composer focus moves to the message input on chat switch (desktop only).
 - `config.colors.ownMessageBackground` / `otherMessageBackground` / `inputBackground`: background colours for own/other message bubbles and the message input bar (were hardcoded `#E7EDF9` / `#FFFFFF` / `#fff`).
 - i18n additions for en, fr, es, pt, ht and zh (receipts, attachments, viewer, unavailable states).
