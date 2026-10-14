@@ -157,3 +157,30 @@ describe('buildNotificationContent', () => {
     expect(build({ message: msg({ id: 'm2' }) })!.tag).toBe(build()!.tag);
   });
 });
+
+describe('buildNotificationContent with a media caption', () => {
+  const photo = {
+    body: 'media',
+    isMediafile: 'true',
+    mimetype: 'image/png',
+    location: 'https://files.example.com/a.png',
+    originalName: 'a.png',
+    caption: 'look at this',
+  };
+
+  it('reads "Photo, caption" when the media message carries a caption', () => {
+    const c = build({ message: msg(photo) })!;
+    // Group room: the sender prefix comes first, then the caption text.
+    expect(c.body).toBe('Alice Smith: Photo, look at this');
+  });
+
+  it('keeps the plain media label when there is no caption', () => {
+    const c = build({ message: msg({ ...photo, caption: undefined }) })!;
+    expect(c.body).toBe('Alice Smith: Photo');
+  });
+
+  it('stays generic in an e2ee room, caption included', () => {
+    const c = build({ message: msg(photo), room: room({ e2ee: true }) })!;
+    expect(c.body).not.toContain('look at this');
+  });
+});

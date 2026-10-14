@@ -2,6 +2,7 @@ import { IAttachment, LastMessage } from '../types/types';
 import { getAttachmentName, getMessageAttachments } from './attachments';
 import { getFileKind } from './fileKind';
 import { formatDuration } from './mediaBox';
+import { getMessageCaption } from './caption';
 
 /**
  * What the room list draws for a media last message.
@@ -44,6 +45,8 @@ type PreviewSource = Partial<LastMessage> & {
   attachments?: unknown;
   fileName?: string;
   location?: string;
+  /** The caption the sender typed with the files, carried on the message. */
+  caption?: unknown;
 };
 
 const attachmentsOf = (message: PreviewSource): IAttachment[] =>
@@ -127,10 +130,16 @@ export const deriveMediaPreview = (
       return Boolean(n && b && (n === b || n.split(/\s+/).every((p) => p === b)));
     }
   );
+  // A caption carried on the message wins. It only exists here once the
+  // message was read (sealed captions are decrypted before they land), so
+  // it is shown in a sealed room too. The body fallback is for older senders
+  // that put their text in `body` and is never trusted for a sealed row.
+  const carriedCaption = getMessageCaption(message as { caption?: unknown });
   const caption =
-    !sealed && body && body.toLowerCase() !== MEDIA_BODY && !echoesSender
+    carriedCaption ??
+    (!sealed && body && body.toLowerCase() !== MEDIA_BODY && !echoesSender
       ? body
-      : undefined;
+      : undefined);
 
   if (attachments.length === 0) {
     // Flagged as media but the payload said nothing more (a thin backend

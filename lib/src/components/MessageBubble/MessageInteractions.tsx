@@ -46,6 +46,7 @@ const fixedEmojiIds = ['joy', 'heart', 'fire', '+1', 'smile', 'scream'];
 import { useRoomState } from '../../hooks/useRoomState';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
 import { stripBotMarkup } from '../../helpers/botMarkup';
+import { getMessageCaption } from '../../helpers/caption';
 
 interface MessageInteractionsProps {
   isReply?: boolean;
@@ -291,7 +292,9 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
               <MenuItem
                 onClick={() =>
                   handleCopyMessage(
-                    isUser ? message.body : stripBotMarkup(message.body)
+                    // A media message's text is its caption; "media" is not.
+                    getMessageCaption(message) ??
+                      (isUser ? message.body : stripBotMarkup(message.body))
                   )
                 }
               >

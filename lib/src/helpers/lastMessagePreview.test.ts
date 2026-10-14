@@ -175,3 +175,41 @@ describe('deriveMediaPreview with SVG', () => {
     expect(p?.kind).toBe('file');
   });
 });
+
+describe('deriveMediaPreview with a caption', () => {
+  it('uses the caption carried on the message', () => {
+    const preview = deriveMediaPreview({
+      body: 'media',
+      isMediafile: 'true',
+      caption: 'look at this',
+      attachments: [att()],
+    } as never);
+    expect(preview?.caption).toBe('look at this');
+    expect(preview?.kind).toBe('image');
+  });
+
+  it('shows the caption in a sealed row too, since it was read locally', () => {
+    const preview = deriveMediaPreview(
+      {
+        body: 'media',
+        isMediafile: 'true',
+        clientEncrypted: 'true',
+        caption: 'secret words',
+        attachments: [att({ location: 'https://secure.example/x' })],
+      } as never,
+      { sealed: true }
+    );
+    // Sealed content gets no thumbnail, but the caption still reads.
+    expect(preview?.thumbUrl).toBeUndefined();
+    expect(preview?.caption).toBe('secret words');
+  });
+
+  it('has no caption when the message has none and the body is only the placeholder', () => {
+    const preview = deriveMediaPreview({
+      body: 'media',
+      isMediafile: 'true',
+      attachments: [att()],
+    } as never);
+    expect(preview?.caption).toBeUndefined();
+  });
+});
