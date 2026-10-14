@@ -20,13 +20,16 @@
 
 import { randomBytes, toBase64, fromBase64, toHex } from './crypto';
 import { decryptPayload, encryptPayload } from './ratchet';
+import { IMentionSpan } from '../types/types';
+import { normalizeCaptionInput } from '../helpers/caption';
 
-/** `ETHOFILE` — lets a decoder reject anything that is not one of ours. */
+/** `ETHOFILE` - lets a decoder reject anything that is not one of ours. */
 const MAGIC = Uint8Array.from([0x45, 0x54, 0x48, 0x4f, 0x46, 0x49, 0x4c, 0x45]);
 const VERSION = 1;
 const HEADER_OFFSET = MAGIC.length + 1 + 4;
 
 /** What the server must not learn, and the receiver needs to render. */
+
 export interface FileEnvelopeMeta {
   mimetype: string;
   originalname: string;
@@ -145,28 +148,55 @@ export function openSealedFile(
   return decodeFileEnvelope(decryptPayload(fromBase64(keyMaterial), ciphertext));
 }
 
+/** What a sealed media <body> carries besides the keys. */
+export interface SealedMediaPayload {
+  keys: string[];
+  /** The text typed with the files. Sealed here, never on <data>. */
+  caption?: string;
+  captionMentions?: IMentionSpan[];
+}
+
 /**
- * Pull the attachment keys out of a decrypted media <body>.
+ * Pull the attachment keys (and the caption, when there is one) out of a
+ * decrypted media <body>.
  *
- * The sender put `{v:1,keys:[...]}` there instead of the usual literal
- * "media" (see sendMediaMessage). Returns undefined for anything else, so
- * an ordinary media message - or one from a build that predates sealing -
- * falls through untouched.
+ * The sender put `{v:1,keys:[...],caption?,captionMentions?}` there instead of
+ * the usual literal "media" (see sendMediaMessage). Returns undefined for
+ * anything else, so an ordinary media message - or one from a build that
+ * predates sealing - falls through untouched.
  */
-export function parseSealedMediaBody(body?: string): string[] | undefined {
+export function parseSealedMediaPayload(body?: string): SealedMediaPayload | undefined {
   const text = String(body || '').trim();
   if (!text.startsWith('{')) return undefined;
 
   try {
-    const parsed = JSON.parse(text) as { v?: unknown; keys?: unknown };
+    const parsed = JSON.parse(text) as {
+      v?: unknown;
+      keys?: unknown;
+      caption?: unknown;
+      captionMentions?: unknown;
+    };
     if (parsed?.v !== 1 || !Array.isArray(parsed.keys)) return undefined;
     const keys = parsed.keys.filter(
       (k): k is string => typeof k === 'string' && k.length > 0
     );
-    return keys.length === parsed.keys.length && keys.length > 0
-      ? keys
-      : undefined;
+    if (!(keys.length === parsed.keys.length && keys.length > 0)) return undefined;
+
+    const caption = normalizeCaptionInput({
+      text: typeof parsed.caption === 'string' ? parsed.caption : '',
+      mentions: parsed.captionMentions as IMentionSpan[] | undefined,
+    });
+    return {
+      keys,
+      ...(caption ? { caption: caption.caption } : {}),
+      ...(caption?.mentions ? { captionMentions: caption.mentions } : {}),
+    };
   } catch {
     return undefined;
   }
+}
+
+/** The attachment keys out of a sealed media <body>; see parseSealedMediaPayload. */
+export function parseSealedMediaBody(body?: string): string[] | undefined {
+  return parseSealedMediaPayload(body)?.keys;
 }

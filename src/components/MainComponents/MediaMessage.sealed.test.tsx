@@ -126,7 +126,7 @@ describe('MediaMessage with a sealed attachment', () => {
     await userEvent.click(screen.getByRole('button'));
 
     await waitFor(() =>
-      expect(screen.getByText('Download failed — tap to retry')).toBeTruthy()
+      expect(screen.getByText('Download failed: tap to retry')).toBeTruthy()
     );
     expect(screen.getByRole('button').hasAttribute('disabled')).toBe(false);
   });

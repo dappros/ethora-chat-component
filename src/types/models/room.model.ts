@@ -69,6 +69,10 @@ export interface IRoom {
   composingList?: string[];
   lastViewedTimestamp?: number;
   unreadBaselineTimestamp?: number;
+  // Read markers (XEP-0333): xmppUsername -> stanza-id of the last message
+  // they've displayed. Room-level watermark (not per-message displayedBy)
+  // to keep read-marker updates O(1) instead of O(messages).
+  lastDisplayedByUser?: Record<string, string>;
   unreadMessages?: number;
   /**
    * Unread count the server reported for this room in `GET /v1/chats/my`
@@ -91,6 +95,8 @@ export interface IRoom {
   // 'partial' = a staged first pass fetched a teaser page (e.g. 1 message
   // for the sidebar preview); a follow-up pass with a bigger page size still
   // has work to do. Only 'done' short-circuits preloading.
+  /** Persisted-cache stamp: the saved transcript includes its reactions. */
+  reactionsCached?: boolean;
   historyPreloadState?: 'idle' | 'loading' | 'partial' | 'done' | 'error';
   unreadCapped?: boolean;
 
@@ -122,6 +128,19 @@ export interface ApiRoomLastMessage {
   isOwn?: boolean;
   senderFirstName?: string;
   senderLastName?: string;
+  /**
+   * Media fields, present when the last message is a file. Any subset may be
+   * sent: a thin payload can carry just `mimetype` and `fileName`.
+   */
+  isMediafile?: string | boolean;
+  mimetype?: string;
+  fileName?: string;
+  originalName?: string;
+  location?: string;
+  locationPreview?: string;
+  duration?: string | number;
+  attachments?: unknown;
+  clientEncrypted?: string | boolean;
 }
 
 export interface ApiRoom {

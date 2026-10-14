@@ -82,7 +82,7 @@ describe('FilePreviewModal gallery navigation', () => {
       `${SECURE}/one.png?ft=TOKEN-1`
     );
 
-    fireEvent.click(screen.getByLabelText('Next image'));
+    fireEvent.click(screen.getByLabelText('Next item'));
 
     expect(storeRef.current.getState().chatSettingStore.activeFile.fileURL).toBe(
       `${SECURE}/two.png`
@@ -122,14 +122,14 @@ describe('FilePreviewModal gallery navigation', () => {
       }),
     });
 
-    expect(screen.getByLabelText('Previous image')).toBeDisabled();
-    expect(screen.getByLabelText('Next image')).not.toBeDisabled();
+    expect(screen.getByLabelText('Previous item')).toBeDisabled();
+    expect(screen.getByLabelText('Next item')).not.toBeDisabled();
 
-    fireEvent.click(screen.getByLabelText('Next image'));
-    fireEvent.click(screen.getByLabelText('Next image'));
+    fireEvent.click(screen.getByLabelText('Next item'));
+    fireEvent.click(screen.getByLabelText('Next item'));
 
     expect(screen.getByTestId('lightbox-position')).toHaveTextContent('3 of 3');
-    expect(screen.getByLabelText('Next image')).toBeDisabled();
+    expect(screen.getByLabelText('Next item')).toBeDisabled();
   });
 
   it('left and right arrow keys navigate', () => {
@@ -179,7 +179,7 @@ describe('FilePreviewModal gallery navigation', () => {
       `${SECURE}/report.pdf?ft=TOKEN-1`
     );
     expect(screen.queryByTestId('lightbox-position')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Next image')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Next item')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Zoom in')).not.toBeInTheDocument();
   });
 
@@ -195,7 +195,7 @@ describe('FilePreviewModal gallery navigation', () => {
       ),
     });
 
-    expect(screen.queryByLabelText('Next image')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Next item')).not.toBeInTheDocument();
     // Zoom still applies to a lone image.
     expect(screen.getByLabelText('Zoom in')).toBeInTheDocument();
   });
@@ -209,7 +209,7 @@ describe('FilePreviewModal gallery navigation', () => {
       }),
     });
 
-    fireEvent.click(screen.getByLabelText('Next image'));
+    fireEvent.click(screen.getByLabelText('Next item'));
     fireEvent.click(screen.getByLabelText('Save'));
 
     expect(fetch).toHaveBeenCalledWith(
@@ -243,5 +243,33 @@ describe('FilePreviewModal gallery navigation', () => {
       'alt',
       'Shared image'
     );
+  });
+
+  it('pages through the opener\'s album when the room holds none of it', () => {
+    const siblings = ['a', 'b', 'c'].map((name) => ({
+      fileName: `${name}.png`,
+      fileURL: `${SECURE}/${name}.png`,
+      mimetype: 'image/png',
+    }));
+    renderWithProviders(<FilePreviewModal handleCloseModal={vi.fn()} />, {
+      preloadedState: stateWith({ ...siblings[1], siblings }, []),
+    });
+
+    expect(screen.getByTestId('lightbox-position')).toHaveTextContent('2 of 3');
+  });
+
+  it('includes videos in the gallery', () => {
+    renderWithProviders(<FilePreviewModal handleCloseModal={vi.fn()} />, {
+      preloadedState: stateWith(
+        { fileName: 'two.png', fileURL: `${SECURE}/two.png`, mimetype: 'image/png' },
+        [
+          imageMessage('1', 'one.png'),
+          { ...imageMessage('2', 'two.png') },
+          { ...imageMessage('3', 'clip.mp4'), mimetype: 'video/mp4' },
+        ]
+      ),
+    });
+
+    expect(screen.getByTestId('lightbox-position')).toHaveTextContent('2 of 3');
   });
 });

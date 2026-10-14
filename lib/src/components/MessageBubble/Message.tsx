@@ -15,15 +15,17 @@ import {
   CustomMessageBubble,
   CustomMessageText,
   CustomUserName,
-  CustomMessagePhoto,
   CustomMessagePhotoContainer,
   MessageFooter,
+  REACTION_HANG_PX,
 } from '../styled/StyledComponents';
 import MediaMessage from '../MainComponents/MediaMessage';
-import { useDispatch, useSelector } from 'react-redux';
+import MediaCaption from './MediaCaption';
+import { shallowEqual, useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
+import { createUserNameFromSetUser } from '../../helpers/createUserNameFromSetUser';
 
-import { Avatar } from './Avatar';
+import { MessageAvatarPhoto } from './MessageAvatarPhoto';
 import MessageInteractions from './MessageInteractions';
 import {
   setActiveModal,
@@ -32,14 +34,18 @@ import {
 } from '../../roomStore/chatSettingsSlice';
 import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 import { BottomReplyContainer } from './BottomReplyContainer';
-import { setActiveMessage, setEditAction } from '../../roomStore/roomsSlice';
+import {
+  removeRoomMessage,
+  setActiveMessage,
+  setEditAction,
+} from '../../roomStore/roomsSlice';
 import { MessageReply } from './MessageReply';
 import { DeletedMessage } from './DeletedMessage';
 import { useXmppClient } from '../../context/xmppProvider';
 import { MessageReaction } from './MessageReaction';
 import MessageTranslate from './MessageTranslate';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
-import { DoubleTick, LockOffIcon } from '../../assets/icons';
+import { DoubleTick, LockOffIcon, SingleTick } from '../../assets/icons';
 import { parseMessageBody } from '../../helpers/parseMessageBody';
 import URLPreviewCard from './URLPreviewCard';
 import { useMessageHeapState } from '../../hooks/useMessageHeapState';
@@ -67,6 +73,13 @@ import {
   shouldTagOutgoingTranslateSource,
 } from '../../utils/translateModePolicy';
 import { resendMessage } from '../../utils/resendMessage';
+import { hasMediaRetry, retryMediaSend } from '../../helpers/mediaSendRetry';
+import { getMessageAttachments, isMediaMessage } from '../../helpers/attachments';
+import { getMessageCaption } from '../../helpers/caption';
+import {
+  getMediaBlockMode,
+  usesMediaOverlayTime,
+} from '../../helpers/mediaBubble';
 
 // Inherits CustomMessageTimestamp's colour/size - just the WhatsApp/
 // Telegram-style italic to read as a tag, not a second timestamp.
@@ -87,6 +100,14 @@ const FailedNotice = styled.div`
   justify-content: flex-end;
   gap: 8px;
   margin-top: 4px;
+  color: var(--ethora-color-danger, #d92d20);
+  font-family: var(--ethora-font-family, 'Open Sans', sans-serif);
+  font-size: var(--ethora-font-size-xs, 0.75rem);
+`;
+
+const FailedNote = styled.div`
+  margin-top: 2px;
+  text-align: right;
   color: var(--ethora-color-danger, #d92d20);
   font-family: var(--ethora-font-family, 'Open Sans', sans-serif);
   font-size: var(--ethora-font-size-xs, 0.75rem);
@@ -116,10 +137,42 @@ const RetryButton = styled.button`
 const firstUrlRegex =
   /(https?:\/\/[\w.-]+(?:\.[\w.-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=.]+)/;
 
+// Hover-only (no click) status tooltip on the sent/delivered/seen tick -
+// same CSS-hover convention as MessageReaction.tsx's emoji tooltip.
+const TickStatusWrapper = styled.span`
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+
+  &:hover .tick-tooltip {
+    visibility: visible;
+    opacity: 1;
+  }
+`;
+
+const TickTooltip = styled.span`
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.2s;
+  position: absolute;
+  bottom: 120%;
+  right: 0;
+  background-color: #333;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 1;
+`;
+
+const NO_VIEWERS: string[] = [];
+
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
   MessageProps
->(({ message, isUser, isReply }, ref) => {
+>(({ message, isUser, isReply, isLastInGroup: lastInRun }, ref) => {
   const { client } = useXmppClient();
   const { sendMessage } = useSendMessage();
   const t = useT();
@@ -248,6 +301,9 @@ const Message: React.FC<MessageProps> = forwardRef<
   );
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  // How far the reaction chips hang below the bubble, measured by
+  // MessageReaction, so the row reserves room for every wrapped chip row.
+  const [reactionHang, setReactionHang] = useState(REACTION_HANG_PX);
 
   useEffect(() => {
     if (message && message.body && typeof message.body === 'string') {
@@ -418,12 +474,78 @@ const Message: React.FC<MessageProps> = forwardRef<
 
   const isPending = idSet.has(message.id) || message?.pending || false;
 
+  // Delivery/read tick status (XEP-0184/XEP-0333) - "seen" wins over
+  // "delivered" wins over plain "sent". lastDisplayedByUser is a room-level
+  // watermark (last message id each user has displayed), so "seen" means
+  // some other user's watermark is at-or-after this message. The selector
+  // resolves the reader list itself and returns a small array (compared
+  // shallowly), so a bubble does not re-render on every new room message,
+  // and only own messages do the lookup at all.
+  const seenBy = useSelector((state: RootState): string[] => {
+    if (!isUser) return NO_VIEWERS;
+    const room = state.rooms.rooms[message.roomJid];
+    const watermark = room?.lastDisplayedByUser;
+    if (!watermark || !room?.messages?.length) return NO_VIEWERS;
+    const viewers = Object.keys(watermark).filter(
+      (xmppUsername) => xmppUsername !== user?.xmppUsername
+    );
+    if (!viewers.length) return NO_VIEWERS;
+    const indexOf = (id: string): number => {
+      for (let i = room.messages.length - 1; i >= 0; i--) {
+        if (room.messages[i].id === id) return i;
+      }
+      return -1;
+    };
+    const thisIndex = indexOf(message.id);
+    if (thisIndex === -1) return NO_VIEWERS;
+    return viewers.filter((xmppUsername) => {
+      const displayedIndex = indexOf(watermark[xmppUsername]);
+      return displayedIndex >= thisIndex;
+    });
+  }, shallowEqual);
+  const roomType = useSelector(
+    (state: RootState) => state.rooms.rooms[message.roomJid]?.type
+  );
+  const isGroupRoom = roomType !== 'private';
+
+  const tickInfo = useMemo(() => {
+    const receivedBy = Object.keys(message.receivedBy || {});
+    const status: 'sent' | 'delivered' | 'seen' =
+      seenBy.length > 0 ? 'seen' : receivedBy.length > 0 ? 'delivered' : 'sent';
+    const nameOf = (xmppUsername: string) =>
+      createUserNameFromSetUser(usersSet, xmppUsername);
+
+    let tooltip: string;
+    if (status === 'seen') {
+      tooltip = isGroupRoom
+        ? t('message.receipt.readBy', { names: seenBy.map(nameOf).join(', ') })
+        : t('message.receipt.read');
+    } else if (status === 'delivered') {
+      tooltip = isGroupRoom
+        ? t('message.receipt.deliveredTo', {
+            names: receivedBy.map(nameOf).join(', '),
+          })
+        : t('message.receipt.delivered');
+    } else {
+      tooltip = t('message.receipt.sent');
+    }
+    return { status, tooltip };
+  }, [message.receivedBy, seenBy, usersSet, isGroupRoom, t]);
+  const readStatus = tickInfo.status;
+
   // "failed" is only ever a prompt to retry, never a claim the message was
   // not delivered - the server may have taken it and simply not echoed yet.
   // A late echo clears the flag (see addRoomMessage), so a message the
   // server accepted can never stay in this state.
   const sentLogicEnabled = !config?.disableSentLogic;
   const isFailed = Boolean(sentLogicEnabled && isUser && message?.failed);
+  // A failed media message keeps its File objects and retry runner only in
+  // memory. After a reload the message can still be in the persisted store
+  // with no runner behind it, and a Retry button there would do nothing. In
+  // that case offer Remove instead, which drops the optimistic message.
+  const mediaRetryLost = Boolean(
+    isFailed && message?.isMediafile === 'true' && !hasMediaRetry(message.id)
+  );
 
   // Buttons the bot attached to this message. Only ever shown on incoming
   // messages: an outgoing bubble carrying them would mean the user is
@@ -481,8 +603,22 @@ const Message: React.FC<MessageProps> = forwardRef<
     [config?.eventHandlers, message.id, message.roomJid, sendMessage]
   );
 
+  const handleRemoveLostMedia = () => {
+    // Hard removal: the optimistic message never reached the server, so a
+    // tombstone would read as a deleted message that was never sent.
+    dispatch(
+      removeRoomMessage({ roomJID: message.roomJid, messageId: message.id })
+    );
+  };
+
   const handleRetrySend = () => {
     if (!isFailed) return;
+    // A media message's files are held for their own uploads; retrying it
+    // re-runs those and sends the album, never the text resend path.
+    if (message?.isMediafile === 'true') {
+      void retryMediaSend(message.id);
+      return;
+    }
     // The bubble flips straight back to "sending" (setMessageSendRetrying),
     // so the button this click came from unmounts - that is the first line
     // of defence against a double tap. resendMessage holds the second one,
@@ -514,15 +650,106 @@ const Message: React.FC<MessageProps> = forwardRef<
     });
   };
 
+  // A media bubble lays out its files as one block (see AttachmentList). When
+  // that block is only pictures or videos, the time floats over it as a pill.
+  const isMediaBubble = isMediaMessage(message);
+  const mediaAttachments = isMediaBubble ? getMessageAttachments(message) : [];
+  const mediaBlockMode = getMediaBlockMode(mediaAttachments);
+  const showsTranslateRow =
+    !isUser &&
+    Boolean(config?.translates?.enabled) &&
+    effectiveTranslateMode === 'manual';
+  const timeOverPicture =
+    isMediaBubble &&
+    !isFailed &&
+    usesMediaOverlayTime(mediaAttachments, {
+      hasCaption: Boolean(getMessageCaption(message)),
+    }) &&
+    !(quickReplies.length > 0) &&
+    !showsTranslateRow &&
+    !previewUrl;
+
+  // A short text message shows its time at the end of the last line of text
+  // instead of on a line of its own. The time always sits bottom right, for
+  // own and other people's bubbles alike.
+  const timeInline =
+    !isMediaBubble && !message.isDeleted && !translationDisplay.hasTranslation;
+  const hasReactions = !!message.reaction && Object.keys(message.reaction).length > 0;
+  // The tail marks the last bubble of a sender's run. Media-only bubbles (the
+  // time floats over the picture) and system or deleted rows get none.
+  const isLastInGroup = lastInRun !== false;
+  const isMediaOnly =
+    isMediaBubble &&
+    usesMediaOverlayTime(mediaAttachments, {
+      hasCaption: Boolean(getMessageCaption(message)),
+    });
+  const showsTail =
+    isLastInGroup &&
+    !message.isDeleted &&
+    !message.callLog &&
+    message.isSystemMessage !== 'true' &&
+    !isMediaOnly;
+
+  const timeNode = (
+    <CustomMessageTimestamp
+      $inline={timeInline}
+      $media={isMediaBubble}
+      $overlay={timeOverPicture}
+      $bordered={!message.isDeleted && !isUser}
+    >
+      {sentLogicEnabled && isUser && isPending && !isFailed && 'sending...'}
+      {message.isEdited && !message.isDeleted && (
+        <EditedLabel>{t('message.edited')}</EditedLabel>
+      )}
+      {message.unencrypted && (
+        <span
+          title={t('e2ee.notEncryptedHint')}
+          style={{ display: 'inline-flex', flexShrink: 0 }}
+        >
+          <LockOffIcon
+            width={14}
+            height={14}
+            role="img"
+            aria-label={t('e2ee.notEncrypted')}
+          />
+        </span>
+      )}
+      {new Date(message.date).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      })}
+      {sentLogicEnabled && isUser && !isPending && !isFailed && (
+        <TickStatusWrapper>
+          {timeOverPicture ? (
+            readStatus === 'sent' ? (
+              <SingleTick color="#FFFFFF" />
+            ) : (
+              <DoubleTick
+                stroke={readStatus === 'seen' ? '#7DB3FF' : '#FFFFFF'}
+              />
+            )
+          ) : readStatus === 'sent' ? (
+            <SingleTick color="#8C8C8C" />
+          ) : (
+            <DoubleTick
+              stroke={readStatus === 'seen' ? '#0052CD' : '#8C8C8C'}
+            />
+          )}
+          <TickTooltip className="tick-tooltip">{tickInfo.tooltip}</TickTooltip>
+        </TickStatusWrapper>
+      )}
+    </CustomMessageTimestamp>
+  );
+
   return (
     <>
       <CustomMessageContainer
         key={message.id}
         $isUser={isUser}
         $reply={!!message?.reply?.length}
-        $reaction={
-          message?.reaction && !!Object.keys(message?.reaction)?.length
-        }
+        $reaction={hasReactions}
+        $reactionHang={reactionHang}
+        $lastInGroup={isLastInGroup}
         ref={ref}
       >
         {!isUser && (
@@ -537,20 +764,20 @@ const Message: React.FC<MessageProps> = forwardRef<
             }
             style={avatarClickable ? undefined : { cursor: 'default' }}
           >
-            {senderProfileImage ? (
-              <CustomMessagePhoto src={senderProfileImage} alt="userIcon" />
-            ) : (
-              <Avatar
-                username={senderDisplayName}
-                style={{ cursor: avatarClickable ? 'pointer' : 'default' }}
-              />
-            )}
+            <MessageAvatarPhoto
+              src={senderProfileImage}
+              username={senderDisplayName}
+              style={{ cursor: avatarClickable ? 'pointer' : 'default' }}
+            />
           </CustomMessagePhotoContainer>
         )}
         <CustomMessageBubble
           data-ethora-bubble=""
           $deleted={message.isDeleted}
+          $tail={showsTail}
           $isUser={isUser}
+          $media={isMediaBubble}
+          $solo={isMediaBubble && mediaBlockMode === 'solo'}
           onContextMenu={
             !config?.disableInteractions ? handleContextMenu : undefined
           }
@@ -562,6 +789,7 @@ const Message: React.FC<MessageProps> = forwardRef<
           {!isUser && (
             <CustomUserName
               $isUser={isUser}
+              $media={isMediaBubble}
               $color={config?.colors?.primary}
               style={
                 senderNamePending
@@ -580,18 +808,38 @@ const Message: React.FC<MessageProps> = forwardRef<
               color={config?.colors?.primary}
             />
           )}
-          {message?.isMediafile === 'true' && !message?.isDeleted ? (
-            <MediaMessage
-              mimeType={message.mimetype}
-              locationPreview={message.locationPreview}
-              location={message?.location}
-              message={message}
-            />
+          {isMediaBubble ? (
+            <>
+              <MediaMessage
+                mimeType={message.mimetype}
+                locationPreview={message.locationPreview}
+                location={message?.location}
+                message={message}
+              />
+              <MediaCaption
+                message={message}
+                onMentionClick={handleMentionClick}
+              />
+            </>
           ) : (
             // Muted while unsent so the bubble reads as "not landed yet"
             // without shouting - the danger tone belongs on the notice below,
             // which is the part carrying the action.
-            <CustomMessageText style={{ opacity: isFailed ? 0.6 : 1 }}>
+            <CustomMessageText
+              style={{
+                opacity: isFailed ? 0.6 : 1,
+                // Short text and its time share one line; a longer text
+                // fills the width and the time wraps below it, right-aligned.
+                ...(timeInline
+                  ? {
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      alignItems: 'last baseline',
+                      columnGap: 12,
+                    }
+                  : null),
+              }}
+            >
               {message.isDeleted && message.id !== 'delimiter-new' ? (
                 <DeletedMessage />
               ) : (
@@ -612,7 +860,7 @@ const Message: React.FC<MessageProps> = forwardRef<
                   const mentionsForDisplay =
                     displayText === message.body ? message.mentions : undefined;
                   const body = (
-                    <div className="message-body">
+                    <div className="message-body" style={{ minWidth: 0 }}>
                       {parseMessageBody({
                         text: displayText,
                         mentions: mentionsForDisplay,
@@ -637,56 +885,58 @@ const Message: React.FC<MessageProps> = forwardRef<
                   );
                 })()
               )}
+              {timeInline && timeNode}
             </CustomMessageText>
           )}
 
-          {!isUser &&
-            config?.translates?.enabled &&
-            effectiveTranslateMode === 'manual' && (
-              <MessageTranslate
-                message={message}
-                config={config}
-                isUser={isUser}
-              />
-            )}
-          <CustomMessageTimestamp>
-            {sentLogicEnabled &&
-              isUser &&
-              isPending &&
-              !isFailed &&
-              'sending...'}
-            {message.isEdited && !message.isDeleted && (
-              <EditedLabel>{t('message.edited')}</EditedLabel>
-            )}
-            {message.unencrypted && (
-              <span
-                title={t('e2ee.notEncryptedHint')}
-                style={{ display: 'inline-flex', flexShrink: 0 }}
-              >
-                <LockOffIcon
-                  width={14}
-                  height={14}
-                  role="img"
-                  aria-label={t('e2ee.notEncrypted')}
-                />
-              </span>
-            )}
-            {new Date(message.date).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-            {sentLogicEnabled && isUser && !isPending && <DoubleTick />}
-          </CustomMessageTimestamp>
+          {/* Inside the bubble, under the content: media, then caption, then
+              the reaction row, then the time row (see MessageReaction). */}
+          {message.reaction && (
+            <MessageReaction
+              reaction={message.reaction}
+              onHangChange={setReactionHang}
+              changeReaction={
+                interactionsDisabled ? () => undefined : handleReactionMessage
+              }
+              color={config.colors?.primary || '#0052CD'}
+              userName={`${user.firstName} ${user.lastName}`}
+            />
+          )}
+
+          {showsTranslateRow && (
+            <MessageTranslate
+              message={message}
+              config={config}
+              isUser={isUser}
+            />
+          )}
+          {!timeInline && timeNode}
           {quickReplies.length > 0 && !message.isDeleted && (
             <QuickReplies
               replies={quickReplies}
               messageId={message.id}
               accentColor={config?.colors?.primary}
+              colorScheme={config?.colorScheme}
               answered={hasAnsweredQuickReplies(message.id)}
               onSelect={handleQuickReply}
             />
           )}
-          {isFailed && (
+          {isFailed && mediaRetryLost && (
+            <>
+              <FailedNotice>
+                <span>{t('message.notDelivered')}</span>
+                <RetryButton
+                  type="button"
+                  onClick={handleRemoveLostMedia}
+                  aria-label={t('message.removeAriaLabel')}
+                >
+                  {t('message.remove')}
+                </RetryButton>
+              </FailedNotice>
+              <FailedNote>{t('message.mediaLostNote')}</FailedNote>
+            </>
+          )}
+          {isFailed && !mediaRetryLost && (
             <FailedNotice>
               <span>{t('message.notDelivered')}</span>
               <RetryButton
@@ -711,16 +961,6 @@ const Message: React.FC<MessageProps> = forwardRef<
               color={config.colors?.primary}
             />
           ) : null}
-          {message.reaction && (
-            <MessageReaction
-              reaction={message.reaction}
-              changeReaction={
-                interactionsDisabled ? () => undefined : handleReactionMessage
-              }
-              color={config.colors?.primary || '#0052CD'}
-              userName={`${user.firstName} ${user.lastName}`}
-            />
-          )}
         </MessageFooter>
       </CustomMessageContainer>
 

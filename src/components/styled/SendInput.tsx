@@ -42,7 +42,11 @@ import {
 import { parseMessageBody } from '../../helpers/parseMessageBody';
 import { useT } from '../../i18n/useT';
 import { MAX_ATTACHMENTS_PER_MESSAGE } from '../../helpers/attachments';
-import { getFileKind } from '../../helpers/fileKind';
+import { getFileKind, isRasterImage } from '../../helpers/fileKind';
+import {
+  subscribeComposerFocus,
+  takeComposerFocusRequest,
+} from '../../helpers/composerFocus';
 import { RootState, getActiveRoom } from '../../roomStore';
 import { useMentionComposer } from '../../hooks/useMentionComposer';
 import { MentionCandidate } from '../../helpers/mentions';
@@ -50,8 +54,9 @@ import { isRoomMembersTruncated } from '../../helpers/roomUserCount';
 import { useRoomDirectory } from '../../hooks/useRoomDirectory';
 import MentionDropdown from '../InputComponents/MentionDropdown';
 import MentionPickerModal from '../InputComponents/MentionPickerModal';
+import type { CaptionInput } from '../../helpers/caption';
 
-const DEFAULT_MAX_FILES = 5;
+const DEFAULT_MAX_FILES = MAX_ATTACHMENTS_PER_MESSAGE;
 
 /** Typing pause after which the composer commits its text as a draft. */
 const DRAFT_SAVE_DEBOUNCE_MS = 400;
@@ -88,11 +93,14 @@ export interface SendInputProps {
   /**
    * Receives a `File[]` for picked attachments (one message, N files) and a
    * `Blob` for voice notes. Single files still arrive as a one-element array.
+   * Text typed with the files arrives as `caption` and is sent inside that
+   * same media message, so it can never land as a separate bubble.
    */
   sendMedia: (
     data: File[] | File | Blob,
-    type: string
-  ) => void | Promise<void>;
+    type: string,
+    caption?: CaptionInput
+  ) => void | boolean | Promise<void | boolean>;
   isLoading: boolean;
   editMessage?: string;
   config?: IConfig;
@@ -110,8 +118,9 @@ export interface SendInputProps {
   ) => void | Promise<void>;
   onSendMedia?: (
     data: File[] | File | Blob,
-    type: string
-  ) => void | Promise<void>;
+    type: string,
+    caption?: CaptionInput
+  ) => void | boolean | Promise<void | boolean>;
   placeholderText?: string;
   /** Disables the @-mention autocomplete (e.g. for a composer variant that
    * doesn't want it). Defaults to enabled. */
@@ -123,6 +132,13 @@ export interface SendInputProps {
    * live composers would otherwise overwrite each other's text.
    */
   disableDrafts?: boolean;
+  /**
+   * Take focus whenever the room list hands the composer a chat switch (a
+   * click on a room row, even one that is already open). Set on the main
+   * composer only: a second composer on the same screen must not steal focus.
+   * Mobile never requests it, so the keyboard does not pop up uninvited.
+   */
+  focusOnRoomSwitch?: boolean;
 }
 
 const SendInput: React.FC<SendInputProps> = ({
@@ -144,6 +160,7 @@ const SendInput: React.FC<SendInputProps> = ({
   placeholderText,
   disableMentions,
   disableDrafts,
+  focusOnRoomSwitch,
 }) => {
   const t = useT();
   const [message, setMessage] = useState('');
@@ -504,7 +521,7 @@ const SendInput: React.FC<SendInputProps> = ({
       if (!attachmentsEnabled) return;
       const pasted = Array.from(event.clipboardData?.files || []);
       const images = pasted.filter((file) =>
-        String(file.type || '').startsWith('image/')
+        isRasterImage(file.type, file.name)
       );
       // Anything else - plain text above all - falls through to the normal
       // paste, so text still lands in the input untouched.
@@ -789,6 +806,21 @@ const SendInput: React.FC<SendInputProps> = ({
   flushDraftRef.current = flushDraft;
   useEffect(() => () => flushDraftRef.current(), []);
 
+  // Chat switch from the room list. The request is parked in composerFocus
+  // until this composer claims it, so it works whether the composer was
+  // already mounted or only mounts after the switch: the effect runs after
+  // the commit, when the textarea/input exists.
+  const [focusRequestTick, setFocusRequestTick] = useState(0);
+  useEffect(() => {
+    if (!focusOnRoomSwitch) return;
+    return subscribeComposerFocus(() => setFocusRequestTick((tick) => tick + 1));
+  }, [focusOnRoomSwitch]);
+  useEffect(() => {
+    if (!focusOnRoomSwitch) return;
+    if (!takeComposerFocusRequest(activeRoomJid)) return;
+    activeElRef.current?.focus();
+  }, [focusOnRoomSwitch, activeRoomJid, focusRequestTick]);
+
   const effectiveSendMessage = onSendMessage || sendMessage;
   const effectiveSendMedia = onSendMedia || sendMedia;
   const hasTextContent = useCallback(
@@ -802,16 +834,18 @@ const SendInput: React.FC<SendInputProps> = ({
     async (audioUrl?: Blob) => {
       const outgoing = formatMessage ? formatMessage(message) : message;
       const trailingText = hasTextContent(outgoing) ? outgoing : null;
-
-      let mediaPromise: void | Promise<void> = undefined;
+      // The caption is part of the media message: one send, one bubble.
+      const caption: CaptionInput | undefined = trailingText
+        ? { text: trailingText, mentions: mention.mentionSpans }
+        : undefined;
 
       if (filePreviews.length > 0) {
-        // The whole tray goes as one message; sendMedia uploads it in a
-        // single request and emits a single stanza.
-        mediaPromise = effectiveSendMedia(filePreviews, 'media');
+        // The whole tray goes as one message: every file uploads in
+        // parallel and the message is stanza'd once all of them are up.
+        effectiveSendMedia(filePreviews, 'media', caption);
         setIsRecording(false);
       } else if (audioUrl) {
-        mediaPromise = effectiveSendMedia(audioUrl, 'audio/');
+        effectiveSendMedia(audioUrl, 'audio/', caption);
         setIsRecording(false);
       } else {
         if (!trailingText) {
@@ -833,17 +867,6 @@ const SendInput: React.FC<SendInputProps> = ({
       setFilePreviews([]);
       setAttachmentNotice(null);
       setTextareaHeight(40);
-
-      if (trailingText) {
-        // Wait for the media stanza to land before sending the caption so
-        // recipients see media-then-text order on the wire.
-        try {
-          await mediaPromise;
-        } catch {
-          // Media sender owns its own error reporting; still emit the caption.
-        }
-        effectiveSendMessage(trailingText, mention.mentionSpans);
-      }
     },
     [
       effectiveSendMedia,

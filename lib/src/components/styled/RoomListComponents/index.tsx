@@ -80,7 +80,10 @@ export const ChatItem = styled.div.withConfig({
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 60px;
+  /* One fixed card height for every kind of last message. */
+  box-sizing: border-box;
+  height: 76px;
+  flex-shrink: 0;
   border-radius: var(--ethora-radius-md, 12px);
   gap: 16px;
   padding: 8px;
@@ -294,6 +297,7 @@ export const SkeletonAvatar = styled.div`
   height: 44px;
   border-radius: var(--ethora-radius-full, 999px);
   flex-shrink: 0;
+  position: relative;
   ${shimmerBackground}
 `;
 
@@ -308,6 +312,7 @@ export const SkeletonLines = styled.div`
 export const SkeletonLine = styled.div<{ $width?: string }>`
   height: 10px;
   border-radius: var(--ethora-radius-sm, 8px);
+  position: relative;
   width: ${({ $width }) => $width || '60%'};
   ${shimmerBackground}
 `;

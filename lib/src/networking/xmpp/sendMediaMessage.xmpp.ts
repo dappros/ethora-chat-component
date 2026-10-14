@@ -5,6 +5,8 @@ import {
   omemoReady,
   roomRecipients,
 } from '../../e2ee';
+import { IMentionSpan } from '../../types/types';
+import { normalizeCaptionInput } from '../../helpers/caption';
 
 /** Body of a media stanza in a plain room, and the fallback in an e2ee one. */
 const PLAIN_BODY = 'media';
@@ -19,6 +21,13 @@ const PLAIN_BODY = 'media';
 export interface E2eeMediaBody {
   v: 1;
   keys: string[];
+  /**
+   * The text typed with the files. It lives here, inside the envelope, and
+   * nowhere on <data>, so an e2ee caption is never readable in transit.
+   * Older readers only look at `keys` and ignore the rest.
+   */
+  caption?: string;
+  captionMentions?: IMentionSpan[];
 }
 
 export async function sendMediaMessage(
@@ -59,6 +68,16 @@ export async function sendMediaMessage(
     push: "true",
   };
 
+  // The caption rides on the media message itself, so one send is one
+  // message. Plain rooms carry it as `caption` (text) and `captionMentions`
+  // (JSON spans indexing into it), both on <data>, exactly as `mentions` is
+  // carried for text. <body> stays "media" for every reader that predates
+  // this. An e2ee room never gets these attributes: see the sealed branch.
+  const caption = normalizeCaptionInput({
+    text: typeof data?.caption === 'string' ? data.caption : '',
+    mentions: data?.captionMentions,
+  });
+
   // Multi-attach rides as one extra attribute rather than a new child
   // element: attributes on <data> are what every hop already round-trips
   // (getDataFromXml spreads data.attrs wholesale), and a client that has
@@ -81,6 +100,8 @@ export async function sendMediaMessage(
   const body = xml('body', {}, PLAIN_BODY);
   const hints = xml('store', { xmlns: 'urn:xmpp:hints' });
 
+  const sealedCaption = caption ? { caption: caption.caption, captionMentions: caption.mentions } : {};
+
   // E2EE seam. Same trade as sendTextMessage: only <body> is encrypted, and
   // <data> rides in the clear so the push module can still build a
   // notification. For media that is affordable only because the file was
@@ -92,7 +113,7 @@ export async function sendMediaMessage(
     const crypto = await omemoReady();
     try {
       if (!crypto) throw new Error('omemo_not_ready');
-      const payload: E2eeMediaBody = { v: 1, keys };
+      const payload: E2eeMediaBody = { v: 1, keys, ...sealedCaption };
       const encrypted = await crypto.encryptGroupMessage(
         roomJID,
         roomRecipients(roomJID, accountDomain(client)),
@@ -114,6 +135,13 @@ export async function sendMediaMessage(
         )}`
       );
       throw error instanceof Error ? error : new Error(String(error));
+    }
+  }
+
+  if (caption) {
+    (dataToSend as Record<string, unknown>).caption = caption.caption;
+    if (caption.mentions) {
+      (dataToSend as Record<string, unknown>).captionMentions = JSON.stringify(caption.mentions);
     }
   }
 

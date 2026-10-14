@@ -30,6 +30,13 @@ export const mergeUsersSet = (
 ): void => {
   for (const [key, member] of Object.entries(fresh)) {
     if (!isSafeKey(key)) continue;
+    if (
+      key === '__proto__' ||
+      key === 'constructor' ||
+      key === 'prototype'
+    ) {
+      continue;
+    }
     if (key in usersSet) delete usersSet[key];
     usersSet[key] = member;
   }

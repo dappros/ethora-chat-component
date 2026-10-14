@@ -116,6 +116,26 @@ describe('SendInput multi-attachment', () => {
     ).toBeInTheDocument();
   });
 
+  it('accepts 10 files by default and rejects the 11th', () => {
+    const { input, sendMedia } = setup();
+    const files = Array.from({ length: 11 }, (_, i) =>
+      makeFile(`f${i + 1}.png`, 'image/png')
+    );
+
+    pick(input, files);
+
+    for (let i = 1; i <= 10; i += 1) {
+      expect(screen.getByText(`f${i}.png`)).toBeInTheDocument();
+    }
+    expect(screen.queryByText('f11.png')).not.toBeInTheDocument();
+    expect(screen.getByText(/up to 10 files/i)).toBeInTheDocument();
+
+    fireEvent.keyDown(screen.getByPlaceholderText('Type message'), {
+      key: 'Enter',
+    });
+    expect(sendMedia.mock.calls[0][0]).toHaveLength(10);
+  });
+
   it('rejects a file over the size limit and keeps the rest', () => {
     const { input } = setup({ attachments: { maxFileSizeMb: 1 } });
 

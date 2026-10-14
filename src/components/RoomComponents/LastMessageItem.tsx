@@ -1,28 +1,42 @@
 import React, { FC } from 'react';
 import { LastMessage } from '../../types/types';
-import LastMessageVideo from './styled/LastMessageVideo';
 import LastTextMessage from './styled/LastTextMessage';
-import LastMessagePhoto from './styled/LastMessagePhoto';
 import LastMessageEmoji from './styled/LastMessageEmoji';
-import LastMessageFile from './styled/LastMessageFile';
-import LastAudioMessage from './styled/LastAudioMessage';
+import LastMessageMedia from './styled/LastMessageMedia';
+import { deriveMediaPreview } from '../../helpers/lastMessagePreview';
 import LastMessageSealed from './styled/LastMessageSealed';
-import { LastRoomMessageText } from './styled/StyledRoomComponents';
+import {
+  LastRoomMessageContainer,
+  LastRoomMessageName,
+  LastRoomMessageText,
+} from './styled/StyledRoomComponents';
 import { useT } from '../../i18n/useT';
 
 interface LastMessageItemProps {
   lastMessage: LastMessage;
+  /** The room is end-to-end encrypted: media shows an icon and label only. */
+  sealed?: boolean;
 }
 
-const LastMessageItem: FC<LastMessageItemProps> = ({ lastMessage }) => {
+const LastMessageItem: FC<LastMessageItemProps> = ({ lastMessage, sealed }) => {
   const t = useT();
-  const { body, emoji, mimetype } = lastMessage;
+  const { body, emoji } = lastMessage;
 
   if (lastMessage?.isDeleted) {
     return (
-      <LastRoomMessageText style={{ fontStyle: 'italic', opacity: 0.7 }}>
-        {t('message.deleted')}
-      </LastRoomMessageText>
+      <LastRoomMessageContainer data-testid="last-message-block">
+        {lastMessage.user?.name && (
+          <LastRoomMessageName data-testid="last-message-name">
+            {lastMessage.user.name}
+          </LastRoomMessageName>
+        )}
+        <LastRoomMessageText
+          data-testid="last-message-line"
+          style={{ fontStyle: 'italic', opacity: 0.7 }}
+        >
+          {t('message.deleted')}
+        </LastRoomMessageText>
+      </LastRoomMessageContainer>
     );
   }
 
@@ -35,23 +49,15 @@ const LastMessageItem: FC<LastMessageItemProps> = ({ lastMessage }) => {
     return <LastMessageSealed {...lastMessage} />;
   }
 
-  if (mimetype) {
-    if (mimetype.startsWith('image/')) {
-      return <LastMessagePhoto {...lastMessage} />;
-    }
-
-    if (mimetype.startsWith('video/')) {
-      return <LastMessageVideo {...lastMessage} />;
-    }
-
-    if (
-      mimetype.startsWith('audio/') ||
-      mimetype.includes('application/octet-stream')
-    ) {
-      return <LastAudioMessage {...lastMessage} />;
-    }
-
-    return <LastMessageFile {...lastMessage} />;
+  const media = deriveMediaPreview(lastMessage, {
+    sealed,
+    senderNames: [
+      String(lastMessage.user?.name ?? ''),
+      String(lastMessage.user?.id ?? '').split('@')[0],
+    ],
+  });
+  if (media) {
+    return <LastMessageMedia preview={media} name={lastMessage.user?.name} />;
   }
 
   if (emoji) {

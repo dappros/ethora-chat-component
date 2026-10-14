@@ -1,4 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
+import { requestComposerFocus } from '../../helpers/composerFocus';
+import { isMobileViewportNow } from '../../hooks/useIsMobileViewport';
 import { IConfig, IMessage, IRoom, LastMessage } from '../../types/types';
 import { ProfileImagePlaceholder } from '../MainComponents/ProfileImagePlaceholder';
 import {
@@ -11,8 +13,10 @@ import Composing from '../styled/StyledInputComponents/Composing';
 import {
   LastRoomMessageText,
   NewMessageMarker,
+  PREVIEW_BLOCK_MIN_PX,
 } from './styled/StyledRoomComponents';
 import LastMessageItem from './LastMessageItem';
+import { hasMediaPreview, pickPreviewSource } from '../../helpers/lastMessagePreview';
 import { useRoomPresence } from '../../hooks/useRoomPresence';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { useT } from '../../i18n/useT';
@@ -24,7 +28,10 @@ import { formatCallLogLabel } from '../../helpers/callLogMessage';
 import { stripBotMarkup } from '../../helpers/botMarkup';
 import { appendFileToken } from '../../helpers/secureFileUrl';
 import { RoomListTestIds } from '../../testIds';
-import { isOpaqueXmppUserId } from '../../helpers/xmppUsername';
+import {
+  isOpaqueXmppUserId,
+  isSameXmppUsername,
+} from '../../helpers/xmppUsername';
 
 interface ChatRoomItemProps {
   chat: IRoom;
@@ -32,6 +39,9 @@ interface ChatRoomItemProps {
   performClick: (chat: IRoom) => void;
   config: IConfig;
 }
+
+/** Same breakpoint RoomList and ChatWrapper treat as a phone-sized screen. */
+const MOBILE_BREAKPOINT_PX = 767;
 
 const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
   chat,
@@ -74,11 +84,10 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
   // `chat.messages` stops being empty and this branch is never reached
   // again for that room, so a live message always wins and a stale API
   // value can never overwrite it.
-  const lastLiveMessage =
-    (chat?.messages?.length ?? 0) > 0
-      ? chat.messages[chat.messages.length - 1]
-      : undefined;
-  const previewSourceMessage = lastLiveMessage ?? chat?.lastMessage;
+  const previewSourceMessage = pickPreviewSource<IMessage | LastMessage>(
+    chat?.messages,
+    chat?.lastMessage
+  );
 
   const previewSenderRawId = String(previewSourceMessage?.user?.id || '');
   const previewSenderLocalId = previewSenderRawId.split('@')[0];
@@ -108,24 +117,32 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
         ? `${entry.firstName ?? ''} ${entry.lastName ?? ''}`.trim()
         : '';
 
-      // usersSet first, exactly like Message.tsx: it's the live store, so
-      // a renamed user updates here too instead of showing whatever name
-      // was cached with the message. The message's own `name` is the
-      // fallback that carries broadcast/system senders ("Ethora"), which
-      // never appear in usersSet.
+      // Line 1 of the preview. Own messages read "You". Otherwise usersSet
+      // first, exactly like Message.tsx: it's the live store, so a renamed
+      // user updates here too instead of showing whatever name was cached
+      // with the message. The message's own `name` is the fallback that
+      // carries broadcast/system senders ("Ethora"), which never appear in
+      // usersSet. An opaque id (local part or full jid) is never shown as a
+      // name - a 50-character hex string reads as a bug - and an email is
+      // only used when nothing better exists, and then only the part before
+      // the "@". The result may be EMPTY: the preview then omits line 1 and
+      // centres the message.
+      const isOwn =
+        !!myXmppUsername &&
+        !!localId &&
+        isSameXmppUsername(rawUserId, myXmppUsername);
       const messageName = String(message?.user?.name || '').trim();
-      const safeMessageName = isOpaqueXmppUserId(messageName) ? '' : messageName;
-      // An opaque id (local part or full jid) is never shown as a name - a
-      // 50-character hex string reads as a bug, not a name, and it also
-      // breaks the row's fixed-width layout. Leave the name EMPTY in that
-      // case (rather than falling through to 'Unknown') so the preview
-      // renderers below can omit the name line entirely and show just the
-      // message body, which reads fine on its own. A genuinely
-      // human-readable id is still shown, same as before.
-      const safeLocalId = isOpaqueXmppUserId(localId) ? '' : localId;
-      const safeRawUserId = isOpaqueXmppUserId(rawUserId) ? '' : rawUserId;
-      const safeName =
-        fromUsersSet || safeMessageName || safeLocalId || safeRawUserId || '';
+      const named = [fromUsersSet, messageName].filter(
+        (c) => c && !isOpaqueXmppUserId(c)
+      );
+      const idFallback = [localId, rawUserId].filter(
+        (c) => c && !isOpaqueXmppUserId(c) && !c.includes('@')
+      );
+      const real = named.find((c) => !c.includes('@'));
+      const mail = named.find((c) => c.includes('@'));
+      const safeName = isOwn
+        ? t('search.messages.you')
+        : real || (mail ? mail.split('@')[0] : idFallback[0] || '');
 
       return {
         ...message,
@@ -142,13 +159,21 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
         },
       };
     },
-    [previewSenderEntry, t]
+    [previewSenderEntry, myXmppUsername, t]
   );
 
   const lastRawMessage = previewSourceMessage;
   const lastMessage = useMemo(
     () => withAuthorFallback(lastRawMessage),
-    [chat?.jid, lastRawMessage?.id, lastRawMessage?.body, withAuthorFallback]
+    [
+      chat?.jid,
+      lastRawMessage?.id,
+      lastRawMessage?.body,
+      // An upload finishing patches the attachments in under the same id and
+      // the same placeholder body.
+      (lastRawMessage as IMessage | undefined)?.attachments,
+      withAuthorFallback,
+    ]
   );
 
   const formatTimeToHHMM = (
@@ -203,6 +228,18 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
     }
   };
 
+  // Every activation of a row (click or Enter) asks the composer for focus,
+  // including a click on the chat that is already open: performClick may
+  // return early there, so the request is made here, before it.
+  // Mobile is skipped: focusing the input would pop the on-screen keyboard
+  // up over the room the user just chose.
+  const activateChat = () => {
+    if (!isMobileViewportNow(MOBILE_BREAKPOINT_PX)) {
+      requestComposerFocus(chat?.jid);
+    }
+    performClick(chat);
+  };
+
   return (
     <ChatItem
       active={isChatActive}
@@ -225,7 +262,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
       // their focus and their ring.
       onClick={(e) => {
         if (e.detail > 0) e.currentTarget.blur();
-        performClick(chat);
+        activateChat();
       }}
       bg={config?.colors?.primary}
       data-testid={RoomListTestIds.roomRow}
@@ -236,7 +273,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          performClick(chat);
+          activateChat();
         }
       }}
     >
@@ -266,7 +303,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
             width: '100%',
             minWidth: 0,
             gap: '16px',
-            height: '24px',
+            height: '20px',
             justifyContent: 'space-between',
           }}
         >
@@ -339,18 +376,26 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
             minWidth: 0,
             // Fixed, not content-sized: a room with no preview yet (history
             // still loading) must not come out shorter than its neighbours
-            // either. The preview itself is a single 20px line - see
-            // LastRoomMessageContainer.
-            height: '20px',
+            // either. The preview is a two-line block (see
+            // LastRoomMessageContainer); a media thumbnail makes its second
+            // line 28px tall, the only case that grows past this.
+            height: `${PREVIEW_BLOCK_MIN_PX}px`,
+            marginTop: 2,
           }}
+          data-unread={chat.unreadMessages > 0 ? 'true' : undefined}
         >
           {chat.composing ? (
             <Composing
               usersTyping={chat.composingList}
               style={{ color: 'var(--ethora-color-text, #141414)' }}
             />
-          ) : lastMessage?.body || lastMessage?.isDeleted ? (
-            <LastMessageItem lastMessage={lastMessage} />
+          ) : lastMessage?.body ||
+          lastMessage?.isDeleted ||
+          hasMediaPreview(lastMessage) ? (
+            <LastMessageItem
+              lastMessage={lastMessage as LastMessage}
+              sealed={chat?.e2ee === true}
+            />
           ) : (chat?.messages?.length ?? 0) === 0 &&
             // Show "Room created" once the history attempt has settled, not only
             // when the MAM <fin complete> arrived. Newly created / empty rooms

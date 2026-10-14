@@ -1,40 +1,126 @@
-import React, { useCallback, useState } from 'react';
-import styled from 'styled-components';
-import { QuickReply, markQuickRepliesAnswered } from '../../helpers/quickReplies';
+import React, { useCallback, useState, type CSSProperties } from 'react';
+import styled, { keyframes } from 'styled-components';
+import {
+  QuickReply,
+  markQuickRepliesAnswered,
+} from '../../helpers/quickReplies';
+import type { ChatColorScheme } from '../../types/types';
+import { useResolvedColorScheme } from '../../styles/tokens';
 
-const Row = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
+// One rise-and-fade per pill, staggered by --qr-i. `backwards` (not `both`)
+// so the end state never outranks the hover transform.
+const rise = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 `;
 
-// Outlined rather than filled: these sit inside a bot bubble that already has
-// a background, and a row of solid buttons there reads as a toolbar. The
-// accent comes from the host's primary colour so a branded widget tints them
-// without any extra config.
-const Chip = styled.button<{ $accent: string }>`
-  background: transparent;
-  border: 1px solid ${(props) => props.$accent};
-  border-radius: 16px;
-  color: ${(props) => props.$accent};
+// The brand colour comes from the --ethora-color-primary token, which the
+// ThemeTokens provider derives from config.colors.primary. The accent prop is
+// only the fallback for hosts that render outside that provider. In dark
+// scheme the tokens already lift primary for legibility; the tint strengths
+// go up so the pills still read as fills on a dark bubble.
+const Row = styled.div<{ $dark: boolean; $accent: string }>`
+  --qr-primary: var(--ethora-color-primary, ${(props) => props.$accent});
+  --qr-text: ${(props) =>
+    props.$dark
+      ? 'color-mix(in srgb, var(--qr-primary) 70%, #fff)'
+      : 'var(--ethora-color-primary-text, var(--qr-primary))'};
+  --qr-tint: ${(props) => (props.$dark ? '14%' : '6%')};
+  --qr-tint-hover: ${(props) => (props.$dark ? '22%' : '12%')};
+
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 8px;
+  margin-top: 10px;
+  max-width: 100%;
+`;
+
+const Chip = styled.button`
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 8px 14px;
+  border: 1.5px solid color-mix(in srgb, var(--qr-primary) 45%, transparent);
+  border-radius: 999px;
+  background-color: color-mix(
+    in srgb,
+    var(--qr-primary) var(--qr-tint),
+    transparent
+  );
+  color: var(--qr-text);
   cursor: pointer;
   font-family: var(--ethora-font-family, inherit);
-  font-size: var(--ethora-font-size-sm, 0.8125rem);
-  line-height: 1.4;
-  padding: 5px 12px;
-  transition: background-color 0.15s ease;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: left;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+  animation: ${rise} 160ms ease backwards;
+  animation-delay: calc(var(--qr-i, 0) * 30ms);
 
   &:hover {
-    background-color: ${(props) => props.$accent};
-    color: #fff;
+    background-color: color-mix(
+      in srgb,
+      var(--qr-primary) var(--qr-tint-hover),
+      transparent
+    );
+    border-color: color-mix(in srgb, var(--qr-primary) 70%, transparent);
+    box-shadow: 0 2px 6px color-mix(in srgb, var(--qr-primary) 18%, transparent);
+    transform: translateY(-1px);
   }
+
+  &:active {
+    transform: scale(0.97);
+    box-shadow: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--qr-primary) 40%, transparent);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    transition:
+      background-color 160ms ease,
+      border-color 160ms ease;
+
+    &:hover,
+    &:active {
+      transform: none;
+    }
+  }
+`;
+
+// Single line, ellipsised at the bubble width. The button caps at 100% of the
+// row, the label inside it truncates; the full text stays in `title`.
+const Label = styled.span`
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `;
 
 interface QuickRepliesProps {
   replies: QuickReply[];
   messageId: string;
   accentColor?: string;
+  colorScheme?: ChatColorScheme;
   /** Already answered - the chips are gone for good. */
   answered?: boolean;
   onSelect: (reply: QuickReply, questionId: string) => void;
@@ -51,11 +137,13 @@ const QuickReplies: React.FC<QuickRepliesProps> = ({
   replies,
   messageId,
   accentColor,
+  colorScheme,
   answered,
   onSelect,
 }) => {
   const [locked, setLocked] = useState(!!answered);
   const accent = accentColor || '#0052CD';
+  const dark = useResolvedColorScheme(colorScheme) === 'dark';
 
   const handleClick = useCallback(
     (reply: QuickReply, index: number) => {
@@ -71,15 +159,16 @@ const QuickReplies: React.FC<QuickRepliesProps> = ({
   if (!replies.length || locked) return null;
 
   return (
-    <Row role="group" aria-label="Quick replies">
+    <Row role="group" aria-label="Quick replies" $dark={dark} $accent={accent}>
       {replies.map((reply, index) => (
         <Chip
           key={`${messageId}-${reply.questionId ?? index}-${reply.value}`}
           type="button"
-          $accent={accent}
+          title={reply.name}
+          style={{ '--qr-i': index } as CSSProperties}
           onClick={() => handleClick(reply, index)}
         >
-          {reply.name}
+          <Label>{reply.name}</Label>
         </Chip>
       ))}
     </Row>

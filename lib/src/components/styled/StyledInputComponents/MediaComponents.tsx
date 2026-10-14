@@ -1,15 +1,76 @@
-import styled from 'styled-components';
-import { shimmerBackground } from '../../../styles/motion';
+import React from 'react';
+import styled, { css, keyframes } from 'styled-components';
+import { reducedMotion, shimmerBackground } from '../../../styles/motion';
 
-export const MediaLoadingSkeleton = styled.div<{
-  $width?: number | string;
-  $height?: number | string;
-}>`
-  width: ${({ $width }) => (typeof $width === 'number' ? `${$width}px` : $width || '150px')};
-  height: ${({ $height }) => (typeof $height === 'number' ? `${$height}px` : $height || '150px')};
+/**
+ * Loading spinner rules shared by the media loading states. The spinner is
+ * a fixed-pixel circle with `flex: none`, so a flex parent (the upload scrim,
+ * a tiny album tile) cannot squash it into an oval. Whether it is drawn at
+ * all is decided by a container query on the box it sits in, see below.
+ */
+export const MEDIA_SPINNER_PX = 24;
+/** Boxes smaller than this (on either side) get the shimmer only, no spinner. */
+export const MEDIA_SPINNER_MIN_BOX_PX = 48;
+const DEFAULT_MEDIA_ASPECT_RATIO = '3 / 4';
+
+const spin = keyframes`
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+`;
+
+const spinnerBase = css`
+  box-sizing: border-box;
+  flex: none;
+  width: ${MEDIA_SPINNER_PX}px;
+  height: ${MEDIA_SPINNER_PX}px;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  border: 3px solid var(--ethora-color-border, #d9dee7);
+  border-top-color: var(--ethora-color-primary, #0052cd);
+  animation: ${spin} 0.9s linear infinite;
+  ${reducedMotion}
+`;
+
+/**
+ * Loading placeholder for a media bubble that is still downloading. A rounded
+ * rectangle with the shimmer, sized by its real aspect ratio when the width
+ * and height are known (default 3:4 otherwise). The spinner is a child
+ * element, not a pseudo element: a container query never matches its own
+ * container from a ::after, so the spinner must sit inside the box.
+ */
+const SkeletonBox = styled.div<{ $width?: number; $height?: number }>`
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: ${({ $width }) => ($width ? `${$width}px` : '150px')};
   max-width: 100%;
+  aspect-ratio: ${({ $width, $height }) =>
+    $width && $height ? `${$width} / ${$height}` : DEFAULT_MEDIA_ASPECT_RATIO};
+  /* Lets the spinner's container query measure this box, not the viewport. */
+  position: relative;
+  container-type: size;
   border-radius: var(--ethora-radius-md, 16px);
   ${shimmerBackground}
+`;
+
+export const MediaLoadingSkeleton: React.FC<{ $width?: number; $height?: number }> = ({
+  $width,
+  $height,
+}) => (
+  <SkeletonBox $width={$width} $height={$height}>
+    <MediaSpinner aria-hidden="true" />
+  </SkeletonBox>
+);
+
+/** Standalone spinner for a loading overlay. Hidden inside boxes under the min size. */
+export const MediaSpinner = styled.span`
+  display: none;
+  ${spinnerBase}
+
+  @container (min-width: ${MEDIA_SPINNER_MIN_BOX_PX}px) and (min-height: ${MEDIA_SPINNER_MIN_BOX_PX}px) {
+    display: block;
+  }
 `;
 
 export const Container = styled.div`
@@ -199,6 +260,7 @@ export const PdfThumbnailFrame = styled.div<{ $compact: boolean }>`
 
 /** Sits on the thumbnail while pdf.js parses so the row does not pop in. */
 export const PdfThumbnailSkeleton = styled.div`
+  position: relative;
   width: 100%;
   height: 100%;
   ${shimmerBackground}

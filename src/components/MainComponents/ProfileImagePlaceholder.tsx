@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { safeImageUrl } from '../../helpers/safeUrl';
+import React, { useEffect, useMemo } from 'react';
 import { EditIcon } from '../../assets/icons';
 import {
   AvatarCircle,
@@ -9,7 +10,9 @@ import {
   Wrapper,
 } from '../styled/StyledComponents';
 import { nameToColor } from '../../helpers/hashcolor';
-import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../../roomStore';
+import { useAvatarImage } from '../../hooks/useAvatarImage';
 import { useT } from '../../i18n/useT';
 
 interface ProfileImagePlaceholderProps {
@@ -47,30 +50,36 @@ export const ProfileImagePlaceholder: React.FC<
   disableOverlay,
   online = false,
 }) => {
-  const { config } = useChatSettingState();
+  // Only the colours: subscribing to the whole settings slice re-rendered
+  // every avatar in a list on unrelated settings changes.
+  const colors = useSelector(
+    (state: RootState) => state.chatSettingStore.config?.colors
+  );
   const t = useT();
-  const iconsBg = config?.colors?.iconsBg;
-  const iconColor = config?.colors?.icons;
+  const iconsBg = colors?.iconsBg;
+  const iconColor = colors?.icons;
   const { backgroundColor: hashedBg } = nameToColor(name);
   const backgroundColor = iconsBg || hashedBg;
 
-  // Social-login avatars (Google/Facebook profile photos) commonly fail to
-  // load, either because the CDN refuses hotlinked/referrer-carrying
-  // requests or because the URL has simply expired. When that happens the
-  // browser renders a broken-image glyph plus the alt text clipped to the
-  // circle, which is very visible in member lists. Track the failure and
-  // fall back to the same initials/placeholder rendering used when there is
-  // no icon at all, so a failed avatar looks exactly like one that was
-  // never set.
-  const [imageFailed, setImageFailed] = useState(false);
+  // A picked File needs an object URL; make it once per File and release it
+  // (it used to be recreated on every render, restarting the image load).
+  const fileUrl = useMemo(
+    () => (icon instanceof File ? URL.createObjectURL(icon) : ''),
+    [icon]
+  );
+  useEffect(
+    () => () => {
+      if (fileUrl) URL.revokeObjectURL(fileUrl);
+    },
+    [fileUrl]
+  );
 
-  // A recycled row (e.g. a virtualized member list) reuses this component
-  // for a different person. Reset the failure flag whenever the icon
-  // changes, otherwise the new user's valid avatar keeps showing initials
-  // forever because of a previous, unrelated failure.
-  useEffect(() => {
-    setImageFailed(false);
-  }, [icon]);
+  // Initials are painted from the first frame; the photo is layered on top
+  // and faded in once decoded, so a slow avatar never shows an empty circle.
+  // A photo that fails (hotlink-blocked social avatars, expired URLs) simply
+  // leaves the initials in place, exactly like an avatar that was never set.
+  // Resolution/dedupe/token handling lives in useAvatarImage.
+  const image = useAvatarImage(typeof icon === 'string' ? icon : fileUrl);
 
   const avatarAlt = name
     ? t('avatar.altWithName', { name })
@@ -102,12 +111,11 @@ export const ProfileImagePlaceholder: React.FC<
     return firstLetter + secondLetter;
   };
 
-  // A failed image is indistinguishable from no icon at all: same initials,
-  // same background.
-  const showImage = !!icon && !imageFailed;
+  const showImage = !!icon && !!image.src && image.status !== 'failed';
+  const imageLoaded = image.status === 'loaded';
 
   const getInitials = () =>
-    !showImage && name ? getTwoUppercaseLetters(name) : '';
+    !imageLoaded && name ? getTwoUppercaseLetters(name) : '';
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -124,35 +132,40 @@ export const ProfileImagePlaceholder: React.FC<
 
   return (
     <Wrapper
-      bgColor={showImage ? 'transparent' : backgroundColor}
+      bgColor={imageLoaded ? 'transparent' : backgroundColor}
       size={size}
       isClickable={active || !!upload?.active}
     >
       <AvatarCircle
-        bgColor={showImage ? 'transparent' : backgroundColor}
+        bgColor={imageLoaded ? 'transparent' : backgroundColor}
         size={size}
         isClickable={active || (role === 'participant' && !!upload?.active)}
         onClick={handleAvatarClick}
         style={{
           fontSize: size >= 64 ? '24px' : '18px',
           ...(iconColor ? { color: iconColor } : {}),
-          cursor: 'pointer'
+          cursor: 'pointer',
+          position: 'relative',
         }}
       >
-        {showImage ? (
+        {!imageLoaded && (placeholderIcon ?? getInitials())}
+        {showImage && (
           <AvatarImage
-            src={typeof icon === 'string' ? icon : URL.createObjectURL(icon as File)}
+            src={safeImageUrl(image.src)}
             alt={avatarAlt}
             size={size}
             referrerPolicy="no-referrer"
             loading="lazy"
             decoding="async"
-            onError={() => setImageFailed(true)}
+            onLoad={image.onLoad}
+            onError={image.onError}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              opacity: imageLoaded ? 1 : 0,
+              transition: 'opacity 150ms ease',
+            }}
           />
-        ) : placeholderIcon ? (
-          placeholderIcon
-        ) : (
-          getInitials()
         )}
         {upload?.active && (
           <>

@@ -5,6 +5,10 @@ import styled, { keyframes } from 'styled-components';
 import { IMessage } from '../../types/models/message.model';
 import { RootState } from '../../roomStore';
 import { stripBotMarkup } from '../../helpers/botMarkup';
+import { isSvgFile } from '../../helpers/fileKind';
+import { getAttachmentName, getMessageAttachments, isMediaMessage } from '../../helpers/attachments';
+import { getMessageCaption } from '../../helpers/caption';
+import { safeImageUrl } from '../../helpers/safeUrl';
 
 export interface MessageNotificationData {
   id: string;
@@ -172,10 +176,15 @@ const Avatar = styled.div<{ $photoURL?: string }>`
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: ${({ $photoURL }) =>
-    $photoURL
-      ? `url(${$photoURL}) center/cover`
-      : 'var(--ethora-color-icons-bg, #E7EDF9)'};
+  background: ${({ $photoURL }) => {
+    // Only a safe image URL, quoted so it cannot close the url() early.
+    const photo = safeImageUrl($photoURL).replace(/["\\\r\n\f]/g, (ch) =>
+      encodeURIComponent(ch)
+    );
+    return photo
+      ? `url("${photo}") center/cover`
+      : 'var(--ethora-color-icons-bg, #E7EDF9)';
+  }};
   flex-shrink: 0;
 
   @media (max-width: 768px) {
@@ -239,18 +248,29 @@ const formatTime = (timestamp: number): string => {
   return date.toLocaleDateString();
 };
 
+const mediaPreviewLabel = (message: IMessage): string => {
+  // Read the kind off the normalised attachment, so a file sent with no
+  // mimetype (or octet-stream) is still a photo, video or audio by its name.
+  const [first] = getMessageAttachments(message);
+  const mimetype = first?.mimetype ?? message.mimetype;
+  const name = first ? getAttachmentName(first) : message.originalName || message.fileName;
+  if (mimetype?.startsWith('image/') && !isSvgFile(mimetype, name)) {
+    return '📷 Photo';
+  }
+  if (mimetype?.startsWith('video/')) {
+    return '🎥 Video';
+  }
+  if (mimetype?.startsWith('audio/')) {
+    return '🎵 Audio';
+  }
+  return '📎 File';
+};
+
 const getMessagePreview = (message: IMessage): string => {
-  if (message.isMediafile === 'true') {
-    if (message.mimetype?.startsWith('image/')) {
-      return '📷 Photo';
-    }
-    if (message.mimetype?.startsWith('video/')) {
-      return '🎥 Video';
-    }
-    if (message.mimetype?.startsWith('audio/')) {
-      return '🎵 Audio';
-    }
-    return '📎 File';
+  if (isMediaMessage(message)) {
+    const label = mediaPreviewLabel(message);
+    const caption = getMessageCaption(message);
+    return caption ? `${label}, ${caption}` : label;
   }
   if (message.isSystemMessage === 'true') {
     return message.body || 'System message';
@@ -339,7 +359,7 @@ const MessageNotificationToast: React.FC<MessageNotificationToastProps> = ({
         <Avatar $photoURL={userPhotoURL} data-testid="notification-avatar" />
         <MessageBody>
           <SenderName>{senderName}</SenderName>
-          {message.isMediafile === 'true' ? (
+          {isMediaMessage(message) ? (
             <MediaIndicator>{messagePreview}</MediaIndicator>
           ) : (
             <MessageText>{messagePreview}</MessageText>

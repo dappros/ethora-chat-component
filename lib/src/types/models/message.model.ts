@@ -67,6 +67,9 @@ export interface IMessage {
   mainMessage?: string;
   reply?: IReply[];
   reaction?: Record<string, ReactionMessage>;
+  // Delivery receipts (XEP-0184): xmppUsername -> ms-epoch timestamp the
+  // <received/> stanza for this message's stanza-id was observed at.
+  receivedBy?: Record<string, number>;
   fileName?: string;
   translations?: TranslationObject;
   langSource?: Iso639_1Codes;
@@ -90,6 +93,13 @@ export interface IMessage {
   // @-mentions carried by this message's body, decoded from the `mentions`
   // JSON attribute on the stanza's <data> element (see getDataFromXml.ts).
   mentions?: IMentionSpan[];
+  // Text typed with the attachments of a media message, sent inside that same
+  // message (never as a separate text stanza). `body` stays "media" for it.
+  // Read it through getMessageCaption() (helpers/caption.ts). On a sealed
+  // message it arrives inside the encrypted envelope, never on <data>.
+  caption?: string;
+  // @-mention spans into `caption`, the same way `mentions` indexes `body`.
+  captionMentions?: IMentionSpan[];
   // Present when this message is a call-log entry derived from a
   // `<data type="call-state">` stanza (see helpers/callLogMessage.ts).
   callLog?: {
@@ -124,6 +134,12 @@ export interface MessageProps {
   message: IMessage;
   isUser: boolean;
   isReply: boolean;
+  /**
+   * False when the next message comes from the same sender (a run). The last
+   * message of a run carries the bubble tail and the larger gap below it.
+   * Omitted means last.
+   */
+  isLastInGroup?: boolean;
 }
 
 export interface MediaMessageType {}

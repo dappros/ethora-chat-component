@@ -31,6 +31,8 @@ import {
 } from '../types/types';
 import { createPrivateRoom } from './xmpp/createPrivateRoom.xmpp';
 import { sendMessageReaction } from './xmpp/sendMessageReaction.xmpp';
+import { sendReceivedReceipt } from './xmpp/sendReceivedReceipt.xmpp';
+import { sendDisplayedMarker } from './xmpp/sendDisplayedMarker.xmpp';
 import { sendTextMessageWithTranslateTag } from './xmpp/sendTextMessageWithTranslateTag.xmpp';
 import { getRoomsPaged } from './xmpp/getRoomsPaged.xmpp';
 import {
@@ -235,6 +237,13 @@ export class XmppClient implements XmppClientInterface {
   private historyQueueWorkerScheduled = false;
   private historyQueueWorkerTimer: ReturnType<typeof setTimeout> | null = null;
   private roomHistoryEpoch: Map<string, number> = new Map();
+  // Dedupes XEP-0184 acks sent for MAM/catch-up-delivered messages: without
+  // this, every re-fetch of the same history page (room reopen, scroll-up
+  // pagination revisiting an already-seen range) would re-send a <received>
+  // for messages already acked. Keyed by `${roomJID}:${messageId}`, capped
+  // so a very long session doesn't grow it unbounded.
+  private historyReceiptAckedIds: Set<string> = new Set();
+  private readonly maxHistoryReceiptAckedIds = 2000;
   private criticalSendUntil = 0;
   private activeRoomBoostUntil = 0;
   private sendStartedAtById: Map<string, number> = new Map();
@@ -3076,6 +3085,31 @@ export class XmppClient implements XmppClientInterface {
         reactionSymbol
       );
     });
+  }
+
+  sendReceivedReceiptStanza(messageId: string, roomJid: string) {
+    this.wrapWithConnectionCheck(async () => {
+      sendReceivedReceipt(this.client, messageId, roomJid);
+    });
+  }
+
+  sendDisplayedMarkerStanza(messageId: string, roomJid: string) {
+    this.wrapWithConnectionCheck(async () => {
+      sendDisplayedMarker(this.client, messageId, roomJid);
+    });
+  }
+
+  // Like sendReceivedReceiptStanza, but for messages that arrived via MAM
+  // catch-up rather than live - see the historyReceiptAckedIds comment.
+  sendHistoryReceivedReceiptStanza(roomJid: string, messageId: string) {
+    const key = `${roomJid}:${messageId}`;
+    if (this.historyReceiptAckedIds.has(key)) return;
+    this.historyReceiptAckedIds.add(key);
+    if (this.historyReceiptAckedIds.size > this.maxHistoryReceiptAckedIds) {
+      const oldest = this.historyReceiptAckedIds.values().next().value;
+      if (oldest) this.historyReceiptAckedIds.delete(oldest);
+    }
+    this.sendReceivedReceiptStanza(messageId, roomJid);
   }
 
   sendTypingRequestStanza(chatId: string, fullName: string, start: boolean) {

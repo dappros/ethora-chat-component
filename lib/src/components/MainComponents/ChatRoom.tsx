@@ -27,6 +27,7 @@ import { useChatSettingState } from '../../hooks/useChatSettingState.tsx';
 import useComposing from '../../hooks/useComposing.tsx';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
 import { MessageProps, IMentionSpan, IMessage } from '../../types/types';
+import type { CaptionInput } from '../../helpers/caption';
 import { useLoaderDebug } from '../../hooks/useLoaderDebug';
 import { useChatOpenPhase } from '../../hooks/useChatOpenPhase';
 import { ChatRoomOpeningPreview } from './ChatRoomOpeningPreview';
@@ -73,8 +74,16 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     );
 
     const sendMedia = useCallback(
-      (data: any, type: string) => {
-        return sendMessageMedia(data, type, activeRoomJID);
+      (data: any, type: string, caption?: CaptionInput) => {
+        return sendMessageMedia(
+          data,
+          type,
+          activeRoomJID,
+          false,
+          false,
+          '',
+          caption
+        );
       },
       [activeRoomJID]
     );
@@ -450,6 +459,8 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             isMessageProcessing:
               isLastMessageFromUserAndProcessing(activeRoomJID),
             multiline: true,
+            // Chat switches from the room list land the caret here (desktop).
+            focusOnRoomSwitch: true,
             // No placeholderText here on purpose: SendInput falls back to
             // t('input.placeholder'), and passing a hardcoded English
             // string overrode that - the composer stayed "Type message" in

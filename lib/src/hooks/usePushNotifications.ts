@@ -32,6 +32,10 @@ import {
 import { setIncomingCallToken } from '../roomStore/callSlice';
 import { isCallPush, parseCallPush } from '../helpers/callPush';
 import { store } from '../roomStore';
+import {
+  resolveNotificationRoomName,
+  resolveNotificationSenderName,
+} from '../utils/messageNotificationContent';
 import { IConfig } from '../types/types';
 import { ethoraLogger } from '../helpers/ethoraLogger';
 import { setStoredFcmToken } from '../utils/pushStorage';
@@ -416,7 +420,7 @@ const usePushNotifications = (
         id: messageId,
         user: {
           id: senderId || 'unknown',
-          name: senderId || 'Ethora',
+          name: '',
           userJID: senderId || null,
         },
         date: new Date().toISOString(),
@@ -424,8 +428,20 @@ const usePushNotifications = (
         roomJid,
       };
 
-      const roomName = isSystemMessage ? 'System' : roomJid || title;
-      const senderName = isSystemMessage ? 'System' : senderId || 'Ethora';
+      // The push only carries ids and backend boilerplate. Names come from
+      // the store (same profile/room data the message bubbles use); the raw
+      // `<appId>_<userId>` is never shown as a name.
+      const pushRoom = roomJid ? store.getState().rooms.rooms[roomJid] : undefined;
+      const resolvedSender = resolveNotificationSenderName(
+        message,
+        store.getState().rooms.usersSet,
+        pushRoom
+      );
+      const resolvedRoom = resolveNotificationRoomName(roomJid, pushRoom, title);
+      message.user.name = resolvedSender;
+
+      const roomName = isSystemMessage ? 'System' : resolvedRoom || resolvedSender || 'Ethora';
+      const senderName = isSystemMessage ? 'System' : resolvedSender || 'Ethora';
 
       if (shouldForceSystemToast || fgToastDecision.show) {
         messageNotificationManager.showNotification(

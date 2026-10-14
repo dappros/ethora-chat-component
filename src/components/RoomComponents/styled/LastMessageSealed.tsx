@@ -26,10 +26,18 @@ const LastMessageSealed: FC<LastMessageSealedProps> = ({ user }) => {
   const name = user?.name;
 
   return (
-    <LastRoomMessageContainer>
-      {name && <LastRoomMessageName>{name}</LastRoomMessageName>}
-      <LastRoomMessageMedia>
-        <LockIcon width={16} height={16} />
+    <LastRoomMessageContainer data-testid="last-message-block">
+      {name && (
+        <LastRoomMessageName data-testid="last-message-name">
+          {name}
+        </LastRoomMessageName>
+      )}
+      <LastRoomMessageMedia data-testid="last-message-line">
+        <LockIcon
+          width={14}
+          height={14}
+          style={{ flexShrink: 0, marginInlineEnd: 6 }}
+        />
         <LastRoomMessageText>{t('media.sealedFile')}</LastRoomMessageText>
       </LastRoomMessageMedia>
     </LastRoomMessageContainer>

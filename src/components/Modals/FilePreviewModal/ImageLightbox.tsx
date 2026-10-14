@@ -1,3 +1,4 @@
+import { safeImageUrl } from '../../../helpers/safeUrl';
 import React, {
   useCallback,
   useEffect,
@@ -5,7 +6,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import { MOTION_BASE, MOTION_EASE, reducedMotion } from '../../../styles/motion';
 
 export const MIN_SCALE = 1;
@@ -39,13 +40,59 @@ const Viewport = styled.div`
      pinch rather than a page scroll. */
   touch-action: none;
   user-select: none;
-  background-color: var(--ethora-color-bg, #fff);
+  /* The viewer backdrop shows through: the picture sits on the dark chrome. */
+  background-color: transparent;
+`;
+
+const spin = keyframes`
+  to { transform: rotate(360deg); }
+`;
+
+const Spinner = styled.div`
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  pointer-events: none;
+  z-index: 1;
+
+  svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    animation: ${spin} 900ms linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    svg {
+      animation-duration: 2400ms;
+    }
+  }
+`;
+
+/* Low-res copy of the picture, painted blurred behind the spinner. It fades
+   out once the full image has decoded, which is the blur-up crossfade. */
+const BlurPreview = styled.img<{ $hidden: boolean }>`
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: blur(18px);
+  transform: scale(1.04);
+  pointer-events: none;
+  opacity: ${({ $hidden }) => ($hidden ? 0 : 1)};
+  transition: opacity ${MOTION_BASE} ${MOTION_EASE};
+  ${reducedMotion}
 `;
 
 const ZoomableImage = styled.img<{
   $grabbing: boolean;
   $pannable: boolean;
   $animate: boolean;
+  $loaded: boolean;
 }>`
   /* Same box the single-file view always used: fill the stage and let
      object-fit do the letterboxing, so what the viewer sees at scale 1 is
@@ -58,8 +105,13 @@ const ZoomableImage = styled.img<{
   will-change: transform;
   cursor: ${({ $grabbing, $pannable }) =>
     $grabbing ? 'grabbing' : $pannable ? 'grab' : 'zoom-in'};
+  /* Rounded and lifted off the backdrop. The shadow follows the painted
+     pixels (drop-shadow), so a letterboxed picture is not boxed in a card. */
+  border-radius: 10px;
+  filter: drop-shadow(0 18px 40px rgba(0, 0, 0, 0.45));
+  opacity: ${({ $loaded }) => ($loaded ? 1 : 0)};
   transition: ${({ $animate }) =>
-    $animate ? `transform ${MOTION_BASE} ${MOTION_EASE}` : 'none'};
+      $animate ? `transform ${MOTION_BASE} ${MOTION_EASE}, ` : ''}opacity ${MOTION_BASE} ${MOTION_EASE};
   ${reducedMotion}
 `;
 
@@ -72,6 +124,10 @@ export interface ImageLightboxHandle {
 interface ImageLightboxProps {
   src: string;
   alt: string;
+  /** Low-res stand-in painted blurred until `src` has loaded. */
+  previewSrc?: string;
+  /** Visually hidden label for the loading spinner (screen readers). */
+  loadingLabel?: string;
   /** Swipe (touch) navigation; also used to report gesture direction. */
   onSwipeLeft?: () => void;
   onSwipeRight?: () => void;
@@ -94,9 +150,22 @@ interface ImageLightboxProps {
  * at scale 1 the only legal offset is (0, 0).
  */
 const ImageLightbox = React.forwardRef<ImageLightboxHandle, ImageLightboxProps>(
-  ({ src, alt, onSwipeLeft, onSwipeRight, onError, onScaleChange }, ref) => {
+  (
+    {
+      src,
+      alt,
+      previewSrc,
+      loadingLabel = '',
+      onSwipeLeft,
+      onSwipeRight,
+      onError,
+      onScaleChange,
+    },
+    ref
+  ) => {
     const viewportRef = useRef<HTMLDivElement>(null);
     const imageRef = useRef<HTMLImageElement>(null);
+    const [loaded, setLoaded] = useState(false);
 
     const [scale, setScale] = useState(MIN_SCALE);
     const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -214,6 +283,13 @@ const ImageLightbox = React.forwardRef<ImageLightboxHandle, ImageLightboxProps>(
       setAnimate(false);
       setScale(MIN_SCALE);
       setOffset({ x: 0, y: 0 });
+    }, [src]);
+
+    // A new source starts unloaded. A picture already in the browser cache can
+    // finish before this effect runs, so check `complete` as well as onLoad.
+    useEffect(() => {
+      const image = imageRef.current;
+      setLoaded(Boolean(image?.complete && image.naturalWidth > 0));
     }, [src]);
 
     useEffect(() => {
@@ -457,16 +533,64 @@ const ImageLightbox = React.forwardRef<ImageLightboxHandle, ImageLightboxProps>(
         onTouchEnd={onTouchEnd}
         onTouchCancel={onTouchEnd}
       >
+        {previewSrc && (
+          <BlurPreview
+            src={safeImageUrl(previewSrc)}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            $hidden={loaded}
+            data-testid="image-lightbox-preview"
+          />
+        )}
+        {!loaded && (
+          <Spinner role="status" data-testid="image-lightbox-spinner">
+            <span
+              style={{
+                position: 'absolute',
+                width: 1,
+                height: 1,
+                overflow: 'hidden',
+                clip: 'rect(0 0 0 0)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {loadingLabel}
+            </span>
+            <svg viewBox="0 0 40 40" aria-hidden="true">
+              <circle
+                cx="20"
+                cy="20"
+                r="16"
+                fill="none"
+                stroke="rgba(255, 255, 255, 0.22)"
+                strokeWidth="3"
+              />
+              <circle
+                cx="20"
+                cy="20"
+                r="16"
+                fill="none"
+                stroke="#ffffff"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeDasharray="28 72"
+              />
+            </svg>
+          </Spinner>
+        )}
         <ZoomableImage
           ref={imageRef}
           data-testid="image-lightbox-image"
-          src={src}
+          src={safeImageUrl(src)}
           alt={alt}
           draggable={false}
+          onLoad={() => setLoaded(true)}
           onError={onError}
           $grabbing={dragging}
           $pannable={scale > MIN_SCALE}
           $animate={animate}
+          $loaded={loaded}
           style={{ transform }}
         />
       </Viewport>

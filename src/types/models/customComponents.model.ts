@@ -14,6 +14,8 @@ export interface NewMessageLabelProps {
 export interface DecoratedMessage {
   message: IMessage;
   showDateLabel: boolean;
+  /** False when the next row is the same sender's message (a run continues). */
+  isLastInGroup?: boolean;
 }
 
 export interface ScrollControllerApi {

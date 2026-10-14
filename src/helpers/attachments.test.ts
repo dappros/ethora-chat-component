@@ -6,6 +6,7 @@ import {
   normalizeAttachment,
   parseAttachments,
   serializeAttachments,
+  toUploadedAttachment,
 } from './attachments';
 import { IAttachment } from '../types/types';
 
@@ -166,5 +167,72 @@ describe('getAttachmentName', () => {
       getAttachmentName(attachment({ originalName: undefined, fileName: undefined }))
     ).toBe('a.pdf');
     expect(getAttachmentName({ location: '' })).toBe('MediaFile');
+  });
+});
+
+describe('local upload state on outgoing attachments', () => {
+  it('keeps uploading/failed state through parsing', () => {
+    const parsed = parseAttachments([
+      { originalName: 'a.png', mimetype: 'image/png', uploadStatus: 'uploading', uploadProgress: 40 },
+      { originalName: 'b.png', mimetype: 'image/png', uploadStatus: 'failed' },
+    ]);
+    expect(parsed[0]).toMatchObject({ uploadStatus: 'uploading', uploadProgress: 40 });
+    expect(parsed[1]).toMatchObject({ uploadStatus: 'failed', uploadProgress: 0 });
+  });
+
+  it('drops unknown status values and clamps progress', () => {
+    const parsed = parseAttachments([
+      { originalName: 'a.png', uploadStatus: 'bogus', uploadProgress: 500 },
+    ]);
+    expect(parsed[0].uploadStatus).toBeUndefined();
+    expect(parsed[0].uploadProgress).toBeUndefined();
+
+    const clamped = parseAttachments([
+      { originalName: 'a.png', uploadStatus: 'uploading', uploadProgress: 500 },
+    ]);
+    expect(clamped[0].uploadProgress).toBe(100);
+  });
+
+  it('never puts local state on the wire', () => {
+    const wire = JSON.parse(
+      serializeAttachments([
+        { location: 'https://x/a', originalName: 'a', uploadStatus: 'failed', uploadProgress: 9 },
+      ])
+    );
+    expect(wire[0]).not.toHaveProperty('uploadStatus');
+    expect(wire[0]).not.toHaveProperty('uploadProgress');
+  });
+});
+
+describe('file name repair at the normalisation point', () => {
+  const broken = Array.from(new TextEncoder().encode('Список.pdf'))
+    .map((b) => String.fromCharCode(b))
+    .join('');
+
+  it('repairs originalName from the wire', () => {
+    expect(normalizeAttachment({ location: 'x', originalName: broken })?.originalName).toBe(
+      'Список.pdf'
+    );
+  });
+
+  it('repairs the legacy single-file path', () => {
+    const [attachment] = getMessageAttachments({
+      location: 'https://x/f.pdf',
+      mimetype: 'application/pdf',
+      originalName: broken,
+    } as never);
+    expect(attachment.originalName).toBe('Список.pdf');
+  });
+
+  it('repairs the upload result mapping', () => {
+    expect(toUploadedAttachment({ originalname: broken, filename: broken }).originalName).toBe(
+      'Список.pdf'
+    );
+  });
+
+  it('keeps correct names', () => {
+    expect(normalizeAttachment({ location: 'x', originalName: 'Список.pdf' })?.originalName).toBe(
+      'Список.pdf'
+    );
   });
 });

@@ -55,3 +55,10 @@ describe('formatBytes', () => {
     expect(formatBytes(2 * 1024 * 1024 * 1024)).toBe('2.0 GB');
   });
 });
+
+describe('svg in the Files tab', () => {
+  it('is a document and not previewable', () => {
+    expect(getFileCategory('image/svg+xml', 'a.svg')).toBe('documents');
+    expect(isPreviewable({ mimetype: 'image/svg+xml', originalname: 'a.svg' })).toBe(false);
+  });
+});

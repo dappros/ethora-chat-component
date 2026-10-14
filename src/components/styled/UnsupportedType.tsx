@@ -1,25 +1,12 @@
-import React from 'react';
-
-import {
-  BackgroundFile,
-  FileInformation,
-  FileName,
-  FileSize,
-  FileSizeContainer,
-  UnsupportedContainer,
-} from './StyledInputComponents/MediaComponents';
+import { safeImageUrl } from '../../helpers/safeUrl';
+import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
-import {
-  setActiveFile,
-  setActiveModal,
-} from '../../roomStore/chatSettingsSlice';
+import { setActiveFile, setActiveModal } from '../../roomStore/chatSettingsSlice';
 import { FileIcon } from '../../assets/icons';
-import { formatFileName, formatFileSize } from '../../helpers/fileKind';
-import {
-  isSecureFileUrl,
-  requestFileTokenRecovery,
-} from '../../helpers/secureFileUrl';
+import { formatFileName, formatFileSize, getFileExtension, isSvgFile } from '../../helpers/fileKind';
+import { isSecureFileUrl, requestFileTokenRecovery } from '../../helpers/secureFileUrl';
+import FileCard from './FileCard';
 
 interface FileDownloadProps {
   fileName: string;
@@ -29,6 +16,7 @@ interface FileDownloadProps {
   locationPreview?: string;
 }
 
+/** Generic file in a bubble, as a card. A missing preview falls back to the type glyph. */
 const FileDownload: React.FC<FileDownloadProps> = ({
   fileName,
   fileURL,
@@ -37,6 +25,7 @@ const FileDownload: React.FC<FileDownloadProps> = ({
   locationPreview,
 }) => {
   const dispatch = useDispatch();
+  const [previewBroken, setPreviewBroken] = useState(false);
 
   const handleOpen = () => {
     if (!fileURL) return;
@@ -44,42 +33,39 @@ const FileDownload: React.FC<FileDownloadProps> = ({
     dispatch(setActiveModal(MODAL_TYPES.FILE_PREVIEW));
   };
 
+  const ext = getFileExtension(fileName).toUpperCase();
   const formattedSize = formatFileSize(size);
+  // Never draw an SVG, even as a thumbnail: it is shown as a plain file.
+  const showPreview =
+    Boolean(locationPreview) &&
+    !previewBroken &&
+    !isSvgFile(mimetype, fileName) &&
+    !isSvgFile(undefined, locationPreview?.split(/[?#]/)[0]);
 
   return (
-    <UnsupportedContainer onClick={handleOpen} title={fileName}>
-      <BackgroundFile>
-        {locationPreview ? (
+    <FileCard
+      name={formatFileName(fileName, 60)}
+      meta={[ext || undefined, formattedSize || undefined]}
+      icon={
+        showPreview ? (
           <img
-            src={locationPreview}
-            alt={fileName}
-            style={{
-              borderRadius: 'var(--ethora-radius-sm, 8px)',
-              cursor: 'pointer',
-              maxWidth: '100px',
-              maxHeight: '60px',
-            }}
-            onError={(e) => {
+            src={safeImageUrl(locationPreview)}
+            alt=""
+            onError={() => {
               if (isSecureFileUrl(locationPreview)) {
                 requestFileTokenRecovery();
               }
-              (e.target as HTMLImageElement).src =
-                'https://as2.ftcdn.net/v2/jpg/02/51/95/53/1000_F_251955356_FAQH0U1y1TZw3ZcdPGybwUkH90a3VAhb.jpg';
+              setPreviewBroken(true);
             }}
           />
         ) : (
-          <FileIcon />
-        )}
-      </BackgroundFile>
-      <FileInformation>
-        <FileName>{formatFileName(fileName, 20)}</FileName>
-        {formattedSize && (
-          <FileSizeContainer>
-            <FileSize>{formattedSize}</FileSize>
-          </FileSizeContainer>
-        )}
-      </FileInformation>
-    </UnsupportedContainer>
+          <FileIcon width={22} height={22} />
+        )
+      }
+      onOpen={handleOpen}
+      title={fileName}
+      aria-label={fileName}
+    />
   );
 };
 

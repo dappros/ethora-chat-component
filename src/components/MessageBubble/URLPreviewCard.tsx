@@ -1,3 +1,4 @@
+import { safeImageUrl } from '../../helpers/safeUrl';
 import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import axios from 'axios';
@@ -156,7 +157,7 @@ const URLPreviewCard: React.FC<URLPreviewCardProps> = ({ url }) => {
   return (
     <PreviewContainer>
       {previewData.image && (
-        <PreviewImage src={previewData.image} alt="Preview" />
+        <PreviewImage src={safeImageUrl(previewData.image)} alt="Preview" />
       )}
       {previewData.title && <PreviewTitle>{previewData.title}</PreviewTitle>}
       {previewData.description && (

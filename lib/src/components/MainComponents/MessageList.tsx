@@ -22,6 +22,7 @@ import Composing from '../styled/StyledInputComponents/Composing';
 import CustomTypingIndicator from '../styled/StyledInputComponents/CustomTypingIndicator';
 import TreadLabel from '../styled/TreadLabel';
 import { MessageContainer } from './MessageContainer';
+import { usePaneWidthVar } from '../../hooks/usePaneWidthVar';
 import {
   OlderPage,
   WindowFetchResult,
@@ -57,6 +58,7 @@ import { DownArrowIcon } from '../../assets/icons';
 import NewMessageLabel from '../styled/NewMessageLabel';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
 import { DecoratedMessage } from '../../types/models/customComponents.model';
+import { messageRunEnds } from '../../helpers/messageRuns';
 import { parseMessageReference } from '../../helpers/parseMessageReference';
 import { useLoaderDebug } from '../../hooks/useLoaderDebug';
 import { useT } from '../../i18n/useT';
@@ -328,7 +330,20 @@ const MessageList = <TMessage extends IMessage>({
     client
       .actionSetTimestampToPrivateStoreStanza(roomJID, Date.now())
       ?.catch?.(() => {});
-  }, [config?.disableLastRead, isTabVisible, client, roomJID, messages]);
+    // XEP-0333 read marker - broadcast to the room so peers can flip their
+    // tick to "read". Piggybacks on the same debounce as the private
+    // last-viewed write above; only for messages someone else sent.
+    if (latest?.id && latest.user?.id !== user?.xmppUsername) {
+      client.sendDisplayedMarkerStanza(latest.id, roomJID);
+    }
+  }, [
+    config?.disableLastRead,
+    isTabVisible,
+    client,
+    roomJID,
+    messages,
+    user?.xmppUsername,
+  ]);
 
   const scheduleMarkRead = useCallback(() => {
     if (config?.disableLastRead) return;
@@ -1103,6 +1118,14 @@ const MessageList = <TMessage extends IMessage>({
     waitForImagesLoaded,
   ]);
 
+  // Ids of the messages that end a run of one sender: the next row is another
+  // sender, a system row, or the next day. Computed on the full list so the
+  // windowed slice still knows what follows its last row.
+  const runEnds = useMemo<Set<string>>(
+    () => messageRunEnds(memoizedMessages),
+    [memoizedMessages]
+  );
+
   const decorateMessages = (list: IMessage[]): DecoratedMessage[] => {
     let lastDateLabel: string | null = null;
     return list.map((message) => {
@@ -1110,7 +1133,11 @@ const MessageList = <TMessage extends IMessage>({
       const showDateLabel = messageDate !== lastDateLabel;
       lastDateLabel = messageDate;
 
-      return { message, showDateLabel };
+      return {
+        message,
+        showDateLabel,
+        isLastInGroup: runEnds.has(message.id),
+      };
     });
   };
 
@@ -1118,19 +1145,21 @@ const MessageList = <TMessage extends IMessage>({
   // default renderer below.
   const decoratedMessages = useMemo<DecoratedMessage[]>(
     () => decorateMessages(memoizedMessages),
-    [memoizedMessages]
+    [memoizedMessages, runEnds]
   );
   const visibleDecoratedMessages = useMemo<DecoratedMessage[]>(
     () =>
       visibleMessages === memoizedMessages
         ? decoratedMessages
         : decorateMessages(visibleMessages),
-    [visibleMessages, memoizedMessages, decoratedMessages]
+    [visibleMessages, memoizedMessages, decoratedMessages, runEnds]
   );
 
   // One anchoring mechanism for every insertion above or below the reader:
   // the rows on screen stay where they are while history is prepended, a jump
   // window is paged, the render window widens, or rows above change height.
+  usePaneWidthVar(containerRef);
+
   useScrollAnchor({
     containerRef,
     flowRef,
@@ -1140,7 +1169,7 @@ const MessageList = <TMessage extends IMessage>({
 
   const renderDecoratedMessage = useCallback(
     (decorated: DecoratedMessage) => {
-      const { message, showDateLabel } = decorated;
+      const { message, showDateLabel, isLastInGroup } = decorated;
 
       if (message.id === 'delimiter-new') {
         return (
@@ -1168,6 +1197,7 @@ const MessageList = <TMessage extends IMessage>({
           xmppUsername={user.xmppUsername}
           isReply={isReply}
           showDateLabel={showDateLabel}
+          isLastInGroup={isLastInGroup}
           data-message-id={message.id}
         />
       );

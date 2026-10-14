@@ -72,9 +72,10 @@ describe('sendMedia with several files', () => {
     sendMediaMessageStanza.mockResolvedValue(true);
   });
 
-  it('uploads the group in one request and emits exactly one stanza', async () => {
-    uploadFile.mockResolvedValue({
-      data: { results: [uploadResult(1), uploadResult(2), uploadResult(3)] },
+  it('uploads each file on its own and emits exactly one stanza', async () => {
+    uploadFile.mockImplementation(async (form: FormData) => {
+      const [file] = form.getAll('files') as File[];
+      return { data: { results: [uploadResult(Number(file.name.charAt(0)))] } };
     });
 
     const { result } = setup();
@@ -87,9 +88,10 @@ describe('sendMedia with several files', () => {
       );
     });
 
-    expect(uploadFile).toHaveBeenCalledTimes(1);
-    const formData = uploadFile.mock.calls[0][0] as FormData;
-    expect(formData.getAll('files')).toHaveLength(3);
+    expect(uploadFile).toHaveBeenCalledTimes(3);
+    uploadFile.mock.calls.forEach(([form]) => {
+      expect((form as FormData).getAll('files')).toHaveLength(1);
+    });
 
     // One stanza, not one per file - that is what makes it one message.
     expect(sendMediaMessageStanza).toHaveBeenCalledTimes(1);
@@ -120,22 +122,22 @@ describe('sendMedia with several files', () => {
   });
 
   it('shows one optimistic bubble covering every picked file', async () => {
-    let release: (value: unknown) => void = () => undefined;
+    const releases: Array<(value: unknown) => void> = [];
     uploadFile.mockImplementation(
       () => new Promise((resolve) => {
-        release = resolve;
+        releases.push(resolve);
       })
     );
 
     const { store, result } = setup();
 
-    let pending: Promise<void> | undefined;
+    let pending: Promise<boolean> | undefined;
     await act(async () => {
       pending = result.current.sendMedia(
         [makeFile('1.pdf'), makeFile('2.pdf')],
         'media',
         ROOM_JID
-      ) as Promise<void>;
+      );
     });
 
     const messages = roomMessages(store);
@@ -144,28 +146,37 @@ describe('sendMedia with several files', () => {
     expect(messages[0].attachments).toHaveLength(2);
 
     await act(async () => {
-      release({ data: { results: [uploadResult(1), uploadResult(2)] } });
+      releases.forEach((release, index) =>
+        release({ data: { results: [uploadResult(index + 1)] } })
+      );
       await pending;
     });
   });
 
-  // Before this, a failed upload left the bubble at "sending..." forever.
-  it('removes the optimistic bubble when the upload fails', async () => {
+  // A failed upload used to delete the bubble. Now the message is held with
+  // the failed file marked, so nothing is sent incomplete and the user can
+  // retry from the bubble.
+  it('holds the message with the failed file marked when an upload fails', async () => {
     uploadFile.mockRejectedValue(new Error('network down'));
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     const { store, result } = setup();
 
+    let delivered: boolean | undefined;
     await act(async () => {
-      await result.current.sendMedia([makeFile('1.pdf')], 'media', ROOM_JID);
+      delivered = await result.current.sendMedia([makeFile('1.pdf')], 'media', ROOM_JID);
     });
 
-    await waitFor(() => expect(roomMessages(store)).toHaveLength(0));
+    expect(delivered).toBe(false);
     expect(sendMediaMessageStanza).not.toHaveBeenCalled();
+    const [message] = roomMessages(store);
+    expect(message.failed).toBe(true);
+    expect(message.pending).toBe(false);
+    expect(message.attachments[0].uploadStatus).toBe('failed');
     consoleError.mockRestore();
   });
 
-  it('removes the optimistic bubble when the stanza never lands', async () => {
+  it('holds the message as failed when the stanza never lands', async () => {
     uploadFile.mockResolvedValue({ data: { results: [uploadResult(1)] } });
     sendMediaMessageStanza.mockResolvedValue(false);
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
@@ -173,11 +184,13 @@ describe('sendMedia with several files', () => {
 
     const { store, result } = setup();
 
+    let delivered: boolean | undefined;
     await act(async () => {
-      await result.current.sendMedia([makeFile('1.pdf')], 'media', ROOM_JID);
+      delivered = await result.current.sendMedia([makeFile('1.pdf')], 'media', ROOM_JID);
     });
 
-    await waitFor(() => expect(roomMessages(store)).toHaveLength(0));
+    expect(delivered).toBe(false);
+    expect(roomMessages(store)[0].failed).toBe(true);
     consoleError.mockRestore();
     consoleWarn.mockRestore();
   });
@@ -185,10 +198,12 @@ describe('sendMedia with several files', () => {
   it('ignores an empty selection', async () => {
     const { result } = setup();
 
+    let delivered: boolean | undefined;
     await act(async () => {
-      await result.current.sendMedia([], 'media', ROOM_JID);
+      delivered = await result.current.sendMedia([], 'media', ROOM_JID);
     });
 
+    expect(delivered).toBe(false);
     expect(uploadFile).not.toHaveBeenCalled();
   });
 });

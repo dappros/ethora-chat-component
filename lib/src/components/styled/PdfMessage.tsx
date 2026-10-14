@@ -1,16 +1,8 @@
+import { safeImageUrl } from '../../helpers/safeUrl';
 import React, { useCallback } from 'react';
 import { useDispatch } from 'react-redux';
-import {
-  FileName,
-  FileSize,
-  FileSizeContainer,
-  PdfBadge,
-  PdfContainer,
-  PdfInformation,
-  PdfMetaRow,
-  PdfThumbnailFrame,
-  PdfThumbnailSkeleton,
-} from './StyledInputComponents/MediaComponents';
+import styled from 'styled-components';
+import { PdfThumbnailSkeleton } from './StyledInputComponents/MediaComponents';
 import {
   setActiveFile,
   setActiveModal,
@@ -22,6 +14,15 @@ import { useInView } from '../../hooks/useInView';
 import { usePdfThumbnail } from '../../hooks/usePdfThumbnail';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { useT } from '../../i18n/useT';
+import FileCard from './FileCard';
+
+const Thumb = styled.img`
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+`;
 
 interface PdfMessageProps {
   fileURL: string;
@@ -53,7 +54,7 @@ const PdfMessage: React.FC<PdfMessageProps> = ({
   const previewEnabled = previewConfig?.enabled !== false;
   const sizeInBytes = Number.parseInt(String(size ?? ''), 10);
 
-  const { status, thumbnailUrl, pageCount } = usePdfThumbnail({
+  const { status, thumbnailUrl } = usePdfThumbnail({
     // A server-rendered preview is already an image: never pay for pdf.js.
     url: locationPreview ? undefined : fileURL,
     enabled: previewEnabled && inView && !!fileURL,
@@ -75,42 +76,25 @@ const PdfMessage: React.FC<PdfMessageProps> = ({
   const formattedSize = formatFileSize(size);
 
   return (
-    <PdfContainer
+    <FileCard
       ref={ref}
-      $compact={compact}
-      onClick={handleOpen}
+      name={formatFileName(fileName, 60)}
+      meta={['PDF', formattedSize || undefined]}
+      tone="pdf"
+      compact={compact}
+      onOpen={handleOpen}
       title={fileName}
-    >
-      <PdfThumbnailFrame $compact={compact}>
-        {previewSrc ? (
-          <img src={previewSrc} alt={fileName} />
+      aria-label={fileName}
+      icon={
+        previewSrc ? (
+          <Thumb src={safeImageUrl(previewSrc)} alt="" />
         ) : isRendering ? (
           <PdfThumbnailSkeleton />
         ) : (
-          <PdfIcon
-            width={compact ? 32 : 44}
-            height={compact ? 32 : 44}
-            aria-hidden="true"
-          />
-        )}
-      </PdfThumbnailFrame>
-      <PdfInformation>
-        <FileName>{formatFileName(fileName, compact ? 22 : 28)}</FileName>
-        <PdfMetaRow>
-          <PdfBadge>PDF</PdfBadge>
-          {formattedSize && (
-            <FileSizeContainer>
-              <FileSize>{formattedSize}</FileSize>
-            </FileSizeContainer>
-          )}
-          {!!pageCount && (
-            <FileSizeContainer>
-              <FileSize>{t('attachment.pages', { count: pageCount })}</FileSize>
-            </FileSizeContainer>
-          )}
-        </PdfMetaRow>
-      </PdfInformation>
-    </PdfContainer>
+          <PdfIcon width={24} height={24} aria-hidden="true" />
+        )
+      }
+    />
   );
 };
 

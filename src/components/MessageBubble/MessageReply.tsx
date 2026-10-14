@@ -9,7 +9,8 @@ export const StyledMessageReply = styled.div<{
     props.$isUser
       ? 'var(--ethora-color-bg, #ffffff)'
       : 'var(--ethora-color-primary-soft, #E7EDF9)'};
-  padding: 8px 16px;
+  margin: 4px 4px 6px;
+  padding: 6px 10px;
   font-size: var(--ethora-font-size-sm, 13px);
   line-height: 1.45;
   border-radius: var(--ethora-radius-sm, 8px);

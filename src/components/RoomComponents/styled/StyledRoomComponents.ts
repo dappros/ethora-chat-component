@@ -1,57 +1,80 @@
 import React from 'react';
 import styled from 'styled-components';
 
-// ONE line, always. The sender used to be a block of its own above the
-// text, so a room whose last message had a named sender was three lines
-// tall and a room showing "Room created" (or a message from an anonymous
-// sender) was two - the list was a staircase of tile heights.
-//
-// It is one flowing line of inline text, truncated ONCE at the end:
-// "Sender: text of the message...". Laying the sender and the text out as
-// two flex items instead made each of them shrink on its own, so a long
-// message squeezed the sender down to a single letter ("S", "Et...").
+// The last-message preview is a compact TWO-LINE block: the sender on the
+// first line, the message itself on the second. Both lines are single-line
+// and truncate on their own with an ellipsis, so a long sender can never eat
+// the message and a long message can never wrap. The block has a fixed
+// min-height (two 16px lines plus the 2px gap) so rows with and without a
+// sender line keep the same height; a row with no sender simply centres its
+// one line inside that height. A media thumbnail row is taller (28px line)
+// and is the only case that grows past it.
+export const PREVIEW_NAME_PX = 16;
+export const PREVIEW_LINE_PX = 18;
+export const PREVIEW_BLOCK_MIN_PX = PREVIEW_NAME_PX + 2 + PREVIEW_LINE_PX;
+
 export const LastRoomMessageContainer = styled.div`
-  display: block;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
   flex: 1 1 auto;
   min-width: 0;
-  height: 20px;
-  line-height: 20px;
+  /* Fixed, not min: every kind of last message (text, emoji, thumbnail,
+     deleted, no sender) reserves exactly the same two lines. */
+  height: ${PREVIEW_BLOCK_MIN_PX}px;
+  line-height: 1.25;
   text-align: start;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   color: var(--ethora-color-text-secondary, #5a5f66);
 `;
 
-export const LastRoomMessageName = styled.span`
-  font-weight: var(--ethora-font-weight-medium, 500);
-  color: var(--ethora-color-text, #141414);
-
-  &::after {
-    content: ':';
-    margin-inline-end: 4px;
-  }
-`;
-
-// Inline inside the container above; blockified (and truncating on its
-// own) when a row uses it directly as a flex item, e.g. "Room created".
-export const LastRoomMessageText = styled.span`
+// Line 1: sender (first + last name, "You" for own messages).
+export const LastRoomMessageName = styled.div`
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: ${PREVIEW_NAME_PX}px;
   min-width: 0;
-  text-align: start;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--ethora-color-text-secondary, #5a5f66);
 `;
 
-/** Thumbnail/icon + label for a media preview, flowing in the same line. */
-export const LastRoomMessageMedia = styled.span`
-  > :first-child {
-    display: inline-block;
-    vertical-align: -5px;
-    margin-inline-end: 4px;
+// Line 2: the message (also used on its own, e.g. "Room created").
+export const LastRoomMessageText = styled.span`
+  display: block;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: ${PREVIEW_LINE_PX}px;
+  text-align: start;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ethora-color-text-muted, #6b7280);
+
+  /* Unread rows: the message line turns bold and full-strength. */
+  [data-unread='true'] & {
+    font-weight: 600;
+    color: var(--ethora-color-text, #141414);
   }
 `;
+
+/** Line 2 when it carries an icon or thumbnail next to its label. */
+export const LastRoomMessageLine = styled.div`
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: ${PREVIEW_LINE_PX}px;
+  color: var(--ethora-color-text-muted, #6b7280);
+
+  > ${LastRoomMessageText} {
+    flex: 1 1 auto;
+  }
+`;
+
+/** Thumbnail/icon + label for a media preview, on the message line. */
+export const LastRoomMessageMedia = styled(LastRoomMessageLine)``;
 
 // Unread-count pill. Always solid `primary` + on-primary text regardless of
 // the row's active state, since the row background is now a soft tint

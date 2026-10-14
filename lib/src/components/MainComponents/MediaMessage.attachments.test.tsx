@@ -4,6 +4,7 @@ import { screen } from '@testing-library/react';
 import { renderWithProviders } from '../../test/renderWithProviders';
 import MediaMessage from './MediaMessage';
 import { IMessage } from '../../types/types';
+import { resetMediaProbeCaches } from '../../hooks/useMediaProbe';
 
 vi.mock('../../hooks/usePdfThumbnail', () => ({
   usePdfThumbnail: () => ({ status: 'idle', retry: () => undefined }),
@@ -36,6 +37,7 @@ describe('MediaMessage', () => {
   // successful network fetch would.
   const RealImage = globalThis.Image;
   beforeEach(() => {
+    resetMediaProbeCaches();
     class FakeImage {
       onload: null | (() => void) = null;
       onerror: null | (() => void) = null;
@@ -49,7 +51,7 @@ describe('MediaMessage', () => {
     globalThis.Image = RealImage;
   });
 
-  it('renders a legacy single-file image message unchanged', async () => {
+  it('shows the sharp preview in the bubble without fetching the original', async () => {
     renderMessage({
       mimetype: 'image/png',
       location: 'https://files.example/a.png',
@@ -71,7 +73,7 @@ describe('MediaMessage', () => {
 
     expect(screen.getByText('PDF')).toBeInTheDocument();
     expect(screen.getByText('report.pdf')).toBeInTheDocument();
-    expect(screen.getByText('2.00 KB')).toBeInTheDocument();
+    expect(screen.getByText('2 KB')).toBeInTheDocument();
   });
 
   // Storage labels anything it cannot sniff as octet-stream, which used to
@@ -86,7 +88,7 @@ describe('MediaMessage', () => {
     expect(screen.getByText('PDF')).toBeInTheDocument();
   });
 
-  it('renders every attachment of a multi-file message', () => {
+  it('renders every attachment of a multi-file message', async () => {
     renderMessage({
       mimetype: 'image/png',
       location: 'https://files.example/one.png',
@@ -110,8 +112,8 @@ describe('MediaMessage', () => {
       ],
     });
 
-    expect(screen.getByAltText('one.png')).toBeInTheDocument();
-    expect(screen.getByAltText('two.png')).toBeInTheDocument();
+    expect(await screen.findByAltText('one.png')).toBeInTheDocument();
+    expect(await screen.findByAltText('two.png')).toBeInTheDocument();
     expect(screen.getByText('three.pdf')).toBeInTheDocument();
   });
 
@@ -133,5 +135,37 @@ describe('MediaMessage', () => {
   it('falls back to the unsupported notice with nothing to show', () => {
     renderMessage({ mimetype: undefined, location: undefined });
     expect(screen.getByText('Unsupported media type')).toBeInTheDocument();
+  });
+
+  it('renders an svg as a file card, never as an image or album tile', () => {
+    const { container } = renderMessage({
+      attachments: [
+        {
+          location: 'https://files.example/a.png',
+          mimetype: 'image/png',
+          originalName: 'a.png',
+        },
+        {
+          location: 'https://files.example/logo.svg',
+          mimetype: 'image/svg+xml',
+          originalName: 'logo.svg',
+          size: '2048',
+        },
+      ] as never,
+    });
+    expect(container.querySelector('img[src$="logo.svg"]')).toBeNull();
+    expect(screen.getByLabelText('logo.svg')).toBeTruthy();
+    expect(screen.getByText('SVG')).toBeTruthy();
+  });
+
+  it('shows a repaired file name for a mojibake pdf', () => {
+    renderMessage({
+      mimetype: 'application/pdf',
+      location: 'https://files.example/a.pdf',
+      originalName: Array.from(new TextEncoder().encode('Список.pdf'))
+        .map((b) => String.fromCharCode(b))
+        .join(''),
+    });
+    expect(screen.getByText('Список.pdf')).toBeTruthy();
   });
 });
