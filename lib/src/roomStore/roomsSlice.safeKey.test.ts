@@ -11,13 +11,18 @@ import reducer, {
   setDisplayedMarker,
   setReactions,
   setReceivedReceipt,
+  setLastViewedTimestamp,
   setRoomDraft,
+  setRoomNoMessages,
   setRoomMuted,
   setRoomRole,
   updateRoom,
   updateRooms,
 } from './roomsSlice';
 import { isSafeKey } from './safeKey';
+import { mergeUsersSet } from './usersSetCap';
+import { applyMamReactions } from '../helpers/mamReactions';
+import { parse } from 'ltx';
 
 const ROOM = 'room@conference.example.com';
 const UNSAFE = ['__proto__', 'constructor', 'prototype'];
@@ -229,6 +234,66 @@ describe('receipt and marker reducers guard both keys', () => {
     const s = reducer(s0, addRoomMessage({ roomJID: ROOM, message: payload } as any));
     expect(s.rooms[ROOM].messages[0].body).toBe('edited');
     expect(Object.keys(s.rooms[ROOM].messages[0].reaction ?? {})).toEqual([]);
+    clean();
+  });
+});
+
+describe('inline prototype guards on the remaining writes', () => {
+  it.each(UNSAFE)('setLastViewedTimestamp ignores unsafe room %s', (bad) => {
+    const start = withRoom();
+    const s = reducer(
+      start,
+      setLastViewedTimestamp({ chatJID: bad, timestamp: 5 } as any)
+    );
+    expect(s).toBe(start);
+    clean();
+  });
+
+  it.each(UNSAFE)('setRoomNoMessages ignores unsafe room %s', (bad) => {
+    const start = withRoom();
+    const s = reducer(
+      start,
+      setRoomNoMessages({ chatJID: bad, value: true } as any)
+    );
+    expect(s).toBe(start);
+    clean();
+  });
+
+  it.each(UNSAFE)('addRoomFromApi ignores an unsafe room jid %s', (bad) => {
+    const start = withRoom();
+    const s = reducer(
+      start,
+      {
+        type: 'roomMessages/addRoomFromApi',
+        payload: { room: { jid: bad, title: 'x' } },
+      } as any
+    );
+    expect(s).toBe(start);
+    expect(Object.keys(s.rooms)).toEqual([ROOM]);
+    clean();
+  });
+
+  it.each(UNSAFE)('mergeUsersSet skips an unsafe username %s', (bad) => {
+    const usersSet: Record<string, any> = {};
+    mergeUsersSet(
+      usersSet,
+      { [bad]: { xmppUsername: bad, firstName: 'p' } as any, alice: { xmppUsername: 'alice' } as any }
+    );
+    expect(Object.keys(usersSet)).toEqual(['alice']);
+    clean();
+  });
+
+  it.each(UNSAFE)('applyMamReactions does not write an unsafe reactor %s', (bad) => {
+    const target = {
+      id: '1',
+      body: 'hi',
+      user: { id: 'u' },
+    } as any;
+    const stanza = parse(
+      `<message><stanza-id xmlns="urn:xmpp:sid:0" by="${ROOM}" id="9"/><reactions xmlns="urn:xmpp:reactions:0" id="1" from="${bad}@host/res"><reaction>👍</reaction></reactions></message>`
+    );
+    const { messages } = applyMamReactions([target], [stanza]);
+    expect(Object.keys(messages[0].reaction ?? {})).toEqual([]);
     clean();
   });
 });
