@@ -170,17 +170,38 @@ const Hint = styled.span`
   max-width: 220px;
 `;
 
+const RetryLink = styled.span`
+  margin-top: 2px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: var(--ethora-font-size-xs, 12px);
+  font-weight: 600;
+  color: var(--ethora-color-primary, #0052cd);
+  background: color-mix(in srgb, var(--ethora-color-primary, #0052cd) 10%, transparent);
+  cursor: pointer;
+
+  &:hover {
+    background: color-mix(in srgb, var(--ethora-color-primary, #0052cd) 18%, transparent);
+  }
+`;
+
 export interface ImageUnavailableStateProps {
   /**
    * Compact: the glyph only, about 28px, for album grid tiles. Full: the
    * illustration, the caption and a hint, for a solo bubble or the viewer.
    */
   compact?: boolean;
+  /**
+   * Shows a "Try again" action. The picture sits inside the bubble's open
+   * button, so the action is a span with button semantics, not a <button>.
+   */
+  onRetry?: () => void;
 }
 
 /** Self-contained "could not load" state that fills its positioned parent. */
 export const ImageUnavailableState: React.FC<ImageUnavailableStateProps> = ({
   compact = false,
+  onRetry,
 }) => {
   const t = useT();
   const label = t('media.imageUnavailable');
@@ -193,6 +214,27 @@ export const ImageUnavailableState: React.FC<ImageUnavailableStateProps> = ({
           <ImageUnavailableArt size={80} />
           <Caption className="image-unavailable-caption">{label}</Caption>
           <Hint className="image-unavailable-hint">{t('media.imageUnavailableHint')}</Hint>
+          {onRetry && (
+            <RetryLink
+              role="button"
+              tabIndex={0}
+              data-testid="media-retry"
+              onClick={(event) => {
+                event.stopPropagation();
+                event.preventDefault();
+                onRetry();
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.stopPropagation();
+                  event.preventDefault();
+                  onRetry();
+                }
+              }}
+            >
+              {t('media.retry')}
+            </RetryLink>
+          )}
         </>
       )}
     </Box>

@@ -18,8 +18,7 @@ import { useT } from '../../i18n/useT';
 const AttachmentRow: React.FC<{
   attachment: IAttachment;
   compact: boolean;
-  onUnavailable?: () => void;
-}> = ({ attachment, compact, onUnavailable }) => {
+}> = ({ attachment, compact }) => {
   const fileName = getAttachmentName(attachment);
   const kind = getFileKind(attachment.mimetype, fileName);
 
@@ -59,7 +58,6 @@ const AttachmentRow: React.FC<{
           width={attachment.width}
           height={attachment.height}
           localUrl={attachment.localUrl}
-          onUnavailable={onUnavailable}
         />
       );
     case 'video':
@@ -128,9 +126,8 @@ const RetryHit = styled.button`
 const AttachmentRowWithStatus: React.FC<{
   attachment: IAttachment;
   compact: boolean;
-  onUnavailable?: () => void;
   onRetry?: () => void;
-}> = ({ attachment, compact, onUnavailable, onRetry }) => {
+}> = ({ attachment, compact, onRetry }) => {
   const t = useT();
   const status = attachment.uploadStatus;
   // Once a tile has been uploading, its wrapper stays for good so the
@@ -155,17 +152,13 @@ const AttachmentRowWithStatus: React.FC<{
 
   if (!wrapped) {
     return (
-      <AttachmentRow
-        attachment={attachment}
-        compact={compact}
-        onUnavailable={onUnavailable}
-      />
+      <AttachmentRow attachment={attachment} compact={compact} />
     );
   }
   const failed = status === 'failed';
   return (
     <StatusWrap>
-      <AttachmentRow attachment={attachment} compact={compact} onUnavailable={onUnavailable} />
+      <AttachmentRow attachment={attachment} compact={compact} />
       {(status || leaving) && (
         <MediaUploadOverlay
           status={status ?? 'uploading'}
@@ -188,18 +181,12 @@ const AttachmentRowWithStatus: React.FC<{
 
 interface AttachmentListProps {
   attachments: IAttachment[];
-  /** See CustomMessageImage's `onUnavailable` - only wired to the full-width
-   * single-image renderer (AttachmentRow), not the album tiles, since one
-   * dead thumbnail there shouldn't tombstone a message that still has other
-   * live attachments. */
-  onUnavailable?: () => void;
   /** Re-sends the file at this index of `attachments` after a failed upload. */
   onRetryAttachment?: (index: number) => void;
 }
 
 const AttachmentList: React.FC<AttachmentListProps> = ({
   attachments,
-  onUnavailable,
   onRetryAttachment,
 }) => {
   const { tiles, rows } = useMemo(() => {
@@ -253,7 +240,6 @@ const AttachmentList: React.FC<AttachmentListProps> = ({
             attachment.attachmentId ||
             `${attachment.location}-${index}`
           }
-          onUnavailable={onUnavailable}
           attachment={attachment}
           compact={compact}
           onRetry={onRetryAttachment ? () => onRetryAttachment(index) : undefined}

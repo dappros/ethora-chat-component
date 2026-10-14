@@ -73,15 +73,42 @@ export const withFileToken = (url?: string | null): string =>
 const RECOVERY_COOLDOWN_MS = 30_000;
 let recoveryInFlight: Promise<boolean> | null = null;
 let lastRecoveryAt = 0;
+// The token the last refresh was asked to replace. A second broken image
+// under the very same token cannot learn anything new from another refresh
+// (the first one either swapped the token, which re-renders every image, or
+// failed), so it is answered at once instead of costing a request each.
+let lastRecoveredFromToken: string | null = null;
+// A token lives about an hour, so the same-token answer expires well before
+// that: an image failing later because the token aged out may refresh again.
+const SAME_TOKEN_WINDOW_MS = 10 * 60_000;
 
-export const requestFileTokenRecovery = (): Promise<boolean> => {
+export const resetFileTokenRecovery = () => {
+  recoveryInFlight = null;
+  lastRecoveryAt = 0;
+  lastRecoveredFromToken = null;
+};
+
+export const requestFileTokenRecovery = (
+  options: { force?: boolean } = {}
+): Promise<boolean> => {
   if (recoveryInFlight) return recoveryInFlight;
 
+  const currentToken = store.getState().chatSettingStore?.user?.fileToken || '';
   const now = Date.now();
-  if (now - lastRecoveryAt < RECOVERY_COOLDOWN_MS) {
+  if (
+    !options.force &&
+    lastRecoveredFromToken !== null &&
+    lastRecoveredFromToken === currentToken &&
+    now - lastRecoveryAt < SAME_TOKEN_WINDOW_MS
+  ) {
+    return Promise.resolve(false);
+  }
+
+  if (!options.force && now - lastRecoveryAt < RECOVERY_COOLDOWN_MS) {
     return Promise.resolve(false);
   }
   lastRecoveryAt = now;
+  lastRecoveredFromToken = currentToken;
 
   const state = store.getState();
   const refreshConfig = state.chatSettingStore?.config?.refreshTokens;
