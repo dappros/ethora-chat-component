@@ -16,9 +16,17 @@ const hasMultiByteSignature = (value: string): boolean =>
 const looksLikePercentEncoded = (value: string): boolean =>
   /%[0-9A-Fa-f]{2}/.test(value);
 
-const hasControlChars = (value: string): boolean =>
-  // eslint-disable-next-line no-control-regex
-  /[\u0000-\u001F\u007F-\u009F]/.test(value);
+// C0 controls, DEL and the C1 range, checked per UTF-16 code unit.
+const hasControlChars = (value: string): boolean => {
+  for (let i = 0; i < value.length; i += 1) {
+    const code = value.charCodeAt(i);
+    if (code < 0x20 || (code >= 0x7f && code <= 0x9f)) return true;
+  }
+  return false;
+};
+
+// Any code unit above ASCII (same as the former [^\u0000-\u007F] test).
+const hasNonAscii = (value: string): boolean => /[\u0080-\uFFFF]/.test(value);
 
 const decodeLatin1AsUtf8 = (value: string): string | null => {
   if (typeof TextDecoder === 'undefined') return null;
@@ -41,7 +49,7 @@ const isPlausibleRepair = (original: string, repaired: string): boolean =>
   !hasControlChars(repaired) &&
   // Must contain a letter from a non-Latin-1 script or a real accented
   // letter, otherwise the "fix" is just noise.
-  /[^\u0000-\u007F]/.test(repaired) &&
+  hasNonAscii(repaired) &&
   /\p{L}/u.test(repaired);
 
 const tryPercentDecode = (value: string): string => {
@@ -62,7 +70,7 @@ export const repairFilenameEncoding = (name: string): string => {
   // Percent-encoded names ("%D0%A1...") first; they may also be mojibake
   // after decoding, so run the byte repair on the result.
   const unescaped = tryPercentDecode(current);
-  if (unescaped !== current && /[^\u0000-\u007F]/.test(unescaped)) {
+  if (unescaped !== current && hasNonAscii(unescaped)) {
     current = unescaped;
   }
 

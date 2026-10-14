@@ -52,6 +52,18 @@ describe('repairFilenameEncoding', () => {
     expect(repairFilenameEncoding(once)).toBe(once);
   });
 
+  it('does not repair names that would contain control characters', () => {
+    // Byte repair would yield a C0 control character (U+0001).
+    const raw = mojibake('Список\u0001.pdf');
+    expect(repairFilenameEncoding(raw)).toBe(raw);
+    // Percent-decoding would yield a C1 control character (U+009F).
+    const encoded = '%D0%A1%C2%9F.pdf';
+    expect(repairFilenameEncoding(encoded)).toBe(encoded);
+    // Percent-decoding would yield DEL (U+007F).
+    const del = '%D0%A1%7F.pdf';
+    expect(repairFilenameEncoding(del)).toBe(del);
+  });
+
   it('does not touch invalid byte sequences', () => {
     expect(repairFilenameEncoding('Ð.pdf')).toBe('Ð.pdf');
   });
