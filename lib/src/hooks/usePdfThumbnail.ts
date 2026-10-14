@@ -29,7 +29,6 @@ interface UsePdfThumbnailResult {
   status: PdfThumbnailStatus;
   /** Object URL - owned by this hook, revoked on unmount/url change. */
   thumbnailUrl?: string;
-  pageCount?: number;
   /** Re-runs a render that failed or was skipped for being too big. */
   retry: () => void;
 }
@@ -87,7 +86,6 @@ export const usePdfThumbnail = ({
 }: UsePdfThumbnailParams): UsePdfThumbnailResult => {
   const [status, setStatus] = useState<PdfThumbnailStatus>('idle');
   const [thumbnailUrl, setThumbnailUrl] = useState<string | undefined>();
-  const [pageCount, setPageCount] = useState<number | undefined>();
   const [attempt, setAttempt] = useState(0);
   const [forced, setForced] = useState(false);
 
@@ -151,8 +149,6 @@ export const usePdfThumbnail = ({
         loadingTask = pdfjs.getDocument({ url, isEvalSupported: false });
         document = await loadingTask.promise;
         if (cancelled) return;
-
-        setPageCount(document.numPages);
 
         const page = await document.getPage(1);
         if (cancelled) return;
@@ -228,5 +224,5 @@ export const usePdfThumbnail = ({
     publishThumbnail,
   ]);
 
-  return { status, thumbnailUrl, pageCount, retry };
+  return { status, thumbnailUrl, retry };
 };

@@ -53,7 +53,7 @@ const PdfMessage: React.FC<PdfMessageProps> = ({
   const previewEnabled = previewConfig?.enabled !== false;
   const sizeInBytes = Number.parseInt(String(size ?? ''), 10);
 
-  const { status, thumbnailUrl, pageCount } = usePdfThumbnail({
+  const { status, thumbnailUrl } = usePdfThumbnail({
     // A server-rendered preview is already an image: never pay for pdf.js.
     url: locationPreview ? undefined : fileURL,
     enabled: previewEnabled && inView && !!fileURL,
@@ -74,15 +74,11 @@ const PdfMessage: React.FC<PdfMessageProps> = ({
   const isRendering = !previewSrc && status === 'loading';
   const formattedSize = formatFileSize(size);
 
-  const pageLabel = pageCount
-    ? t(pageCount === 1 ? 'attachment.page' : 'attachment.pages', { count: pageCount })
-    : undefined;
-
   return (
     <FileCard
       ref={ref}
       name={formatFileName(fileName, 60)}
-      meta={['PDF', formattedSize || undefined, pageLabel]}
+      meta={['PDF', formattedSize || undefined]}
       tone="pdf"
       compact={compact}
       onOpen={handleOpen}

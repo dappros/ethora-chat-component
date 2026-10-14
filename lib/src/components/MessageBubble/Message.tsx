@@ -72,6 +72,11 @@ import {
 } from '../../utils/translateModePolicy';
 import { resendMessage } from '../../utils/resendMessage';
 import { hasMediaRetry, retryMediaSend } from '../../helpers/mediaSendRetry';
+import { getMessageAttachments } from '../../helpers/attachments';
+import {
+  getMediaBlockMode,
+  usesMediaOverlayTime,
+} from '../../helpers/mediaBubble';
 
 // Inherits CustomMessageTimestamp's colour/size - just the WhatsApp/
 // Telegram-style italic to read as a tag, not a second timestamp.
@@ -639,6 +644,18 @@ const Message: React.FC<MessageProps> = forwardRef<
     });
   };
 
+  // A media bubble lays out its files as one block (see AttachmentList). When
+  // that block is only pictures or videos, the time floats over it as a pill.
+  const isMediaBubble = message?.isMediafile === 'true' && !message?.isDeleted;
+  const mediaAttachments = isMediaBubble ? getMessageAttachments(message) : [];
+  const mediaBlockMode = getMediaBlockMode(mediaAttachments);
+  const timeOverPicture =
+    isMediaBubble &&
+    !isFailed &&
+    usesMediaOverlayTime(mediaAttachments) &&
+    !(quickReplies.length > 0) &&
+    !previewUrl;
+
   return (
     <>
       <CustomMessageContainer
@@ -673,7 +690,8 @@ const Message: React.FC<MessageProps> = forwardRef<
           data-ethora-bubble=""
           $deleted={message.isDeleted}
           $isUser={isUser}
-          $media={message?.isMediafile === 'true' && !message?.isDeleted}
+          $media={isMediaBubble}
+          $solo={isMediaBubble && mediaBlockMode === 'solo'}
           onContextMenu={
             !config?.disableInteractions ? handleContextMenu : undefined
           }
@@ -772,7 +790,11 @@ const Message: React.FC<MessageProps> = forwardRef<
                 isUser={isUser}
               />
             )}
-          <CustomMessageTimestamp>
+          <CustomMessageTimestamp
+            $media={isMediaBubble}
+            $overlay={timeOverPicture}
+            $bordered={!message.isDeleted && !isUser}
+          >
             {sentLogicEnabled &&
               isUser &&
               isPending &&
@@ -800,7 +822,13 @@ const Message: React.FC<MessageProps> = forwardRef<
             })}
             {sentLogicEnabled && isUser && !isPending && !isFailed && (
               <TickStatusWrapper>
-                {readStatus === 'sent' ? (
+                {timeOverPicture ? (
+                  readStatus === 'sent' ? (
+                    <SingleTick color="#FFFFFF" />
+                  ) : (
+                    <DoubleTick stroke="#FFFFFF" />
+                  )
+                ) : readStatus === 'sent' ? (
                   <SingleTick color="#8C8C8C" />
                 ) : (
                   <DoubleTick
