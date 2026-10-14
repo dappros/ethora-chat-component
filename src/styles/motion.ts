@@ -53,9 +53,20 @@ export const scaleIn = keyframes`
   }
 `;
 
-export const shimmer = keyframes`
-  from { background-position: -200% 0; }
-  to { background-position: 200% 0; }
+/** Skeleton timing: one sweep cycle, and the delay before anything shows. */
+export const SHIMMER_SWEEP_MS = 2000;
+export const SHIMMER_DELAY_MS = 120;
+export const SHIMMER_FADE_IN_MS = 240;
+
+/**
+ * The loading band drifts left to right (reading direction). Keyframes move
+ * the band's own transform, not background-position, so the browser can run
+ * it on the compositor. The band is 60% of the host wide, so -100% parks it
+ * just off the left edge and 166.67% just off the right edge.
+ */
+export const shimmerSweep = keyframes`
+  from { transform: translateX(-100%); }
+  to { transform: translateX(166.67%); }
 `;
 
 /**
@@ -130,17 +141,56 @@ export const slideInRightAnimation = css`
   ${reducedMotion}
 `;
 
-/** Shimmering skeleton background, respecting reduced motion (stays static). */
+/**
+ * Loading skeleton: a calm, slightly tinted base with one soft band sweeping
+ * left to right every 2s. The band fades in with its own transparent edges,
+ * so there is no hard leading or trailing line. Nothing shows for the first
+ * 120ms, so an image that arrives quickly never flashes a placeholder.
+ *
+ * The host must be positioned (`position: relative` or `absolute`, set by the
+ * host itself so this helper cannot override it); the band is an ::after
+ * clipped by the host's `overflow: hidden`. Reduced motion keeps only the
+ * static base.
+ */
 export const shimmerBackground = css`
-  background: linear-gradient(
-    90deg,
-    var(--ethora-color-bg-subtle, #f5f7fa) 25%,
-    var(--ethora-color-bg-hover, #f0f2f5) 37%,
-    var(--ethora-color-bg-subtle, #f5f7fa) 63%
-  );
-  background-size: 400% 100%;
-  animation: ${shimmer} 1.4s ease infinite;
+  overflow: hidden;
+  background-color: color-mix(in srgb, var(--ethora-color-text, #141414) 3%, var(--ethora-color-bg-subtle, #f5f7fa));
+  animation: ${fadeIn} ${SHIMMER_FADE_IN_MS}ms ${MOTION_EASE} ${SHIMMER_DELAY_MS}ms backwards;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 60%;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--ethora-color-text, #141414) 7%, transparent) 50%,
+      transparent 100%
+    );
+    transform: translateX(-100%);
+    will-change: transform;
+    animation: ${shimmerSweep} ${SHIMMER_SWEEP_MS}ms ease-in-out ${SHIMMER_DELAY_MS}ms infinite backwards;
+  }
+
+  [data-ethora-color-scheme='dark'] &::after {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.05) 50%,
+      transparent 100%
+    );
+  }
+
   ${reducedMotion}
+
+  @media (prefers-reduced-motion: reduce) {
+    &::after {
+      display: none;
+    }
+  }
 `;
 
 // ---------------------------------------------------------------------------
