@@ -80,7 +80,10 @@ export const ChatItem = styled.div.withConfig({
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 60px;
+  /* One fixed card height for every kind of last message. */
+  box-sizing: border-box;
+  height: 76px;
+  flex-shrink: 0;
   border-radius: var(--ethora-radius-md, 12px);
   gap: 16px;
   padding: 8px;

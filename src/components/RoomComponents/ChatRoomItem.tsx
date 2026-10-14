@@ -13,6 +13,7 @@ import Composing from '../styled/StyledInputComponents/Composing';
 import {
   LastRoomMessageText,
   NewMessageMarker,
+  PREVIEW_BLOCK_MIN_PX,
 } from './styled/StyledRoomComponents';
 import LastMessageItem from './LastMessageItem';
 import { hasMediaPreview, pickPreviewSource } from '../../helpers/lastMessagePreview';
@@ -27,7 +28,10 @@ import { formatCallLogLabel } from '../../helpers/callLogMessage';
 import { stripBotMarkup } from '../../helpers/botMarkup';
 import { appendFileToken } from '../../helpers/secureFileUrl';
 import { RoomListTestIds } from '../../testIds';
-import { isOpaqueXmppUserId } from '../../helpers/xmppUsername';
+import {
+  isOpaqueXmppUserId,
+  isSameXmppUsername,
+} from '../../helpers/xmppUsername';
 
 interface ChatRoomItemProps {
   chat: IRoom;
@@ -113,24 +117,32 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
         ? `${entry.firstName ?? ''} ${entry.lastName ?? ''}`.trim()
         : '';
 
-      // usersSet first, exactly like Message.tsx: it's the live store, so
-      // a renamed user updates here too instead of showing whatever name
-      // was cached with the message. The message's own `name` is the
-      // fallback that carries broadcast/system senders ("Ethora"), which
-      // never appear in usersSet.
+      // Line 1 of the preview. Own messages read "You". Otherwise usersSet
+      // first, exactly like Message.tsx: it's the live store, so a renamed
+      // user updates here too instead of showing whatever name was cached
+      // with the message. The message's own `name` is the fallback that
+      // carries broadcast/system senders ("Ethora"), which never appear in
+      // usersSet. An opaque id (local part or full jid) is never shown as a
+      // name - a 50-character hex string reads as a bug - and an email is
+      // only used when nothing better exists, and then only the part before
+      // the "@". The result may be EMPTY: the preview then omits line 1 and
+      // centres the message.
+      const isOwn =
+        !!myXmppUsername &&
+        !!localId &&
+        isSameXmppUsername(rawUserId, myXmppUsername);
       const messageName = String(message?.user?.name || '').trim();
-      const safeMessageName = isOpaqueXmppUserId(messageName) ? '' : messageName;
-      // An opaque id (local part or full jid) is never shown as a name - a
-      // 50-character hex string reads as a bug, not a name, and it also
-      // breaks the row's fixed-width layout. Leave the name EMPTY in that
-      // case (rather than falling through to 'Unknown') so the preview
-      // renderers below can omit the name line entirely and show just the
-      // message body, which reads fine on its own. A genuinely
-      // human-readable id is still shown, same as before.
-      const safeLocalId = isOpaqueXmppUserId(localId) ? '' : localId;
-      const safeRawUserId = isOpaqueXmppUserId(rawUserId) ? '' : rawUserId;
-      const safeName =
-        fromUsersSet || safeMessageName || safeLocalId || safeRawUserId || '';
+      const named = [fromUsersSet, messageName].filter(
+        (c) => c && !isOpaqueXmppUserId(c)
+      );
+      const idFallback = [localId, rawUserId].filter(
+        (c) => c && !isOpaqueXmppUserId(c) && !c.includes('@')
+      );
+      const real = named.find((c) => !c.includes('@'));
+      const mail = named.find((c) => c.includes('@'));
+      const safeName = isOwn
+        ? t('search.messages.you')
+        : real || (mail ? mail.split('@')[0] : idFallback[0] || '');
 
       return {
         ...message,
@@ -147,7 +159,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
         },
       };
     },
-    [previewSenderEntry, t]
+    [previewSenderEntry, myXmppUsername, t]
   );
 
   const lastRawMessage = previewSourceMessage;
@@ -291,7 +303,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
             width: '100%',
             minWidth: 0,
             gap: '16px',
-            height: '24px',
+            height: '20px',
             justifyContent: 'space-between',
           }}
         >
@@ -364,11 +376,13 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
             minWidth: 0,
             // Fixed, not content-sized: a room with no preview yet (history
             // still loading) must not come out shorter than its neighbours
-            // either. The preview itself is a single 20px line (28px with a media thumbnail) - see
-            // LastRoomMessageContainer.
-            // A thumbnail row (image / video) is 28px; every text row is 20px.
-            minHeight: '20px',
+            // either. The preview is a two-line block (see
+            // LastRoomMessageContainer); a media thumbnail makes its second
+            // line 28px tall, the only case that grows past this.
+            height: `${PREVIEW_BLOCK_MIN_PX}px`,
+            marginTop: 2,
           }}
+          data-unread={chat.unreadMessages > 0 ? 'true' : undefined}
         >
           {chat.composing ? (
             <Composing

@@ -11,40 +11,13 @@ import {
 } from '../../../helpers/secureFileUrl';
 import {
   LastRoomMessageContainer,
+  LastRoomMessageLine,
   LastRoomMessageName,
   LastRoomMessageText,
 } from './StyledRoomComponents';
 
 /** Edge of the thumbnail tile, and so the height of a thumbnail row. */
-export const MEDIA_THUMB_PX = 28;
-
-// A thumbnail row is taller than the 20px text row, so this container
-// overrides LastRoomMessageContainer's fixed height for it.
-const MediaContainer = styled(LastRoomMessageContainer)<{ $tall: boolean }>`
-  height: ${({ $tall }) => ($tall ? `${MEDIA_THUMB_PX}px` : '20px')};
-  line-height: ${({ $tall }) => ($tall ? `${MEDIA_THUMB_PX}px` : '20px')};
-  display: flex;
-  align-items: center;
-  min-width: 0;
-
-  /* A long sender name gives way first; the media label stays readable. */
-  > ${LastRoomMessageName} {
-    flex: 0 1 auto;
-    min-width: 0;
-    max-width: 55%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  > span {
-    flex-shrink: 0;
-  }
-  > ${LastRoomMessageName} {
-    flex-shrink: 1;
-  }
-  > ${LastRoomMessageText} {
-    flex-shrink: 1;
-  }
-`;
+export const MEDIA_THUMB_PX = 18;
 
 const Tile = styled.span`
   position: relative;
@@ -53,11 +26,11 @@ const Tile = styled.span`
   justify-content: center;
   width: ${MEDIA_THUMB_PX}px;
   height: ${MEDIA_THUMB_PX}px;
-  margin-inline-end: 8px;
-  vertical-align: middle;
+  flex-shrink: 0;
+  margin-inline-end: 6px;
   box-sizing: border-box;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: 4px;
   background-color: var(--ethora-color-bg-hover, #f0f2f5);
   color: var(--ethora-color-text-secondary, #5a5f66);
 `;
@@ -82,7 +55,7 @@ const PlayBadge = styled.span`
 
 const InlineIcon = styled.span`
   display: inline-flex;
-  vertical-align: middle;
+  flex-shrink: 0;
   margin-inline-end: 6px;
   color: var(--ethora-color-text-secondary, #5a5f66);
 `;
@@ -220,8 +193,13 @@ const LastMessageMedia: FC<LastMessageMediaProps> = ({ preview, name }) => {
   if (caption) label = `${label}, ${caption}`;
 
   return (
-    <MediaContainer $tall={tall} data-testid="last-message-media" data-kind={kind}>
-      {name && <LastRoomMessageName>{name}</LastRoomMessageName>}
+    <LastRoomMessageContainer data-testid="last-message-media" data-kind={kind}>
+      {name && (
+        <LastRoomMessageName data-testid="last-message-name">
+          {name}
+        </LastRoomMessageName>
+      )}
+      <LastRoomMessageLine data-testid="last-message-line">
       {tall ? (
         <Tile data-testid="last-message-tile">
           {showThumb ? (
@@ -240,11 +218,11 @@ const LastMessageMedia: FC<LastMessageMediaProps> = ({ preview, name }) => {
               }}
             />
           ) : (
-            <Glyph size={16} />
+            <Glyph size={12} />
           )}
           {kind === 'video' && showThumb && (
             <PlayBadge data-testid="last-message-play">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M8 5v14l11-7z" />
               </svg>
             </PlayBadge>
@@ -252,11 +230,12 @@ const LastMessageMedia: FC<LastMessageMediaProps> = ({ preview, name }) => {
         </Tile>
       ) : (
         <InlineIcon>
-          <Glyph size={16} />
+          <Glyph size={14} />
         </InlineIcon>
       )}
       <LastRoomMessageText>{label}</LastRoomMessageText>
-    </MediaContainer>
+      </LastRoomMessageLine>
+    </LastRoomMessageContainer>
   );
 };
 
