@@ -365,6 +365,13 @@ const compactReaction = (
     const { senderFirstName, senderLastName } = entry.data || {};
     if (senderFirstName) data.senderFirstName = senderFirstName;
     if (senderLastName) data.senderLastName = senderLastName;
+    if (
+      reactor === '__proto__' ||
+      reactor === 'constructor' ||
+      reactor === 'prototype'
+    ) {
+      continue;
+    }
     out[reactor] = { emoji: entry.emoji, data };
   }
   return Object.keys(out).length ? out : undefined;

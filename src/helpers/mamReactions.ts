@@ -57,10 +57,18 @@ const mergeReactionIntoMessage = (
   reaction: ExtractedReaction
 ): void => {
   if (!target.reaction) target.reaction = {};
+  const reactor = reaction.fromId;
+  if (
+    reactor === '__proto__' ||
+    reactor === 'constructor' ||
+    reactor === 'prototype'
+  ) {
+    return;
+  }
   if (reaction.emoji.length === 0) {
-    delete target.reaction[reaction.fromId];
+    delete target.reaction[reactor];
   } else {
-    target.reaction[reaction.fromId] = {
+    target.reaction[reactor] = {
       emoji: reaction.emoji,
       data: reaction.data,
     };

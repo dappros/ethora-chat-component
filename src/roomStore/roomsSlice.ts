@@ -581,6 +581,13 @@ const applyRoomUpdate = (
         ? Math.max(prevCnt, updates.members.length)
         : updates.members.length;
   }
+  if (
+    jid === '__proto__' ||
+    jid === 'constructor' ||
+    jid === 'prototype'
+  ) {
+    return;
+  }
   state.rooms[jid] = merged;
 };
 
@@ -598,7 +605,15 @@ const roomsStore = createSlice({
       const existingMessages = Array.isArray(existing?.messages)
         ? existing!.messages
         : [];
-      state.rooms[roomData.jid] = {
+      const roomJid = roomData.jid;
+      if (
+        roomJid === '__proto__' ||
+        roomJid === 'constructor' ||
+        roomJid === 'prototype'
+      ) {
+        return;
+      }
+      state.rooms[roomJid] = {
         ...existing,
         ...roomData,
         title: roomData.title || existing?.title || roomData.title,
@@ -656,6 +671,13 @@ const roomsStore = createSlice({
         delete state.rooms[jid];
       }
       if (state.drafts?.[jid] !== undefined) {
+        if (
+          jid === '__proto__' ||
+          jid === 'constructor' ||
+          jid === 'prototype'
+        ) {
+          return;
+        }
         delete state.drafts[jid];
       }
     },
@@ -675,6 +697,13 @@ const roomsStore = createSlice({
       );
 
       if (!text) {
+        if (
+          jid === '__proto__' ||
+          jid === 'constructor' ||
+          jid === 'prototype'
+        ) {
+          return;
+        }
         if (state.drafts[jid] !== undefined) delete state.drafts[jid];
         return;
       }
@@ -686,6 +715,13 @@ const roomsStore = createSlice({
 
       // Key insertion order IS the recency order the cap below trims by, so
       // re-insert the room just typed in as the newest entry.
+      if (
+        jid === '__proto__' ||
+        jid === 'constructor' ||
+        jid === 'prototype'
+      ) {
+        return;
+      }
       delete state.drafts[jid];
       state.drafts[jid] = text;
 
@@ -736,6 +772,13 @@ const roomsStore = createSlice({
           state.activeRoomJID === roomJID
             ? 0
             : state.rooms[roomJID].lastViewedTimestamp;
+        if (
+          roomJID === '__proto__' ||
+          roomJID === 'constructor' ||
+          roomJID === 'prototype'
+        ) {
+          return;
+        }
         state.rooms[roomJID].messages = normalizeDelimiterPosition(
           merged,
           effectiveLastViewed
@@ -758,6 +801,13 @@ const roomsStore = createSlice({
           state.activeRoomJID === roomJID
             ? 0
             : state.rooms[roomJID].lastViewedTimestamp;
+        if (
+          roomJID === '__proto__' ||
+          roomJID === 'constructor' ||
+          roomJID === 'prototype'
+        ) {
+          return;
+        }
         state.rooms[roomJID].messages = normalizeDelimiterPosition(
           sorted,
           effectiveLastViewed
@@ -801,6 +851,13 @@ const roomsStore = createSlice({
       const { roomJID, messageId } = action.payload;
       if (!isSafeKey(roomJID)) return;
       if (state.rooms[roomJID]) {
+        if (
+          roomJID === '__proto__' ||
+          roomJID === 'constructor' ||
+          roomJID === 'prototype'
+        ) {
+          return;
+        }
         state.rooms[roomJID].messages = state.rooms[roomJID].messages.filter(
           (message) => message.id !== messageId
         );
@@ -825,6 +882,13 @@ const roomsStore = createSlice({
       forEachMessageCopy(state, roomJID, messageId, (message) => {
         if (!message.reaction) {
           message.reaction = {};
+        }
+        if (
+          fromId === '__proto__' ||
+          fromId === 'constructor' ||
+          fromId === 'prototype'
+        ) {
+          return;
         }
         if (reactions.length === 0) {
           delete message.reaction[fromId];
@@ -923,6 +987,13 @@ const roomsStore = createSlice({
           if (!message.receivedBy) {
             message.receivedBy = {};
           }
+          if (
+            fromXmppUsername === '__proto__' ||
+            fromXmppUsername === 'constructor' ||
+            fromXmppUsername === 'prototype'
+          ) {
+            return;
+          }
           message.receivedBy[fromXmppUsername] = timestamp;
         }
       });
@@ -939,8 +1010,22 @@ const roomsStore = createSlice({
       if (!isSafeKey(roomJID) || !isSafeKey(xmppUsername)) return;
       if (!state.rooms[roomJID]) return;
 
+      if (
+        roomJID === '__proto__' ||
+        roomJID === 'constructor' ||
+        roomJID === 'prototype'
+      ) {
+        return;
+      }
       if (!state.rooms[roomJID].lastDisplayedByUser) {
         state.rooms[roomJID].lastDisplayedByUser = {};
+      }
+      if (
+        xmppUsername === '__proto__' ||
+        xmppUsername === 'constructor' ||
+        xmppUsername === 'prototype'
+      ) {
+        return;
       }
       state.rooms[roomJID].lastDisplayedByUser[xmppUsername] = messageId;
     },
@@ -1020,6 +1105,13 @@ const roomsStore = createSlice({
       if (!isSafeKey(locale)) return;
       forEachMessageCopy(state, roomJID, messageId, (message) => {
         if (!message.translations) message.translations = {};
+        if (
+          locale === '__proto__' ||
+          locale === 'constructor' ||
+          locale === 'prototype'
+        ) {
+          return;
+        }
         message.translations[locale] = entry;
       });
     },
@@ -1044,6 +1136,13 @@ const roomsStore = createSlice({
       }
 
       if (!roomMessages) {
+        if (
+          roomJID === '__proto__' ||
+          roomJID === 'constructor' ||
+          roomJID === 'prototype'
+        ) {
+          return;
+        }
         state.rooms[roomJID].messages = [];
       }
 
@@ -1209,6 +1308,13 @@ const roomsStore = createSlice({
       const ordered = isSortedByMessageOrder(currentMessages)
         ? currentMessages
         : [...currentMessages].sort(compareMessageOrder);
+      if (
+        roomJID === '__proto__' ||
+        roomJID === 'constructor' ||
+        roomJID === 'prototype'
+      ) {
+        return;
+      }
       state.rooms[roomJID].messages = normalizeDelimiterPosition(
         ordered,
         state.activeRoomJID === roomJID
@@ -1244,7 +1350,15 @@ const roomsStore = createSlice({
         ) {
           hasNameChanges = true;
         }
-        state.usersSet[user.xmppUsername] = user;
+        const memberKey = user.xmppUsername;
+        if (
+          memberKey === '__proto__' ||
+          memberKey === 'constructor' ||
+          memberKey === 'prototype'
+        ) {
+          return;
+        }
+        state.usersSet[memberKey] = user;
       });
       if (addedUsers) capUsersSet(state.usersSet);
       if (!hasNameChanges) return;
@@ -1330,6 +1444,13 @@ const roomsStore = createSlice({
       if (!isSafeKey(chatJID) || !state.rooms[chatJID]) {
         return;
       }
+      if (
+        chatJID === '__proto__' ||
+        chatJID === 'constructor' ||
+        chatJID === 'prototype'
+      ) {
+        return;
+      }
       state.rooms[chatJID].composing = composing;
       state.rooms[chatJID].composingList = composingList;
     },
@@ -1343,6 +1464,13 @@ const roomsStore = createSlice({
     ) => {
       const { chatJID, loading, loadingText } = action.payload;
       if (isSafeKey(chatJID) && state.rooms?.[chatJID]) {
+        if (
+          chatJID === '__proto__' ||
+          chatJID === 'constructor' ||
+          chatJID === 'prototype'
+        ) {
+          return;
+        }
         state.rooms[chatJID].isLoading = loading;
       }
       if (!chatJID) {
@@ -1365,6 +1493,13 @@ const roomsStore = createSlice({
           state.rooms[chatJID].unreadBaselineTimestamp
         );
         const normalizedTimestamp = getTimestampFromUnknown(timestamp);
+        if (
+          chatJID === '__proto__' ||
+          chatJID === 'constructor' ||
+          chatJID === 'prototype'
+        ) {
+          return;
+        }
         state.rooms[chatJID].lastViewedTimestamp = normalizedTimestamp;
         const isEnteringActive = state.activeRoomJID === chatJID;
         if (isEnteringActive) {
@@ -1498,6 +1633,13 @@ const roomsStore = createSlice({
     ) => {
       const { chatJID, role } = action.payload;
       if (isSafeKey(chatJID) && state.rooms[chatJID]) {
+        if (
+          chatJID === '__proto__' ||
+          chatJID === 'constructor' ||
+          chatJID === 'prototype'
+        ) {
+          return;
+        }
         state.rooms[chatJID].role = role;
       }
     },
@@ -1507,6 +1649,13 @@ const roomsStore = createSlice({
     ) => {
       const { value, chatJID } = action.payload;
       if (isSafeKey(chatJID) && state.rooms[chatJID]) {
+        if (
+          chatJID === '__proto__' ||
+          chatJID === 'constructor' ||
+          chatJID === 'prototype'
+        ) {
+          return;
+        }
         state.rooms[chatJID].noMessages = value;
       }
     },
@@ -1521,6 +1670,13 @@ const roomsStore = createSlice({
       // applies (the unread middleware would otherwise bring it back the
       // moment the user leaves the room again).
       if (roomJID && state.rooms[roomJID]?.apiUnreadCount !== undefined) {
+        if (
+          roomJID === '__proto__' ||
+          roomJID === 'constructor' ||
+          roomJID === 'prototype'
+        ) {
+          return;
+        }
         state.rooms[roomJID].apiUnreadCount = undefined;
         state.rooms[roomJID].apiUnreadSeededAt = undefined;
       }
@@ -1531,6 +1687,13 @@ const roomsStore = createSlice({
     ) => {
       const { roomJID, xmppUsername } = action.payload;
       if (!isSafeKey(roomJID) || !xmppUsername) return;
+      if (
+        roomJID === '__proto__' ||
+        roomJID === 'constructor' ||
+        roomJID === 'prototype'
+      ) {
+        return;
+      }
       const list =
         state.presenceByRoom[roomJID] ?? (state.presenceByRoom[roomJID] = []);
       if (!list.includes(xmppUsername)) list.push(xmppUsername);
@@ -1543,6 +1706,13 @@ const roomsStore = createSlice({
       if (!isSafeKey(roomJID)) return;
       const list = state.presenceByRoom[roomJID];
       if (list) {
+        if (
+          roomJID === '__proto__' ||
+          roomJID === 'constructor' ||
+          roomJID === 'prototype'
+        ) {
+          return;
+        }
         state.presenceByRoom[roomJID] = list.filter((u) => u !== xmppUsername);
       }
     },
@@ -1608,7 +1778,15 @@ const roomsStore = createSlice({
       const existingMessages = Array.isArray(existing?.messages)
         ? existing!.messages
         : [];
-      state.rooms[room.jid] = {
+      const roomJid = room.jid;
+      if (
+        roomJid === '__proto__' ||
+        roomJid === 'constructor' ||
+        roomJid === 'prototype'
+      ) {
+        return;
+      }
+      state.rooms[roomJid] = {
         ...existing,
         ...room,
         title: room.title || existing?.title || room.title,
@@ -1742,6 +1920,13 @@ const roomsStore = createSlice({
         state.subscribedRooms = subscribedRooms;
       }
 
+      if (
+        jid === '__proto__' ||
+        jid === 'constructor' ||
+        jid === 'prototype'
+      ) {
+        return;
+      }
       state.pushSubscriptionStatus[jid] = status;
       if (status === 'subscribed') {
         if (!subscribedRooms.includes(jid)) {
@@ -1780,6 +1965,13 @@ function deepMerge(target: any, source: any): any {
   // Own keys only, and never a key that would reach Object.prototype.
   for (const key of Object.keys(source)) {
     if (!isSafeKey(key)) continue;
+    if (
+      key === '__proto__' ||
+      key === 'constructor' ||
+      key === 'prototype'
+    ) {
+      continue;
+    }
     const value = source[key];
     if (value && typeof value === 'object' && !Array.isArray(value)) {
       const current = Object.prototype.hasOwnProperty.call(target, key)
