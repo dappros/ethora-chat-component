@@ -320,6 +320,11 @@ const PlayGlyph: React.FC = () => (
   </svg>
 );
 
+/** Hide the native broken-picture rendering (icon and alt text) at once. */
+const hideBroken = (event: React.SyntheticEvent<HTMLImageElement>) => {
+  event.currentTarget.style.visibility = 'hidden';
+};
+
 const VideoLayer: React.FC<{ src: string; label: string; compact: boolean; poster?: string }> = ({ src, label, compact, poster }) => {
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -464,7 +469,17 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
   // height cap turned into a width at this ratio. A definite length (not a
   // percentage) so it still counts inside the shrink-wrapped bubble.
   const soloRatio = solo ? Math.round((solo.width / solo.height) * 10000) / 10000 : 1;
-  const soloStyle: React.CSSProperties | undefined = solo
+  const unavailable =
+    kind === 'image' &&
+    Boolean(src) &&
+    full.status === 'error' &&
+    !localReady &&
+    (!hasPreview || low.status === 'error');
+  // A failed picture of unknown size gets a compact card, not the 4:3 box.
+  const compactCard = unavailable && placeholder;
+  const soloStyle: React.CSSProperties | undefined = compactCard
+    ? { width: `min(280px, ${MEDIA_WIDTH_CSS})`, height: '160px' }
+    : solo
     ? {
         width: natural
           ? `min(${solo.width}px, ${MEDIA_WIDTH_CSS})`
@@ -513,12 +528,7 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
     ) : (
       <Skeleton $shimmer={pending} />
     );
-  } else if (
-    src &&
-    full.status === 'error' &&
-    !localReady &&
-    (!hasPreview || low.status === 'error')
-  ) {
+  } else if (unavailable) {
     body = (
       <ImageUnavailableState
         compact={variant === 'fill'}
@@ -546,6 +556,10 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
             alt={fullLoaded ? '' : alt}
             aria-hidden={fullLoaded ? 'true' : undefined}
             $blurred={fullLoaded || full.status !== 'error'}
+            onError={(event) => {
+              hideBroken(event);
+              low.fail();
+            }}
           />
         )}
         {localReady && (
@@ -555,13 +569,35 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
             alt={showLocal ? alt : ''}
             aria-hidden={showLocal ? undefined : 'true'}
             style={layerStyle}
+            onError={(event) => {
+              hideBroken(event);
+              local.fail();
+            }}
           />
         )}
         {fullLoaded && (
-          <FullLayer data-media-layer="full" src={safeImageUrl(full.url)} alt={alt} style={layerStyle} />
+          <FullLayer
+            data-media-layer="full"
+            src={safeImageUrl(full.url)}
+            alt={alt}
+            style={layerStyle}
+            onError={(event) => {
+              hideBroken(event);
+              full.fail();
+            }}
+          />
         )}
         {previewIsPicture && !localReady && (
-          <FullLayer data-media-layer="full" src={safeImageUrl(low.url)} alt={alt} style={layerStyle} />
+          <FullLayer
+            data-media-layer="full"
+            src={safeImageUrl(low.url)}
+            alt={alt}
+            style={layerStyle}
+            onError={(event) => {
+              hideBroken(event);
+              low.fail();
+            }}
+          />
         )}
         {showLoadBar && (
           <LoadBar data-testid="media-load-bar" aria-hidden="true">

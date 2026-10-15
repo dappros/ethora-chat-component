@@ -108,7 +108,9 @@ const initialProbe = (url: string | undefined): MediaProbe => {
  * A secure URL that fails gets at most one shared token refresh per token
  * (see `requestFileTokenRecovery`); the refreshed URL re-runs this effect.
  */
-export const useMediaProbe = (url: string | undefined): MediaProbe & { retry: () => void } => {
+export const useMediaProbe = (
+  url: string | undefined
+): MediaProbe & { retry: () => void; fail: () => void } => {
   const [probe, setProbe] = useState<MediaProbe>(() => initialProbe(url));
   const [nonce, setNonce] = useState(0);
   // The token-free identity of the picture currently on screen, if any.
@@ -120,6 +122,19 @@ export const useMediaProbe = (url: string | undefined): MediaProbe & { retry: ()
     shownRef.current = null;
     forceRef.current = true;
     setNonce((value) => value + 1);
+  }, [url]);
+
+  /**
+   * The picture the probe called loaded failed on the visible <img> (an
+   * expired token, an evicted or no-store response): forget it everywhere
+   * and show the unavailable state, so a cached "loaded" never resurrects it.
+   */
+  const fail = useCallback(() => {
+    if (!url) return;
+    loadedCache.delete(withoutFileToken(url));
+    shownRef.current = null;
+    if (isCacheable(url)) remember(failedCache, url, Date.now());
+    setProbe((current) => ({ status: 'error', width: 0, height: 0, url: current.url || url }));
   }, [url]);
 
   useEffect(() => {
@@ -237,5 +252,5 @@ export const useMediaProbe = (url: string | undefined): MediaProbe & { retry: ()
     };
   }, [url, nonce]);
 
-  return { ...probe, retry };
+  return { ...probe, retry, fail };
 };
