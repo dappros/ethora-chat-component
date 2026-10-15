@@ -296,11 +296,13 @@ export const TEXT_BUBBLE_INSET_X_PX = 12;
 export const BUBBLE_RADIUS_PX = 18;
 export const MEDIA_RADIUS_PX = BUBBLE_RADIUS_PX - MEDIA_BUBBLE_INSET_PX;
 /**
- * Inline time next to short text: lifts the time so its text baseline lands on
- * the message text baseline (a line box bottom is not a baseline). Measured in
- * headless Chrome, see the tail-time harness; the value is in px.
+ * Lift of the inline time above the bottom of its text line, in px. Sits the
+ * time (12px) about 2.6px under the message text baseline, with its descender
+ * line about 1-2px above the bubble's bottom padding edge. Measured in headless
+ * Chrome (2px: own 2.4px, others 1.4px from the padding edge); 5 was the old
+ * value that put the time on the text baseline.
  */
-export const TIME_BASELINE_NUDGE_PX = 5;
+export const TIME_BASELINE_NUDGE_PX = 2;
 /** Glass time pill over media: how far it sits inside the media edge, in px. */
 export const MEDIA_TIME_PILL_OFFSET_PX = 8;
 
@@ -530,7 +532,7 @@ export const CustomUserName = styled.span<{
 `;
 
 export const CustomMessageTimestamp = styled.span<{
-  /** Media bubble: the row sits under the media with 0 8px 4px padding. */
+  /** Media bubble: the row sits under the media with 0 8px 2px padding. */
   $media?: boolean;
   /** Text bubble: the time floats at the end of the last line of text. */
   $inline?: boolean;
@@ -548,7 +550,7 @@ export const CustomMessageTimestamp = styled.span<{
   gap: 4px;
   align-items: center;
   justify-content: center;
-  ${(props) => (props.$media && !props.$overlay ? 'padding: 0 8px 4px;' : '')}
+  ${(props) => (props.$media && !props.$overlay ? 'padding: 0 8px 2px;' : '')}
   ${(props) =>
     props.$inline
       ? `
