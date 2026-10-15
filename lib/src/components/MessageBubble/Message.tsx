@@ -167,6 +167,9 @@ const TickTooltip = styled.span`
   z-index: 1;
 `;
 
+/** Read-receipt tick size, in px: it centres on the 12px time's x-height. */
+const TICK_SIZE_PX = 14;
+
 const NO_VIEWERS: string[] = [];
 
 const Message: React.FC<MessageProps> = forwardRef<
@@ -722,16 +725,20 @@ const Message: React.FC<MessageProps> = forwardRef<
         <TickStatusWrapper>
           {timeOverPicture ? (
             readStatus === 'sent' ? (
-              <SingleTick color="#FFFFFF" />
+              <SingleTick color="#FFFFFF" width={TICK_SIZE_PX} height={TICK_SIZE_PX} />
             ) : (
               <DoubleTick
+                width={TICK_SIZE_PX}
+                height={TICK_SIZE_PX}
                 stroke={readStatus === 'seen' ? '#7DB3FF' : '#FFFFFF'}
               />
             )
           ) : readStatus === 'sent' ? (
-            <SingleTick color="#8C8C8C" />
+            <SingleTick color="#8C8C8C" width={TICK_SIZE_PX} height={TICK_SIZE_PX} />
           ) : (
             <DoubleTick
+              width={TICK_SIZE_PX}
+              height={TICK_SIZE_PX}
               stroke={readStatus === 'seen' ? '#0052CD' : '#8C8C8C'}
             />
           )}
@@ -834,7 +841,7 @@ const Message: React.FC<MessageProps> = forwardRef<
                   ? {
                       display: 'flex',
                       flexWrap: 'wrap',
-                      alignItems: 'last baseline',
+                      alignItems: 'flex-end',
                       columnGap: 12,
                     }
                   : null),
