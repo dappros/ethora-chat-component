@@ -198,6 +198,8 @@ const isRealCaptionText = (
   if (/^\{\s*"v"\s*:\s*\d+\s*,\s*"keys"/.test(t)) return false;
   const candidates = echoCandidates(message, options);
   if (candidates.has(n)) return false;
+  // A signed or cache-busted copy of the file's own URL is still the file.
+  if (/^https?:\/\/\S+$/.test(n) && candidates.has(n.split(/[?#]/)[0])) return false;
   for (const name of candidates) if (isRepeatedName(name, n)) return false;
   return true;
 };
