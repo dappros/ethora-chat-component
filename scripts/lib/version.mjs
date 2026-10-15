@@ -3,9 +3,8 @@
 // A release version is the UTC date written as yy.m.d with no leading zeros,
 // because npm rejects "26.10.01" as invalid semver. Use "26.10.1".
 //
-// If today's version is not newer than the latest published one, the next
-// version is the day after the latest published one. Two releases on the same
-// day therefore become 26.9.26 and 26.9.27. Future dates are allowed.
+// The default version is the day after the current version: 26.10.1 becomes
+// 26.10.2. Explicit versions are checked against npm. Future dates are allowed.
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -55,13 +54,12 @@ function tripleToMs([yy, mm, dd]) {
   return Date.UTC(2000 + yy, mm - 1, dd);
 }
 
-// The version a release cut at `now` should get, given the latest published triple (or null).
-export function nextVersion(latest, now = new Date()) {
-  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-  if (latest && tripleToMs(latest) >= today) {
-    return formatDate(tripleToMs(latest) + DAY);
-  }
-  return formatDate(today);
+// The default version: the day after `base`, the current version as a triple.
+// 26.10.1 is followed by 26.10.2 whatever today's date is. Only when nothing has
+// been published yet is today's date used.
+export function nextVersion(base, now = new Date()) {
+  if (base) return formatDate(tripleToMs(base) + DAY);
+  return formatDate(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 }
 
 // Validates an explicitly requested version against what is already on npm.

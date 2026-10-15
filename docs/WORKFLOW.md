@@ -60,10 +60,11 @@ Runs lint, tests, the release-script checks and the build. The server CI runs th
 
 ## Versions and releases
 
-Versions are the UTC date written as `yy.m.d` with no leading zeros, for example `26.10.14`. npm rejects `26.10.01`.
+Versions are dates written as `yy.m.d` with no leading zeros, for example `26.10.2`. npm rejects `26.10.02`.
 
-- If today's version is newer than the latest version on npm, the release uses today's date.
-- If today's version is not newer (a second release on the same day), the release uses the next day: `26.9.26` becomes `26.9.27`.
+- Without an explicit version, the release is the day after the current version: `26.10.1` becomes `26.10.2`. Today's date does not matter, so versions can trail the calendar.
+- Pass an explicit version to choose another one: `npm run release -- 26.10.20`. It must be new on npm and newer than the latest version.
+- Only when nothing is published yet is today's date used.
 - Future dates are allowed.
 
 Tags are `v` plus the version, for example `v26.10.14`.

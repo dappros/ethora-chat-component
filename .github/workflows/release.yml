@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'yy.m.d without leading zeros. Empty = the next date-based version.'
+        description: 'yy.m.d without leading zeros. Empty = the day after the current version (26.10.1 becomes 26.10.2).'
         required: false
         type: string
 

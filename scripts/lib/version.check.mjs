@@ -23,24 +23,23 @@ test('rejects impossible calendar dates and bad shapes', () => {
   assert.match(parseVersion('26.10').error, /yy.m.d/);
 });
 
-test('next version is today when nothing published is newer', () => {
-  assert.equal(nextVersion([26, 9, 8], at(2026, 10, 14)), '26.10.14');
+test('the default is the day after the current version', () => {
+  assert.equal(nextVersion([26, 10, 1]), '26.10.2');
+  assert.equal(nextVersion([26, 9, 26]), '26.9.27');
 });
 
-test('a second release on the same day moves to the next day', () => {
-  assert.equal(nextVersion([26, 9, 26], at(2026, 9, 26)), '26.9.27');
-});
-
-test('a release on a later day uses that day', () => {
-  assert.equal(nextVersion([26, 9, 26], at(2026, 9, 27)), '26.9.27');
-});
-
-test('after a future version the next one is the day after it', () => {
-  assert.equal(nextVersion([27, 2, 12], at(2026, 10, 14)), '27.2.13');
+test('the default does not depend on today', () => {
+  assert.equal(nextVersion([26, 10, 1], at(2026, 10, 15)), '26.10.2');
+  assert.equal(nextVersion([26, 10, 1], at(2026, 3, 1)), '26.10.2');
 });
 
 test('month and year rollover', () => {
-  assert.equal(nextVersion([26, 12, 31], at(2026, 12, 31)), '27.1.1');
+  assert.equal(nextVersion([26, 10, 31]), '26.11.1');
+  assert.equal(nextVersion([26, 12, 31]), '27.1.1');
+});
+
+test('after a future version the next one is the day after it', () => {
+  assert.equal(nextVersion([27, 2, 12]), '27.2.13');
 });
 
 test('first release with nothing on npm uses today', () => {
@@ -48,7 +47,7 @@ test('first release with nothing on npm uses today', () => {
 });
 
 test('latestOf ignores entries that are not x.y.z', () => {
-  assert.deepEqual(latestOf(['1.0.0', '26.9.8', '26.10.4', 'next']), [26, 10, 4]);
+  assert.deepEqual(latestOf(['1.0.0', '26.9.8', '26.10.1', 'next']), [26, 10, 1]);
   assert.equal(latestOf([]), null);
 });
 

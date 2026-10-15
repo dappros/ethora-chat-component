@@ -95,7 +95,8 @@ function release(args) {
     if (check.error) fail(check.error);
     version = requested;
   } else {
-    version = nextVersion(latest);
+    // Default: the day after the current version (package.json, or npm if newer).
+    version = nextVersion(latestOf([pkg.version, ...published]));
   }
 
   const tag = `v${version}`;
