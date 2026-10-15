@@ -141,11 +141,13 @@ function release(args) {
   console.log(`committed and tagged ${tag}`);
 
   if (push) {
-    sh('git', ['push', 'origin', 'main'], { stdio: 'inherit' });
-    sh('git', ['push', 'origin', tag], { stdio: 'inherit' });
+    // One push for the branch and the tag. Pushing them one after the other has
+    // been rejected by GitHub with "missing necessary objects" when the tag points
+    // at the commit that was just pushed.
+    sh('git', ['push', 'origin', 'main', tag], { stdio: 'inherit' });
     console.log('pushed. The tag push starts the release workflow.');
   } else {
-    console.log(`not pushed. To publish: git push origin main && git push origin ${tag}`);
+    console.log(`not pushed. To publish: git push origin main ${tag}`);
   }
 }
 
