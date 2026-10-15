@@ -33,9 +33,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "sync:lib": "node ./scripts/sync-lib.mjs",
-    "build:lib": "npm run sync:lib && tsc --p ./tsconfig-build.json && vite build",
-    "prepare": "node scripts/install-git-hooks.mjs && npm run build && npm run build:lib",
+    "prepare": "node scripts/install-git-hooks.mjs && npm run build",
     "ci:local": "npm run lint && npm test && npm run test:release && npm run build",
     "release": "node scripts/release.mjs",
     "test:release": "node --test scripts/lib/version.check.mjs",
@@ -114,9 +112,6 @@
     "csstype": "3.1.3"
   },
   "description": "Open-source React chat and AI-agent UI SDK for Ethora: drop-in messaging, rooms, and AI bots with a self-hosted or cloud backend.",
-  "directories": {
-    "lib": "lib"
-  },
   "author": "Ethora",
   "license": "MIT",
   "homepage": "https://ethora.com",
