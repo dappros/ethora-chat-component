@@ -192,9 +192,9 @@ describe('Message bubble tail', () => {
   it('gives the last bubble of a run an own tail on the bottom right', () => {
     renderBubble(makeMessage(), true, true);
     const after = pseudoFor(bubble(), '::after');
-    expect(after).toContain('right:-10px');
-    expect(after).toContain('width:9px');
-    expect(after).toContain('height:13px');
+    expect(after).toContain('right:-13px');
+    expect(after).toContain('width:13px');
+    expect(after).toContain('height:16px');
     expect(after).toContain('mask-image:url("data:image/svg+xml,');
     expect(after).toContain('-webkit-mask-image:');
     expect(after).toContain('mask-size:100%100%');
@@ -207,15 +207,23 @@ describe('Message bubble tail', () => {
   it('gives the last bubble of a run from someone else a tail on the bottom left, with a border ring', () => {
     renderBubble(makeMessage(), false, true);
     const after = pseudoFor(bubble(), '::after');
-    expect(after).toContain('left:-10px');
+    expect(after).toContain('left:-13px');
+    expect(after).toContain('width:13px');
+    expect(after).toContain('height:16px');
     expect(after).toContain('mask-image:url("data:image/svg+xml,');
     expect(after).not.toContain('clip-path');
-    // The outline ring is a second, 1px larger mask behind the fill.
+    // The fill mask is a plain silhouette: no stroke in it.
+    expect(after).not.toContain('stroke');
+    // The outline is a second mask behind the fill: a stroke, 1px outside the fill edge.
     const ring = pseudoFor(bubble(), '::before');
-    expect(ring).toContain('left:-11px');
+    expect(ring).toContain('left:-14px');
+    expect(ring).toContain('bottom:-2px');
     expect(ring).toContain('mask-image:url("data:image/svg+xml,');
-    expect(ring).toContain('width:11px');
-    expect(ring).toContain('height:14px');
+    expect(ring).toContain('width:14px');
+    expect(ring).toContain('height:18px');
+    // Stroke only, never the whole silhouette: the wall side stays open.
+    expect(ring).toContain('stroke-width');
+    expect(ring).toContain('fill%3D%22none%22');
     expect(ring).not.toContain('clip-path');
     expect(declarationsFor(bubble())).toContain('border-radius:18px18px18px0px');
   });
@@ -246,7 +254,7 @@ describe('Message bubble tail', () => {
       false,
       true
     );
-    expect(pseudoFor(bubble(), '::after')).toContain('left:-10px');
+    expect(pseudoFor(bubble(), '::after')).toContain('left:-13px');
   });
 
   it('gives no tail to a deleted tombstone', () => {
