@@ -337,29 +337,33 @@ const BUBBLE_BORDER_CSS = 'var(--ethora-color-border, #E6E8EC)';
 
 /** Corner radius where a tail attaches: square, so the tail grows out of the straight edge. */
 export const TAIL_CORNER_RADIUS_PX = 0;
-/** Tail box: 9px wide and 13px tall, the tip flush with the bubble's bottom edge. */
-export const TAIL_WIDTH_PX = 9;
-export const TAIL_HEIGHT_PX = 13;
+/**
+ * Tail box: 12px out from the bubble edge plus 1px tucked under the edge, and
+ * 16px tall, the tip on the bubble's bottom line.
+ */
+export const TAIL_WIDTH_PX = 13;
+export const TAIL_HEIGHT_PX = 16;
 
 /**
- * Path of a tail: the wall sits on the bubble edge (wallX), the curve sweeps out
- * to a point on the bottom line (tipX, bottom), and the bottom line runs back to
- * the wall. The curve is concave from inside, like a Telegram tail.
+ * Tail silhouettes in tail-box coordinates. The wall is the bubble edge (x=13
+ * for others, x=1 for own); the 1px beyond it sits under the bubble, so no seam
+ * shows. The curve is concave from outside, like a Telegram tail.
  */
-const tailPath = (wallX: number, tipX: number, top: number, bottom: number) => {
-  const h = bottom - top;
-  const dir = Math.sign(tipX - wallX);
-  return `M${wallX} ${top}C${wallX} ${top + 0.46 * h} ${wallX + 3 * dir} ${top + 0.85 * h} ${tipX} ${bottom}L${wallX} ${bottom}Z`;
-};
+const TAIL_FILL_OWN = 'M1 0C1 7.5 7 12 13 16H0V0Z';
+const TAIL_FILL_OTHERS = 'M13 0C13 7.5 7 12 1 15H13V0Z';
+/**
+ * Others' outline, a 2px stroke along the outer curve and the bottom run only
+ * (never along the wall). The stroke is drawn in a box 1px larger on the left
+ * and bottom, so the path is shifted by (1, 1). The fill covers its inner half,
+ * leaving a 1px ring in the border colour that ends on the bubble's bottom line.
+ */
+const TAIL_RING_OTHERS = 'M14 1C14 8.5 8 13 2 16H14';
 
-/** A CSS mask-image value: an SVG data URI, opaque where the path is. */
-const maskUrl = (w: number, h: number, d: string, strokeWidth = 0) => {
-  const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}">` +
-    `<path d="${d}" fill="black" stroke="${strokeWidth ? 'black' : 'none'}" stroke-width="${strokeWidth}" stroke-linejoin="round"/>` +
-    '</svg>';
-  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
-};
+/** A CSS mask-image value: an SVG data URI, opaque where the markup paints. */
+const maskUrl = (w: number, h: number, markup: string) =>
+  `url("data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}">${markup}</svg>`
+  )}")`;
 
 const maskCss = (mask: string) => css`
   -webkit-mask-image: ${mask};
@@ -372,27 +376,25 @@ const maskCss = (mask: string) => css`
 
 /**
  * The speech-bubble tail on the bottom outer corner: own messages point out of
- * the bottom right, others out of the bottom left. The fill is a masked
- * pseudo-element in the bubble's own background colour, so it matches the
- * bubble in light, dark and media-caption bubbles alike.
+ * the bottom right, others out of the bottom left. Both are masked
+ * pseudo-elements, so the colours stay CSS variables and follow the theme.
  *
- * Others' bubbles have a 1px border. Their tail fill stops 1px above the bottom
- * line, and a 1px larger outline mask behind it (::before, border colour) draws
- * the border around the tail. That ring's bottom edge lands on the bubble's
- * bottom border, so the outline runs unbroken from the bubble onto the tail.
+ * Own bubbles have no border: the fill alone is the tail. Others' bubbles have
+ * a 1px border: ::after is the fill, and ::before is the outline, a stroke along
+ * the curve and the bottom run only. The wall is never outlined, so the body's
+ * left border stops where the tail begins and nothing runs left past the tip.
  */
 const bubbleTail = (props: { $isUser: boolean; $deleted: boolean }) => {
-  const w = TAIL_WIDTH_PX;
   const fill = bubbleFill(props);
   if (props.$isUser) {
-    const mask = maskUrl(w, TAIL_HEIGHT_PX, tailPath(0, w, 0, TAIL_HEIGHT_PX));
+    const mask = maskUrl(TAIL_WIDTH_PX, TAIL_HEIGHT_PX, `<path d="${TAIL_FILL_OWN}" fill="black"/>`);
     return css`
       &::after {
         content: '';
         position: absolute;
         bottom: -1px;
-        right: -10px;
-        width: ${w}px;
+        right: -13px;
+        width: ${TAIL_WIDTH_PX}px;
         height: ${TAIL_HEIGHT_PX}px;
         background: ${fill};
         ${maskCss(mask)}
@@ -400,24 +402,24 @@ const bubbleTail = (props: { $isUser: boolean; $deleted: boolean }) => {
       }
     `;
   }
-  // Others: the fill is 1px shorter than the tail box; the ring is the fill
-  // grown by 1px on the left, top and right, ending on the bubble's bottom line.
-  const fillH = TAIL_HEIGHT_PX - 1;
-  const fillMask = maskUrl(w, fillH, tailPath(w, 0, 0, fillH));
+  const fillMask = maskUrl(
+    TAIL_WIDTH_PX,
+    TAIL_HEIGHT_PX,
+    `<path d="${TAIL_FILL_OTHERS}" fill="black"/>`
+  );
   const ringMask = maskUrl(
-    w + 2,
-    fillH + 2,
-    tailPath(w + 1, 1, 1, fillH + 1),
-    2
+    TAIL_WIDTH_PX + 1,
+    TAIL_HEIGHT_PX + 2,
+    `<path d="${TAIL_RING_OTHERS}" fill="none" stroke="black" stroke-width="2" stroke-linejoin="round"/>`
   );
   return css`
     &::before {
       content: '';
       position: absolute;
-      bottom: -1px;
-      left: -11px;
-      width: ${w + 2}px;
-      height: ${fillH + 2}px;
+      bottom: -2px;
+      left: -14px;
+      width: ${TAIL_WIDTH_PX + 1}px;
+      height: ${TAIL_HEIGHT_PX + 2}px;
       background: ${BUBBLE_BORDER_CSS};
       ${maskCss(ringMask)}
       pointer-events: none;
@@ -425,10 +427,10 @@ const bubbleTail = (props: { $isUser: boolean; $deleted: boolean }) => {
     &::after {
       content: '';
       position: absolute;
-      bottom: 0;
-      left: -10px;
-      width: ${w}px;
-      height: ${fillH}px;
+      bottom: -1px;
+      left: -13px;
+      width: ${TAIL_WIDTH_PX}px;
+      height: ${TAIL_HEIGHT_PX}px;
       background: ${fill};
       ${maskCss(fillMask)}
       pointer-events: none;
