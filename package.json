@@ -33,9 +33,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:lib": "npm run build",
     "prepare": "node scripts/install-git-hooks.mjs && npm run build",
     "ci:local": "npm run lint && npm test && npm run test:release && npm run build",
     "release": "node scripts/release.mjs",
+    "release:ci": "node scripts/release-ci.mjs",
     "publish:npm": "node scripts/publish-npm.mjs",
     "test:release": "node --test scripts/lib/version.check.mjs",
     "lint": "eslint . --quiet --report-unused-disable-directives",

@@ -116,3 +116,16 @@ git push origin HEAD && git push origin v<version>
 `publish:npm` refuses to run unless you are logged in, the working tree is clean, HEAD is the commit tagged `v<version>`, the version is new and newer than the latest on npm. It then runs `ci:local` and the consumer smoke test. npm may ask for a one-time code (2FA).
 
 A manual publish has no npm provenance, because provenance needs GitHub OIDC. Prefer the Release workflow for releases that matter.
+
+## Consumers of the local checkout
+
+`ethora-install-shared` builds this package from a local checkout (`deploy/scripts/setup-node-services.sh`). It runs `npm run build:lib` in this directory and then checks that `dist/main.d.ts` exists. Keep `build:lib` working. It is an alias of `build`, and `build` must keep producing `dist/` with the type declarations.
+
+## Start a release from your terminal (no npm login)
+
+```bash
+npm run release:ci              # next version: the day after the current one
+npm run release:ci -- 26.10.20  # or an explicit version
+```
+
+This starts the Release workflow on GitHub Actions with the GitHub CLI. The publish runs in CI with the `NPM_TOKEN` secret. You need `gh` logged in with write access to the repository.
