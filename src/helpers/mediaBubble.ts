@@ -75,3 +75,43 @@ export const usesMediaOverlayTime = (
   if (attachments.length === 0) return false;
   return attachments.every((attachment) => isVisualKind(attachmentKind(attachment)));
 };
+
+export type TimeMode = 'overlay' | 'row';
+
+export interface MediaTimeFacts {
+  attachments: IAttachment[];
+  /** The caption the bubble really shows (see getMessageCaption), if any. */
+  hasCaption: boolean;
+  /** The sender's own bubble is in the failed state. */
+  failed?: boolean;
+  /** Quick reply buttons are shown under the bubble content. */
+  hasQuickReplies?: boolean;
+  /** A URL preview card is shown (only ever from a caption, never the body). */
+  hasUrlPreview?: boolean;
+  /** The manual translate row is shown. */
+  hasTranslateRow?: boolean;
+}
+
+/**
+ * The one rule for where a media bubble's time goes, read by both the time
+ * element and the bubble itself (data-time-mode), so they cannot disagree.
+ *
+ * `mediaOnly`: pictures and videos and nothing else (no caption, no card, no
+ * voice note). Such a bubble always shows the time as the glass pill over the
+ * media, unless something else needs the bottom of the bubble (a failed
+ * notice, quick replies, a preview card or the translate row), in which case
+ * the time takes the normal bottom right row.
+ */
+export const getMediaTimeLayout = (
+  facts: MediaTimeFacts
+): { mediaOnly: boolean; mode: TimeMode } => {
+  const mediaOnly = usesMediaOverlayTime(facts.attachments, {
+    hasCaption: facts.hasCaption,
+  });
+  const blocked =
+    Boolean(facts.failed) ||
+    Boolean(facts.hasQuickReplies) ||
+    Boolean(facts.hasUrlPreview) ||
+    Boolean(facts.hasTranslateRow);
+  return { mediaOnly, mode: mediaOnly && !blocked ? 'overlay' : 'row' };
+};

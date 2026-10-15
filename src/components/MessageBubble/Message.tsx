@@ -78,7 +78,7 @@ import { getMessageAttachments, isMediaMessage } from '../../helpers/attachments
 import { getMessageCaption } from '../../helpers/caption';
 import {
   getMediaBlockMode,
-  usesMediaOverlayTime,
+  getMediaTimeLayout,
 } from '../../helpers/mediaBubble';
 
 // Inherits CustomMessageTimestamp's colour/size - just the WhatsApp/
@@ -308,14 +308,21 @@ const Message: React.FC<MessageProps> = forwardRef<
   // MessageReaction, so the row reserves room for every wrapped chip row.
   const [reactionHang, setReactionHang] = useState(REACTION_HANG_PX);
 
+  // A media bubble previews a link only from its caption. Its body is the
+  // placeholder or a legacy echo of the file URL, and treating that as a link
+  // pulled a preview card under a picture-only bubble (and with it the time
+  // out of the overlay), sometimes and not other times.
+  const isMediaBubble = isMediaMessage(message);
+  const captionText = isMediaBubble ? getMessageCaption(message) : undefined;
+  const previewSource = isMediaBubble ? captionText : message?.body;
   useEffect(() => {
-    if (message && message.body && typeof message.body === 'string') {
-      const match = message.body.match(firstUrlRegex);
+    if (previewSource && typeof previewSource === 'string') {
+      const match = previewSource.match(firstUrlRegex);
       setPreviewUrl(match ? match[0] : null);
     } else {
       setPreviewUrl(null);
     }
-  }, [message?.body]);
+  }, [previewSource]);
 
   const handleContextMenu = (event: React.MouseEvent | React.TouchEvent) => {
     if (interactionsDisabled) return;
@@ -655,22 +662,23 @@ const Message: React.FC<MessageProps> = forwardRef<
 
   // A media bubble lays out its files as one block (see AttachmentList). When
   // that block is only pictures or videos, the time floats over it as a pill.
-  const isMediaBubble = isMediaMessage(message);
   const mediaAttachments = isMediaBubble ? getMessageAttachments(message) : [];
   const mediaBlockMode = getMediaBlockMode(mediaAttachments);
+  // A media message with no caption has no text to translate.
   const showsTranslateRow =
     !isUser &&
     Boolean(config?.translates?.enabled) &&
-    effectiveTranslateMode === 'manual';
-  const timeOverPicture =
-    isMediaBubble &&
-    !isFailed &&
-    usesMediaOverlayTime(mediaAttachments, {
-      hasCaption: Boolean(getMessageCaption(message)),
-    }) &&
-    !(quickReplies.length > 0) &&
-    !showsTranslateRow &&
-    !previewUrl;
+    effectiveTranslateMode === 'manual' &&
+    (!isMediaBubble || Boolean(captionText));
+  const mediaTime = getMediaTimeLayout({
+    attachments: mediaAttachments,
+    hasCaption: Boolean(captionText),
+    failed: isFailed,
+    hasQuickReplies: quickReplies.length > 0,
+    hasUrlPreview: Boolean(previewUrl) && !message.isDeleted,
+    hasTranslateRow: showsTranslateRow,
+  });
+  const timeOverPicture = isMediaBubble && mediaTime.mode === 'overlay';
 
   // A short text message shows its time at the end of the last line of text
   // instead of on a line of its own. The time always sits bottom right, for
@@ -681,11 +689,7 @@ const Message: React.FC<MessageProps> = forwardRef<
   // The tail marks the last bubble of a sender's run. Media-only bubbles (the
   // time floats over the picture) and system or deleted rows get none.
   const isLastInGroup = lastInRun !== false;
-  const isMediaOnly =
-    isMediaBubble &&
-    usesMediaOverlayTime(mediaAttachments, {
-      hasCaption: Boolean(getMessageCaption(message)),
-    });
+  const isMediaOnly = isMediaBubble && mediaTime.mediaOnly;
   const showsTail =
     isLastInGroup &&
     !message.isDeleted &&
@@ -780,6 +784,9 @@ const Message: React.FC<MessageProps> = forwardRef<
         )}
         <CustomMessageBubble
           data-ethora-bubble=""
+          data-time-mode={
+            isMediaBubble ? mediaTime.mode : timeInline ? 'inline' : 'row'
+          }
           $deleted={message.isDeleted}
           $tail={showsTail}
           $isUser={isUser}
