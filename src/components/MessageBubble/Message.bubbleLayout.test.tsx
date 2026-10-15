@@ -170,6 +170,20 @@ describe('Message time row alignment', () => {
     expect(css).toContain(`margin-bottom:${TIME_BASELINE_NUDGE_PX}px`);
   });
 
+  it('lifts the time only 2px, so it sits low in the bubble like Telegram/WhatsApp', () => {
+    expect(TIME_BASELINE_NUDGE_PX).toBe(2);
+  });
+
+  it('gives a caption time row 2px of bottom padding (was 4px)', () => {
+    renderBubble(
+      makeMessage({ isMediafile: 'true', attachments: [image(1)], body: 'caption' }),
+      true
+    );
+    const css = declarationsFor(timeEl());
+    expect(css).toContain('padding:08px2px');
+    expect(css).not.toContain('padding:08px4px');
+  });
+
   it('sets the text row to flex-end so the time sits on the bottom line of the text', () => {
     renderBubble(makeMessage(), true);
     const row = timeEl().parentElement as HTMLElement;
