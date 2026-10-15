@@ -33,6 +33,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:lib": "npm run build",
     "prepare": "node scripts/install-git-hooks.mjs && npm run build",
     "ci:local": "npm run lint && npm test && npm run test:release && npm run build",
     "release": "node scripts/release.mjs",
