@@ -98,21 +98,48 @@ const computeUnreadForRoom = (
   //    room where the two agree stays exact;
   //  - once the user has read past the API's last message (lastViewed >=
   //    its date) the API number is stale and ignored.
+  // The local transcript is only trustworthy once the history fetch has
+  // finished ('done' or the MAM <fin complete> arrived). Until then the room
+  // is mid-replay (a reload, or the one-time refetch after the reactions
+  // cache migration) and the local count is a partial figure that climbs or
+  // drops as pages land. It must never reach the badge, so while untrusted:
+  //  - a seeded room shows the seed (+ messages newer than the seed), even if
+  //    the replayed messages already outnumber it;
+  //  - an unseeded room mid-fetch holds the previous (persisted) value;
+  //  - a room with nothing loaded yet holds the previous value too, instead
+  //    of recomputing to 0 from an empty transcript.
+  const historyTrusted =
+    room.historyComplete === true || room.historyPreloadState === 'done';
+  const previousUnread = Number(room.unreadMessages || 0);
+  const previous = {
+    unread: previousUnread,
+    unreadCapped: Boolean(room.unreadCapped),
+  };
+
   const apiUnread = room.apiUnreadCount;
+  let hasLiveSeed = false;
+  let seedReadPast = false;
   if (typeof apiUnread === 'number' && apiUnread > 0) {
     const seededAt = getTimestampFromUnknown(room.apiUnreadSeededAt);
     const apiLastTs = getTimestampFromUnknown(room.lastMessage?.date);
     const readPastApi =
       lastViewed > 0 && apiLastTs > 0 && lastViewed >= apiLastTs;
+    seedReadPast = readPastApi;
     if (!readPastApi) {
+      hasLiveSeed = true;
       const newerThanSeed = countableMessages.filter(
         (msg: IMessage) => getMessageTimestamp(msg) > seededAt
       ).length;
       const apiTotal = apiUnread + newerThanSeed;
-      if (apiTotal >= countableMessages.length) {
+      if (apiTotal >= countableMessages.length || !historyTrusted) {
         return { unread: apiTotal, unreadCapped: false };
       }
     }
+  }
+
+  if (!historyTrusted && !hasLiveSeed && !seedReadPast) {
+    if (room.historyPreloadState === 'loading') return previous;
+    if ((room.messages?.length ?? 0) === 0) return previous;
   }
 
   return {
