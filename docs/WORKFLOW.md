@@ -56,7 +56,7 @@ Set up the hooks once per clone with `npm install`. This sets `core.hooksPath` t
 npm run ci:local
 ```
 
-Runs lint, tests, the release-script checks and the build. The same checks run on the server after the merge to `main`.
+Runs lint, tests, the release-script checks and the build. The server CI runs the same checks after the merge to `main`, plus the consumer smoke test (React 18 and 19). The consumer smoke test is not part of `ci:local` because it is slower.
 
 ## Versions and releases
 
@@ -91,3 +91,27 @@ Or run the **Release** workflow by hand in GitHub Actions (Actions > Release > R
 The publish job checks that the tag matches `package.json`, that the version is not on npm yet, that it is newer than the latest version, and that the tag points at `origin/main`.
 
 Publishing uses the `npm-release` environment. Add required reviewers there if you want a manual approval step.
+
+## Server CI
+
+Runs on the push to `main` (and on demand):
+
+- **verify**: lint, tests, the release-script rules, build.
+- **consumer-smoke**: packs the package, installs the tarball into a clean project with React 18 and 19, and type-checks the documented import. It catches a package that ships without types or with a broken `exports` map.
+- **secret-scan** (gitleaks): off until the repository variable `SECRET_SCAN` is set to `true`. Turn it on only after the tracked credentials are removed and an allowlist for the app token is agreed.
+
+## Publish from your own machine
+
+If the Release workflow is not available, you can publish by hand:
+
+```bash
+npm login                          # once, with an account that can publish @ethora/chat-component
+npm run release -- --yes           # bump, commit and tag v<version> locally
+npm run publish:npm -- --dry-run   # checks everything, uploads nothing
+npm run publish:npm                # checks everything, then publishes
+git push origin HEAD && git push origin v<version>
+```
+
+`publish:npm` refuses to run unless you are logged in, the working tree is clean, HEAD is the commit tagged `v<version>`, the version is new and newer than the latest on npm. It then runs `ci:local` and the consumer smoke test. npm may ask for a one-time code (2FA).
+
+A manual publish has no npm provenance, because provenance needs GitHub OIDC. Prefer the Release workflow for releases that matter.
