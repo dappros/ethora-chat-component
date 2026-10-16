@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import reducer, {
   addRoom,
   setReceivedReceipt,
+  setReceivedWatermark,
   setDisplayedMarker,
 } from './roomsSlice';
 import { IRoom } from '../types/types';
@@ -98,5 +99,81 @@ describe('roomsSlice read receipts', () => {
     );
 
     expect(state.rooms[ROOM_JID].lastDisplayedByUser).toEqual({ bob: 'm2' });
+  });
+
+  it('does not move a read watermark backwards when both positions are loaded', () => {
+    let state = reducer(undefined, addRoom({ roomData: makeRoom() }));
+    state = reducer(
+      state,
+      setDisplayedMarker({ roomJID: ROOM_JID, xmppUsername: 'bob', messageId: 'm2' })
+    );
+    state = reducer(
+      state,
+      setDisplayedMarker({ roomJID: ROOM_JID, xmppUsername: 'bob', messageId: 'm1' })
+    );
+
+    expect(state.rooms[ROOM_JID].lastDisplayedByUser).toEqual({ bob: 'm2' });
+  });
+
+  it('orders an unloaded read watermark by the time in the ids', () => {
+    let state = reducer(undefined, addRoom({ roomData: makeRoom() }));
+    state = reducer(
+      state,
+      setDisplayedMarker({
+        roomJID: ROOM_JID,
+        xmppUsername: 'bob',
+        messageId: '1791971700000000',
+      })
+    );
+    state = reducer(
+      state,
+      setDisplayedMarker({
+        roomJID: ROOM_JID,
+        xmppUsername: 'bob',
+        messageId: '1791971600000000',
+      })
+    );
+    expect(state.rooms[ROOM_JID].lastDisplayedByUser).toEqual({
+      bob: '1791971700000000',
+    });
+
+    state = reducer(
+      state,
+      setDisplayedMarker({
+        roomJID: ROOM_JID,
+        xmppUsername: 'bob',
+        messageId: '1791971800000000',
+      })
+    );
+    expect(state.rooms[ROOM_JID].lastDisplayedByUser).toEqual({
+      bob: '1791971800000000',
+    });
+  });
+
+  it('ignores names every plain object already has', () => {
+    let state = reducer(undefined, addRoom({ roomData: makeRoom() }));
+    for (const name of ['toString', 'hasOwnProperty', 'valueOf']) {
+      state = reducer(
+        state,
+        setDisplayedMarker({ roomJID: ROOM_JID, xmppUsername: name, messageId: 'm1' })
+      );
+      state = reducer(
+        state,
+        setReceivedWatermark({ roomJID: ROOM_JID, xmppUsername: name, messageId: 'm1' })
+      );
+      state = reducer(
+        state,
+        setReceivedReceipt({
+          roomJID: ROOM_JID,
+          messageId: 'm1',
+          fromXmppUsername: name,
+          timestamp: 1,
+        })
+      );
+    }
+    const room = state.rooms[ROOM_JID];
+    expect(Object.keys(room.lastDisplayedByUser ?? {})).toEqual([]);
+    expect(Object.keys(room.lastReceivedByUser ?? {})).toEqual([]);
+    expect(room.messages.find((m) => m.id === 'm1')?.receivedBy).toBeUndefined();
   });
 });
