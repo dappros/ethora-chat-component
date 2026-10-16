@@ -16,6 +16,28 @@ All notable changes to this package are documented here. For cross-SDK release n
 - Delivery receipts carry `<no-permanent-store/>` (XEP-0334) so the server does not archive them. Read markers keep `<store/>`.
 - A delivery receipt also moves the sender's delivery watermark, so every earlier own message counts as delivered to that member. A read position is also implied by that member posting after the message, and a read position whose message is not loaded is compared by time.
 - Seen and delivered lookups for own bubbles use one index per loaded message list, built once and shared by all bubbles, instead of a linear scan per bubble.
+- Bubble tails are filled shapes: own bubbles have the tail at the bottom right, others at the bottom left. Only the last bubble of a sender's run has a tail; media-only bubbles and deleted or system rows get none.
+- Message time and read ticks are aligned to the text baseline, and the time sits lower in the bubble.
+- Media-only bubbles show the time as a glass pill over the picture. One rule (`getMediaTimeLayout`) decides the place for both the time and the bubble; the time moves to the bottom row when a failed notice, quick replies, a URL preview or the translate row is shown.
+- The composer grows with soft-wrapped text, with even vertical padding. A single line keeps the 40px field; the field stops at 140px and scrolls beyond that.
+- In group rooms with more than 5 other members, the receipt tooltip and ticks show counts: "Read by N of M" and "Delivered to N of M". In smaller groups the tooltip lists names.
+- The message list reads only messages, history state and the composing flag from the room, and caches reply wrappers per message. One message update re-renders one bubble instead of every row.
+- Bubbles subscribe to their sender's user entry instead of the whole users map, so an unrelated user update no longer re-renders every bubble.
+- The chat room, header and thread read narrow room fields, so a change in another room no longer re-renders the open chat.
+
+### Fixed
+
+- The room list unread badge no longer flickers after a reload. The unread middleware keeps the stored count until a room's history has settled, and the badge is no longer hidden while loading.
+- The native broken-image icon is never shown. A picture that fails to load shows a compact unavailable card, and a failed preview or full-size layer marks the picture as unavailable.
+- A message body that repeats the file's own URL is no longer shown as a caption.
+- Ids such as `send-text-message:<uuid>` no longer read as a timestamp. Only all-digit ids encode a time.
+- The read watermark never moves backwards, and reserved viewer names are ignored for receipts.
+- Live delivery receipts are ordered by arrival, not by the sender's clock.
+- The typing indicator is guarded when the client has no `sendTypingRequestStanza` method, and it uses the current client.
+
+### Upgrade notes
+
+- In `auto` mode, delivery receipts are no longer sent in rooms with more than `deliveryMaxRoomSize` (20) other members, and read markers are not sent above `readMaxRoomSize` (100). Set `receipts.mode: 'all'` or raise the thresholds to keep the previous behaviour.
 
 ## 26.10.1
 
