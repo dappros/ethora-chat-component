@@ -162,10 +162,27 @@ const TickTooltip = styled.span`
   padding: 6px 10px;
   border-radius: 6px;
   font-size: 12px;
-  white-space: nowrap;
+  width: max-content;
+  max-width: 260px;
+  text-align: left;
   pointer-events: none;
   z-index: 1;
 `;
+
+/** One line of the tick tooltip; a large-group tooltip stacks two of these. */
+const TickTooltipLine = styled.span`
+  display: block;
+  white-space: normal;
+  overflow-wrap: anywhere;
+`;
+
+/**
+ * Groups with more than this many other members get count-based receipts
+ * ("Read by 12 of 467") instead of a list of names. Names only make sense
+ * for a handful of people; in a large room they read as if only those
+ * people got the message.
+ */
+const SMALL_GROUP_MAX_OTHERS = 5;
 
 /** Read-receipt tick size, in px: it centres on the 12px time's x-height. */
 const TICK_SIZE_PX = 14;
@@ -517,30 +534,85 @@ const Message: React.FC<MessageProps> = forwardRef<
     (state: RootState) => state.rooms.rooms[message.roomJid]?.type
   );
   const isGroupRoom = roomType !== 'private';
+  // True member count of the room (members can be truncated for big rooms,
+  // usersCnt is the total). A number, so the bubble re-renders only when the
+  // size itself changes.
+  const roomSize = useSelector((state: RootState): number => {
+    const room = state.rooms.rooms[message.roomJid];
+    return Math.max(room?.usersCnt ?? 0, room?.members?.length ?? 0);
+  });
 
   const tickInfo = useMemo(() => {
-    const receivedBy = Object.keys(message.receivedBy || {});
+    const me = user?.xmppUsername;
+    const receivedBy = Object.keys(message.receivedBy || {}).filter(
+      (xmppUsername) => xmppUsername !== me
+    );
     const status: 'sent' | 'delivered' | 'seen' =
       seenBy.length > 0 ? 'seen' : receivedBy.length > 0 ? 'delivered' : 'sent';
     const nameOf = (xmppUsername: string) =>
       createUserNameFromSetUser(usersSet, xmppUsername);
 
-    let tooltip: string;
-    if (status === 'seen') {
-      tooltip = isGroupRoom
-        ? t('message.receipt.readBy', { names: seenBy.map(nameOf).join(', ') })
-        : t('message.receipt.read');
-    } else if (status === 'delivered') {
-      tooltip = isGroupRoom
-        ? t('message.receipt.deliveredTo', {
-            names: receivedBy.map(nameOf).join(', '),
-          })
-        : t('message.receipt.delivered');
-    } else {
-      tooltip = t('message.receipt.sent');
+    // Other members in the room (the sender excluded). The true size comes
+    // from usersCnt because members is capped for big rooms. With no size
+    // known, count the other users we have receipts or read marks from.
+    const knownOthers = new Set<string>([...receivedBy, ...seenBy]);
+    const othersTotal = Math.max(
+      roomSize > 0 ? roomSize - 1 : knownOthers.size,
+      receivedBy.length,
+      seenBy.length
+    );
+
+    if (!isGroupRoom) {
+      const tooltip =
+        status === 'seen'
+          ? t('message.receipt.read')
+          : status === 'delivered'
+            ? t('message.receipt.delivered')
+            : t('message.receipt.sent');
+      return { status, lines: [tooltip] };
     }
-    return { status, tooltip };
-  }, [message.receivedBy, seenBy, usersSet, isGroupRoom, t]);
+
+    if (othersTotal <= SMALL_GROUP_MAX_OTHERS) {
+      const tooltip =
+        status === 'seen'
+          ? t('message.receipt.readBy', {
+              names: seenBy.map(nameOf).join(', '),
+            })
+          : status === 'delivered'
+            ? t('message.receipt.deliveredTo', {
+                names: receivedBy.map(nameOf).join(', '),
+              })
+            : t('message.receipt.sent');
+      return { status, lines: [tooltip] };
+    }
+
+    // Large group: counts only, never names. "seen" means at least one
+    // reader, "delivered" at least one receipt.
+    const readBy = seenBy.length;
+    const sentTo = receivedBy.length;
+    const total = othersTotal;
+    const lines: string[] = [];
+    if (readBy > 0) {
+      lines.push(t('message.receipt.readByCount', { count: readBy, total }));
+    }
+    if (sentTo > 0) {
+      lines.push(
+        t('message.receipt.deliveredToCount', { count: sentTo, total })
+      );
+    }
+    if (lines.length === 0) {
+      lines.push(t('message.receipt.sent'));
+    }
+    return { status, lines };
+  }, [
+    message.receivedBy,
+    seenBy,
+    usersSet,
+    isGroupRoom,
+    roomSize,
+    user?.xmppUsername,
+    t,
+  ]);
   const readStatus = tickInfo.status;
 
   // "failed" is only ever a prompt to retry, never a claim the message was
@@ -746,7 +818,11 @@ const Message: React.FC<MessageProps> = forwardRef<
               stroke={readStatus === 'seen' ? '#0052CD' : '#8C8C8C'}
             />
           )}
-          <TickTooltip className="tick-tooltip">{tickInfo.tooltip}</TickTooltip>
+          <TickTooltip className="tick-tooltip">
+            {tickInfo.lines.map((line, index) => (
+              <TickTooltipLine key={index}>{line}</TickTooltipLine>
+            ))}
+          </TickTooltip>
         </TickStatusWrapper>
       )}
     </CustomMessageTimestamp>

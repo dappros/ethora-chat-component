@@ -97,3 +97,40 @@ describe('Message - delivery/read tick status', () => {
     expect(path?.getAttribute('d')).toBe('M4 8.5L7 11.5L12 5.5');
   });
 });
+
+describe('Message - delivery/read tick status in large groups', () => {
+  const BIG_ROOM_SIZE = 468;
+  const bigRoom = (overrides: Partial<IRoom> = {}) =>
+    makeRoom({ type: 'group', usersCnt: BIG_ROOM_SIZE, ...overrides });
+  const receipts = (n: number) =>
+    Object.fromEntries(
+      Array.from({ length: n }, (_, i) => [`user${i}`, Date.now()])
+    );
+  const watermarks = (n: number, id: string) =>
+    Object.fromEntries(Array.from({ length: n }, (_, i) => [`user${i}`, id]));
+
+  it('shows a single tick when nobody has received the message', () => {
+    const { container } = renderMessage(makeMessage(), bigRoom());
+    const path = container.querySelector('svg path');
+    expect(path?.getAttribute('d')).toBe('M4 8.5L7 11.5L12 5.5');
+  });
+
+  it('shows a gray double tick when one member has received it', () => {
+    const { container } = renderMessage(
+      makeMessage({ receivedBy: receipts(1) }),
+      bigRoom()
+    );
+    const path = container.querySelector('svg path');
+    expect(path?.getAttribute('stroke')).toBe('#8C8C8C');
+    expect(path?.getAttribute('d')).toContain('L14.25 5.75');
+  });
+
+  it('shows a blue double tick when at least 12 members have read it', () => {
+    const { container } = renderMessage(
+      makeMessage({ id: 'm1', receivedBy: receipts(12) }),
+      bigRoom({ lastDisplayedByUser: watermarks(12, 'm2') })
+    );
+    const path = container.querySelector('svg path');
+    expect(path?.getAttribute('stroke')).toBe('#0052CD');
+  });
+});
