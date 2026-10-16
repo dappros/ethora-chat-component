@@ -31,3 +31,6 @@ test-app-next
 xmpp-client-video
 # Deploy-script stamps and npm cache (setup-node-services.sh)
 .ethora_deploy/
+
+# Generated copy of src/ used to be tracked here. Not part of the package, do not commit.
+/lib/

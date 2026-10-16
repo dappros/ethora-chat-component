@@ -1,0 +1,39 @@
+#!/bin/sh
+# Pre-push gate. Enabled through core.hooksPath=.githooks (see scripts/install-git-hooks.mjs).
+#
+#   1. A NEW branch must follow the naming convention (see CONTRIBUTING.md).
+#      Existing branches are not checked again.
+#   2. A push to dev runs the local CI first (npm run ci:local).
+#
+# Do not bypass with --no-verify. The server CI only runs on main.
+
+zero=0000000000000000000000000000000000000000
+pattern='^(main|dev|[0-9]{4}|(feat|fix|hotfix|chore|docs|refactor|test|perf|ci|build|revert)/[a-z0-9]+(-[a-z0-9]+)*)$'
+run_ci=0
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/heads/*)
+      if [ "$remote_sha" = "$zero" ] && [ "$local_sha" != "$zero" ]; then
+        branch="${remote_ref#refs/heads/}"
+        if ! printf '%s\n' "$branch" | grep -Eq "$pattern"; then
+          echo "pre-push: branch '$branch' breaks the naming convention, see CONTRIBUTING.md" >&2
+          exit 1
+        fi
+      fi
+      if [ "$remote_ref" = "refs/heads/dev" ] && [ "$local_sha" != "$zero" ]; then
+        run_ci=1
+      fi
+      ;;
+  esac
+done
+
+if [ "$run_ci" = "1" ]; then
+  echo "pre-push: push to dev, running local CI (npm run ci:local)" >&2
+  if ! npm run --silent ci:local; then
+    echo "pre-push: local CI failed, push to dev aborted" >&2
+    exit 1
+  fi
+fi
+
+exit 0
