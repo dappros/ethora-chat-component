@@ -151,3 +151,19 @@ describe('getReceiptIndex', () => {
     expect(elapsed).toBeLessThan(500);
   });
 });
+
+describe('computeReceiptState id handling', () => {
+  const UUID_WATERMARK = 'send-text-message:a2b4cc53-96d8-4510-81ee-8b6619068803';
+
+  it('does not read a digit run inside a uuid-style id as a time', () => {
+    const messages = [msg('m1', 'me', T0), msg('m2', 'me', T0 + 1000)];
+    const r = state(messages, { lastDisplayedByUser: { bob: UUID_WATERMARK } });
+    expect(r).toBe(NO_RECEIPTS);
+  });
+
+  it('ignores reserved object names as viewers', () => {
+    const messages = [msg('m1', 'me', T0), msg('m2', 'constructor', T0 + 1000)];
+    const r = state(messages, { receivedBy: {} });
+    expect(r.seenBy).not.toContain('constructor');
+  });
+});

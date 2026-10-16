@@ -1,6 +1,9 @@
 import type { ReceiptsConfig } from '../types/models/config.model';
 import type { IMessage, IRoom } from '../types/types';
-import { getTimestampFromUnknown } from '../helpers/timestamp';
+import {
+  getTimestampFromId,
+  getTimestampFromUnknown,
+} from '../helpers/timestamp';
 
 export const RECEIPTS_DEFAULTS = {
   mode: 'auto' as const,
@@ -68,7 +71,7 @@ export const messageTimestamp = (
 ): number =>
   getTimestampFromUnknown(message.date) ||
   getTimestampFromUnknown(message.timestamp) ||
-  getTimestampFromUnknown(message.id) ||
+  getTimestampFromId(message.id) ||
   0;
 
 /**
