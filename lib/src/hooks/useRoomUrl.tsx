@@ -1,19 +1,20 @@
 import { useEffect } from 'react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useStore } from 'react-redux';
 import { setCurrentRoom } from '../roomStore/roomsSlice';
-import { IConfig, IRoom } from '../types/types';
+import { RootState } from '../roomStore';
+import { IConfig } from '../types/types';
 
-export const useRoomUrl = (
-  activeRoomJID: string,
-  roomsList: Record<string, IRoom>,
-  config: IConfig
-) => {
+export const useRoomUrl = (activeRoomJID: string, config: IConfig) => {
   const dispatch = useDispatch();
+  const store = useStore<RootState>();
 
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
+    // Read at the moment the effect runs; the effect only re-runs on a new
+    // activeRoomJID, so the rooms map is not a dependency.
+    const roomsList = store.getState().rooms.rooms;
 
     if (
       config?.setRoomJidInPath &&
@@ -41,5 +42,5 @@ export const useRoomUrl = (
         window.history.pushState(null, '', newUrl);
       }
     };
-  }, [activeRoomJID, roomsList?.length]);
+  }, [activeRoomJID]);
 };

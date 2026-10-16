@@ -4,6 +4,7 @@ import { IMessage, RoomMember } from '../types/types';
 // `store` from roomStore/index.ts - importing it here would create a
 // circular dependency back into the module still assembling that store.
 import { isOpaqueXmppUserId } from './xmppIdShape';
+import { lookupUserEntry } from './userEntry';
 
 /**
  * Cache-only lookup. Returns the literal "Deleted User" as a MISS sentinel
@@ -15,7 +16,7 @@ export const createUserNameFromSetUser = (
   usersSet: Record<string, RoomMember>,
   userId: string
 ): string => {
-  const user = usersSet[userId];
+  const user = lookupUserEntry(usersSet, userId);
 
   if (!user) return 'Deleted User';
 
