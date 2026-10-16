@@ -28,16 +28,45 @@ describe('XmppClient.sendHistoryReceivedReceiptStanza', () => {
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
-  it('sends independently for different messages or different rooms', () => {
-    const client = makeClient();
-    const spy = vi
-      .spyOn(client, 'sendReceivedReceiptStanza')
-      .mockImplementation(() => {});
+  it('coalesces a burst in one room into the leading and newest receipt', () => {
+    vi.useFakeTimers();
+    try {
+      const client = makeClient();
+      const spy = vi
+        .spyOn(client, 'sendReceivedReceiptStanza')
+        .mockImplementation(() => {});
 
-    client.sendHistoryReceivedReceiptStanza('room1@conference.example.com', 'm1');
-    client.sendHistoryReceivedReceiptStanza('room1@conference.example.com', 'm2');
-    client.sendHistoryReceivedReceiptStanza('room2@conference.example.com', 'm1');
+      client.sendHistoryReceivedReceiptStanza('room1@conference.example.com', 'm1', 1000, 1500);
+      client.sendHistoryReceivedReceiptStanza('room1@conference.example.com', 'm2', 2000, 1500);
 
-    expect(spy).toHaveBeenCalledTimes(3);
+      // m1 goes out at once; m2 is held until the window closes.
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenLastCalledWith('m1', 'room1@conference.example.com');
+
+      vi.advanceTimersByTime(1500);
+      expect(spy).toHaveBeenCalledTimes(2);
+      expect(spy).toHaveBeenLastCalledWith('m2', 'room1@conference.example.com');
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
+  });
+
+  it('sends independently for different rooms', () => {
+    vi.useFakeTimers();
+    try {
+      const client = makeClient();
+      const spy = vi
+        .spyOn(client, 'sendReceivedReceiptStanza')
+        .mockImplementation(() => {});
+
+      client.sendHistoryReceivedReceiptStanza('room1@conference.example.com', 'm1');
+      client.sendHistoryReceivedReceiptStanza('room2@conference.example.com', 'm1');
+
+      expect(spy).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
   });
 });

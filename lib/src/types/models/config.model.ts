@@ -171,6 +171,33 @@ export type ChatErrorFallbackRenderer = (
 
 export type ChatColorScheme = 'light' | 'dark' | 'system';
 
+/**
+ * Delivery (XEP-0184 `<received/>`) and read (XEP-0333 `<displayed/>`)
+ * receipts. The client always DISPLAYS the receipts it receives; these
+ * options only control what this client SENDS, so large rooms do not turn
+ * every message into a broadcast to every occupant.
+ *
+ * - `mode`: `'auto'` (default) sends delivery receipts only in rooms of up to
+ *   `deliveryMaxRoomSize` other members and read markers only in rooms of up
+ *   to `readMaxRoomSize` other members; `'all'` always sends (still coalesced);
+ *   `'off'` never sends a delivery or read signal.
+ * - `deliveryMaxRoomSize` / `readMaxRoomSize`: room size (other members, the
+ *   sender excluded) above which the signal is skipped in `'auto'`. Private
+ *   1:1 rooms and rooms whose size is unknown always send.
+ * - `maxAgeDays`: in `'auto'`, messages older than this are not acknowledged
+ *   (old history replays do not generate receipts).
+ * - `coalesceMs`: delivery receipts are sent at most once per window per
+ *   room; the first one goes out at once, the rest of the window is collapsed
+ *   into one receipt for the newest message.
+ */
+export interface ReceiptsConfig {
+  mode?: 'auto' | 'all' | 'off';
+  deliveryMaxRoomSize?: number;
+  readMaxRoomSize?: number;
+  maxAgeDays?: number;
+  coalesceMs?: number;
+}
+
 export interface IConfig {
   appId?: string;
   /**
@@ -567,6 +594,8 @@ export interface IConfig {
   };
   newArch?: boolean;
   disableLastRead?: boolean;
+  /** Delivery and read receipt sending policy. See ReceiptsConfig. */
+  receipts?: ReceiptsConfig;
   qrUrl?: string;
   secondarySendButton?: {
     enabled: boolean;

@@ -54,6 +54,11 @@ import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { useXmppClient } from '../../context/xmppProvider';
 import { useTabVisibility } from '../../hooks/useTabVisibility';
 import { getTimestampFromUnknown } from '../../helpers/timestamp';
+import {
+  resolveReceiptsConfig,
+  shouldSendRead,
+} from '../../networking/receiptsPolicy';
+import { DisplayedMarkerThrottle } from '../../networking/displayedMarkerThrottle';
 import { DownArrowIcon } from '../../assets/icons';
 import NewMessageLabel from '../styled/NewMessageLabel';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
@@ -71,6 +76,9 @@ import { requestSendersOf } from '../../helpers/userResolver';
 // messages produces exactly one write, sent for the last message once
 // things go quiet - not one write per message.
 const MARK_READ_DEBOUNCE_MS = 1000;
+// Read markers for one room go out at most this often; a marker that lands
+// inside the window is held and the newest one is sent when it ends.
+const DISPLAYED_MARKER_MIN_INTERVAL_MS = 3000;
 
 // Floats over the top of the transcript so showing or hiding it never moves
 // the messages (the scroll compensation for a page of history relies on the
@@ -309,6 +317,16 @@ const MessageList = <TMessage extends IMessage>({
   const lastComposingState = useRef<boolean>(false);
   const markReadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastFlushedMessageTsRef = useRef<number>(0);
+  const displayedThrottleRef = useRef<DisplayedMarkerThrottle | null>(null);
+  const receiptsConfig = useMemo(
+    () => resolveReceiptsConfig(config?.receipts),
+    [config?.receipts]
+  );
+  // A boolean, so this list re-renders only when the room's size crosses the
+  // read-marker threshold, not on every store update.
+  const readMarkersAllowed = useSelector((state: RootState) =>
+    shouldSendRead(state.rooms.rooms[roomJID], receiptsConfig)
+  );
 
   const flushMarkRead = useCallback(() => {
     markReadTimerRef.current = null;
@@ -333,8 +351,12 @@ const MessageList = <TMessage extends IMessage>({
     // XEP-0333 read marker - broadcast to the room so peers can flip their
     // tick to "read". Piggybacks on the same debounce as the private
     // last-viewed write above; only for messages someone else sent.
-    if (latest?.id && latest.user?.id !== user?.xmppUsername) {
-      client.sendDisplayedMarkerStanza(latest.id, roomJID);
+    if (
+      latest?.id &&
+      latest.user?.id !== user?.xmppUsername &&
+      readMarkersAllowed
+    ) {
+      displayedThrottleRef.current?.mark(latest.id);
     }
   }, [
     config?.disableLastRead,
@@ -343,6 +365,7 @@ const MessageList = <TMessage extends IMessage>({
     roomJID,
     messages,
     user?.xmppUsername,
+    readMarkersAllowed,
   ]);
 
   const scheduleMarkRead = useCallback(() => {
@@ -358,6 +381,23 @@ const MessageList = <TMessage extends IMessage>({
       if (markReadTimerRef.current) clearTimeout(markReadTimerRef.current);
     };
   }, [roomJID]);
+
+  // One throttle per room connection. Disposing it sends a held marker first,
+  // so leaving a room keeps its final read watermark.
+  useEffect(() => {
+    if (!client || !roomJID) return;
+    const throttle = new DisplayedMarkerThrottle({
+      minIntervalMs: DISPLAYED_MARKER_MIN_INTERVAL_MS,
+      send: (messageId) => client.sendDisplayedMarkerStanza(messageId, roomJID),
+    });
+    displayedThrottleRef.current = throttle;
+    return () => {
+      throttle.dispose();
+      if (displayedThrottleRef.current === throttle) {
+        displayedThrottleRef.current = null;
+      }
+    };
+  }, [client, roomJID]);
 
   const getScrollParams = (): { top: number; height: number } | null => {
     const content = containerRef.current;
