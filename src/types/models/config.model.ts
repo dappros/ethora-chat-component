@@ -377,6 +377,13 @@ export interface IConfig {
    * outright even then, e.g. because it renders its own mute control.
    */
   disableRoomMute?: boolean;
+  /**
+   * Hide the "Block user" action from a 1-1 private chat's header menu. Block
+   * is only ever offered for private rooms with a resolvable peer; this flag
+   * lets a host hide it outright (e.g. it renders its own block control, or
+   * the backend predates the /v1/chats/blocked route).
+   */
+  disableUserBlock?: boolean;
   defaultRooms?: ConfigRoom[];
   /**
    * The "Files" tab shown in the sidebar alongside "Chats". Backed by
