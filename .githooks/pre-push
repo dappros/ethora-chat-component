@@ -5,7 +5,7 @@
 #      Existing branches are not checked again.
 #   2. A push to dev runs the local CI first (npm run ci:local).
 #
-# Do not bypass with --no-verify. The server CI only runs on main.
+# Do not bypass with --no-verify. The server CI runs on pull requests into main and on pushes to main.
 
 zero=0000000000000000000000000000000000000000
 pattern='^(main|dev|[0-9]{4}|(feat|fix|hotfix|chore|docs|refactor|test|perf|ci|build|revert)/[a-z0-9]+(-[a-z0-9]+)*)$'
