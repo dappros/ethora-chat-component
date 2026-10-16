@@ -35,7 +35,9 @@ import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { useT, useUiLocale } from '../../i18n/useT';
 import { formatNumberWithCommas } from '../../helpers/formatNumberWithCommas';
 import { appendFileToken } from '../../helpers/secureFileUrl';
-import { createChatCall } from '../../networking/api-requests/rooms.api';
+import { blockUser, createChatCall } from '../../networking/api-requests/rooms.api';
+import { useToast } from '../../context/ToastContext';
+import { ethoraLogger } from '../../helpers/ethoraLogger';
 import { setCallError, startOutgoingCall } from '../../roomStore/callSlice';
 import { sendCallInviteSignal } from '../../networking/callTokenStanza';
 import { ModalWrapper } from '../Modals/ModalWrapper/ModalWrapper';
@@ -287,6 +289,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     open: () => dispatch(setActiveModal(MODAL_TYPES.MESSAGE_SEARCH)),
   });
   const t = useT();
+  const { showToast } = useToast();
   const uiLocale = useUiLocale();
   const call = useSelector((state: RootState) => state.call);
   // Secure room avatars need the viewer's own `?ft=` token appended at
@@ -308,6 +311,11 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     : undefined;
   const peerOnline =
     !!peer?.xmppUsername && onlineUsers.includes(peer.xmppUsername);
+  // Block is offered only for 1-1 private rooms with a resolvable peer. Hosts
+  // can hide it with config.disableUserBlock. Backends without the route (e.g.
+  // older prod) return 404, surfaced as an error toast.
+  const canBlock =
+    isPrivateRoom && !!peer?.xmppUsername && !config?.disableUserBlock;
   const isRoomAllowedByType =
     isPrivateRoom && allowedRoomTypes.includes('private');
   const isRoomAllowed = isRoomAllowedByType;
@@ -365,6 +373,32 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     dispatch(setCurrentRoom({ roomJID: null }));
     setIsLeaveModalOpen(false);
   }, [activeRoomJID, dispatch, client]);
+
+  // Block the peer of a 1-1 private chat. Unlike Leave, this keeps the XMPP
+  // room membership (so Unblock from settings restores the conversation); it
+  // only drops the room from the local list and clears the selection. The
+  // backend hides the room from /chats/my and suppresses the peer's realtime
+  // messages; their messages stay archived.
+  const handleBlockClick = useCallback(async () => {
+    const peerUsername = peer?.xmppUsername;
+    if (!peerUsername || !activeRoomJID) return;
+    try {
+      await blockUser(peerUsername);
+      dispatch(deleteRoom({ jid: activeRoomJID }));
+      if (typeof window !== 'undefined') {
+        window.history.pushState(null, '', window.location.pathname);
+      }
+      dispatch(setCurrentRoom({ roomJID: null }));
+    } catch (error) {
+      ethoraLogger.log('Block user failed', error);
+      showToast({
+        id: Date.now().toString(),
+        title: t('toast.error'),
+        message: t('toast.blockFailed'),
+        type: 'error',
+      });
+    }
+  }, [peer?.xmppUsername, activeRoomJID, dispatch, showToast, t]);
 
   const placeCall = useCallback(
     async (kind: 'audio' | 'video') => {
@@ -649,6 +683,8 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                 roomJid={currentRoom?.jid}
                 handleLeaveClick={handleLeaveClick}
                 handleReportClick={handleReportClick}
+                handleBlockClick={handleBlockClick}
+                canBlock={canBlock}
               />
             </HeaderActions>
           )}

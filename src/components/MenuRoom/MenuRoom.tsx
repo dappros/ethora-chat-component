@@ -1,7 +1,7 @@
 import { FC, useMemo } from 'react';
 import DropdownMenu from '../DropdownMenu/DropdownMenu';
 import Button from '../styled/Button';
-import { BellIcon, BellOffIcon, LeaveIcon, MoreIcon, ReportIcon } from '../../assets/icons';
+import { BellIcon, BellOffIcon, LeaveIcon, MoreIcon, RemoveIcon, ReportIcon } from '../../assets/icons';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
 import { useT } from '../../i18n/useT';
 import { useRoomMute } from '../../hooks/useRoomMute';
@@ -11,12 +11,20 @@ interface RoomMenuProps {
   roomJid?: string;
   handleLeaveClick: () => void;
   handleReportClick: () => void;
+  // Block the other user in a 1-1 private chat. Only wired (and `canBlock`
+  // only true) for private rooms with a resolvable peer; once blocked the
+  // room leaves the list, so this menu only ever offers Block, never Unblock
+  // (that lives in the Blocked Users settings page).
+  handleBlockClick?: () => void;
+  canBlock?: boolean;
 }
 
 export const RoomMenu: FC<RoomMenuProps> = ({
   roomJid,
   handleLeaveClick,
   handleReportClick,
+  handleBlockClick,
+  canBlock,
 }) => {
   const t = useT();
   const { config } = useChatSettingState();
@@ -45,6 +53,19 @@ export const RoomMenu: FC<RoomMenuProps> = ({
             },
           ]
         : []),
+      ...(canBlock && handleBlockClick
+        ? [
+            {
+              label: t('action.block'),
+              icon: <RemoveIcon />,
+              onClick: () => {
+                handleBlockClick();
+                ethoraLogger.log('Block clicked');
+              },
+              styles: { color: 'var(--ethora-color-danger, #D92D20)' },
+            },
+          ]
+        : []),
       {
         label: t('action.report'),
         icon: <ReportIcon />,
@@ -66,6 +87,8 @@ export const RoomMenu: FC<RoomMenuProps> = ({
     [
       handleLeaveClick,
       handleReportClick,
+      handleBlockClick,
+      canBlock,
       t,
       showMuteOption,
       muted,
