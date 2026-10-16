@@ -4,6 +4,7 @@ import React, {
   useCallback,
   useMemo,
   useEffect,
+  useLayoutEffect,
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useSelector } from 'react-redux';
@@ -51,6 +52,7 @@ import { RootState, getActiveRoom } from '../../roomStore';
 import { useMentionComposer } from '../../hooks/useMentionComposer';
 import { MentionCandidate } from '../../helpers/mentions';
 import { isRoomMembersTruncated } from '../../helpers/roomUserCount';
+import { fitTextareaToContent } from '../../helpers/textareaFit';
 import { useRoomDirectory } from '../../hooks/useRoomDirectory';
 import MentionDropdown from '../InputComponents/MentionDropdown';
 import MentionPickerModal from '../InputComponents/MentionPickerModal';
@@ -165,7 +167,6 @@ const SendInput: React.FC<SendInputProps> = ({
   const t = useT();
   const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
-  const [textareaHeight, setTextareaHeight] = useState(40);
   const [isFocused, setIsFocused] = useState(false);
 
   const [filePreviews, setFilePreviews] = useState<File[]>([]);
@@ -547,28 +548,13 @@ const SendInput: React.FC<SendInputProps> = ({
     setAttachmentNotice(null);
   }, []);
 
-  const calculateTextareaHeight = useCallback(
-    (text: string) => {
-      if (!multiline) return 40;
-
-      const lineBreaks = (text.match(/\n/g) || []).length;
-      const baseHeight = 40;
-      const heightPerLine = 13;
-      const maxHeight = 92;
-
-      const calculatedHeight = baseHeight + lineBreaks * heightPerLine;
-      return Math.min(Math.max(calculatedHeight, baseHeight), maxHeight);
-    },
-    [multiline]
-  );
-
-  const updateTextareaHeight = useCallback(
-    (text: string) => {
-      const newHeight = calculateTextareaHeight(text);
-      setTextareaHeight(newHeight);
-    },
-    [calculateTextareaHeight]
-  );
+  // Re-measures the textarea from its content (soft wraps included). Called
+  // directly from handlers and, for programmatic value changes, from the
+  // layout effect below once React has committed the new value.
+  const updateTextareaHeight = useCallback(() => {
+    const el = textareaRef.current;
+    if (el) fitTextareaToContent(el);
+  }, []);
 
   const handleInputChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -578,10 +564,28 @@ const SendInput: React.FC<SendInputProps> = ({
         mention.handleTextChange(message, newValue, caret);
       }
       setMessage(newValue);
-      updateTextareaHeight(newValue);
+      updateTextareaHeight();
     },
     [updateTextareaHeight, mentionsEnabled, mention, message]
   );
+
+  useLayoutEffect(() => {
+    if (multiline) updateTextareaHeight();
+  }, [message, multiline, updateTextareaHeight]);
+
+  // Width changes re-flow soft wraps, so the height must be recomputed too.
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!multiline || !el || typeof ResizeObserver === 'undefined') return;
+    let lastWidth = el.clientWidth;
+    const ro = new ResizeObserver(() => {
+      if (el.clientWidth === lastWidth) return;
+      lastWidth = el.clientWidth;
+      fitTextareaToContent(el);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [multiline]);
 
   const applyMentionSelection = useCallback(
     (candidate: MentionCandidate, caretOverride?: number) => {
@@ -590,7 +594,7 @@ const SendInput: React.FC<SendInputProps> = ({
       const result = mention.selectCandidate(candidate, message, caret);
       if (!result) return;
       setMessage(result.text);
-      updateTextareaHeight(result.text);
+      updateTextareaHeight();
       requestCaret(result.caret);
     },
     [mention, message, updateTextareaHeight, requestCaret]
@@ -625,7 +629,7 @@ const SendInput: React.FC<SendInputProps> = ({
         mention.closeDropdown();
       }
       setMessage(newValue);
-      updateTextareaHeight(newValue);
+      updateTextareaHeight();
       requestCaret(caret);
     },
     [message, mentionsEnabled, mention, updateTextareaHeight, requestCaret]
@@ -672,7 +676,7 @@ const SendInput: React.FC<SendInputProps> = ({
     // `undefined` here flips the input from controlled to uncontrolled.
     setMessage(editMessage ?? '');
     if (editMessage) {
-      updateTextareaHeight(editMessage);
+      updateTextareaHeight();
     }
   }, [editMessage, updateTextareaHeight]);
 
@@ -731,7 +735,7 @@ const SendInput: React.FC<SendInputProps> = ({
     // under the room we are arriving at.
     skipNextDraftSaveRef.current = true;
     setMessage(restored);
-    updateTextareaHeight(restored);
+    updateTextareaHeight();
     if (mentionsEnabled) mention.resetMentions();
     // Caret at the end, so the user carries on where they stopped. Only
     // when there is something to carry on from - an empty draft must not
@@ -857,7 +861,7 @@ const SendInput: React.FC<SendInputProps> = ({
         setMessage('');
         setFilePreviews([]);
         setAttachmentNotice(null);
-        setTextareaHeight(40);
+        updateTextareaHeight();
         return;
       }
 
@@ -866,7 +870,7 @@ const SendInput: React.FC<SendInputProps> = ({
       setMessage('');
       setFilePreviews([]);
       setAttachmentNotice(null);
-      setTextareaHeight(40);
+      updateTextareaHeight();
     },
     [
       effectiveSendMedia,
@@ -892,7 +896,7 @@ const SendInput: React.FC<SendInputProps> = ({
     setMessage('');
     setFilePreviews([]);
     setAttachmentNotice(null);
-    setTextareaHeight(40);
+    updateTextareaHeight();
   }, [
     effectiveSendMessage,
     message,
@@ -959,7 +963,7 @@ const SendInput: React.FC<SendInputProps> = ({
         if (edit) {
           event.preventDefault();
           setMessage(edit.text);
-          updateTextareaHeight(edit.text);
+          updateTextareaHeight();
           requestCaret(edit.caret);
           return;
         }
@@ -1096,7 +1100,6 @@ const SendInput: React.FC<SendInputProps> = ({
             />
             {multiline ? (
               <TextareaWrapper
-                $dynamicHeight={textareaHeight}
                 $color={config?.colors?.primary}
                 $colorBg={config?.colors?.colorInput}
                 $isFocused={isFocused}
@@ -1114,7 +1117,7 @@ const SendInput: React.FC<SendInputProps> = ({
                   onFocus={handleFocus}
                   onBlur={handleBlur}
                   disabled={isLoading || isMessageProcessing}
-                  $dynamicHeight={textareaHeight}
+                  rows={1}
                   $color={config?.colors?.primary}
                   $colorBg={config?.colors?.colorInput}
                 />
