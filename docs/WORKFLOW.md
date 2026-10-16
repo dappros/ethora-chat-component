@@ -43,7 +43,7 @@ Keep each fix in its own commit. Do not mix a fix with a refactor or a feature.
 2. Commit on the work branch.
 3. Merge into `dev` locally: `git switch dev && git merge --no-ff feat/room-search`
 4. Push: `git push origin dev`. The `pre-push` hook runs `npm run ci:local` first and aborts the push if it fails.
-5. When `dev` is ready for release: `git switch main && git merge --no-ff dev && git push origin main`. The server CI (GitHub Actions) runs on the push to `main`.
+5. When `dev` is ready for release: `git switch main && git merge --no-ff dev && git push origin main`. The server CI (GitHub Actions) runs on pull requests into `main` and on the push to `main`.
 6. Release from `main` (see below).
 
 Do not merge pull requests into `dev` from the GitHub web UI. The local gate in step 4 is what protects `dev`, and it does not run for web merges.
@@ -56,7 +56,7 @@ Set up the hooks once per clone with `npm install`. This sets `core.hooksPath` t
 npm run ci:local
 ```
 
-Runs lint, tests, the release-script checks and the build. The server CI runs the same checks after the merge to `main`, plus the consumer smoke test (React 18 and 19). The consumer smoke test is not part of `ci:local` because it is slower.
+Runs lint, tests, the release-script checks and the build. The server CI runs the same checks on pull requests into `main` and after the push to `main`, plus the consumer smoke test (React 18 and 19). The consumer smoke test is not part of `ci:local` because it is slower.
 
 ## Versions and releases
 
