@@ -194,6 +194,33 @@ export async function unmuteRoom(
   }
 }
 
+// PUT /v1/chats/my/{chatName}/leave - soft-leave (hide) a 1-1 private chat for
+// the caller. Non-destructive: the peer is unaffected and a new message from
+// them resurfaces the chat (backend clears the flag). Idempotent. QA-only for
+// now, like mute (a backend without the route returns 404).
+export async function leaveRoom(
+  chatName: string
+): Promise<{ chatName: string; left: boolean } | undefined> {
+  const token = store.getState().chatSettingStore.user.token || '';
+
+  try {
+    const response = await http.put(
+      `/v1/chats/my/${chatName}/leave`,
+      {},
+      {
+        headers: {
+          Authorization: token,
+        },
+      }
+    );
+    // Drop the 60s /chats/my cache so the hide takes effect at once.
+    invalidateRoomsCache();
+    return response.data?.result;
+  } catch (error) {
+    throw new Error('Error leaving chat');
+  }
+}
+
 // POST/DELETE /v1/chats/blocked - block / unblock another user in 1-1 private
 // chats. `peer` is the other user's xmppUsername. Blocking hides every private
 // room the pair shares from GET /chats/my and suppresses the blocked user's

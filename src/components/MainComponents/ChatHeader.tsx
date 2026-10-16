@@ -35,7 +35,7 @@ import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { useT, useUiLocale } from '../../i18n/useT';
 import { formatNumberWithCommas } from '../../helpers/formatNumberWithCommas';
 import { appendFileToken } from '../../helpers/secureFileUrl';
-import { blockUser, createChatCall } from '../../networking/api-requests/rooms.api';
+import { blockUser, createChatCall, leaveRoom } from '../../networking/api-requests/rooms.api';
 import { useToast } from '../../context/ToastContext';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
 import { setCallError, startOutgoingCall } from '../../roomStore/callSlice';
@@ -362,6 +362,16 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     }
 
     client.leaveTheRoomStanza(activeRoomJID);
+    // For a 1-1 private chat, persist the leave as a per-user soft-hide so it
+    // sticks across refetch/reconnect (plain deleteRoom is store-only and the
+    // next /chats/my re-adds the room). The peer is unaffected and a new
+    // message from them resurfaces the chat. Group rooms keep the existing
+    // behaviour (the MUC exit drives the server-side membership removal).
+    if (isPrivateRoom) {
+      void leaveRoom(activeRoomJID.split('@')[0]).catch((error) => {
+        ethoraLogger.log('Leave chat failed', error);
+      });
+    }
     dispatch(deleteRoom({ jid: activeRoomJID }));
 
     // After leaving, don't auto-jump into another (often empty) room - that
@@ -372,7 +382,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     }
     dispatch(setCurrentRoom({ roomJID: null }));
     setIsLeaveModalOpen(false);
-  }, [activeRoomJID, dispatch, client]);
+  }, [activeRoomJID, dispatch, client, isPrivateRoom]);
 
   // Block the peer of a 1-1 private chat. Unlike Leave, this keeps the XMPP
   // room membership (so Unblock from settings restores the conversation); it
