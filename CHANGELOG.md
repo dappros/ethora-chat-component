@@ -2,6 +2,21 @@
 
 All notable changes to this package are documented here. For cross-SDK release notes, see [ethora/RELEASE-NOTES.md](https://github.com/dappros/ethora/blob/main/RELEASE-NOTES.md).
 
+## Unreleased
+
+### Added
+
+- `config.receipts` (`{ mode, deliveryMaxRoomSize, readMaxRoomSize, maxAgeDays, coalesceMs }`) controls which delivery and read receipts this client sends. Defaults: `mode: 'auto'`, `deliveryMaxRoomSize: 20`, `readMaxRoomSize: 100`, `maxAgeDays: 7`, `coalesceMs: 1500`. `'off'` sends none; received receipts are still displayed.
+
+### Changed
+
+- Delivery receipts are coalesced per room: the first message is acknowledged at once and a burst or a history replay collapses into one receipt for the newest message. Opening a room with 100 history messages sends at most two receipts instead of up to 100.
+- In `auto` mode, delivery receipts are skipped in rooms with more than 20 other members, read markers in rooms with more than 100, and old history is not acknowledged. Ticks in those rooms show "sent" or "delivered" from the other signals that do arrive.
+- Read markers are rate limited to one per 3 seconds per room; the final read position is always sent.
+- Delivery receipts carry `<no-permanent-store/>` (XEP-0334) so the server does not archive them. Read markers keep `<store/>`.
+- A delivery receipt also moves the sender's delivery watermark, so every earlier own message counts as delivered to that member. A read position is also implied by that member posting after the message, and a read position whose message is not loaded is compared by time.
+- Seen and delivered lookups for own bubbles use one index per loaded message list, built once and shared by all bubbles, instead of a linear scan per bubble.
+
 ## 26.10.1
 
 ### Added
