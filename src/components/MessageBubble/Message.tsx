@@ -21,7 +21,15 @@ import {
 } from '../styled/StyledComponents';
 import MediaMessage from '../MainComponents/MediaMessage';
 import MediaCaption from './MediaCaption';
-import { shallowEqual, useDispatch, useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  computeReceiptState,
+  getReceiptIndex,
+  NO_RECEIPTS,
+  receiptStateEqual,
+  ReceiptState,
+} from '../../helpers/receiptState';
+import { messageTimestamp } from '../../networking/receiptsPolicy';
 import { RootState } from '../../roomStore';
 import { createUserNameFromSetUser } from '../../helpers/createUserNameFromSetUser';
 
@@ -187,7 +195,6 @@ const SMALL_GROUP_MAX_OTHERS = 5;
 /** Read-receipt tick size, in px: it centres on the 12px time's x-height. */
 const TICK_SIZE_PX = 14;
 
-const NO_VIEWERS: string[] = [];
 
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
@@ -508,28 +515,30 @@ const Message: React.FC<MessageProps> = forwardRef<
   // resolves the reader list itself and returns a small array (compared
   // shallowly), so a bubble does not re-render on every new room message,
   // and only own messages do the lookup at all.
-  const seenBy = useSelector((state: RootState): string[] => {
-    if (!isUser) return NO_VIEWERS;
-    const room = state.rooms.rooms[message.roomJid];
-    const watermark = room?.lastDisplayedByUser;
-    if (!watermark || !room?.messages?.length) return NO_VIEWERS;
-    const viewers = Object.keys(watermark).filter(
-      (xmppUsername) => xmppUsername !== user?.xmppUsername
-    );
-    if (!viewers.length) return NO_VIEWERS;
-    const indexOf = (id: string): number => {
-      for (let i = room.messages.length - 1; i >= 0; i--) {
-        if (room.messages[i].id === id) return i;
-      }
-      return -1;
-    };
-    const thisIndex = indexOf(message.id);
-    if (thisIndex === -1) return NO_VIEWERS;
-    return viewers.filter((xmppUsername) => {
-      const displayedIndex = indexOf(watermark[xmppUsername]);
-      return displayedIndex >= thisIndex;
-    });
-  }, shallowEqual);
+  // Read/delivery state for this own bubble (XEP-0184/XEP-0333). The room
+  // lookup tables are built once per messages array and shared by every
+  // bubble, so each bubble only walks its viewers. The selector returns small
+  // arrays compared by content, so the bubble re-renders only when who has
+  // read or received it actually changes.
+  const receipts = useSelector(
+    (state: RootState): ReceiptState => {
+      if (!isUser) return NO_RECEIPTS;
+      const room = state.rooms.rooms[message.roomJid];
+      if (!room?.messages?.length) return NO_RECEIPTS;
+      return computeReceiptState({
+        index: getReceiptIndex(room.messages),
+        messageId: message.id,
+        messageTs: messageTimestamp(message),
+        receivedBy: message.receivedBy,
+        lastReceivedByUser: room.lastReceivedByUser,
+        lastDisplayedByUser: room.lastDisplayedByUser,
+        selfId: user?.xmppUsername,
+      });
+    },
+    receiptStateEqual
+  );
+  const seenBy = receipts.seenBy;
+  const deliveredBy = receipts.deliveredBy;
   const roomType = useSelector(
     (state: RootState) => state.rooms.rooms[message.roomJid]?.type
   );
@@ -544,9 +553,7 @@ const Message: React.FC<MessageProps> = forwardRef<
 
   const tickInfo = useMemo(() => {
     const me = user?.xmppUsername;
-    const receivedBy = Object.keys(message.receivedBy || {}).filter(
-      (xmppUsername) => xmppUsername !== me
-    );
+    const receivedBy = deliveredBy.filter((xmppUsername) => xmppUsername !== me);
     const status: 'sent' | 'delivered' | 'seen' =
       seenBy.length > 0 ? 'seen' : receivedBy.length > 0 ? 'delivered' : 'sent';
     const nameOf = (xmppUsername: string) =>
@@ -605,7 +612,7 @@ const Message: React.FC<MessageProps> = forwardRef<
     }
     return { status, lines };
   }, [
-    message.receivedBy,
+    deliveredBy,
     seenBy,
     usersSet,
     isGroupRoom,

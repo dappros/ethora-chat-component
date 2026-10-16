@@ -998,6 +998,43 @@ const roomsStore = createSlice({
         }
       });
     },
+    // Delivery watermark: the newest message `xmppUsername` has acknowledged
+    // with a <received/>. A watermark can only move forward, so an older
+    // receipt arriving late is ignored when both positions are loaded.
+    setReceivedWatermark: (
+      state,
+      action: PayloadAction<{
+        roomJID: string;
+        xmppUsername: string;
+        messageId: string;
+      }>
+    ) => {
+      const { roomJID, xmppUsername, messageId } = action.payload;
+      if (!isSafeKey(roomJID) || !isSafeKey(xmppUsername)) return;
+      if (!messageId || !state.rooms[roomJID]) return;
+      if (
+        xmppUsername === '__proto__' ||
+        xmppUsername === 'constructor' ||
+        xmppUsername === 'prototype'
+      ) {
+        return;
+      }
+      const room = state.rooms[roomJID];
+      const previous = room.lastReceivedByUser?.[xmppUsername];
+      if (previous && previous !== messageId) {
+        const indexOf = (id: string) =>
+          room.messages.findIndex((m) => m.id === id);
+        const prevIndex = indexOf(previous);
+        const nextIndex = indexOf(messageId);
+        if (prevIndex !== -1 && nextIndex !== -1 && nextIndex < prevIndex) {
+          return;
+        }
+      }
+      if (!room.lastReceivedByUser) {
+        room.lastReceivedByUser = {};
+      }
+      room.lastReceivedByUser[xmppUsername] = messageId;
+    },
     setDisplayedMarker: (
       state,
       action: PayloadAction<{
@@ -2054,6 +2091,7 @@ export const {
   setRoomRole,
   setReactions,
   setReceivedReceipt,
+  setReceivedWatermark,
   setDisplayedMarker,
   setLogoutState,
   setActiveMessage,

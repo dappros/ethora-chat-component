@@ -10,6 +10,7 @@ import {
   setCurrentRoom,
   setReactions,
   setReceivedReceipt,
+  setReceivedWatermark,
   setDisplayedMarker,
   setRoomRole,
   setMemberOnline,
@@ -318,6 +319,16 @@ const onReceivedReceipt = async (stanza: Element) => {
       messageId,
       fromXmppUsername,
       timestamp: Date.now(),
+    })
+  );
+  // The same receipt also moves the sender's delivery watermark, so every
+  // earlier own message counts as delivered to them without a per-message
+  // receipt (see lastReceivedByUser on IRoom).
+  store.dispatch(
+    setReceivedWatermark({
+      roomJID,
+      xmppUsername: fromXmppUsername,
+      messageId,
     })
   );
 };
