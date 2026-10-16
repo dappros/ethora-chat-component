@@ -73,6 +73,10 @@ export interface IRoom {
   // they've displayed. Room-level watermark (not per-message displayedBy)
   // to keep read-marker updates O(1) instead of O(messages).
   lastDisplayedByUser?: Record<string, string>;
+  // Delivery watermarks (XEP-0184): xmppUsername -> stanza-id of the newest
+  // message they acknowledged with a <received/>. A watermark covers every
+  // earlier message, so one receipt stands for a whole burst.
+  lastReceivedByUser?: Record<string, string>;
   unreadMessages?: number;
   /**
    * Unread count the server reported for this room in `GET /v1/chats/my`

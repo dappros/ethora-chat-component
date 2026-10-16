@@ -42,3 +42,16 @@ export const getTimestampFromUnknown = (value: unknown): number => {
   return 0;
 };
 
+
+/**
+ * Time encoded in a message or stanza id, 0 when the id carries none. Only an
+ * all-digit id (server stanza-id, microseconds) encodes a time: ids such as
+ * `send-text-message:<uuid>` must not be read as one, because a uuid can hold
+ * a run of ten or more digits that would parse as a far-future time.
+ */
+export const getTimestampFromId = (id: unknown): number => {
+  if (typeof id === 'number') return normalizeTimestampValue(id);
+  if (typeof id !== 'string') return 0;
+  const trimmed = id.trim();
+  return /^\d+$/.test(trimmed) ? normalizeTimestampValue(Number(trimmed)) : 0;
+};

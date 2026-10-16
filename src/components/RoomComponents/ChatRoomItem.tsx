@@ -408,19 +408,12 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
               chat?.historyPreloadState === 'error') ? (
             <LastRoomMessageText>{t('room.created')}</LastRoomMessageText>
           ) : undefined}
-          {chat.unreadMessages > 0 &&
-            // Hide only while a room with NO locally loaded messages is doing
-            // its first-ever history fetch - the count could still be
-            // mid-climb (0 -> 1 -> 2 ...) there. A background catch-up
-            // refetch (e.g. on every app refresh, for a room that already has
-            // a correct persisted unreadMessages count) must NOT hide an
-            // already-stable badge just because historyPreloadState flips to
-            // 'loading' for that refetch - that made every room's badge
-            // blink off and back on for ~1-2s on every refresh.
-            !(
-              chat.historyPreloadState === 'loading' &&
-              (chat?.messages?.length ?? 0) === 0
-            ) && (
+          {chat.unreadMessages > 0 && (
+            // The stored count is never an intermediate figure: the unread
+            // middleware keeps the persisted/API-seeded value until the
+            // room's history has settled (see computeUnreadForRoom), so the
+            // badge needs no hide-while-loading gate. That gate used to make
+            // an already-correct badge blink off and on on every refresh.
               <NewMessageMarker
                 style={
                   // Telegram-style: a muted room's own badge still shows its

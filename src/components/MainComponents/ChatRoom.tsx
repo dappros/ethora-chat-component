@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ChatContainer, NonRoomChat } from '../styled/StyledComponents';
-import { useDispatch, useStore } from 'react-redux';
+import { shallowEqual, useDispatch, useSelector, useStore } from 'react-redux';
 import MessageList from './MessageList';
 import { RootState } from '../../roomStore';
 import SendInput, { SendInputProps } from '../styled/SendInput';
@@ -22,15 +22,82 @@ import { ChooseChatMessage } from './ChooseChatMessage.tsx';
 import { useRoomUrl } from '../../hooks/useRoomUrl.tsx';
 import { useSendMessage } from '../../hooks/useSendMessage.tsx';
 import { useRoomInitialization } from '../../hooks/useRoomInitialization.tsx';
-import { useRoomState } from '../../hooks/useRoomState.tsx';
 import { useChatSettingState } from '../../hooks/useChatSettingState.tsx';
 import useComposing from '../../hooks/useComposing.tsx';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
-import { MessageProps, IMentionSpan, IMessage } from '../../types/types';
+import {
+  MessageProps,
+  IMentionSpan,
+  IMessage,
+  IRoom,
+} from '../../types/types';
 import type { CaptionInput } from '../../helpers/caption';
 import { useLoaderDebug } from '../../hooks/useLoaderDebug';
 import { useChatOpenPhase } from '../../hooks/useChatOpenPhase';
 import { ChatRoomOpeningPreview } from './ChatRoomOpeningPreview';
+
+// What ChatRoom renders from the active room. Built by a selector that returns
+// primitives and stable references only, so the component re-renders when
+// one of these changes and not on every room update.
+interface ActiveRoomView {
+  messageCount: number;
+  lastMessage: IMessage | undefined;
+  seedAlreadyLoaded: boolean;
+  isLoading: boolean;
+  historyPreloadState: IRoom['historyPreloadState'];
+  composing: boolean | undefined;
+  composingList: string[] | undefined;
+}
+
+const selectActiveRoomView = (
+  state: RootState,
+  roomJID: string | null
+): ActiveRoomView | undefined => {
+  const room = roomJID ? state.rooms.rooms?.[roomJID] : undefined;
+  if (!room) return undefined;
+  const messages = Array.isArray(room.messages) ? room.messages : [];
+  const lastMessage = room.lastMessage;
+  // The opening seed is "already loaded" when a real message carries the same
+  // id or xmppId. Matching by id/xmppId only, never by body text.
+  const seedAlreadyLoaded =
+    !!lastMessage &&
+    messages.some(
+      (message) =>
+        (!!lastMessage.id && message.id === lastMessage.id) ||
+        (!!lastMessage.xmppId &&
+          !!message.xmppId &&
+          message.xmppId === lastMessage.xmppId)
+    );
+  return {
+    messageCount: messages.length,
+    lastMessage,
+    seedAlreadyLoaded,
+    isLoading: !!room.isLoading,
+    historyPreloadState: room.historyPreloadState,
+    composing: room.composing,
+    composingList: room.composingList,
+  };
+};
+
+// Fields ChatHeader renders from its room. The header keeps the object it
+// last received while these are unchanged, so a receipt or message in the
+// active room does not re-render it.
+const sameHeaderRoom = (a: IRoom | undefined, b: IRoom | undefined): boolean => {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.jid === b.jid &&
+    a.name === b.name &&
+    a.title === b.title &&
+    a.type === b.type &&
+    a.icon === b.icon &&
+    a.e2ee === b.e2ee &&
+    a.usersCnt === b.usersCnt &&
+    a.composing === b.composing &&
+    a.members === b.members &&
+    a.composingList === b.composingList
+  );
+};
 
 interface ChatRoomProps {
   CustomMessageComponent?: React.ComponentType<MessageProps>;
@@ -47,17 +114,41 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
 
     const { user, config } = useChatSettingState();
-    const {
-      roomsList,
-      activeRoomJID,
-      editAction,
-      loading,
-      globalLoading,
-      roomMessages,
-      roomsLoadedOnce,
-      roomsLoadError,
-      joiningRoomJID,
-    } = useRoomState();
+    const activeRoomJID = useSelector((state: RootState) =>
+      typeof state.rooms?.activeRoomJID === 'string'
+        ? state.rooms.activeRoomJID
+        : null
+    );
+    const editAction = useSelector((state: RootState) => state.rooms.editAction);
+    const globalLoading = useSelector(
+      (state: RootState) => state.rooms.isLoading
+    );
+    const roomsLoadedOnce = useSelector(
+      (state: RootState) => state.rooms.roomsLoadedOnce
+    );
+    const roomsLoadError = useSelector(
+      (state: RootState) => state.rooms.roomsLoadError
+    );
+    const joiningRoomJID = useSelector((state: RootState) =>
+      typeof state.rooms?.joiningRoomJID === 'string'
+        ? state.rooms.joiningRoomJID
+        : null
+    );
+    // Number of rooms: the "no rooms" branches only ever ask whether it is
+    // zero, so a count is all this component needs from the whole list.
+    const roomCount = useSelector(
+      (state: RootState) => Object.keys(state.rooms.rooms ?? {}).length
+    );
+    const activeView = useSelector(
+      (state: RootState) => selectActiveRoomView(state, activeRoomJID),
+      shallowEqual
+    );
+    const loading = Boolean(activeView?.isLoading);
+    const headerRoom = useSelector(
+      (state: RootState): IRoom | undefined =>
+        activeRoomJID ? state.rooms.rooms?.[activeRoomJID] : undefined,
+      sameHeaderRoom
+    );
     const {
       sendMessage: sendMs,
       sendMedia: sendMessageMedia,
@@ -172,18 +263,17 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     }, [activeRoomJID, client, dispatch]);
 
     // hooks useEffects
-    useRoomUrl(activeRoomJID, roomsList, config);
+    useRoomUrl(activeRoomJID, config);
 
     useRoomInitialization(
       activeRoomJID,
-      roomsList,
       config,
-      roomMessages.length
+      activeView?.messageCount ?? 0
     );
 
-    const activeRoom = activeRoomJID ? roomsList?.[activeRoomJID] : undefined;
+    const activeRoom = activeView;
     const CustomNoMessagesPlaceholder = config?.noMessagesPlaceholder;
-    const hasMessages = (activeRoom?.messages?.length || 0) > 0;
+    const hasMessages = (activeRoom?.messageCount || 0) > 0;
     const loaderByGlobalLoading = Boolean(globalLoading);
     const loaderByLoading = Boolean(loading);
     const loaderByActiveRoomLoading = Boolean(activeRoom?.isLoading);
@@ -226,15 +316,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     // layer for that same guarantee: it matches on messageId/stanzaId
     // (never on body text, which two different messages can share).
     const seedLastMessage = activeRoom?.lastMessage;
-    const seedAlreadyLoaded =
-      !!seedLastMessage &&
-      (activeRoom?.messages || []).some(
-        (message) =>
-          (!!seedLastMessage.id && message.id === seedLastMessage.id) ||
-          (!!seedLastMessage.xmppId &&
-            !!message.xmppId &&
-            message.xmppId === seedLastMessage.xmppId)
-      );
+    const seedAlreadyLoaded = activeRoom?.seedAlreadyLoaded ?? false;
     // The seed stays on screen for as long as the room has nothing loaded,
     // not just while it is opening. Some rooms have a lastMessage in
     // `chats/my` but an empty MAM archive (the message was never archived,
@@ -330,7 +412,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     // finding out" and "we asked and the account really has none". The
     // idle "Choose a chat" placeholder means "you have chats, open one",
     // so it must never be reachable while the list is empty.
-    if (Object.keys(roomsList)?.length < 1) {
+    if (roomCount < 1) {
       if (roomsResolvedCleanly) {
         return (
           <NonRoomChat>
@@ -358,7 +440,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       );
     }
 
-    if (!activeRoomJID || !roomsList?.[activeRoomJID]) {
+    if (!activeRoomJID || !activeRoom) {
       // Rooms exist and none of them is the requested one. Either nothing
       // was requested (the idle "pick a chat" state this placeholder is
       // for) or a deep link / QR / roomJID prop pointed at a room that is
@@ -398,7 +480,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
       >
         {!config?.disableHeader && (
           <ChatHeader
-            currentRoom={roomsList[activeRoomJID]}
+            currentRoom={headerRoom as IRoom}
             handleBackClick={handleBackClick}
           />
         )}
@@ -421,7 +503,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             data-testid="chat-room-opening-loader"
             color={config?.colors?.primary}
           />
-        ) : Object.keys(roomsList).length < 1 || !activeRoomJID ? (
+        ) : roomCount < 1 || !activeRoomJID ? (
           <EmptyChatIllustration
             width={240}
             style={{ color: resolveIconColor(config) }}
@@ -485,14 +567,14 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         {config?.customTypingIndicator?.enabled &&
           (config.customTypingIndicator.position === 'overlay' ||
             config.customTypingIndicator.position === 'floating') &&
-          roomsList[activeRoomJID]?.composing && (
+          activeRoom?.composing && (
             <CustomTypingIndicator
-              usersTyping={roomsList[activeRoomJID]?.composingList || ['User']}
+              usersTyping={activeRoom?.composingList || ['User']}
               text={config.customTypingIndicator.text}
               position={config.customTypingIndicator.position}
               styles={config.customTypingIndicator.styles}
               customComponent={config.customTypingIndicator.customComponent}
-              isVisible={roomsList[activeRoomJID]?.composing || false}
+              isVisible={activeRoom?.composing || false}
             />
           )}
       </ChatContainer>

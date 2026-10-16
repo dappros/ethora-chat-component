@@ -6,6 +6,7 @@ import { Message } from './Message';
 import { IAttachment, IMessage, IRoom } from '../../types/types';
 import { MessageContainer } from '../MainComponents/MessageContainer';
 import {
+  TIME_BASELINE_NUDGE_PX,
   REACTION_CLEAR_PX,
   REACTION_HANG_PX,
   RUN_GAP_PX,
@@ -160,23 +161,85 @@ describe('Message time side (bottom right for every bubble)', () => {
   });
 });
 
+describe('Message time row alignment', () => {
+  it('centres the time on one line box, with the tick in the same row', () => {
+    renderBubble(makeMessage(), true);
+    const css = declarationsFor(timeEl());
+    expect(css).toContain('line-height:1');
+    expect(css).toContain('align-items:center');
+    expect(css).toContain(`margin-bottom:${TIME_BASELINE_NUDGE_PX}px`);
+  });
+
+  it('lifts the time only 2px, so it sits low in the bubble like Telegram/WhatsApp', () => {
+    expect(TIME_BASELINE_NUDGE_PX).toBe(2);
+  });
+
+  it('gives a caption time row 2px of bottom padding (was 4px)', () => {
+    renderBubble(
+      makeMessage({ isMediafile: 'true', attachments: [image(1)], body: 'caption' }),
+      true
+    );
+    const css = declarationsFor(timeEl());
+    expect(css).toContain('padding:08px2px');
+    expect(css).not.toContain('padding:08px4px');
+  });
+
+  it('sets the text row to flex-end so the time sits on the bottom line of the text', () => {
+    renderBubble(makeMessage(), true);
+    const row = timeEl().parentElement as HTMLElement;
+    expect(row.getAttribute('style') ?? '').toContain('align-items: flex-end');
+    expect(row.getAttribute('style') ?? '').not.toContain('last baseline');
+  });
+
+  it('draws the read tick at 14px for an own message', () => {
+    renderBubble(makeMessage(), true);
+    const ticks = Array.from(timeEl().querySelectorAll('svg'));
+    expect(ticks.length).toBeGreaterThan(0);
+    for (const tick of ticks) {
+      expect(tick.getAttribute('width')).toBe('14');
+      expect(tick.getAttribute('height')).toBe('14');
+    }
+  });
+});
+
 describe('Message bubble tail', () => {
   it('gives the last bubble of a run an own tail on the bottom right', () => {
     renderBubble(makeMessage(), true, true);
     const after = pseudoFor(bubble(), '::after');
-    expect(after).toContain('right:-7px');
-    expect(after).toContain("clip-path:path('M00C07");
+    expect(after).toContain('right:-13px');
+    expect(after).toContain('width:13px');
+    expect(after).toContain('height:16px');
+    expect(after).toContain('mask-image:url("data:image/svg+xml,');
+    expect(after).toContain('-webkit-mask-image:');
+    expect(after).toContain('mask-size:100%100%');
+    expect(after).not.toContain('clip-path');
     expect(pseudoFor(bubble(), '::before')).toBe('');
-    // The own corner where the tail attaches is 4px.
-    expect(declarationsFor(bubble())).toContain('border-radius:18px18px4px18px');
+    // The tail corner is square, so the tail grows out of the straight edge.
+    expect(declarationsFor(bubble())).toContain('border-radius:18px18px0px18px');
   });
 
   it('gives the last bubble of a run from someone else a tail on the bottom left, with a border ring', () => {
     renderBubble(makeMessage(), false, true);
     const after = pseudoFor(bubble(), '::after');
-    expect(after).toContain('left:-7px');
-    expect(pseudoFor(bubble(), '::before')).toContain('left:-8px');
-    expect(declarationsFor(bubble())).toContain('border-radius:18px18px18px4px');
+    expect(after).toContain('left:-13px');
+    expect(after).toContain('width:13px');
+    expect(after).toContain('height:16px');
+    expect(after).toContain('mask-image:url("data:image/svg+xml,');
+    expect(after).not.toContain('clip-path');
+    // The fill mask is a plain silhouette: no stroke in it.
+    expect(after).not.toContain('stroke');
+    // The outline is a second mask behind the fill: a stroke, 1px outside the fill edge.
+    const ring = pseudoFor(bubble(), '::before');
+    expect(ring).toContain('left:-14px');
+    expect(ring).toContain('bottom:-2px');
+    expect(ring).toContain('mask-image:url("data:image/svg+xml,');
+    expect(ring).toContain('width:14px');
+    expect(ring).toContain('height:18px');
+    // Stroke only, never the whole silhouette: the wall side stays open.
+    expect(ring).toContain('stroke-width');
+    expect(ring).toContain('fill%3D%22none%22');
+    expect(ring).not.toContain('clip-path');
+    expect(declarationsFor(bubble())).toContain('border-radius:18px18px18px0px');
   });
 
   it('gives no tail to a bubble that is followed by the same sender', () => {
@@ -205,7 +268,7 @@ describe('Message bubble tail', () => {
       false,
       true
     );
-    expect(pseudoFor(bubble(), '::after')).toContain('left:-7px');
+    expect(pseudoFor(bubble(), '::after')).toContain('left:-13px');
   });
 
   it('gives no tail to a deleted tombstone', () => {

@@ -112,3 +112,94 @@ describe('Message - hover-only tick status tooltip', () => {
     expect(wrapper?.onclick).toBeFalsy();
   });
 });
+
+describe('Message - tick tooltip in large groups (count-based)', () => {
+  const bigRoom = (overrides: Partial<IRoom> = {}) =>
+    makeRoom({ type: 'group', usersCnt: 468, ...overrides });
+  const receipts = (n: number) =>
+    Object.fromEntries(
+      Array.from({ length: n }, (_, i) => [`user${i}`, Date.now()])
+    );
+  const watermarks = (n: number, id: string) =>
+    Object.fromEntries(Array.from({ length: n }, (_, i) => [`user${i}`, id]));
+  const lineTexts = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll('.tick-tooltip > span')).map(
+      (el) => el.textContent
+    );
+
+  it('shows "Sent" with no receipts yet', () => {
+    const { container } = renderMessage(makeMessage(), bigRoom());
+    expect(lineTexts(container)).toEqual(['Sent']);
+    expect(tooltipText(container)).toBe('Sent');
+  });
+
+  it('counts a single delivery against the other members', () => {
+    const { container } = renderMessage(
+      makeMessage({ receivedBy: receipts(1) }),
+      bigRoom()
+    );
+    expect(lineTexts(container)).toEqual(['Delivered to 1 of 467']);
+  });
+
+  it('shows read and delivered count lines when 12 members have read it', () => {
+    const { container } = renderMessage(
+      makeMessage({ id: 'm1', receivedBy: receipts(12) }),
+      bigRoom({ lastDisplayedByUser: watermarks(12, 'm1') })
+    );
+    expect(lineTexts(container)).toEqual([
+      'Read by 12 of 467',
+      'Delivered to 12 of 467',
+    ]);
+  });
+
+  it('never names readers in a large group, even when there are four', () => {
+    const { container } = renderMessage(
+      makeMessage({ id: 'm1', receivedBy: receipts(4) }),
+      bigRoom({ lastDisplayedByUser: watermarks(4, 'm1') }),
+      {
+        user0: { xmppUsername: 'user0', firstName: 'Anna', lastName: 'A' },
+        user1: { xmppUsername: 'user1', firstName: 'Bob', lastName: 'B' },
+        user2: { xmppUsername: 'user2', firstName: 'Carl', lastName: 'C' },
+        user3: { xmppUsername: 'user3', firstName: 'Dana', lastName: 'D' },
+      }
+    );
+    const text = tooltipText(container) ?? '';
+    expect(lineTexts(container)).toEqual([
+      'Read by 4 of 467',
+      'Delivered to 4 of 467',
+    ]);
+    for (const name of ['Anna', 'Bob', 'Carl', 'Dana']) {
+      expect(text).not.toContain(name);
+    }
+  });
+
+  it('keeps names for a group of exactly five other members', () => {
+    const { container } = renderMessage(
+      makeMessage({ receivedBy: { bob: Date.now() } }),
+      makeRoom({ type: 'group', usersCnt: 6 }),
+      {
+        bob: { xmppUsername: 'bob', firstName: 'Bob', lastName: 'Smith' },
+      }
+    );
+    expect(lineTexts(container)).toEqual(['Delivered to Bob Smith']);
+  });
+
+  it('switches to counts once there are more than five other members', () => {
+    const { container } = renderMessage(
+      makeMessage({ receivedBy: { bob: Date.now() } }),
+      makeRoom({ type: 'group', usersCnt: 7 }),
+      {
+        bob: { xmppUsername: 'bob', firstName: 'Bob', lastName: 'Smith' },
+      }
+    );
+    expect(lineTexts(container)).toEqual(['Delivered to 1 of 6']);
+  });
+
+  it('keeps the plain 1:1 wording even if a usersCnt is present', () => {
+    const { container } = renderMessage(
+      makeMessage({ receivedBy: { bob: Date.now() } }),
+      makeRoom({ type: 'private', usersCnt: 2 })
+    );
+    expect(tooltipText(container)).toBe('Delivered');
+  });
+});

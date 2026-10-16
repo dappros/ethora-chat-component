@@ -33,6 +33,7 @@ import { createPrivateRoom } from './xmpp/createPrivateRoom.xmpp';
 import { sendMessageReaction } from './xmpp/sendMessageReaction.xmpp';
 import { sendReceivedReceipt } from './xmpp/sendReceivedReceipt.xmpp';
 import { sendDisplayedMarker } from './xmpp/sendDisplayedMarker.xmpp';
+import { DeliveryReceiptBatcher } from './deliveryReceiptBatcher';
 import { sendTextMessageWithTranslateTag } from './xmpp/sendTextMessageWithTranslateTag.xmpp';
 import { getRoomsPaged } from './xmpp/getRoomsPaged.xmpp';
 import {
@@ -237,13 +238,14 @@ export class XmppClient implements XmppClientInterface {
   private historyQueueWorkerScheduled = false;
   private historyQueueWorkerTimer: ReturnType<typeof setTimeout> | null = null;
   private roomHistoryEpoch: Map<string, number> = new Map();
-  // Dedupes XEP-0184 acks sent for MAM/catch-up-delivered messages: without
-  // this, every re-fetch of the same history page (room reopen, scroll-up
-  // pagination revisiting an already-seen range) would re-send a <received>
-  // for messages already acked. Keyed by `${roomJID}:${messageId}`, capped
-  // so a very long session doesn't grow it unbounded.
-  private historyReceiptAckedIds: Set<string> = new Set();
-  private readonly maxHistoryReceiptAckedIds = 2000;
+  // Coalesces XEP-0184 delivery receipts per room (live and MAM replay
+  // alike): one stanza per window instead of one per message, and no
+  // repeat for an id already acked, so re-fetching a history page never
+  // re-sends a <received>. See deliveryReceiptBatcher.ts.
+  private readonly deliveryBatcher = new DeliveryReceiptBatcher({
+    send: (roomJid, messageId) =>
+      this.sendReceivedReceiptStanza(messageId, roomJid),
+  });
   private criticalSendUntil = 0;
   private activeRoomBoostUntil = 0;
   private sendStartedAtById: Map<string, number> = new Map();
@@ -688,6 +690,7 @@ export class XmppClient implements XmppClientInterface {
       this.sweepEpoch += 1;
       this.clearSweepRetry();
       this.joinedRooms.clear();
+      this.deliveryBatcher.clear();
       this.roomPresenceInFlight.clear();
       this.historyPreloadInFlight.clear();
       this.activeHistoryInFlight.clear();
@@ -728,6 +731,7 @@ export class XmppClient implements XmppClientInterface {
       this.clearSweepRetry();
       this.sendAllPresencesInFlight = null;
       this.joinedRooms.clear();
+      this.deliveryBatcher.clear();
       this.roomPresenceInFlight.clear();
       this.historyPreloadInFlight.clear();
       this.activeHistoryInFlight.clear();
@@ -2488,6 +2492,7 @@ export class XmppClient implements XmppClientInterface {
   }
 
   leaveTheRoomStanza = (roomJID: string) => {
+    this.deliveryBatcher.clearRoom(roomJID);
     this.wrapWithConnectionCheck(async () => {
       leaveTheRoom(roomJID, this.client);
     });
@@ -3099,17 +3104,26 @@ export class XmppClient implements XmppClientInterface {
     });
   }
 
-  // Like sendReceivedReceiptStanza, but for messages that arrived via MAM
-  // catch-up rather than live - see the historyReceiptAckedIds comment.
-  sendHistoryReceivedReceiptStanza(roomJid: string, messageId: string) {
-    const key = `${roomJid}:${messageId}`;
-    if (this.historyReceiptAckedIds.has(key)) return;
-    this.historyReceiptAckedIds.add(key);
-    if (this.historyReceiptAckedIds.size > this.maxHistoryReceiptAckedIds) {
-      const oldest = this.historyReceiptAckedIds.values().next().value;
-      if (oldest) this.historyReceiptAckedIds.delete(oldest);
-    }
-    this.sendReceivedReceiptStanza(messageId, roomJid);
+  // Queues a delivery receipt through the per-room batcher. `timestamp` is
+  // the message time (ms) and `coalesceMs` the window length; both come from
+  // the receipts config at the call site.
+  queueDeliveryReceipt(
+    roomJid: string,
+    messageId: string,
+    timestamp?: number,
+    coalesceMs = 1500
+  ) {
+    this.deliveryBatcher.enqueue(roomJid, messageId, coalesceMs, timestamp);
+  }
+
+  // Kept for MAM catch-up callers; same path as queueDeliveryReceipt.
+  sendHistoryReceivedReceiptStanza(
+    roomJid: string,
+    messageId: string,
+    timestamp?: number,
+    coalesceMs?: number
+  ) {
+    this.queueDeliveryReceipt(roomJid, messageId, timestamp, coalesceMs);
   }
 
   sendTypingRequestStanza(chatId: string, fullName: string, start: boolean) {

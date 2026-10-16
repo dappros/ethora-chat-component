@@ -28,9 +28,9 @@ export const InputContainer = styled.div`
 
 export const MessageInputContainer = styled.div`
   display: flex;
-  align-items: center;
+  /* Buttons stay on the bottom edge as the composer grows with its text. */
+  align-items: flex-end;
   width: 100%;
-  max-height: 72px;
   gap: 16px;
 `;
 
@@ -246,7 +246,6 @@ export const StyledInput = styled.input<{ $colorBg?: string }>`
 `;
 
 export const TextareaWrapper = styled.div<{
-  $dynamicHeight?: number;
   $color?: string;
   $isFocused?: boolean;
   $colorBg?: string;
@@ -256,12 +255,12 @@ export const TextareaWrapper = styled.div<{
   border-radius: var(--ethora-radius-md, 12px);
   background-color: ${({$colorBg}) => $colorBg? $colorBg : 'var(--ethora-color-bg-subtle, #f5f7f9)'};
   padding: 2px;
-  height: ${(props) => props.$dynamicHeight || 40}px;
-  max-height: ${(props) => props.$dynamicHeight || 40}px;
+  /* Height follows the textarea (auto-sized from its content), so a second
+     line is never clipped. min-height keeps the single-line field at 40px. */
+  height: auto;
   min-height: 40px;
   box-sizing: border-box;
   transition:
-    height 0.2s ease-in-out,
     border-color var(--ethora-motion-fast, 150ms) var(--ethora-motion-ease, ease);
   border: 1px solid
     ${(props) =>
@@ -276,13 +275,21 @@ export const TextareaWrapper = styled.div<{
 `;
 
 export const TextareaInput = styled.textarea<{
-  $dynamicHeight?: number;
   $color?: string;
   $colorBg?: string;
 }>`
   width: 100%;
-  height: 100%;
-  padding: 8px 10px;
+  display: block;
+  /* Height is set in px by fitTextareaToContent (helpers/textareaFit). */
+  min-height: 34px;
+  max-height: 140px;
+  /* 7px above and below one line (34px box). Two lines or more use 5px, set
+     by the data-multiline attribute, so the text stays evenly padded. */
+  padding: 7px 12px;
+  &[data-multiline] {
+    padding-top: 5px;
+    padding-bottom: 5px;
+  }
   border-radius: var(--ethora-radius-sm, 10px);
   border: none;
   color: var(--ethora-color-text, #141414);
@@ -292,11 +299,13 @@ export const TextareaInput = styled.textarea<{
   font-family: inherit;
   /* Never show scrollbar for a single line (<= 40px) */
   overflow-x: hidden;
-  overflow-y: ${(props) =>
-    props.$dynamicHeight && props.$dynamicHeight > 40 ? 'auto' : 'hidden'};
+  overflow-y: hidden;
   resize: none;
   box-sizing: border-box;
-  transition: height 0.2s ease-in-out;
+
+  &[data-scrollable] {
+    overflow-y: auto;
+  }
 
   &:focus {
     outline: none;
@@ -304,8 +313,7 @@ export const TextareaInput = styled.textarea<{
 
   /* Custom scrollbar styling for WebKit browsers (Chrome, Safari, Edge) */
   &::-webkit-scrollbar {
-    width: ${(props) =>
-      props.$dynamicHeight && props.$dynamicHeight > 40 ? '2px' : '0'};
+    width: 2px;
   }
 
   &::-webkit-scrollbar-track {
@@ -327,10 +335,7 @@ export const TextareaInput = styled.textarea<{
   }
 
   /* Firefox scrollbar styling */
-  scrollbar-width: ${(props) =>
-    props.$dynamicHeight && props.$dynamicHeight > 40 ? 'thin' : 'none'};
+  scrollbar-width: thin;
   scrollbar-color: ${(props) =>
-      props.$dynamicHeight && props.$dynamicHeight > 40
-        ? `${props.$color ? props.$color : 'var(--ethora-color-primary, #0052CD)'} transparent`
-        : 'transparent transparent'};
+    `${props.$color ? props.$color : 'var(--ethora-color-primary, #0052CD)'} transparent`};
 `;

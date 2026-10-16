@@ -8,7 +8,7 @@ import {
 } from '../styled/StyledComponents';
 import SendInput from '../styled/SendInput';
 import CustomTypingIndicator from '../styled/StyledInputComponents/CustomTypingIndicator';
-import { useDispatch, useStore } from 'react-redux';
+import { shallowEqual, useDispatch, useSelector, useStore } from 'react-redux';
 import { RootState } from '../../roomStore';
 import Loader from '../styled/Loader';
 import { useT } from '../../i18n/useT';
@@ -27,7 +27,6 @@ import {
 import { EditWrapper } from '../MainComponents/EditWrapper';
 import { useSendMessage } from '../../hooks/useSendMessage';
 import { createMainMessageForThread } from '../../helpers/createMainMessageForThread';
-import { useRoomState } from '../../hooks/useRoomState';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { useDelayedAction } from '../../hooks/useDelayedAction';
 import {
@@ -61,6 +60,34 @@ interface ThreadWrapperProps {
   }>;
 }
 
+// What the thread reads from its own room (the room of the parent message).
+// Primitives and stable references only, so the thread re-renders for its own
+// room's changes and not for updates to other rooms.
+interface ThreadRoomView {
+  messages: IMessage[] | undefined;
+  cursor: number | undefined;
+  historyComplete: boolean;
+  name: string | undefined;
+  composing: boolean | undefined;
+  composingList: string[] | undefined;
+}
+
+const selectThreadRoomView = (
+  state: RootState,
+  roomJid: string
+): ThreadRoomView | undefined => {
+  const room = state.rooms.rooms?.[roomJid];
+  if (!room) return undefined;
+  return {
+    messages: room.messages,
+    cursor: room.messageStats?.firstMessageTimestamp,
+    historyComplete: Boolean(room.historyComplete),
+    name: room.name,
+    composing: room.composing,
+    composingList: room.composingList,
+  };
+};
+
 const ThreadWrapper: FC<ThreadWrapperProps> = ({
   activeMessage,
   user,
@@ -69,7 +96,15 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
   const { client } = useXmppClient();
   const dispatch = useDispatch();
 
-  const { loading, roomsList, editAction, activeRoomJID } = useRoomState();
+  // Narrow reads: the active room's loading flag, the edit action, and the
+  // thread's own room. Nothing here re-renders the thread for other rooms.
+  const loading = useSelector((state: RootState) => {
+    const activeId = state.rooms?.activeRoomJID;
+    return typeof activeId === 'string'
+      ? Boolean(state.rooms.rooms?.[activeId]?.isLoading)
+      : false;
+  });
+  const editAction = useSelector((state: RootState) => state.rooms.editAction);
   const { config } = useChatSettingState();
   const {
     sendMessage: sendMs,
@@ -84,7 +119,10 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
   const store = useStore<RootState>();
 
   const roomJid = activeMessage.roomJid;
-  const room = roomsList?.[roomJid];
+  const room = useSelector(
+    (state: RootState) => selectThreadRoomView(state, roomJid),
+    shallowEqual
+  );
   const parentTs = Number(activeMessage.id);
 
   // One page request at a time, and never the same page twice: a page that
@@ -156,7 +194,7 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
   // Opening a thread whose parent is older than the loaded window: the list
   // has no replies to scroll, so nothing would ask for history. Keep paging
   // until the cursor reaches the parent (or the archive ends).
-  const cursor = room?.messageStats?.firstMessageTimestamp;
+  const cursor = room?.cursor;
   const historyComplete = Boolean(room?.historyComplete);
   useEffect(() => {
     if (historyComplete || isLoadingMore) return;
@@ -327,16 +365,16 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
       {config?.customTypingIndicator?.enabled &&
         (config.customTypingIndicator.position === 'overlay' ||
           config.customTypingIndicator.position === 'floating') &&
-        roomsList[activeMessage.roomJid]?.composing && (
+        room?.composing && (
           <CustomTypingIndicator
             usersTyping={
-              roomsList[activeMessage.roomJid]?.composingList || ['User']
+              room?.composingList || ['User']
             }
             text={config.customTypingIndicator.text}
             position={config.customTypingIndicator.position}
             styles={config.customTypingIndicator.styles}
             customComponent={config.customTypingIndicator.customComponent}
-            isVisible={roomsList[activeMessage.roomJid]?.composing || false}
+            isVisible={room?.composing || false}
           />
         )}
     </AnimatedThreadContainer>

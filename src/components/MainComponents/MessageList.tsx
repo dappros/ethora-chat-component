@@ -49,11 +49,15 @@ import { openThreadForJump } from '../../helpers/openThreadForJump';
 import { useStickToBottom } from './useStickToBottom';
 import { useScrollAnchor } from './useScrollAnchor';
 import ArchivedMessageCard from './ArchivedMessageCard';
-import { useRoomState } from '../../hooks/useRoomState';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { useXmppClient } from '../../context/xmppProvider';
 import { useTabVisibility } from '../../hooks/useTabVisibility';
 import { getTimestampFromUnknown } from '../../helpers/timestamp';
+import {
+  resolveReceiptsConfig,
+  shouldSendRead,
+} from '../../networking/receiptsPolicy';
+import { DisplayedMarkerThrottle } from '../../networking/displayedMarkerThrottle';
 import { DownArrowIcon } from '../../assets/icons';
 import NewMessageLabel from '../styled/NewMessageLabel';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
@@ -71,6 +75,9 @@ import { requestSendersOf } from '../../helpers/userResolver';
 // messages produces exactly one write, sent for the last message once
 // things go quiet - not one write per message.
 const MARK_READ_DEBOUNCE_MS = 1000;
+// Read markers for one room go out at most this often; a marker that lands
+// inside the window is held and the newest one is sent when it ends.
+const DISPLAYED_MARKER_MIN_INTERVAL_MS = 3000;
 
 // Floats over the top of the transcript so showing or hiding it never moves
 // the messages (the scroll compensation for a page of history relies on the
@@ -126,6 +133,46 @@ const HISTORY_PAGE_SIZE = 100;
 // debounce would only look once the reader stopped).
 const SCROLL_CHECK_MAX_WAIT_MS = 150;
 
+// Shared empty values for the narrow room selectors below, so a missing room
+// yields the same reference on every render (no spurious list updates).
+const EMPTY_MESSAGES: IMessage[] = [];
+const NO_REPLIES: IMessage[] = [];
+
+const sameItems = (a: IMessage[], b: IMessage[]): boolean => {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+};
+
+// The typing row for the list. It reads the typers itself, so a change to the
+// typers list re-renders only this row, never the message list. Mounted only
+// while the room is composing (the list decides that from a boolean).
+const TypingIndicatorRow: React.FC<{
+  roomJID: string;
+  config?: IConfig;
+}> = ({ roomJID, config }) => {
+  const composingList = useSelector(
+    (state: RootState) => state.rooms.rooms?.[roomJID]?.composingList
+  );
+  const usersTyping = composingList || ['User'];
+  if (config?.customTypingIndicator?.enabled) {
+    return (
+      <CustomTypingIndicator
+        usersTyping={usersTyping}
+        text={config.customTypingIndicator.text}
+        position={config.customTypingIndicator.position || 'bottom'}
+        styles={config.customTypingIndicator.styles}
+        customComponent={config.customTypingIndicator.customComponent}
+        isVisible
+      />
+    );
+  }
+  return <Composing usersTyping={usersTyping} />;
+};
+
 interface MessageListProps<TMessage extends IMessage> {
   CustomMessage?: React.ComponentType<{
     message: IMessage;
@@ -155,8 +202,24 @@ const MessageList = <TMessage extends IMessage>({
   activeMessage,
 }: MessageListProps<TMessage>) => {
   const { CustomScrollableArea, CustomNewMessageLabel } = useCustomComponents();
-  const { composing, messages, composingList, historyComplete } =
-    useRoomState(roomJID).room ?? {};
+  // Narrow subscriptions only. The list renders the messages, the history
+  // flag and the typing row's presence; it must not re-render for receipts,
+  // watermarks, members, unread counters or other room-level fields. Typers
+  // are read by TypingIndicatorRow itself.
+  const messages = useSelector(
+    (state: RootState) =>
+      state.rooms.rooms?.[roomJID]?.messages ?? EMPTY_MESSAGES
+  );
+  const historyComplete = useSelector(
+    (state: RootState) => state.rooms.rooms?.[roomJID]?.historyComplete
+  );
+  const composing = useSelector((state: RootState) =>
+    Boolean(state.rooms.rooms?.[roomJID]?.composing)
+  );
+  const hasTypers = useSelector(
+    (state: RootState) =>
+      (state.rooms.rooms?.[roomJID]?.composingList?.length ?? 0) > 0
+  );
   const dispatch = useDispatch();
   // A short slice of archive around a far jump target, shown instead of the
   // live list until the reader returns to the latest messages. Not for threads.
@@ -207,6 +270,12 @@ const MessageList = <TMessage extends IMessage>({
   const scrollPositions = useRef<{ [key: string]: number }>({});
   const isFirstLoad = useRef<boolean>(true);
 
+  // One wrapper per source message, reused while its reply list is unchanged.
+  // Without this every row got a fresh `{ ...message, reply }` object on each
+  // change to the list, which defeated the row memo for the whole list.
+  const replyWrapperCache = useRef(
+    new WeakMap<IMessage, { replies: IMessage[]; wrapped: IMessage }>()
+  );
   const addReplyMessages = useMemo(() => {
     // O(n) reply join: index replies by their parent id once instead of
     // filtering the whole list per message (was O(n²) with a reference-string
@@ -223,9 +292,14 @@ const MessageList = <TMessage extends IMessage>({
       }
     }
 
+    const cache = replyWrapperCache.current;
     return sourceMessages.map((message) => {
-      const reply = repliesByParentId.get(message.id) ?? [];
-      return { ...message, reply };
+      const replies = repliesByParentId.get(message.id) ?? NO_REPLIES;
+      const cached = cache.get(message);
+      if (cached && sameItems(cached.replies, replies)) return cached.wrapped;
+      const wrapped: IMessage = { ...message, reply: replies };
+      cache.set(message, { replies, wrapped });
+      return wrapped;
     });
   }, [sourceMessages]);
 
@@ -309,6 +383,16 @@ const MessageList = <TMessage extends IMessage>({
   const lastComposingState = useRef<boolean>(false);
   const markReadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastFlushedMessageTsRef = useRef<number>(0);
+  const displayedThrottleRef = useRef<DisplayedMarkerThrottle | null>(null);
+  const receiptsConfig = useMemo(
+    () => resolveReceiptsConfig(config?.receipts),
+    [config?.receipts]
+  );
+  // A boolean, so this list re-renders only when the room's size crosses the
+  // read-marker threshold, not on every store update.
+  const readMarkersAllowed = useSelector((state: RootState) =>
+    shouldSendRead(state.rooms.rooms[roomJID], receiptsConfig)
+  );
 
   const flushMarkRead = useCallback(() => {
     markReadTimerRef.current = null;
@@ -333,8 +417,12 @@ const MessageList = <TMessage extends IMessage>({
     // XEP-0333 read marker - broadcast to the room so peers can flip their
     // tick to "read". Piggybacks on the same debounce as the private
     // last-viewed write above; only for messages someone else sent.
-    if (latest?.id && latest.user?.id !== user?.xmppUsername) {
-      client.sendDisplayedMarkerStanza(latest.id, roomJID);
+    if (
+      latest?.id &&
+      latest.user?.id !== user?.xmppUsername &&
+      readMarkersAllowed
+    ) {
+      displayedThrottleRef.current?.mark(latest.id);
     }
   }, [
     config?.disableLastRead,
@@ -343,6 +431,7 @@ const MessageList = <TMessage extends IMessage>({
     roomJID,
     messages,
     user?.xmppUsername,
+    readMarkersAllowed,
   ]);
 
   const scheduleMarkRead = useCallback(() => {
@@ -358,6 +447,23 @@ const MessageList = <TMessage extends IMessage>({
       if (markReadTimerRef.current) clearTimeout(markReadTimerRef.current);
     };
   }, [roomJID]);
+
+  // One throttle per room connection. Disposing it sends a held marker first,
+  // so leaving a room keeps its final read watermark.
+  useEffect(() => {
+    if (!client || !roomJID) return;
+    const throttle = new DisplayedMarkerThrottle({
+      minIntervalMs: DISPLAYED_MARKER_MIN_INTERVAL_MS,
+      send: (messageId) => client.sendDisplayedMarkerStanza(messageId, roomJID),
+    });
+    displayedThrottleRef.current = throttle;
+    return () => {
+      throttle.dispose();
+      if (displayedThrottleRef.current === throttle) {
+        displayedThrottleRef.current = null;
+      }
+    };
+  }, [client, roomJID]);
 
   const getScrollParams = (): { top: number; height: number } | null => {
     const content = containerRef.current;
@@ -1098,9 +1204,8 @@ const MessageList = <TMessage extends IMessage>({
     lastNewestIdRef.current = newestId;
     const hasNewMessages =
       newestChanged && memoizedMessages.length > lastMessageCount.current;
-    const isTypingStarted =
-      composingList?.length > 0 && !lastComposingState.current;
-    lastComposingState.current = composingList?.length > 0;
+    const isTypingStarted = hasTypers && !lastComposingState.current;
+    lastComposingState.current = hasTypers;
 
     if (!isUserScrolledUp.current) {
       if (hasNewMessages || isTypingStarted) {
@@ -1111,12 +1216,7 @@ const MessageList = <TMessage extends IMessage>({
         });
       }
     }
-  }, [
-    memoizedMessages.length,
-    composingList,
-    scrollToBottom,
-    waitForImagesLoaded,
-  ]);
+  }, [memoizedMessages.length, hasTypers, scrollToBottom, waitForImagesLoaded]);
 
   // Ids of the messages that end a run of one sender: the next row is another
   // sender, a system row, or the next day. Computed on the full list so the
@@ -1213,18 +1313,9 @@ const MessageList = <TMessage extends IMessage>({
   );
 
   const typingIndicatorNode = config?.customTypingIndicator?.enabled ? (
-    composing && (
-      <CustomTypingIndicator
-        usersTyping={composingList || ['User']}
-        text={config.customTypingIndicator.text}
-        position={config.customTypingIndicator.position || 'bottom'}
-        styles={config.customTypingIndicator.styles}
-        customComponent={config.customTypingIndicator.customComponent}
-        isVisible={composing}
-      />
-    )
+    composing && <TypingIndicatorRow roomJID={roomJID} config={config} />
   ) : config?.disableHeader && composing ? (
-    <Composing usersTyping={composingList || ['User']} />
+    <TypingIndicatorRow roomJID={roomJID} config={config} />
   ) : null;
 
   const resetNewMessageCounter = useCallback(() => {
@@ -1320,4 +1411,7 @@ const MessageList = <TMessage extends IMessage>({
   );
 };
 
-export default MessageList;
+// Memoized: the parent (ChatRoom, ThreadWrapper) re-renders on every room
+// change, but this list only needs to re-render when its own props change or
+// its narrow store selectors above report a change.
+export default React.memo(MessageList) as typeof MessageList;

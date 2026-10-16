@@ -295,6 +295,14 @@ export const TEXT_BUBBLE_INSET_X_PX = 12;
 /** Bubble corner radius; media inside it is concentric (radius minus inset). */
 export const BUBBLE_RADIUS_PX = 18;
 export const MEDIA_RADIUS_PX = BUBBLE_RADIUS_PX - MEDIA_BUBBLE_INSET_PX;
+/**
+ * Lift of the inline time above the bottom of its text line, in px. Sits the
+ * time (12px) about 2.6px under the message text baseline, with its descender
+ * line about 1-2px above the bubble's bottom padding edge. Measured in headless
+ * Chrome (2px: own 2.4px, others 1.4px from the padding edge); 5 was the old
+ * value that put the time on the text baseline.
+ */
+export const TIME_BASELINE_NUDGE_PX = 2;
 /** Glass time pill over media: how far it sits inside the media edge, in px. */
 export const MEDIA_TIME_PILL_OFFSET_PX = 8;
 
@@ -329,51 +337,108 @@ const bubbleFill = (props: { $isUser: boolean; $deleted: boolean }) =>
 /** The 1px border of someone else's bubble, which the tail's outline reuses. */
 const BUBBLE_BORDER_CSS = 'var(--ethora-color-border, #E6E8EC)';
 
-/** Corner radius where a tail attaches: the bottom corner on the tail side. */
-export const TAIL_CORNER_RADIUS_PX = 4;
-/** Tail box: 10px wide, 12px tall, 6px of it outside the bubble edge. */
-export const TAIL_WIDTH_PX = 10;
-export const TAIL_HEIGHT_PX = 12;
-
-// The tail is a clipped box whose top-left (own: top-right, mirrored) corner
-// starts inside the bubble and curves out to a slightly rounded tip flush with
-// the bottom edge. Own tails point right, others point left.
-const TAIL_OWN_PATH = 'M0 0 C0 7 3 11 8.5 11.9 Q10 12 8 12 L0 12 Z';
-const TAIL_OTHER_PATH = 'M10 0 C10 7 7 11 1.5 11.9 Q0 12 2 12 L10 12 Z';
+/** Corner radius where a tail attaches: square, so the tail grows out of the straight edge. */
+export const TAIL_CORNER_RADIUS_PX = 0;
+/**
+ * Tail box: 12px out from the bubble edge plus 1px tucked under the edge, and
+ * 16px tall, the tip on the bubble's bottom line.
+ */
+export const TAIL_WIDTH_PX = 13;
+export const TAIL_HEIGHT_PX = 16;
 
 /**
- * The speech-bubble tail on the bottom outer corner: own messages point out
- * of the bottom right, others out of the bottom left. Others' bubbles get a
- * 1px outline in the border colour from a second, 1px larger shape behind.
+ * Tail silhouettes in tail-box coordinates. The wall is the bubble edge (x=13
+ * for others, x=1 for own); the 1px beyond it sits under the bubble, so no seam
+ * shows. The curve is concave from outside, like a Telegram tail.
  */
-const bubbleTail = (props: { $isUser: boolean; $deleted: boolean }) => css`
-  &::after {
-    content: '';
-    position: absolute;
-    bottom: -1px;
-    ${props.$isUser ? 'right: -7px;' : 'left: -7px;'}
-    width: ${TAIL_WIDTH_PX}px;
-    height: ${TAIL_HEIGHT_PX}px;
-    background-color: ${bubbleFill(props)};
-    clip-path: path('${props.$isUser ? TAIL_OWN_PATH : TAIL_OTHER_PATH}');
-    pointer-events: none;
-  }
-  ${props.$isUser
-    ? ''
-    : css`
-        &::before {
-          content: '';
-          position: absolute;
-          bottom: -2px;
-          left: -8px;
-          width: ${TAIL_WIDTH_PX}px;
-          height: ${TAIL_HEIGHT_PX}px;
-          background-color: ${BUBBLE_BORDER_CSS};
-          clip-path: path('${TAIL_OTHER_PATH}');
-          pointer-events: none;
-        }
-      `}
+const TAIL_FILL_OWN = 'M1 0C1 7.5 7 12 13 16H0V0Z';
+const TAIL_FILL_OTHERS = 'M13 0C13 7.5 7 12 1 15H13V0Z';
+/**
+ * Others' outline, a 2px stroke along the outer curve and the bottom run only
+ * (never along the wall). The stroke is drawn in a box 1px larger on the left
+ * and bottom, so the path is shifted by (1, 1). The fill covers its inner half,
+ * leaving a 1px ring in the border colour that ends on the bubble's bottom line.
+ */
+const TAIL_RING_OTHERS = 'M14 1C14 8.5 8 13 2 16H14';
+
+/** A CSS mask-image value: an SVG data URI, opaque where the markup paints. */
+const maskUrl = (w: number, h: number, markup: string) =>
+  `url("data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}">${markup}</svg>`
+  )}")`;
+
+const maskCss = (mask: string) => css`
+  -webkit-mask-image: ${mask};
+  mask-image: ${mask};
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
 `;
+
+/**
+ * The speech-bubble tail on the bottom outer corner: own messages point out of
+ * the bottom right, others out of the bottom left. Both are masked
+ * pseudo-elements, so the colours stay CSS variables and follow the theme.
+ *
+ * Own bubbles have no border: the fill alone is the tail. Others' bubbles have
+ * a 1px border: ::after is the fill, and ::before is the outline, a stroke along
+ * the curve and the bottom run only. The wall is never outlined, so the body's
+ * left border stops where the tail begins and nothing runs left past the tip.
+ */
+const bubbleTail = (props: { $isUser: boolean; $deleted: boolean }) => {
+  const fill = bubbleFill(props);
+  if (props.$isUser) {
+    const mask = maskUrl(TAIL_WIDTH_PX, TAIL_HEIGHT_PX, `<path d="${TAIL_FILL_OWN}" fill="black"/>`);
+    return css`
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: -1px;
+        right: -13px;
+        width: ${TAIL_WIDTH_PX}px;
+        height: ${TAIL_HEIGHT_PX}px;
+        background: ${fill};
+        ${maskCss(mask)}
+        pointer-events: none;
+      }
+    `;
+  }
+  const fillMask = maskUrl(
+    TAIL_WIDTH_PX,
+    TAIL_HEIGHT_PX,
+    `<path d="${TAIL_FILL_OTHERS}" fill="black"/>`
+  );
+  const ringMask = maskUrl(
+    TAIL_WIDTH_PX + 1,
+    TAIL_HEIGHT_PX + 2,
+    `<path d="${TAIL_RING_OTHERS}" fill="none" stroke="black" stroke-width="2" stroke-linejoin="round"/>`
+  );
+  return css`
+    &::before {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: -14px;
+      width: ${TAIL_WIDTH_PX + 1}px;
+      height: ${TAIL_HEIGHT_PX + 2}px;
+      background: ${BUBBLE_BORDER_CSS};
+      ${maskCss(ringMask)}
+      pointer-events: none;
+    }
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: -13px;
+      width: ${TAIL_WIDTH_PX}px;
+      height: ${TAIL_HEIGHT_PX}px;
+      background: ${fill};
+      ${maskCss(fillMask)}
+      pointer-events: none;
+    }
+  `;
+};
 
 export const CustomMessageBubble = styled.div<{
   $isUser: boolean;
@@ -461,11 +526,13 @@ export const CustomUserName = styled.span<{
     color: var(--ethora-color-primary-text, var(--ethora-color-primary, #0052CD));
   }
   margin-bottom: ${(props) => (props.$media ? '4px' : '2px')};
-  ${(props) => (props.$media ? 'padding: 0 4px;' : '')}
+  /* Text bubbles: a 3px top inset balances the cap-height gap above the name
+     with the baseline gap under the time. Media: the caption's 4px side inset. */
+  ${(props) => (props.$media ? 'padding: 0 4px;' : 'padding-top: 3px;')}
 `;
 
 export const CustomMessageTimestamp = styled.span<{
-  /** Media bubble: the row sits under the media with 0 8px 4px padding. */
+  /** Media bubble: the row sits under the media with 0 8px 2px padding. */
   $media?: boolean;
   /** Text bubble: the time floats at the end of the last line of text. */
   $inline?: boolean;
@@ -477,17 +544,19 @@ export const CustomMessageTimestamp = styled.span<{
   font-size: var(--ethora-font-size-xs, 0.75rem);
   align-self: flex-end;
   color: var(--ethora-color-text-muted, #8f8f8f);
+  /* One line box, so the time and its tick centre on the same axis. */
+  line-height: 1;
   display: flex;
   gap: 4px;
   align-items: center;
   justify-content: center;
-  ${(props) => (props.$media && !props.$overlay ? 'padding: 0 8px 4px;' : '')}
+  ${(props) => (props.$media && !props.$overlay ? 'padding: 0 8px 2px;' : '')}
   ${(props) =>
     props.$inline
       ? `
     margin-left: auto;
-    align-self: last baseline;
-    line-height: 1.2;
+    align-self: flex-end;
+    margin-bottom: ${TIME_BASELINE_NUDGE_PX}px;
   `
       : ''}
   ${(props) =>

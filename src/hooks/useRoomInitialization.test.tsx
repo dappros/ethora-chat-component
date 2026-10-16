@@ -9,9 +9,17 @@ import { useRoomInitialization } from './useRoomInitialization';
 // single in-flight join promise per activation.
 
 const dispatchMock = vi.fn();
-vi.mock('react-redux', () => ({
-  useDispatch: () => dispatchMock,
-}));
+// The hook reads the rooms map from the store at effect time. Tests set
+// `mockRooms` to the room list they want the hook to see.
+let mockRooms: Record<string, any> = {};
+vi.mock('react-redux', () => {
+  const getState = () => ({ rooms: { rooms: mockRooms } });
+  return {
+    useDispatch: () => dispatchMock,
+    useStore: () => ({ getState }),
+    useSelector: (selector: (state: unknown) => unknown) => selector(getState()),
+  };
+});
 vi.mock('../roomStore/roomsSlice', () => ({
   setIsLoading: (payload: any) => ({ type: 'setIsLoading', payload }),
 }));
@@ -49,14 +57,10 @@ describe('useRoomInitialization - duplicate presence on room switch', () => {
 
   it('joins the active room only once per activation', async () => {
     mockClient = makeClient();
+    mockRooms = { 'room1@conference.example.com': { messages: [] } };
 
     const { unmount } = renderHook(() =>
-      useRoomInitialization(
-        'room1@conference.example.com',
-        { 'room1@conference.example.com': { messages: [] } } as any,
-        {} as any,
-        0
-      )
+      useRoomInitialization('room1@conference.example.com', {} as any, 0)
     );
 
     // Let the microtask queue flush so both effects (and getDefaultHistory's

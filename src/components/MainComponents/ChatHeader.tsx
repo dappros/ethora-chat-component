@@ -30,7 +30,6 @@ import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 import { isMessageSearchEnabled } from '../../helpers/isMessageSearchEnabled';
 import { useMessageSearchShortcut } from '../../hooks/useMessageSearchShortcut';
 import { RoomMenu } from '../MenuRoom/MenuRoom';
-import { useRoomState } from '../../hooks/useRoomState';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { useT, useUiLocale } from '../../i18n/useT';
 import { formatNumberWithCommas } from '../../helpers/formatNumberWithCommas';
@@ -240,6 +239,8 @@ const looksLikeRawJidLocalPart = (
   return false;
 };
 
+const EMPTY_ROOMS_MAP: Record<string, IRoom> = {};
+
 const getDisplayTitle = (room: IRoom | undefined): string => {
   const title = room?.title?.trim();
   if (looksLikeRawJidLocalPart(title, room?.jid)) {
@@ -271,9 +272,22 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const { client } = useXmppClient();
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
 
-  const { roomsList, activeRoomJID } = useRoomState(currentRoom.jid);
-  const { composing } = useRoomState(currentRoom.jid).room ?? {};
+  // Narrow reads only: the active room id and this room's composing flag are
+  // primitives, so the header does not re-render on unrelated room updates.
+  // The whole rooms map is read only by the burger menu, and only when it is
+  // enabled (the selector returns a stable empty map otherwise).
+  const activeRoomJID = useSelector((state: RootState) =>
+    typeof state.rooms?.activeRoomJID === 'string'
+      ? state.rooms.activeRoomJID
+      : null
+  );
+  const composing = useSelector(
+    (state: RootState) => state.rooms.rooms?.[currentRoom.jid]?.composing
+  );
   const { config, user: stateUser } = useChatSettingState();
+  const roomsList = useSelector((state: RootState) =>
+    config?.chatHeaderBurgerMenu ? state.rooms.rooms : EMPTY_ROOMS_MAP
+  );
 
   // Search runs against the platform's archive, which is scoped by app, so it
   // needs an appId; hosts can also switch it off.
@@ -312,7 +326,8 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     isPrivateRoom && allowedRoomTypes.includes('private');
   const isRoomAllowed = isRoomAllowedByType;
   const hasLivekitUrl = Boolean(videoCallsConfig?.livekitUrl?.trim());
-  const isCallBusy = call.phase !== 'idle';
+  // Optional chain: a host or test store may not mount the call slice.
+  const isCallBusy = call?.phase !== 'idle';
   const canCall = isVideoCallsEnabled && isRoomAllowed && hasLivekitUrl;
   // Audio calls are an opt-in feature on top of the call infra; they need
   // everything a video call needs plus the explicit flag.

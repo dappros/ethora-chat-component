@@ -10,6 +10,7 @@ import {
   setCurrentRoom,
   setReactions,
   setReceivedReceipt,
+  setReceivedWatermark,
   setDisplayedMarker,
   setRoomRole,
   setMemberOnline,
@@ -55,6 +56,11 @@ import {
 } from '../utils/notificationPolicy';
 import { formatError } from '../utils/formatError';
 import { ethoraLogger } from '../helpers/ethoraLogger';
+import {
+  messageTimestamp,
+  resolveReceiptsConfig,
+  shouldSendDelivery,
+} from './receiptsPolicy';
 // TO DO: we are thinking to refactor this code in the following way:
 // each stanza will be parsed for 'type'
 // then it will be handled based on the type
@@ -181,16 +187,31 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
     const isSystemMessage = message.isSystemMessage === 'true';
 
     const isHistory = (message as any).isHistory;
-    // Suppress notifications for some time after app load to avoid login flood
-    const appLoadTime = (window as any)._ethoraAppLoadTime || Date.now();
-    const isWithinCatchupPeriod = Date.now() - appLoadTime < 2000;
-
     // XEP-0184: ack every live message from someone else so their client can
     // flip the tick from sent -> delivered. Skip our own echo, system
     // messages, and MAM/catch-up replays (those aren't "just delivered").
+    // The size and age policy decides whether this room gets the ack at all;
+    // the batcher coalesces what is left.
     if (!currentUserMessage && !isSystemMessage && !isHistory) {
-      xmppClient?.sendReceivedReceiptStanza(message.id, roomJID);
+      const receipts = resolveReceiptsConfig(
+        state.chatSettingStore.config?.receipts
+      );
+      const now = Date.now();
+      if (shouldSendDelivery(room, message, receipts, now)) {
+        xmppClient?.queueDeliveryReceipt(
+          roomJID,
+          message.id,
+          // Live messages arrive in order: order them by arrival, so a
+          // sender's skewed clock cannot make a newer message look older
+          // than one already acknowledged.
+          now,
+          receipts.coalesceMs
+        );
+      }
     }
+    // Suppress notifications for some time after app load to avoid login flood
+    const appLoadTime = (window as any)._ethoraAppLoadTime || Date.now();
+    const isWithinCatchupPeriod = Date.now() - appLoadTime < 2000;
 
     const decision = shouldShowXmppToast({
       config: state.chatSettingStore.config,
@@ -301,6 +322,16 @@ const onReceivedReceipt = async (stanza: Element) => {
       messageId,
       fromXmppUsername,
       timestamp: Date.now(),
+    })
+  );
+  // The same receipt also moves the sender's delivery watermark, so every
+  // earlier own message counts as delivered to them without a per-message
+  // receipt (see lastReceivedByUser on IRoom).
+  store.dispatch(
+    setReceivedWatermark({
+      roomJID,
+      xmppUsername: fromXmppUsername,
+      messageId,
     })
   );
 };
@@ -447,7 +478,19 @@ const onMessageHistory = async (stanza: any, xmppClient?: XmppClient) => {
       !isCurrentUserMessage(message.user?.id, currentXmppUsername) &&
       !isSystemMessage
     ) {
-      xmppClient?.sendHistoryReceivedReceiptStanza(roomJID, message.id);
+      const historyState = store.getState();
+      const receipts = resolveReceiptsConfig(
+        historyState.chatSettingStore.config?.receipts
+      );
+      const room = historyState.rooms.rooms[roomJID];
+      if (shouldSendDelivery(room, message, receipts, Date.now())) {
+        xmppClient?.queueDeliveryReceipt(
+          roomJID,
+          message.id,
+          messageTimestamp(message) || Date.now(),
+          receipts.coalesceMs
+        );
+      }
     }
   }
 };

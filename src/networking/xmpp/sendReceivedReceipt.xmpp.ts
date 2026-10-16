@@ -24,7 +24,9 @@ export function sendReceivedReceipt(
       id: messageId,
       from: client.jid?.toString(),
     }),
-    xml('store', { xmlns: 'urn:xmpp:hints' })
+    // XEP-0334: a delivery receipt is not worth archiving, so ask the
+    // server not to store it (<store/> stays on the displayed marker).
+    xml('no-permanent-store', { xmlns: 'urn:xmpp:hints' })
   );
 
   client.send(message);

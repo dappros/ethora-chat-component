@@ -8,7 +8,6 @@ import React, {
   useSyncExternalStore,
 } from 'react';
 import { IUser, MessageProps } from '../../types/types';
-import { useUsersSet } from '../../hooks/useRoomState';
 import {
   CustomMessageTimestamp,
   CustomMessageContainer,
@@ -21,9 +20,23 @@ import {
 } from '../styled/StyledComponents';
 import MediaMessage from '../MainComponents/MediaMessage';
 import MediaCaption from './MediaCaption';
-import { shallowEqual, useDispatch, useSelector } from 'react-redux';
+import {
+  shallowEqual,
+  useDispatch,
+  useSelector,
+  useStore,
+} from 'react-redux';
+import {
+  computeReceiptState,
+  getReceiptIndex,
+  NO_RECEIPTS,
+  receiptStateEqual,
+  ReceiptState,
+} from '../../helpers/receiptState';
+import { messageTimestamp } from '../../networking/receiptsPolicy';
 import { RootState } from '../../roomStore';
 import { createUserNameFromSetUser } from '../../helpers/createUserNameFromSetUser';
+import { lookupUserEntry } from '../../helpers/userEntry';
 
 import { MessageAvatarPhoto } from './MessageAvatarPhoto';
 import MessageInteractions from './MessageInteractions';
@@ -78,7 +91,7 @@ import { getMessageAttachments, isMediaMessage } from '../../helpers/attachments
 import { getMessageCaption } from '../../helpers/caption';
 import {
   getMediaBlockMode,
-  usesMediaOverlayTime,
+  getMediaTimeLayout,
 } from '../../helpers/mediaBubble';
 
 // Inherits CustomMessageTimestamp's colour/size - just the WhatsApp/
@@ -86,6 +99,10 @@ import {
 // Shown instead of a name while the sender's profile is still being looked
 // up: short and fixed so the bubble does not jump when the name arrives.
 const SENDER_NAME_PLACEHOLDER = '\u2026';
+
+// Stable empty list for tooltip names, so a bubble with nothing to name
+// keeps the same reference across store updates.
+const NO_NAMES: string[] = [];
 
 const EditedLabel = styled.span`
   font-style: italic;
@@ -162,12 +179,31 @@ const TickTooltip = styled.span`
   padding: 6px 10px;
   border-radius: 6px;
   font-size: 12px;
-  white-space: nowrap;
+  width: max-content;
+  max-width: 260px;
+  text-align: left;
   pointer-events: none;
   z-index: 1;
 `;
 
-const NO_VIEWERS: string[] = [];
+/** One line of the tick tooltip; a large-group tooltip stacks two of these. */
+const TickTooltipLine = styled.span`
+  display: block;
+  white-space: normal;
+  overflow-wrap: anywhere;
+`;
+
+/**
+ * Groups with more than this many other members get count-based receipts
+ * ("Read by 12 of 467") instead of a list of names. Names only make sense
+ * for a handful of people; in a large room they read as if only those
+ * people got the message.
+ */
+const SMALL_GROUP_MAX_OTHERS = 5;
+
+/** Read-receipt tick size, in px: it centres on the 12px time's x-height. */
+const TICK_SIZE_PX = 14;
+
 
 const Message: React.FC<MessageProps> = forwardRef<
   HTMLDivElement,
@@ -179,7 +215,10 @@ const Message: React.FC<MessageProps> = forwardRef<
   const { user, config, langSource, translateMode, translateSendEnabled } =
     useChatSettingState();
   const { idSet } = useMessageHeapState();
-  const usersSet = useUsersSet();
+  // Reads of rooms.usersSet below are narrow: a selector per entry this
+  // bubble renders, and `store.getState()` at event/tooltip time. The bubble
+  // never subscribes to the whole map.
+  const store = useStore<RootState>();
   const interactionsDisabled = Boolean(config?.disableInteractions);
   const profilesDisabled = Boolean(config?.disableProfilesInteractions);
 
@@ -204,7 +243,8 @@ const Message: React.FC<MessageProps> = forwardRef<
   const senderLocal = senderUserId.split('@')[0];
   const senderEntry = useSelector(
     (state: RootState) =>
-      state.rooms.usersSet[senderLocal] ?? state.rooms.usersSet[senderUserId]
+      lookupUserEntry(state.rooms.usersSet, senderLocal) ??
+      lookupUserEntry(state.rooms.usersSet, senderUserId)
   );
   // A usersSet hit with blank firstName/lastName (a profile that hasn't
   // finished populating yet - the common case right after someone new
@@ -305,14 +345,21 @@ const Message: React.FC<MessageProps> = forwardRef<
   // MessageReaction, so the row reserves room for every wrapped chip row.
   const [reactionHang, setReactionHang] = useState(REACTION_HANG_PX);
 
+  // A media bubble previews a link only from its caption. Its body is the
+  // placeholder or a legacy echo of the file URL, and treating that as a link
+  // pulled a preview card under a picture-only bubble (and with it the time
+  // out of the overlay), sometimes and not other times.
+  const isMediaBubble = isMediaMessage(message);
+  const captionText = isMediaBubble ? getMessageCaption(message) : undefined;
+  const previewSource = isMediaBubble ? captionText : message?.body;
   useEffect(() => {
-    if (message && message.body && typeof message.body === 'string') {
-      const match = message.body.match(firstUrlRegex);
+    if (previewSource && typeof previewSource === 'string') {
+      const match = previewSource.match(firstUrlRegex);
       setPreviewUrl(match ? match[0] : null);
     } else {
       setPreviewUrl(null);
     }
-  }, [message?.body]);
+  }, [previewSource]);
 
   const handleContextMenu = (event: React.MouseEvent | React.TouchEvent) => {
     if (interactionsDisabled) return;
@@ -369,8 +416,11 @@ const Message: React.FC<MessageProps> = forwardRef<
   const handleMentionClick = (mention: { jid: string; name: string }): void => {
     if (profilesDisabled || !mention?.jid) return;
     const localKey = mention.jid.split('@')[0];
+    // Read at click time, not subscribed: the profile opened is the latest.
+    const usersSet = store.getState().rooms.usersSet;
     const enriched =
-      (usersSet as any)?.[mention.jid] ?? (usersSet as any)?.[localKey];
+      lookupUserEntry(usersSet, mention.jid) ??
+      lookupUserEntry(usersSet, localKey);
     const [firstName, ...rest] = (
       enriched
         ? `${enriched.firstName ?? ''} ${enriched.lastName ?? ''}`.trim()
@@ -481,56 +531,139 @@ const Message: React.FC<MessageProps> = forwardRef<
   // resolves the reader list itself and returns a small array (compared
   // shallowly), so a bubble does not re-render on every new room message,
   // and only own messages do the lookup at all.
-  const seenBy = useSelector((state: RootState): string[] => {
-    if (!isUser) return NO_VIEWERS;
-    const room = state.rooms.rooms[message.roomJid];
-    const watermark = room?.lastDisplayedByUser;
-    if (!watermark || !room?.messages?.length) return NO_VIEWERS;
-    const viewers = Object.keys(watermark).filter(
-      (xmppUsername) => xmppUsername !== user?.xmppUsername
-    );
-    if (!viewers.length) return NO_VIEWERS;
-    const indexOf = (id: string): number => {
-      for (let i = room.messages.length - 1; i >= 0; i--) {
-        if (room.messages[i].id === id) return i;
-      }
-      return -1;
-    };
-    const thisIndex = indexOf(message.id);
-    if (thisIndex === -1) return NO_VIEWERS;
-    return viewers.filter((xmppUsername) => {
-      const displayedIndex = indexOf(watermark[xmppUsername]);
-      return displayedIndex >= thisIndex;
-    });
-  }, shallowEqual);
+  // Read/delivery state for this own bubble (XEP-0184/XEP-0333). The room
+  // lookup tables are built once per messages array and shared by every
+  // bubble, so each bubble only walks its viewers. The selector returns small
+  // arrays compared by content, so the bubble re-renders only when who has
+  // read or received it actually changes.
+  const receipts = useSelector(
+    (state: RootState): ReceiptState => {
+      if (!isUser) return NO_RECEIPTS;
+      const room = state.rooms.rooms[message.roomJid];
+      if (!room?.messages?.length) return NO_RECEIPTS;
+      return computeReceiptState({
+        index: getReceiptIndex(room.messages),
+        messageId: message.id,
+        messageTs: messageTimestamp(message),
+        receivedBy: message.receivedBy,
+        lastReceivedByUser: room.lastReceivedByUser,
+        lastDisplayedByUser: room.lastDisplayedByUser,
+        selfId: user?.xmppUsername,
+      });
+    },
+    receiptStateEqual
+  );
+  const seenBy = receipts.seenBy;
+  const deliveredBy = receipts.deliveredBy;
   const roomType = useSelector(
     (state: RootState) => state.rooms.rooms[message.roomJid]?.type
   );
   const isGroupRoom = roomType !== 'private';
+  // True member count of the room (members can be truncated for big rooms,
+  // usersCnt is the total). A number, so the bubble re-renders only when the
+  // size itself changes.
+  const roomSize = useSelector((state: RootState): number => {
+    const room = state.rooms.rooms[message.roomJid];
+    return Math.max(room?.usersCnt ?? 0, room?.members?.length ?? 0);
+  });
+
+  const me = user?.xmppUsername;
+  const receivedBy = useMemo(
+    () => deliveredBy.filter((xmppUsername) => xmppUsername !== me),
+    [deliveredBy, me]
+  );
+  const status: 'sent' | 'delivered' | 'seen' =
+    seenBy.length > 0 ? 'seen' : receivedBy.length > 0 ? 'delivered' : 'sent';
+
+  // Other members in the room (the sender excluded). The true size comes
+  // from usersCnt because members is capped for big rooms. With no size
+  // known, count the other users we have receipts or read marks from.
+  const othersTotal = useMemo(() => {
+    const knownOthers = new Set<string>([...receivedBy, ...seenBy]);
+    return Math.max(
+      roomSize > 0 ? roomSize - 1 : knownOthers.size,
+      receivedBy.length,
+      seenBy.length
+    );
+  }, [receivedBy, seenBy, roomSize]);
+
+  // Reader names are only needed for a small group tooltip. They are read
+  // here as a short list of strings (shallow-compared), so the bubble
+  // re-renders when a named reader is renamed or the list changes, and not on
+  // any other usersSet change. Large groups and 1:1 rooms select nothing.
+  const namesShown = isGroupRoom && othersTotal <= SMALL_GROUP_MAX_OTHERS;
+  const seenNames = useSelector(
+    (state: RootState): string[] =>
+      namesShown && status === 'seen'
+        ? seenBy.map((xmppUsername) =>
+            createUserNameFromSetUser(state.rooms.usersSet, xmppUsername)
+          )
+        : NO_NAMES,
+    shallowEqual
+  );
+  const deliveredNames = useSelector(
+    (state: RootState): string[] =>
+      namesShown && status === 'delivered'
+        ? receivedBy.map((xmppUsername) =>
+            createUserNameFromSetUser(state.rooms.usersSet, xmppUsername)
+          )
+        : NO_NAMES,
+    shallowEqual
+  );
 
   const tickInfo = useMemo(() => {
-    const receivedBy = Object.keys(message.receivedBy || {});
-    const status: 'sent' | 'delivered' | 'seen' =
-      seenBy.length > 0 ? 'seen' : receivedBy.length > 0 ? 'delivered' : 'sent';
-    const nameOf = (xmppUsername: string) =>
-      createUserNameFromSetUser(usersSet, xmppUsername);
-
-    let tooltip: string;
-    if (status === 'seen') {
-      tooltip = isGroupRoom
-        ? t('message.receipt.readBy', { names: seenBy.map(nameOf).join(', ') })
-        : t('message.receipt.read');
-    } else if (status === 'delivered') {
-      tooltip = isGroupRoom
-        ? t('message.receipt.deliveredTo', {
-            names: receivedBy.map(nameOf).join(', '),
-          })
-        : t('message.receipt.delivered');
-    } else {
-      tooltip = t('message.receipt.sent');
+    if (!isGroupRoom) {
+      const tooltip =
+        status === 'seen'
+          ? t('message.receipt.read')
+          : status === 'delivered'
+            ? t('message.receipt.delivered')
+            : t('message.receipt.sent');
+      return { status, lines: [tooltip] };
     }
-    return { status, tooltip };
-  }, [message.receivedBy, seenBy, usersSet, isGroupRoom, t]);
+
+    if (othersTotal <= SMALL_GROUP_MAX_OTHERS) {
+      const tooltip =
+        status === 'seen'
+          ? t('message.receipt.readBy', {
+              names: seenNames.join(', '),
+            })
+          : status === 'delivered'
+            ? t('message.receipt.deliveredTo', {
+                names: deliveredNames.join(', '),
+              })
+            : t('message.receipt.sent');
+      return { status, lines: [tooltip] };
+    }
+
+    // Large group: counts only, never names. "seen" means at least one
+    // reader, "delivered" at least one receipt.
+    const readBy = seenBy.length;
+    const sentTo = receivedBy.length;
+    const total = othersTotal;
+    const lines: string[] = [];
+    if (readBy > 0) {
+      lines.push(t('message.receipt.readByCount', { count: readBy, total }));
+    }
+    if (sentTo > 0) {
+      lines.push(
+        t('message.receipt.deliveredToCount', { count: sentTo, total })
+      );
+    }
+    if (lines.length === 0) {
+      lines.push(t('message.receipt.sent'));
+    }
+    return { status, lines };
+  }, [
+    status,
+    seenBy,
+    receivedBy,
+    seenNames,
+    deliveredNames,
+    isGroupRoom,
+    othersTotal,
+    t,
+  ]);
   const readStatus = tickInfo.status;
 
   // "failed" is only ever a prompt to retry, never a claim the message was
@@ -652,22 +785,23 @@ const Message: React.FC<MessageProps> = forwardRef<
 
   // A media bubble lays out its files as one block (see AttachmentList). When
   // that block is only pictures or videos, the time floats over it as a pill.
-  const isMediaBubble = isMediaMessage(message);
   const mediaAttachments = isMediaBubble ? getMessageAttachments(message) : [];
   const mediaBlockMode = getMediaBlockMode(mediaAttachments);
+  // A media message with no caption has no text to translate.
   const showsTranslateRow =
     !isUser &&
     Boolean(config?.translates?.enabled) &&
-    effectiveTranslateMode === 'manual';
-  const timeOverPicture =
-    isMediaBubble &&
-    !isFailed &&
-    usesMediaOverlayTime(mediaAttachments, {
-      hasCaption: Boolean(getMessageCaption(message)),
-    }) &&
-    !(quickReplies.length > 0) &&
-    !showsTranslateRow &&
-    !previewUrl;
+    effectiveTranslateMode === 'manual' &&
+    (!isMediaBubble || Boolean(captionText));
+  const mediaTime = getMediaTimeLayout({
+    attachments: mediaAttachments,
+    hasCaption: Boolean(captionText),
+    failed: isFailed,
+    hasQuickReplies: quickReplies.length > 0,
+    hasUrlPreview: Boolean(previewUrl) && !message.isDeleted,
+    hasTranslateRow: showsTranslateRow,
+  });
+  const timeOverPicture = isMediaBubble && mediaTime.mode === 'overlay';
 
   // A short text message shows its time at the end of the last line of text
   // instead of on a line of its own. The time always sits bottom right, for
@@ -678,11 +812,7 @@ const Message: React.FC<MessageProps> = forwardRef<
   // The tail marks the last bubble of a sender's run. Media-only bubbles (the
   // time floats over the picture) and system or deleted rows get none.
   const isLastInGroup = lastInRun !== false;
-  const isMediaOnly =
-    isMediaBubble &&
-    usesMediaOverlayTime(mediaAttachments, {
-      hasCaption: Boolean(getMessageCaption(message)),
-    });
+  const isMediaOnly = isMediaBubble && mediaTime.mediaOnly;
   const showsTail =
     isLastInGroup &&
     !message.isDeleted &&
@@ -722,20 +852,28 @@ const Message: React.FC<MessageProps> = forwardRef<
         <TickStatusWrapper>
           {timeOverPicture ? (
             readStatus === 'sent' ? (
-              <SingleTick color="#FFFFFF" />
+              <SingleTick color="#FFFFFF" width={TICK_SIZE_PX} height={TICK_SIZE_PX} />
             ) : (
               <DoubleTick
+                width={TICK_SIZE_PX}
+                height={TICK_SIZE_PX}
                 stroke={readStatus === 'seen' ? '#7DB3FF' : '#FFFFFF'}
               />
             )
           ) : readStatus === 'sent' ? (
-            <SingleTick color="#8C8C8C" />
+            <SingleTick color="#8C8C8C" width={TICK_SIZE_PX} height={TICK_SIZE_PX} />
           ) : (
             <DoubleTick
+              width={TICK_SIZE_PX}
+              height={TICK_SIZE_PX}
               stroke={readStatus === 'seen' ? '#0052CD' : '#8C8C8C'}
             />
           )}
-          <TickTooltip className="tick-tooltip">{tickInfo.tooltip}</TickTooltip>
+          <TickTooltip className="tick-tooltip">
+            {tickInfo.lines.map((line, index) => (
+              <TickTooltipLine key={index}>{line}</TickTooltipLine>
+            ))}
+          </TickTooltip>
         </TickStatusWrapper>
       )}
     </CustomMessageTimestamp>
@@ -773,6 +911,9 @@ const Message: React.FC<MessageProps> = forwardRef<
         )}
         <CustomMessageBubble
           data-ethora-bubble=""
+          data-time-mode={
+            isMediaBubble ? mediaTime.mode : timeInline ? 'inline' : 'row'
+          }
           $deleted={message.isDeleted}
           $tail={showsTail}
           $isUser={isUser}
@@ -834,7 +975,7 @@ const Message: React.FC<MessageProps> = forwardRef<
                   ? {
                       display: 'flex',
                       flexWrap: 'wrap',
-                      alignItems: 'last baseline',
+                      alignItems: 'flex-end',
                       columnGap: 12,
                     }
                   : null),

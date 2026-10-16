@@ -8,9 +8,17 @@ import { renderHook } from '@testing-library/react';
 // room only shows up after a full page reload.
 
 const dispatchMock = vi.fn();
-vi.mock('react-redux', () => ({
-  useDispatch: () => dispatchMock,
-}));
+// The hook reads the rooms map from the store at effect time. Tests set
+// `mockRooms` to the room list they want the hook to see.
+let mockRooms: Record<string, any> = {};
+vi.mock('react-redux', () => {
+  const getState = () => ({ rooms: { rooms: mockRooms } });
+  return {
+    useDispatch: () => dispatchMock,
+    useStore: () => ({ getState }),
+    useSelector: (selector: (state: unknown) => unknown) => selector(getState()),
+  };
+});
 vi.mock('../roomStore/roomsSlice', () => ({
   setIsLoading: (payload: any) => ({ type: 'setIsLoading', payload }),
   setJoiningRoom: (payload: any) => ({ type: 'setJoiningRoom', payload }),
@@ -62,6 +70,7 @@ const flush = async () => {
 };
 
 afterEach(() => {
+  mockRooms = {};
   dispatchMock.mockClear();
   syncRoomsMock.mockClear();
   order.length = 0;
@@ -73,7 +82,7 @@ describe('useRoomInitialization - entering a room by link', () => {
     mockClient = makeClient();
 
     const { unmount } = renderHook(() =>
-      useRoomInitialization(UNKNOWN_JID, {} as any, {} as any, 0)
+      useRoomInitialization(UNKNOWN_JID, {} as any, 0)
     );
     await flush();
 
@@ -88,7 +97,7 @@ describe('useRoomInitialization - entering a room by link', () => {
     mockClient = makeClient();
 
     const { unmount } = renderHook(() =>
-      useRoomInitialization(UNKNOWN_JID, {} as any, {} as any, 0)
+      useRoomInitialization(UNKNOWN_JID, {} as any, 0)
     );
     await flush();
 
@@ -109,7 +118,7 @@ describe('useRoomInitialization - entering a room by link', () => {
     syncRoomsResult = [];
 
     const { unmount } = renderHook(() =>
-      useRoomInitialization(UNKNOWN_JID, {} as any, {} as any, 0)
+      useRoomInitialization(UNKNOWN_JID, {} as any, 0)
     );
     // Real delay: the retry deliberately waits for the backend, so this
     // has to outlast the first backoff step.
@@ -125,7 +134,7 @@ describe('useRoomInitialization - entering a room by link', () => {
     syncRoomsResult = [{ name: UNKNOWN_JID.split('@')[0] }];
 
     const { unmount } = renderHook(() =>
-      useRoomInitialization(UNKNOWN_JID, {} as any, {} as any, 0)
+      useRoomInitialization(UNKNOWN_JID, {} as any, 0)
     );
     await flush();
 
@@ -136,14 +145,10 @@ describe('useRoomInitialization - entering a room by link', () => {
 
   it('does not refetch the room list for a room already in the list', async () => {
     mockClient = makeClient();
+    mockRooms = { [KNOWN_JID]: { messages: [] } };
 
     const { unmount } = renderHook(() =>
-      useRoomInitialization(
-        KNOWN_JID,
-        { [KNOWN_JID]: { messages: [] } } as any,
-        {} as any,
-        0
-      )
+      useRoomInitialization(KNOWN_JID, {} as any, 0)
     );
     await flush();
 
@@ -157,7 +162,7 @@ describe('useRoomInitialization - entering a room by link', () => {
     syncRoomsResult = [{ name: UNKNOWN_JID.split('@')[0] }];
 
     const { unmount } = renderHook(() =>
-      useRoomInitialization(UNKNOWN_JID, {} as any, {} as any, 0)
+      useRoomInitialization(UNKNOWN_JID, {} as any, 0)
     );
     await flush();
 
@@ -181,7 +186,7 @@ describe('useRoomInitialization - entering a room by link', () => {
       syncRoomsResult = [];
 
       const { unmount } = renderHook(() =>
-        useRoomInitialization(UNKNOWN_JID, {} as any, {} as any, 0)
+        useRoomInitialization(UNKNOWN_JID, {} as any, 0)
       );
       const joiningCalls = () =>
         dispatchMock.mock.calls
