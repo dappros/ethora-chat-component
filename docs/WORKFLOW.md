@@ -89,7 +89,7 @@ npm run release -- --yes --push
 
 Or run the **Release** workflow by hand in GitHub Actions (Actions > Release > Run workflow). It bumps and tags `main`, then publishes.
 
-The publish job checks that the tag matches `package.json`, that the version is not on npm yet, that it is newer than the latest version, and that the tag points at `origin/main`.
+The publish job checks that the tag has the form `vX.Y.Z` and that it matches `package.json`, then publishes. It does not run the release checks again: the server CI runs them on `main`, and the tag is made from `main`.
 
 Publishing uses the `npm-release` environment. Add required reviewers there if you want a manual approval step.
 

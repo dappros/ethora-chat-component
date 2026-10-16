@@ -4,8 +4,12 @@ name: Release
 #
 # Two ways in:
 #   - Push a tag vYY.M.D on main (npm run release -- --yes --push does this locally).
-#   - Run this workflow by hand (Actions > Release > Run workflow). It bumps and
-#     tags main, then publishes that tag in the same run.
+#     Only the publish job runs.
+#   - Run this workflow by hand (Actions > Release > Run workflow). The tag job
+#     bumps and tags main, then publish releases that tag in the same run.
+#
+# Verification (lint, tests, build, consumer smoke test) is not repeated here.
+# The CI workflow runs it on every push to main, and the tag is made from main.
 on:
   push:
     tags: ['v*.*.*']
@@ -26,7 +30,7 @@ concurrency:
 
 jobs:
   # Manual runs only. A tag pushed with GITHUB_TOKEN does not start other
-  # workflows, so the publish jobs live in this file and run after this job.
+  # workflows, so the publish job lives in this file and runs after this job.
   tag:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -58,50 +62,31 @@ jobs:
           fi
           echo "tag=v$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
-  verify:
-    needs: tag
-    if: ${{ always() && (needs.tag.result == 'success' || needs.tag.result == 'skipped') }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout the release tag
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.tag.outputs.tag || github.ref_name }}
-          fetch-depth: 0
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Check tag, version, npm and origin/main
-        env:
-          TAG: ${{ needs.tag.outputs.tag || github.ref_name }}
-        run: node scripts/release.mjs verify "$TAG"
-
-      - name: Local CI checks
-        run: npm run ci:local
-
-      - name: Consumer smoke test (React 18 and 19)
-        run: |
-          bash scripts/consumer-smoke.sh 18
-          bash scripts/consumer-smoke.sh 19
-
   publish:
-    needs: verify
+    needs: tag
+    # Runs after a successful tag job (manual runs) or when it was skipped
+    # (tag-push runs, where github.ref_name is the tag).
+    if: ${{ always() && (needs.tag.result == 'success' || needs.tag.result == 'skipped') }}
     runs-on: ubuntu-latest
     # Optional approval gate. Create the environment in repo settings with
     # required reviewers to approve every publish.
     environment: npm-release
     steps:
+      - name: Resolve tag
+        id: resolve
+        env:
+          TAG_INPUT: ${{ needs.tag.outputs.tag || github.ref_name }}
+        run: |
+          if ! printf '%s\n' "$TAG_INPUT" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Release tag '$TAG_INPUT' does not match ^v[0-9]+\.[0-9]+\.[0-9]+$. Nothing was published." >&2
+            exit 1
+          fi
+          echo "tag=$TAG_INPUT" >> "$GITHUB_OUTPUT"
+
       - name: Checkout the release tag
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.tag.outputs.tag || github.ref_name }}
+          ref: ${{ steps.resolve.outputs.tag }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -116,6 +101,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Check package.json version matches the tag
+        env:
+          TAG: ${{ steps.resolve.outputs.tag }}
+        run: |
+          version="v$(node -p "require('./package.json').version")"
+          if [ "$version" != "$TAG" ]; then
+            echo "::error::package.json is $version but the tag is $TAG. Nothing was published." >&2
+            exit 1
+          fi
+
       - name: Publish with provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -124,5 +119,5 @@ jobs:
       - name: GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ needs.tag.outputs.tag || github.ref_name }}
+          TAG: ${{ steps.resolve.outputs.tag }}
         run: gh release create "$TAG" --title "$TAG" --generate-notes --verify-tag
