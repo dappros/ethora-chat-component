@@ -69,4 +69,17 @@ describe('roomsSlice setReceivedWatermark', () => {
     expect(next).toBe(state);
     expect(({} as any).bob).toBeUndefined();
   });
+
+  it('does not move a watermark backwards when the ids are not loaded but encode a time', () => {
+    let state = reducer(undefined, addRoom({ roomData: makeRoom() }));
+    state = reducer(
+      state,
+      setReceivedWatermark({ roomJID: ROOM_JID, xmppUsername: 'bob', messageId: '1791180018286418' })
+    );
+    state = reducer(
+      state,
+      setReceivedWatermark({ roomJID: ROOM_JID, xmppUsername: 'bob', messageId: '1791180000000000' })
+    );
+    expect(watermark(state, 'bob')).toBe('1791180018286418');
+  });
 });

@@ -201,7 +201,10 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
         xmppClient?.queueDeliveryReceipt(
           roomJID,
           message.id,
-          messageTimestamp(message) || now,
+          // Live messages arrive in order: order them by arrival, so a
+          // sender's skewed clock cannot make a newer message look older
+          // than one already acknowledged.
+          now,
           receipts.coalesceMs
         );
       }

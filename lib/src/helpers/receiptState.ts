@@ -1,5 +1,6 @@
 import type { IMessage } from '../types/types';
-import { getTimestampFromUnknown } from './timestamp';
+import { getTimestampFromId, getTimestampFromUnknown } from './timestamp';
+import { isReservedName } from '../roomStore/safeKey';
 
 /**
  * Per-room lookup tables for the delivery/read ticks, built once per
@@ -26,7 +27,7 @@ const localPart = (value: string): string => {
 const messageTs = (message: IMessage): number =>
   getTimestampFromUnknown(message.date) ||
   getTimestampFromUnknown(message.timestamp) ||
-  getTimestampFromUnknown(message.id) ||
+  getTimestampFromId(message.id) ||
   0;
 
 /** The lookup tables for `messages`, built on first use per array. */
@@ -91,7 +92,7 @@ const watermarkCovers = (
 ): boolean => {
   const at = index.indexById.get(id);
   if (at !== undefined) return at >= pos;
-  const watermarkTs = getTimestampFromUnknown(id);
+  const watermarkTs = getTimestampFromId(id);
   return watermarkTs > 0 && ts > 0 && watermarkTs >= ts;
 };
 
@@ -133,7 +134,9 @@ export const computeReceiptState = ({
   const candidates = new Set<string>();
   const add = (key: string) => {
     const user = localPart(key);
-    if (user && user !== me) candidates.add(user);
+    // Reserved names exist on every plain object, so `receivedBy[user]`
+    // would read an inherited member instead of a receipt.
+    if (user && user !== me && !isReservedName(user)) candidates.add(user);
   };
   if (receivedBy) Object.keys(receivedBy).forEach(add);
   if (lastReceivedByUser) Object.keys(lastReceivedByUser).forEach(add);

@@ -16,27 +16,39 @@ const useComposing = (config?: IConfig) => {
     if (config?.disableTypingIndicator) {
       return;
     }
-    if (client) {
+    if (client && typeof client.sendTypingRequestStanza === 'function') {
       client.sendTypingRequestStanza(
         activeRoomJID,
         `${user.firstName} ${user.lastName}`,
         true
       );
     }
-  }, [activeRoomJID]);
+  }, [
+    activeRoomJID,
+    client,
+    config?.disableTypingIndicator,
+    user.firstName,
+    user.lastName,
+  ]);
 
   const sendEndComposing = useCallback(() => {
     if (config?.disableTypingIndicator) {
       return;
     }
-    if (client) {
+    if (client && typeof client.sendTypingRequestStanza === 'function') {
       client.sendTypingRequestStanza(
         activeRoomJID,
         `${user.firstName} ${user.lastName}`,
         false
       );
     }
-  }, [activeRoomJID]);
+  }, [
+    activeRoomJID,
+    client,
+    config?.disableTypingIndicator,
+    user.firstName,
+    user.lastName,
+  ]);
 
   useEffect(() => {
     const timerId = setTimeout(() => {

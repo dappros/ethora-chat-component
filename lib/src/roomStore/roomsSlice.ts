@@ -22,7 +22,10 @@ import {
 // a circular dependency back into the module still assembling the store.
 import { isOpaqueXmppUserId } from '../helpers/xmppIdShape';
 import { extractUniqueMembersFromRooms } from '../helpers/extractUniqueMembersFromRooms';
-import { getTimestampFromUnknown } from '../helpers/timestamp';
+import {
+  getTimestampFromId,
+  getTimestampFromUnknown,
+} from '../helpers/timestamp';
 import { isSafeKey } from './safeKey';
 import { capUsersSet, mergeUsersSet } from './usersSetCap';
 
@@ -1026,8 +1029,13 @@ const roomsStore = createSlice({
           room.messages.findIndex((m) => m.id === id);
         const prevIndex = indexOf(previous);
         const nextIndex = indexOf(messageId);
-        if (prevIndex !== -1 && nextIndex !== -1 && nextIndex < prevIndex) {
-          return;
+        if (prevIndex !== -1 && nextIndex !== -1) {
+          if (nextIndex < prevIndex) return;
+        } else {
+          // One of them is not loaded: the time encoded in the ids decides.
+          const prevTs = getTimestampFromId(previous);
+          const nextTs = getTimestampFromId(messageId);
+          if (prevTs > 0 && nextTs > 0 && nextTs < prevTs) return;
         }
       }
       if (!room.lastReceivedByUser) {
