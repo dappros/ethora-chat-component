@@ -26,7 +26,7 @@ import {
   getTimestampFromId,
   getTimestampFromUnknown,
 } from '../helpers/timestamp';
-import { isSafeKey } from './safeKey';
+import { isReservedName, isSafeKey } from './safeKey';
 import { capUsersSet, mergeUsersSet } from './usersSetCap';
 
 // Body strings the server uses for call signaling broadcasts (call-token,
@@ -594,6 +594,26 @@ const applyRoomUpdate = (
   state.rooms[jid] = merged;
 };
 
+/**
+ * True when moving a read/delivery watermark from `previous` to `next` would
+ * take it backwards. Both positions are compared in the loaded list; when one
+ * of them is not loaded, the time encoded in the ids decides. Unknown order
+ * never blocks an update.
+ */
+const watermarkWouldRegress = (
+  messages: readonly IMessage[],
+  previous: string | undefined,
+  next: string
+): boolean => {
+  if (!previous || previous === next) return false;
+  const prevIndex = messages.findIndex((m) => m.id === previous);
+  const nextIndex = messages.findIndex((m) => m.id === next);
+  if (prevIndex !== -1 && nextIndex !== -1) return nextIndex < prevIndex;
+  const prevTs = getTimestampFromId(previous);
+  const nextTs = getTimestampFromId(next);
+  return prevTs > 0 && nextTs > 0 && nextTs < prevTs;
+};
+
 const roomsStore = createSlice({
   name: 'roomMessages',
   initialState,
@@ -983,6 +1003,7 @@ const roomsStore = createSlice({
       // unsafe key must never reach the write, not even through a read that
       // resolves to Object.prototype.
       if (!isSafeKey(roomJID) || !isSafeKey(fromXmppUsername)) return;
+      if (isReservedName(fromXmppUsername)) return;
       if (!state.rooms[roomJID]) return;
 
       state.rooms[roomJID].messages.forEach((message) => {
@@ -1014,6 +1035,7 @@ const roomsStore = createSlice({
     ) => {
       const { roomJID, xmppUsername, messageId } = action.payload;
       if (!isSafeKey(roomJID) || !isSafeKey(xmppUsername)) return;
+      if (isReservedName(xmppUsername)) return;
       if (!messageId || !state.rooms[roomJID]) return;
       if (
         xmppUsername === '__proto__' ||
@@ -1023,20 +1045,14 @@ const roomsStore = createSlice({
         return;
       }
       const room = state.rooms[roomJID];
-      const previous = room.lastReceivedByUser?.[xmppUsername];
-      if (previous && previous !== messageId) {
-        const indexOf = (id: string) =>
-          room.messages.findIndex((m) => m.id === id);
-        const prevIndex = indexOf(previous);
-        const nextIndex = indexOf(messageId);
-        if (prevIndex !== -1 && nextIndex !== -1) {
-          if (nextIndex < prevIndex) return;
-        } else {
-          // One of them is not loaded: the time encoded in the ids decides.
-          const prevTs = getTimestampFromId(previous);
-          const nextTs = getTimestampFromId(messageId);
-          if (prevTs > 0 && nextTs > 0 && nextTs < prevTs) return;
-        }
+      if (
+        watermarkWouldRegress(
+          room.messages,
+          room.lastReceivedByUser?.[xmppUsername],
+          messageId
+        )
+      ) {
+        return;
       }
       if (!room.lastReceivedByUser) {
         room.lastReceivedByUser = {};
@@ -1053,6 +1069,7 @@ const roomsStore = createSlice({
     ) => {
       const { roomJID, xmppUsername, messageId } = action.payload;
       if (!isSafeKey(roomJID) || !isSafeKey(xmppUsername)) return;
+      if (isReservedName(xmppUsername)) return;
       if (!state.rooms[roomJID]) return;
 
       if (
@@ -1069,6 +1086,15 @@ const roomsStore = createSlice({
         xmppUsername === '__proto__' ||
         xmppUsername === 'constructor' ||
         xmppUsername === 'prototype'
+      ) {
+        return;
+      }
+      if (
+        watermarkWouldRegress(
+          state.rooms[roomJID].messages,
+          state.rooms[roomJID].lastDisplayedByUser[xmppUsername],
+          messageId
+        )
       ) {
         return;
       }
