@@ -1,6 +1,6 @@
 import { useCallback, useRef, useEffect, useState } from 'react';
 import { useXmppClient } from '../context/xmppProvider';
-import { useDispatch, useSelector } from 'react-redux';
+import { shallowEqual, useDispatch, useSelector } from 'react-redux';
 import {
   addRoomMessage,
   editRoomMessage,
@@ -33,6 +33,8 @@ import { shouldTagOutgoingTranslateSource as shouldTagTranslateSource } from '..
 import { CaptionInput, normalizeCaptionInput } from '../helpers/caption';
 
 const DEFAULT_TIMEOUT_MS = 300000;
+// Stable empty result for the unblock selector below (shallow-equal stays quiet).
+const NO_ROOM_JIDS: string[] = [];
 
 /** Files of one message uploaded at the same time. */
 export const MEDIA_UPLOAD_CONCURRENCY = 4;
@@ -62,7 +64,6 @@ export const useSendMessage = () => {
   const activeRoomJID = useSelector((state: RootState) => state.rooms.activeRoomJID);
   const user = useSelector((state: RootState) => state.chatSettingStore.user);
   const editAction = useSelector((state: RootState) => state.rooms.editAction);
-  const rooms = useSelector((state: RootState) => state.rooms.rooms);
 
   const timeoutTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const sendingMessagesRef = useRef<Set<string>>(new Set());
@@ -71,6 +72,26 @@ export const useSendMessage = () => {
   );
 
   const [blockedRooms, setBlockedRooms] = useState<Set<string>>(new Set());
+
+  // Only the blocked rooms whose last message is not from this user matter
+  // to the unblock effect below. Selecting that short list (shallow-compared)
+  // instead of the whole rooms map keeps every consumer of this hook, and
+  // every message bubble that calls it, from re-rendering on unrelated room
+  // updates.
+  const blockedRoomsToUnblock = useSelector(
+    (state: RootState): string[] => {
+      if (blockedRooms.size === 0) return NO_ROOM_JIDS;
+      const out: string[] = [];
+      blockedRooms.forEach((roomJID) => {
+        const room = state.rooms.rooms?.[roomJID];
+        if (!room || !room.messages || room.messages.length === 0) return;
+        const lastMessage = room.messages[room.messages.length - 1];
+        if (lastMessage?.user?.id !== user.xmppUsername) out.push(roomJID);
+      });
+      return out.length > 0 ? out : NO_ROOM_JIDS;
+    },
+    shallowEqual
+  );
 
   const getBlockingConfig = useCallback((): BlockingConfig | null => {
     const blockingConfig = config?.blockMessageSendingWhenProcessing;
@@ -162,23 +183,13 @@ export const useSendMessage = () => {
     const blockingConfig = getBlockingConfig();
     if (!blockingConfig?.enabled) return;
 
-    Object.keys(rooms || {}).forEach((roomJID) => {
+    blockedRoomsToUnblock.forEach((roomJID) => {
       if (!blockedRooms.has(roomJID)) return;
-
-      const room = rooms[roomJID];
-      if (!room || !room.messages || room.messages.length === 0) return;
-
-      const lastMessage = room.messages[room.messages.length - 1];
-      const isLastFromUser = lastMessage?.user?.id === user.xmppUsername;
-
-      if (!isLastFromUser) {
-        clearRoomTimeout(roomJID);
-        updateBlockedRooms(roomJID, false);
-      }
+      clearRoomTimeout(roomJID);
+      updateBlockedRooms(roomJID, false);
     });
   }, [
-    rooms,
-    user.xmppUsername,
+    blockedRoomsToUnblock,
     blockedRooms,
     getBlockingConfig,
     clearRoomTimeout,

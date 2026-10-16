@@ -43,7 +43,6 @@ const StyledContextMenu = styled(ContextMenu)`
 `;
 
 const fixedEmojiIds = ['joy', 'heart', 'fire', '+1', 'smile', 'scream'];
-import { useRoomState } from '../../hooks/useRoomState';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
 import { stripBotMarkup } from '../../helpers/botMarkup';
 import { getMessageCaption } from '../../helpers/caption';
@@ -71,7 +70,14 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
   handleEditMessage,
   handleReactionMessage,
 }) => {
-  const { roomsList, activeRoomJID } = useRoomState();
+  // Only the viewer's role in the active room is read. Selecting the role
+  // (a string) keeps the menu from re-rendering on every room change.
+  const activeRole = useSelector((state: RootState) => {
+    const activeId = state.rooms.activeRoomJID;
+    return typeof activeId === 'string'
+      ? state.rooms.rooms[activeId]?.role
+      : undefined;
+  });
   const [showPicker, setShowPicker] = useState(false);
   const menuContainerRef = useRef<HTMLDivElement>(null);
   useEmojiData();
@@ -302,7 +308,7 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
                 <MESSAGE_INTERACTIONS_ICONS.COPY />
               </MenuItem>
               {(isUser ||
-                roomsList?.[activeRoomJID].role === 'moderator') && (
+                activeRole === 'moderator') && (
                 <Delimeter />
               )}
               {isUser && (
@@ -314,7 +320,7 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
                   <Delimeter />
                 </>
               )}
-              {(isUser || roomsList?.[activeRoomJID].role === 'moderator') && (
+              {(isUser || activeRole === 'moderator') && (
                 <MenuItem onClick={handleDeleteMessage}>
                   {MESSAGE_INTERACTIONS.DELETE}
                   <MESSAGE_INTERACTIONS_ICONS.DELETE />{' '}

@@ -8,7 +8,6 @@ import React, {
   useSyncExternalStore,
 } from 'react';
 import { IUser, MessageProps } from '../../types/types';
-import { useUsersSet } from '../../hooks/useRoomState';
 import {
   CustomMessageTimestamp,
   CustomMessageContainer,
@@ -21,7 +20,12 @@ import {
 } from '../styled/StyledComponents';
 import MediaMessage from '../MainComponents/MediaMessage';
 import MediaCaption from './MediaCaption';
-import { useDispatch, useSelector } from 'react-redux';
+import {
+  shallowEqual,
+  useDispatch,
+  useSelector,
+  useStore,
+} from 'react-redux';
 import {
   computeReceiptState,
   getReceiptIndex,
@@ -32,6 +36,7 @@ import {
 import { messageTimestamp } from '../../networking/receiptsPolicy';
 import { RootState } from '../../roomStore';
 import { createUserNameFromSetUser } from '../../helpers/createUserNameFromSetUser';
+import { lookupUserEntry } from '../../helpers/userEntry';
 
 import { MessageAvatarPhoto } from './MessageAvatarPhoto';
 import MessageInteractions from './MessageInteractions';
@@ -94,6 +99,10 @@ import {
 // Shown instead of a name while the sender's profile is still being looked
 // up: short and fixed so the bubble does not jump when the name arrives.
 const SENDER_NAME_PLACEHOLDER = '\u2026';
+
+// Stable empty list for tooltip names, so a bubble with nothing to name
+// keeps the same reference across store updates.
+const NO_NAMES: string[] = [];
 
 const EditedLabel = styled.span`
   font-style: italic;
@@ -206,7 +215,10 @@ const Message: React.FC<MessageProps> = forwardRef<
   const { user, config, langSource, translateMode, translateSendEnabled } =
     useChatSettingState();
   const { idSet } = useMessageHeapState();
-  const usersSet = useUsersSet();
+  // Reads of rooms.usersSet below are narrow: a selector per entry this
+  // bubble renders, and `store.getState()` at event/tooltip time. The bubble
+  // never subscribes to the whole map.
+  const store = useStore<RootState>();
   const interactionsDisabled = Boolean(config?.disableInteractions);
   const profilesDisabled = Boolean(config?.disableProfilesInteractions);
 
@@ -231,7 +243,8 @@ const Message: React.FC<MessageProps> = forwardRef<
   const senderLocal = senderUserId.split('@')[0];
   const senderEntry = useSelector(
     (state: RootState) =>
-      state.rooms.usersSet[senderLocal] ?? state.rooms.usersSet[senderUserId]
+      lookupUserEntry(state.rooms.usersSet, senderLocal) ??
+      lookupUserEntry(state.rooms.usersSet, senderUserId)
   );
   // A usersSet hit with blank firstName/lastName (a profile that hasn't
   // finished populating yet - the common case right after someone new
@@ -403,8 +416,11 @@ const Message: React.FC<MessageProps> = forwardRef<
   const handleMentionClick = (mention: { jid: string; name: string }): void => {
     if (profilesDisabled || !mention?.jid) return;
     const localKey = mention.jid.split('@')[0];
+    // Read at click time, not subscribed: the profile opened is the latest.
+    const usersSet = store.getState().rooms.usersSet;
     const enriched =
-      (usersSet as any)?.[mention.jid] ?? (usersSet as any)?.[localKey];
+      lookupUserEntry(usersSet, mention.jid) ??
+      lookupUserEntry(usersSet, localKey);
     const [firstName, ...rest] = (
       enriched
         ? `${enriched.firstName ?? ''} ${enriched.lastName ?? ''}`.trim()
@@ -551,24 +567,51 @@ const Message: React.FC<MessageProps> = forwardRef<
     return Math.max(room?.usersCnt ?? 0, room?.members?.length ?? 0);
   });
 
-  const tickInfo = useMemo(() => {
-    const me = user?.xmppUsername;
-    const receivedBy = deliveredBy.filter((xmppUsername) => xmppUsername !== me);
-    const status: 'sent' | 'delivered' | 'seen' =
-      seenBy.length > 0 ? 'seen' : receivedBy.length > 0 ? 'delivered' : 'sent';
-    const nameOf = (xmppUsername: string) =>
-      createUserNameFromSetUser(usersSet, xmppUsername);
+  const me = user?.xmppUsername;
+  const receivedBy = useMemo(
+    () => deliveredBy.filter((xmppUsername) => xmppUsername !== me),
+    [deliveredBy, me]
+  );
+  const status: 'sent' | 'delivered' | 'seen' =
+    seenBy.length > 0 ? 'seen' : receivedBy.length > 0 ? 'delivered' : 'sent';
 
-    // Other members in the room (the sender excluded). The true size comes
-    // from usersCnt because members is capped for big rooms. With no size
-    // known, count the other users we have receipts or read marks from.
+  // Other members in the room (the sender excluded). The true size comes
+  // from usersCnt because members is capped for big rooms. With no size
+  // known, count the other users we have receipts or read marks from.
+  const othersTotal = useMemo(() => {
     const knownOthers = new Set<string>([...receivedBy, ...seenBy]);
-    const othersTotal = Math.max(
+    return Math.max(
       roomSize > 0 ? roomSize - 1 : knownOthers.size,
       receivedBy.length,
       seenBy.length
     );
+  }, [receivedBy, seenBy, roomSize]);
 
+  // Reader names are only needed for a small group tooltip. They are read
+  // here as a short list of strings (shallow-compared), so the bubble
+  // re-renders when a named reader is renamed or the list changes, and not on
+  // any other usersSet change. Large groups and 1:1 rooms select nothing.
+  const namesShown = isGroupRoom && othersTotal <= SMALL_GROUP_MAX_OTHERS;
+  const seenNames = useSelector(
+    (state: RootState): string[] =>
+      namesShown && status === 'seen'
+        ? seenBy.map((xmppUsername) =>
+            createUserNameFromSetUser(state.rooms.usersSet, xmppUsername)
+          )
+        : NO_NAMES,
+    shallowEqual
+  );
+  const deliveredNames = useSelector(
+    (state: RootState): string[] =>
+      namesShown && status === 'delivered'
+        ? receivedBy.map((xmppUsername) =>
+            createUserNameFromSetUser(state.rooms.usersSet, xmppUsername)
+          )
+        : NO_NAMES,
+    shallowEqual
+  );
+
+  const tickInfo = useMemo(() => {
     if (!isGroupRoom) {
       const tooltip =
         status === 'seen'
@@ -583,11 +626,11 @@ const Message: React.FC<MessageProps> = forwardRef<
       const tooltip =
         status === 'seen'
           ? t('message.receipt.readBy', {
-              names: seenBy.map(nameOf).join(', '),
+              names: seenNames.join(', '),
             })
           : status === 'delivered'
             ? t('message.receipt.deliveredTo', {
-                names: receivedBy.map(nameOf).join(', '),
+                names: deliveredNames.join(', '),
               })
             : t('message.receipt.sent');
       return { status, lines: [tooltip] };
@@ -612,12 +655,13 @@ const Message: React.FC<MessageProps> = forwardRef<
     }
     return { status, lines };
   }, [
-    deliveredBy,
+    status,
     seenBy,
-    usersSet,
+    receivedBy,
+    seenNames,
+    deliveredNames,
     isGroupRoom,
-    roomSize,
-    user?.xmppUsername,
+    othersTotal,
     t,
   ]);
   const readStatus = tickInfo.status;
