@@ -6,7 +6,8 @@ import {
 } from '../roomStore/roomsSlice';
 import { useXmppClient } from '../context/xmppProvider';
 import { ApiRoom, IConfig, IMessage, IRoom } from '../types/types';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector, useStore } from 'react-redux';
+import { RootState } from '../roomStore';
 import useGetNewArchRoom from './useGetNewArchRoom';
 
 const countUndefinedText = (arr: IMessage[]) =>
@@ -39,12 +40,23 @@ const JOIN_SYNC_RETRY_DELAYS_MS = [1000, 2500, 5000];
 
 export const useRoomInitialization = (
   activeRoomJID: string,
-  roomsList: Record<string, IRoom>,
   config: IConfig,
   messageLength: number
 ) => {
   const { client } = useXmppClient();
   const dispatch = useDispatch();
+  const store = useStore<RootState>();
+  // The effects below read the rooms map at the moment they run (never a
+  // render-time copy), and only subscribe to the two numbers their dependency
+  // lists use. The host component therefore does not re-render on every room
+  // update.
+  const readRooms = () => store.getState().rooms.rooms;
+  const roomCount = useSelector(
+    (state: RootState) => Object.keys(state.rooms.rooms ?? {}).length
+  );
+  const activeMessageCount = useSelector((state: RootState) =>
+    activeRoomJID ? state.rooms.rooms?.[activeRoomJID]?.messages?.length : undefined
+  );
 
   const syncRooms = useGetNewArchRoom();
 
@@ -102,6 +114,7 @@ export const useRoomInitialization = (
   }, [client, activeRoomJID]);
 
   useEffect(() => {
+    const roomsList = readRooms();
     const activeRoom = roomsList?.[activeRoomJID];
     const shouldLoadActiveHistory =
       !!activeRoomJID && !hasLoadedRoomHistory(activeRoom);
@@ -293,12 +306,7 @@ export const useRoomInitialization = (
       initialPresenceAndHistory();
     }
 
-  }, [
-    activeRoomJID,
-    Object.keys(roomsList).length,
-    messageLength,
-    roomsList?.[activeRoomJID]?.messages?.length,
-  ]);
+  }, [activeRoomJID, roomCount, messageLength, activeMessageCount]);
 
   // Default-rooms bootstrap. Previously part of the message-count-keyed
   // effect above: while any default room was missing from roomsList, it
@@ -310,6 +318,7 @@ export const useRoomInitialization = (
     const defaultRooms = Array.isArray(config?.defaultRooms)
       ? config.defaultRooms
       : [];
+    const roomsList = readRooms();
     if (!client || !defaultRooms.length || !roomsList) return;
 
     const missing = defaultRooms.filter(
@@ -326,5 +335,5 @@ export const useRoomInitialization = (
     if (config?.newArch === false) {
       client.getRoomsStanza();
     }
-  }, [client, config?.defaultRooms, Object.keys(roomsList).length]);
+  }, [client, config?.defaultRooms, roomCount]);
 };
