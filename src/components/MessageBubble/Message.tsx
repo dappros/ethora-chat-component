@@ -405,7 +405,30 @@ const Message: React.FC<MessageProps> = forwardRef<
   const handleUserAvatarClick = (user: IUser): void => {
     if (profilesDisabled || user?.name === 'Deleted User') return;
     dispatch(setActiveModal(MODAL_TYPES.PROFILE));
-    dispatch(setSelectedUser(user));
+    // The bubble's own avatar/name already read from usersSet (senderEntry),
+    // because message.user is a stale copy taken at send time: profileImage is
+    // usually empty, description is never there, and the name may be older
+    // than the sender's current profile. Dispatching message.user as-is made
+    // the right-side profile show an initials placeholder and empty About
+    // even while the clicked avatar was displaying the real photo. Enrich
+    // from senderEntry when we have it, falling back to message.user per
+    // field - same chain the bubble renders with.
+    const enriched: IUser = {
+      ...user,
+      firstName: senderEntry?.firstName ?? (user as any)?.firstName,
+      lastName: senderEntry?.lastName ?? (user as any)?.lastName,
+      name:
+        (senderEntry
+          ? `${senderEntry.firstName ?? ''} ${senderEntry.lastName ?? ''}`.trim()
+          : '') ||
+        user?.name,
+      profileImage: senderEntry?.profileImage ?? (user as any)?.profileImage,
+      description: senderEntry?.description ?? (user as any)?.description,
+      xmppUsername:
+        senderEntry?.xmppUsername ?? (user as any)?.xmppUsername ?? senderLocal,
+      userJID: senderEntry?.jid ?? user?.userJID,
+    };
+    dispatch(setSelectedUser(enriched));
   };
 
   // Opens the same profile modal a message-bubble avatar click does (see
