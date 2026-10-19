@@ -65,6 +65,22 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
     : undefined;
   const peerOnline =
     !!peer?.xmppUsername && onlineUsers.includes(peer.xmppUsername);
+  // 1:1 rooms carry no explicit room icon on the server - a DM has no
+  // avatar of its own - so without this fallback every private row in the
+  // list painted the hashed-initials circle even for peers who have a real
+  // profile photo set. XMPP affiliation entries in `chat.members` often
+  // arrive with just an xmppUsername (profileImage blank) while usersSet
+  // has the enriched record - same pattern as Message.tsx reads for the
+  // bubble avatar, and ChatProfileMemberRow for the member list.
+  const peerKey = peer?.xmppUsername || '';
+  const peerLocalKey = peerKey.split('@')[0];
+  const peerUsersSetEntry = useSelector((state: RootState) =>
+    peerKey
+      ? state.rooms.usersSet?.[peerKey] ?? state.rooms.usersSet?.[peerLocalKey]
+      : undefined
+  );
+  const peerProfileImage =
+    peer?.profileImage || peerUsersSetEntry?.profileImage || '';
   // Group/public rooms only - 1:1 rooms already show the peer's own
   // online/offline dot on their avatar, a member-count popover doesn't add
   // anything there.
@@ -279,7 +295,10 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
     >
       <ProfileImagePlaceholder
         name={displayName}
-        icon={appendFileToken(chat?.icon, fileToken)}
+        icon={appendFileToken(
+          chat?.icon || (isPrivateRoom ? peerProfileImage : ''),
+          fileToken
+        )}
         online={peerOnline}
         size={44}
       />
