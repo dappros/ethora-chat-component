@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act } from '@testing-library/react';
 import { renderWithProviders } from '../../test/renderWithProviders';
 import {
@@ -130,16 +130,45 @@ function setup(messageCount: number) {
   return { ...utils, store: storeRef, messages };
 }
 
-// Runs one store update and reports what the list and its bubbles did.
+// Timers armed on mount or by a store update (the history auto-load check at
+// 100 ms and its 80 ms follow-up, the mark-read debounce at 1 s, the scroll
+// check) run on fake timers, so they fire only when a test advances the clock.
+// A real timer could otherwise land inside the measurement window on a slow
+// runner and add a list or bubble render the update did not cause.
+const SETTLE_WINDOW_MS = 5_000;
+const MAX_SETTLE_PASSES = 8;
+
+const renderSample = () => [counters.list, bubbleCalls.length];
+
+// Advances the fake clock in full windows until two consecutive samples of
+// the render counters are equal, so nothing armed before the call can still
+// fire inside the next measurement.
+async function settle() {
+  let previous: string | undefined;
+  for (let pass = 0; pass < MAX_SETTLE_PASSES; pass += 1) {
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(SETTLE_WINDOW_MS);
+    });
+    const current = JSON.stringify(renderSample());
+    if (current === previous) return;
+    previous = current;
+  }
+  throw new Error(`render counters did not settle within ${MAX_SETTLE_PASSES} windows`);
+}
+
+// Runs one store update and reports what the list and its bubbles did. Each
+// call settles first, so its baseline is taken with nothing still pending.
 async function measure(
   store: { current: any },
   update: () => void
 ): Promise<{ list: number; bubbles: number; bubbleIds: string[] }> {
+  await settle();
   counters.list = 0;
   bubbleCalls.length = 0;
   await act(async () => {
     update();
   });
+  await settle();
   return {
     list: counters.list,
     bubbles: bubbleCalls.length,
@@ -149,11 +178,16 @@ async function measure(
 
 describe('MessageList render scope', () => {
   beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: false });
     counters.list = 0;
     bubbleCalls.length = 0;
     xmpp.client.actionSetTimestampToPrivateStoreStanza.mockReset();
     xmpp.client.sendDisplayedMarkerStanza.mockReset();
     window.HTMLElement.prototype.scrollTo = vi.fn();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('does not re-render the list or any bubble for receipts, watermarks or displayed markers', async () => {
@@ -280,6 +314,16 @@ describe('MessageList render scope', () => {
 
   it('re-renders when a message is added, and only that bubble is new', async () => {
     const { store, messages } = setup(200);
+    // History paging is covered by its own tests. jsdom has no layout, so the
+    // list always reads as unfilled and re-arms the history auto-load on every
+    // length change, which would add renders this test does not measure. Mark
+    // the history complete before the baseline so only the row render counts.
+    await act(async () => {
+      store.current.dispatch(
+        updateRoom({ jid: ROOM, updates: { historyComplete: true } as any })
+      );
+    });
+    await settle();
     const newMessage = {
       id: 'new-1',
       body: 'hello',
@@ -365,8 +409,6 @@ describe('MessageList render scope', () => {
 
   it('bench: bubble and list renders for one receipt update in a 1000-message room', async () => {
     const { store, messages } = setup(1000);
-    // Settle the initial mount before measuring.
-    await act(async () => {});
     const target = messages[messages.length - 2];
     const receipt = await measure(store, () =>
       store.current.dispatch(

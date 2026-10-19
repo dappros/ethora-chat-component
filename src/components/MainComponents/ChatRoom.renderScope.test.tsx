@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, screen } from '@testing-library/react';
 import { renderWithProviders } from '../../test/renderWithProviders';
 import ChatRoom from './ChatRoom';
@@ -137,19 +137,51 @@ function setup() {
   return { ...utils, store: storeRef };
 }
 
+// Timers armed on mount or by a store update (the chat-open settle at 220 ms,
+// the mark-read debounce at 1 s, the history auto-load checks, the draft save)
+// run on fake timers, so they fire only when a test advances the clock. A
+// real timer could otherwise land inside the measurement window on a slow
+// runner and add a render the update did not cause.
+const SETTLE_WINDOW_MS = 5_000;
+const MAX_SETTLE_PASSES = 8;
+
+// Advances the fake clock in full windows until two consecutive samples of
+// the render counters are equal, so nothing armed before the call can still
+// fire inside the next measurement.
+async function settle(sample: () => unknown) {
+  let previous: string | undefined;
+  for (let pass = 0; pass < MAX_SETTLE_PASSES; pass += 1) {
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(SETTLE_WINDOW_MS);
+    });
+    const current = JSON.stringify(sample());
+    if (current === previous) return;
+    previous = current;
+  }
+  throw new Error(`render counters did not settle within ${MAX_SETTLE_PASSES} windows`);
+}
+
 // Runs one store update and reports how many ChatRoom (header) renders it caused.
+// Each call settles first, so the baseline is taken with nothing still pending.
 async function headerRendersFor(update: () => void) {
+  await settle(() => counters.header);
   counters.header = 0;
   await act(async () => {
     update();
   });
+  await settle(() => counters.header);
   return counters.header;
 }
 
 describe('ChatRoom render scope', () => {
   beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: false });
     counters.header = 0;
     window.HTMLElement.prototype.scrollTo = vi.fn();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('(g) does not re-render for receipt, marker or composing updates in other rooms', async () => {
