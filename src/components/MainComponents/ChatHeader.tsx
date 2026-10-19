@@ -325,6 +325,21 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     : undefined;
   const peerOnline =
     !!peer?.xmppUsername && onlineUsers.includes(peer.xmppUsername);
+  // A 1:1 room carries no room icon of its own on the server, so without a
+  // peer-avatar fallback the header painted the hashed-initials circle even
+  // for peers who have a real profile photo set. Same resolution as
+  // ChatRoomItem: the room's `members` entry first (bare affiliations often
+  // have profileImage blank), then the enriched usersSet record keyed by
+  // xmppUsername.
+  const peerKey = peer?.xmppUsername || '';
+  const peerLocalKey = peerKey.split('@')[0];
+  const peerUsersSetEntry = useSelector((state: RootState) =>
+    peerKey
+      ? (state.rooms.usersSet?.[peerKey] ?? state.rooms.usersSet?.[peerLocalKey])
+      : undefined
+  );
+  const peerProfileImage =
+    peer?.profileImage || peerUsersSetEntry?.profileImage || '';
   // Block is offered only for 1-1 private rooms with a resolvable peer. Hosts
   // can hide it with config.disableUserBlock. Backends without the route (e.g.
   // older prod) return 404, surfaced as an error toast.
@@ -588,7 +603,10 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
               <ProfileImagePlaceholder
                 name={currentRoom.name}
                 size={40}
-                icon={appendFileToken(currentRoom?.icon, fileToken)}
+                icon={appendFileToken(
+                  currentRoom?.icon || (isPrivateRoom ? peerProfileImage : ''),
+                  fileToken
+                )}
                 active={true}
                 online={isPrivateRoom && peerOnline}
               />

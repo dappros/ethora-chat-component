@@ -134,6 +134,31 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
     (state: RootState) => state.chatSettingStore.user?.fileToken || ''
   );
 
+  // A 1:1 room carries no icon of its own on the server, so without a
+  // peer-avatar fallback the hero circle painted the hashed initials even
+  // for peers who have a real profile photo set - matching the fix landed
+  // in the chat header and the list row (ChatRoomItem). The usersSet lookup
+  // is narrowed to a single key: picking out one entry only re-renders this
+  // modal when that specific entry changes, so an unrelated insertUsers
+  // dispatch doesn't resubscribe the whole map (the perf trap called out
+  // in the comment above the enrichedMembers memo).
+  const myXmppUsername = stateUser?.xmppUsername || '';
+  const isPrivateRoom = activeRoom?.type === 'private';
+  const peer = isPrivateRoom
+    ? (activeRoom?.members || []).find(
+        (m) => m.xmppUsername && m.xmppUsername !== myXmppUsername
+      )
+    : undefined;
+  const peerKey = peer?.xmppUsername || '';
+  const peerLocalKey = peerKey.split('@')[0];
+  const peerUsersSetEntry = useSelector((state: RootState) =>
+    peerKey
+      ? (state.rooms.usersSet?.[peerKey] ?? state.rooms.usersSet?.[peerLocalKey])
+      : undefined
+  );
+  const peerProfileImage =
+    peer?.profileImage || peerUsersSetEntry?.profileImage || '';
+
   // `onlineUsers` is an array (see useRoomPresence). Checking membership with
   // .includes() inside a .map() over up to ~3,500 members made the online-dot
   // lookup O(n*m) for the whole list; a Set gives each row an O(1) check.
@@ -401,7 +426,10 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
       <ProfileHero>
         <ProfileImagePlaceholder
           name={activeRoom.name}
-          icon={appendFileToken(activeRoom.icon, fileToken)}
+          icon={appendFileToken(
+            activeRoom.icon || (isPrivateRoom ? peerProfileImage : ''),
+            fileToken
+          )}
           upload={{
             onUpload,
             active: !roomConfigDisabled && activeRoom?.role !== 'participant',
