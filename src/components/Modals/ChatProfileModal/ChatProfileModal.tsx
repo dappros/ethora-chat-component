@@ -54,7 +54,10 @@ import {
   setSelectedUser,
 } from '../../../roomStore/chatSettingsSlice';
 import { MODAL_TYPES } from '../../../helpers/constants/MODAL_TYPES';
-import { deleteRoomMember } from '../../../networking/api-requests/rooms.api';
+import {
+  deleteRoomMember,
+  patchMyChat,
+} from '../../../networking/api-requests/rooms.api';
 import DropdownMenu from '../../DropdownMenu/DropdownMenu';
 import DeleteChatModal from './DeleteChatModal';
 import { useChatSettingState } from '../../../hooks/useChatSettingState';
@@ -282,6 +285,14 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
       const location = uploadResult?.data?.results?.[0]?.location;
 
       if (location) {
+        // Mongo is the source of truth for GET /v1/chats/my - without the
+        // REST call the icon reappears blank on the next page refresh (the
+        // XMPP IQ only touches ejabberd's Mnesia `room_thumbnail`).
+        try {
+          await patchMyChat(activeRoom.jid.split('@')[0], { picture: location });
+        } catch (persistError) {
+          console.warn('Chat picture persistence failed:', persistError);
+        }
         client.setRoomImageStanza(activeRoom.jid, location, 'icon', 'none');
         dispatch(
           updateRoom({ jid: activeRoom.jid, updates: { icon: location } })
@@ -334,6 +345,14 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   const roomConfigDisabled = config?.disableRoomConfig === true;
 
   const onRemoveClick = async () => {
+    // Mirror onUpload: Mongo-side clear so the icon stays gone across a
+    // page refresh, otherwise /chats/my still returns the previous
+    // `Chat.picture` and the icon pops back on the next load.
+    try {
+      await patchMyChat(activeRoom.jid.split('@')[0], { picture: '' });
+    } catch (persistError) {
+      console.warn('Chat picture clear failed:', persistError);
+    }
     client.setRoomImageStanza(activeRoom.jid, null, 'icon', 'none');
     dispatch(updateRoom({ jid: activeRoom.jid, updates: { icon: null } }));
   };
