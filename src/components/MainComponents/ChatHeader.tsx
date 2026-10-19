@@ -414,6 +414,15 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         window.history.pushState(null, '', window.location.pathname);
       }
       dispatch(setCurrentRoom({ roomJID: null }));
+      // Confirm the action and point the user at the Settings → Privacy & Data
+      // page where the Blocked Users list lives — Block hides the chat, so
+      // without this it's not obvious the action succeeded or how to undo it.
+      showToast({
+        id: Date.now().toString(),
+        title: t('toast.success'),
+        message: t('toast.blockedSuccess'),
+        type: 'success',
+      });
     } catch (error) {
       ethoraLogger.log('Block user failed', error);
       showToast({

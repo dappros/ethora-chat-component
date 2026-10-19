@@ -297,31 +297,65 @@ export const PdfIcon = ({
   );
 };
 
+// Square 24x24 viewBox matches BellIcon/ReportIcon/LeaveIcon so the trash
+// glyph renders at the same visual size next to them in the chat header menu.
+// Paths are the original 28x36 drawing scaled by 2/3 and centred horizontally
+// (x_new = x_old * 2/3 + 8/3, y_new = y_old * 2/3), strokeWidth scaled to
+// match the new coordinate system.
 export const RemoveIcon = (props: any) => (
   <RemoveIconSvg
-    width="28"
-    height="36"
-    viewBox="0 0 28 36"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
     {...props}
   >
     <path
-      d="M2.00391 12.6699V26.3797C2.00391 30.5862 5.41398 33.9963 9.62051 33.9963H18.3795C22.586 33.9963 25.9961 30.5862 25.9961 26.3797V12.6699"
+      d="M4 8.45V17.59C4 20.39 6.28 22.66 9.08 22.66H14.92C17.73 22.66 20 20.39 20 17.59V8.45"
       stroke="#9F0000"
-      strokeWidth="2.5"
+      strokeWidth="1.7"
       strokeLinecap="round"
     />
     <path
-      d="M2.00391 7.3355H8.00195M25.9961 7.3355H19.998M8.00195 7.3355V5.81221C8.00195 3.70894 9.70699 2.00391 11.8103 2.00391H16.1897C18.293 2.00391 19.998 3.70894 19.998 5.81221V7.3355M8.00195 7.3355H19.998"
+      d="M4 4.89H8M20 4.89H16M8 4.89V3.87C8 2.47 9.14 1.34 10.54 1.34H13.46C14.86 1.34 16 2.47 16 3.87V4.89M8 4.89H16"
       stroke="#9F0000"
-      strokeWidth="2.5"
+      strokeWidth="1.7"
       strokeLinecap="round"
     />
     <path
-      d="M9.99902 15.334V25.9972M17.9964 15.334V25.9972"
+      d="M9.33 10.22V17.33M14.67 10.22V17.33"
       stroke="#9F0000"
-      strokeWidth="2.5"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+    />
+  </RemoveIconSvg>
+);
+
+// Prohibition sign (circle with a diagonal slash) for the "Block user" action
+// in the chat header menu. Reads as "block" more clearly than the trash can,
+// which stays reserved for destructive-delete actions elsewhere. Same 24x24
+// box and danger stroke colour as the other menu icons so it lines up with
+// Report/Leave/Mute visually. RemoveIconSvg's dark-mode rule targets `path`,
+// so the circle and slash are drawn as paths rather than <circle>/<line>.
+export const BlockIcon = (props: any) => (
+  <RemoveIconSvg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <path
+      d="M3 12A9 9 0 1 1 21 12A9 9 0 1 1 3 12Z"
+      stroke="#9F0000"
+      strokeWidth="1.8"
+    />
+    <path
+      d="M5.64 5.64L18.36 18.36"
+      stroke="#9F0000"
+      strokeWidth="1.8"
       strokeLinecap="round"
     />
   </RemoveIconSvg>
@@ -521,14 +555,14 @@ export const ReportIcon = ({
   >
     <path
       d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"
-      stroke="#E53935"
+      stroke="#9F0000"
       strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
     />
     <path
       d="M12 7V13M12 16H12.01"
-      stroke="#E53935"
+      stroke="#9F0000"
       strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -792,7 +826,7 @@ export const BurgerMenuIcon = ({
   </svg>
 );
 
-export const LeaveIcon = ({ color = '#E53935', ...props }) => (
+export const LeaveIcon = ({ color = '#9F0000', ...props }) => (
   <svg
     width="24"
     height="24"

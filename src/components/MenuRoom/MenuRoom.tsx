@@ -1,7 +1,7 @@
 import { FC, useMemo } from 'react';
 import DropdownMenu from '../DropdownMenu/DropdownMenu';
 import Button from '../styled/Button';
-import { BellIcon, BellOffIcon, LeaveIcon, MoreIcon, RemoveIcon, ReportIcon } from '../../assets/icons';
+import { BellIcon, BellOffIcon, BlockIcon, LeaveIcon, MoreIcon, ReportIcon } from '../../assets/icons';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
 import { useT } from '../../i18n/useT';
 import { useRoomMute } from '../../hooks/useRoomMute';
@@ -57,7 +57,7 @@ export const RoomMenu: FC<RoomMenuProps> = ({
         ? [
             {
               label: t('action.block'),
-              icon: <RemoveIcon />,
+              icon: <BlockIcon />,
               onClick: () => {
                 handleBlockClick();
                 ethoraLogger.log('Block clicked');
