@@ -23,7 +23,10 @@ import InputWithLabel from '../../styled/StyledInput';
 import { uploadFile } from '../../../networking/api-requests/auth.api';
 import { ProfileImagePlaceholder } from '../../MainComponents/ProfileImagePlaceholder';
 import { createRoomFromApi } from '../../../helpers/createRoomFromApi';
-import { postRoom } from '../../../networking/api-requests/rooms.api';
+import {
+  patchMyChat,
+  postRoom,
+} from '../../../networking/api-requests/rooms.api';
 import { ApiRoom, ChatAccessOption } from '../../../types/types';
 import { RoomMember } from '../../../types/types';
 import UsersList from '../../UsersList/UsersList';
@@ -214,6 +217,13 @@ const NewChatModal: React.FC = () => {
   // Runs AFTER the room exists: uploads are scoped to a chat, so the avatar
   // cannot be sent until there is a JID to scope it to. Same two steps
   // ChatProfileModal uses to change the icon of an existing room.
+  //
+  // Persistence: the XMPP IQ only touches ejabberd's Mnesia `room_thumbnail`,
+  // while GET /v1/chats/my reads `Chat.picture` from Mongo. Without the REST
+  // call the icon shows up in the sidebar on this session but is gone on the
+  // next refresh - /chats/my returns the Mongo default (`''`) and
+  // applyRoomsFromApi's `room.icon ?? existing?.icon` keeps the empty value,
+  // clobbering what redux-persist carried across the reload.
   const applyRoomAvatar = async (roomJid: string) => {
     if (!profileImage) return;
 
@@ -224,6 +234,17 @@ const NewChatModal: React.FC = () => {
       const uploadResult = await uploadFile(mediaData, roomJid);
       const location = uploadResult?.data?.results?.[0]?.location;
       if (!location) return;
+
+      const chatName = roomJid.split('@')[0];
+      try {
+        await patchMyChat(chatName, { picture: location });
+      } catch (persistError) {
+        // Non-fatal: XMPP update + local redux below still make the icon
+        // appear this session; it just will not survive a reload. Logged so
+        // backend regressions (e.g. missing route on an older server) are
+        // visible instead of silently reintroducing the original bug.
+        console.warn('Room avatar persistence failed:', persistError);
+      }
 
       client.setRoomImageStanza(roomJid, location, 'icon', 'none');
       dispatch(updateRoom({ jid: roomJid, updates: { icon: location } }));

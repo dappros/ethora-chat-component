@@ -312,6 +312,37 @@ export async function postRoom(data: PostRoom) {
   }
 }
 
+// Partial updates for the caller's own chat metadata (`title`,
+// `description`, `picture`). Mongo is the source of truth for GET
+// /v1/chats/my - without this call a locally-applied edit vanishes on the
+// next page refresh (the XMPP `ns:getrooms:setprofile` IQ that the chat
+// avatar flow still fires only writes ejabberd's Mnesia `room_thumbnail`,
+// which /chats/my does not read).
+//
+// Clears a field by sending its empty string (e.g. `{ picture: '' }` to
+// remove the avatar). Invalidates the local /chats/my cache so a follow-up
+// list fetch goes to the server. A 404 (chat not found) or 403 (not the
+// room owner) is surfaced to the caller - never silently swallowed - so UI
+// can toast it.
+export interface MyChatMetaPatch {
+  title?: string;
+  description?: string;
+  picture?: string;
+}
+
+export async function patchMyChat(
+  chatName: string,
+  updates: MyChatMetaPatch
+): Promise<void> {
+  const token = store.getState().chatSettingStore.user.token || '';
+  await http.patch(
+    `/v1/chats/my/${encodeURIComponent(chatName)}`,
+    updates,
+    { headers: { Authorization: token } }
+  );
+  invalidateRoomsCache();
+}
+
 // Create (or resolve) the 1:1 room with `username`.
 //
 // `e2ee` selects which of the pair's two possible rooms this addresses rather
