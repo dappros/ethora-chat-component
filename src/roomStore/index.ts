@@ -18,6 +18,7 @@ import { logoutMiddleware } from './Middleware/logoutMiddleware';
 import { sessionEncryptTransform } from './persistEncryption';
 import { reactionsMiddleware } from './Middleware/reactionsMiddleware';
 import { jumpThreadMiddleware } from './Middleware/jumpThreadMiddleware';
+import { blockedHydrationMiddleware } from './Middleware/blockedHydrationMiddleware';
 import { ETHORA_CHAT_COMPONENT_VERSION } from '../version';
 import { sanitizeUserForPersistentStorage } from '../helpers/authStorage';
 import { MAX_DRAFT_LENGTH, MAX_PERSISTED_DRAFTS } from './roomsSlice';
@@ -766,7 +767,8 @@ export const store = configureStore({
       .concat(newMessageMidlleware)
       .concat(logoutMiddleware)
       .concat(reactionsMiddleware)
-      .concat(jumpThreadMiddleware),
+      .concat(jumpThreadMiddleware)
+      .concat(blockedHydrationMiddleware),
   // .concat(testMiddleware)
   // .concat(debugMiddleware)
   // .concat(actionLoggerMiddleware),

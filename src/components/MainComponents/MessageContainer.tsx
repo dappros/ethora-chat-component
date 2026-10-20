@@ -1,5 +1,7 @@
 import React, { FC, Fragment, useMemo } from 'react';
+import { useSelector } from 'react-redux';
 import { IConfig, IMessage } from '../../types/types';
+import { RootState } from '../../roomStore';
 import DateLabel from '../styled/DateLabel';
 import SystemMessage from './SystemMessage';
 import NewMessageLabel from '../styled/NewMessageLabel';
@@ -8,7 +10,13 @@ import {
   MessageText,
   MessageTimestamp,
   UserName,
+  CustomMessageContainer,
+  CustomMessageBubble,
+  CustomMessageText,
+  CustomUserName,
+  CustomMessagePhotoContainer,
 } from '../styled/StyledComponents';
+import { MessageAvatarPhoto } from '../MessageBubble/MessageAvatarPhoto';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
 import { useT } from '../../i18n/useT';
 import { formatCallLogLabel } from '../../helpers/callLogMessage';
@@ -46,6 +54,11 @@ const MessageContainerBase: FC<MessageContainerProps> = ({
   const { CustomDaySeparator, CustomNewMessageLabel } = useCustomComponents();
   const t = useT();
   const isUser = message.user.id === xmppUsername;
+  // Must be read unconditionally, before the early returns below
+  // (react-hooks/rules-of-hooks).
+  const blockedUserIds = useSelector(
+    (state: RootState) => state.chatSettingStore.blockedUserIds
+  );
 
   const messageDate = useMemo(() => new Date(message.date), [message.date]);
   // Key the memo on the raw date value: a `new Date()` instance created per
@@ -113,6 +126,46 @@ const MessageContainerBase: FC<MessageContainerProps> = ({
       return <CustomNewMessageLabel color={config?.colors?.primary} />;
     }
     return <NewMessageLabel color={config?.colors?.primary} />;
+  }
+
+  const senderLocal = (message.user?.id ?? '').split('@')[0];
+  const isSenderBlocked = !isUser && blockedUserIds?.includes(senderLocal);
+
+  if (isSenderBlocked) {
+    // Render like a normal incoming message so the row keeps the same
+    // layout, but anonymise the sender: an empty avatar (no photo, no name ->
+    // the neutral person glyph) and a fixed "Blocked user" label instead of
+    // the real name, with the unblock hint as the body.
+    return (
+      <Fragment key={message.id}>
+        {showDateLabel &&
+          !activeMessage &&
+          renderDaySeparator()}
+        <div data-message-id={message.id}>
+          <CustomMessageContainer
+            $isUser={false}
+            $reply={false}
+            $lastInGroup={isLastInGroup}
+          >
+            <CustomMessagePhotoContainer style={{ cursor: 'default' }}>
+              <MessageAvatarPhoto
+                src=""
+                username=""
+                style={{ cursor: 'default' }}
+              />
+            </CustomMessagePhotoContainer>
+            <CustomMessageBubble $isUser={false} $deleted={false}>
+              <CustomUserName $isUser={false} $color={config?.colors?.primary}>
+                {t('message.blockedUserName')}
+              </CustomUserName>
+              <CustomMessageText style={{ fontStyle: 'italic', opacity: 0.7 }}>
+                {t('message.blockedUser')}
+              </CustomMessageText>
+            </CustomMessageBubble>
+          </CustomMessageContainer>
+        </div>
+      </Fragment>
+    );
   }
 
   const MessageComponent = CustomMessage || Message;

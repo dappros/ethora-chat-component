@@ -164,6 +164,12 @@ const RoomList: React.FC<RoomListProps> = ({
   const isRoomsLoading = useSelector(
     (state: RootState) => state.rooms.isLoading
   );
+  const blockedUserIds = useSelector(
+    (state: RootState) => state.chatSettingStore.blockedUserIds
+  );
+  const myXmppUsername = useSelector(
+    (state: RootState) => state.chatSettingStore.user?.xmppUsername || ''
+  );
 
   // Explicit `true` always shows the tab (the host takes responsibility for
   // it existing). Explicit `false` always hides it. When left unset, the tab
@@ -327,13 +333,24 @@ const RoomList: React.FC<RoomListProps> = ({
       // Without the explicit Boolean filter, the next `chat.name?.toLowerCase()` throws
       // "Cannot read properties of null (reading 'name')" from inside Array.filter and
       // unwinds the whole router subtree.
+      const hasBlocked = blockedUserIds && blockedUserIds.length > 0;
       const safeChats = (chats || []).filter(
         (chat): chat is IRoom =>
           !!chat &&
           typeof chat === 'object' &&
           typeof chat.jid === 'string' &&
           chat.jid.length > 0 &&
-          !isRoomHidden(chat, config)
+          !isRoomHidden(chat, config) &&
+          !(
+            hasBlocked &&
+            chat.type === 'private' &&
+            (chat.members || []).some(
+              (m) =>
+                m.xmppUsername &&
+                m.xmppUsername !== myXmppUsername &&
+                blockedUserIds.includes(m.xmppUsername.split('@')[0])
+            )
+          )
       );
       const result = safeChats
         .filter((chat) =>
@@ -355,7 +372,7 @@ const RoomList: React.FC<RoomListProps> = ({
     }
 
     return chatsMap.get(lowerCaseSearchTerm) || [];
-  }, [chats, searchTerm, config?.hiddenRooms]);
+  }, [chats, searchTerm, config?.hiddenRooms, blockedUserIds, myXmppUsername]);
 
   // Runs after the DOM has committed the new sort order. Measures each
   // row's new position, compares it against where it was last measured, and
