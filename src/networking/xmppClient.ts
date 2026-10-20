@@ -30,7 +30,7 @@ import {
   IMentionSpan,
 } from '../types/types';
 import { createPrivateRoom } from './xmpp/createPrivateRoom.xmpp';
-import { sendMessageReaction } from './xmpp/sendMessageReaction.xmpp';
+import { sendMessageReaction, type ReactionStanzaData } from './xmpp/sendMessageReaction.xmpp';
 import { sendReceivedReceipt } from './xmpp/sendReceivedReceipt.xmpp';
 import { sendDisplayedMarker } from './xmpp/sendDisplayedMarker.xmpp';
 import { DeliveryReceiptBatcher } from './deliveryReceiptBatcher';
@@ -3079,7 +3079,7 @@ export class XmppClient implements XmppClientInterface {
     messageId: string,
     roomJid: string,
     reactionsList: string[],
-    reactionSymbol?: any
+    data?: ReactionStanzaData
   ) {
     this.wrapWithConnectionCheck(async () => {
       sendMessageReaction(
@@ -3087,7 +3087,7 @@ export class XmppClient implements XmppClientInterface {
         messageId,
         roomJid,
         reactionsList,
-        reactionSymbol
+        data
       );
     });
   }
