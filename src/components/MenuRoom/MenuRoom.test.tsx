@@ -89,3 +89,39 @@ describe('RoomMenu - mute toggle visibility and wiring', () => {
     await waitFor(() => expect(muteRoomMock).toHaveBeenCalledWith('room1'));
   });
 });
+
+describe('RoomMenu - Block user visibility (config.features.userBlock)', () => {
+  const renderWithBlock = (config: Record<string, unknown>) =>
+    renderWithProviders(
+      <RoomMenu
+        roomJid={JID}
+        handleLeaveClick={() => {}}
+        handleReportClick={() => {}}
+        handleBlockClick={() => {}}
+        canBlock
+      />,
+      { preloadedState: { chatSettingStore: { config } as never } }
+    );
+
+  it('hides "Block user" by default, so a backend without the route never shows it', () => {
+    renderWithBlock({});
+    fireEvent.click(screen.getByRole('button'));
+
+    expect(screen.queryByText('Block user')).not.toBeInTheDocument();
+    expect(screen.getByText('Report')).toBeInTheDocument();
+  });
+
+  it('shows "Block user" only when features.userBlock is true', () => {
+    renderWithBlock({ features: { userBlock: true } });
+    fireEvent.click(screen.getByRole('button'));
+
+    expect(screen.getByText('Block user')).toBeInTheDocument();
+  });
+
+  it('disableUserBlock still hides it when features.userBlock is true', () => {
+    renderWithBlock({ features: { userBlock: true }, disableUserBlock: true });
+    fireEvent.click(screen.getByRole('button'));
+
+    expect(screen.queryByText('Block user')).not.toBeInTheDocument();
+  });
+});

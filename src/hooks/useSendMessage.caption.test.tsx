@@ -4,7 +4,7 @@ import { act, renderHook } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 
-import chatSettingsSlice from '../roomStore/chatSettingsSlice';
+import chatSettingsSlice, { setConfig } from '../roomStore/chatSettingsSlice';
 import roomsSlice, { addRoom } from '../roomStore/roomsSlice';
 import roomHeapSlice from '../roomStore/roomHeapSlice';
 
@@ -46,12 +46,17 @@ const uploadResult = (index: number) => ({
 
 const makeFile = (name: string) => new File(['x'], name, { type: 'image/png' });
 
-const setup = () => {
+// These tests exercise the inline caption path, so they pin captionMode
+// explicitly (the default is 'separate', covered further down).
+const INLINE_CONFIG = { attachments: { captionMode: 'inline' } } as const;
+
+const setup = (config: Record<string, unknown> = INLINE_CONFIG) => {
   const store = configureStore({
     reducer: { chatSettingStore: chatSettingsSlice, rooms: roomsSlice, roomHeapSlice },
     middleware: (getDefault) =>
       getDefault({ serializableCheck: false, immutableCheck: false }),
   });
+  store.dispatch(setConfig(config as never));
 
   store.dispatch(
     addRoom({ roomData: { jid: ROOM_JID, name: 'room', messages: [] } as never })
@@ -73,7 +78,7 @@ const CAPTION = {
   mentions: [{ jid: 'alice@xmpp.example', name: 'Alice', offset: 3, length: 6 }],
 };
 
-describe('sendMedia with a caption', () => {
+describe('sendMedia with a caption (captionMode inline)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sendMediaMessageStanza.mockResolvedValue(true);
@@ -184,5 +189,141 @@ describe('sendMedia with a caption', () => {
     expect(roomMessages(store)).toHaveLength(1);
     expect(roomMessages(store)[0].caption).toBe('hi @Alice look');
     consoleError.mockRestore();
+  });
+});
+
+describe('sendMedia with a caption (captionMode separate, the default)', () => {
+  const sentText = () => sendMessage.mock.calls as unknown as unknown[][];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sendMediaMessageStanza.mockResolvedValue(true);
+    sendMessage.mockResolvedValue(true);
+    uploadFile.mockImplementation(async (form: FormData) => {
+      const [file] = form.getAll('files') as File[];
+      return { data: { results: [uploadResult(Number(file.name.charAt(0)))] } };
+    });
+  });
+
+  it('sends the media stanza without caption fields, then the caption as one text message', async () => {
+    const { result } = setup({});
+
+    await act(async () => {
+      await result.current.sendMedia(
+        [makeFile('1.png'), makeFile('2.png')],
+        'media',
+        ROOM_JID,
+        false,
+        false,
+        '',
+        CAPTION
+      );
+    });
+
+    expect(sendMediaMessageStanza).toHaveBeenCalledTimes(1);
+    const [, payload] = sendMediaMessageStanza.mock.calls[0] as unknown as [
+      string,
+      Record<string, unknown>,
+    ];
+    expect(payload.caption).toBeUndefined();
+    expect(payload.captionMentions).toBeUndefined();
+    expect(parseAttachments(payload.attachments)).toHaveLength(2);
+
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    const [text] = sentText();
+    // client.sendMessage(room, first, last, '', wallet, message, '', isReply, isChecked, mainMessage, id, mentions)
+    expect(text[0]).toBe(ROOM_JID);
+    expect(text[5]).toBe('hi @Alice look');
+    expect(text[11]).toEqual(CAPTION.mentions);
+    // The media goes out first, the caption after it.
+    expect(sendMediaMessageStanza.mock.invocationCallOrder[0]).toBeLessThan(
+      sendMessage.mock.invocationCallOrder[0]
+    );
+  });
+
+  it('the optimistic media bubble has no caption, and the text is its own message', async () => {
+    const { store, result } = setup({});
+
+    await act(async () => {
+      await result.current.sendMedia([makeFile('1.png')], 'media', ROOM_JID, false, false, '', CAPTION);
+    });
+
+    const messages = roomMessages(store);
+    const media = messages.find((message: { body?: string }) => message.body === 'media');
+    expect(media).toBeDefined();
+    expect(media.caption).toBeUndefined();
+    expect(media.captionMentions).toBeUndefined();
+    expect(
+      messages.some((message: { body?: string }) => message.body === 'hi @Alice look')
+    ).toBe(true);
+  });
+
+  it('a message without a caption sends no text message', async () => {
+    const { result } = setup({});
+
+    await act(async () => {
+      await result.current.sendMedia([makeFile('1.png')], 'media', ROOM_JID, false, false, '', {
+        text: '   ',
+      });
+    });
+
+    expect(sendMediaMessageStanza).toHaveBeenCalledTimes(1);
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('still sends the caption when the media upload fails, as 26.9.8 did', async () => {
+    uploadFile.mockRejectedValueOnce(new Error('network down'));
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { result } = setup({});
+
+    let delivered: boolean | undefined;
+    await act(async () => {
+      delivered = await result.current.sendMedia(
+        [makeFile('1.png')],
+        'media',
+        ROOM_JID,
+        false,
+        false,
+        '',
+        CAPTION
+      );
+    });
+
+    expect(delivered).toBe(false);
+    expect(sendMediaMessageStanza).not.toHaveBeenCalled();
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(sentText()[0][5]).toBe('hi @Alice look');
+    consoleError.mockRestore();
+  });
+
+  it('a retry re-sends the files but not the caption', async () => {
+    uploadFile.mockRejectedValueOnce(new Error('network down'));
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { store, result } = setup({});
+
+    await act(async () => {
+      await result.current.sendMedia([makeFile('1.png')], 'media', ROOM_JID, false, false, '', CAPTION);
+    });
+    const [failed] = roomMessages(store).filter(
+      (message: { body?: string }) => message.body === 'media'
+    );
+
+    await act(async () => {
+      await retryMediaSend(failed.id);
+    });
+
+    expect(sendMediaMessageStanza).toHaveBeenCalledTimes(1);
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    consoleError.mockRestore();
+  });
+
+  it('carries the caption mentions on the text message', async () => {
+    const { result } = setup({});
+
+    await act(async () => {
+      await result.current.sendMedia([makeFile('1.png')], 'media', ROOM_JID, false, false, '', CAPTION);
+    });
+
+    expect(sentText()[0][11]).toEqual(CAPTION.mentions);
   });
 });

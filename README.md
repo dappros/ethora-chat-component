@@ -363,7 +363,7 @@ Below is a grouped reference for all `config` options.
 | --- | --- | --- |
 | `disableHeader` | `boolean` | Hide chat header. |
 | `disableMedia` | `boolean` | Disable media sending/processing paths. |
-| `attachments` | `{ maxFiles?; maxFileSizeMb?; accept? }` | Composer attachment limits. `maxFiles` defaults to `10` (also the hard cap, set by the stanza payload size); `maxFileSizeMb` adds a client-side per-file check (omit for none); `accept` is passed straight to the file picker. Picking several files sends them as **one** message. |
+| `attachments` | `{ maxFiles?; maxFileSizeMb?; accept?; captionMode? }` | Composer attachment limits. `maxFiles` defaults to `10` (also the hard cap, set by the stanza payload size); `maxFileSizeMb` adds a client-side per-file check (omit for none); `accept` is passed straight to the file picker. Picking several files sends them as **one** message. `captionMode` (`'inline' \| 'separate'`, default `'separate'`) sets where the text typed with the files goes: `'separate'` sends the media message without the caption and then the text as a normal text message once the media send settles (also in e2ee rooms); `'inline'` puts the caption on the media message (`<data caption>`, `captionMentions`). See Backend compatibility. |
 | `pdfPreview` | `{ enabled?; workerSrc?; libUrl?; maxFileSizeMb? }` | First-page PDF thumbnails inside bubbles and in the composer tray. On by default; `enabled: false` keeps the static document card. pdf.js is code-split and only fetched when a PDF actually shows up. By default it runs on the main thread, which needs no bundler asset wiring: set `workerSrc` to a pdf.js worker URL you host to move parsing off it. Set `libUrl` to the URL of a pdf.js ES module build to load it at runtime instead of the copy bundled with the component (pair it with `workerSrc`); useful when you ship the component as one self-contained script and do not want pdf.js (about 1.7 MB) inside it. `maxFileSizeMb` (default `25`) is the size past which a document is not auto-rendered. |
 | `disableRooms` | `boolean` | Hide/disable room list area. |
 | `disableRoomMenu` | `boolean` | Disable room menu controls. |
@@ -452,6 +452,23 @@ Below is a grouped reference for all `config` options.
 | `pushNotifications.badgePath` | `string` | Custom badge URL/path for OS push notifications. Falls back to `iconPath`. |
 | `pushNotifications.softAsk` | `boolean` | Do not immediately trigger browser permission prompt. |
 | `pushNotifications.onClick` | `(params) => void \| Promise<void>` | Callback invoked when the user clicks an OS push notification (including cold start via URL marker). |
+
+### Backend compatibility
+
+Some features call routes that not every backend deployment serves yet. Each
+switch below keeps that client code off until your backend has the route. The
+defaults are the safe choice for a backend that has not been updated.
+
+| Option | Default | Why |
+| --- | --- | --- |
+| `features.userBlock` | `false` | `/v1/chats/blocked` is not served by the production backend yet (404), so the "Block user" item would always fail. Set `true` once your backend serves it. |
+| `attachments.captionMode` | `'separate'` | The caption goes out as its own text message after the media (the 26.9.8 wire shape), which older web builds, React Native and server push all show. `'inline'` puts it on the media message as `<data caption>`, which those readers do not render yet. |
+| `uploads.endpoint` | `'auto'` | `'auto'` tries `/v2/files/secure` and falls back to `/v1/files/`. Secure-files URLs can be unreadable on a backend that is not updated, so `'legacy'` posts straight to `/v1/files/`. `'secure'` never falls back. |
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `features` | `{ userBlock?: boolean }` | Opt-in backend features. `userBlock` (default `false`) shows the "Block user" item in 1-1 chat menus and enables the `/v1/chats/blocked` calls. `disableUserBlock: true` still hides the item. |
+| `uploads` | `{ endpoint?: 'auto' \| 'secure' \| 'legacy' }` | Attachment upload route. `'auto'` (default) tries `POST /v2/files/secure` and falls back to `POST /v1/files/` when the backend rejects it. `'legacy'` always uses `/v1/files/` (no `chatName`); `'secure'` uses the secure route and never falls back. |
 
 ### Error handling and crash containment
 

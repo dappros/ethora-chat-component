@@ -227,6 +227,27 @@ export interface IConfig {
     maxFileSizeMb?: number;
     /** `accept` attribute handed to the file picker. Omit to allow anything. */
     accept?: string;
+    /**
+     * Where the text typed with the files goes. Default `'separate'`: the media
+     * message is sent without the caption, and the caption follows as a normal
+     * text message once the media send settles (the same wire shape as 26.9.8,
+     * so readers that do not know `<data caption>` still show it). `'inline'`
+     * carries the caption on the media message itself (`<data caption>`,
+     * `captionMentions`), one message per send, but readers that predate it
+     * (older web builds, React Native, server push) show no text for it.
+     */
+    captionMode?: 'inline' | 'separate';
+  };
+  /**
+   * Which upload route chat attachments use. Default `'auto'`: try
+   * `POST /v2/files/secure` and fall back to `POST /v1/files/` if the backend
+   * rejects it. `'legacy'` posts straight to `/v1/files/` and never calls the
+   * secure route; use it on a backend whose secure-files URLs cannot be read
+   * yet. `'secure'` uses the secure route only and reports its errors without
+   * falling back.
+   */
+  uploads?: {
+    endpoint?: 'auto' | 'secure' | 'legacy';
   };
   /** First-page PDF thumbnails inside message bubbles. */
   pdfPreview?: {
@@ -384,6 +405,20 @@ export interface IConfig {
    * the backend predates the /v1/chats/blocked route).
    */
   disableUserBlock?: boolean;
+  /**
+   * Opt-in backend features. Each flag turns on client code that calls a route
+   * not every backend deployment serves yet, so the default keeps the control
+   * hidden rather than showing an action that fails.
+   */
+  features?: {
+    /**
+     * Show the "Block user" item in a 1-1 chat's menu and enable the
+     * /v1/chats/blocked calls behind it. Default false: the production backend
+     * does not serve that route yet. `disableUserBlock: true` still hides the
+     * item when this is true.
+     */
+    userBlock?: boolean;
+  };
   defaultRooms?: ConfigRoom[];
   /**
    * The "Files" tab shown in the sidebar alongside "Chats". Backed by
