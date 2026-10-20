@@ -37,13 +37,14 @@ import {
 import {
   addRoom,
   addRoomViaApi,
+  deleteRoom,
   setCurrentRoom,
 } from '../../../roomStore/roomsSlice';
 import EditUserModal, { EditUserModalHandle } from './EditUserModal';
 import { walletToUsername } from '../../../helpers/walletUsername';
 import { useXmppClient } from '../../../context/xmppProvider';
 import Loader from '../../styled/Loader';
-import { ApiRoom, Iso639_1Codes } from '../../../types/types';
+import { ApiRoom, IRoom, Iso639_1Codes } from '../../../types/types';
 import Select from '../../MainComponents/Select';
 import { handleCopyClick } from '../../../helpers/handleCopyClick';
 import {
@@ -81,6 +82,10 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     (state: RootState) => state.chatSettingStore
   );
   const callPhase = useSelector((state: RootState) => state.call.phase);
+  const rooms = useSelector((state: RootState) => state.rooms.rooms);
+  const activeRoomJID = useSelector(
+    (state: RootState) => state.rooms.activeRoomJID
+  );
 
   const [isEditing, setIsEditing] = useState<boolean>(false);
   // Lets the drawer's own header Save button trigger EditUserModal's save
@@ -389,7 +394,28 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     if (!peerUsername) return;
     try {
       await blockUser(peerUsername);
-      dispatch(addBlockedUserId(String(peerUsername).split('@')[0]));
+      const blockedLocal = String(peerUsername).split('@')[0];
+      dispatch(addBlockedUserId(blockedLocal));
+
+      const myUsername = user?.xmppUsername || '';
+      let clearedActive = false;
+      (Object.values(rooms || {}) as IRoom[]).forEach((room) => {
+        if (room.type !== 'private') return;
+        const isPeer = (room.members || []).some(
+          (m) => m.xmppUsername && m.xmppUsername !== myUsername &&
+            m.xmppUsername.split('@')[0] === blockedLocal
+        );
+        if (!isPeer) return;
+        dispatch(deleteRoom({ jid: room.jid }));
+        if (room.jid === activeRoomJID) clearedActive = true;
+      });
+      if (clearedActive) {
+        if (typeof window !== 'undefined') {
+          window.history.pushState(null, '', window.location.pathname);
+        }
+        dispatch(setCurrentRoom({ roomJID: null }));
+      }
+
       dispatch(setActiveModal());
       showToast({
         id: Date.now().toString(),
@@ -406,7 +432,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
         type: 'error',
       });
     }
-  }, [selectedUser, dispatch, showToast, t]);
+  }, [selectedUser, dispatch, showToast, t, user?.xmppUsername, rooms, activeRoomJID]);
 
   const modalUser: any = selectedUser ?? user;
 

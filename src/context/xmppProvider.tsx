@@ -33,7 +33,10 @@ import {
   updateUsersSet,
 } from '../roomStore/roomsSlice';
 import usePushNotifications from '../hooks/usePushNotifications';
-import { setConfig as setChatConfig } from '../roomStore/chatSettingsSlice';
+import {
+  setConfig as setChatConfig,
+  setBlockedUserIds,
+} from '../roomStore/chatSettingsSlice';
 import { updatedChatLastTimestamps } from '../helpers/updatedChatLastTimestamps';
 import { runHistoryPreloadScheduler } from '../helpers/historyPreloadScheduler';
 import { resolveHistoryPreloadConfig } from '../helpers/historyPreloadConfig';
@@ -133,6 +136,25 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
     const roomsResponse = await getRooms(signal).catch(() => ({ items: [] }));
     const items = roomsResponse?.items || [];
     if (signal?.aborted || !items.length) return [];
+
+    // Hydrate the blocked-users list from the same /chats/my response that
+    // the other sync path (useGetNewArchRoom) uses. Without this, right after
+    // login this preload path left blockedUserIds empty until a page refresh
+    // rehydrated it from persist, so a blocked peer's messages showed instead
+    // of the "Blocked user" placeholder. Gated on the same flag as the Block
+    // button so a host that has not opted in (and a backend that does not serve
+    // the blocking routes yet) never consumes a blockedUsers field.
+    const userBlockEnabled =
+      config?.features?.userBlock === true && !config?.disableUserBlock;
+    const blocked = (roomsResponse as { blockedUsers?: { xmppUsername?: string }[] })
+      ?.blockedUsers;
+    if (userBlockEnabled && blocked) {
+      store.dispatch(
+        setBlockedUserIds(
+          blocked.map((u) => u.xmppUsername).filter(Boolean) as string[]
+        )
+      );
+    }
 
     items.forEach((room) => {
       if (signal?.aborted) return;

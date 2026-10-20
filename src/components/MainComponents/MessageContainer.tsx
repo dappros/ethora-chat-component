@@ -10,7 +10,13 @@ import {
   MessageText,
   MessageTimestamp,
   UserName,
+  CustomMessageContainer,
+  CustomMessageBubble,
+  CustomMessageText,
+  CustomUserName,
+  CustomMessagePhotoContainer,
 } from '../styled/StyledComponents';
+import { MessageAvatarPhoto } from '../MessageBubble/MessageAvatarPhoto';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
 import { useT } from '../../i18n/useT';
 import { formatCallLogLabel } from '../../helpers/callLogMessage';
@@ -124,23 +130,37 @@ const MessageContainerBase: FC<MessageContainerProps> = ({
   const isSenderBlocked = !isUser && blockedUserIds?.includes(senderLocal);
 
   if (isSenderBlocked) {
+    // Render like a normal incoming message so the row keeps the same
+    // layout, but anonymise the sender: an empty avatar (no photo, no name ->
+    // the neutral person glyph) and a fixed "Blocked user" label instead of
+    // the real name, with the unblock hint as the body.
     return (
       <Fragment key={message.id}>
         {showDateLabel &&
           !activeMessage &&
           renderDaySeparator()}
         <div data-message-id={message.id}>
-          <div
-            style={{
-              padding: '6px 12px',
-              margin: '2px 0',
-              color: 'var(--ethora-color-text-muted, #8C8C8C)',
-              fontSize: 'var(--ethora-font-size-sm, 13px)',
-              fontStyle: 'italic',
-            }}
+          <CustomMessageContainer
+            $isUser={false}
+            $reply={false}
+            $lastInGroup={isLastInGroup}
           >
-            {t('message.blockedUser')}
-          </div>
+            <CustomMessagePhotoContainer style={{ cursor: 'default' }}>
+              <MessageAvatarPhoto
+                src=""
+                username=""
+                style={{ cursor: 'default' }}
+              />
+            </CustomMessagePhotoContainer>
+            <CustomMessageBubble $isUser={false} $deleted={false}>
+              <CustomUserName $isUser={false} $color={config?.colors?.primary}>
+                {t('message.blockedUserName')}
+              </CustomUserName>
+              <CustomMessageText style={{ fontStyle: 'italic', opacity: 0.7 }}>
+                {t('message.blockedUser')}
+              </CustomMessageText>
+            </CustomMessageBubble>
+          </CustomMessageContainer>
         </div>
       </Fragment>
     );

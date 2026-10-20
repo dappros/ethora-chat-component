@@ -36,7 +36,8 @@ const computeUnreadForRoom = (
   activeChatJID: string | null,
   roomJid: string,
   currentXmppUsername: string,
-  isChatUiVisible: boolean
+  isChatUiVisible: boolean,
+  blockedUserIds: string[] = []
 ): { unread: number; unreadCapped: boolean } => {
   if (!room) {
     return { unread: 0, unreadCapped: false };
@@ -59,6 +60,11 @@ const computeUnreadForRoom = (
     );
 
     if (isOwnMessage) return false;
+
+    // A blocked sender's messages are hidden in the transcript (see
+    // MessageContainer), so they must not drive the unread badge either.
+    const senderLocal = (msg?.user?.id ?? '').split('@')[0];
+    if (senderLocal && blockedUserIds.includes(senderLocal)) return false;
 
     const ts = getMessageTimestamp(msg);
     if (ts <= 0) return false;
@@ -276,6 +282,7 @@ export const unreadMiddleware: Middleware =
     const activeChatJID = nextState.rooms.activeRoomJID;
     const isChatUiVisible = nextState.rooms.isChatUiVisible ?? false;
     const currentXmppUsername = nextState.chatSettingStore?.user?.xmppUsername;
+    const blockedUserIds = nextState.chatSettingStore?.blockedUserIds ?? [];
 
     if (!rooms || Object.keys(rooms).length === 0) return result;
 
@@ -291,7 +298,8 @@ export const unreadMiddleware: Middleware =
         activeChatJID,
         jid,
         currentXmppUsername,
-        isChatUiVisible
+        isChatUiVisible,
+        blockedUserIds
       );
 
       if (
