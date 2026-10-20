@@ -383,6 +383,10 @@ const usePushNotifications = (
         return;
       }
 
+      if (String(data.type || '').toLowerCase() === 'reaction') {
+        return;
+      }
+
       const title = payload.notification?.title || data.title || 'New message';
       const body = payload.notification?.body || data.body || 'You have a new message.';
       const roomJid = normalizeRoomJid(data.jid || '');

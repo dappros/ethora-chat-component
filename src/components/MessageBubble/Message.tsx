@@ -512,37 +512,21 @@ const Message: React.FC<MessageProps> = forwardRef<
   };
 
   const handleReactionMessage = (emoji: string) => {
-    if (!message.reaction) {
-      return client.sendMessageReactionStanza(
-        message.id,
-        message.roomJid,
-        [emoji],
-        { firstName: user.firstName, lastName: user.lastName }
-      );
-    }
-    if (
-      message.reaction &&
-      message.reaction[user.xmppUsername] &&
-      message.reaction[user.xmppUsername].emoji.includes(emoji)
-    ) {
-      const filterEmoji = message.reaction[user.xmppUsername].emoji.filter(
-        (reaction) => reaction !== emoji
-      );
-
-      return client.sendMessageReactionStanza(
-        message.id,
-        message.roomJid,
-        filterEmoji,
-        { firstName: user.firstName, lastName: user.lastName }
-      );
-    }
-
-    client.sendMessageReactionStanza(
-      message.id,
-      message.roomJid,
-      [...(message.reaction[user.xmppUsername]?.emoji || []), emoji],
-      { firstName: user.firstName, lastName: user.lastName }
-    );
+    const own = message.reaction?.[user.xmppUsername || '']?.emoji || [];
+    const adding = !own.includes(emoji);
+    const next = adding ? [...own, emoji] : own.filter((reaction: string) => reaction !== emoji);
+    const author = message.user?.id || '';
+    client?.sendMessageReactionStanza(message.id, message.roomJid, next, {
+      firstName: user.firstName,
+      lastName: user.lastName,
+      photoURL: user.profileImage,
+      push: adding && !!author && author !== user.xmppUsername,
+      messageAuthor: author,
+      messageText: message.body,
+      isMediafile: message.isMediafile,
+      mimetype: message.mimetype,
+      fileName: message.originalName || message.fileName,
+    });
   };
 
   const isPending = idSet.has(message.id) || message?.pending || false;

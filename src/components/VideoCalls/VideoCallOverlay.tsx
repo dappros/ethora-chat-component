@@ -86,6 +86,8 @@ const FOCUSABLE =
 // PSTN ring window.
 const OUTGOING_CALL_TIMEOUT_MS = 30000;
 
+const INCOMING_CALL_TIMEOUT_MS = 45000;
+
 const DEFAULT_PRIMARY = '#0052CD';
 // Light surfaces read the chat's colour tokens with the original literals as
 // fallbacks. The overlay renders outside the chat root, so it re-applies the
@@ -511,8 +513,20 @@ export const VideoCallOverlay: React.FC = () => {
       return;
     }
     const timer = window.setTimeout(() => {
+      sendCallStateSignal('cancelled');
       dispatch(setCallError('No answer - call timed out'));
     }, OUTGOING_CALL_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, [call.phase, call.direction, call.startedAt, dispatch]);
+
+  useEffect(() => {
+    if (call.phase !== 'ringing-incoming' || call.direction !== 'incoming') {
+      return;
+    }
+    const elapsed = Date.now() - (call.startedAt || Date.now());
+    const timer = window.setTimeout(() => {
+      dispatch(declineIncomingCall());
+    }, Math.max(0, INCOMING_CALL_TIMEOUT_MS - elapsed));
     return () => window.clearTimeout(timer);
   }, [call.phase, call.direction, call.startedAt, dispatch]);
 
@@ -788,6 +802,14 @@ export const VideoCallOverlay: React.FC = () => {
                 e2eeKey={call.e2eeKey}
                 e2eeWorkerFactory={videoCallsConfig?.e2ee?.workerFactory}
                 onParticipantJoined={redistributeCallKey}
+                onNoAnswer={
+                  call.direction === 'outgoing'
+                    ? () => {
+                        sendCallStateSignal('cancelled');
+                        dispatch(setCallError('No answer - call timed out'));
+                      }
+                    : undefined
+                }
               />
             </div>
           </div>

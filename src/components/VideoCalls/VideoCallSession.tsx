@@ -62,6 +62,8 @@ interface VideoCallSessionProps {
    * receives it. See VideoCallOverlay.
    */
   onParticipantJoined?: () => void;
+  onNoAnswer?: () => void;
+  noAnswerTimeoutMs?: number;
 }
 
 const DEFAULT_PRIMARY = '#0052CD';
@@ -1093,6 +1095,28 @@ const PeerLeaveWatcher: React.FC<{ onPeerLeft: () => void }> = ({
   return null;
 };
 
+const NoAnswerWatcher: React.FC<{ onNoAnswer: () => void; timeoutMs: number }> = ({
+  onNoAnswer,
+  timeoutMs,
+}) => {
+  const remoteParticipants = useRemoteParticipants();
+  const peerJoined = remoteParticipants.length > 0;
+  const everJoinedRef = useRef(false);
+  const cbRef = useRef(onNoAnswer);
+  useEffect(() => {
+    cbRef.current = onNoAnswer;
+  }, [onNoAnswer]);
+  if (peerJoined) everJoinedRef.current = true;
+  useEffect(() => {
+    if (everJoinedRef.current) return;
+    const timer = window.setTimeout(() => {
+      if (!everJoinedRef.current) cbRef.current?.();
+    }, timeoutMs);
+    return () => window.clearTimeout(timer);
+  }, [timeoutMs, peerJoined]);
+  return null;
+};
+
 // ---------- compact (minimized) content --------------------------------
 
 // Rendered inside the same RoomContext as the full UI, so the LiveKit room
@@ -1254,6 +1278,8 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
   e2eeKey,
   e2eeWorkerFactory,
   onParticipantJoined,
+  onNoAnswer,
+  noAnswerTimeoutMs = 45000,
 }) => {
   const isAudioOnly = kind === 'audio';
   // Read the initial device state from refs so the connect effect stays
@@ -1439,6 +1465,9 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
   return (
     <RoomContext.Provider value={room}>
       <PeerLeaveWatcher onPeerLeft={onHangup} />
+      {onNoAnswer && (
+        <NoAnswerWatcher onNoAnswer={onNoAnswer} timeoutMs={noAnswerTimeoutMs} />
+      )}
       {/* Audio renders its own in-flow banner (below, inside AudioCallContent)
           - this overlay-on-canvas style only makes sense for video's
           full-bleed dark stage. */}

@@ -261,6 +261,10 @@ function isCallPushData(data) {
   return !!callId && hasCallField;
 }
 
+function isReactionPushData(data = {}) {
+  return String(data.type || '').toLowerCase() === 'reaction';
+}
+
 function callPushKind(data) {
   return pickField(data, ['callKind', 'kind']).toLowerCase() === 'audio'
     ? 'audio'
@@ -372,7 +376,12 @@ async function handlePush(raw = {}, source = 'push') {
   const image = pickImage(raw, data, notification);
 
   const messageId = extractMessageId(raw, data);
-  const dedupKey = makeDedupKey(raw, data, notification);
+  const isReaction = isReactionPushData(data);
+  const dedupKey = isReaction
+    ? `reaction:${simpleHash(
+        stableStringify({ title, body, jid: data.jid, msgID: data.msgID })
+      )}`
+    : makeDedupKey(raw, data, notification);
   const iconAvailability = DEBUG
     ? await checkAssetAvailability(icon)
     : undefined;
@@ -466,7 +475,14 @@ async function handlePush(raw = {}, source = 'push') {
     icon,
     badge,
     image,
-    tag: isCall ? `call:${callId || dedupKey}` : roomTag(data) || dedupKey,
+    // A reaction replaces the chat's previous reaction, never its message
+    // notification; it comes in silent, the way it does on mobile.
+    tag: isCall
+      ? `call:${callId || dedupKey}`
+      : isReaction && roomTag(data)
+        ? `${roomTag(data)}#reaction`
+        : roomTag(data) || dedupKey,
+    silent: isReaction,
     renotify: isCall || !!roomTag(data),
     requireInteraction: isCall,
     // Spread the ORIGINAL payload first so the click handler's isCallPush()
