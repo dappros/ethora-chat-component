@@ -31,6 +31,7 @@ import {
 } from '../roomStore/roomsSlice';
 import { setIncomingCallToken } from '../roomStore/callSlice';
 import { isCallPush, parseCallPush } from '../helpers/callPush';
+import { safeCallName } from '../calls/callDisplay';
 import { store } from '../roomStore';
 import {
   resolveNotificationRoomName,
@@ -205,7 +206,9 @@ const usePushNotifications = (
         dispatch(
           setIncomingCallToken({
             roomJid: roomJid || parsed.roomRef || '',
-            roomName: parsed.callerName || parsed.roomBareName,
+            // callerName is untrusted push text: sanitised, and never a raw
+            // chat name (the call slice also refuses those for roomName).
+            roomName: safeCallName(parsed.callerName) || parsed.roomBareName,
             roomBareName: parsed.roomBareName,
             token: parsed.token,
             kind: parsed.kind,

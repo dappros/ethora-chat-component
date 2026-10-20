@@ -1,5 +1,6 @@
 import { PayloadAction, createSlice } from '@reduxjs/toolkit';
 import type { CallMode, IceServerConfig } from '../calls/callMode';
+import { safeCallName } from '../calls/callDisplay';
 
 export type CallPhase =
   | 'idle'
@@ -54,6 +55,10 @@ export interface CallState {
   livekitUrl: string | null;
   // ICE servers (STUN/TURN with ephemeral credentials) for a p2p call.
   iceServers: IceServerConfig[] | null;
+  // Who is calling, from the call-token (system account only). roomName is the
+  // name shown for the call; for a group it is the room, and this is the person.
+  callerName: string | null;
+  callerXmppUsername: string | null;
 }
 
 const initialState: CallState = {
@@ -75,6 +80,8 @@ const initialState: CallState = {
   isGroup: false,
   livekitUrl: null,
   iceServers: null,
+  callerName: null,
+  callerXmppUsername: null,
 };
 
 const resetState = (): CallState => ({ ...initialState });
@@ -98,7 +105,9 @@ const callSlice = createSlice({
       state.direction = 'outgoing';
       state.kind = action.payload.kind || 'video';
       state.roomJid = action.payload.roomJid;
-      state.roomName = action.payload.roomName || null;
+      // A raw chat name is never a name: safeCallName drops it, the UI then
+      // shows a neutral label.
+      state.roomName = safeCallName(action.payload.roomName);
       state.roomBareName =
         action.payload.roomBareName ||
         (action.payload.roomJid || '').split('@')[0] ||
@@ -117,6 +126,8 @@ const callSlice = createSlice({
       state.isGroup = action.payload.isGroup === true;
       state.livekitUrl = null;
       state.iceServers = null;
+      state.callerName = null;
+      state.callerXmppUsername = null;
     },
     // The create response told the caller how the call is carried. Applied
     // only to the very call that asked (startedAt must match), so a late
@@ -166,13 +177,15 @@ const callSlice = createSlice({
         iceServers?: IceServerConfig[] | null;
         // LiveKit URL from the call-token stanza; wins over the host config.
         livekitUrl?: string | null;
+        callerName?: string | null;
+        callerXmppUsername?: string | null;
       }>
     ) {
       state.phase = 'ringing-incoming';
       state.direction = 'incoming';
       state.kind = action.payload.kind || 'video';
       state.roomJid = action.payload.roomJid;
-      state.roomName = action.payload.roomName || null;
+      state.roomName = safeCallName(action.payload.roomName);
       state.roomBareName =
         action.payload.roomBareName ||
         (action.payload.roomJid || '').split('@')[0] ||
@@ -187,6 +200,8 @@ const callSlice = createSlice({
       state.isGroup = action.payload.isGroup === true;
       state.livekitUrl = action.payload.livekitUrl || null;
       state.iceServers = action.payload.iceServers || null;
+      state.callerName = safeCallName(action.payload.callerName);
+      state.callerXmppUsername = action.payload.callerXmppUsername || null;
     },
     setOutgoingCallToken(
       state,

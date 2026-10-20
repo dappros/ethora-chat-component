@@ -25,6 +25,7 @@ import { useResolvedColorScheme, useThemeTokenStyle } from '../../styles/tokens'
 import { VideoCallSession } from './VideoCallSession';
 import { P2PCallSession } from './P2PCallSession';
 import { P2PCallRunner } from './P2PCallRunner';
+import { NEUTRAL_INCOMING_CALL_LABEL } from '../../calls/callDisplay';
 import { reportCallDeclined } from '../../networking/api-requests/callState.api';
 import { ProfileImagePlaceholder } from '../MainComponents/ProfileImagePlaceholder';
 import {
@@ -320,7 +321,8 @@ const RingingCard: React.FC<RingingCardProps> = ({
             textAlign: 'center',
           }}
         >
-          {roomName || (variant === 'incoming' ? 'Unknown caller' : 'Call')}
+          {roomName ||
+            (variant === 'incoming' ? NEUTRAL_INCOMING_CALL_LABEL : 'Call')}
         </div>
         <div
           style={{
@@ -621,13 +623,26 @@ const VideoCallOverlayView: React.FC = () => {
     const noun = call.kind === 'audio' ? 'Audio call' : 'Video call';
     // The card title is the room's name; make it clear it is a group ring.
     const label = call.isGroup ? `Group ${noun.toLowerCase()}` : noun;
-    if (call.direction === 'incoming') return label;
+    if (call.direction === 'incoming') {
+      // "<person> is calling in <room>" once both are known.
+      return call.isGroup && call.callerName && call.roomName
+        ? `${call.callerName} is calling in ${call.roomName}`
+        : label;
+    }
     if (call.phase === 'connecting') {
       return isP2P ? 'Connecting…' : 'Connecting to room';
     }
     if (call.phase === 'error') return 'Please try again later';
     return label;
-  }, [call.direction, call.kind, call.phase, call.isGroup, isP2P]);
+  }, [
+    call.direction,
+    call.kind,
+    call.phase,
+    call.isGroup,
+    call.callerName,
+    call.roomName,
+    isP2P,
+  ]);
 
   const terminateCall = useCallback(
     (state: CallSignalState) => {

@@ -14,7 +14,7 @@ vi.mock('./api-requests/callState.api', () => ({
 }));
 
 import { store } from '../roomStore';
-import { addRoom } from '../roomStore/roomsSlice';
+import { addRoom, insertUsers } from '../roomStore/roomsSlice';
 import { setConfig, setUser } from '../roomStore/chatSettingsSlice';
 import {
   resetCall,
@@ -249,6 +249,129 @@ describe('call-token handling: livekit, p2p and group', () => {
       } finally {
         setGlobalXmppClient(null);
       }
+    });
+  });
+
+  describe('who is calling: callerName / caller and the raw room name guard', () => {
+    const HEX = '69c24e911e53d44d2b6c4bbc';
+    const ME = `${HEX}_69c2517a239cee5defaf52d6`;
+    const PEER = `${HEX}_69c251a0239cee5defaf5343`;
+    const RAW_ROOM = `${ME}-${PEER}`;
+    const RAW_JID = `${RAW_ROOM}@conference.xmpp.example.com`;
+    const FORGED = `${HEX}_69c2517a239cee5defaf52d6@xmpp.example.com/web`;
+
+    beforeEach(() => {
+      store.dispatch(setUser({ xmppUsername: ME } as any));
+      // A private chat whose title is just its raw name (nothing better known).
+      store.dispatch(
+        addRoom({
+          roomData: { jid: RAW_JID, name: RAW_ROOM, type: 'private', usersCnt: 2 } as IRoom,
+        })
+      );
+    });
+
+    const p2pToken = (extra: Record<string, string> = {}, from = SYSTEM_FROM) =>
+      tokenStanza(
+        { room: RAW_ROOM, token: '', callId: 'c-name', mode: 'p2p', kind: 'video', ...extra },
+        from
+      );
+
+    it('a p2p call is named by callerName, with the caller carried into the state', () => {
+      onCallTokenMessage(p2pToken({ callerName: 'Roman Test', caller: PEER }));
+      expect(call()).toMatchObject({
+        phase: 'ringing-incoming',
+        roomName: 'Roman Test',
+        callerName: 'Roman Test',
+        callerXmppUsername: PEER,
+        peerXmppUsername: PEER,
+      });
+    });
+
+    it('without any name the raw room name is NOT used: roomName stays empty for the neutral label', () => {
+      onCallTokenMessage(p2pToken());
+      expect(call().phase).toBe('ringing-incoming');
+      expect(call().roomName).toBeNull();
+      expect(JSON.stringify(call())).not.toMatch(new RegExp(`roomName":"${HEX}`));
+    });
+
+    it('callerName is plain text: trimmed, capped, control characters removed', () => {
+      onCallTokenMessage(
+        p2pToken({ callerName: `  Ro\u0000man‮ ${'x'.repeat(200)} `, caller: PEER })
+      );
+      const name = call().roomName as string;
+      expect(name.startsWith('Ro man')).toBe(true);
+      expect(name.length).toBeLessThanOrEqual(80);
+      expect(/[\u0000-\u001F‮]/.test(name)).toBe(false);
+    });
+
+    it('a callerName from an untrusted sender is dropped; the call still rings', () => {
+      onCallTokenMessage(p2pToken({ callerName: 'Your Bank', caller: PEER }, FORGED));
+      expect(call()).toMatchObject({
+        phase: 'ringing-incoming',
+        mode: 'p2p',
+        callId: 'c-name',
+        roomName: null,
+        callerName: null,
+        callerXmppUsername: null,
+      });
+    });
+
+    it('livekit: callerName wins, the JWT sub is the second choice, then the room title', () => {
+      const jwt = (sub: string) =>
+        `h.${btoa(JSON.stringify({ sub })).replace(/=+$/, '')}.s`;
+      onCallTokenMessage(
+        tokenStanza({ room: DM_ROOM, token: jwt('Jwt Name'), callId: 'c-a', callerName: 'Stanza Name' })
+      );
+      expect(call().roomName).toBe('Stanza Name');
+
+      store.dispatch(resetCall());
+      onCallTokenMessage(
+        tokenStanza({ room: DM_ROOM, token: jwt('Jwt Name'), callId: 'c-b' })
+      );
+      expect(call().roomName).toBe('Jwt Name');
+
+      store.dispatch(resetCall());
+      onCallTokenMessage(tokenStanza({ room: DM_ROOM, token: 'opaque', callId: 'c-c' }));
+      expect(call().roomName).toBe('Bob B');
+    });
+
+    it('a JWT sub that is a raw id is not a name either', () => {
+      const rawSub = `h.${btoa(JSON.stringify({ sub: RAW_ROOM })).replace(/=+$/, '')}.s`;
+      onCallTokenMessage(tokenStanza({ room: RAW_ROOM, token: rawSub, callId: 'c-rawsub' }));
+      expect(call().roomName).toBeNull();
+    });
+
+    it('a group ring keeps the ROOM as the name and carries the caller separately', () => {
+      onCallTokenMessage(
+        tokenStanza({
+          room: GROUP_ROOM,
+          token: 'jwt',
+          callId: 'c-gn',
+          group: 'true',
+          callerName: 'Ann Lee',
+          caller: PEER,
+        })
+      );
+      expect(call()).toMatchObject({
+        isGroup: true,
+        roomName: 'Design team',
+        callerName: 'Ann Lee',
+        peerXmppUsername: null,
+      });
+    });
+
+    it('(last: it fills the shared users set) an empty callerName falls back to a user name the app already knows', () => {
+      onCallTokenMessage(p2pToken({ callerName: '', caller: PEER }));
+      expect(call().roomName).toBeNull();
+
+      store.dispatch(resetCall());
+      store.dispatch(
+        insertUsers({
+          newUsers: [{ xmppUsername: PEER, firstName: 'Pat', lastName: 'Known' } as any],
+        })
+      );
+      onCallTokenMessage(p2pToken({ callerName: '', caller: PEER }));
+      expect(call().roomName).toBe('Pat Known');
     });
   });
 

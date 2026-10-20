@@ -14,6 +14,7 @@ import {
   parseCallTokenAttrs,
 } from '../calls/callMode';
 import { isSystemAccountSender } from '../calls/senderTrust';
+import { looksLikeRawRoomName, safeCallName } from '../calls/callDisplay';
 import { P2P_SIGNAL_TYPE } from '../calls/p2p/signalStanza';
 import { handleP2PSignalStanza } from '../calls/p2p/p2pRuntime';
 import {
@@ -446,20 +447,27 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
       // Old servers send neither `mode` nor `group`: parseCallTokenAttrs maps
       // that to a plain LiveKit 1:1 call, exactly the legacy behaviour.
       const attrs = parseCallTokenAttrs(data.attrs);
-      // livekitUrl and ice decide where the media goes, so they are honoured
-      // only from the app's system account (see calls/senderTrust). Anything
-      // else keeps the stanza but loses those two attributes: the callee then
-      // uses config.videoCalls.livekitUrl and GET /v1/calls/ice-servers.
+      // livekitUrl and ice decide where the media goes, and callerName /
+      // caller decide who the ring screen says is calling, so they are
+      // honoured only from the app's system account (see calls/senderTrust).
+      // Anything else keeps the stanza but loses those attributes: the callee
+      // then uses config.videoCalls.livekitUrl, GET /v1/calls/ice-servers and
+      // the name it can work out locally.
       if (
-        (attrs.livekitUrl || attrs.iceServers) &&
+        (attrs.livekitUrl ||
+          attrs.iceServers ||
+          attrs.callerName ||
+          attrs.caller) &&
         !isSystemAccountSender(inner.attrs?.from, sessionXmppDomain())
       ) {
         ethoraLogger.log(
-          '[call] ignoring livekitUrl/ice on a call-token not sent by the system account',
+          '[call] ignoring livekitUrl/ice/callerName/caller on a call-token not sent by the system account',
           { from: inner.attrs?.from }
         );
         attrs.livekitUrl = null;
         attrs.iceServers = null;
+        attrs.callerName = '';
+        attrs.caller = null;
       }
       const { token, mode, group, room: stanzaRoom } = attrs;
       const isP2P = mode === 'p2p';
@@ -518,25 +526,38 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
       // title (which for stale / deleted-peer chats reads "deleted").
       // A p2p token has no JWT, and in a group the ring should name the room.
       const jwtPayload = isP2P ? null : decodeJwtPayload(token);
-      const callerName = group ? '' : extractCallerDisplayName(jwtPayload);
+      const jwtName = group
+        ? ''
+        : safeCallName(extractCallerDisplayName(jwtPayload)) || '';
       const resolvedTitle = String(resolvedRoom?.name || '').trim();
       const titleLooksBad =
         !resolvedTitle ||
         ['deleted', 'deleted user', 'unknown', 'null'].includes(
           resolvedTitle.toLowerCase()
-        );
+        ) ||
+        looksLikeRawRoomName(resolvedTitle);
       const selfXmpp =
         store.getState().chatSettingStore.user?.xmppUsername || '';
       // Group rooms have no single peer; a "<a>-<b>" name there is a coincidence.
       const peerXmppUsername = group
         ? null
-        : derivePeerXmppUsername(stanzaRoom, selfXmpp);
-      const peerName = isP2P && titleLooksBad ? lookupUserName(peerXmppUsername) : '';
-      const incomingRoomName =
-        (callerName && titleLooksBad ? callerName : resolvedTitle) ||
-        callerName ||
-        peerName ||
-        stanzaRoom;
+        : derivePeerXmppUsername(stanzaRoom, selfXmpp) || attrs.caller;
+      const peerName = titleLooksBad
+        ? lookupUserName(peerXmppUsername)
+        : '';
+      // What the call is called on screen. A person's name is preferred; a
+      // raw chat name (two joined JIDs) is never used, an empty result makes
+      // the UI show a neutral label. In a group the call is the ROOM, and the
+      // caller is carried separately (callerName) for the "X is calling in Y"
+      // line.
+      const incomingRoomName = group
+        ? (titleLooksBad ? '' : resolvedTitle) || safeCallName(stanzaRoom) || ''
+        : attrs.callerName ||
+          jwtName ||
+          (titleLooksBad ? '' : resolvedTitle) ||
+          safeCallName(peerName) ||
+          safeCallName(stanzaRoom) ||
+          '';
       if (!roomJid) return true;
 
       const callId = extractCallId(data, jwtPayload);
@@ -612,6 +633,8 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
           isGroup: group,
           iceServers: attrs.iceServers,
           livekitUrl: attrs.livekitUrl,
+          callerName: attrs.callerName || null,
+          callerXmppUsername: attrs.caller,
         })
       );
       return true;

@@ -86,6 +86,82 @@ describe('VideoCallOverlay: which transport renders', () => {
     expect(screen.getByText('Group video call')).toBeTruthy();
   });
 
+  it('an incoming p2p ring shows callerName, and the avatar initials come from it', () => {
+    act(() => {
+      store.dispatch(
+        setIncomingCallToken({
+          roomJid: 'a-b@conference.x',
+          roomName: 'Roman Test',
+          token: '',
+          mode: 'p2p',
+          kind: 'video',
+          callId: 'cn1',
+          callerName: 'Roman Test',
+        })
+      );
+    });
+    mount();
+    expect(screen.getByText('Roman Test')).toBeTruthy();
+    expect(screen.getByText('RT')).toBeTruthy();
+  });
+
+  it('a raw chat name is never shown as the caller: neutral label instead', () => {
+    const raw =
+      '69c24e911e53d44d2b6c4bbc_69c2517a239cee5defaf52d6-69c24e911e53d44d2b6c4bbc_69c251a0239cee5defaf5343';
+    act(() => {
+      store.dispatch(
+        setIncomingCallToken({
+          roomJid: `${raw}@conference.x`,
+          roomName: raw,
+          roomBareName: raw,
+          token: '',
+          mode: 'p2p',
+          kind: 'video',
+          callId: 'cn2',
+        })
+      );
+    });
+    const { container } = mount();
+    expect(screen.getByText('Incoming call')).toBeTruthy();
+    expect(container.textContent).not.toContain('69c24e91');
+    // ...and the avatar is not the "6" of the id.
+    expect(screen.queryByText('6')).toBeNull();
+  });
+
+  it('a group ring reads "<caller> is calling in <room>" when both are known', () => {
+    act(() => {
+      store.dispatch(
+        setIncomingCallToken({
+          roomJid: 'g@conference.x',
+          roomName: 'Design team',
+          token: 't',
+          isGroup: true,
+          callId: 'cn3',
+          callerName: 'Ann Lee',
+        })
+      );
+    });
+    mount();
+    expect(screen.getByText('Ann Lee is calling in Design team')).toBeTruthy();
+    expect(screen.getAllByText('Design team').length).toBeGreaterThan(0);
+  });
+
+  it('a group ring without a known caller keeps the generic group wording', () => {
+    act(() => {
+      store.dispatch(
+        setIncomingCallToken({
+          roomJid: 'g@conference.x',
+          roomName: 'Design team',
+          token: 't',
+          isGroup: true,
+          callId: 'cn4',
+        })
+      );
+    });
+    mount();
+    expect(screen.getByText('Group video call')).toBeTruthy();
+  });
+
   it('a 1:1 ring keeps the plain wording', () => {
     act(() => {
       store.dispatch(

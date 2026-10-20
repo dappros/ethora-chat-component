@@ -8,6 +8,8 @@
 //   - group over LiveKit: any non-private chat, always `livekit`.
 // The client never picks the transport, it follows the server's `mode`.
 
+import { sanitizeCallName, sanitizeXmppUsername } from './callDisplay';
+
 export type CallMode = 'livekit' | 'p2p';
 export type CallKindName = 'audio' | 'video';
 export type CallRoomType = 'private' | 'group';
@@ -106,6 +108,14 @@ export interface ParsedCallTokenAttrs {
    * send one (older backends), it is empty, or it is not a usable URL.
    */
   livekitUrl: string | null;
+  /**
+   * Caller's display name as plain text (control characters stripped, capped,
+   * raw chat names refused); '' when absent. Only trustworthy from the system
+   * account, see calls/senderTrust.
+   */
+  callerName: string;
+  /** Caller's xmppUsername when well formed, else null. Same trust rule. */
+  caller: string | null;
 }
 
 /**
@@ -137,6 +147,8 @@ export const parseCallTokenAttrs = (
     group: mode === 'livekit' && isTrueish(a.group),
     iceServers: mode === 'p2p' && iceList.length > 0 ? iceList : null,
     livekitUrl: mode === 'livekit' ? normalizeLivekitUrl(a.livekitUrl) : null,
+    callerName: sanitizeCallName(a.callerName),
+    caller: sanitizeXmppUsername(a.caller),
   };
 };
 

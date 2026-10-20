@@ -99,6 +99,33 @@ describe('call slice transport routing', () => {
     ).toBe('livekit');
   });
 
+  it('never keeps a raw chat name as the call name', () => {
+    const raw =
+      '69c24e911e53d44d2b6c4bbc_69c2517a239cee5defaf52d6-69c24e911e53d44d2b6c4bbc_69c251a0239cee5defaf5343';
+    expect(
+      reducer(undefined, setIncomingCallToken({ roomJid: 'r@c.x', token: 't', roomName: raw }))
+        .roomName
+    ).toBeNull();
+    expect(
+      reducer(
+        undefined,
+        startOutgoingCall({ roomJid: 'r@c.x', roomName: raw, peerXmppUsername: 'p' })
+      ).roomName
+    ).toBeNull();
+    expect(
+      reducer(
+        undefined,
+        setIncomingCallToken({
+          roomJid: 'r@c.x',
+          token: 't',
+          roomName: ' Ann\u0000 B ',
+          callerName: 'Ann B',
+          callerXmppUsername: 'u_1',
+        })
+      )
+    ).toMatchObject({ roomName: 'Ann B', callerName: 'Ann B', callerXmppUsername: 'u_1' });
+  });
+
   it('an incoming token carries mode, group and ice servers', () => {
     const p2p = reducer(
       undefined,

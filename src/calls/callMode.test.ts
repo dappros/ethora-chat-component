@@ -55,6 +55,8 @@ describe('parseCallTokenAttrs', () => {
       group: false,
       iceServers: null,
       livekitUrl: null,
+      callerName: '',
+      caller: null,
     });
   });
 
@@ -71,6 +73,37 @@ describe('parseCallTokenAttrs', () => {
     expect(
       parseCallTokenAttrs({ token: 't', room: 'r', livekitUrl: '   ' }).livekitUrl
     ).toBeNull();
+  });
+
+  it('reads callerName and caller as plain, bounded text', () => {
+    const parsed = parseCallTokenAttrs({
+      token: 't',
+      room: 'r',
+      callerName: '  Roman \u0000Test\u202E  ',
+      caller: '69c24e911e53d44d2b6c4bbc_69c2517a239cee5defaf52d6',
+    });
+    expect(parsed.callerName).toBe('Roman Test');
+    expect(parsed.caller).toBe('69c24e911e53d44d2b6c4bbc_69c2517a239cee5defaf52d6');
+    expect(
+      parseCallTokenAttrs({ token: 't', room: 'r', callerName: 'x'.repeat(500) })
+        .callerName.length
+    ).toBe(80);
+  });
+
+  it('missing or empty callerName / caller are unset; a raw chat name is not a name', () => {
+    const none = parseCallTokenAttrs({ token: 't', room: 'r' });
+    expect(none.callerName).toBe('');
+    expect(none.caller).toBeNull();
+    expect(parseCallTokenAttrs({ token: 't', room: 'r', callerName: ' ', caller: '' })).toMatchObject({
+      callerName: '',
+      caller: null,
+    });
+    const raw =
+      '69c24e911e53d44d2b6c4bbc_69c2517a239cee5defaf52d6-69c24e911e53d44d2b6c4bbc_69c251a0239cee5defaf5343';
+    expect(parseCallTokenAttrs({ token: 't', room: 'r', callerName: raw }).callerName).toBe('');
+    expect(parseCallTokenAttrs({ token: 't', room: 'r', caller: '<x y>' }).caller).toBeNull();
+    // Applies to p2p stanzas as well.
+    expect(parseCallTokenAttrs({ room: 'r', mode: 'p2p', callerName: 'Ann' }).callerName).toBe('Ann');
   });
 
   it('rejects a livekitUrl that is not a websocket / http(s) URL, and ignores it for p2p', () => {
