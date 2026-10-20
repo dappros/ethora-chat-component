@@ -27,6 +27,9 @@ export const useChatSettingState = () => {
   const translateMode = useSelector(
     (state: RootState) => state.chatSettingStore.translateMode
   );
+  const blockedUserIds = useSelector(
+    (state: RootState) => state.chatSettingStore.blockedUserIds
+  );
 
   return {
     user,
@@ -38,5 +41,6 @@ export const useChatSettingState = () => {
     langSource,
     translateSendEnabled,
     translateMode,
+    blockedUserIds,
   };
 };

@@ -11,6 +11,7 @@ import {
   setIsLoading,
   updateUsersSet,
 } from '../roomStore/roomsSlice';
+import { setBlockedUserIds } from '../roomStore/chatSettingsSlice';
 import { ApiRoom } from '../types/types';
 
 const useGetNewArchRoom = () => {
@@ -50,6 +51,10 @@ const useGetNewArchRoom = () => {
       });
       dispatch(setIsLoading({ loading: false, loadingText: undefined }));
       dispatch(updateUsersSet({ rooms: items }));
+      const blocked = rooms?.blockedUsers;
+      if (blocked) {
+        dispatch(setBlockedUserIds(blocked.map((u) => u.xmppUsername).filter(Boolean) as string[]));
+      }
       return items;
     },
     [dispatch]

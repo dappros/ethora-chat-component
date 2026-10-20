@@ -48,6 +48,7 @@ interface ChatState {
    * ever write here that a host has pinned.
    */
   translateMode?: 'auto' | 'manual';
+  blockedUserIds: string[];
 }
 
 const unpackAndTransform = (input?: User): User => {
@@ -126,6 +127,7 @@ const initialState: ChatState = {
   },
   config: { colors: { primary: '#0052CD', secondary: '#F3F6FC' } },
   appId: '',
+  blockedUserIds: [],
 };
 
 const chatSlice = createSlice({
@@ -212,9 +214,23 @@ const chatSlice = createSlice({
       state.user.xmppPassword = action.payload;
       persistUserSession(state.user);
     },
+    setBlockedUserIds: (state, action: PayloadAction<string[]>) => {
+      state.blockedUserIds = action.payload;
+    },
+    addBlockedUserId: (state, action: PayloadAction<string>) => {
+      if (!state.blockedUserIds.includes(action.payload)) {
+        state.blockedUserIds.push(action.payload);
+      }
+    },
+    removeBlockedUserId: (state, action: PayloadAction<string>) => {
+      state.blockedUserIds = state.blockedUserIds.filter(
+        (id) => id !== action.payload
+      );
+    },
     logout: (state) => {
       state.user = unpackAndTransform();
       state.config = undefined;
+      state.blockedUserIds = [];
       clearStoredUser();
     },
   },
@@ -234,6 +250,9 @@ export const {
   setLangSource,
   setTranslateSendEnabled,
   setTranslateMode,
+  setBlockedUserIds,
+  addBlockedUserId,
+  removeBlockedUserId,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

@@ -17,10 +17,17 @@ import { ethoraLogger } from '../../helpers/ethoraLogger';
 // the UI fires a second /chats/my just to refetch the same data - and the
 // user sees a "0 rooms" flash while the second request is in flight.
 const GET_ROOMS_CACHE_MS = 60_000;
-export type GetRoomsResult = { items: ApiRoom[]; failed?: boolean };
-let getRoomsInFlight: SharedRequest<{ items: ApiRoom[] }> | null = null;
+export interface BlockedUserEntry {
+  _id: string;
+  firstName?: string;
+  lastName?: string;
+  profileImage?: string;
+  xmppUsername?: string;
+}
+export type GetRoomsResult = { items: ApiRoom[]; blockedUsers?: BlockedUserEntry[]; failed?: boolean };
+let getRoomsInFlight: SharedRequest<{ items: ApiRoom[]; blockedUsers?: BlockedUserEntry[] }> | null = null;
 let getRoomsInFlightToken = '';
-let lastGetRoomsResponse: { items: ApiRoom[] } | null = null;
+let lastGetRoomsResponse: { items: ApiRoom[]; blockedUsers?: BlockedUserEntry[] } | null = null;
 let lastGetRoomsResponseAt = 0;
 let lastGetRoomsResponseToken = '';
 // Bumped by invalidateRoomsCache(). A getRooms() request that was already
@@ -77,7 +84,7 @@ export async function getRooms(signal?: AbortSignal): Promise<GetRoomsResult> {
       lastGetRoomsResponseAt = Date.now();
       lastGetRoomsResponseToken = token;
     }
-    return response.data as { items: ApiRoom[] };
+    return response.data as { items: ApiRoom[]; blockedUsers?: BlockedUserEntry[] };
   });
   getRoomsInFlight = shared;
 

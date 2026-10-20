@@ -1,5 +1,7 @@
 import React, { FC, Fragment, useMemo } from 'react';
+import { useSelector } from 'react-redux';
 import { IConfig, IMessage } from '../../types/types';
+import { RootState } from '../../roomStore';
 import DateLabel from '../styled/DateLabel';
 import SystemMessage from './SystemMessage';
 import NewMessageLabel from '../styled/NewMessageLabel';
@@ -113,6 +115,35 @@ const MessageContainerBase: FC<MessageContainerProps> = ({
       return <CustomNewMessageLabel color={config?.colors?.primary} />;
     }
     return <NewMessageLabel color={config?.colors?.primary} />;
+  }
+
+  const senderLocal = (message.user?.id ?? '').split('@')[0];
+  const blockedUserIds = useSelector(
+    (state: RootState) => state.chatSettingStore.blockedUserIds
+  );
+  const isSenderBlocked = !isUser && blockedUserIds?.includes(senderLocal);
+
+  if (isSenderBlocked) {
+    return (
+      <Fragment key={message.id}>
+        {showDateLabel &&
+          !activeMessage &&
+          renderDaySeparator()}
+        <div data-message-id={message.id}>
+          <div
+            style={{
+              padding: '6px 12px',
+              margin: '2px 0',
+              color: 'var(--ethora-color-text-muted, #8C8C8C)',
+              fontSize: 'var(--ethora-font-size-sm, 13px)',
+              fontStyle: 'italic',
+            }}
+          >
+            {t('message.blockedUser')}
+          </div>
+        </div>
+      </Fragment>
+    );
   }
 
   const MessageComponent = CustomMessage || Message;

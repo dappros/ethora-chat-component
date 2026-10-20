@@ -15,6 +15,7 @@ import {
 } from '../SideDrawer/DrawerProfileParts';
 import {
   AudioCallIcon,
+  BlockIcon,
   ChatIcon,
   EditIcon,
   LeaveIcon,
@@ -28,6 +29,7 @@ import { ProfileImagePlaceholder } from '../../MainComponents/ProfileImagePlaceh
 import Button from '../../styled/Button';
 import DropdownMenu from '../../DropdownMenu/DropdownMenu';
 import {
+  addBlockedUserId,
   setActiveModal,
   setLangSource,
   setSelectedUser,
@@ -45,6 +47,7 @@ import { ApiRoom, Iso639_1Codes } from '../../../types/types';
 import Select from '../../MainComponents/Select';
 import { handleCopyClick } from '../../../helpers/handleCopyClick';
 import {
+  blockUser,
   getRoomByName,
   postPrivateRoom,
 } from '../../../networking/api-requests/rooms.api';
@@ -58,6 +61,7 @@ import { useUsersSet } from '../../../hooks/useRoomState';
 import { useAppDispatch } from '../../../hooks/hooks';
 import { logoutService } from '../../../hooks/useLogout';
 import { useT } from '../../../i18n/useT';
+import { ethoraLogger } from '../../../helpers/ethoraLogger';
 
 interface UserProfileModalProps {
   handleCloseModal: any;
@@ -372,6 +376,38 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     [ensurePrivateRoom, dispatch, t]
   );
 
+  const canBlock =
+    !!selectedUser &&
+    config?.features?.userBlock === true &&
+    !config?.disableUserBlock;
+
+  const handleBlockClick = useCallback(async () => {
+    const peerUsername =
+      (selectedUser as any)?.xmppUsername ||
+      (selectedUser as any)?.userJID ||
+      selectedUser?.id;
+    if (!peerUsername) return;
+    try {
+      await blockUser(peerUsername);
+      dispatch(addBlockedUserId(String(peerUsername).split('@')[0]));
+      dispatch(setActiveModal());
+      showToast({
+        id: Date.now().toString(),
+        title: t('toast.success'),
+        message: t('toast.blockedSuccess'),
+        type: 'success',
+      });
+    } catch (error) {
+      ethoraLogger.log('Block user failed', error);
+      showToast({
+        id: Date.now().toString(),
+        title: t('toast.error'),
+        message: t('toast.blockFailed'),
+        type: 'error',
+      });
+    }
+  }, [selectedUser, dispatch, showToast, t]);
+
   const modalUser: any = selectedUser ?? user;
 
   const findLanguage = () => {
@@ -522,6 +558,16 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
               >
                 {t('action.copyUserId')}
               </ActionButton>
+              {canBlock && (
+                <ActionButton
+                  StartIcon={<BlockIcon />}
+                  onClick={handleBlockClick}
+                  variant="outlined"
+                  style={{ color: 'var(--ethora-color-danger, #D92D20)', borderColor: 'var(--ethora-color-danger, #D92D20)' }}
+                >
+                  {t('action.block')}
+                </ActionButton>
+              )}
             </ProfileActions>
           </DrawerSection>
         )}
@@ -530,9 +576,11 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     [
       modalUser,
       canCall,
+      canBlock,
       isAudioCallsEnabled,
       isCallBusy,
       handleCall,
+      handleBlockClick,
       handlePrivateMessage,
       handleEncryptedPrivateMessage,
       isE2eeEnabled,
