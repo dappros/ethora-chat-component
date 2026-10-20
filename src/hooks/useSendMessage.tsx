@@ -662,14 +662,15 @@ export const useSendMessage = () => {
    * is up: a failed upload holds the whole message (the tile is marked and
    * can be retried) rather than sending a silently incomplete album.
    *
-   * `caption` is the text typed with the files. It is part of this one
-   * message (the optimistic bubble shows it, the stanza carries it, a retry
-   * re-sends it with the files) and never goes out as a separate text message.
+   * `caption` is the text typed with the files, carried on this one message
+   * (the optimistic bubble shows it, the stanza carries it, a retry re-sends
+   * it with the files). The public `sendMedia` below only passes it here in
+   * captionMode 'inline'; in 'separate' it is sent as a text message instead.
    *
    * Resolves true when the message was delivered, false when it is still
    * waiting on a retry (or was never sent).
    */
-  const sendMedia = useCallback(
+  const sendMediaFiles = useCallback(
     async (
       data: File | File[] | Blob,
       type: string,
@@ -1029,6 +1030,56 @@ export const useSendMessage = () => {
       sendWithActiveRoomRetry,
       dispatch,
     ]
+  );
+
+  /**
+   * Sends the files as one media message. What happens to `caption` depends on
+   * `config.attachments.captionMode`:
+   *  - 'separate' (default): the media message goes out without the caption,
+   *    and the caption follows as its own text message once the media send
+   *    settles, whatever its outcome (the 26.9.8 wire shape). In an e2ee room
+   *    the text goes through the normal encrypted text path.
+   *  - 'inline': the caption rides on the media message (`<data caption>`).
+   * Retries re-send the files only; the caption is sent once, on the first attempt.
+   */
+  const sendMedia = useCallback(
+    async (
+      data: File | File[] | Blob,
+      type: string,
+      activeRoomJID: string,
+      isReply = false,
+      isChecked = false,
+      mainMessage = '',
+      caption?: CaptionInput
+    ): Promise<boolean> => {
+      const captionMode = config?.attachments?.captionMode ?? 'separate';
+      const captionInput = normalizeCaptionInput(caption);
+      const separateCaption = captionMode === 'separate' ? captionInput : undefined;
+
+      const delivered = await sendMediaFiles(
+        data,
+        type,
+        activeRoomJID,
+        isReply,
+        isChecked,
+        mainMessage,
+        separateCaption ? undefined : caption
+      );
+
+      if (separateCaption) {
+        await sendMessage(
+          separateCaption.caption,
+          activeRoomJID,
+          false,
+          false,
+          '',
+          separateCaption.mentions
+        );
+      }
+
+      return delivered;
+    },
+    [config, sendMediaFiles, sendMessage]
   );
 
   return {

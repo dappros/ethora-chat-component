@@ -227,6 +227,16 @@ export interface IConfig {
     maxFileSizeMb?: number;
     /** `accept` attribute handed to the file picker. Omit to allow anything. */
     accept?: string;
+    /**
+     * Where the text typed with the files goes. Default `'separate'`: the media
+     * message is sent without the caption, and the caption follows as a normal
+     * text message once the media send settles (the same wire shape as 26.9.8,
+     * so readers that do not know `<data caption>` still show it). `'inline'`
+     * carries the caption on the media message itself (`<data caption>`,
+     * `captionMentions`), one message per send, but readers that predate it
+     * (older web builds, React Native, server push) show no text for it.
+     */
+    captionMode?: 'inline' | 'separate';
   };
   /**
    * Which upload route chat attachments use. Default `'auto'`: try

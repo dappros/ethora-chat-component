@@ -6,12 +6,14 @@ All notable changes to this package are documented here. For cross-SDK release n
 
 ### Added
 
+- `config.attachments.captionMode` (`'separate'` default, or `'inline'`) selects where the text typed with attachments goes. `'separate'` sends the media message without the caption and then the caption as a normal text message, which is the 26.9.8 wire shape that older readers display. `'inline'` keeps the caption on the media message (`<data caption>`).
 - `config.uploads.endpoint` (`'auto'` default, `'legacy'`, `'secure'`) selects the upload route. `'legacy'` posts straight to `/v1/files/` and never calls `/v2/files/secure`; `'secure'` never falls back. `'auto'` keeps the previous secure-then-fallback behaviour.
 - `config.features.userBlock` (default `false`) controls the "Block user" item in 1-1 chat menus and the `/v1/chats/blocked` calls behind it. The production backend does not serve that route yet, so the item is hidden unless a host opts in. `disableUserBlock: true` still hides it.
 - `config.receipts` (`{ mode, deliveryMaxRoomSize, readMaxRoomSize, maxAgeDays, coalesceMs }`) controls which delivery and read receipts this client sends. Defaults: `mode: 'auto'`, `deliveryMaxRoomSize: 20`, `readMaxRoomSize: 100`, `maxAgeDays: 7`, `coalesceMs: 1500`. `'off'` sends none; received receipts are still displayed.
 
 ### Changed
 
+- Captions typed with attachments are sent as a separate text message again by default (`attachments.captionMode: 'separate'`). Set `captionMode: 'inline'` to keep the caption on the media message.
 - The "Block user" menu item is no longer shown by default. Set `config.features.userBlock: true` once your backend serves `/v1/chats/blocked`.
 - Delivery receipts are coalesced per room: the first message is acknowledged at once and a burst or a history replay collapses into one receipt for the newest message. Opening a room with 100 history messages sends at most two receipts instead of up to 100.
 - In `auto` mode, delivery receipts are skipped in rooms with more than 20 other members, read markers in rooms with more than 100, and old history is not acknowledged. Ticks in those rooms show "sent" or "delivered" from the other signals that do arrive.
@@ -96,7 +98,7 @@ All notable changes to this package are documented here. For cross-SDK release n
 
 ### Upgrade notes
 
-- `sendMedia` (and the hooks that wrap it: `CustomInputComponent` / `onSendMedia`, or a custom `useSendMessage`) receives a third argument `caption?: { text: string; mentions?: IMentionSpan[] }`. Hosts that override it must send the caption with the media instead of sending a second text message. `sendMessageMedia(data, type, roomJID, isReply, isChecked, mainMessage, caption)` takes it as the 7th argument.
+- `sendMedia` (and the hooks that wrap it: `CustomInputComponent` / `onSendMedia`, or a custom `useSendMessage`) receives a third argument `caption?: { text: string; mentions?: IMentionSpan[] }`. Hosts that override it receive the caption here. With the default `captionMode: 'separate'` send it as a separate text message after the media; with `captionMode: 'inline'` send it with the media. `sendMessageMedia(data, type, roomJID, isReply, isChecked, mainMessage, caption)` takes it as the 7th argument.
 - Viewer i18n keys renamed: `modal.filePreview.previousImage` is now `previousItem`, `nextImage` is now `nextItem`, and `showImage` is now `showItem`. Update any host overrides.
 - Room caches saved by earlier versions are refetched once: the room shell stays and the transcript is reloaded from history, so reactions are populated.
 

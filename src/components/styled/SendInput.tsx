@@ -95,8 +95,9 @@ export interface SendInputProps {
   /**
    * Receives a `File[]` for picked attachments (one message, N files) and a
    * `Blob` for voice notes. Single files still arrive as a one-element array.
-   * Text typed with the files arrives as `caption` and is sent inside that
-   * same media message, so it can never land as a separate bubble.
+   * Text typed with the files arrives as `caption`; whether it rides on that
+   * media message or follows it as a text message depends on
+   * `config.attachments.captionMode`.
    */
   sendMedia: (
     data: File[] | File | Blob,
@@ -838,7 +839,8 @@ const SendInput: React.FC<SendInputProps> = ({
     async (audioUrl?: Blob) => {
       const outgoing = formatMessage ? formatMessage(message) : message;
       const trailingText = hasTextContent(outgoing) ? outgoing : null;
-      // The caption is part of the media message: one send, one bubble.
+      // The text typed with the files. useSendMessage decides whether it rides
+      // on the media message or follows it as a text message (attachments.captionMode).
       const caption: CaptionInput | undefined = trailingText
         ? { text: trailingText, mentions: mention.mentionSpans }
         : undefined;
