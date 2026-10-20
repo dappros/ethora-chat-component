@@ -13,6 +13,7 @@ import {
   isCallRoomTypeAllowed,
   parseCallTokenAttrs,
 } from '../calls/callMode';
+import { isSystemAccountSender } from '../calls/senderTrust';
 import { P2P_SIGNAL_TYPE } from '../calls/p2p/signalStanza';
 import { handleP2PSignalStanza } from '../calls/p2p/p2pRuntime';
 import {
@@ -67,6 +68,12 @@ const consumeKindHint = (
 };
 
 const MAX_CALL_TOKEN_AGE_MS = 5000;
+
+// XMPP domain of this session (the client's own JID domain, else the host).
+const sessionXmppDomain = (): string => {
+  const client = getGlobalXmppClient() as any;
+  return String(client?.client?.jid?.getDomain?.() || client?.host || '');
+};
 
 const isTrueishAttr = (value: unknown): boolean => {
   const text = String(value ?? '').trim().toLowerCase();
@@ -439,6 +446,21 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
       // Old servers send neither `mode` nor `group`: parseCallTokenAttrs maps
       // that to a plain LiveKit 1:1 call, exactly the legacy behaviour.
       const attrs = parseCallTokenAttrs(data.attrs);
+      // livekitUrl and ice decide where the media goes, so they are honoured
+      // only from the app's system account (see calls/senderTrust). Anything
+      // else keeps the stanza but loses those two attributes: the callee then
+      // uses config.videoCalls.livekitUrl and GET /v1/calls/ice-servers.
+      if (
+        (attrs.livekitUrl || attrs.iceServers) &&
+        !isSystemAccountSender(inner.attrs?.from, sessionXmppDomain())
+      ) {
+        ethoraLogger.log(
+          '[call] ignoring livekitUrl/ice on a call-token not sent by the system account',
+          { from: inner.attrs?.from }
+        );
+        attrs.livekitUrl = null;
+        attrs.iceServers = null;
+      }
       const { token, mode, group, room: stanzaRoom } = attrs;
       const isP2P = mode === 'p2p';
       const stanzaCallId = attrs.callId;

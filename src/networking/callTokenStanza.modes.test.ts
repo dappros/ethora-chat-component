@@ -23,6 +23,7 @@ import {
   setOutgoingCallRoute,
 } from '../roomStore/callSlice';
 import { p2pInbox } from '../calls/p2p/p2pRuntime';
+import { setGlobalXmppClient } from '../utils/clientRegistry';
 import { onCallTokenMessage } from './callTokenStanza';
 import { IRoom } from '../types/types';
 
@@ -32,12 +33,15 @@ const GROUP_ROOM = 'app_group-uuid';
 const GROUP_JID = `${GROUP_ROOM}@conference.xmpp.example.com`;
 const ICE = [{ urls: 'turn:t.example.com', username: 'u', credential: 'p' }];
 
-const tokenStanza = (attrs: Record<string, string>) => {
+const APP = '69c24e911e53d44d2b6c4bbc';
+const SYSTEM_FROM = `${APP}_${APP}@xmpp.example.com/1234567`;
+
+const tokenStanza = (attrs: Record<string, string>, from = SYSTEM_FROM) => {
   const rendered = Object.entries(attrs)
     .map(([k, v]) => `${k}='${v.replace(/'/g, '&apos;')}'`)
     .join(' ');
   return parse(
-    `<message from='${attrs.room}@conference.xmpp.example.com/x' type='chat'>` +
+    `<message from='${from}' type='chat'>` +
       `<stanza-id xmlns='urn:xmpp:sid:0' id='${Date.now()}000'/>` +
       `<data type='call-token' ${rendered}/></message>`
   );
@@ -141,6 +145,111 @@ describe('call-token handling: livekit, p2p and group', () => {
     // A token without the attribute leaves the known URL alone.
     onCallTokenMessage(tokenStanza({ room: DM_ROOM, token: 'mine2', callId: 'c-out' }));
     expect(call().livekitUrl).toBe('wss://from-stanza.example.com');
+  });
+
+  describe('livekitUrl and ice are honoured only from the system account', () => {
+    const FORGED = `${APP}_69c2517a239cee5defaf52d6@xmpp.example.com/web`;
+
+    it('a forged livekitUrl is ignored: the call still rings, with no URL from the stanza', () => {
+      onCallTokenMessage(
+        tokenStanza(
+          { room: DM_ROOM, token: 'jwt', callId: 'c-forged', livekitUrl: 'wss://evil.example.org' },
+          FORGED
+        )
+      );
+      expect(call()).toMatchObject({
+        phase: 'ringing-incoming',
+        mode: 'livekit',
+        token: 'jwt',
+        callId: 'c-forged',
+        livekitUrl: null,
+      });
+    });
+
+    it('a stanza with no from attribute is untrusted for these attributes', () => {
+      const noFrom = parse(
+        `<message type='chat'><stanza-id xmlns='urn:xmpp:sid:0' id='${Date.now()}000'/>` +
+          `<data type='call-token' room='${DM_ROOM}' token='jwt' callId='c-nofrom' livekitUrl='wss://evil.example.org'/></message>`
+      );
+      onCallTokenMessage(noFrom);
+      expect(call()).toMatchObject({ phase: 'ringing-incoming', livekitUrl: null });
+    });
+
+    it('a forged ice list is ignored: no servers in the state, so the callee fetches them from the API', () => {
+      onCallTokenMessage(
+        tokenStanza(
+          { room: DM_ROOM, token: '', callId: 'c-ice', mode: 'p2p', ice: JSON.stringify(ICE) },
+          FORGED
+        )
+      );
+      expect(call()).toMatchObject({
+        phase: 'ringing-incoming',
+        mode: 'p2p',
+        callId: 'c-ice',
+        iceServers: null,
+      });
+    });
+
+    it('the real system sender is honoured, with or without a resource', () => {
+      onCallTokenMessage(
+        tokenStanza(
+          { room: DM_ROOM, token: 'jwt', callId: 'c-ok', livekitUrl: 'wss://lk.example.com' },
+          `${APP}_${APP}@xmpp.example.com`
+        )
+      );
+      expect(call().livekitUrl).toBe('wss://lk.example.com');
+
+      store.dispatch(resetCall());
+      onCallTokenMessage(
+        tokenStanza({
+          room: DM_ROOM,
+          token: '',
+          callId: 'c-ok2',
+          mode: 'p2p',
+          ice: JSON.stringify(ICE),
+        })
+      );
+      expect(call().iceServers).toEqual(ICE);
+    });
+
+    it("a forged sender does not change anything else about the token (no URL/ice attributes: same as before)", () => {
+      onCallTokenMessage(tokenStanza({ room: DM_ROOM, token: 'jwt', callId: 'c-plain' }, FORGED));
+      expect(call()).toMatchObject({ phase: 'ringing-incoming', token: 'jwt', livekitUrl: null });
+    });
+
+    it("the caller's own token cannot smuggle a URL in from a forged sender either", () => {
+      store.dispatch(
+        startOutgoingCall({ roomJid: DM_JID, roomBareName: DM_ROOM, kind: 'video', peerXmppUsername: 'app_b' })
+      );
+      onCallTokenMessage(
+        tokenStanza(
+          { room: DM_ROOM, token: 'mine', callId: 'c-o', livekitUrl: 'wss://evil.example.org' },
+          FORGED
+        )
+      );
+      expect(call()).toMatchObject({ direction: 'outgoing', token: 'mine', livekitUrl: null });
+    });
+
+    it('when the session domain is known, the system account of another server is not trusted', () => {
+      setGlobalXmppClient({ host: 'xmpp.example.com' } as any);
+      try {
+        onCallTokenMessage(
+          tokenStanza(
+            { room: DM_ROOM, token: 'jwt', callId: 'c-fed', livekitUrl: 'wss://evil.example.org' },
+            `${APP}_${APP}@evil.example.org/x`
+          )
+        );
+        expect(call().livekitUrl).toBeNull();
+
+        store.dispatch(resetCall());
+        onCallTokenMessage(
+          tokenStanza({ room: DM_ROOM, token: 'jwt', callId: 'c-home', livekitUrl: 'wss://lk.example.com' })
+        );
+        expect(call().livekitUrl).toBe('wss://lk.example.com');
+      } finally {
+        setGlobalXmppClient(null);
+      }
+    });
   });
 
   it('a p2p token rings with an empty token, the ICE servers and the callId', () => {
