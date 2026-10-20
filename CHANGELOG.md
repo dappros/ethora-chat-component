@@ -6,10 +6,12 @@ All notable changes to this package are documented here. For cross-SDK release n
 
 ### Added
 
+- `config.features.userBlock` (default `false`) controls the "Block user" item in 1-1 chat menus and the `/v1/chats/blocked` calls behind it. The production backend does not serve that route yet, so the item is hidden unless a host opts in. `disableUserBlock: true` still hides it.
 - `config.receipts` (`{ mode, deliveryMaxRoomSize, readMaxRoomSize, maxAgeDays, coalesceMs }`) controls which delivery and read receipts this client sends. Defaults: `mode: 'auto'`, `deliveryMaxRoomSize: 20`, `readMaxRoomSize: 100`, `maxAgeDays: 7`, `coalesceMs: 1500`. `'off'` sends none; received receipts are still displayed.
 
 ### Changed
 
+- The "Block user" menu item is no longer shown by default. Set `config.features.userBlock: true` once your backend serves `/v1/chats/blocked`.
 - Delivery receipts are coalesced per room: the first message is acknowledged at once and a burst or a history replay collapses into one receipt for the newest message. Opening a room with 100 history messages sends at most two receipts instead of up to 100.
 - In `auto` mode, delivery receipts are skipped in rooms with more than 20 other members, read markers in rooms with more than 100, and old history is not acknowledged. Ticks in those rooms show "sent" or "delivered" from the other signals that do arrive.
 - Read markers are rate limited to one per 3 seconds per room; the final read position is always sent.

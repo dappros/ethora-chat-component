@@ -38,6 +38,13 @@ export const RoomMenu: FC<RoomMenuProps> = ({
   // room is muted - prod doesn't send `muted` yet, so offering it there
   // would just 404 on click. `disableRoomMute` lets a host hide it outright.
   const showMuteOption = isMuteSupported && !config?.disableRoomMute;
+  // Block also needs the host opt-in (config.features.userBlock); the
+  // disableUserBlock override always wins.
+  const showBlockOption =
+    !!canBlock &&
+    !!handleBlockClick &&
+    config?.features?.userBlock === true &&
+    !config?.disableUserBlock;
 
   const menuOptions = useMemo(
     () => [
@@ -53,7 +60,7 @@ export const RoomMenu: FC<RoomMenuProps> = ({
             },
           ]
         : []),
-      ...(canBlock && handleBlockClick
+      ...(showBlockOption && handleBlockClick
         ? [
             {
               label: t('action.block'),
@@ -88,7 +95,7 @@ export const RoomMenu: FC<RoomMenuProps> = ({
       handleLeaveClick,
       handleReportClick,
       handleBlockClick,
-      canBlock,
+      showBlockOption,
       t,
       showMuteOption,
       muted,

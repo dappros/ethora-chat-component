@@ -340,11 +340,14 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   );
   const peerProfileImage =
     peer?.profileImage || peerUsersSetEntry?.profileImage || '';
-  // Block is offered only for 1-1 private rooms with a resolvable peer. Hosts
-  // can hide it with config.disableUserBlock. Backends without the route (e.g.
-  // older prod) return 404, surfaced as an error toast.
+  // Block is offered only for 1-1 private rooms with a resolvable peer, and
+  // only when the host opts in with config.features.userBlock (the production
+  // backend does not serve the route yet). config.disableUserBlock always hides it.
   const canBlock =
-    isPrivateRoom && !!peer?.xmppUsername && !config?.disableUserBlock;
+    isPrivateRoom &&
+    !!peer?.xmppUsername &&
+    config?.features?.userBlock === true &&
+    !config?.disableUserBlock;
   const isRoomAllowedByType =
     isPrivateRoom && allowedRoomTypes.includes('private');
   const isRoomAllowed = isRoomAllowedByType;

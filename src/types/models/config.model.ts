@@ -384,6 +384,20 @@ export interface IConfig {
    * the backend predates the /v1/chats/blocked route).
    */
   disableUserBlock?: boolean;
+  /**
+   * Opt-in backend features. Each flag turns on client code that calls a route
+   * not every backend deployment serves yet, so the default keeps the control
+   * hidden rather than showing an action that fails.
+   */
+  features?: {
+    /**
+     * Show the "Block user" item in a 1-1 chat's menu and enable the
+     * /v1/chats/blocked calls behind it. Default false: the production backend
+     * does not serve that route yet. `disableUserBlock: true` still hides the
+     * item when this is true.
+     */
+    userBlock?: boolean;
+  };
   defaultRooms?: ConfigRoom[];
   /**
    * The "Files" tab shown in the sidebar alongside "Chats". Backed by

@@ -453,6 +453,20 @@ Below is a grouped reference for all `config` options.
 | `pushNotifications.softAsk` | `boolean` | Do not immediately trigger browser permission prompt. |
 | `pushNotifications.onClick` | `(params) => void \| Promise<void>` | Callback invoked when the user clicks an OS push notification (including cold start via URL marker). |
 
+### Backend compatibility
+
+Some features call routes that not every backend deployment serves yet. Each
+switch below keeps that client code off until your backend has the route. The
+defaults are the safe choice for a backend that has not been updated.
+
+| Option | Default | Why |
+| --- | --- | --- |
+| `features.userBlock` | `false` | `/v1/chats/blocked` is not served by the production backend yet (404), so the "Block user" item would always fail. Set `true` once your backend serves it. |
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `features` | `{ userBlock?: boolean }` | Opt-in backend features. `userBlock` (default `false`) shows the "Block user" item in 1-1 chat menus and enables the `/v1/chats/blocked` calls. `disableUserBlock: true` still hides the item. |
+
 ### Error handling and crash containment
 
 The SDK renders inside your application's React tree. Without a boundary, one
