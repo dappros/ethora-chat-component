@@ -301,7 +301,7 @@ describe('call-token handling: livekit, p2p and group', () => {
       const name = call().roomName as string;
       expect(name.startsWith('Ro man')).toBe(true);
       expect(name.length).toBeLessThanOrEqual(80);
-      expect(/[\u0000-\u001F‮]/.test(name)).toBe(false);
+      expect(Array.from(name).some((c) => c.charCodeAt(0) < 32 || c === String.fromCharCode(0x202e))).toBe(false);
     });
 
     it('a callerName from an untrusted sender is dropped; the call still rings', () => {

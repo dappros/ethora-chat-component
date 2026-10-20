@@ -39,7 +39,7 @@ export const looksLikeRawRoomName = (value: unknown): boolean => {
 
 // C0/C1 controls, bidi overrides/isolates and zero-width characters: none of
 // them belong in a name, and the bidi ones can make text read backwards.
-// eslint-disable-next-line no-control-regex
+// eslint-disable-next-line no-control-regex, no-irregular-whitespace
 const UNWANTED_CHARS = /[\u0000-\u001F\u007F-\u009F​-‏‪-‮⁠-⁤⁦-⁩﻿]/g;
 
 /**
