@@ -567,7 +567,12 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
 
       if (isOutgoingRoomMatch) {
         store.dispatch(
-          setOutgoingCallToken({ roomJid, token, callId: callId || null })
+          setOutgoingCallToken({
+            roomJid,
+            token,
+            callId: callId || null,
+            livekitUrl: attrs.livekitUrl,
+          })
         );
         return true;
       }
@@ -584,6 +589,7 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
           mode,
           isGroup: group,
           iceServers: attrs.iceServers,
+          livekitUrl: attrs.livekitUrl,
         })
       );
       return true;

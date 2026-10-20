@@ -121,6 +121,63 @@ describe('VideoCallOverlay: which transport renders', () => {
     });
   });
 
+  it('callee: a stanza livekitUrl makes the call answerable with NO config URL', () => {
+    act(() => {
+      store.dispatch(setConfig({ videoCalls: { enabled: true } } as any));
+      store.dispatch(
+        setIncomingCallToken({
+          roomJid: 'a-b@conference.x',
+          roomName: 'Bob',
+          token: 'jwt',
+          callId: 'cu',
+          livekitUrl: 'wss://from-stanza.example.com',
+        })
+      );
+    });
+    mount();
+    act(() => {
+      fireEvent.click(screen.getByLabelText('Accept call'));
+    });
+    expect(screen.getByTestId('livekit-session')).toBeTruthy();
+    expect(h.livekitProps).toMatchObject({
+      token: 'jwt',
+      livekitUrl: 'wss://from-stanza.example.com',
+    });
+  });
+
+  it('callee: the stanza livekitUrl wins over the config URL', () => {
+    act(() => {
+      store.dispatch(
+        setIncomingCallToken({
+          roomJid: 'a-b@conference.x',
+          roomName: 'Bob',
+          token: 'jwt',
+          callId: 'cw',
+          livekitUrl: 'wss://from-stanza.example.com',
+        })
+      );
+    });
+    mount();
+    act(() => {
+      fireEvent.click(screen.getByLabelText('Accept call'));
+    });
+    expect(h.livekitProps.livekitUrl).toBe('wss://from-stanza.example.com');
+  });
+
+  it('callee: with neither a stanza URL nor a config URL there is no session to join', () => {
+    act(() => {
+      store.dispatch(setConfig({ videoCalls: { enabled: true } } as any));
+      store.dispatch(
+        setIncomingCallToken({ roomJid: 'a-b@conference.x', roomName: 'Bob', token: 'jwt', callId: 'cn' })
+      );
+    });
+    mount();
+    act(() => {
+      fireEvent.click(screen.getByLabelText('Accept call'));
+    });
+    expect(screen.queryByTestId('livekit-session')).toBeNull();
+  });
+
   it('group: renders the LiveKit session with isGroup=true', () => {
     act(() => {
       store.dispatch(

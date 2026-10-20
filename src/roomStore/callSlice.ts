@@ -164,6 +164,8 @@ const callSlice = createSlice({
         mode?: CallMode;
         isGroup?: boolean;
         iceServers?: IceServerConfig[] | null;
+        // LiveKit URL from the call-token stanza; wins over the host config.
+        livekitUrl?: string | null;
       }>
     ) {
       state.phase = 'ringing-incoming';
@@ -183,7 +185,7 @@ const callSlice = createSlice({
       state.connectedAt = null;
       state.mode = action.payload.mode || 'livekit';
       state.isGroup = action.payload.isGroup === true;
-      state.livekitUrl = null;
+      state.livekitUrl = action.payload.livekitUrl || null;
       state.iceServers = action.payload.iceServers || null;
     },
     setOutgoingCallToken(
@@ -192,6 +194,7 @@ const callSlice = createSlice({
         roomJid: string;
         token: string;
         callId?: string | null;
+        livekitUrl?: string | null;
       }>
     ) {
       if (state.direction !== 'outgoing') return;
@@ -203,6 +206,8 @@ const callSlice = createSlice({
       state.roomJid = action.payload.roomJid;
       state.token = action.payload.token;
       if (action.payload.callId) state.callId = action.payload.callId;
+      // The stanza's URL, when present, wins over the create response's.
+      if (action.payload.livekitUrl) state.livekitUrl = action.payload.livekitUrl;
       state.error = null;
       state.startedAt = state.startedAt || Date.now();
     },

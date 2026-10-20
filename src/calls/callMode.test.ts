@@ -54,7 +54,35 @@ describe('parseCallTokenAttrs', () => {
       mode: 'livekit',
       group: false,
       iceServers: null,
+      livekitUrl: null,
     });
+  });
+
+  it('reads livekitUrl from a livekit stanza, trimmed; missing or empty is not set', () => {
+    expect(
+      parseCallTokenAttrs({ token: 't', room: 'r', livekitUrl: ' wss://lk.example.com ' })
+        .livekitUrl
+    ).toBe('wss://lk.example.com');
+    expect(
+      parseCallTokenAttrs({ token: 't', room: 'r', mode: 'livekit', group: 'true', livekitUrl: 'wss://lk.example.com' })
+        .livekitUrl
+    ).toBe('wss://lk.example.com');
+    expect(parseCallTokenAttrs({ token: 't', room: 'r' }).livekitUrl).toBeNull();
+    expect(
+      parseCallTokenAttrs({ token: 't', room: 'r', livekitUrl: '   ' }).livekitUrl
+    ).toBeNull();
+  });
+
+  it('rejects a livekitUrl that is not a websocket / http(s) URL, and ignores it for p2p', () => {
+    for (const bad of ['javascript:alert(1)', 'data:text/html,x', 'lk.example.com', 'wss://a b', 'ftp://x']) {
+      expect(
+        parseCallTokenAttrs({ token: 't', room: 'r', livekitUrl: bad }).livekitUrl
+      ).toBeNull();
+    }
+    expect(
+      parseCallTokenAttrs({ room: 'r', mode: 'p2p', livekitUrl: 'wss://lk.example.com' })
+        .livekitUrl
+    ).toBeNull();
   });
 
   it('reads a p2p stanza: empty token, ice list as a JSON string', () => {
@@ -145,6 +173,9 @@ describe('parseCallCreateResponse', () => {
     expect(result.group).toBe(true);
     expect(result.livekitUrl).toBe('wss://lk.example.com');
     expect(result.iceServers).toEqual([]);
+    expect(
+      parseCallCreateResponse({ callId: 'x', livekitUrl: 'javascript:1' }, 'video').livekitUrl
+    ).toBeNull();
   });
 
   it('an old server answer (no mode) falls back to livekit and the requested kind', () => {

@@ -92,6 +92,57 @@ describe('call-token handling: livekit, p2p and group', () => {
     });
   });
 
+  it('a livekit token carries the stanza livekitUrl into the incoming call; absent means unset', () => {
+    onCallTokenMessage(
+      tokenStanza({ room: DM_ROOM, token: 'jwt', callId: 'c-url', livekitUrl: 'wss://lk.example.com' })
+    );
+    expect(call()).toMatchObject({ mode: 'livekit', livekitUrl: 'wss://lk.example.com' });
+
+    store.dispatch(resetCall());
+    onCallTokenMessage(tokenStanza({ room: DM_ROOM, token: 'jwt', callId: 'c-nourl' }));
+    expect(call().livekitUrl).toBeNull();
+
+    store.dispatch(resetCall());
+    onCallTokenMessage(
+      tokenStanza({ room: DM_ROOM, token: 'jwt', callId: 'c-bad', livekitUrl: 'javascript:alert(1)' })
+    );
+    expect(call()).toMatchObject({ phase: 'ringing-incoming', livekitUrl: null });
+  });
+
+  it('a group livekit token carries the URL too', () => {
+    onCallTokenMessage(
+      tokenStanza({ room: GROUP_ROOM, token: 'jwt', callId: 'c-g', group: 'true', livekitUrl: 'wss://lk.example.com' })
+    );
+    expect(call()).toMatchObject({ isGroup: true, livekitUrl: 'wss://lk.example.com' });
+  });
+
+  it("the caller's own livekit token URL wins over the create response's", () => {
+    store.dispatch(
+      startOutgoingCall({ roomJid: DM_JID, roomBareName: DM_ROOM, kind: 'video', peerXmppUsername: 'app_b' })
+    );
+    store.dispatch(
+      setOutgoingCallRoute({
+        startedAt: call().startedAt,
+        callId: 'c-out',
+        mode: 'livekit',
+        livekitUrl: 'wss://from-response.example.com',
+      })
+    );
+    onCallTokenMessage(
+      tokenStanza({ room: DM_ROOM, token: 'mine', callId: 'c-out', livekitUrl: 'wss://from-stanza.example.com' })
+    );
+    expect(call()).toMatchObject({
+      direction: 'outgoing',
+      phase: 'connecting',
+      token: 'mine',
+      livekitUrl: 'wss://from-stanza.example.com',
+    });
+
+    // A token without the attribute leaves the known URL alone.
+    onCallTokenMessage(tokenStanza({ room: DM_ROOM, token: 'mine2', callId: 'c-out' }));
+    expect(call().livekitUrl).toBe('wss://from-stanza.example.com');
+  });
+
   it('a p2p token rings with an empty token, the ICE servers and the callId', () => {
     onCallTokenMessage(
       tokenStanza({

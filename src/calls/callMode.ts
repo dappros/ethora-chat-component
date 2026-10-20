@@ -72,6 +72,16 @@ export const normalizeIceServers = (raw: unknown): IceServerConfig[] => {
   return out;
 };
 
+/**
+ * A LiveKit server URL as the backend publishes it. Only websocket / http(s)
+ * URLs are accepted: the value ends up as the connect target of the media
+ * session, so anything else (javascript:, data:, garbage) is treated as unset.
+ */
+export const normalizeLivekitUrl = (raw: unknown): string | null => {
+  const text = typeof raw === 'string' ? raw.trim() : '';
+  return /^(wss?|https?):\/\/[^\s]+$/i.test(text) ? text : null;
+};
+
 const isTrueish = (value: unknown): boolean => {
   const text = String(value ?? '')
     .trim()
@@ -91,6 +101,11 @@ export interface ParsedCallTokenAttrs {
   group: boolean;
   /** Callee's ICE servers for `mode=p2p`, null when absent or unparseable. */
   iceServers: IceServerConfig[] | null;
+  /**
+   * Public LiveKit wss URL for `mode=livekit`, null when the server did not
+   * send one (older backends), it is empty, or it is not a usable URL.
+   */
+  livekitUrl: string | null;
 }
 
 /**
@@ -121,6 +136,7 @@ export const parseCallTokenAttrs = (
     // A p2p call is 1:1 by construction; never let a stray attribute flip it.
     group: mode === 'livekit' && isTrueish(a.group),
     iceServers: mode === 'p2p' && iceList.length > 0 ? iceList : null,
+    livekitUrl: mode === 'livekit' ? normalizeLivekitUrl(a.livekitUrl) : null,
   };
 };
 
@@ -169,7 +185,7 @@ export const parseCallCreateResponse = (
     throw new Error('Call response is missing callId');
   }
   const ttl = Number(d.ttlSeconds);
-  const livekitUrl = typeof d.livekitUrl === 'string' ? d.livekitUrl.trim() : '';
+  const livekitUrl = normalizeLivekitUrl(d.livekitUrl);
   return {
     callId,
     mode,
@@ -178,7 +194,7 @@ export const parseCallCreateResponse = (
         ? (kindRaw as CallKindName)
         : fallbackKind,
     group: typeof d.group === 'boolean' ? d.group : null,
-    livekitUrl: livekitUrl || null,
+    livekitUrl,
     iceServers: mode === 'p2p' ? normalizeIceServers(d.iceServers) : [],
     ttlSeconds: Number.isFinite(ttl) && ttl > 0 ? ttl : null,
   };
