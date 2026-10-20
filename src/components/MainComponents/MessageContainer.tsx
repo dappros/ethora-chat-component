@@ -54,6 +54,11 @@ const MessageContainerBase: FC<MessageContainerProps> = ({
   const { CustomDaySeparator, CustomNewMessageLabel } = useCustomComponents();
   const t = useT();
   const isUser = message.user.id === xmppUsername;
+  // Must be read unconditionally, before the early returns below
+  // (react-hooks/rules-of-hooks).
+  const blockedUserIds = useSelector(
+    (state: RootState) => state.chatSettingStore.blockedUserIds
+  );
 
   const messageDate = useMemo(() => new Date(message.date), [message.date]);
   // Key the memo on the raw date value: a `new Date()` instance created per
@@ -124,9 +129,6 @@ const MessageContainerBase: FC<MessageContainerProps> = ({
   }
 
   const senderLocal = (message.user?.id ?? '').split('@')[0];
-  const blockedUserIds = useSelector(
-    (state: RootState) => state.chatSettingStore.blockedUserIds
-  );
   const isSenderBlocked = !isUser && blockedUserIds?.includes(senderLocal);
 
   if (isSenderBlocked) {
