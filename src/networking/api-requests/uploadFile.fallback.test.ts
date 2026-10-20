@@ -11,9 +11,13 @@ vi.mock('../apiClient', () => ({
   default: { post: (...args: any[]) => postMock(...args), get: vi.fn() },
   appToken: 'app-token',
 }));
+// Mutable so each test can pick a `config.uploads.endpoint` mode.
+const storeState = vi.hoisted(() => ({ config: undefined as unknown }));
 vi.mock('../../roomStore', () => ({
   store: {
-    getState: () => ({ chatSettingStore: { user: { token: 'tok' } } }),
+    getState: () => ({
+      chatSettingStore: { user: { token: 'tok' }, config: storeState.config },
+    }),
   },
 }));
 vi.mock('./user.api', () => ({ getMyUser: vi.fn() }));
@@ -47,8 +51,13 @@ const httpError = (status: number) => ({ response: { status } });
 
 beforeEach(() => {
   postMock.mockReset();
+  storeState.config = undefined;
   vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
+
+const useEndpoint = (endpoint: 'auto' | 'secure' | 'legacy') => {
+  storeState.config = { uploads: { endpoint } };
+};
 
 describe('uploadFile - secure/legacy endpoint fallback', () => {
   it('uses /v2/files/secure with the chat name derived from the JID', async () => {
@@ -166,5 +175,97 @@ describe('uploadFile - clientEncrypted flag', () => {
 
     const [, body] = postMock.mock.calls[0];
     expect((body as FormData).get('clientEncrypted')).toBeNull();
+  });
+});
+
+describe('uploadFile - config.uploads.endpoint', () => {
+  it("'legacy' posts straight to /v1/files/ without chatName and never calls the secure route", async () => {
+    useEndpoint('legacy');
+    const uploadFile = await loadUploadFile();
+    const legacyResponse = { data: { results: [{ location: 'legacy' }] } };
+    postMock.mockResolvedValue(legacyResponse);
+
+    const result = await uploadFile(makeFormData(), ROOM_JID);
+
+    expect(result).toBe(legacyResponse);
+    expect(postMock).toHaveBeenCalledTimes(1);
+    const [endpoint, body] = postMock.mock.calls[0];
+    expect(endpoint).toBe('/v1/files/');
+    expect((body as FormData).get('chatName')).toBeNull();
+    expect((body as FormData).get('files')).toBeTruthy();
+  });
+
+  it("'legacy' does not retry or touch the secure route when the legacy upload fails", async () => {
+    useEndpoint('legacy');
+    const uploadFile = await loadUploadFile();
+    postMock.mockRejectedValueOnce(httpError(500));
+
+    await expect(uploadFile(makeFormData(), ROOM_JID)).rejects.toMatchObject({
+      response: { status: 500 },
+    });
+    expect(postMock).toHaveBeenCalledTimes(1);
+    expect(postMock.mock.calls[0][0]).toBe('/v1/files/');
+  });
+
+  it("'legacy' keeps the clientEncrypted flag", async () => {
+    useEndpoint('legacy');
+    const uploadFile = await loadUploadFile();
+    postMock.mockResolvedValue({ data: { results: [{ location: 'l' }] } });
+
+    await uploadFile(makeFormData(), ROOM_JID, { clientEncrypted: true });
+
+    const [, body] = postMock.mock.calls[0];
+    expect((body as FormData).get('clientEncrypted')).toBe('true');
+  });
+
+  it("'secure' uses the secure route with chatName and returns its result", async () => {
+    useEndpoint('secure');
+    const uploadFile = await loadUploadFile();
+    const secureResponse = { data: { results: [{ location: 'secure' }] } };
+    postMock.mockResolvedValue(secureResponse);
+
+    const result = await uploadFile(makeFormData(), ROOM_JID);
+
+    expect(result).toBe(secureResponse);
+    expect(postMock).toHaveBeenCalledTimes(1);
+    const [endpoint, body] = postMock.mock.calls[0];
+    expect(endpoint).toBe('/v2/files/secure');
+    expect((body as FormData).get('chatName')).toBe('room-id');
+  });
+
+  it("'secure' rethrows a 404 instead of falling back to /v1/files/", async () => {
+    useEndpoint('secure');
+    const uploadFile = await loadUploadFile();
+    postMock.mockRejectedValue(httpError(404));
+
+    await expect(uploadFile(makeFormData(), ROOM_JID)).rejects.toMatchObject({
+      response: { status: 404 },
+    });
+    expect(postMock).toHaveBeenCalledTimes(1);
+    expect(postMock.mock.calls[0][0]).toBe('/v2/files/secure');
+  });
+
+  it("'secure' keeps probing the secure route on every upload (no session latch)", async () => {
+    useEndpoint('secure');
+    const uploadFile = await loadUploadFile();
+    postMock.mockRejectedValue(httpError(404));
+
+    await expect(uploadFile(makeFormData(), ROOM_JID)).rejects.toBeTruthy();
+    await expect(uploadFile(makeFormData(), ROOM_JID)).rejects.toBeTruthy();
+
+    expect(postMock).toHaveBeenCalledTimes(2);
+    expect(postMock.mock.calls.every(([endpoint]) => endpoint === '/v2/files/secure')).toBe(true);
+  });
+
+  it("an unknown value behaves like 'auto' and still falls back", async () => {
+    storeState.config = { uploads: { endpoint: 'bogus' } };
+    const uploadFile = await loadUploadFile();
+    postMock
+      .mockRejectedValueOnce(httpError(404))
+      .mockResolvedValueOnce({ data: { results: [] } });
+
+    await uploadFile(makeFormData(), ROOM_JID);
+
+    expect(postMock.mock.calls[1][0]).toBe('/v1/files/');
   });
 });

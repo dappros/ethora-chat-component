@@ -462,10 +462,12 @@ defaults are the safe choice for a backend that has not been updated.
 | Option | Default | Why |
 | --- | --- | --- |
 | `features.userBlock` | `false` | `/v1/chats/blocked` is not served by the production backend yet (404), so the "Block user" item would always fail. Set `true` once your backend serves it. |
+| `uploads.endpoint` | `'auto'` | `'auto'` tries `/v2/files/secure` and falls back to `/v1/files/`. Secure-files URLs can be unreadable on a backend that is not updated, so `'legacy'` posts straight to `/v1/files/`. `'secure'` never falls back. |
 
 | Option | Type | Description |
 | --- | --- | --- |
 | `features` | `{ userBlock?: boolean }` | Opt-in backend features. `userBlock` (default `false`) shows the "Block user" item in 1-1 chat menus and enables the `/v1/chats/blocked` calls. `disableUserBlock: true` still hides the item. |
+| `uploads` | `{ endpoint?: 'auto' \| 'secure' \| 'legacy' }` | Attachment upload route. `'auto'` (default) tries `POST /v2/files/secure` and falls back to `POST /v1/files/` when the backend rejects it. `'legacy'` always uses `/v1/files/` (no `chatName`); `'secure'` uses the secure route and never falls back. |
 
 ### Error handling and crash containment
 

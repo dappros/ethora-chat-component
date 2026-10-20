@@ -236,25 +236,36 @@ export interface UploadFileOptions {
   onProgress?: (percent: number) => void;
 }
 
+// config.uploads.endpoint: 'auto' (default) tries secure and falls back,
+// 'legacy' never calls the secure route, 'secure' calls it and never falls back.
+const resolveUploadEndpointMode = (): 'auto' | 'secure' | 'legacy' => {
+  const mode = store.getState().chatSettingStore.config?.uploads?.endpoint;
+  return mode === 'legacy' || mode === 'secure' ? mode : 'auto';
+};
+
 export async function uploadFile(
   formData: FormData,
   activeRoomJID: string,
   options: UploadFileOptions = {}
 ) {
   const token = store.getState().chatSettingStore.user.token;
+  const endpointMode = resolveUploadEndpointMode();
 
   if (options.clientEncrypted) {
     formData.append('clientEncrypted', 'true');
   }
 
-  if (!secureUploadUnavailable) {
+  if (
+    endpointMode === 'secure' ||
+    (endpointMode === 'auto' && !secureUploadUnavailable)
+  ) {
     const secureData = cloneFormData(formData);
     secureData.append('chatName', activeRoomJID.split('@')[0]);
 
     try {
       return await postUpload(SECURE_UPLOAD_ENDPOINT, secureData, token, options.onProgress);
     } catch (error) {
-      if (!canFallBackToLegacyUpload(error)) throw error;
+      if (endpointMode === 'secure' || !canFallBackToLegacyUpload(error)) throw error;
 
       secureUploadUnavailable = true;
       console.warn(

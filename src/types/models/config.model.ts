@@ -228,6 +228,17 @@ export interface IConfig {
     /** `accept` attribute handed to the file picker. Omit to allow anything. */
     accept?: string;
   };
+  /**
+   * Which upload route chat attachments use. Default `'auto'`: try
+   * `POST /v2/files/secure` and fall back to `POST /v1/files/` if the backend
+   * rejects it. `'legacy'` posts straight to `/v1/files/` and never calls the
+   * secure route; use it on a backend whose secure-files URLs cannot be read
+   * yet. `'secure'` uses the secure route only and reports its errors without
+   * falling back.
+   */
+  uploads?: {
+    endpoint?: 'auto' | 'secure' | 'legacy';
+  };
   /** First-page PDF thumbnails inside message bubbles. */
   pdfPreview?: {
     /** Set false to always show the static document card. Default true. */

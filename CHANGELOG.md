@@ -6,6 +6,7 @@ All notable changes to this package are documented here. For cross-SDK release n
 
 ### Added
 
+- `config.uploads.endpoint` (`'auto'` default, `'legacy'`, `'secure'`) selects the upload route. `'legacy'` posts straight to `/v1/files/` and never calls `/v2/files/secure`; `'secure'` never falls back. `'auto'` keeps the previous secure-then-fallback behaviour.
 - `config.features.userBlock` (default `false`) controls the "Block user" item in 1-1 chat menus and the `/v1/chats/blocked` calls behind it. The production backend does not serve that route yet, so the item is hidden unless a host opts in. `disableUserBlock: true` still hides it.
 - `config.receipts` (`{ mode, deliveryMaxRoomSize, readMaxRoomSize, maxAgeDays, coalesceMs }`) controls which delivery and read receipts this client sends. Defaults: `mode: 'auto'`, `deliveryMaxRoomSize: 20`, `readMaxRoomSize: 100`, `maxAgeDays: 7`, `coalesceMs: 1500`. `'off'` sends none; received receipts are still displayed.
 
