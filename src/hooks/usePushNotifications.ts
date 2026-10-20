@@ -188,9 +188,17 @@ const usePushNotifications = (
         .split('@')[0]
         .trim();
       let peer = parsed.callerXmppUsername;
-      if (!peer && parsed.roomBareName && parsed.roomBareName.includes('-')) {
+      // A 1:1 room is named "<userA>-<userB>"; a group has no single peer.
+      if (
+        !parsed.isGroup &&
+        !peer &&
+        parsed.roomBareName &&
+        parsed.roomBareName.includes('-')
+      ) {
         const parts = parsed.roomBareName.split('-');
-        peer = parts.find((p) => p && p !== selfLocal) || null;
+        if (parts.length === 2) {
+          peer = parts.find((p) => p && p !== selfLocal) || null;
+        }
       }
 
       if (parsed.token) {
@@ -202,7 +210,8 @@ const usePushNotifications = (
             token: parsed.token,
             kind: parsed.kind,
             callId: parsed.callId,
-            peerXmppUsername: peer || null,
+            peerXmppUsername: parsed.isGroup ? null : peer || null,
+            isGroup: parsed.isGroup,
           })
         );
         return;

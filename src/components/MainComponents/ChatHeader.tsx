@@ -34,7 +34,9 @@ import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { useT, useUiLocale } from '../../i18n/useT';
 import { formatNumberWithCommas } from '../../helpers/formatNumberWithCommas';
 import { appendFileToken } from '../../helpers/secureFileUrl';
-import { blockUser, createChatCall, leaveRoom } from '../../networking/api-requests/rooms.api';
+import { blockUser, leaveRoom } from '../../networking/api-requests/rooms.api';
+import { requestOutgoingCall } from '../../calls/startCall';
+import { isCallRoomTypeAllowed } from '../../calls/callMode';
 import { useToast } from '../../context/ToastContext';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
 import { setCallError, startOutgoingCall } from '../../roomStore/callSlice';
@@ -313,9 +315,9 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   );
 
   const videoCallsConfig = config?.videoCalls;
-  const allowedRoomTypes = videoCallsConfig?.allowedRoomTypes || ['private'];
   const isVideoCallsEnabled = videoCallsConfig?.enabled === true;
   const isPrivateRoom = currentRoom?.type === 'private';
+  const isGroupRoom = currentRoom?.type === 'group';
   const onlineUsers = useRoomPresence(currentRoom?.jid);
   const myXmppUsername = stateUser?.xmppUsername || '';
   const peer = isPrivateRoom
@@ -348,9 +350,12 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     !!peer?.xmppUsername &&
     config?.features?.userBlock === true &&
     !config?.disableUserBlock;
-  const isRoomAllowedByType =
-    isPrivateRoom && allowedRoomTypes.includes('private');
-  const isRoomAllowed = isRoomAllowedByType;
+  // 1:1 chats and members-only group chats can call, subject to the host's
+  // videoCalls.allowedRoomTypes (default: both). Public rooms never do.
+  const isRoomAllowed = isCallRoomTypeAllowed(
+    currentRoom?.type,
+    videoCallsConfig?.allowedRoomTypes
+  );
   const hasLivekitUrl = Boolean(videoCallsConfig?.livekitUrl?.trim());
   // Optional chain: a host or test store may not mount the call slice.
   const isCallBusy = call?.phase !== 'idle';
@@ -468,11 +473,15 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
 
       // Resolve the peer xmpp localpart so we can XMPP-signal them when
       // we hang up / cancel - without this they'd keep ringing forever.
+      // A group call has no single peer to signal; the server rings every
+      // member and LiveKit carries the call.
       const selfLocal = String(stateUser?.xmppUsername || '').split('@')[0];
-      const peer = (currentRoom.members || []).find((member) => {
-        const mLocal = String(member?.xmppUsername || '').split('@')[0];
-        return mLocal && mLocal !== selfLocal;
-      });
+      const peer = isGroupRoom
+        ? undefined
+        : (currentRoom.members || []).find((member) => {
+            const mLocal = String(member?.xmppUsername || '').split('@')[0];
+            return mLocal && mLocal !== selfLocal;
+          });
       const peerXmppUsername = peer?.xmppUsername || null;
 
       // Don't show "deleted" / "Deleted User" / "Unknown" as the dial
@@ -499,6 +508,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
           roomBareName: chatName,
           kind,
           peerXmppUsername,
+          isGroup: isGroupRoom,
         })
       );
 
@@ -514,7 +524,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       }
 
       try {
-        await createChatCall(chatName, { kind });
+        await requestOutgoingCall({ chatName, kind, peerXmppUsername });
       } catch (error) {
         const message =
           error instanceof Error ? error.message : 'Failed to create call';
@@ -527,6 +537,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       currentRoom?.jid,
       currentRoom?.name,
       currentRoom?.members,
+      isGroupRoom,
       stateUser?.xmppUsername,
       dispatch,
     ]
