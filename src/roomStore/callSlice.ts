@@ -1,4 +1,5 @@
 import { PayloadAction, createSlice } from '@reduxjs/toolkit';
+import type { CallMode, IceServerConfig } from '../calls/callMode';
 
 export type CallPhase =
   | 'idle'
@@ -40,6 +41,19 @@ export interface CallState {
   // When the call actually connected (phase -> 'in-call'). Null until then.
   // Used to compute a duration for the local "call ended" log fallback.
   connectedAt: number | null;
+  // Transport of this call. `livekit` is the legacy path (and the only one for
+  // group rooms); `p2p` is our own WebRTC peer connection for 1:1. Decided by
+  // the server (create response for the caller, call-token `mode` for the
+  // callee), defaults to livekit so older servers behave exactly as before.
+  mode: CallMode;
+  // Group room call (always LiveKit): more than two participants, so the
+  // session must not assume the call is over when one remote participant leaves.
+  isGroup: boolean;
+  // Public LiveKit wss URL the server reported in the create response. Wins
+  // over config.videoCalls.livekitUrl when present. Caller side only.
+  livekitUrl: string | null;
+  // ICE servers (STUN/TURN with ephemeral credentials) for a p2p call.
+  iceServers: IceServerConfig[] | null;
 }
 
 const initialState: CallState = {
@@ -57,6 +71,10 @@ const initialState: CallState = {
   error: null,
   startedAt: null,
   connectedAt: null,
+  mode: 'livekit',
+  isGroup: false,
+  livekitUrl: null,
+  iceServers: null,
 };
 
 const resetState = (): CallState => ({ ...initialState });
@@ -73,6 +91,7 @@ const callSlice = createSlice({
         roomBareName?: string | null;
         kind?: CallKind;
         peerXmppUsername?: string | null;
+        isGroup?: boolean;
       }>
     ) {
       state.phase = 'requesting';
@@ -94,6 +113,43 @@ const callSlice = createSlice({
       state.error = null;
       state.startedAt = Date.now();
       state.connectedAt = null;
+      state.mode = 'livekit';
+      state.isGroup = action.payload.isGroup === true;
+      state.livekitUrl = null;
+      state.iceServers = null;
+    },
+    // The create response told the caller how the call is carried. Applied
+    // only to the very call that asked (startedAt must match), so a late
+    // response for a call the user already cancelled cannot leak into the next.
+    setOutgoingCallRoute(
+      state,
+      action: PayloadAction<{
+        startedAt: number | null;
+        callId: string | null;
+        mode: CallMode;
+        group?: boolean | null;
+        livekitUrl?: string | null;
+        iceServers?: IceServerConfig[] | null;
+      }>
+    ) {
+      if (state.direction !== 'outgoing') return;
+      if (action.payload.startedAt !== state.startedAt) return;
+      // The LiveKit call-token can overtake the HTTP response, so a livekit
+      // route may still be applied once the phase has moved on to
+      // 'connecting'. A p2p route only makes sense while still dialling.
+      if (state.phase !== 'requesting') {
+        if (state.phase !== 'connecting' || action.payload.mode !== 'livekit') {
+          return;
+        }
+      }
+      state.mode = action.payload.mode;
+      if (action.payload.callId) state.callId = action.payload.callId;
+      if (typeof action.payload.group === 'boolean') {
+        state.isGroup = action.payload.group;
+      }
+      state.livekitUrl = action.payload.livekitUrl || null;
+      state.iceServers =
+        action.payload.mode === 'p2p' ? action.payload.iceServers || [] : null;
     },
     setIncomingCallToken(
       state,
@@ -105,6 +161,9 @@ const callSlice = createSlice({
         kind?: CallKind;
         callId?: string | null;
         peerXmppUsername?: string | null;
+        mode?: CallMode;
+        isGroup?: boolean;
+        iceServers?: IceServerConfig[] | null;
       }>
     ) {
       state.phase = 'ringing-incoming';
@@ -122,6 +181,10 @@ const callSlice = createSlice({
       state.error = null;
       state.startedAt = Date.now();
       state.connectedAt = null;
+      state.mode = action.payload.mode || 'livekit';
+      state.isGroup = action.payload.isGroup === true;
+      state.livekitUrl = null;
+      state.iceServers = action.payload.iceServers || null;
     },
     setOutgoingCallToken(
       state,
@@ -200,6 +263,7 @@ export const {
   startOutgoingCall,
   setIncomingCallToken,
   setOutgoingCallToken,
+  setOutgoingCallRoute,
   acceptIncomingCall,
   declineIncomingCall,
   endCall,
