@@ -31,6 +31,7 @@ import {
 } from '../roomStore/roomsSlice';
 import { setIncomingCallToken } from '../roomStore/callSlice';
 import { isCallPush, parseCallPush } from '../helpers/callPush';
+import { safeCallName } from '../calls/callDisplay';
 import { store } from '../roomStore';
 import {
   resolveNotificationRoomName,
@@ -188,21 +189,32 @@ const usePushNotifications = (
         .split('@')[0]
         .trim();
       let peer = parsed.callerXmppUsername;
-      if (!peer && parsed.roomBareName && parsed.roomBareName.includes('-')) {
+      // A 1:1 room is named "<userA>-<userB>"; a group has no single peer.
+      if (
+        !parsed.isGroup &&
+        !peer &&
+        parsed.roomBareName &&
+        parsed.roomBareName.includes('-')
+      ) {
         const parts = parsed.roomBareName.split('-');
-        peer = parts.find((p) => p && p !== selfLocal) || null;
+        if (parts.length === 2) {
+          peer = parts.find((p) => p && p !== selfLocal) || null;
+        }
       }
 
       if (parsed.token) {
         dispatch(
           setIncomingCallToken({
             roomJid: roomJid || parsed.roomRef || '',
-            roomName: parsed.callerName || parsed.roomBareName,
+            // callerName is untrusted push text: sanitised, and never a raw
+            // chat name (the call slice also refuses those for roomName).
+            roomName: safeCallName(parsed.callerName) || parsed.roomBareName,
             roomBareName: parsed.roomBareName,
             token: parsed.token,
             kind: parsed.kind,
             callId: parsed.callId,
-            peerXmppUsername: peer || null,
+            peerXmppUsername: parsed.isGroup ? null : peer || null,
+            isGroup: parsed.isGroup,
           })
         );
         return;

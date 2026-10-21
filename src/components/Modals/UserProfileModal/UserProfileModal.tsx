@@ -55,7 +55,8 @@ import {
 import { LANGUAGE_OPTIONS } from '../../../helpers/constants/LANGUAGE_OPTIONS';
 import { useToast } from '../../../context/ToastContext';
 import { createRoomFromApi } from '../../../helpers/createRoomFromApi';
-import { createChatCall } from '../../../networking/api-requests/rooms.api';
+import { requestOutgoingCall } from '../../../calls/startCall';
+import { isCallRoomTypeAllowed } from '../../../calls/callMode';
 import { setCallError, startOutgoingCall } from '../../../roomStore/callSlice';
 import { sendCallInviteSignal } from '../../../networking/callTokenStanza';
 import { useUsersSet } from '../../../hooks/useRoomState';
@@ -103,7 +104,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const canCall =
     videoCallsConfig?.enabled === true &&
     Boolean(videoCallsConfig?.livekitUrl?.trim()) &&
-    (videoCallsConfig?.allowedRoomTypes || ['private']).includes('private');
+    isCallRoomTypeAllowed('private', videoCallsConfig?.allowedRoomTypes);
   const isAudioCallsEnabled =
     canCall && videoCallsConfig?.enableAudioCalls === true;
   const isCallBusy = callPhase !== 'idle';
@@ -371,7 +372,11 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
       dispatch(setActiveModal());
 
       try {
-        await createChatCall(room.bareName, { kind });
+        await requestOutgoingCall({
+          chatName: room.bareName,
+          kind,
+          peerXmppUsername: room.peerXmppUsername || null,
+        });
       } catch (error) {
         const message =
           error instanceof Error ? error.message : t('toast.failedToCreateCall');

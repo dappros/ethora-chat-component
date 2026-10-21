@@ -9,6 +9,7 @@ import {
   RoomMember,
 } from '../../types/types';
 import http from '../apiClient';
+import { CallCreateResult, parseCallCreateResponse } from '../../calls/callMode';
 import { createSharedRequest, SharedRequest } from '../sharedRequest';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
 
@@ -468,18 +469,19 @@ export async function deleteRoom(name: string) {
 // POST /v1/chats/call/create/{chatName}
 // Swagger documents the body as `additionalProperties: true` - we forward
 // `kind: 'audio' | 'video'` so the server can stamp it on the broadcast
-// call-token stanza for the callee. When the server doesn't recognize the
-// field both sides still fall through to a video call (the default), which
-// matches the prior single-mode behavior.
+// call-token stanza for the callee. We never send a transport: the server
+// decides (`p2p` for private chats when it has P2P enabled, `livekit`
+// otherwise and always for group chats) and tells us in the response. An old
+// server answers with no `mode`, which parses as `livekit`.
 export async function createChatCall(
   chatName: string,
   options?: { kind?: 'audio' | 'video' }
-): Promise<void> {
+): Promise<CallCreateResult> {
   const token = store.getState().chatSettingStore.user.token || '';
   const kind = options?.kind || 'video';
 
   try {
-    await http.post(
+    const response = await http.post(
       `/v1/chats/call/create/${chatName}`,
       { kind },
       {
@@ -488,6 +490,7 @@ export async function createChatCall(
         },
       }
     );
+    return parseCallCreateResponse(response?.data, kind);
   } catch (error) {
     throw new Error('Error creating chat call');
   }

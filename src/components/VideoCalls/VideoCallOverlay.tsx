@@ -23,6 +23,10 @@ import { buildLocalCallLogMessage } from '../../helpers/callLogMessage';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { useResolvedColorScheme, useThemeTokenStyle } from '../../styles/tokens';
 import { VideoCallSession } from './VideoCallSession';
+import { P2PCallSession } from './P2PCallSession';
+import { P2PCallRunner } from './P2PCallRunner';
+import { NEUTRAL_INCOMING_CALL_LABEL } from '../../calls/callDisplay';
+import { reportCallDeclined } from '../../networking/api-requests/callState.api';
 import { ProfileImagePlaceholder } from '../MainComponents/ProfileImagePlaceholder';
 import {
   AudioCallIcon,
@@ -319,7 +323,8 @@ const RingingCard: React.FC<RingingCardProps> = ({
             textAlign: 'center',
           }}
         >
-          {roomName || (variant === 'incoming' ? 'Unknown caller' : 'Call')}
+          {roomName ||
+            (variant === 'incoming' ? NEUTRAL_INCOMING_CALL_LABEL : 'Call')}
         </div>
         <div
           style={{
@@ -416,14 +421,20 @@ const RingingCard: React.FC<RingingCardProps> = ({
   );
 };
 
-export const VideoCallOverlay: React.FC = () => {
+const VideoCallOverlayView: React.FC = () => {
   const dispatch = useDispatch();
   const call = useSelector((state: RootState) => state.call);
   const { config, user } = useChatSettingState();
 
   const videoCallsConfig = config?.videoCalls;
   const enabled = videoCallsConfig?.enabled === true;
-  const livekitUrl = (videoCallsConfig?.livekitUrl || '').trim();
+  // The server's own LiveKit URL (create response) wins over the host config.
+  const livekitUrl = (
+    call.livekitUrl ||
+    videoCallsConfig?.livekitUrl ||
+    ''
+  ).trim();
+  const isP2P = call.mode === 'p2p';
   const primaryColor = config?.colors?.primary || DEFAULT_PRIMARY;
 
   // Caller side of call E2EE: once an outgoing call has its room, mint a fresh
@@ -435,6 +446,8 @@ export const VideoCallOverlay: React.FC = () => {
   const e2eeDistributedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!callE2eeEnabled) return;
+    // A p2p call is already end-to-end encrypted by DTLS-SRTP; no media key.
+    if (isP2P) return;
     if (call.direction !== 'outgoing') return;
     const roomJid = call.roomJid;
     if (!roomJid || call.phase === 'idle' || call.phase === 'error') return;
@@ -448,6 +461,7 @@ export const VideoCallOverlay: React.FC = () => {
     void distributeCallKey(roomJid, call.callId || '', key);
   }, [
     callE2eeEnabled,
+    isP2P,
     call.direction,
     call.roomJid,
     call.phase,
@@ -465,18 +479,26 @@ export const VideoCallOverlay: React.FC = () => {
   // call push). Same key, so no rekey is needed for the 1-to-1 case; the newly
   // online peer simply receives it. No-op until the key exists.
   const redistributeCallKey = useCallback(() => {
-    if (!callE2eeEnabled || call.direction !== 'outgoing') return;
+    if (!callE2eeEnabled || isP2P || call.direction !== 'outgoing') return;
     const roomJid = call.roomJid;
     if (!roomJid || !call.e2eeKey) return;
     if (!isE2eeEnabled() || !isE2eeRoom(roomJid)) return;
     void distributeCallKey(roomJid, call.callId || '', call.e2eeKey);
-  }, [callE2eeEnabled, call.direction, call.roomJid, call.callId, call.e2eeKey]);
+  }, [
+    callE2eeEnabled,
+    isP2P,
+    call.direction,
+    call.roomJid,
+    call.callId,
+    call.e2eeKey,
+  ]);
   // Whether THIS call should be end-to-end encrypted: the feature is on, the
   // chat's OMEMO is running (app gate), and the room is one the backend marked
   // e2ee. LiveKit needs the key provider at Room construction, so the session
   // is armed from this flag rather than waiting for the key.
   const callIsE2ee =
     callE2eeEnabled &&
+    !isP2P &&
     !!call.roomJid &&
     isE2eeEnabled() &&
     isE2eeRoom(call.roomJid);
@@ -598,22 +620,38 @@ export const VideoCallOverlay: React.FC = () => {
 
   const ringingHeader = useMemo(() => {
     if (call.direction === 'incoming') {
-      return `Incoming ${call.kind === 'audio' ? 'audio' : 'video'} call`;
+      return `Incoming ${call.isGroup ? 'group ' : ''}${call.kind === 'audio' ? 'audio' : 'video'} call`;
     }
     if (call.phase === 'requesting') return 'Calling…';
     if (call.phase === 'connecting') return 'Connecting…';
     if (call.phase === 'error') return 'Call failed';
     return 'Call';
-  }, [call.direction, call.phase, call.kind]);
+  }, [call.direction, call.phase, call.kind, call.isGroup]);
 
   const ringingSubtitle = useMemo(() => {
+    const noun = call.kind === 'audio' ? 'Audio call' : 'Video call';
+    // The card title is the room's name; make it clear it is a group ring.
+    const label = call.isGroup ? `Group ${noun.toLowerCase()}` : noun;
     if (call.direction === 'incoming') {
-      return call.kind === 'audio' ? 'Audio call' : 'Video call';
+      // "<person> is calling in <room>" once both are known.
+      return call.isGroup && call.callerName && call.roomName
+        ? `${call.callerName} is calling in ${call.roomName}`
+        : label;
     }
-    if (call.phase === 'connecting') return 'Connecting to room';
+    if (call.phase === 'connecting') {
+      return isP2P ? 'Connecting…' : 'Connecting to room';
+    }
     if (call.phase === 'error') return 'Please try again later';
-    return call.kind === 'audio' ? 'Audio call' : 'Video call';
-  }, [call.direction, call.kind, call.phase]);
+    return label;
+  }, [
+    call.direction,
+    call.kind,
+    call.phase,
+    call.isGroup,
+    call.callerName,
+    call.roomName,
+    isP2P,
+  ]);
 
   const terminateCall = useCallback(
     (state: CallSignalState) => {
@@ -648,6 +686,12 @@ export const VideoCallOverlay: React.FC = () => {
 
   const declineCall = useCallback(() => {
     sendCallStateSignal('declined');
+    // p2p has no LiveKit webhook: the server learns of the decline (and relays
+    // it to the caller) only from this report. Never sent for LiveKit calls,
+    // where a REST decline would act on the LiveKit room.
+    if (store.getState().call.mode === 'p2p') {
+      reportCallDeclined(store.getState().call.callId);
+    }
     dispatch(declineIncomingCall());
   }, [dispatch]);
 
@@ -669,10 +713,11 @@ export const VideoCallOverlay: React.FC = () => {
 
   // A call that's just an active session can be minimized; ringing/error are
   // always modal.
-  const canRenderSession =
-    !!call.token &&
-    (call.phase === 'connecting' || call.phase === 'in-call') &&
-    !!livekitUrl;
+  const inSessionPhase =
+    call.phase === 'connecting' || call.phase === 'in-call';
+  const canRenderSession = isP2P
+    ? inSessionPhase
+    : !!call.token && inSessionPhase && !!livekitUrl;
   const isMinimized = minimized && canRenderSession;
 
   // Reset the minimized flag whenever the call ends, so the next call opens
@@ -779,38 +824,50 @@ export const VideoCallOverlay: React.FC = () => {
               style={
                 isMinimized
                   ? undefined
-                  : call.kind === 'audio'
+                  : call.kind === 'audio' && !call.isGroup
                     ? audioSessionCardStyle
                     : sessionCardStyle
               }
             >
-              <VideoCallSession
-                token={call.token as string}
-                livekitUrl={livekitUrl}
-                kind={call.kind}
-                primaryColor={primaryColor}
-                icons={videoCallsConfig?.icons}
-                startWithCameraOn={videoCallsConfig?.startWithCameraOn}
-                startWithMicOn={videoCallsConfig?.startWithMicOn}
-                showScreenShare={videoCallsConfig?.showScreenShare}
-                minimized={isMinimized}
-                onToggleMinimize={() => setMinimized((m) => !m)}
-                onConnected={() => dispatch(setCallPhase('in-call'))}
-                onError={(message) => dispatch(setCallError(message))}
-                onHangup={() => terminateCall('ended')}
-                e2ee={callIsE2ee}
-                e2eeKey={call.e2eeKey}
-                e2eeWorkerFactory={videoCallsConfig?.e2ee?.workerFactory}
-                onParticipantJoined={redistributeCallKey}
-                onNoAnswer={
-                  call.direction === 'outgoing'
-                    ? () => {
-                        sendCallStateSignal('cancelled');
-                        dispatch(setCallError('No answer - call timed out'));
-                      }
-                    : undefined
-                }
-              />
+              {isP2P ? (
+                <P2PCallSession
+                  kind={call.kind}
+                  primaryColor={primaryColor}
+                  icons={videoCallsConfig?.icons}
+                  minimized={isMinimized}
+                  onToggleMinimize={() => setMinimized((m) => !m)}
+                  onHangup={() => terminateCall('ended')}
+                />
+              ) : (
+                <VideoCallSession
+                  token={call.token as string}
+                  livekitUrl={livekitUrl}
+                  kind={call.kind}
+                  isGroup={call.isGroup}
+                  primaryColor={primaryColor}
+                  icons={videoCallsConfig?.icons}
+                  startWithCameraOn={videoCallsConfig?.startWithCameraOn}
+                  startWithMicOn={videoCallsConfig?.startWithMicOn}
+                  showScreenShare={videoCallsConfig?.showScreenShare}
+                  minimized={isMinimized}
+                  onToggleMinimize={() => setMinimized((m) => !m)}
+                  onConnected={() => dispatch(setCallPhase('in-call'))}
+                  onError={(message) => dispatch(setCallError(message))}
+                  onHangup={() => terminateCall('ended')}
+                  e2ee={callIsE2ee}
+                  e2eeKey={call.e2eeKey}
+                  e2eeWorkerFactory={videoCallsConfig?.e2ee?.workerFactory}
+                  onParticipantJoined={redistributeCallKey}
+                  onNoAnswer={
+                    call.direction === 'outgoing'
+                      ? () => {
+                          sendCallStateSignal('cancelled');
+                          dispatch(setCallError('No answer - call timed out'));
+                        }
+                      : undefined
+                  }
+                />
+              )}
             </div>
           </div>
       </div>
@@ -852,7 +909,7 @@ export const VideoCallOverlay: React.FC = () => {
             primaryColor={primaryColor}
             errorMessage={
               call.error ||
-              (!livekitUrl
+              (!livekitUrl && !isP2P
                 ? 'Video calls unavailable: missing livekitUrl in config.videoCalls'
                 : null)
             }
@@ -874,3 +931,12 @@ export const VideoCallOverlay: React.FC = () => {
     </div>
   );
 };
+
+// The runner is headless and owns the p2p controller; it is mounted beside the
+// view (not inside it) so it outlives the ring -> session switch.
+export const VideoCallOverlay: React.FC = () => (
+  <>
+    <P2PCallRunner />
+    <VideoCallOverlayView />
+  </>
+);

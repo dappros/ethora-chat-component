@@ -30,7 +30,15 @@ export interface VideoCallIcons {
 export interface VideoCallsConfig {
   enabled: boolean;
   livekitUrl: string;
-  allowedRoomTypes?: Array<'private'>;
+  /**
+   * Room types that can start and receive calls. Defaults to
+   * `['private', 'group']`: 1:1 chats plus members-only group chats (group
+   * calls always run over LiveKit and need a backend that accepts them; on an
+   * older backend the call fails with an error). Pass `['private']` to keep
+   * calls 1:1 only. The 1:1 transport (own WebRTC peer to peer, or LiveKit) is
+   * chosen by the server per call, not by this config.
+   */
+  allowedRoomTypes?: Array<'private' | 'group'>;
   /**
    * Show the audio-only call button next to the video-call button. Off by
    * default: it's a separate opt-in feature. An audio call uses the same call
