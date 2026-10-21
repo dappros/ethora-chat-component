@@ -9,6 +9,7 @@ const DEDUP_TTL = 60 * 1000;
 const params = new URL(self.location.href).searchParams;
 const CUSTOM_ICON = (params.get('iconPath') || '').trim();
 const CUSTOM_BADGE = (params.get('badgePath') || '').trim();
+const CUSTOM_CLICK_PATH = (params.get('clickPath') || '').trim();
 const DEFAULT_ICON = `${self.location.origin}/favicon-192.png`;
 const DEFAULT_BADGE = `${self.location.origin}/favicon-192.png`;
 
@@ -33,6 +34,23 @@ function error(...args) {
 }
 
 const APP_URL = self.location.origin;
+
+// Where a tap that has to open a window lands. The host can name the page
+// that mounts the chat (iconPath-style, via the registration url); only a
+// same-origin path is accepted, anything else falls back to the origin root.
+function sanitizeClickPath(value) {
+  const path = typeof value === 'string' ? value.trim() : '';
+  if (!path || path.charAt(0) !== '/') return '';
+  try {
+    const resolved = new URL(path, self.location.origin);
+    if (resolved.origin !== self.location.origin) return '';
+    return `${resolved.pathname}${resolved.search}`;
+  } catch {
+    return '';
+  }
+}
+
+const CLICK_URL = `${APP_URL}${sanitizeClickPath(CUSTOM_CLICK_PATH) || '/'}`;
 
 // ── DEDUP ─────────────────────────────────────────────────────
 const handledPushes = new Map();
@@ -176,17 +194,28 @@ function pickBody(raw = {}, data = {}, notification = {}) {
   return notification.body || raw.body || data.body || 'You have a new message';
 }
 
+// The url the push itself names (backend messages and reactions name none).
+// Only string values count: a payload field that is not a string (or a
+// String.prototype method read off a non-object payload) is not a url.
+function pickExplicitUrl(raw = {}, data = {}, notification = {}) {
+  const candidates = [
+    data.url,
+    data.link,
+    data.click_action,
+    notification.click_action,
+    raw.url,
+    raw.link,
+    raw.click_action,
+  ];
+  for (let i = 0; i < candidates.length; i += 1) {
+    const value = candidates[i];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return '';
+}
+
 function pickUrl(raw = {}, data = {}, notification = {}) {
-  return normalizeUrl(
-    data.url ||
-      data.link ||
-      data.click_action ||
-      notification.click_action ||
-      raw.url ||
-      raw.link ||
-      raw.click_action ||
-      APP_URL
-  );
+  return normalizeUrl(pickExplicitUrl(raw, data, notification) || CLICK_URL);
 }
 
 // An icon the push itself carries (data.icon, notification.icon or icon on
@@ -197,7 +226,17 @@ function pickUrl(raw = {}, data = {}, notification = {}) {
 function sanitizeIconUrl(value) {
   const url = typeof value === 'string' ? value.trim() : '';
   if (!url) return '';
-  if (url.charAt(0) === '/' && url.charAt(1) !== '/') return url;
+  if (url.charAt(0) === '/') {
+    // A path only counts when it really stays on this origin: `//host/x` and
+    // `/\host/x` (a backslash is a slash to the url parser) both leave it.
+    try {
+      return new URL(url, self.location.origin).origin === self.location.origin
+        ? url
+        : '';
+    } catch {
+      return '';
+    }
+  }
   return /^https?:\/\/[^\s]+$/i.test(url) ? url : '';
 }
 
@@ -215,14 +254,24 @@ function pickBadge() {
   return CUSTOM_BADGE || DEFAULT_BADGE;
 }
 
+// A photo/video message carries a thumbnail as data.previewUrl. An image the
+// push names explicitly (data.image, notification.image, image) still wins.
+// Every candidate goes through sanitizeIconUrl (http(s) or a same-origin
+// path), so a data:/javascript: value never reaches showNotification.
 function pickImage(raw = {}, data = {}, notification = {}) {
-  return data.image || notification.image || raw.image || undefined;
+  return (
+    sanitizeIconUrl(data.image) ||
+    sanitizeIconUrl(notification.image) ||
+    sanitizeIconUrl(raw.image) ||
+    sanitizeIconUrl(data.previewUrl) ||
+    undefined
+  );
 }
 
 // ── CALL DETECTION ────────────────────────────────────────────
 // Mirror of helpers/callPush.ts isCallPush(). A backgrounded call push must
 // (a) read as a call (persistent, call-styled title) and (b) carry its FULL
-// data payload through to the click handler — otherwise the app's isCallPush()
+// data payload through to the click handler, otherwise the app's isCallPush()
 // sees only {url,messageId,...} and can't raise the ring screen.
 function pickField(data, keys) {
   for (let i = 0; i < keys.length; i += 1) {
@@ -324,9 +373,19 @@ function normalizePush(event) {
 
   const json = safeJsonParse(text);
 
-  if (json) {
+  if (json && typeof json === 'object' && !Array.isArray(json)) {
     log('PUSH JSON', json);
     return { type: 'json', raw: json, text };
+  }
+
+  // A JSON string (`"hello"`) is a plain text push; a number, boolean or
+  // array carries no message either way and is shown as the text it was sent as.
+  if (typeof json === 'string') {
+    return {
+      type: 'text',
+      raw: { title: 'New Message', body: json, data: {} },
+      text,
+    };
   }
 
   warn('NOT JSON PUSH', text);
@@ -364,9 +423,17 @@ async function broadcastDebugMessage(payload) {
 }
 
 // ── MAIN HANDLER ──────────────────────────────────────────────
-async function handlePush(raw = {}, source = 'push') {
-  const data = raw.data || {};
-  const notification = raw.notification || {};
+function isPlainObject(value) {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+async function handlePush(rawInput = {}, source = 'push') {
+  // Whatever arrived, work on plain objects only: a string payload would
+  // otherwise expose String.prototype members (raw.link) as fields, and a
+  // string `data` would be spread character by character.
+  const raw = isPlainObject(rawInput) ? rawInput : {};
+  const data = isPlainObject(raw.data) ? raw.data : {};
+  const notification = isPlainObject(raw.notification) ? raw.notification : {};
 
   const title = pickTitle(raw, data, notification);
   const body = pickBody(raw, data, notification);
@@ -483,7 +550,8 @@ async function handlePush(raw = {}, source = 'push') {
         ? `${roomTag(data)}#reaction`
         : roomTag(data) || dedupKey,
     silent: isReaction,
-    renotify: isCall || !!roomTag(data),
+    // A reaction is already silent, so it does not set renotify on top.
+    renotify: !isReaction && (isCall || !!roomTag(data)),
     requireInteraction: isCall,
     // Spread the ORIGINAL payload first so the click handler's isCallPush()
     // sees the full call fields (callId/callToken/kind/room); our routing
@@ -491,6 +559,9 @@ async function handlePush(raw = {}, source = 'push') {
     data: {
       ...data,
       url,
+      // true only when the push carried its own url; the click handler never
+      // navigates an open tab to the default (app root) url.
+      urlExplicit: !!pickExplicitUrl(raw, data, notification),
       messageId,
       dedupKey,
       source,
@@ -539,10 +610,148 @@ self.addEventListener('push', (event) => {
           messageId: extractMessageId(raw, raw.data || {}),
         });
 
-        return handlePush(raw, `raw_push_${type}`);
+        return await handlePush(raw, `raw_push_${type}`);
       } catch (e) {
         error('PUSH HANDLER ERROR', e);
       }
+    })()
+  );
+});
+
+// ── PENDING CLICK (cold start) ────────────────────────────────
+// A tap with no open window opens one, but the new page has not loaded yet,
+// so a postMessage would be lost. The click payload is kept in Cache Storage
+// (survives the worker being stopped), and the page asks for it with
+// GET_PENDING_PUSH_CLICK once its message listener is attached. It is handed
+// out once and expires after PENDING_CLICK_TTL.
+const PENDING_CLICK_TTL = 2 * 60 * 1000;
+const PENDING_CACHE = 'ethora-push-pending-v1';
+const PENDING_KEY = `${APP_URL}/__ethora_pending_push_click__`;
+let pendingQueue = Promise.resolve();
+
+// Serialise cache access so two concurrent requests cannot both read the
+// same pending click before either deletes it.
+function enqueuePending(task) {
+  const run = pendingQueue.then(task, task);
+  pendingQueue = run.then(
+    () => undefined,
+    () => undefined
+  );
+  return run;
+}
+
+function savePendingClick(payload) {
+  return enqueuePending(async () => {
+    try {
+      const cache = await caches.open(PENDING_CACHE);
+      await cache.put(
+        PENDING_KEY,
+        new Response(JSON.stringify({ ts: Date.now(), payload }), {
+          headers: { 'Content-Type': 'application/json' },
+        })
+      );
+    } catch (e) {
+      warn('savePendingClick failed', e);
+    }
+  });
+}
+
+function takePendingClick() {
+  return enqueuePending(async () => {
+    try {
+      const cache = await caches.open(PENDING_CACHE);
+      const hit = await cache.match(PENDING_KEY);
+      if (!hit) return null;
+      await cache.delete(PENDING_KEY);
+      const record = await hit.json();
+      if (!record || !record.payload) return null;
+      if (Date.now() - Number(record.ts || 0) > PENDING_CLICK_TTL) return null;
+      return record.payload;
+    } catch (e) {
+      warn('takePendingClick failed', e);
+      return null;
+    }
+  });
+}
+
+// Same page, ignoring query and hash: a tab on /chat?chatId=x is already on
+// the route a push to /chat names.
+function samePage(a, b) {
+  try {
+    const left = new URL(a);
+    const right = new URL(b);
+    return left.origin === right.origin && left.pathname === right.pathname;
+  } catch {
+    return a === b;
+  }
+}
+
+// A cold-start tap opens a fresh window. Hand the page the room (and message)
+// to open through the url as well: ids only, never tokens or message text.
+// The page treats `fromPush=1` like a tap and then drops the pending click, so
+// the two routes never both apply. Calls keep to the pending click (their
+// token cannot travel in a url), and a url that already names a chat, or that
+// leaves this origin, is left as it is.
+function withPushParams(urlString, data) {
+  if (isCallPushData(data)) return urlString;
+  const room = String(data.jid || data.roomJid || '').split('@')[0].trim();
+  if (!room) return urlString;
+  try {
+    const next = new URL(urlString);
+    if (next.origin !== self.location.origin) return urlString;
+    if (next.searchParams.has('chatId')) return urlString;
+    next.searchParams.set('fromPush', '1');
+    next.searchParams.set('chatId', room);
+    const msgId = String(data.msgID || '').trim();
+    if (msgId) next.searchParams.set('messageId', msgId);
+    return next.toString();
+  } catch {
+    return urlString;
+  }
+}
+
+function inScope(client) {
+  try {
+    return client.url.startsWith(
+      (self.registration && self.registration.scope) || self.location.origin
+    );
+  } catch {
+    return false;
+  }
+}
+
+function sameOrigin(client) {
+  try {
+    return client.url.startsWith(self.location.origin);
+  } catch {
+    return false;
+  }
+}
+
+// Prefer a window inside the worker scope (focused first), then any
+// same-origin window.
+function pickClient(allClients) {
+  return (
+    allClients.find((c) => inScope(c) && c.focused) ||
+    allClients.find(inScope) ||
+    allClients.find(sameOrigin) ||
+    allClients[0]
+  );
+}
+
+self.addEventListener('message', (event) => {
+  if (!event.data || event.data.type !== 'GET_PENDING_PUSH_CLICK') return;
+  const source = event.source;
+  event.waitUntil(
+    (async () => {
+      const payload = await takePendingClick();
+      // discard: the page already took the click from the url (fromPush=1),
+      // so the copy is only dropped, never replayed.
+      if (event.data.discard === true) return;
+      if (!payload || !source) return;
+      try {
+        source.postMessage({ type: 'PUSH_NOTIFICATION_CLICK', ...payload });
+      } catch {}
     })()
   );
 });
@@ -553,7 +762,8 @@ self.addEventListener('notificationclick', (event) => {
 
   event.notification.close();
 
-  const url = event.notification?.data?.url || APP_URL;
+  const notificationData = event.notification?.data || {};
+  const url = notificationData.url || CLICK_URL;
 
   event.waitUntil(
     (async () => {
@@ -563,67 +773,68 @@ self.addEventListener('notificationclick', (event) => {
       });
       const targetUrl = normalizeUrl(url);
 
+      // The full data object travels to the page, call fields included.
       const payload = {
-        data: event.notification?.data || {},
+        data: notificationData,
         notification: {
           title: event.notification?.title || '',
           body: event.notification?.body || '',
         },
       };
 
-      const preferredClient =
-        allClients.find((client) => {
-          try {
-            return client.url.startsWith(self.location.origin);
-          } catch {
-            return false;
-          }
-        }) || allClients[0];
-
-      if (preferredClient) {
+      const send = (client) => {
         try {
-          if ('navigate' in preferredClient) {
-            await preferredClient.navigate(targetUrl);
-          }
-
-          if ('focus' in preferredClient) {
-            await preferredClient.focus();
-          }
-
-          try {
-            preferredClient.postMessage({
-              type: 'PUSH_NOTIFICATION_CLICK',
-              ...payload,
-            });
-          } catch {}
-
-          // Backward compatibility for any legacy listeners in app code
-          try {
-            preferredClient.postMessage({
-              type: 'OPEN_FROM_PUSH',
-              url: targetUrl,
-              notificationData: event.notification?.data || {},
-            });
-          } catch {}
-
-          return;
-        } catch (e) {
-          warn('notificationclick client handling failed', e);
-        }
-      }
-
-      const opened = await clients.openWindow(targetUrl);
-
-      if (opened) {
+          client.postMessage({ type: 'PUSH_NOTIFICATION_CLICK', ...payload });
+        } catch {}
+        // Backward compatibility for any legacy listeners in app code
         try {
-          opened.postMessage({
-            type: 'PUSH_NOTIFICATION_CLICK',
-            ...payload,
+          client.postMessage({
+            type: 'OPEN_FROM_PUSH',
+            url: targetUrl,
+            notificationData,
           });
         } catch {}
+      };
+
+      const preferredClient = pickClient(allClients);
+
+      if (preferredClient) {
+        // Warm tap: never open a second window and never reload the user's
+        // tab. Navigate only when the push named its own url and the tab is
+        // not already there; the new document then asks for the pending click.
+        if (
+          notificationData.urlExplicit === true &&
+          !samePage(targetUrl, preferredClient.url) &&
+          'navigate' in preferredClient
+        ) {
+          await savePendingClick(payload);
+          try {
+            const navigated = await preferredClient.navigate(targetUrl);
+            try {
+              await (navigated || preferredClient).focus();
+            } catch {}
+            return;
+          } catch (e) {
+            // Uncontrolled client, or a url it may not go to: stay on the
+            // page, message it directly, and drop the pending copy.
+            warn('client navigate failed', e);
+            await takePendingClick();
+          }
+        }
+
+        try {
+          if ('focus' in preferredClient) await preferredClient.focus();
+        } catch (e) {
+          warn('client focus failed', e);
+        }
+
+        send(preferredClient);
+        return;
       }
 
-      return opened;
+      // Cold start: no window to message yet. Keep the payload for the page.
+      await savePendingClick(payload);
+      return clients.openWindow(withPushParams(targetUrl, notificationData));
     })()
   );
 });

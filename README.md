@@ -450,6 +450,7 @@ Below is a grouped reference for all `config` options.
 | `pushNotifications.serviceWorkerScope` | `string` | Service worker scope, default `/`. |
 | `pushNotifications.iconPath` | `string` | Custom icon URL/path for OS push notifications. |
 | `pushNotifications.badgePath` | `string` | Custom badge URL/path for OS push notifications. Falls back to `iconPath`. |
+| `pushNotifications.clickPath` | `string` | Same-origin path a push tap opens when no window is open yet (for example `/app/chat`). The tapped room and message are appended as `fromPush=1&chatId=...&messageId=...` (ids only). Defaults to the origin root. |
 | `pushNotifications.softAsk` | `boolean` | Do not immediately trigger browser permission prompt. |
 | `pushNotifications.onClick` | `(params) => void \| Promise<void>` | Callback invoked when the user clicks an OS push notification (including cold start via URL marker). |
 

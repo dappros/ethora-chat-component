@@ -17,6 +17,7 @@ import { AppDispatch, RootState } from '../roomStore';
 import {
   initPushNotifications,
   listenForForegroundMessages,
+  requestPendingPushClick,
 } from '../utils/firebasePushNotifications';
 import { registerPushToken } from '../networking/api-requests/push.api';
 import { messageNotificationManager } from '../utils/messageNotificationManager';
@@ -40,6 +41,7 @@ import { IConfig } from '../types/types';
 import { ethoraLogger } from '../helpers/ethoraLogger';
 import { setStoredFcmToken } from '../utils/pushStorage';
 import { collectMessageIds, openRoomAtMessage } from '../helpers/openRoomAtMessage';
+import { claimRoomForPush } from '../helpers/pushRoomHandoff';
 import { normalizeRoomJidWithConference } from '../utils/runtimeHostConfig';
 import {
   buildNotificationUrl,
@@ -69,6 +71,8 @@ interface UsePushNotificationsOptions {
   iconPath?: string;
   /** Custom badge URL/path for browser OS notifications. */
   badgePath?: string;
+  /** Same-origin path a cold-start push tap opens (default: the origin root). */
+  clickPath?: string;
 
   /**
    * Custom Firebase configuration object.
@@ -103,6 +107,20 @@ interface UsePushNotificationsResult {
   requestPermission: () => Promise<void>;
 }
 
+const localPart = (jid: unknown): string =>
+  String(jid ?? '')
+    .split('@')[0]
+    .trim()
+    .toLowerCase();
+
+// True when a push names no recipient, or names the logged-in user (or no one
+// is identified yet). The push's `userJid` is the account it was sent to.
+const isForUser = (recipient: unknown, currentUser: unknown): boolean => {
+  const target = localPart(recipient);
+  const me = localPart(currentUser);
+  return !target || !me || me === target;
+};
+
 let _subscriptionRegistered = false; // module-level guard to prevent duplicate subscriptions
 let _subscriptionRegistrationPromise: Promise<void> | null = null;
 let _foregroundHandlers = new Set<(payload: any) => void>();
@@ -130,6 +148,17 @@ const usePushNotifications = (
     (state: RootState) => state.rooms.pushSubscriptionStatus
   );
   const dispatch = useDispatch<AppDispatch>();
+
+  // Opened by a cold-start tap with the room in the url (`fromPush=1`): the
+  // click is applied from the url below, so the worker's copy is dropped
+  // instead of replayed. Read at first render, before the url is cleaned.
+  const landedFromPushRef = useRef(
+    typeof window !== 'undefined' &&
+      new URL(window.location.href).searchParams.get('fromPush') === '1'
+  );
+
+  const userXmppUsernameRef = useRef(userXmppUsername);
+  userXmppUsernameRef.current = userXmppUsername;
 
   const hasRanRef = useRef(false);
   const fcmTokenRef = useRef<string | null>(null);
@@ -238,10 +267,21 @@ const usePushNotifications = (
         payload?.msgID
       );
       const url = data.url || payload?.url;
+      const isCall = isCallPush(data);
+
+      // A click kept by the service worker is not tied to a user. One made for
+      // somebody else (the push names its recipient in `userJid`) must not be
+      // replayed to whoever logs in next.
+      if (!isCall && !isForUser(data.userJid, userXmppUsernameRef.current)) return;
 
       try {
         if (typeof window !== 'undefined' && window.localStorage) {
-          const dedupeKey = `@ethora/chat-component:pushClick:${roomJid || ''}:${messageId || ''}:${url || ''}`;
+          // Room and message only: the same tap reaches the page both as the
+          // `fromPush` url and as the worker's pending click, and the two carry
+          // different urls.
+          const dedupeKey = `@ethora/chat-component:pushClick:${roomJid || ''}:${messageId || ''}${
+            roomJid || messageId ? '' : `:${url || ''}`
+          }`;
           const lastTs = Number(window.localStorage.getItem(dedupeKey) || '0');
           const now = Date.now();
           if (lastTs && now - lastTs < 5_000) return;
@@ -250,7 +290,7 @@ const usePushNotifications = (
       } catch (_) { /* empty */ }
 
       // Incoming call push → raise the ring overlay instead of routing to chat.
-      if (isCallPush(data)) {
+      if (isCall) {
         handleIncomingCallPush(data);
         return;
       }
@@ -273,6 +313,7 @@ const usePushNotifications = (
       }
 
       if (roomJid) {
+        claimRoomForPush(roomJid);
         openRoomAtMessage(dispatch, roomJid, ...messageIds);
         fetchRecentHistory(roomJid);
       }
@@ -306,6 +347,7 @@ const usePushNotifications = (
           serviceWorkerScope: options.serviceWorkerScope,
           iconPath: options.iconPath || config?.pushNotifications?.iconPath,
           badgePath: options.badgePath || config?.pushNotifications?.badgePath,
+          clickPath: options.clickPath || config?.pushNotifications?.clickPath,
           firebaseConfig: options.firebaseConfig || config?.pushNotifications?.firebaseConfig,
           debug: config?.useStoreConsoleEnabled,
         });
@@ -363,6 +405,8 @@ const usePushNotifications = (
     options.badgePath,
     config?.pushNotifications?.iconPath,
     config?.pushNotifications?.badgePath,
+    options.clickPath,
+    config?.pushNotifications?.clickPath,
     config?.pushNotifications?.firebaseConfig,
     config?.useStoreConsoleEnabled,
     userXmppUsername,
@@ -515,6 +559,22 @@ const usePushNotifications = (
       navigator.serviceWorker.removeEventListener('message', onServiceWorkerMessage);
     };
   }, [enabled, handlePushClick]);
+
+  // Cold-start tap: the service worker could not message a page that was not
+  // open yet, so it kept the click. Ask for it now that the message listener
+  // above is attached (effects run in order) and the user is logged in; the
+  // worker replies with a PUSH_NOTIFICATION_CLICK and forgets it, so repeat
+  // asks are harmless. A page opened with `fromPush=1` already has the click
+  // (see below) and only asks the worker to drop its copy.
+  useEffect(() => {
+    if (!enabled || !userToken) return;
+    void requestPendingPushClick(undefined, {
+      discard: landedFromPushRef.current,
+    });
+    // One drop is enough; later asks (effect re-runs) must not eat the click
+    // of another cold start.
+    landedFromPushRef.current = false;
+  }, [enabled, userToken, handlePushClick]);
 
   useEffect(() => {
     if (!enabled) return;
