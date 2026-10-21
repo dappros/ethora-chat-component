@@ -15,6 +15,7 @@ import {
 } from '../SideDrawer/DrawerProfileParts';
 import {
   AudioCallIcon,
+  BlockIcon,
   ChatIcon,
   EditIcon,
   LeaveIcon,
@@ -28,6 +29,7 @@ import { ProfileImagePlaceholder } from '../../MainComponents/ProfileImagePlaceh
 import Button from '../../styled/Button';
 import DropdownMenu from '../../DropdownMenu/DropdownMenu';
 import {
+  addBlockedUserId,
   setActiveModal,
   setLangSource,
   setSelectedUser,
@@ -35,16 +37,18 @@ import {
 import {
   addRoom,
   addRoomViaApi,
+  deleteRoom,
   setCurrentRoom,
 } from '../../../roomStore/roomsSlice';
 import EditUserModal, { EditUserModalHandle } from './EditUserModal';
 import { walletToUsername } from '../../../helpers/walletUsername';
 import { useXmppClient } from '../../../context/xmppProvider';
 import Loader from '../../styled/Loader';
-import { ApiRoom, Iso639_1Codes } from '../../../types/types';
+import { ApiRoom, IRoom, Iso639_1Codes } from '../../../types/types';
 import Select from '../../MainComponents/Select';
 import { handleCopyClick } from '../../../helpers/handleCopyClick';
 import {
+  blockUser,
   getRoomByName,
   postPrivateRoom,
 } from '../../../networking/api-requests/rooms.api';
@@ -59,6 +63,7 @@ import { useUsersSet } from '../../../hooks/useRoomState';
 import { useAppDispatch } from '../../../hooks/hooks';
 import { logoutService } from '../../../hooks/useLogout';
 import { useT } from '../../../i18n/useT';
+import { ethoraLogger } from '../../../helpers/ethoraLogger';
 
 interface UserProfileModalProps {
   handleCloseModal: any;
@@ -78,6 +83,10 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     (state: RootState) => state.chatSettingStore
   );
   const callPhase = useSelector((state: RootState) => state.call.phase);
+  const rooms = useSelector((state: RootState) => state.rooms.rooms);
+  const activeRoomJID = useSelector(
+    (state: RootState) => state.rooms.activeRoomJID
+  );
 
   const [isEditing, setIsEditing] = useState<boolean>(false);
   // Lets the drawer's own header Save button trigger EditUserModal's save
@@ -377,6 +386,59 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     [ensurePrivateRoom, dispatch, t]
   );
 
+  const canBlock =
+    !!selectedUser &&
+    config?.features?.userBlock === true &&
+    !config?.disableUserBlock;
+
+  const handleBlockClick = useCallback(async () => {
+    const peerUsername =
+      (selectedUser as any)?.xmppUsername ||
+      (selectedUser as any)?.userJID ||
+      selectedUser?.id;
+    if (!peerUsername) return;
+    try {
+      await blockUser(peerUsername);
+      const blockedLocal = String(peerUsername).split('@')[0];
+      dispatch(addBlockedUserId(blockedLocal));
+
+      const myUsername = user?.xmppUsername || '';
+      let clearedActive = false;
+      (Object.values(rooms || {}) as IRoom[]).forEach((room) => {
+        if (room.type !== 'private') return;
+        const isPeer = (room.members || []).some(
+          (m) => m.xmppUsername && m.xmppUsername !== myUsername &&
+            m.xmppUsername.split('@')[0] === blockedLocal
+        );
+        if (!isPeer) return;
+        dispatch(deleteRoom({ jid: room.jid }));
+        if (room.jid === activeRoomJID) clearedActive = true;
+      });
+      if (clearedActive) {
+        if (typeof window !== 'undefined') {
+          window.history.pushState(null, '', window.location.pathname);
+        }
+        dispatch(setCurrentRoom({ roomJID: null }));
+      }
+
+      dispatch(setActiveModal());
+      showToast({
+        id: Date.now().toString(),
+        title: t('toast.success'),
+        message: t('toast.blockedSuccess'),
+        type: 'success',
+      });
+    } catch (error) {
+      ethoraLogger.log('Block user failed', error);
+      showToast({
+        id: Date.now().toString(),
+        title: t('toast.error'),
+        message: t('toast.blockFailed'),
+        type: 'error',
+      });
+    }
+  }, [selectedUser, dispatch, showToast, t, user?.xmppUsername, rooms, activeRoomJID]);
+
   const modalUser: any = selectedUser ?? user;
 
   const findLanguage = () => {
@@ -527,6 +589,16 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
               >
                 {t('action.copyUserId')}
               </ActionButton>
+              {canBlock && (
+                <ActionButton
+                  StartIcon={<BlockIcon />}
+                  onClick={handleBlockClick}
+                  variant="outlined"
+                  style={{ color: 'var(--ethora-color-danger, #D92D20)', borderColor: 'var(--ethora-color-danger, #D92D20)' }}
+                >
+                  {t('action.block')}
+                </ActionButton>
+              )}
             </ProfileActions>
           </DrawerSection>
         )}
@@ -535,9 +607,11 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     [
       modalUser,
       canCall,
+      canBlock,
       isAudioCallsEnabled,
       isCallBusy,
       handleCall,
+      handleBlockClick,
       handlePrivateMessage,
       handleEncryptedPrivateMessage,
       isE2eeEnabled,

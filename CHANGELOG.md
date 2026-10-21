@@ -6,6 +6,7 @@ All notable changes to this package are documented here. For cross-SDK release n
 
 ### Added
 
+- Pushes for reactions: adding an emoji to someone else's message now asks the server for a push to that message's author. `sendMessageReactionStanza` takes `ReactionStanzaData` (`push`, `messageAuthor`, `messageText` cut to 120 characters and left out of encrypted rooms, `photoURL` and the attachment attributes) and puts it on the stanza's `<data>`; nothing is asked for a removed emoji or one's own message. Needs the matching ejabberd `mod_offline_post` and push service.
 - `config.attachments.captionMode` (`'separate'` default, or `'inline'`) selects where the text typed with attachments goes. `'separate'` sends the media message without the caption and then the caption as a normal text message, which is the 26.9.8 wire shape that older readers display. `'inline'` keeps the caption on the media message (`<data caption>`).
 - `config.uploads.endpoint` (`'auto'` default, `'legacy'`, `'secure'`) selects the upload route. `'legacy'` posts straight to `/v1/files/` and never calls `/v2/files/secure`; `'secure'` never falls back. `'auto'` keeps the previous secure-then-fallback behaviour.
 - `config.features.userBlock` (default `false`) controls the "Block user" item in 1-1 chat menus and the `/v1/chats/blocked` calls behind it. The production backend does not serve that route yet, so the item is hidden unless a host opts in. `disableUserBlock: true` still hides it.
@@ -32,6 +33,8 @@ All notable changes to this package are documented here. For cross-SDK release n
 
 ### Fixed
 
+- A call no longer hangs on after the other side drops it. The `call-state` handler read the state, `callId` and `room` from the `<message>` instead of its `<data>`, so the peer's `cancelled` / `declined` / `ended` signal and the server's call log never ended the call; the server's `call-state-declined` is now handled too, and a late signal of an earlier call in the same room no longer ends the current one. Backstops for a lost signal: an incoming call stops ringing after 45 s, and a dial nobody joins in the LiveKit room ends with "No answer" after 45 s (the caller's "Ringing…" used to wait forever); both dial timeouts also send `cancelled` to the callee.
+- Reaction pushes in the service worker: shown silent, tagged `<room jid>#reaction` so they replace the chat's previous reaction and not its message notification, and no longer dropped as a repeat of the reacted message's push (same `msgID`). In the foreground a reaction push shows no toast.
 - The room list unread badge no longer flickers after a reload. The unread middleware keeps the stored count until a room's history has settled, and the badge is no longer hidden while loading.
 - The native broken-image icon is never shown. A picture that fails to load shows a compact unavailable card, and a failed preview or full-size layer marks the picture as unavailable.
 - A message body that repeats the file's own URL is no longer shown as a caption.

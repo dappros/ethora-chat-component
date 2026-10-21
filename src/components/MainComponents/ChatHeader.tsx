@@ -24,7 +24,7 @@ import {
   updateRoom,
 } from '../../roomStore/roomsSlice';
 import { useXmppClient } from '../../context/xmppProvider';
-import { setActiveModal } from '../../roomStore/chatSettingsSlice';
+import { addBlockedUserId, setActiveModal } from '../../roomStore/chatSettingsSlice';
 import { RootState } from '../../roomStore';
 import { MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 import { isMessageSearchEnabled } from '../../helpers/isMessageSearchEnabled';
@@ -432,6 +432,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     if (!peerUsername || !activeRoomJID) return;
     try {
       await blockUser(peerUsername);
+      dispatch(addBlockedUserId(String(peerUsername).split('@')[0]));
       dispatch(deleteRoom({ jid: activeRoomJID }));
       if (typeof window !== 'undefined') {
         window.history.pushState(null, '', window.location.pathname);

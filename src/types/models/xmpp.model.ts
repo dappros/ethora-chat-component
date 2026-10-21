@@ -1,4 +1,5 @@
 import { Client } from '@xmpp/client';
+import type { ReactionStanzaData } from '../../networking/xmpp/sendMessageReaction.xmpp';
 import { Iso639_1Codes } from './language.model';
 import XmppClient, { HistoryWindowPage } from '../../networking/xmppClient';
 import { IMessage } from './message.model';
@@ -171,7 +172,7 @@ export interface XmppClientInterface {
     messageId: string,
     roomJid: string,
     reactionsList: string[],
-    reactionSymbol?: string
+    data?: ReactionStanzaData
   ): void;
   sendTextMessageWithTranslateTagStanza(
     roomJID: string,
