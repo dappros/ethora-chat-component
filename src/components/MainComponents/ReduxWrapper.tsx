@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Provider, useDispatch } from 'react-redux';
 import { store, persistor } from '../../roomStore';
-import { setConfig } from '../../roomStore/chatSettingsSlice';
+import { setConfig, setRemoteConfig } from '../../roomStore/chatSettingsSlice';
 import { setE2eeEnabled } from '../../e2ee';
 import { ConfigUser, IConfig } from '../../types/types';
 import '../../index.css';
@@ -26,6 +26,13 @@ import {
 import { CHAT_ROOT_CLASS } from '../../styles/classNames';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
 import ChatErrorBoundary from './ChatErrorBoundary';
+import { useRemoteAppearance } from '../../hooks/useRemoteAppearance';
+import {
+  applyRemoteConfigRecord,
+  classifyConfigChange,
+  RemoteConfigRecord,
+} from '../../helpers/liveConfig';
+import { ethoraLogger } from '../../helpers/ethoraLogger';
 
 // The chat's scoping root. Everything in `index.css` that is not itself
 // `ethora-`-prefixed (scrollbars, base typography) is nested under
@@ -140,12 +147,36 @@ const TypographyEnabler: React.FC<{ config?: IConfig }> = ({ config }) => {
 // dispatch stays as-is (same value, and it still owns the cache-scope purge).
 // Skipped when the host passes no config at all, so the slice default (which
 // components dereference unguarded) is never replaced by undefined.
-const ConfigEnabler: React.FC<{ config?: IConfig }> = ({ config }) => {
+//
+// Everything the chat applies live is applied right here, by replacing the
+// store's config: the components below read it from the store (and the CSS
+// variables / fonts are re-published by the enablers that follow), so a new
+// look reaches a mounted chat without touching the connection, the rooms,
+// the messages or any draft. See helpers/liveConfig.ts for which keys that
+// covers.
+const ConfigEnabler: React.FC<{
+  config?: IConfig;
+  remote?: RemoteConfigRecord | null;
+}> = ({ config, remote }) => {
   const dispatch = useDispatch();
+  const previous = React.useRef<IConfig | undefined>(undefined);
   React.useEffect(() => {
     if (!config) return;
+    if (previous.current && previous.current !== config) {
+      const { live, restart } = classifyConfigChange(previous.current, config);
+      if (live.length || restart.length) {
+        ethoraLogger.log('[LiveConfig] config changed', {
+          appliedLive: live,
+          readAtNextMount: restart,
+        });
+      }
+    }
+    previous.current = config;
+    // The record goes in first so every later writer of `config` gets it
+    // laid over their value by the reducer.
+    dispatch(setRemoteConfig(remote ?? null));
     dispatch(setConfig(config));
-  }, [config, dispatch]);
+  }, [config, remote, dispatch]);
   // Kept out of the effect above so the flag is set even when `config` is
   // undefined: e2ee must then be off, not left at whatever a previous mount
   // put there.
@@ -199,7 +230,7 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
     CustomNewMessageLabel,
     ...props
   }) => {
-    const memoizedConfig = useMemo(() => {
+    const hostConfig = useMemo(() => {
       if (!props.config) return props.config;
 
       return {
@@ -207,6 +238,15 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
         newArch: props.config.newArch ?? true,
       };
     }, [props.config]);
+
+    // `config.remoteAppearance`: the look the admin saved on the server, read
+    // at start and again on every `chat-component-config-updated` event.
+    // Inert unless the host opted in.
+    const remote = useRemoteAppearance(props.config);
+    const memoizedConfig = useMemo(
+      () => applyRemoteConfigRecord(hostConfig, remote.record),
+      [hostConfig, remote.record]
+    );
 
     return (
       // <Provider> sits OUTSIDE the root element (the DOM is unchanged)
@@ -226,7 +266,7 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
                 once, up in <XmppProvider>, so mounting a second one around
                 <Chat> would double-handle every incoming message. */}
                 <NotificationEnabler />
-                <ConfigEnabler config={memoizedConfig} />
+                <ConfigEnabler config={memoizedConfig} remote={remote.record} />
                 <ThemeTokens config={memoizedConfig} />
                 <TypographyEnabler config={memoizedConfig} />
                 <ThemeColorsEnabler config={memoizedConfig} />
@@ -244,7 +284,13 @@ export const ReduxWrapper: React.FC<ChatWrapperProps> = React.memo(
                   default (and would now throw away the same normalization
                   ConfigEnabler puts in the store, leaving prop and store
                   disagreeing again). */}
-                  <LoginWrapper {...props} config={memoizedConfig} />
+                  {/* With `remoteAppearance` the chat starts once, with its
+                  final look: hold it for the first read (bounded). */}
+                  {remote.waiting ? (
+                    <Loader />
+                  ) : (
+                    <LoginWrapper {...props} config={memoizedConfig} />
+                  )}
                 </CustomComponentsProvider>
               </ToastProvider>
             </PersistGate>

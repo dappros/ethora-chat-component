@@ -7,6 +7,7 @@ import { createRoomFromApi } from '../helpers/createRoomFromApi';
 import { getRoomUserCount } from '../helpers/roomUserCount';
 import { refreshUser } from '../helpers/userResolver';
 import { ethoraLogger } from '../helpers/ethoraLogger';
+import { publishChatComponentConfigUpdated } from '../helpers/chatComponentConfigEvents';
 import type { IRoom } from '../types/types';
 
 /**
@@ -15,6 +16,13 @@ import type { IRoom } from '../types/types';
  *
  *   user-profile-updated  xmppUsername="<appId>_<userId>" uuid appId
  *   chat-meta-updated     chatName="<appId>_<roomId>" appId
+ *   chat-component-config-updated  appId version
+ *
+ * The last one is how a change in the admin's Chat component tab reaches
+ * open chats. The server sends it to every online session of its XMPP host
+ * in one go (ejabberd `announce/online`), so it arrives FROM the bare server
+ * domain and for any App on the host: it is only acted on when `appId` is
+ * this session's own App.
  *
  * The payload is a pointer only. The client re-reads the user or the room
  * through the normal API, so nothing in the stanza is ever shown or stored.
@@ -23,6 +31,7 @@ import type { IRoom } from '../types/types';
 export const ETHORA_EVENT_XMLNS = 'urn:ethora:events:1';
 export const ETHORA_EVENT_USER_PROFILE = 'user-profile-updated';
 export const ETHORA_EVENT_CHAT_META = 'chat-meta-updated';
+export const ETHORA_EVENT_CHAT_COMPONENT_CONFIG = 'chat-component-config-updated';
 
 const MUCSUB_EVENT_NS = 'http://jabber.org/protocol/pubsub#event';
 const ROOM_DEBOUNCE_MS = 500;
@@ -47,14 +56,29 @@ const sessionDomain = (xmppWs: HostLike | undefined): string =>
  * - when config.trustedEventSenders is set, the sender must be listed
  * The server's admin local part is deployment config (XMPP_ADMIN), so it
  * cannot be hard-coded here.
+ *
+ * `allowServerDomain` also accepts the bare server domain itself as the
+ * sender (what ejabberd stamps on a host-wide announcement). A client cannot
+ * send as the domain: the server fixes `from` on every client stanza. A
+ * pinned `trustedEventSenders` list then has to name the domain.
  */
 export const isTrustedEventSender = (
   stanza: Element,
-  xmppWs: HostLike | undefined
+  xmppWs: HostLike | undefined,
+  allowServerDomain = false
 ): boolean => {
   const from = String(stanza?.attrs?.from ?? '').trim();
   if (!from || from.includes('/')) return false;
   const at = from.indexOf('@');
+  if (allowServerDomain && at === -1) {
+    const domainOnly = lower(from);
+    const ownDomain = sessionDomain(xmppWs);
+    if (!ownDomain || domainOnly !== ownDomain) return false;
+    const pins = (store.getState().chatSettingStore?.config as any)
+      ?.trustedEventSenders;
+    return !(Array.isArray(pins) && pins.length) ||
+      pins.some((entry: unknown) => lower(entry) === domainOnly);
+  }
   if (at <= 0 || from.indexOf('@', at + 1) !== -1) return false;
   const local = lower(from.slice(0, at));
   const domain = lower(from.slice(at + 1));
@@ -188,6 +212,53 @@ const scheduleRoomRefresh = (chatName: string): void => {
   );
 };
 
+// --- chat-component-config-updated ------------------------------------------
+
+const CONFIG_EVENT_DEBOUNCE_MS = 300;
+const VERSION_SHAPE = /^[A-Za-z0-9._-]{1,40}$/;
+const APP_SHAPE = /^[A-Za-z0-9_-]{1,64}$/;
+
+const configTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const configSeen = new Map<string, string>();
+
+/** The Apps this session may hear about: its own, and the one `remoteAppearance` reads. */
+const ownAppIds = (): string[] => {
+  const cfg = store.getState().chatSettingStore?.config as any;
+  return [sessionAppId(), String(cfg?.remoteAppearance?.appId ?? '').trim()].filter(
+    Boolean
+  );
+};
+
+const handleConfigUpdated = (event: Element | undefined): void => {
+  const appId = String(event?.attrs?.appId ?? '').trim();
+  const version = String(event?.attrs?.version ?? '').trim();
+  if (!APP_SHAPE.test(appId) || !VERSION_SHAPE.test(version)) return;
+  // The announcement reaches every App on the host
+  if (!ownAppIds().includes(appId)) return;
+  // Same version again: another session of this user, or a resend
+  if (configSeen.get(appId) === version) return;
+
+  const prior = configTimers.get(appId);
+  if (prior) clearTimeout(prior);
+  configTimers.set(
+    appId,
+    setTimeout(() => {
+      configTimers.delete(appId);
+      if (configSeen.get(appId) === version) return;
+      configSeen.set(appId, version);
+      const payload = { appId, version };
+      try {
+        const cb = (store.getState().chatSettingStore?.config as any)
+          ?.eventHandlers?.onChatComponentConfigUpdated;
+        if (typeof cb === 'function') cb(payload);
+      } catch (error) {
+        ethoraLogger.log('[EthoraEvent] onChatComponentConfigUpdated threw', error);
+      }
+      publishChatComponentConfigUpdated(payload);
+    }, CONFIG_EVENT_DEBOUNCE_MS)
+  );
+};
+
 // --- entry point ------------------------------------------------------------
 
 const findCarrier = (stanza: Element): Element | null => {
@@ -220,12 +291,20 @@ export function onEthoraEvent(
   try {
     const carrier = findCarrier(stanza);
     if (!carrier) return false;
+    const event = carrier.getChild('ethora-event', ETHORA_EVENT_XMLNS);
+    const type = String(event?.attrs?.type ?? '');
+    if (type === ETHORA_EVENT_CHAT_COMPONENT_CONFIG) {
+      if (!isTrustedEventSender(carrier, xmppWs, true)) {
+        ethoraLogger.log('[EthoraEvent] ignored: untrusted sender');
+        return true;
+      }
+      handleConfigUpdated(event);
+      return true;
+    }
     if (!isTrustedEventSender(carrier, xmppWs)) {
       ethoraLogger.log('[EthoraEvent] ignored: untrusted sender');
       return true;
     }
-    const event = carrier.getChild('ethora-event', ETHORA_EVENT_XMLNS);
-    const type = String(event?.attrs?.type ?? '');
     const appIdAttr = event?.attrs?.appId;
     const appId = sessionAppId();
     if (appIdAttr !== undefined && appId && String(appIdAttr) !== appId) {
@@ -257,4 +336,7 @@ export function resetEthoraEvents(): void {
   roomInflight.clear();
   roomAgain.clear();
   roomFailures.clear();
+  configTimers.forEach((t) => clearTimeout(t));
+  configTimers.clear();
+  configSeen.clear();
 }
