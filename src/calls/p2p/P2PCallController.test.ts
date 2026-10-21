@@ -111,6 +111,15 @@ class FakePC {
     this.config = c;
   });
   restartIce = vi.fn();
+  // Received video stats, as getStats() reports them (inbound-rtp).
+  inboundVideoFrames: number | null = null;
+  getStats = vi.fn(async () => {
+    const entries: any[] = [];
+    if (this.inboundVideoFrames !== null) {
+      entries.push({ type: 'inbound-rtp', kind: 'video', framesDecoded: this.inboundVideoFrames });
+    }
+    return { forEach: (fn: (e: any) => void) => entries.forEach(fn) };
+  });
   close = vi.fn(() => {
     this.closed = true;
   });
@@ -699,5 +708,61 @@ describe('remote media', () => {
     video.readyState = 'ended';
     video.fire('ended');
     expect(h.controller.getSnapshot().remoteVideoLive).toBe(false);
+  });
+});
+
+describe('remote camera off', () => {
+  // Chrome keeps the receiving track unmuted when the peer drops its video
+  // sender, so a stall of decoded frames is what marks the picture as gone.
+  const connectedWithVideo = async () => {
+    const h = harness();
+    await h.controller.start();
+    await flush();
+    h.controller.receive(fromPeer('answer', sdpPayload('answer', 'answer-x')));
+    await flush();
+    h.pc().ontrack?.({ track: new FakeTrack('audio') });
+    h.pc().ontrack?.({ track: new FakeTrack('video') });
+    h.pc().inboundVideoFrames = 10;
+    h.pc().setConn('connected');
+    return h;
+  };
+
+  it('flags the picture as gone when frames stop and live again when they resume', async () => {
+    const h = await connectedWithVideo();
+    expect(h.controller.getSnapshot().remoteVideoLive).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(1000); // first poll sees 10 frames
+    h.pc().inboundVideoFrames = 40;
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(h.controller.getSnapshot().remoteVideoLive).toBe(true);
+
+    // the peer turns the camera off: no new frames
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(h.controller.getSnapshot().remoteVideoLive).toBe(true); // one quiet poll is not enough
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(h.controller.getSnapshot().remoteVideoLive).toBe(false);
+
+    // and back on
+    h.pc().inboundVideoFrames = 41;
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(h.controller.getSnapshot().remoteVideoLive).toBe(true);
+  });
+
+  it('stops polling once the call is disposed and never polls an audio call', async () => {
+    const h = await connectedWithVideo();
+    await vi.advanceTimersByTimeAsync(1000);
+    const calls = h.pc().getStats.mock.calls.length;
+    h.controller.dispose();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(h.pc().getStats.mock.calls.length).toBe(calls);
+
+    const audio = harness({ kind: 'audio' });
+    await audio.controller.start();
+    await flush();
+    audio.controller.receive(fromPeer('answer', sdpPayload('answer', 'answer-x')));
+    await flush();
+    audio.pc().setConn('connected');
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(audio.pc().getStats).not.toHaveBeenCalled();
   });
 });

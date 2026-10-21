@@ -133,6 +133,10 @@ const AUDIO_CONSTRAINTS: MediaTrackConstraints = {
   noiseSuppression: true,
   autoGainControl: true,
 };
+// How often the received video is checked for a stall, and how many checks in a
+// row without a new decoded frame count as "the peer stopped sending video".
+const REMOTE_VIDEO_POLL_MS = 1_000;
+const REMOTE_VIDEO_STALL_POLLS = 2;
 const VIDEO_CONSTRAINTS: MediaTrackConstraints = {
   width: { ideal: 1280 },
   height: { ideal: 720 },
@@ -175,6 +179,8 @@ export class P2PCallController {
   private connectedOnce = false;
   private negotiated = false;
   private cameraBusy = false;
+  private remoteVideoWatched = false;
+  private remoteVideoStalled = false;
   private lastConn: P2PConnState | null = null;
 
   // Outgoing candidates wait until the offer/answer they belong to is out, so
@@ -586,9 +592,60 @@ export class P2PCallController {
   }
 
   private remoteVideoLive(): boolean {
-    return (this.remoteStream?.getVideoTracks() || []).some(
-      (t) => t.readyState === 'live' && !t.muted
+    return (
+      !this.remoteVideoStalled &&
+      (this.remoteStream?.getVideoTracks() || []).some(
+        (t) => t.readyState === 'live' && !t.muted
+      )
     );
+  }
+
+  /**
+   * A peer that turns its camera off drops the sender's track (replaceTrack
+   * with null). Chrome does not mute the receiving track for that, so the
+   * `mute` event alone leaves the last frame frozen on screen. Frames that stop
+   * arriving are the signal that does work in every browser, so the received
+   * video is polled and a stall counts as "no live picture" until frames flow
+   * again.
+   */
+  private watchRemoteVideo(): void {
+    if (this.remoteVideoWatched || this.kind !== 'video') return;
+    this.remoteVideoWatched = true;
+    let lastFrames = -1;
+    let stalledPolls = 0;
+    const poll = async (): Promise<void> => {
+      const pc = this.pc;
+      if (!pc || this.disposed) return;
+      let frames: number | null = null;
+      try {
+        if (typeof pc.getStats === 'function') {
+          const report = await pc.getStats();
+          report.forEach((entry: any) => {
+            if (
+              entry.type === 'inbound-rtp' &&
+              (entry.kind || entry.mediaType) === 'video' &&
+              typeof entry.framesDecoded === 'number'
+            ) {
+              frames = entry.framesDecoded;
+            }
+          });
+        }
+      } catch {
+        frames = null;
+      }
+      if (this.disposed) return;
+      if (frames !== null) {
+        stalledPolls = frames === lastFrames ? stalledPolls + 1 : 0;
+        lastFrames = frames;
+        const stalled = stalledPolls >= REMOTE_VIDEO_STALL_POLLS;
+        if (stalled !== this.remoteVideoStalled) {
+          this.remoteVideoStalled = stalled;
+          this.update({ remoteVideoLive: this.remoteVideoLive() });
+        }
+      }
+      this.later(() => void poll(), REMOTE_VIDEO_POLL_MS);
+    };
+    this.later(() => void poll(), REMOTE_VIDEO_POLL_MS);
   }
 
   // ---- negotiation --------------------------------------------------------
@@ -738,6 +795,7 @@ export class P2PCallController {
       this.graceTimer = this.deadlineTimer = this.connectTimer = null;
       this.runIceAction(this.policy.onState(state));
       this.update({ status: 'connected' });
+      this.watchRemoteVideo();
       if (!this.connectedOnce) {
         this.connectedOnce = true;
         this.events.onConnected?.();
