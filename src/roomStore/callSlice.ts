@@ -61,6 +61,33 @@ const initialState: CallState = {
 
 const resetState = (): CallState => ({ ...initialState });
 
+// An incoming token is let through only when nothing is going on (idle, or an
+// error card waiting to be dismissed) or when it replaces a ring for a
+// DIFFERENT call (a newer call wins over a ring whose cancel was missed).
+// Everything else is a late or duplicate delivery of something already
+// handled, and applying it would be destructive:
+//  - connecting / in-call / outgoing: this is the busy case. Resetting the
+//    phase to ringing-incoming unmounts VideoCallSession, which disconnects
+//    LiveKit and ends the call for both sides (a late call push or a late
+//    XMPP call-token after the user already answered).
+//  - the same call already ringing: re-applying would restart the ring and
+//    extend startedAt, so the 45 s timeout never fires.
+// Both the XMPP path and the push path (and both mounted hook instances)
+// dispatch this action, so the rule lives here.
+const shouldIgnoreIncomingToken = (
+  state: CallState,
+  next: { roomJid: string; callId?: string | null }
+): boolean => {
+  if (state.phase === 'idle' || state.phase === 'error') return false;
+  if (state.phase !== 'ringing-incoming' || state.direction !== 'incoming') {
+    return true;
+  }
+  const nextCallId = next.callId || null;
+  if (nextCallId || state.callId) return nextCallId === state.callId;
+  // Neither side knows a callId: same room means same ring.
+  return (state.roomJid || '') === (next.roomJid || '');
+};
+
 const callSlice = createSlice({
   name: 'call',
   initialState,
@@ -107,6 +134,7 @@ const callSlice = createSlice({
         peerXmppUsername?: string | null;
       }>
     ) {
+      if (shouldIgnoreIncomingToken(state, action.payload)) return;
       state.phase = 'ringing-incoming';
       state.direction = 'incoming';
       state.kind = action.payload.kind || 'video';
@@ -144,7 +172,11 @@ const callSlice = createSlice({
       state.startedAt = state.startedAt || Date.now();
     },
     acceptIncomingCall(state) {
+      // Only a ringing call can be accepted: a second accept (two hook
+      // instances, a repeated notification action) must not drop an
+      // in-call session back to connecting.
       if (state.direction !== 'incoming') return;
+      if (state.phase !== 'ringing-incoming') return;
       state.phase = 'connecting';
       state.error = null;
       state.startedAt = state.startedAt || Date.now();
