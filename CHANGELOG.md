@@ -13,6 +13,9 @@ All notable changes to this package are documented here. For cross-SDK release n
 - `config.uploads.endpoint` (`'auto'` default, `'legacy'`, `'secure'`) selects the upload route. `'legacy'` posts straight to `/v1/files/` and never calls `/v2/files/secure`; `'secure'` never falls back. `'auto'` keeps the previous secure-then-fallback behaviour.
 - `config.features.userBlock` (default `false`) controls the "Block user" item in 1-1 chat menus and the `/v1/chats/blocked` calls behind it. The production backend does not serve that route yet, so the item is hidden unless a host opts in. `disableUserBlock: true` still hides it.
 - `config.receipts` (`{ mode, deliveryMaxRoomSize, readMaxRoomSize, maxAgeDays, coalesceMs }`) controls which delivery and read receipts this client sends. Defaults: `mode: 'auto'`, `deliveryMaxRoomSize: 20`, `readMaxRoomSize: 100`, `maxAgeDays: 7`, `coalesceMs: 1500`. `'off'` sends none; received receipts are still displayed.
+- Live chat component config. `config.remoteAppearance: { appId, baseUrl?, initialWaitMs? }` makes the chat read the App's saved look (`GET /v2/chat-component/config`) at start and again whenever the server announces a new version, and apply it to the open chat without reconnecting or resetting anything. Only visual and layout keys are taken from the server (`colorScheme`, `colors.*`, `typography.*`, `backgroundChat.color`, the `disable*` switches, `chatHeaderBurgerMenu`, `chatHeaderSettings.hideSearch`, the AI display options, `secondarySendButton.enabled`), each validated. The first paint waits for the first read, at most 2.5 s by default.
+- `config.eventHandlers.onChatComponentConfigUpdated({ appId, version })` is called when the server sends the `chat-component-config-updated` event for the session's own App, once per version. Hosts that fetch the config themselves use it to refetch.
+- The `chat-component-config-updated` server event (`urn:ethora:events:1`). It is also accepted from the bare server domain, which is how ejabberd stamps a host-wide announcement; other events still require a user-part sender. A pinned `trustedEventSenders` list must name the domain to hear it.
 
 ### Changed
 
@@ -46,6 +49,7 @@ All notable changes to this package are documented here. For cross-SDK release n
 - The read watermark never moves backwards, and reserved viewer names are ignored for receipts.
 - Live delivery receipts are ordered by arrival, not by the sender's clock.
 - The typing indicator is guarded when the client has no `sendTypingRequestStanza` method, and it uses the current client.
+- Removing `typography` from the config of a mounted chat now puts the default font back; the font, size and Google Fonts link it had applied used to stay until a reload.
 
 ### Upgrade notes
 

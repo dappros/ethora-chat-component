@@ -663,6 +663,7 @@ const chatSettingPersistConfig = {
     'refreshTokens',
     'client',
     'config',
+    'remoteConfig',
   ],
   transforms: [scrubSensitiveChatStateTransform, encryptor],
 };

@@ -708,6 +708,23 @@ export interface IConfig {
      * inside this handler is caught and logged, never rethrown.
      */
     onError?: (event: ChatErrorInfo) => void;
+    /**
+     * Called when the server announces that the App's chat component config
+     * (the admin's Chat component tab) changed: an `ethora-event` headline of
+     * type `chat-component-config-updated` from the server. The event carries
+     * no values, only the App id and an opaque `version`; read the config
+     * again (`GET /v2/chat-component/config?appId=<appId>&v=<version>`, the
+     * `v` steps around the endpoint's 30 s cache) and pass the result in
+     * `config`, or set `config.remoteAppearance` and let the chat do both.
+     *
+     * Fires once per version, for the signed-in session's own App only
+     * (`config.appId`, or `remoteAppearance.appId`), a few hundred ms after
+     * the last of a burst. A throw inside it is caught and logged.
+     */
+    onChatComponentConfigUpdated?: (event: {
+      appId: string;
+      version: string;
+    }) => void;
   };
 
   disableTypingIndicator?: boolean;
@@ -764,6 +781,28 @@ export interface IConfig {
    * (`admin`).
    */
   trustedEventSenders?: string[];
+  /**
+   * Let the chat read the App's look from the server and keep it current:
+   * the colours, fonts, layout switches and AI display options the admin
+   * saved in the Chat component tab. Opt in by naming the App.
+   *
+   * The chat reads `GET /v2/chat-component/config?appId=` once at start and
+   * holds its first paint for it (at most `initialWaitMs`), lays the saved
+   * values over `config` (the server wins for the keys it holds), and reads
+   * again whenever the server announces a new version, applying the result to
+   * the open chat without reconnecting or resetting anything. Only the keys
+   * the chat can change live are accepted from the server (see the README
+   * table), each validated; nothing else in `config` is ever touched. A
+   * failed read keeps the look you already have.
+   */
+  remoteAppearance?: {
+    /** The App whose config to read. Usually the same as `config.appId`. */
+    appId: string;
+    /** API origin. Default: `config.baseUrl`, then the SDK's own default. */
+    baseUrl?: string;
+    /** Longest the first paint waits for the first read, in ms. Default 2500. */
+    initialWaitMs?: number;
+  };
   /**
    * Background history preload after connect. Default `{ mode: 'staged',
    * topRooms: 8, concurrency: 3 }`.
