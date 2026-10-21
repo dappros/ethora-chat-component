@@ -20,6 +20,7 @@ import { MessageAvatarPhoto } from '../MessageBubble/MessageAvatarPhoto';
 import { useCustomComponents } from '../../context/CustomComponentsContext';
 import { useT } from '../../i18n/useT';
 import { formatCallLogLabel } from '../../helpers/callLogMessage';
+import ScheduledCallCard from '../ScheduledCalls/ScheduledCallCard';
 
 interface MessageContainerProps {
   CustomMessage?: React.ComponentType<{
@@ -90,6 +91,19 @@ const MessageContainerBase: FC<MessageContainerProps> = ({
 
     return <DateLabel date={messageDate} colors={config?.colors} />;
   };
+
+  // An invite, an edit or a cancel of a scheduled call (the backend sends
+  // them from the system account, so this precedes the system-message path).
+  if (message.scheduledCall) {
+    return (
+      <Fragment key={message.id}>
+        {showDateLabel && !activeMessage && renderDaySeparator()}
+        <div data-message-id={message.id}>
+          <ScheduledCallCard message={message} />
+        </div>
+      </Fragment>
+    );
+  }
 
   if (message?.isSystemMessage === 'true') {
     const isWhitelisted = config?.whitelistSystemMessage?.includes(

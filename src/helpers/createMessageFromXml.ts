@@ -1,6 +1,7 @@
 import { IMessage } from '../types/types';
 import { ethoraLogger } from './ethoraLogger';
 import { isE2eeRoom } from '../e2ee';
+import { attachScheduledCallMeta } from './scheduledCallMessage';
 
 interface IMessageWithNewData extends IMessage {
   [x: string]: any;
@@ -33,5 +34,7 @@ export const createMessageFromXml = async (
     isDeleted: !!(data as any)?.deleted || !!(data as any)?.isDeleted,
   };
 
-  return message;
+  // `<data type="scheduledCall">` (an invite, an edit or a cancel from the
+  // backend): decode the card facts once, here, like callLog.
+  return attachScheduledCallMeta(message);
 };

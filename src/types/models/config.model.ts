@@ -3,6 +3,7 @@ import { xmppSettingsInterface } from './xmpp.model';
 import { ConfigRoom } from './room.model';
 import { MessageProps, IMessage } from './message.model';
 import { Iso639_1Codes } from './language.model';
+import type { ScheduledCallsConfig } from './scheduledCall.model';
 import { QuickReply } from '../../helpers/quickReplies';
 import React from 'react'; // Assuming React types are globally available or managed by the project's tsconfig
 
@@ -903,4 +904,10 @@ export interface IConfig {
     }) => void | Promise<void>;
   };
   videoCalls?: VideoCallsConfig;
+  /**
+   * Scheduled calls (booking): a "Schedule call" action next to the call
+   * buttons, and invite cards with Add to calendar and Join in the room. On by
+   * default whenever `videoCalls.enabled` is on. See ScheduledCallsConfig.
+   */
+  scheduledCalls?: ScheduledCallsConfig;
 }

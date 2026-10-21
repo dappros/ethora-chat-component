@@ -8,6 +8,7 @@ import chatSettingsReducer from './chatSettingsSlice';
 import roomsSlice from './roomsSlice';
 import roomHeapSlice from './roomHeapSlice';
 import callSlice from './callSlice';
+import scheduledCallSlice from './scheduledCallSlice';
 import { IMessage, IRoom } from '../types/types';
 import { unreadMiddleware } from './Middleware/unreadMidlleware';
 import { storage } from './storage';
@@ -294,6 +295,9 @@ const PERSISTED_MESSAGE_FIELDS: (keyof IMessage)[] = [
   'attachments',
   'langSource',
   'callLog',
+  // The scheduled-call card's facts (a handful of short strings). Without it a
+  // reloaded transcript repaints the invite as its plain-text fallback.
+  'scheduledCall',
   'mentions',
   // The media message's own caption and its spans; without them a reloaded
   // caption message would repaint as a bare media bubble.
@@ -716,6 +720,7 @@ const rootReducer = combineReducers({
   rooms: persistReducer(roomsPersistConfig, roomsSlice),
   roomHeapSlice,
   call: callSlice,
+  scheduledCall: scheduledCallSlice,
 });
 
 export type RootState = ReturnType<typeof rootReducer>;

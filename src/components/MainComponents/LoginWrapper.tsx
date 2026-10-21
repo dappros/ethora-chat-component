@@ -38,6 +38,7 @@ interface LoginWrapperProps
   MainComponentStyles?: React.CSSProperties;
   config?: IConfig;
   roomJID?: string;
+  scheduledCallSlug?: string;
 }
 
 const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {

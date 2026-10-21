@@ -67,6 +67,7 @@ import { parseMessageReference } from '../../helpers/parseMessageReference';
 import { useLoaderDebug } from '../../hooks/useLoaderDebug';
 import { useT } from '../../i18n/useT';
 import { requestSendersOf } from '../../helpers/userResolver';
+import { collapseScheduledCallMessages } from '../../helpers/scheduledCallMessage';
 
 // How long the active room must sit quiet (no new "mark as read" trigger)
 // before we persist the read-state to the server's private store. Each new
@@ -313,11 +314,14 @@ const MessageList = <TMessage extends IMessage>({
           parseMessageReference(item.mainMessage)?.id === activeMessage.id
       );
     } else {
-      return addReplyMessages.filter(
-        (item: IMessage) =>
-          item.isSystemMessage === 'true' ||
-          item.showInChannel === 'true' ||
-          ((!item.isReply || item.isReply === 'false') && !item.mainMessage)
+      // One card per scheduled call: an edit or a cancel replaces the invite.
+      return collapseScheduledCallMessages(
+        addReplyMessages.filter(
+          (item: IMessage) =>
+            item.isSystemMessage === 'true' ||
+            item.showInChannel === 'true' ||
+            ((!item.isReply || item.isReply === 'false') && !item.mainMessage)
+        )
       );
     }
   }, [addReplyMessages, isReply, roomJID, activeMessage?.id]);
