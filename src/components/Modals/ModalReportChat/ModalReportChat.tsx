@@ -10,6 +10,13 @@ import { postReportRoom } from '../../../networking/api-requests/rooms.api.ts';
 import { useRoomState } from '../../../hooks/useRoomState.tsx';
 import Button from '../../styled/Button.tsx';
 import { useT } from '../../../i18n/useT';
+import { useToast } from '../../../context/ToastContext';
+import {
+  buildReportRoomPayload,
+  findReportCategory,
+  OTHER_REPORT_CATEGORY,
+  REPORT_CATEGORIES,
+} from '../../../helpers/reportRoom';
 
 export const Report = styled.button`
   padding: 12px 16px;
@@ -31,18 +38,9 @@ export const Report = styled.button`
   }
 `;
 
-// `id` is what's sent to postReportRoom as `category` (an API contract, not
-// UI text) - keep it in English regardless of locale. `labelKey` is what
-// the reader sees.
-const REPORT_CATEGORIES: { id: string; labelKey: string }[] = [
-  { id: 'Spam', labelKey: 'report.category.spam' },
-  { id: 'Violence', labelKey: 'report.category.violence' },
-  { id: 'Child Abuse', labelKey: 'report.category.childAbuse' },
-  { id: 'Pornography', labelKey: 'report.category.pornography' },
-  { id: 'Personal Details', labelKey: 'report.category.personalDetails' },
-  { id: 'Illegal Drugs', labelKey: 'report.category.illegalDrugs' },
-];
-const OTHER_CATEGORY = { id: 'Other', labelKey: 'report.category.other' };
+// Categories, their labels and how each one maps onto the values the report
+// route accepts live in helpers/reportRoom.
+const OTHER_CATEGORY = OTHER_REPORT_CATEGORY;
 
 interface ModalReportChatProps {
   /** Forwarded to `ModalBox` - see its `isClosing` doc. */
@@ -54,6 +52,8 @@ export const ModalReportChat: FC<ModalReportChatProps> = ({ isClosing }) => {
   const { activeRoomJID } = useRoomState();
   const dispatch = useDispatch();
   const t = useT();
+  const { showToast } = useToast();
+  const [isSending, setIsSending] = useState(false);
 
   const [message, setMessage] = useState('');
   const [reportChoose, setReportChoose] = useState({
@@ -68,36 +68,63 @@ export const ModalReportChat: FC<ModalReportChatProps> = ({ isClosing }) => {
     []
   );
 
-  const handleCloseModal = () => {
+  const handleCloseModal = useCallback(() => {
     dispatch(setOpenReportModal({ isOpen: false }));
-  };
+  }, [dispatch]);
 
   const handleReport = useCallback(async () => {
-    await postReportRoom({
-      chatName: activeRoomJID,
-      category: reportChoose.name,
-      text: message || '',
-    });
-  }, [activeRoomJID]);
+    const payload = buildReportRoomPayload(
+      activeRoomJID,
+      reportChoose.name,
+      message
+    );
+    if (!payload || isSending) return;
+    setIsSending(true);
+    try {
+      await postReportRoom(payload);
+      showToast({
+        id: Date.now().toString(),
+        title: t('toast.success'),
+        message: t('toast.reportSent'),
+        type: 'success',
+      });
+      handleCloseModal();
+    } catch {
+      showToast({
+        id: Date.now().toString(),
+        title: t('toast.error'),
+        message: t('toast.reportFailed'),
+        type: 'error',
+      });
+    } finally {
+      setIsSending(false);
+    }
+  }, [
+    activeRoomJID,
+    reportChoose.name,
+    message,
+    isSending,
+    showToast,
+    t,
+    handleCloseModal,
+  ]);
 
   const chosenLabel = () => {
-    const category = [...REPORT_CATEGORIES, OTHER_CATEGORY].find(
-      (c) => c.id === reportChoose.name
-    );
+    const category = findReportCategory(reportChoose.name);
     return category ? t(category.labelKey) : reportChoose.name;
   };
 
   return (
     <ModalBox
       title={
-        reportChoose.name === 'Other'
+        reportChoose.name === OTHER_CATEGORY.id
           ? t('modal.report.messageTitle')
           : t('modal.report.chatTitle')
       }
       handleCloseModal={handleCloseModal}
       isClosing={isClosing}
     >
-      {reportChoose.name === 'Other' && (
+      {reportChoose.name === OTHER_CATEGORY.id && (
         <p style={{ margin: 0 }}>{t('modal.report.otherDetails')}</p>
       )}
       <div style={{ width: '100%' }}>
@@ -116,7 +143,7 @@ export const ModalReportChat: FC<ModalReportChatProps> = ({ isClosing }) => {
             {/*>*/}
             {/*  <BackIcon />*/}
             {/*</button>*/}
-            {reportChoose.name === 'Other' ? (
+            {reportChoose.name === OTHER_CATEGORY.id ? (
               <MessageInput
                 color={config?.colors?.primary}
                 $colorBg={config?.colors?.colorInput}
@@ -178,6 +205,7 @@ export const ModalReportChat: FC<ModalReportChatProps> = ({ isClosing }) => {
           />
           <Button
             onClick={handleReport}
+            disabled={isSending}
             text={t('action.report')}
             style={{ width: '100%' }}
             unstyled
