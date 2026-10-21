@@ -20,6 +20,7 @@ Use it as a standalone chat page, as an embedded widget in your existing app, or
 - [Chat Props Reference](#chat-props-reference)
 - [Full Config Reference (`IConfig`)](#full-config-reference-iconfig)
 - [Custom Widgets and Overrides](#custom-widgets-and-overrides)
+- [Scheduled Calls](#scheduled-calls)
 - [Push Notifications](#push-notifications)
 - [Auth Strategies](#auth-strategies)
 - [Hooks and API Exports](#hooks-and-api-exports)
@@ -325,6 +326,7 @@ These are the top-level props accepted by `Chat` (exported from `ReduxWrapper`).
 | --- | --- | --- | --- |
 | `config` | `IConfig` | No | Main behavior/configuration object. |
 | `roomJID` | `string` | No | Force specific room JID on load. |
+| `scheduledCallSlug` | `string` | No | Open a scheduled call: once signed in, selects its room and shows the pre-join panel. The slug is the last part of a `/call/<slug>` join link. See [Scheduled Calls](#scheduled-calls). |
 | `user` | `{ email: string; password: string }` | No | Credentials for email/password login helper path. |
 | `loginData` | `{ email: string; password: string }` | No | Optional login payload. |
 | `MainComponentStyles` | `React.CSSProperties` | No | Outer container style override. |
@@ -583,6 +585,56 @@ Reference example components in repository:
 - `src/examples/customComponents/CustomDaySeparator.tsx`
 - `src/examples/customComponents/CustomNewMessageLabel.tsx`
 
+## Scheduled Calls
+
+Scheduled calls let a member book a call in a chat. Everyone in the room gets an invite card with "Google Calendar", "Outlook" and "Download .ics" links, and a Join button that opens 15 minutes before the start. Booking only decides when: the call itself runs on the existing call path (1:1 rooms over P2P WebRTC, group rooms over LiveKit), and no camera or microphone is touched until the user taps Join on the pre-join panel. Calendar delivery is `.ics` and template links only; there is no calendar OAuth.
+
+It needs a backend that serves the scheduled-call endpoints (`/v1/chats/calls/scheduled`) and is on by default whenever `config.videoCalls.enabled` is on:
+
+```tsx
+<Chat
+  config={{
+    videoCalls: { enabled: true, livekitUrl: 'wss://livekit.example.com', enableAudioCalls: true },
+    // scheduledCalls is optional; these are the defaults.
+    scheduledCalls: { enabled: true },
+  }}
+/>
+```
+
+What the user sees:
+
+- A "Schedule call" button next to the call buttons in the chat header (same room types and gating as the call buttons). The form takes a title, date and time in the local time zone, a duration (15 minutes to 2 hours, or the call's own when editing) and video or audio (audio only when `videoCalls.enableAudioCalls` is on).
+- An invite card in the room for each scheduled call. An edit or a cancel from the backend replaces the card (one card per call, the newest status wins): upcoming, open to join, ended (greyed) or cancelled (struck through). The person who scheduled the call (the message names them in `scheduledCallCreatedBy`, so no request is needed) and the room owner also get Edit and Cancel.
+- Join opens the pre-join panel (title, time, duration, room, calendar links) and a "Join call" button, enabled from 15 minutes before the start until the call ends.
+
+Clients that do not know the message type show its plain-text body, so older apps stay readable.
+
+### Opening a call from a link
+
+A join link looks like `https://<web app host>/call/<slug>`. Pass the slug to `<Chat>` and, once the user is signed in and the room list has loaded, the chat selects that room and shows the pre-join panel. Nothing starts until the user taps Join.
+
+```tsx
+import { Chat, parseScheduledCallLink, openScheduledCall } from '@ethora/chat-component';
+
+// Declarative: the route /call/:slug renders the chat with the slug.
+<Chat config={config} scheduledCallSlug={slug} />
+
+// Imperative: from a deep-link handler, any time after import.
+const slug = parseScheduledCallLink(url); // null when `url` is not a join link
+if (slug) openScheduledCall(slug);
+```
+
+`parseScheduledCallLink(url, options?)` accepts `https://<host>/call/<slug>` and `<scheme>://call/<slug>` (never plain `http`), on `app.chat.ethora.com`, the page's own host and `options.hosts` (or, when omitted, `config.scheduledCalls.hosts`); schemes follow `options.schemes` or the configured ones. A request made before sign-in or before `<Chat>` is mounted is held and opened once both are true. A slug that cannot be opened (unknown, not a member, cancelled, offline) shows a toast and calls `config.scheduledCalls.onOpenError({ slug, reason })` with `reason` one of `'not-found' | 'not-a-member' | 'cancelled' | 'network'`. A host that wants its own error screens can call `GET /v1/chats/calls/scheduled/:slug` itself first (as `ethora-app-reactjs` does) and only mount the chat for a call that can be opened.
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `scheduledCalls.enabled` | `boolean` | Default `true` when `videoCalls.enabled` is on. `false` hides the "Schedule call" button and the Join button on cards; cards still render with their calendar links. |
+| `scheduledCalls.hosts` | `string[]` | Extra hosts whose `https://<host>/call/<slug>` links `parseScheduledCallLink` accepts, on top of `app.chat.ethora.com` and the page's own host. Same option and defaults as the React Native SDK. |
+| `scheduledCalls.schemes` | `string[]` | App URL schemes (without `://`) accepted for `<scheme>://call/<slug>`. Unset accepts any scheme. |
+| `scheduledCalls.onOpenError` | `(e: { slug: string; reason: ScheduledCallOpenError }) => void` | Called when `scheduledCallSlug` / `openScheduledCall` could not open a call. |
+
+Notes: the invite message is sent by the backend in the clear, also in `e2ee` rooms, like other system messages. Calendar links on a card are accepted only when they are plausible (https calendar provider hosts, and an `.ics` link on the API's own origin), because any member could forge the message attributes.
+
 ## Push Notifications
 
 ### Prerequisites
@@ -731,6 +783,8 @@ Clicking a push opens `<origin>/chat?chatId=<room>&messageId=<message>` (or the 
 | `useInAppNotifications` | hook | Enables and handles in-app notifications. |
 | `usePushNotifications` | hook | Push subscription + foreground handling workflow. |
 | `resendMessage` | function | Retry sending failed/pending messages. |
+| `parseScheduledCallLink` | function | `parseScheduledCallLink(url)` returns the slug of a scheduled-call join link (`https://<host>/call/<slug>` or `<scheme>://call/<slug>`), or `null`. |
+| `openScheduledCall` | function | `openScheduledCall(slug)` asks the mounted `<Chat>` to select that call's room and show its pre-join panel; held until the user is signed in. Returns `false` for an implausible slug. |
 | `useRoomMute` | hook | `useRoomMute(roomJid)` returns `{ muted, isSupported, isPending, toggleMute, setMuted }` for a room's mute preference - optimistic with rollback on failure. `isSupported` is only `true` once the backend has reported a `muted` boolean for that room (it hasn't shipped to prod yet), so hosts building their own UI should hide a mute control until then. |
 
 Basic hook usage:

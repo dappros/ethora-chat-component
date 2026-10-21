@@ -32,6 +32,14 @@ export type { UseRoomMuteResult } from './hooks/useRoomMute';
 export { parseQuickReplies } from './helpers/quickReplies';
 export type { QuickReply } from './helpers/quickReplies';
 
+// Scheduled calls (booking). A join link is `https://<host>/call/<slug>`
+// (or `<scheme>://call/<slug>` in a native app). `parseScheduledCallLink` pulls
+// the slug out of one; `openScheduledCall(slug)` asks the mounted <Chat> to
+// select that call's room and show its pre-join panel (a request made before
+// <Chat> is ready, or before sign-in, is held until it is). The same thing is
+// available declaratively as the `scheduledCallSlug` prop on <Chat>.
+export { openScheduledCall, parseScheduledCallLink } from './calls/openScheduledCall';
+
 // Font configuration: types + the runtime loader, so hosts can also apply
 // a font outside the <Chat> tree if needed.
 export { applyTypography, clearTypography } from './helpers/applyTypography';
@@ -94,6 +102,12 @@ export type {
 // fields are made of.
 export type { ChatWrapperProps as ChatProps } from './components/MainComponents/ReduxWrapper';
 export type { IConfig } from './types/models/config.model';
+export type {
+  ScheduledCallsConfig,
+  ScheduledCallOpenError,
+  ScheduledCall,
+  ScheduledCallKind,
+} from './types/models/scheduledCall.model';
 export type {
   VideoCallsConfig,
   VideoCallIcons,

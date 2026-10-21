@@ -100,6 +100,12 @@ export interface ChatWrapperProps
   > {
   token?: string;
   roomJID?: string;
+  /**
+   * Open a scheduled call: once signed in, select its room and show the
+   * pre-join panel. The slug is the last part of a `/call/<slug>` join link
+   * (see `parseScheduledCallLink`). Nothing starts until the user taps Join.
+   */
+  scheduledCallSlug?: string;
   user?: ConfigUser;
   loginData?: { email: string; password: string };
   MainComponentStyles?: React.CSSProperties;

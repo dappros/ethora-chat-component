@@ -39,6 +39,7 @@ import { useLoaderDebug } from '../../hooks/useLoaderDebug';
 import { useExclusiveRightPane } from '../../hooks/useExclusiveRightPane';
 import { SIDE_PANEL_MODAL_TYPES } from '../../helpers/constants/MODAL_TYPES';
 import { useIsMobileViewport } from '../../hooks/useIsMobileViewport';
+import ScheduledCallLayer from '../ScheduledCalls/ScheduledCallLayer';
 
 // Three columns (432px room list + chat + 400px panel) stop fitting long
 // before the mobile breakpoint: at 1000px the chat would be left with ~170px,
@@ -62,12 +63,14 @@ interface ChatWrapperProps {
   MainComponentStyles?: React.CSSProperties; //change to particular types
   config?: IConfig;
   roomJID?: string;
+  scheduledCallSlug?: string;
 }
 
 const ChatWrapper: FC<ChatWrapperProps> = ({
   MainComponentStyles,
   config,
   roomJID,
+  scheduledCallSlug,
 }) => {
   const { CustomMessageComponent } = useCustomComponents();
   const resolvedMessageComponent = CustomMessageComponent || Message;
@@ -491,6 +494,11 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
               setOpenModal={(value?: ModalType) =>
                 dispatch(setActiveModal(value))
               }
+            />
+            {/* Schedule-call form, pre-join panel and the slug opener. */}
+            <ScheduledCallLayer
+              scheduledCallSlug={scheduledCallSlug}
+              onRevealRoom={() => setIsChatVisible(true)}
             />
             {/* VideoCallOverlay now lives in XmppProvider (see xmppProvider.tsx)
                 so an incoming call still rings while the user is on a

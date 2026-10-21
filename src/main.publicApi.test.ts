@@ -31,6 +31,7 @@ import type {
   xmppSettingsInterface,
   TypographyConfig,
   UseRoomMuteResult,
+  ScheduledCallsConfig,
 } from './main';
 
 /**
@@ -54,7 +55,9 @@ const EXPECTED_RUNTIME_EXPORTS = [
   'isRefreshFatalError',
   'logoutService',
   'omemo',
+  'openScheduledCall',
   'parseQuickReplies',
+  'parseScheduledCallLink',
   'refreshAuthTokens',
   'refreshAuthTokensQuietly',
   'resendMessage',
@@ -108,6 +111,7 @@ describe('public API', () => {
     assertExported<DecoratedMessage>();
     assertExported<ScrollControllerApi>();
     assertExported<xmppSettingsInterface>();
+    assertExported<ScheduledCallsConfig>();
     assertExported<TypographyConfig>();
     assertExported<UseRoomMuteResult>();
 
