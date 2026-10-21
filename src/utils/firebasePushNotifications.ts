@@ -1,6 +1,7 @@
 import { getFirebaseMessaging, defaultConfig } from '../firebase-config';
 import { ethoraLogger } from '../helpers/ethoraLogger';
 import { getStoredFcmToken, setStoredFcmToken } from './pushStorage';
+import { deleteMirroredCallAuth } from './pushServiceWorkerBridge';
 // Type-only: the real firebase/messaging module is loaded on demand so the
 // SDK stays out of the host bundle until push is actually used.
 import type { MessagePayload } from 'firebase/messaging';
@@ -320,6 +321,10 @@ export async function requestPendingPushClick(
  * disablePushNotifications()
  */
 export async function disablePushNotifications(_authToken?: string): Promise<void> {
+  // The worker's copy of the API token goes with the session, even when there
+  // is no push registration left to tear down below.
+  await deleteMirroredCallAuth();
+
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
     return;
   }

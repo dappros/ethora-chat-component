@@ -11,8 +11,8 @@
  * Logs every major step to the console so developers can trace the flow.
  */
 
-import { useEffect, useRef, useCallback, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useEffect, useRef, useCallback, useMemo, useState } from 'react';
+import { useDispatch, useSelector, useStore } from 'react-redux';
 import { AppDispatch, RootState } from '../roomStore';
 import {
   initPushNotifications,
@@ -30,8 +30,25 @@ import {
   setCurrentRoom,
   setPushSubscriptionStatus,
 } from '../roomStore/roomsSlice';
-import { setIncomingCallToken } from '../roomStore/callSlice';
 import { isCallPush, parseCallPush } from '../helpers/callPush';
+import {
+  CallPushContext,
+  CallPushOutcome,
+  claimCallAction,
+  clearCallPushSession,
+  declineIncomingCallFromPush,
+  flushPendingCallPush,
+  handleCallPushFromWorker,
+  raiseIncomingCallFromPush,
+  unmarkCallRaisedFromPush,
+} from '../helpers/incomingCallPush';
+import { claimCallDecision } from '../helpers/callClaim';
+import { callNotificationKey } from '../utils/callNotifications';
+import { mirrorCallAuthToWorker } from '../utils/callAuthMirror';
+import {
+  announceCallClient,
+  postToPushServiceWorker,
+} from '../utils/pushServiceWorkerBridge';
 import { store } from '../roomStore';
 import {
   resolveNotificationRoomName,
@@ -125,6 +142,9 @@ let _subscriptionRegistered = false; // module-level guard to prevent duplicate 
 let _subscriptionRegistrationPromise: Promise<void> | null = null;
 let _foregroundHandlers = new Set<(payload: any) => void>();
 let _foregroundUnsubscribe: (() => void) | null = null;
+// Mounted hook instances that can take a call over, so the worker is told this
+// page cannot only when the last of them goes away.
+let _callListeners = 0;
 
 const usePushNotifications = (
   options: UsePushNotificationsOptions = {}
@@ -201,44 +221,34 @@ const usePushNotifications = (
     []
   );
 
-  // Surface an incoming call that arrived via push (app was backgrounded, so
-  // the live XMPP `call-token` was missed). If the push carried a LiveKit
-  // token we ring immediately and Accept works offline; otherwise we open the
-  // room and let the reconnecting XMPP session deliver the real call-token.
+  // The same dispatch / state / room-normalisation the call-push helpers use,
+  // read through the store so a late timer or message never sees stale props.
+  const reduxStore = useStore();
+  const callPushCtx = useMemo<CallPushContext>(
+    () => ({
+      dispatch,
+      getState: reduxStore.getState,
+      normalizeRoomJid,
+    }),
+    [dispatch, reduxStore, normalizeRoomJid]
+  );
+
+  // Surface an incoming call that arrived via push (the XMPP `call-token` was
+  // missed because the app was backgrounded or its socket was dead). With a
+  // LiveKit token in the push the ring goes up through the guarded reducer and
+  // Accept works offline (`answer` accepts it at once, for the notification's
+  // Answer action); a late or duplicate push never disturbs a call already in
+  // progress. Before the chat config (videoCalls) and the user are in Redux the
+  // call is held, not dropped. Without a token we open the room and let the
+  // reconnecting XMPP session deliver the real call-token.
   const handleIncomingCallPush = useCallback(
-    (data: Record<string, any>) => {
-      if (config?.videoCalls?.enabled !== true) return;
+    (data: Record<string, any>, answer = false): CallPushOutcome => {
+      const outcome = raiseIncomingCallFromPush(callPushCtx, data, { answer });
+      if (outcome !== 'no-token') return outcome;
+
       const parsed = parseCallPush(data);
       const roomJid = normalizeRoomJid(parsed.roomRef || '');
-
-      const selfLocal = String(
-        store.getState().chatSettingStore.user?.xmppUsername || ''
-      )
-        .split('@')[0]
-        .trim();
-      let peer = parsed.callerXmppUsername;
-      if (!peer && parsed.roomBareName && parsed.roomBareName.includes('-')) {
-        const parts = parsed.roomBareName.split('-');
-        peer = parts.find((p) => p && p !== selfLocal) || null;
-      }
-
-      if (parsed.token) {
-        dispatch(
-          setIncomingCallToken({
-            roomJid: roomJid || parsed.roomRef || '',
-            roomName: parsed.callerName || parsed.roomBareName,
-            roomBareName: parsed.roomBareName,
-            token: parsed.token,
-            kind: parsed.kind,
-            callId: parsed.callId,
-            peerXmppUsername: peer || null,
-          })
-        );
-        return;
-      }
-
-      // No token in the payload - bring the user to the room and let the live
-      // XMPP call-token (if the caller is still ringing) raise the overlay.
+      if (config?.videoCalls?.enabled !== true) return outcome;
       if (roomJid) {
         dispatch(setCurrentRoom({ roomJID: roomJid }));
       }
@@ -246,8 +256,9 @@ const usePushNotifications = (
         '[PushNotifications] incoming call push without LiveKit token; awaiting XMPP call-token',
         { callId: parsed.callId, roomJid }
       );
+      return outcome;
     },
-    [config?.videoCalls?.enabled, dispatch, normalizeRoomJid]
+    [callPushCtx, config?.videoCalls?.enabled, dispatch, normalizeRoomJid]
   );
 
   const handlePushClick = useCallback(
@@ -274,6 +285,64 @@ const usePushNotifications = (
       // replayed to whoever logs in next.
       if (!isCall && !isForUser(data.userJid, userXmppUsernameRef.current)) return;
 
+      // Incoming call push: raise the ring screen instead of routing to chat
+      // (and, for the Answer action, accept it). Both mounted hook instances
+      // get this message; the guarded reducer makes the second a no-op. A
+      // stale call push opens nothing ringing: a tap just opens the room.
+      if (isCallPush(data)) {
+        const tapped = parseCallPush(data);
+        const callKey = callNotificationKey(tapped.callId, tapped.roomRef);
+        const takesCalls = config?.videoCalls?.enabled === true;
+        // The worker sent the click to every tab that could take it: only one
+        // acts on it (two accepting would connect twice). The others end their
+        // own ring when they hear the call was taken (callBroadcast).
+        if (takesCalls) {
+          const claim = claimCallAction('click', callKey);
+          if ((typeof claim === 'boolean' ? claim : await claim) === false) return;
+        }
+        // The Answer action accepts: it needs the same per-call claim as the
+        // Accept button on the ring screen, so a click on that button in
+        // another tab at the same moment cannot connect the call twice. A tab
+        // that loses does nothing; the winner announces the outcome and this
+        // tab's ring ends. A plain tap only shows the ring and needs no claim.
+        if (takesCalls && payload?.action === 'answer') {
+          const decision = claimCallDecision(callKey);
+          if ((typeof decision === 'boolean' ? decision : await decision) === false) {
+            // Taken by the ring screen's Accept (or a Decline) elsewhere. Acked,
+            // so the worker does not open or navigate a page for a call that
+            // is already being handled.
+            void postToPushServiceWorker({
+              type: 'CALL_PUSH_ANSWER_ACK',
+              callId: tapped.callId || '',
+            });
+            return;
+          }
+        }
+        // The tap closed the worker's notification, so a ring that continues
+        // here is no longer announced by it: the page may notify again if the
+        // user leaves the tab mid-ring.
+        unmarkCallRaisedFromPush(callKey);
+        const outcome = handleIncomingCallPush(data, payload?.action === 'answer');
+        // Tell the worker this page took the click. Without that ack (a page
+        // that cannot take calls, or one that was not there to answer) the
+        // worker brings the user to the chat page instead. A call held for the
+        // config is not taken yet: the worker has nothing to wait for there,
+        // the click was delivered to a page that is still loading.
+        if (takesCalls && outcome !== 'held') {
+          void postToPushServiceWorker({
+            type: 'CALL_PUSH_ANSWER_ACK',
+            callId: tapped.callId || '',
+          });
+        }
+        if (outcome !== 'expired') return;
+        const callRoom = normalizeRoomJid(parseCallPush(data).roomRef || '');
+        if (callRoom) {
+          openRoomAtMessage(dispatch, callRoom);
+          fetchRecentHistory(callRoom);
+        }
+        return;
+      }
+
       try {
         if (typeof window !== 'undefined' && window.localStorage) {
           // Room and message only: the same tap reaches the page both as the
@@ -288,12 +357,6 @@ const usePushNotifications = (
           window.localStorage.setItem(dedupeKey, String(now));
         }
       } catch (_) { /* empty */ }
-
-      // Incoming call push → raise the ring overlay instead of routing to chat.
-      if (isCall) {
-        handleIncomingCallPush(data);
-        return;
-      }
 
       const customOnClick = options.onClick || config?.pushNotifications?.onClick;
       if (customOnClick) {
@@ -318,7 +381,7 @@ const usePushNotifications = (
         fetchRecentHistory(roomJid);
       }
     },
-    [config?.pushNotifications?.onClick, dispatch, fetchRecentHistory, normalizeRoomJid, options.onClick, handleIncomingCallPush]
+    [config?.pushNotifications?.onClick, config?.videoCalls?.enabled, dispatch, fetchRecentHistory, normalizeRoomJid, options.onClick, handleIncomingCallPush]
   );
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -546,11 +609,30 @@ const usePushNotifications = (
           {
             data: data.data || {},
             notification: data.notification || {},
+            action: data.action,
             messageId: data?.data?.messageId || data?.data?.msgID,
             url: data?.data?.url,
           },
           'service_worker'
         );
+        return;
+      }
+      // The worker got a call push and asks whether this page rings it. Being
+      // asked also tells the worker this page takes calls (it may have
+      // restarted since the page announced itself).
+      if (data.type === 'CALL_PUSH' && data.data) {
+        if (_callListeners > 0) announceCallClient(true);
+        handleCallPushFromWorker(callPushCtx, data.data);
+        return;
+      }
+      // A restarted worker asks who can take a call over.
+      if (data.type === 'CALL_CLIENT_PROBE') {
+        if (_callListeners > 0) announceCallClient(true);
+        return;
+      }
+      // Decline tapped on a call notification while a page was open.
+      if (data.type === 'CALL_PUSH_DECLINE' && data.data) {
+        declineIncomingCallFromPush(callPushCtx, data.data);
       }
     };
 
@@ -558,7 +640,61 @@ const usePushNotifications = (
     return () => {
       navigator.serviceWorker.removeEventListener('message', onServiceWorkerMessage);
     };
-  }, [enabled, handlePushClick]);
+  }, [enabled, handlePushClick, callPushCtx]);
+
+  // Tell the worker this page can take an incoming call over (the listeners
+  // above are attached and videoCalls is on). Answer and a tap on a call
+  // notification are handed to such pages and wait for their ack; with none, the
+  // worker brings the user to the chat page at once instead.
+  const takesCallPushes = enabled && config?.videoCalls?.enabled === true;
+  useEffect(() => {
+    if (!takesCallPushes) return;
+    _callListeners += 1;
+    announceCallClient(true);
+    return () => {
+      _callListeners = Math.max(0, _callListeners - 1);
+      if (_callListeners === 0) announceCallClient(false);
+    };
+  }, [takesCallPushes]);
+
+  // Logging out (or switching account) ends everything the call push flow was
+  // holding for the old session: a call held for the config, the tap the worker
+  // keeps for the next page load, the call notifications on screen. Only a real
+  // transition counts: a page that loads without a session yet must not drop a
+  // tap that is waiting for it.
+  const sessionRef = useRef({ token: userToken, user: userXmppUsername });
+  useEffect(() => {
+    const before = sessionRef.current;
+    sessionRef.current = { token: userToken, user: userXmppUsername };
+    const loggedOut = !!before.token && !userToken;
+    const switched =
+      !!before.token &&
+      !!userToken &&
+      !!before.user &&
+      !!userXmppUsername &&
+      before.user !== userXmppUsername;
+    if (loggedOut || switched) {
+      void clearCallPushSession(config?.pushNotifications?.serviceWorkerScope || '/');
+    }
+  }, [userToken, userXmppUsername, config?.pushNotifications?.serviceWorkerScope]);
+
+  // A call push that came before the chat config (videoCalls) and the user were
+  // in Redux was held; raise it as soon as both are there. The module-level
+  // hold is taken once, so the two mounted hook instances cannot both raise it.
+  const callPushReady = config?.videoCalls?.enabled === true && !!userToken;
+  useEffect(() => {
+    if (!enabled || !callPushReady) return;
+    flushPendingCallPush(callPushCtx);
+  }, [enabled, callPushReady, callPushCtx]);
+
+  // Keep the worker's copy of the API token current, so a Decline tapped with
+  // no page open can still reach the server (cleared on logout).
+  useEffect(() => {
+    if (!enabled) return;
+    void mirrorCallAuthToWorker(
+      config?.videoCalls?.enabled === true ? userToken : null
+    );
+  }, [enabled, userToken, config?.videoCalls?.enabled]);
 
   // Cold-start tap: the service worker could not message a page that was not
   // open yet, so it kept the click. Ask for it now that the message listener
