@@ -42,7 +42,16 @@ export async function showBrowserNotification(
 export function sanitizeIconUrl(value: unknown): string {
   const url = typeof value === 'string' ? value.trim() : '';
   if (!url) return '';
-  if (url.startsWith('/') && !url.startsWith('//')) return url;
+  if (url.startsWith('/')) {
+    // Only a path that really stays on this origin: `//host/x` and
+    // `/\host/x` (a backslash is a slash to the url parser) leave it.
+    if (typeof window === 'undefined') return url.startsWith('//') || url.includes('\\') ? '' : url;
+    try {
+      return new URL(url, window.location.origin).origin === window.location.origin ? url : '';
+    } catch {
+      return '';
+    }
+  }
   return /^https?:\/\/\S+$/i.test(url) ? url : '';
 }
 
