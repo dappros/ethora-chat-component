@@ -655,6 +655,9 @@ export class XmppClient implements XmppClientInterface {
           window.removeEventListener('online', this.onBrowserOnline);
           window.removeEventListener('offline', this.onBrowserOffline);
         }
+        if (typeof document !== 'undefined') {
+          document.removeEventListener('visibilitychange', this.onVisibilityChange);
+        }
       } catch {
         // Ignore browser listener cleanup failures during disconnect.
       }
@@ -779,6 +782,8 @@ export class XmppClient implements XmppClientInterface {
         ethoraLogger.log('Client is online.', new Date());
         this.status = 'online';
         this.sessionOnlineAt = Date.now();
+        // A reconnect, not the first connect of this client: see catchUpAfterReconnect.
+        const isReconnect = this.everOnline;
         this.everOnline = true;
         // Publishes this device's OMEMO keys. No-op unless the host app
         // enabled e2ee; never blocks the rest of the online handler.
@@ -845,6 +850,8 @@ export class XmppClient implements XmppClientInterface {
         }
 
         this.scheduleHistoryQueue();
+
+        if (isReconnect) this.catchUpAfterReconnect();
       } catch (error) {
         console.error('XMPP client online handler error:', formatError(error));
       }
@@ -909,6 +916,9 @@ export class XmppClient implements XmppClientInterface {
       if (typeof window !== 'undefined') {
         window.addEventListener('online', this.onBrowserOnline);
         window.addEventListener('offline', this.onBrowserOffline);
+      }
+      if (typeof document !== 'undefined') {
+        document.addEventListener('visibilitychange', this.onVisibilityChange);
       }
     } catch {
       // Ignore browser event binding failures in non-browser runtimes.
@@ -2432,9 +2442,76 @@ export class XmppClient implements XmppClientInterface {
     this.pausedDueToOfflineCap = false;
     this.processQueue().catch(() => {});
     this.scheduleHistoryQueue();
+    this.probeConnection('browser:online');
+  };
+
+  /**
+   * Rooms whose loaded history may be missing what arrived while the socket
+   * was down. Joins replay no history (presenceInRoom asks for 0 stanzas,
+   * history comes from MAM), and an opened room skips its fetch when it was
+   * already preloaded, so without this a message sent to us during a drop
+   * never shows up, not even after reopening the room.
+   */
+  private staleRoomsAfterReconnect = new Set<string>();
+
+  /** After a reconnect: refresh the open room now, the others when opened. */
+  private catchUpAfterReconnect() {
+    const rooms = store.getState().rooms.rooms || {};
+    Object.keys(rooms).forEach((jid) => this.staleRoomsAfterReconnect.add(jid));
+    const active = store.getState().rooms.activeRoomJID || this.activeRoomJid;
+    this.logStep('reconnect:catch-up');
+    if (!active) return;
+    this.getHistoryStanza(active, 30, undefined, undefined, {
+      source: 'active',
+    }).catch(() => {});
+  }
+
+  /**
+   * A phone that drops the network rarely closes the WebSocket: the client
+   * still reads 'online' when the network comes back, while the server has
+   * long dropped the session (and its room joins), so nothing arrives until
+   * the next idle ping, up to a minute later. Probe right away instead: a
+   * dead socket gets no pong and is reconnected.
+   */
+  private probeConnection(reason: string) {
+    if (this.intentionalLogout || !this.client) return;
     if (this.status !== 'online') {
-      this.scheduleReconnect('browser:online');
+      this.scheduleReconnect(reason);
+      return;
     }
+    if (this.pingInFlight) return;
+    const pingId = sendPing(this.client, this.host);
+    if (!pingId) {
+      this.scheduleReconnect(reason);
+      return;
+    }
+    this.pingInFlight = true;
+    this.logStep(`probe:${reason}`);
+    const client = this.client;
+    let settled = false;
+    const onStanza = (stanza: any) => {
+      if (!isPong(stanza, pingId)) return;
+      settled = true;
+      client.removeListener('stanza', onStanza);
+      clearTimeout(timer);
+      this.pingInFlight = false;
+      this.markActivity();
+    };
+    const timer = setTimeout(() => {
+      if (settled) return;
+      client.removeListener('stanza', onStanza);
+      this.pingInFlight = false;
+      if (this.client === client) this.scheduleReconnect(`${reason}:no-pong`);
+    }, Math.max(this.pongTimeoutMs, 4000));
+    client.on('stanza', onStanza);
+  }
+
+  private onVisibilityChange = () => {
+    if (typeof document === 'undefined' || document.visibilityState !== 'visible') return;
+    // Back in front after being hidden (an installed PWA resumed on a phone):
+    // the socket may have died in the background.
+    if (Date.now() - this.lastActivityTs < 15_000) return;
+    this.probeConnection('visible');
   };
 
   private onBrowserOffline = () => {
@@ -2672,7 +2749,10 @@ export class XmppClient implements XmppClientInterface {
     const inFlightKey = this.getHistoryInFlightKey(chatJID, before);
     const existingInFlight = this.historyPreloadInFlight.get(inFlightKey);
 
-    if (options?.skipIfPreloaded) {
+    // A room that may have missed messages while the connection was down
+    // fetches its newest page once, whatever its preload state says.
+    const staleSinceReconnect = this.staleRoomsAfterReconnect.delete(chatJID);
+    if (options?.skipIfPreloaded && !staleSinceReconnect) {
       const currentRoom = store.getState().rooms.rooms?.[chatJID];
       if (
         currentRoom?.historyPreloadState === 'done' &&

@@ -834,6 +834,37 @@ async function expireCallNotification({ tag, data, endAt, icon, badge }) {
   }
 }
 
+// One ring per call. The page keys a ring by callId, or by room:<bare> when the
+// call token it got carries no callId (the server sometimes drops it), while a
+// push for the same call may carry the callId. Same call, two keys, two tags:
+// two notifications. Before showing a ring, a ring for the same room under the
+// room key (or, for a room-keyed ring, under a callId) is closed, so the newer
+// one replaces it. Closing also stops that ring's expiry
+// from turning it into a "Missed call" (expiry only acts on an open ring).
+async function closeOtherRingsForRoom(data, keepTag) {
+  const room = callRoomBare(data);
+  if (!room) return;
+  let open = [];
+  try {
+    open = await self.registration.getNotifications();
+  } catch (e) {
+    warn('getNotifications failed', e);
+    return;
+  }
+  (open || []).forEach((n) => {
+    const tag = String(n.tag || '');
+    if (!tag.startsWith('call:') || tag === keepTag) return;
+    // Only when one side did not know the callId (a room: key): two rings
+    // with two different callIds are two calls and both stay.
+    const roomKeyed = tag.startsWith('call:room:') || keepTag.startsWith('call:room:');
+    const sameRoom = tag === `call:room:${room}` || callRoomBare(n.data || {}) === room;
+    if (!roomKeyed || !sameRoom) return;
+    try {
+      n.close();
+    } catch {}
+  });
+}
+
 async function handleCallPush({
   data,
   options,
@@ -870,6 +901,7 @@ async function handleCallPush({
   }
 
   log('SHOW CALL NOTIFICATION', { tag: options.tag });
+  await closeOtherRingsForRoom(data, options.tag);
   await self.registration.showNotification(title, options);
   await expireCallNotification({
     tag: options.tag,

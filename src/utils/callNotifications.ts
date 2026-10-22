@@ -50,6 +50,57 @@ const getRegistration = async (
   }
 };
 
+const ROOM_FIELDS = ['callRoom', 'room', 'roomJid', 'jid', 'chatId'] as const;
+
+const roomBareOf = (data: any): string => {
+  for (const f of ROOM_FIELDS) {
+    const v = data?.[f];
+    if (v !== undefined && v !== null && String(v).trim() !== '') {
+      return String(v).trim().split('@')[0].trim();
+    }
+  }
+  return '';
+};
+
+/**
+ * Closes any other ring for the same room. The page keys a ring by callId, or
+ * by room:<bare> when its call token carries no callId (the server sometimes
+ * drops it), while the worker may key the same call by the push's callId: two
+ * tags, two notifications for one call. The worker does the same before its
+ * own ring (closeOtherRingsForRoom in firebase-messaging-sw.js).
+ */
+async function closeOtherRingsForRoom(
+  registration: ServiceWorkerRegistration,
+  keepTag: string,
+  data: any
+): Promise<void> {
+  const room =
+    roomBareOf(data) ||
+    (keepTag.startsWith(`${CALL_TAG_PREFIX}room:`)
+      ? keepTag.slice(`${CALL_TAG_PREFIX}room:`.length)
+      : '');
+  if (!room) return;
+  let open: Notification[] = [];
+  try {
+    open = await registration.getNotifications();
+  } catch {
+    return;
+  }
+  open.forEach((n) => {
+    const tag = String(n.tag || '');
+    if (!tag.startsWith(CALL_TAG_PREFIX) || tag === keepTag) return;
+    // Only when one side did not know the callId: two different callIds are two calls.
+    const roomKey = `${CALL_TAG_PREFIX}room:`;
+    if (!tag.startsWith(roomKey) && !keepTag.startsWith(roomKey)) return;
+    if (tag !== `${roomKey}${room}` && roomBareOf(n.data) !== room) return;
+    try {
+      n.close();
+    } catch {
+      // Already gone.
+    }
+  });
+}
+
 /**
  * Shows the "incoming call" notification. With a service worker registration
  * (`useServiceWorker`) it goes through registration.showNotification, which is
@@ -79,6 +130,7 @@ export async function showCallNotification(
   if (opts.useServiceWorker) {
     const registration = await getRegistration(opts.scope || '/');
     if (registration?.active) {
+      await closeOtherRingsForRoom(registration, options.tag, options.data);
       try {
         await registration.showNotification(title, {
           ...options,

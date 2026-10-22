@@ -240,6 +240,26 @@ describe('service worker push contract', () => {
     expect(sw.registration.showNotification).toHaveBeenCalledTimes(1);
   });
 
+  it('one ring per call when the page keyed it by room and the push carries the callId', async () => {
+    // The page rang first from a call token without a callId: tag call:room:<room>.
+    await sw.registration.showNotification('Incoming video call', {
+      tag: 'call:room:app1_room1',
+      data: { room: 'app1_room1@conference.xmpp.test' },
+    });
+    // A ring for another room must stay.
+    await sw.registration.showNotification('Incoming video call', {
+      tag: 'call:room:app1_other',
+      data: { room: 'app1_other@conference.xmpp.test' },
+    });
+    const data = { type: 'call', callId: 'c-1', callKind: 'video', callToken: 'tok', jid: 'app1_room1@conference.xmpp.test' };
+    const done = sw.push({ data });
+    await sw.advance(0);
+    const tags = sw.shown.map((n: any) => n.tag).sort();
+    expect(tags).toEqual(['call:c-1', 'call:room:app1_other']);
+    await sw.advance(61_000);
+    await done;
+  });
+
   it('keeps the full call payload on the notification', async () => {
     const data = { type: 'call', callId: 'c-1', callKind: 'video', callToken: 'tok', jid: 'app1_room1@conference.xmpp.test' };
     const done = sw.push({ data });

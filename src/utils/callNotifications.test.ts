@@ -49,6 +49,30 @@ describe('call notifications', () => {
     expect(notificationCtor).not.toHaveBeenCalled();
   });
 
+  it('replaces the worker ring of the same call when one side keyed it by room (no callId)', async () => {
+    const workerRing = { tag: 'call:c-9', data: { jid: 'app1_room1@conference.x' }, close: vi.fn() };
+    const otherRoom = { tag: 'call:room:app1_other', data: { room: 'app1_other@conference.x' }, close: vi.fn() };
+    const otherCall = { tag: 'call:c-7', data: { jid: 'app1_room1@conference.x' }, close: vi.fn() };
+    registration.getNotifications = vi.fn(async () => [workerRing, otherRoom, otherCall]);
+    await showCallNotification(
+      'Incoming call',
+      { ...OPTIONS, tag: 'call:room:app1_room1', data: { room: 'app1_room1@conference.x' } },
+      { useServiceWorker: true }
+    );
+    expect(workerRing.close).toHaveBeenCalled();
+    expect(otherRoom.close).not.toHaveBeenCalled();
+    // A callId-keyed ring of the same room is closed only because ours has no callId.
+    expect(otherCall.close).toHaveBeenCalled();
+    expect(registration.showNotification).toHaveBeenCalled();
+  });
+
+  it('leaves another call of the same room alone when both carry a callId', async () => {
+    const otherCall = { tag: 'call:c-7', data: { jid: 'app1_room1@conference.x' }, close: vi.fn() };
+    registration.getNotifications = vi.fn(async () => [otherCall]);
+    await showCallNotification('Incoming call', { ...OPTIONS, data: { callId: 'c-1', room: 'app1_room1@conference.x' } }, { useServiceWorker: true });
+    expect(otherCall.close).not.toHaveBeenCalled();
+  });
+
   it('falls back to new Notification, without actions (the constructor throws on them)', async () => {
     registration = null;
     await showCallNotification('Incoming call', OPTIONS, { useServiceWorker: true });
