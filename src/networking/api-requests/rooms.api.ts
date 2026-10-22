@@ -465,6 +465,29 @@ export async function deleteRoom(name: string) {
   }
 }
 
+// POST /v1/chats/call/state/decline/{callId}
+// Tells the caller the call was declined and tears down the LiveKit room. It
+// is the path that still works when the XMPP socket is dead (a call answered
+// from a push notification). Best effort and never throws: the call may
+// already be over (CALL_NOT_FOUND), or the caller may have left. Resolves true
+// only when the server took the request, so a caller that has to report
+// "declined" (the service worker waits for it) can tell.
+export async function declineChatCall(callId: string): Promise<boolean> {
+  const token = store.getState().chatSettingStore.user.token || '';
+  if (!callId || !token) return false;
+  try {
+    await http.post(
+      `/v1/chats/call/state/decline/${encodeURIComponent(callId)}`,
+      undefined,
+      { headers: { Authorization: token } }
+    );
+    return true;
+  } catch {
+    // Swallow: see above.
+    return false;
+  }
+}
+
 // POST /v1/chats/call/create/{chatName}
 // Swagger documents the body as `additionalProperties: true` - we forward
 // `kind: 'audio' | 'video'` so the server can stamp it on the broadcast

@@ -15,6 +15,8 @@ const Container = styled.div`
   width: 100%;
   background-color: transparent;
   gap: 16px;
+  /* Host-tunable breathing room above and below the day separator (default none). */
+  margin: var(--ethora-date-label-margin-y, 0px) 0;
 `;
 
 export const StyledDateLabel = styled.div<{

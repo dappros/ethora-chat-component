@@ -1,6 +1,7 @@
 import { getFirebaseMessaging, defaultConfig } from '../firebase-config';
 import { ethoraLogger } from '../helpers/ethoraLogger';
 import { getStoredFcmToken, setStoredFcmToken } from './pushStorage';
+import { deleteMirroredCallAuth } from './pushServiceWorkerBridge';
 // Type-only: the real firebase/messaging module is loaded on demand so the
 // SDK stays out of the host bundle until push is actually used.
 import type { MessagePayload } from 'firebase/messaging';
@@ -27,6 +28,8 @@ interface FcmRegistrationOptions {
   firebaseConfig?: any;
   iconPath?: string;
   badgePath?: string;
+  /** Same-origin path a cold-start push tap opens (default: the origin root). */
+  clickPath?: string;
   debug?: boolean;
 }
 
@@ -43,6 +46,7 @@ async function registerFirebaseServiceWorker(
   const serviceWorkerScope = options.serviceWorkerScope || '/';
   const customIconPath = options.iconPath?.trim() || '';
   const customBadgePath = options.badgePath?.trim() || '';
+  const customClickPath = options.clickPath?.trim() || '';
 
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
     return null;
@@ -73,6 +77,10 @@ async function registerFirebaseServiceWorker(
 
   if (customBadgePath) {
     serviceWorkerUrl.searchParams.set('badgePath', customBadgePath);
+  }
+
+  if (customClickPath) {
+    serviceWorkerUrl.searchParams.set('clickPath', customClickPath);
   }
 
   const serviceWorkerPath = serviceWorkerUrl.toString();
@@ -106,6 +114,9 @@ async function registerFirebaseServiceWorker(
     }
     if (customBadgePath) {
       expectedManagedParams.set('badgePath', customBadgePath);
+    }
+    if (customClickPath) {
+      expectedManagedParams.set('clickPath', customClickPath);
     }
 
     const hasMatchingManagedParams = (scriptURL: string): boolean => {
@@ -271,9 +282,49 @@ export function listenForForegroundMessages(
 }
 
 /**
+ * requestPendingPushClick()
+ * A push tapped while no window was open is kept by the service worker, because
+ * the new page is not listening yet when the tap happens. Once the page's
+ * `message` listener is attached it calls this: the worker answers with a
+ * `PUSH_NOTIFICATION_CLICK` message (same shape as a warm tap) and forgets it,
+ * or stays silent when nothing is pending. With `discard`, the worker only
+ * drops the pending click (the page already took it from the `fromPush` url).
+ */
+export async function requestPendingPushClick(
+  readyTimeoutMs = 3000,
+  { discard = false }: { discard?: boolean } = {}
+): Promise<boolean> {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return false;
+  const container = navigator.serviceWorker;
+  try {
+    let target: ServiceWorker | null | undefined = container.controller;
+    if (!target && container.ready) {
+      const registration = await Promise.race([
+        container.ready,
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), readyTimeoutMs)),
+      ]);
+      target = registration?.active;
+    }
+    if (!target) return false;
+    target.postMessage(
+      discard
+        ? { type: 'GET_PENDING_PUSH_CLICK', discard: true }
+        : { type: 'GET_PENDING_PUSH_CLICK' }
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * disablePushNotifications()
  */
 export async function disablePushNotifications(_authToken?: string): Promise<void> {
+  // The worker's copy of the API token goes with the session, even when there
+  // is no push registration left to tear down below.
+  await deleteMirroredCallAuth();
+
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
     return;
   }
