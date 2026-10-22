@@ -6,6 +6,7 @@ import { clearHeap } from '../roomStore/roomHeapSlice';
 import { clearScopedChatCache } from '../helpers/cacheScope';
 import { clearStoredUser } from '../helpers/authStorage';
 import { disablePushNotifications } from '../utils/firebasePushNotifications';
+import { clearCallPushSession } from '../helpers/incomingCallPush';
 import { getGlobalXmppClient, setGlobalXmppClient } from '../utils/clientRegistry';
 import { stopOmemo } from '../e2ee';
 
@@ -22,6 +23,9 @@ const withTimeout = async (
 const logoutService = {
   performLogout: async () => {
     const authToken = store.getState().chatSettingStore.user.token || '';
+    const pushScope =
+      store.getState().chatSettingStore.config?.pushNotifications
+        ?.serviceWorkerScope || '/';
     const xmppClient = getGlobalXmppClient();
     try {
       (xmppClient as any)?.markIntentionalLogout?.();
@@ -58,7 +62,12 @@ const logoutService = {
       ? withTimeout(xmppClient.disconnect(), 1500)
       : Promise.resolve();
     const pushTeardownPromise = withTimeout(
-      disablePushNotifications(authToken),
+      Promise.all([
+        disablePushNotifications(authToken),
+        // The call push flow's own leftovers (held call, the tap the worker
+        // keeps for the next page load, call notifications on screen).
+        clearCallPushSession(pushScope),
+      ]),
       2500
     );
     const persistPromise = withTimeout(

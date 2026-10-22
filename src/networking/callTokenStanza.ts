@@ -23,6 +23,9 @@ import {
 } from './api-requests/callState.api';
 import { callStateHasLogData } from '../helpers/callLogMessage';
 import { ethoraLogger } from '../helpers/ethoraLogger';
+import { decodeJwtPayload } from '../helpers/callPush';
+import { isCallHandled } from '../utils/handledCalls';
+import { callNotificationKey } from '../utils/callNotifications';
 
 // Backend currently doesn't propagate `kind` on the broadcast call-token
 // stanza - both ends default to video unless we tell them otherwise. We
@@ -95,28 +98,6 @@ const lookupUserName = (xmppUsername: string | null): string => {
     `${user.firstName || ''} ${user.lastName || ''}`.trim() ||
     String(user.name || '').trim()
   );
-};
-
-// Pull the JWT payload out of the call-token. We only read non-sensitive
-// claims (`sub` = caller display name; `metadata.callId`, `video.room`) -
-// no signature verification, which is fine because the server has already
-// vetted the token and LiveKit will reject anything tampered with on
-// connect. Returns null when the token isn't a parseable JWT.
-const decodeJwtPayload = (token: string): Record<string, any> | null => {
-  if (!token || typeof token !== 'string') return null;
-  const parts = token.split('.');
-  if (parts.length < 2) return null;
-  try {
-    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
-    const decoded =
-      typeof atob === 'function'
-        ? atob(padded)
-        : Buffer.from(padded, 'base64').toString('binary');
-    return JSON.parse(decoded) as Record<string, any>;
-  } catch {
-    return null;
-  }
 };
 
 const extractCallId = (data: Element, jwtPayload: Record<string, any> | null) => {
@@ -563,6 +544,13 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
       const callId = extractCallId(data, jwtPayload);
       if (isP2P && !callId) return true;
 
+      // A p2p token for a call another tab already accepted, declined or saw
+      // cancelled is a replay: drop it before the busy / glare logic below can
+      // decline or cancel anything on its behalf.
+      if (isP2P && isCallHandled(callNotificationKey(callId, stanzaRoom))) {
+        return true;
+      }
+
       const callState = store.getState().call;
 
       if (isP2P || callState.mode === 'p2p') {
@@ -598,6 +586,10 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
           // drop ours (the other side keeps theirs and ignores our token).
           sendCallStateSignal('cancelled');
           reportCallEnded(callState.callId);
+          // Clear our outgoing call first: the call slice refuses an incoming
+          // token while a call of ours is in progress (late / duplicate token
+          // guard), and here the incoming one is meant to replace it.
+          store.dispatch(endCall());
         }
       }
 
@@ -617,6 +609,13 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
             livekitUrl: attrs.livekitUrl,
           })
         );
+        return true;
+      }
+
+      // A replay of the token (socket reconnect, a second login of the same
+      // account) for a call another tab accepted, declined or saw cancelled
+      // must not ring it again.
+      if (callId && isCallHandled(callNotificationKey(callId, stanzaRoom))) {
         return true;
       }
 
