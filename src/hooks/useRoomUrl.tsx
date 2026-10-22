@@ -39,7 +39,10 @@ export const useRoomUrl = (activeRoomJID: string, config: IConfig) => {
         searchParams.delete('chatId');
 
         const newUrl = `${window.location.pathname}?${searchParams.toString()}`;
-        window.history.pushState(null, '', newUrl);
+        // Replace, not push: closing or switching a room must not add a
+        // history entry of its own, or Back would land on that entry and look
+        // stuck (and an opened room would stack two entries per switch).
+        window.history.replaceState(null, '', newUrl);
       }
     };
   }, [activeRoomJID]);

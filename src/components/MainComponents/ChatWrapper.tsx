@@ -1,4 +1,5 @@
 import React, { FC, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRoomHistorySync } from '../../hooks/useRoomHistorySync';
 import { useDispatch, useSelector } from 'react-redux';
 import ChatRoom from './ChatRoom';
 import {
@@ -110,9 +111,12 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     };
   }, []); // Remove window.innerWidth from dependencies
 
-  const handleItemClick = (value: boolean) => {
+  const handleItemClick = useCallback((value: boolean) => {
     setIsChatVisible(value);
-  };
+  }, []);
+  // Browser back / forward (and the mobile back gestures) open and close the
+  // room like the header's back arrow, when the room is kept in the URL.
+  useRoomHistorySync(config?.setRoomJidInPath, handleItemClick);
 
   const rooms = useSelector((state: RootState) => state.rooms.rooms);
   const activeRoomJID = useSelector((state: RootState) => state.rooms.activeRoomJID);
