@@ -24,11 +24,13 @@ export const useRoomUrl = (activeRoomJID: string, config: IConfig) => {
       const chatJidUrl = activeRoomJID.split('@')[0];
 
       const searchParams = new URLSearchParams(window.location.search);
-      searchParams.set('chatId', chatJidUrl);
-
-      const newUrl = `${window.location.pathname}?${searchParams.toString()}`;
-
-      window.history.pushState(null, '', newUrl);
+      // Already there (a Forward to this room, or a deep link): pushing again
+      // would stack a second entry for it and Back would seem to do nothing.
+      if (searchParams.get('chatId') !== chatJidUrl) {
+        searchParams.set('chatId', chatJidUrl);
+        const newUrl = `${window.location.pathname}?${searchParams.toString()}`;
+        window.history.pushState(null, '', newUrl);
+      }
     } else if (!activeRoomJID && Object.values(roomsList).length > 0) {
       dispatch(setCurrentRoom({ roomJID: roomsList[0]?.jid }));
     }
