@@ -270,9 +270,15 @@ export const CustomMessageContainer = styled.div<{
       : props.$lastInGroup === false
         ? RUN_GAP_PX
         : SENDER_GAP_PX;
-    if (!props.$reaction) return `${gap}px`;
+    // The run and sender gaps are host-tunable; the defaults are the constants.
+    const gapCss = props.$reply
+      ? `${gap}px`
+      : props.$lastInGroup === false
+        ? `var(--ethora-message-run-gap, ${RUN_GAP_PX}px)`
+        : `var(--ethora-message-sender-gap, ${SENDER_GAP_PX}px)`;
+    if (!props.$reaction) return gapCss;
     const hang = props.$reactionHang ?? REACTION_HANG_PX;
-    return `${Math.max(gap, hang + REACTION_CLEAR_PX)}px`;
+    return `max(${gapCss}, ${hang + REACTION_CLEAR_PX}px)`;
   }};
 `;
 

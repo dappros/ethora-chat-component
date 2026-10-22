@@ -295,13 +295,13 @@ describe('Message bubble tail', () => {
 describe('Message bottom spacing', () => {
   it('leaves an 8px gap under the last message before a different sender', () => {
     renderBubble(makeMessage(), false, true);
-    expect(declarationsFor(rowOf())).toContain(`margin-bottom:${SENDER_GAP_PX}px`);
+    expect(declarationsFor(rowOf())).toContain('margin-bottom:var(--ethora-message-sender-gap,8px)');
     expect(SENDER_GAP_PX).toBe(8);
   });
 
   it('leaves a 2px gap under a message that the same sender continues', () => {
     renderBubble(makeMessage(), false, false);
-    expect(declarationsFor(rowOf())).toContain(`margin-bottom:${RUN_GAP_PX}px`);
+    expect(declarationsFor(rowOf())).toContain('margin-bottom:var(--ethora-message-run-gap,2px)');
     expect(RUN_GAP_PX).toBe(2);
   });
 
@@ -314,24 +314,28 @@ describe('Message bottom spacing', () => {
     renderBubble(makeMessage({ reaction: reactions } as Partial<IMessage>), false, true);
     expect(REACTION_HANG_PX).toBe(12);
     expect(REACTION_CLEAR_PX).toBe(4);
-    expect(declarationsFor(rowOf())).toContain('margin-bottom:16px');
+    expect(declarationsFor(rowOf())).toContain(
+      'margin-bottom:max(var(--ethora-message-sender-gap,8px),16px)'
+    );
     expect(declarationsFor(rowOf())).not.toContain('margin-bottom:12px');
     expect(declarationsFor(bubble())).not.toContain('padding-bottom');
   });
 
   it('reserves 16px with reactions inside a run too, not the 2px run gap', () => {
     renderBubble(makeMessage({ reaction: reactions } as Partial<IMessage>), false, false);
-    expect(declarationsFor(rowOf())).toContain('margin-bottom:16px');
-    expect(declarationsFor(rowOf())).not.toContain(`margin-bottom:${RUN_GAP_PX}px`);
+    expect(declarationsFor(rowOf())).toContain(
+      'margin-bottom:max(var(--ethora-message-run-gap,2px),16px)'
+    );
+    expect(declarationsFor(rowOf())).not.toContain('margin-bottom:var(--ethora-message-run-gap,2px);');
   });
 
   it('keeps the 8px sender gap and the 2px run gap when there are no reactions', () => {
     renderBubble(makeMessage(), false, true);
-    expect(declarationsFor(rowOf())).toContain('margin-bottom:8px');
+    expect(declarationsFor(rowOf())).toContain('margin-bottom:var(--ethora-message-sender-gap,8px)');
     expect(declarationsFor(rowOf())).not.toContain('z-index:1');
     cleanup();
     renderBubble(makeMessage(), false, false);
-    expect(declarationsFor(rowOf())).toContain('margin-bottom:2px');
+    expect(declarationsFor(rowOf())).toContain('margin-bottom:var(--ethora-message-run-gap,2px)');
   });
 
   it('paints a row with reactions above the rows after it', () => {
@@ -349,7 +353,7 @@ describe('Message bottom spacing', () => {
       });
     try {
       renderBubble(makeMessage({ reaction: reactions } as Partial<IMessage>), false, true);
-      expect(declarationsFor(rowOf())).toContain('margin-bottom:44px');
+      expect(declarationsFor(rowOf())).toContain('margin-bottom:max(var(--ethora-message-sender-gap,8px),44px)');
     } finally {
       spy.mockRestore();
     }
@@ -407,6 +411,6 @@ describe('MessageContainer run plumbing', () => {
         },
       }
     );
-    expect(declarationsFor(rowOf())).toContain(`margin-bottom:${RUN_GAP_PX}px`);
+    expect(declarationsFor(rowOf())).toContain('margin-bottom:var(--ethora-message-run-gap,2px)');
   });
 });
