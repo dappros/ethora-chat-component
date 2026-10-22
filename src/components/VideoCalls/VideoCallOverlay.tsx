@@ -5,7 +5,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch, useSelector, useStore } from 'react-redux';
 import { RootState, store } from '../../roomStore';
 import {
   acceptIncomingCall,
@@ -41,7 +41,21 @@ import { VideoCallIcons } from '../../types/models/config.model';
 import { useDraggable } from '../../helpers/useDraggable';
 import Button from '../styled/Button';
 import { useTabVisibility } from '../../hooks/useTabVisibility';
-import { showBrowserNotification } from '../../utils/notificationUtils';
+import {
+  callNotificationKey,
+  callNotificationTag,
+  closeCallNotifications,
+  showCallNotification,
+  showMissedCallNotification,
+} from '../../utils/callNotifications';
+import { wasCallRaisedFromPush } from '../../helpers/incomingCallPush';
+import { runIfCallClaimed } from '../../helpers/callClaim';
+import { jwtExpiresAtMs } from '../../helpers/callPush';
+import {
+  silenceCallOutcome,
+  startCallOutcomeSync,
+} from '../../helpers/callOutcomeSync';
+import { declineChatCall } from '../../networking/api-requests/rooms.api';
 
 const visuallyHidden: React.CSSProperties = {
   position: 'absolute',
@@ -423,6 +437,7 @@ const RingingCard: React.FC<RingingCardProps> = ({
 
 const VideoCallOverlayView: React.FC = () => {
   const dispatch = useDispatch();
+  const reduxStore = useStore();
   const call = useSelector((state: RootState) => state.call);
   const { config, user } = useChatSettingState();
 
@@ -526,9 +541,31 @@ const VideoCallOverlayView: React.FC = () => {
 
   const isOpen = enabled && call.phase !== 'idle';
 
+  // The latest call and user, for the ring timer that fires long after the
+  // render it was set up in.
+  const latestRef = useRef({ call, hasUser: !!user?.xmppUsername });
+  latestRef.current = { call, hasUser: !!user?.xmppUsername };
+
+  // OS notification settings, shared by the ring and the "Missed call" ones.
+  const notificationScope = config?.pushNotifications?.serviceWorkerScope || '/';
+  const pushServiceWorkerEnabled = config?.pushNotifications?.enabled === true;
+  const pushIconPath = config?.pushNotifications?.iconPath || '/favicon.ico';
+  const pushBadgePath =
+    config?.pushNotifications?.badgePath ||
+    config?.pushNotifications?.iconPath ||
+    '/favicon.ico';
+
   useEffect(() => {
     if (isOpen) ensurePulseKeyframes();
   }, [isOpen]);
+
+  // Other tabs of this origin: a ring that ends here (answered, declined,
+  // cancelled by the caller) is announced to them, and a ring here that another
+  // tab ended is ended quietly (no "Missed call", nothing sent to the caller).
+  useEffect(
+    () => startCallOutcomeSync(reduxStore as any),
+    [reduxStore]
+  );
 
   useEffect(() => {
     if (call.phase !== 'requesting' || call.direction !== 'outgoing') {
@@ -545,12 +582,94 @@ const VideoCallOverlayView: React.FC = () => {
     if (call.phase !== 'ringing-incoming' || call.direction !== 'incoming') {
       return;
     }
-    const elapsed = Date.now() - (call.startedAt || Date.now());
+    const now = Date.now();
+    const elapsed = now - (call.startedAt || now);
+    // The ring cannot outlive its LiveKit token: a call raised late from a
+    // push may have only a few seconds of token left, and answering after
+    // that would just fail to connect.
+    const tokenExp = jwtExpiresAtMs(call.token);
+    const untilTokenExpiry =
+      tokenExp === null ? Infinity : tokenExp - now;
     const timer = window.setTimeout(() => {
+      // Nobody answered. In a hidden tab leave a "Missed call" behind, the
+      // same notification the service worker swaps its ring for at the token's
+      // exp (same tag and data, shown at most once): the worker wakes at the
+      // same moment, finds the ring already closed and would otherwise return
+      // with nothing shown. A visible tab saw the ring on screen and the call
+      // log lands in the chat, so it gets no extra OS notification.
+      const ringing = latestRef.current.call;
+      if (
+        ringing.phase === 'ringing-incoming' &&
+        ringing.direction === 'incoming' &&
+        typeof document !== 'undefined' &&
+        document.visibilityState !== 'visible' &&
+        latestRef.current.hasUser
+      ) {
+        void showMissedCallNotification(
+          {
+            key: callNotificationKey(
+              ringing.callId,
+              ringing.roomBareName || ringing.roomJid
+            ),
+            kind: ringing.kind === 'audio' ? 'audio' : 'video',
+            callerName: ringing.roomName,
+            roomBareName: ringing.roomBareName,
+          },
+          {
+            icon: pushIconPath,
+            badge: pushBadgePath,
+            scope: notificationScope,
+            useServiceWorker: pushServiceWorkerEnabled,
+            onClick: () => window.focus(),
+          }
+        );
+      }
+      // A timeout is each tab's own: not announced to the others.
+      silenceCallOutcome(
+        callNotificationKey(
+          ringing.callId,
+          ringing.roomBareName || ringing.roomJid
+        )
+      );
       dispatch(declineIncomingCall());
-    }, Math.max(0, INCOMING_CALL_TIMEOUT_MS - elapsed));
+    }, Math.max(0, Math.min(INCOMING_CALL_TIMEOUT_MS - elapsed, untilTokenExpiry)));
     return () => window.clearTimeout(timer);
-  }, [call.phase, call.direction, call.startedAt, dispatch]);
+  }, [
+    call.phase,
+    call.direction,
+    call.startedAt,
+    call.token,
+    dispatch,
+    pushIconPath,
+    pushBadgePath,
+    notificationScope,
+    pushServiceWorkerEnabled,
+  ]);
+
+  // Whenever a ring ends (answered, declined, cancelled by the caller, timed
+  // out) its OS notification goes with it, whoever showed it: this page, or
+  // the service worker while no page was listening. A new call replacing a ring
+  // closes the old one's too.
+  const ringKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    const ringing =
+      call.direction === 'incoming' && call.phase === 'ringing-incoming';
+    const key = ringing
+      ? callNotificationKey(call.callId, call.roomBareName || call.roomJid)
+      : null;
+    const previous = ringKeyRef.current;
+    ringKeyRef.current = key;
+    if (previous && previous !== key) {
+      void closeCallNotifications(previous, notificationScope);
+    }
+  }, [
+    call.direction,
+    call.phase,
+    call.callId,
+    call.roomJid,
+    call.roomBareName,
+    notificationScope,
+  ]);
 
   // An incoming call rings via this overlay whenever the tab is open and
   // focused (it now lives in XmppProvider - see that file - specifically so
@@ -580,14 +699,22 @@ const VideoCallOverlayView: React.FC = () => {
     // notification for a user the UI already shows as logged out.
     if (!user?.xmppUsername) return;
     if (isTabVisible) return; // ring modal is on screen - that IS the notification
-    const key = call.callId || call.roomJid || 'incoming-call';
+    const key = callNotificationKey(
+      call.callId,
+      call.roomBareName || call.roomJid
+    );
     if (notifiedIncomingCallKeyRef.current === key) return;
     notifiedIncomingCallKeyRef.current = key;
+    // A ring whose push this tab did not ack is announced by the service worker
+    // (it shows the notification): one OS notification per call, not two. A
+    // ring this tab did ack was never announced by the worker, so leaving the
+    // tab mid-ring notifies from here (same tag, so nothing is duplicated).
+    if (wasCallRaisedFromPush(key)) return;
 
     const title = `Incoming ${call.kind === 'audio' ? 'audio' : 'video'} call${
       call.roomName ? ` · ${call.roomName}` : ''
     }`;
-    void showBrowserNotification(
+    void showCallNotification(
       title,
       {
         body: 'Tap to answer',
@@ -596,12 +723,26 @@ const VideoCallOverlayView: React.FC = () => {
           config?.pushNotifications?.badgePath ||
           config?.pushNotifications?.iconPath ||
           '/favicon.ico',
-        tag: `call:${key}`,
+        tag: callNotificationTag(key),
         requireInteraction: true,
+        // Same call fields as the worker's own call notification, so an
+        // Answer / Decline tap on it is routed the same way.
+        data: {
+          type: 'call',
+          callId: call.callId || '',
+          callToken: call.token || '',
+          room: call.roomBareName || '',
+          kind: call.kind,
+          callerName: call.roomName || '',
+          callerXmppUsername: call.peerXmppUsername || '',
+        },
       },
-      config?.pushNotifications?.serviceWorkerScope || '/',
-      () => {
-        window.focus();
+      {
+        scope: notificationScope,
+        useServiceWorker: config?.pushNotifications?.enabled === true,
+        onClick: () => window.focus(),
+        // The worker ends this ring at the token's exp if the tab is gone by then.
+        expiresAt: jwtExpiresAtMs(call.token),
       }
     );
   }, [
@@ -611,11 +752,15 @@ const VideoCallOverlayView: React.FC = () => {
     call.roomName,
     call.callId,
     call.roomJid,
+    call.token,
+    call.roomBareName,
+    call.peerXmppUsername,
     isTabVisible,
     user?.xmppUsername,
+    config?.pushNotifications?.enabled,
     config?.pushNotifications?.iconPath,
     config?.pushNotifications?.badgePath,
-    config?.pushNotifications?.serviceWorkerScope,
+    notificationScope,
   ]);
 
   const ringingHeader = useMemo(() => {
@@ -684,16 +829,35 @@ const VideoCallOverlayView: React.FC = () => {
     [dispatch]
   );
 
+  // Accept and Decline take the same per-call claim as the notification's
+  // Answer and Decline (see callClaim): with the call ringing in several tabs,
+  // only the tab that gets the claim acts, and the others' rings end when it
+  // announces the outcome.
+  const incomingKey = callNotificationKey(
+    call.callId,
+    call.roomBareName || call.roomJid
+  );
+  const acceptCall = useCallback(() => {
+    runIfCallClaimed(incomingKey, () => dispatch(acceptIncomingCall()));
+  }, [incomingKey, dispatch]);
+
   const declineCall = useCallback(() => {
-    sendCallStateSignal('declined');
-    // p2p has no LiveKit webhook: the server learns of the decline (and relays
-    // it to the caller) only from this report. Never sent for LiveKit calls,
-    // where a REST decline would act on the LiveKit room.
-    if (store.getState().call.mode === 'p2p') {
-      reportCallDeclined(store.getState().call.callId);
-    }
-    dispatch(declineIncomingCall());
-  }, [dispatch]);
+    runIfCallClaimed(incomingKey, () => {
+      // XMPP tells the caller when the socket is up; the REST decline covers a
+      // dead socket (a ring that came from a push). p2p has no LiveKit
+      // webhook, so the server learns of the decline (and relays it to the
+      // caller) only from this report. A 1:1 LiveKit call is torn down by the
+      // same REST decline. In a group call one member declining must not end
+      // the room for everybody, so no REST decline is sent there.
+      sendCallStateSignal('declined');
+      if (call.mode === 'p2p') {
+        reportCallDeclined(call.callId);
+      } else if (!call.isGroup && call.callId) {
+        void declineChatCall(call.callId);
+      }
+      dispatch(declineIncomingCall());
+    });
+  }, [incomingKey, call.mode, call.isGroup, call.callId, dispatch]);
 
   // Hang up / dismiss whatever call state we're in (used by Esc).
   const hangupCurrent = useCallback(() => {
@@ -896,7 +1060,7 @@ const VideoCallOverlayView: React.FC = () => {
             variant="incoming"
             primaryColor={primaryColor}
             icons={videoCallsConfig?.icons}
-            onAccept={() => dispatch(acceptIncomingCall())}
+            onAccept={acceptCall}
             onDecline={declineCall}
           />
         ) : call.phase === 'error' ? (

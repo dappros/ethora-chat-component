@@ -846,6 +846,13 @@ export interface IConfig {
     serviceWorkerScope?: string;
     iconPath?: string;
     badgePath?: string;
+    /**
+     * Same-origin path a push tap opens when no window is open yet (for
+     * example `/app/chat`). Use it when the chat is not mounted at the origin
+     * root. The tapped room and message are appended as `fromPush=1&chatId=...`
+     * (ids only). Default: the origin root.
+     */
+    clickPath?: string;
     softAsk?: boolean;
     /**
      * In-app banner that nudges the user to turn on browser notifications.

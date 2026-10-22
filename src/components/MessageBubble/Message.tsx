@@ -382,17 +382,38 @@ const Message: React.FC<MessageProps> = forwardRef<
   };
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const handleTouchStart = (event: React.TouchEvent) => {
+    const touch = event.touches[0];
+    touchStartRef.current = touch ? { x: touch.clientX, y: touch.clientY } : null;
     timerRef.current = setTimeout(() => {
+      timerRef.current = null;
       handleContextMenu(event);
     }, 500);
   };
 
   const handleTouchEnd = () => {
+    touchStartRef.current = null;
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
+    }
+  };
+
+  // A finger that moves is scrolling or swiping, not long-pressing: without
+  // this, holding a bubble while scrolling the list opened the context menu
+  // half a second later.
+  const LONG_PRESS_MOVE_TOLERANCE_PX = 10;
+  const handleTouchMove = (event: React.TouchEvent) => {
+    const start = touchStartRef.current;
+    const touch = event.touches[0];
+    if (!timerRef.current || !start || !touch) return;
+    if (
+      Math.abs(touch.clientX - start.x) > LONG_PRESS_MOVE_TOLERANCE_PX ||
+      Math.abs(touch.clientY - start.y) > LONG_PRESS_MOVE_TOLERANCE_PX
+    ) {
+      handleTouchEnd();
     }
   };
 
@@ -933,6 +954,8 @@ const Message: React.FC<MessageProps> = forwardRef<
             !config?.disableInteractions ? handleTouchStart : undefined
           }
           onTouchEnd={!config?.disableInteractions ? handleTouchEnd : undefined}
+          onTouchMove={!config?.disableInteractions ? handleTouchMove : undefined}
+          onTouchCancel={!config?.disableInteractions ? handleTouchEnd : undefined}
         >
           {!isUser && (
             <CustomUserName

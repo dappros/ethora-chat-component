@@ -77,7 +77,9 @@ export const parseCallPush = (
   return {
     callId: pick(d, ['callId', 'callid', 'callID']) || null,
     token: pick(d, ['callToken', 'livekitToken', 'token']) || null,
-    kind: kindRaw === 'audio' ? 'audio' : 'video',
+    // The server defaults a push without `kind` to audio, so the client does
+    // too; anything but an explicit "video" is an audio call.
+    kind: kindRaw === 'video' ? 'video' : 'audio',
     roomBareName,
     roomRef,
     callerName:
@@ -88,4 +90,56 @@ export const parseCallPush = (
         .split('@')[0] || null,
     isGroup: ['true', '1'].includes(pick(d, ['group', 'isGroup']).toLowerCase()),
   };
+};
+
+/**
+ * Decode the claims of a JWT without verifying it. Only non-sensitive claims
+ * are ever read from the result; the server (and LiveKit on connect) is the
+ * authority on validity. Returns null for anything that is not a JWT.
+ */
+export const decodeJwtPayload = (
+  token: string | null | undefined
+): Record<string, any> | null => {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length < 2) return null;
+  try {
+    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
+    const decoded =
+      typeof atob === 'function'
+        ? atob(padded)
+        : Buffer.from(padded, 'base64').toString('binary');
+    const parsed = JSON.parse(decoded);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+/** Expiry of a JWT (`exp`, seconds) as epoch milliseconds, or null. */
+export const jwtExpiresAtMs = (token: string | null | undefined): number | null => {
+  const exp = Number(decodeJwtPayload(token)?.exp);
+  return Number.isFinite(exp) && exp > 0 ? exp * 1000 : null;
+};
+
+/** A call token with less than this left is treated as already expired. */
+export const CALL_TOKEN_MIN_REMAINING_MS = 3000;
+
+/**
+ * Whether a call push is still worth ringing for. The backend sets no push TTL,
+ * so a device that was offline can receive a call push long after the call.
+ * The LiveKit token lives 60 s, so its `exp` is the freshness clock.
+ *
+ * When no `exp` can be read (no token, malformed token) the push is treated
+ * as fresh: it cannot be proven stale, and the ring's own 45 s timeout bounds
+ * how long it can stay on screen.
+ */
+export const getCallPushFreshness = (
+  data: Record<string, any> | null | undefined,
+  now: number = Date.now()
+): { fresh: boolean; expiresAt: number | null } => {
+  const expiresAt = jwtExpiresAtMs(parseCallPush(data).token);
+  if (expiresAt === null) return { fresh: true, expiresAt: null };
+  return { fresh: expiresAt - now >= CALL_TOKEN_MIN_REMAINING_MS, expiresAt };
 };
