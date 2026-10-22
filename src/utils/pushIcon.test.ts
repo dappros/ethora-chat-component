@@ -48,7 +48,7 @@ describe('service worker pickIcon', () => {
 
   it('ignores an icon it cannot safely use', () => {
     const sw = loadWorker('?iconPath=/app-wide.png');
-    for (const bad of ['javascript:alert(1)', 'data:image/png;base64,AAAA', 'icon.png', '//evil.test/x.png', '   ', 42]) {
+    for (const bad of ['javascript:alert(1)', 'data:image/png;base64,AAAA', 'icon.png', '//evil.test/x.png', '/\\evil.test/x.png', '   ', 42]) {
       expect(sw.pickIcon({}, { icon: bad }, {})).toBe('/app-wide.png');
     }
   });
@@ -66,6 +66,7 @@ describe('foreground pickPushIcon', () => {
   it('rejects unsafe values', () => {
     expect(sanitizeIconUrl('javascript:alert(1)')).toBe('');
     expect(sanitizeIconUrl('//evil.test/x')).toBe('');
+    expect(sanitizeIconUrl('/\\evil.test/x.png')).toBe('');
     expect(sanitizeIconUrl(' https://ok.test/a.png ')).toBe('https://ok.test/a.png');
     expect(sanitizeIconUrl('/local.png')).toBe('/local.png');
   });
