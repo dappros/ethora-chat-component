@@ -81,7 +81,8 @@ export const MessagesScroll = styled.div<{ color?: string }>`
   background-image: var(--ethora-chat-bg-image, none);
   background-size: cover;
   background-position: center;
-  padding: 0px 16px;
+  /* Host-tunable (e.g. a compact phone layout); the default is unchanged. */
+  padding: 0px var(--ethora-message-list-padding-x, 16px);
 
   transition: height 0.3s ease-in-out; /* Smooth height transition */
 
@@ -257,8 +258,8 @@ export const CustomMessageContainer = styled.div<{
   align-items: flex-end;
   /* No top margin: the gap to a message is the one below the previous row. */
   margin: 0;
-  padding: 0 ${MESSAGE_ROW_GUTTER_PX}px;
-  gap: 5px;
+  padding: 0 var(--ethora-message-row-gutter, ${MESSAGE_ROW_GUTTER_PX}px);
+  gap: var(--ethora-message-avatar-gap, 5px);
   position: relative;
   /* A row with chips paints above the rows after it, so the next bubble and
      its tail never cover the chips that hang into the gap. */
@@ -453,7 +454,7 @@ export const CustomMessageBubble = styled.div<{
   max-width: ${(props) =>
     props.$media
       ? `min(${MEDIA_WIDTH_CSS}, calc(82% - ${2 * MEDIA_BUBBLE_INSET_PX + 2}px))`
-      : '70%'};
+      : 'var(--ethora-message-bubble-max-width, 70%)'};
   /* Room for the glass time pill over a media-only bubble. */
   min-width: ${(props) => (props.$media ? '120px' : '15%')};
   ${(props) => (props.$media && props.$solo ? 'width: fit-content;' : '')}

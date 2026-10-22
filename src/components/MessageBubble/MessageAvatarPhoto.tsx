@@ -30,7 +30,13 @@ export const MessageAvatarPhoto: React.FC<MessageAvatarPhotoProps> = ({
   if (!showImage) return <Avatar username={username} style={style} />;
 
   return (
-    <div style={{ position: 'relative', width: 40, height: 40 }}>
+    <div
+      style={{
+        position: 'relative',
+        width: 'var(--ethora-message-avatar-size, 40px)',
+        height: 'var(--ethora-message-avatar-size, 40px)',
+      }}
+    >
       {!loaded && <Avatar username={username} style={style} />}
       <img
         src={safeImageUrl(image.src)}
@@ -43,8 +49,8 @@ export const MessageAvatarPhoto: React.FC<MessageAvatarPhotoProps> = ({
         style={{
           position: 'absolute',
           inset: 0,
-          width: 40,
-          height: 40,
+          width: '100%',
+          height: '100%',
           borderRadius: '50%',
           objectFit: 'cover',
           opacity: loaded ? 1 : 0,

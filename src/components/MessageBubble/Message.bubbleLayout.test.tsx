@@ -357,7 +357,19 @@ describe('Message bottom spacing', () => {
 
   it('gives the row a 6px side gutter so the tail is not clipped', () => {
     renderBubble(makeMessage(), true, true);
-    expect(declarationsFor(rowOf())).toContain('padding:06px');
+    // Host-tunable through --ethora-message-row-gutter; the default stays 6px.
+    expect(declarationsFor(rowOf())).toContain('padding:0var(--ethora-message-row-gutter,6px)');
+  });
+
+  it('keeps 70% as the default text bubble width and 40px as the avatar size', () => {
+    renderBubble(makeMessage(), false, true);
+    expect(emittedCss()).toContain('max-width:var(--ethora-message-bubble-max-width,70%)');
+    expect(emittedCss()).toContain('width:var(--ethora-message-avatar-size,40px)');
+  });
+
+  it('keeps the 5px avatar gap as the default of its variable', () => {
+    renderBubble(makeMessage(), true, true);
+    expect(declarationsFor(rowOf())).toContain('gap:var(--ethora-message-avatar-gap,5px)');
   });
 
   it('keeps the caption bottom padding at 2px', () => {

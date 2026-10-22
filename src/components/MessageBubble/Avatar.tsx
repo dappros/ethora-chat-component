@@ -11,8 +11,10 @@ interface AvatarProps {
 }
 
 const AvatarCircle = styled.div<{ $bgColor: string; $textColor?: string }>`
-  width: 40px;
-  height: 40px;
+  /* Host-tunable message avatar size; the default is unchanged. Callers that
+     pass an explicit width/height (reply avatars) are not affected. */
+  width: var(--ethora-message-avatar-size, 40px);
+  height: var(--ethora-message-avatar-size, 40px);
   border-radius: 50%;
   background-color: ${({ $bgColor }) => $bgColor};
   ${({ $textColor }) =>
