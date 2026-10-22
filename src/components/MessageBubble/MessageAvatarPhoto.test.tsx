@@ -6,7 +6,7 @@ import { configureStore } from '@reduxjs/toolkit';
 
 import chatSettingsSlice from '../../roomStore/chatSettingsSlice';
 import { MessageAvatarPhoto } from './MessageAvatarPhoto';
-import { resetAvatarCache } from '../../helpers/avatarImageCache';
+import { markAvatarLoaded, resetAvatarCache } from '../../helpers/avatarImageCache';
 
 const renderIt = (ui: React.ReactElement, fileToken = 'T1') => {
   const store = configureStore({
@@ -76,5 +76,16 @@ describe('MessageAvatarPhoto', () => {
     expect(again.getAttribute('src')).toBe(`${base}?ft=T1`);
     expect(again.style.opacity).toBe('1');
     expect(screen.queryByText('JD')).toBeNull();
+  });
+
+  it('draws a photo loaded earlier this session at once (no empty flash on remount)', () => {
+    markAvatarLoaded('https://files.chat.ethora.com/a.jpg');
+    renderIt(
+      <MessageAvatarPhoto src="https://files.chat.ethora.com/a.jpg" username="Jane Doe" />
+    );
+    const img = screen.getByRole('img') as HTMLImageElement;
+    expect(img.style.opacity).toBe('1');
+    expect(img.getAttribute('loading')).toBe('eager');
+    expect(img.getAttribute('decoding')).toBe('sync');
   });
 });

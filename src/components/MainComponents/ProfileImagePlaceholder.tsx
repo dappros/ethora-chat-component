@@ -155,8 +155,11 @@ export const ProfileImagePlaceholder: React.FC<
             alt={avatarAlt}
             size={size}
             referrerPolicy="no-referrer"
-            loading="lazy"
-            decoding="async"
+            // A picture this session already loaded is drawn at once: lazy
+            // loading and async decoding would leave the circle empty for a
+            // frame or more every time the row remounts (switching tabs or rooms).
+            loading={imageLoaded ? 'eager' : 'lazy'}
+            decoding={imageLoaded ? 'sync' : 'async'}
             onLoad={image.onLoad}
             onError={image.onError}
             style={{

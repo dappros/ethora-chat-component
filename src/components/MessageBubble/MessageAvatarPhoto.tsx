@@ -41,8 +41,9 @@ export const MessageAvatarPhoto: React.FC<MessageAvatarPhotoProps> = ({
       <img
         src={safeImageUrl(image.src)}
         alt="userIcon"
-        loading="lazy"
-        decoding="async"
+        // Already loaded this session: draw at once instead of flashing empty.
+        loading={loaded ? 'eager' : 'lazy'}
+        decoding={loaded ? 'sync' : 'async'}
         referrerPolicy="no-referrer"
         onLoad={image.onLoad}
         onError={image.onError}
