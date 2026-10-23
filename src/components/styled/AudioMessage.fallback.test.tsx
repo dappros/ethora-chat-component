@@ -34,6 +34,22 @@ const wave = vi.hoisted(() => {
 
 vi.mock('wavesurfer.js', () => ({ default: { create: wave.create } }));
 
+const secure = vi.hoisted(() => ({
+  token: 'FRESH',
+  recovery: vi.fn(async () => true),
+}));
+vi.mock('../../helpers/secureFileUrl', () => ({
+  isSecureFileUrl: (u?: string) => !!u && u.includes('secure-files.'),
+  withFileToken: (u?: string) => {
+    if (!u) return '';
+    if (!u.includes('secure-files.')) return u;
+    const url = new URL(u);
+    if (secure.token) url.searchParams.set('ft', secure.token);
+    return url.toString();
+  },
+  requestFileTokenRecovery: secure.recovery,
+}));
+
 describe('flatPeaks', () => {
   it('is a quiet, even wave of the asked length', () => {
     expect(flatPeaks(4)).toEqual([0.35, 0.35, 0.35, 0.35]);
@@ -172,5 +188,47 @@ describe('AudioMessage with a clip that cannot be decoded', () => {
     });
     const link = await screen.findByRole('link', { name: 'Open file' });
     expect(link).toHaveAttribute('href', 'https://f/voice.webm');
+  });
+
+  it('puts the current file token on a secure URL whose stored token is old', async () => {
+    secure.token = 'FRESH';
+    renderWithProviders(
+      <AudioMessage src="https://secure-files.chat-qa.ethora.com/secure-media/a.blob?ft=OLD" />,
+      { preloadedState: { chatSettingStore: { config: {} } as any } }
+    );
+    await waitFor(() => expect(wave.instance.load).toHaveBeenCalled());
+    const [url] = wave.instance.load.mock.calls[0] as any[];
+    expect(new URL(url).searchParams.get('ft')).toBe('FRESH');
+  });
+
+  it('asks for one forced token refresh and tries again when the first fetch is refused', async () => {
+    secure.token = 'OLD2';
+    secure.recovery.mockClear();
+    const fetchMock = vi.fn(async (u: string) => ({
+      ok: new URL(u).searchParams.get('ft') === 'NEW',
+      arrayBuffer: async () => new ArrayBuffer(8),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    const ctx = vi.fn(function () {
+      return {
+        decodeAudioData: async () => ({ duration: 5, getChannelData: () => new Float32Array(2000).fill(0.2) }),
+        close: async () => undefined,
+      };
+    });
+    (window as any).AudioContext = ctx;
+    secure.recovery.mockImplementationOnce(async () => {
+      secure.token = 'NEW';
+      return true;
+    });
+    renderWithProviders(
+      <AudioMessage src="https://secure-files.chat-qa.ethora.com/secure-media/b.blob?ft=OLD" />,
+      { preloadedState: { chatSettingStore: { config: {} } as any } }
+    );
+    await waitFor(() => expect(wave.instance.load).toHaveBeenCalled());
+    expect(secure.recovery).toHaveBeenCalledWith({ force: true });
+    const [url, peaks, length] = wave.instance.load.mock.calls.at(-1) as any[];
+    expect(new URL(url).searchParams.get('ft')).toBe('NEW');
+    expect(length).toBe(5);
+    expect(peaks[0].some((v: number) => v !== 0.35)).toBe(true);
   });
 });

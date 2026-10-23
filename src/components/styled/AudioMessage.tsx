@@ -5,6 +5,11 @@ import { useSelector } from 'react-redux';
 import { PauseIcon, PlayIcon } from '../../assets/icons';
 import { RootState } from '../../roomStore';
 import { useT } from '../../i18n/useT';
+import {
+  isSecureFileUrl,
+  requestFileTokenRecovery,
+  withFileToken,
+} from '../../helpers/secureFileUrl';
 
 interface AudioMessageProps {
   src: string;
@@ -468,26 +473,39 @@ const AudioMessage: React.FC<AudioMessageProps> = ({ src }) => {
       const barSlot = BAR_WIDTH + BAR_GAP;
       const width = waveformRef.current?.clientWidth || 160;
       const barCount = Math.max(16, Math.round(width / barSlot));
+      // The file token in a message's URL is the one from when the message was loaded, and
+      // messages are kept between visits: an hour later every voice note answered 401. Like the
+      // images, the current viewer token goes on at load time. When it is missing or old too,
+      // one forced refresh is asked for and the clip is tried again.
+      let url = withFileToken(src);
       // Without drawn samples wavesurfer would fetch and decode the whole file itself, and a
       // browser that cannot decode this format (Safari with a WebM voice note from Android or
       // Chrome) fails there too: the bubble would stay on "loading" with a dead play button.
       // So the clip is handed over with flat bars and a length from a plain <audio> element, and
       // the play button works whenever the browser can play the file at all.
       const loadWithoutSamples = async () => {
-        const length = await probeClipDuration(src);
+        const length = await probeClipDuration(url);
         if (disposed || wavesurfer.current !== instance) return;
-        await instance.load(src, [flatPeaks(barCount)], length > 0 ? length : 1);
+        await instance.load(url, [flatPeaks(barCount)], length > 0 ? length : 1);
       };
-      analyseClipWithin(src, barCount)
-        .then((analysis) => {
+      const start = async () => {
+        let analysis = await analyseClipWithin(url, barCount);
+        if (!analysis && isSecureFileUrl(src)) {
+          const refreshed = await requestFileTokenRecovery({ force: true }).catch(() => false);
           if (disposed || wavesurfer.current !== instance) return;
-          if (analysis) return instance.load(src, [analysis.peaks], analysis.duration);
-          return loadWithoutSamples();
-        })
-        .catch(() => {
-          if (disposed || wavesurfer.current !== instance) return;
-          void loadWithoutSamples().catch(() => setPlayFailed(true));
-        });
+          if (refreshed) {
+            url = withFileToken(src);
+            analysis = await analyseClipWithin(url, barCount);
+          }
+        }
+        if (disposed || wavesurfer.current !== instance) return;
+        if (analysis) await instance.load(url, [analysis.peaks], analysis.duration);
+        else await loadWithoutSamples();
+      };
+      start().catch(() => {
+        if (disposed || wavesurfer.current !== instance) return;
+        void loadWithoutSamples().catch(() => setPlayFailed(true));
+      });
     });
 
     return () => {
@@ -534,7 +552,7 @@ const AudioMessage: React.FC<AudioMessageProps> = ({ src }) => {
         {timeLabel && <Time>{timeLabel}</Time>}
       </Track>
       {playFailed ? (
-        <OpenFile href={src} target="_blank" rel="noopener noreferrer">
+        <OpenFile href={withFileToken(src)} target="_blank" rel="noopener noreferrer">
           {t('media.audioOpen')}
         </OpenFile>
       ) : (
