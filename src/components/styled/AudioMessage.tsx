@@ -120,6 +120,17 @@ const Speed = styled.button`
   }
 `;
 
+const OpenFile = styled.a`
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border-radius: var(--ethora-radius-full, 999px);
+  background-color: var(--ethora-color-bg, #ffffff);
+  color: var(--ethora-color-primary-text, var(--ethora-color-primary, #0052cd));
+  font-size: var(--ethora-font-size-xs, 11px);
+  font-weight: var(--ethora-font-weight-medium, 500);
+  text-decoration: none;
+`;
+
 /** `0:07`, `1:23`, `12:05`. Empty while the clip has not decoded yet. */
 const formatTime = (seconds: number): string => {
   if (!Number.isFinite(seconds) || seconds < 0) return '';
@@ -314,6 +325,61 @@ const analyseClip = async (
   }
 };
 
+/** How long the decode step may take before the clip is played without a drawn waveform. */
+export const ANALYSIS_TIMEOUT_MS = 6000;
+
+/** Bars for a clip that could not be decoded: a flat, quiet-looking wave. */
+export const flatPeaks = (barCount: number): number[] =>
+  new Array(Math.max(1, Math.floor(barCount))).fill(0.35);
+
+/**
+ * Length of a clip through a plain <audio> element, for when it cannot be decoded into samples.
+ * WebM recordings carry no duration header (the element reports Infinity), so it seeks far past
+ * the end once: the browser then works the real length out. 0 when it cannot be learned.
+ */
+export const probeClipDuration = (url: string, timeoutMs = 4000): Promise<number> =>
+  new Promise((resolve) => {
+    if (typeof Audio === 'undefined') {
+      resolve(0);
+      return;
+    }
+    const audio = new Audio();
+    audio.preload = 'metadata';
+    let settled = false;
+    const finish = (value: number) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      audio.onloadedmetadata = null;
+      audio.ontimeupdate = null;
+      audio.onerror = null;
+      audio.removeAttribute('src');
+      resolve(Number.isFinite(value) && value > 0 ? value : 0);
+    };
+    const timer = setTimeout(() => finish(0), timeoutMs);
+    audio.onerror = () => finish(0);
+    audio.onloadedmetadata = () => {
+      if (Number.isFinite(audio.duration)) {
+        finish(audio.duration);
+        return;
+      }
+      audio.ontimeupdate = () => finish(audio.duration);
+      audio.currentTime = 1e7;
+    };
+    audio.src = url;
+  });
+
+/** Resolves with the analysis, or null when it fails or takes longer than `timeoutMs`. */
+export const analyseClipWithin = (
+  url: string,
+  barCount: number,
+  timeoutMs = ANALYSIS_TIMEOUT_MS
+): Promise<{ peaks: number[]; duration: number } | null> =>
+  Promise.race([
+    analyseClip(url, barCount),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs)),
+  ]);
+
 const AudioMessage: React.FC<AudioMessageProps> = ({ src }) => {
   const config = useSelector(
     (state: RootState) => state.chatSettingStore.config
@@ -327,6 +393,8 @@ const AudioMessage: React.FC<AudioMessageProps> = ({ src }) => {
   const [playbackRate, setPlaybackRate] = useState(1);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  // The browser cannot play this file at all: offer the file itself instead of a dead button.
+  const [playFailed, setPlayFailed] = useState(false);
 
   useEffect(() => {
     // wavesurfer.js is loaded on demand: audio messages are rare enough
@@ -389,8 +457,9 @@ const AudioMessage: React.FC<AudioMessageProps> = ({ src }) => {
         setCurrentTime(0);
       });
       instance.on('interaction', () => {
-        void instance.play();
+        void instance.play().catch(() => setPlayFailed(true));
       });
+      instance.on('error', () => setPlayFailed(true));
 
       // Draw our own bars when the clip can be decoded, and hand wavesurfer
       // the duration with them so it never has to ask the media element for
@@ -398,17 +467,26 @@ const AudioMessage: React.FC<AudioMessageProps> = ({ src }) => {
       // back to the plain load.
       const barSlot = BAR_WIDTH + BAR_GAP;
       const width = waveformRef.current?.clientWidth || 160;
-      analyseClip(src, Math.max(16, Math.round(width / barSlot)))
+      const barCount = Math.max(16, Math.round(width / barSlot));
+      // Without drawn samples wavesurfer would fetch and decode the whole file itself, and a
+      // browser that cannot decode this format (Safari with a WebM voice note from Android or
+      // Chrome) fails there too: the bubble would stay on "loading" with a dead play button.
+      // So the clip is handed over with flat bars and a length from a plain <audio> element, and
+      // the play button works whenever the browser can play the file at all.
+      const loadWithoutSamples = async () => {
+        const length = await probeClipDuration(src);
+        if (disposed || wavesurfer.current !== instance) return;
+        await instance.load(src, [flatPeaks(barCount)], length > 0 ? length : 1);
+      };
+      analyseClipWithin(src, barCount)
         .then((analysis) => {
           if (disposed || wavesurfer.current !== instance) return;
-          if (analysis) {
-            void instance.load(src, [analysis.peaks], analysis.duration);
-          } else {
-            void instance.load(src);
-          }
+          if (analysis) return instance.load(src, [analysis.peaks], analysis.duration);
+          return loadWithoutSamples();
         })
         .catch(() => {
-          if (!disposed && wavesurfer.current === instance) void instance.load(src);
+          if (disposed || wavesurfer.current !== instance) return;
+          void loadWithoutSamples().catch(() => setPlayFailed(true));
         });
     });
 
@@ -420,7 +498,7 @@ const AudioMessage: React.FC<AudioMessageProps> = ({ src }) => {
   }, [src, config?.colors?.primary]);
 
   const togglePlayPause = useCallback(() => {
-    void wavesurfer.current?.playPause();
+    void wavesurfer.current?.playPause().catch(() => setPlayFailed(true));
   }, []);
 
   const changeSpeed = useCallback(() => {
@@ -443,7 +521,7 @@ const AudioMessage: React.FC<AudioMessageProps> = ({ src }) => {
       <PlayButton
         type="button"
         onClick={togglePlayPause}
-        disabled={!isReady}
+        disabled={!isReady && !playFailed}
         aria-label={t(isPlaying ? 'media.audioPause' : 'media.audioPlay')}
       >
         {isPlaying ? <PauseIcon /> : <PlayIcon />}
@@ -455,14 +533,20 @@ const AudioMessage: React.FC<AudioMessageProps> = ({ src }) => {
         </WaveBox>
         {timeLabel && <Time>{timeLabel}</Time>}
       </Track>
-      <Speed
-        type="button"
-        onClick={changeSpeed}
-        disabled={!isReady}
-        aria-label={t('media.audioSpeed')}
-      >
-        {playbackRate}&times;
-      </Speed>
+      {playFailed ? (
+        <OpenFile href={src} target="_blank" rel="noopener noreferrer">
+          {t('media.audioOpen')}
+        </OpenFile>
+      ) : (
+        <Speed
+          type="button"
+          onClick={changeSpeed}
+          disabled={!isReady}
+          aria-label={t('media.audioSpeed')}
+        >
+          {playbackRate}&times;
+        </Speed>
+      )}
     </Row>
   );
 };
