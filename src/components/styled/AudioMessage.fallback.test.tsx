@@ -2,16 +2,12 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '../../test/renderWithProviders';
-import AudioMessage, {
-  analyseClipWithin,
-  flatPeaks,
-  probeClipDuration,
-} from './AudioMessage';
+import AudioMessage, { flatPeaks, probeClipDuration } from './AudioMessage';
 
-// A voice note Safari cannot decode (WebM from Android or Chrome): decodeAudioData rejects, and
-// wavesurfer's own decode on load() would fail the same way. The play button used to stay
-// disabled for good. These cover the fallback: flat bars, the length from a plain <audio>
-// element, and the file itself when the browser cannot play it at all.
+// Voice notes on Safari and iOS. The file server answers them as application/octet-stream with no
+// Range support and the recordings are WebM, so a plain <audio src> cannot play them there. The
+// player fetches the bytes, names the real type, and (where the browser cannot be trusted with
+// that type) decodes the clip and plays a WAV. These cover every branch of that path.
 
 const wave = vi.hoisted(() => {
   const handlers: Record<string, (...a: any[]) => void> = {};
@@ -31,7 +27,6 @@ const wave = vi.hoisted(() => {
   };
   return { handlers, instance, create: vi.fn(() => instance) };
 });
-
 vi.mock('wavesurfer.js', () => ({ default: { create: wave.create } }));
 
 const secure = vi.hoisted(() => ({
@@ -50,34 +45,26 @@ vi.mock('../../helpers/secureFileUrl', () => ({
   requestFileTokenRecovery: secure.recovery,
 }));
 
+const voice = vi.hoisted(() => ({
+  native: true,
+  pcm: null as null | { channels: Float32Array[]; sampleRate: number },
+}));
+vi.mock('../../helpers/voiceNote', async () => {
+  const actual = await vi.importActual<typeof import('../../helpers/voiceNote')>('../../helpers/voiceNote');
+  return {
+    ...actual,
+    canPlayNatively: () => voice.native,
+    decodeClipToPcm: vi.fn(async () => voice.pcm),
+  };
+});
+
+const WEBM = new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 0x9f, 0x42, 0x86, 0x81, 0x01, 0, 0, 0, 0, 0, 0, 0]);
+const okResponse = () => ({ ok: true, status: 200, arrayBuffer: async () => WEBM.buffer.slice(0) });
+
 describe('flatPeaks', () => {
   it('is a quiet, even wave of the asked length', () => {
     expect(flatPeaks(4)).toEqual([0.35, 0.35, 0.35, 0.35]);
     expect(flatPeaks(0)).toHaveLength(1);
-  });
-});
-
-describe('analyseClipWithin', () => {
-  afterEach(() => {
-    vi.useRealTimers();
-    vi.unstubAllGlobals();
-  });
-
-  it('gives up when decoding never settles (Safari without the promise API)', async () => {
-    vi.useFakeTimers();
-    class HangingContext {
-      decodeAudioData() {
-        return new Promise(() => {});
-      }
-      close() {
-        return Promise.resolve();
-      }
-    }
-    vi.stubGlobal('AudioContext', HangingContext);
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) })));
-    const result = analyseClipWithin('https://f/a.webm', 16, 1000);
-    await vi.advanceTimersByTimeAsync(1100);
-    await expect(result).resolves.toBeNull();
   });
 });
 
@@ -124,27 +111,37 @@ describe('probeClipDuration', () => {
     await expect(p).resolves.toBe(14.2);
   });
 
-  it('is 0 when the browser cannot read the file', async () => {
+  it('is 0 when the browser cannot read the file, or nothing happens in time', async () => {
     const p = probeClipDuration('https://f/a.webm');
     instances[0].onerror();
     await expect(p).resolves.toBe(0);
-  });
-
-  it('is 0 when nothing happens in time', async () => {
     vi.useFakeTimers();
-    const p = probeClipDuration('https://f/a.webm', 500);
+    const q = probeClipDuration('https://f/b.webm', 500);
     await vi.advanceTimersByTimeAsync(600);
-    await expect(p).resolves.toBe(0);
+    await expect(q).resolves.toBe(0);
   });
 });
 
-describe('AudioMessage with a clip that cannot be decoded', () => {
+describe('AudioMessage', () => {
+  let blobs: Blob[];
+  let fetchMock: ReturnType<typeof vi.fn>;
+
   beforeEach(() => {
     wave.instance.load.mockClear();
-    wave.instance.playPause.mockClear();
-    vi.stubGlobal('AudioContext', undefined);
-    (window as any).AudioContext = undefined;
-    (window as any).webkitAudioContext = undefined;
+    wave.instance.playPause.mockReset();
+    wave.instance.playPause.mockResolvedValue(undefined);
+    secure.token = 'FRESH';
+    secure.recovery.mockClear();
+    voice.native = true;
+    voice.pcm = null;
+    blobs = [];
+    (URL as any).createObjectURL = vi.fn((b: Blob) => {
+      blobs.push(b);
+      return `blob:test/${blobs.length}`;
+    });
+    (URL as any).revokeObjectURL = vi.fn();
+    fetchMock = vi.fn(async () => okResponse());
+    vi.stubGlobal('fetch', fetchMock);
     vi.stubGlobal(
       'Audio',
       class {
@@ -161,21 +158,79 @@ describe('AudioMessage with a clip that cannot be decoded', () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  const renderIt = () =>
-    renderWithProviders(<AudioMessage src="https://f/voice.webm" />, {
+  const renderIt = (src = 'https://f/voice.blob') =>
+    renderWithProviders(<AudioMessage src={src} />, {
       preloadedState: { chatSettingStore: { config: {} } as any },
     });
 
-  it('hands the clip over with flat bars and its real length, and enables Play', async () => {
+  const loaded = () => waitFor(() => expect(wave.instance.load).toHaveBeenCalled());
+
+  it('plays the fetched bytes from a blob URL with the real type, not the server URL', async () => {
+    voice.pcm = { channels: [new Float32Array(48000).fill(0.2)], sampleRate: 48000 };
     renderIt();
+    await loaded();
+    const [url, peaks, length] = wave.instance.load.mock.calls[0] as any[];
+    expect(url).toBe('blob:test/1');
+    expect(blobs[0].type).toBe('audio/webm');
+    expect(length).toBeCloseTo(1);
+    expect(peaks[0].length).toBeGreaterThan(8);
     const play = await screen.findByRole('button', { name: 'Play voice message' });
     await waitFor(() => expect(play).not.toBeDisabled());
-    const [url, peaks, length] = wave.instance.load.mock.calls[0] as any[];
-    expect(url).toBe('https://f/voice.webm');
-    expect(peaks[0].every((v: number) => v === 0.35)).toBe(true);
-    expect(length).toBe(9);
     fireEvent.click(play);
     expect(wave.instance.playPause).toHaveBeenCalled();
+  });
+
+  it('plays a WAV made from the samples where the browser cannot be trusted with the format', async () => {
+    voice.native = false;
+    voice.pcm = { channels: [new Float32Array(4800).fill(0.2)], sampleRate: 48000 };
+    renderIt();
+    await loaded();
+    expect(blobs[0].type).toBe('audio/wav');
+    expect(blobs[0].size).toBe(44 + 4800 * 2);
+  });
+
+  it('keeps the original bytes when nothing could decode them (flat bars, length from the element)', async () => {
+    voice.native = false;
+    voice.pcm = null;
+    renderIt();
+    await loaded();
+    const [url, peaks, length] = wave.instance.load.mock.calls[0] as any[];
+    expect(url).toBe('blob:test/1');
+    expect(blobs[0].type).toBe('audio/webm');
+    expect(peaks[0].every((v: number) => v === 0.35)).toBe(true);
+    expect(length).toBe(9);
+  });
+
+  it('falls back to the server URL when the bytes cannot be fetched at all', async () => {
+    fetchMock.mockImplementation(async () => ({ ok: false, status: 500 }));
+    renderIt();
+    await loaded();
+    const [url, peaks] = wave.instance.load.mock.calls[0] as any[];
+    expect(url).toBe('https://f/voice.blob');
+    expect(peaks[0].every((v: number) => v === 0.35)).toBe(true);
+  });
+
+  it('puts the current file token on a secure URL whose stored token is old', async () => {
+    renderIt('https://secure-files.chat-qa.ethora.com/secure-media/a.blob?ft=OLD');
+    await loaded();
+    const requested = new URL(fetchMock.mock.calls[0][0] as string);
+    expect(requested.searchParams.get('ft')).toBe('FRESH');
+  });
+
+  it('asks for one forced token refresh and tries again when the first fetch is refused', async () => {
+    secure.token = 'OLD2';
+    fetchMock.mockImplementation(async (u: string) =>
+      new URL(u).searchParams.get('ft') === 'NEW' ? okResponse() : { ok: false, status: 401 }
+    );
+    secure.recovery.mockImplementationOnce(async () => {
+      secure.token = 'NEW';
+      return true;
+    });
+    renderIt('https://secure-files.chat-qa.ethora.com/secure-media/b.blob?ft=OLD');
+    await loaded();
+    expect(secure.recovery).toHaveBeenCalledWith({ force: true });
+    expect(wave.instance.load.mock.calls[0][0]).toBe('blob:test/1');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('offers the file when the browser cannot play it', async () => {
@@ -187,48 +242,13 @@ describe('AudioMessage with a clip that cannot be decoded', () => {
       fireEvent.click(play);
     });
     const link = await screen.findByRole('link', { name: 'Open file' });
-    expect(link).toHaveAttribute('href', 'https://f/voice.webm');
+    expect(link).toHaveAttribute('href', 'https://f/voice.blob');
   });
 
-  it('puts the current file token on a secure URL whose stored token is old', async () => {
-    secure.token = 'FRESH';
-    renderWithProviders(
-      <AudioMessage src="https://secure-files.chat-qa.ethora.com/secure-media/a.blob?ft=OLD" />,
-      { preloadedState: { chatSettingStore: { config: {} } as any } }
-    );
-    await waitFor(() => expect(wave.instance.load).toHaveBeenCalled());
-    const [url] = wave.instance.load.mock.calls[0] as any[];
-    expect(new URL(url).searchParams.get('ft')).toBe('FRESH');
-  });
-
-  it('asks for one forced token refresh and tries again when the first fetch is refused', async () => {
-    secure.token = 'OLD2';
-    secure.recovery.mockClear();
-    const fetchMock = vi.fn(async (u: string) => ({
-      ok: new URL(u).searchParams.get('ft') === 'NEW',
-      arrayBuffer: async () => new ArrayBuffer(8),
-    }));
-    vi.stubGlobal('fetch', fetchMock);
-    const ctx = vi.fn(function () {
-      return {
-        decodeAudioData: async () => ({ duration: 5, getChannelData: () => new Float32Array(2000).fill(0.2) }),
-        close: async () => undefined,
-      };
-    });
-    (window as any).AudioContext = ctx;
-    secure.recovery.mockImplementationOnce(async () => {
-      secure.token = 'NEW';
-      return true;
-    });
-    renderWithProviders(
-      <AudioMessage src="https://secure-files.chat-qa.ethora.com/secure-media/b.blob?ft=OLD" />,
-      { preloadedState: { chatSettingStore: { config: {} } as any } }
-    );
-    await waitFor(() => expect(wave.instance.load).toHaveBeenCalled());
-    expect(secure.recovery).toHaveBeenCalledWith({ force: true });
-    const [url, peaks, length] = wave.instance.load.mock.calls.at(-1) as any[];
-    expect(new URL(url).searchParams.get('ft')).toBe('NEW');
-    expect(length).toBe(5);
-    expect(peaks[0].some((v: number) => v !== 0.35)).toBe(true);
+  it('frees the blob URL when the bubble goes away', async () => {
+    const { unmount } = renderIt();
+    await loaded();
+    unmount();
+    expect((URL as any).revokeObjectURL).toHaveBeenCalledWith('blob:test/1');
   });
 });

@@ -6,6 +6,12 @@ import { PauseIcon, PlayIcon } from '../../assets/icons';
 import { RootState } from '../../roomStore';
 import { useT } from '../../i18n/useT';
 import {
+  canPlayNatively,
+  decodeClipToPcm,
+  encodeWav,
+  sniffAudioMime,
+} from '../../helpers/voiceNote';
+import {
   isSecureFileUrl,
   requestFileTokenRecovery,
   withFileToken,
@@ -295,41 +301,6 @@ export const buildWaveformPeaks = (
 /** Floor for a bar, as a fraction of the box: silence is still a dot. */
 const MIN_BAR = 0.08;
 
-/**
- * Decode the clip once to build those peaks, and to learn its real length.
- * Both matter: MediaRecorder writes WebM without a duration header, so the
- * <audio> element reports Infinity for exactly the files this chat records.
- * Failure is not fatal - the caller falls back to letting wavesurfer fetch
- * and draw the file the old way.
- */
-const analyseClip = async (
-  url: string,
-  barCount: number
-): Promise<{ peaks: number[]; duration: number } | null> => {
-  const AudioCtx =
-    typeof window !== 'undefined'
-      ? window.AudioContext ||
-        (window as unknown as { webkitAudioContext?: typeof AudioContext })
-          .webkitAudioContext
-      : undefined;
-  if (!AudioCtx) return null;
-
-  const context = new AudioCtx();
-  try {
-    const response = await fetch(url);
-    if (!response.ok) return null;
-    const buffer = await context.decodeAudioData(await response.arrayBuffer());
-    return {
-      peaks: buildWaveformPeaks(buffer.getChannelData(0), barCount),
-      duration: buffer.duration,
-    };
-  } catch {
-    return null;
-  } finally {
-    void context.close();
-  }
-};
-
 /** How long the decode step may take before the clip is played without a drawn waveform. */
 export const ANALYSIS_TIMEOUT_MS = 6000;
 
@@ -374,17 +345,6 @@ export const probeClipDuration = (url: string, timeoutMs = 4000): Promise<number
     audio.src = url;
   });
 
-/** Resolves with the analysis, or null when it fails or takes longer than `timeoutMs`. */
-export const analyseClipWithin = (
-  url: string,
-  barCount: number,
-  timeoutMs = ANALYSIS_TIMEOUT_MS
-): Promise<{ peaks: number[]; duration: number } | null> =>
-  Promise.race([
-    analyseClip(url, barCount),
-    new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs)),
-  ]);
-
 const AudioMessage: React.FC<AudioMessageProps> = ({ src }) => {
   const config = useSelector(
     (state: RootState) => state.chatSettingStore.config
@@ -405,6 +365,7 @@ const AudioMessage: React.FC<AudioMessageProps> = ({ src }) => {
     // wavesurfer.js is loaded on demand: audio messages are rare enough
     // that the library shouldn't sit in the initial bundle.
     let disposed = false;
+    let objectUrl: string | null = null;
 
     import('wavesurfer.js').then(({ default: WaveSurferLib }) => {
       if (disposed || !waveformRef.current) return;
@@ -478,33 +439,65 @@ const AudioMessage: React.FC<AudioMessageProps> = ({ src }) => {
       // images, the current viewer token goes on at load time. When it is missing or old too,
       // one forced refresh is asked for and the clip is tried again.
       let url = withFileToken(src);
-      // Without drawn samples wavesurfer would fetch and decode the whole file itself, and a
-      // browser that cannot decode this format (Safari with a WebM voice note from Android or
-      // Chrome) fails there too: the bubble would stay on "loading" with a dead play button.
-      // So the clip is handed over with flat bars and a length from a plain <audio> element, and
-      // the play button works whenever the browser can play the file at all.
-      const loadWithoutSamples = async () => {
-        const length = await probeClipDuration(url);
-        if (disposed || wavesurfer.current !== instance) return;
-        await instance.load(url, [flatPeaks(barCount)], length > 0 ? length : 1);
-      };
-      const start = async () => {
-        let analysis = await analyseClipWithin(url, barCount);
-        if (!analysis && isSecureFileUrl(src)) {
+      const alive = () => !disposed && wavesurfer.current === instance;
+
+      // The clip's bytes, with one forced token refresh when the server refuses them.
+      const fetchClip = async (): Promise<ArrayBuffer | null> => {
+        const get = async () => {
+          const response = await fetch(url).catch(() => null);
+          return response?.ok ? response.arrayBuffer() : { refused: response?.status === 401 };
+        };
+        let got = await get();
+        if (!(got instanceof ArrayBuffer) && got.refused && isSecureFileUrl(src)) {
           const refreshed = await requestFileTokenRecovery({ force: true }).catch(() => false);
-          if (disposed || wavesurfer.current !== instance) return;
+          if (!alive()) return null;
           if (refreshed) {
             url = withFileToken(src);
-            analysis = await analyseClipWithin(url, barCount);
+            got = await get();
           }
         }
-        if (disposed || wavesurfer.current !== instance) return;
-        if (analysis) await instance.load(url, [analysis.peaks], analysis.duration);
-        else await loadWithoutSamples();
+        return got instanceof ArrayBuffer ? got : null;
+      };
+
+      // Plain URL as a last resort (the element asks the server itself): flat bars and a length
+      // from an <audio> element.
+      const loadFromUrl = async () => {
+        const length = await probeClipDuration(url);
+        if (!alive()) return;
+        await instance.load(url, [flatPeaks(barCount)], length > 0 ? length : 1);
+      };
+
+      const start = async () => {
+        // The bytes are fetched here, not left to the media element: the file server answers
+        // every voice note as application/octet-stream without Range support, which Safari and
+        // iOS refuse to play from a URL, and some of them cannot read WebM at all. The real type
+        // is read off the first bytes; where the browser cannot be trusted with that type the
+        // clip is decoded and played as a WAV.
+        const bytes = await fetchClip();
+        if (!alive()) return;
+        if (!bytes) {
+          await loadFromUrl();
+          return;
+        }
+        const mime = sniffAudioMime(new Uint8Array(bytes, 0, Math.min(bytes.byteLength, 16)));
+        const pcm = await Promise.race([
+          decodeClipToPcm(bytes, mime),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), ANALYSIS_TIMEOUT_MS)),
+        ]);
+        if (!alive()) return;
+        const useWav = !!pcm && !canPlayNatively(mime);
+        const blob = useWav ? encodeWav(pcm) : new Blob([bytes], { type: mime });
+        objectUrl = URL.createObjectURL(blob);
+        const peaks = pcm ? buildWaveformPeaks(pcm.channels[0], barCount) : flatPeaks(barCount);
+        const length = pcm
+          ? pcm.channels[0].length / pcm.sampleRate
+          : await probeClipDuration(objectUrl);
+        if (!alive()) return;
+        await instance.load(objectUrl, [peaks], length > 0 ? length : 1);
       };
       start().catch(() => {
-        if (disposed || wavesurfer.current !== instance) return;
-        void loadWithoutSamples().catch(() => setPlayFailed(true));
+        if (!alive()) return;
+        void loadFromUrl().catch(() => setPlayFailed(true));
       });
     });
 
@@ -512,6 +505,7 @@ const AudioMessage: React.FC<AudioMessageProps> = ({ src }) => {
       disposed = true;
       wavesurfer.current?.destroy();
       wavesurfer.current = null;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [src, config?.colors?.primary]);
 
