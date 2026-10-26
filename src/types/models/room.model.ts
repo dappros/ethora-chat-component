@@ -209,6 +209,8 @@ export interface IRoomCompressed extends Pick<IRoom, 'jid'> {}
 export interface ConfigRoom {
   jid: string;
   pinned: boolean;
+  /** Whether users can leave this app-level room. Defaults to false for configured rooms. */
+  removable?: boolean;
   _id?: string;
 }
 

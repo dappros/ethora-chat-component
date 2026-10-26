@@ -308,32 +308,7 @@ export const useRoomInitialization = (
 
   }, [activeRoomJID, roomCount, messageLength, activeMessageCount]);
 
-  // Default-rooms bootstrap. Previously part of the message-count-keyed
-  // effect above: while any default room was missing from roomsList, it
-  // re-sent a presence stanza to EVERY default room on EVERY incoming
-  // message. Now it reacts only to the room set changing, and each JID is
-  // attempted once per mount.
-  const attemptedDefaultRoomJoins = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    const defaultRooms = Array.isArray(config?.defaultRooms)
-      ? config.defaultRooms
-      : [];
-    const roomsList = readRooms();
-    if (!client || !defaultRooms.length || !roomsList) return;
-
-    const missing = defaultRooms.filter(
-      (room) =>
-        roomsList[room.jid] === undefined &&
-        !attemptedDefaultRoomJoins.current.has(room.jid)
-    );
-    if (!missing.length) return;
-
-    missing.forEach((room) => {
-      attemptedDefaultRoomJoins.current.add(room.jid);
-      client.presenceInRoomStanza(room.jid, 0, 1200, false);
-    });
-    if (config?.newArch === false) {
-      client.getRoomsStanza();
-    }
-  }, [client, config?.defaultRooms, roomCount]);
+  // /v1/chats/my is authoritative for room membership. Do not auto-join
+  // configured app rooms missing from that response: the user may have
+  // explicitly left a removable app room, and rejoining here would undo it.
 };

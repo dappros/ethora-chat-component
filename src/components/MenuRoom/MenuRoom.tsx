@@ -6,6 +6,7 @@ import { ethoraLogger } from '../../helpers/ethoraLogger';
 import { useT } from '../../i18n/useT';
 import { useRoomMute } from '../../hooks/useRoomMute';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { canLeaveRoom } from '../../helpers/canLeaveRoom';
 
 interface RoomMenuProps {
   roomJid?: string;
@@ -45,6 +46,7 @@ export const RoomMenu: FC<RoomMenuProps> = ({
     !!handleBlockClick &&
     config?.features?.userBlock === true &&
     !config?.disableUserBlock;
+  const showLeaveOption = canLeaveRoom(roomJid, config?.defaultRooms);
 
   const menuOptions = useMemo(
     () => [
@@ -82,20 +84,25 @@ export const RoomMenu: FC<RoomMenuProps> = ({
         },
         styles: { color: 'var(--ethora-color-danger, #D92D20)' },
       },
-      {
-        label: t('action.leave'),
-        icon: <LeaveIcon />,
-        onClick: () => {
-          handleLeaveClick();
-        },
-        styles: { color: 'var(--ethora-color-danger, #D92D20)' },
-      },
+      ...(showLeaveOption
+        ? [
+            {
+              label: t('action.leave'),
+              icon: <LeaveIcon />,
+              onClick: () => {
+                handleLeaveClick();
+              },
+              styles: { color: 'var(--ethora-color-danger, #D92D20)' },
+            },
+          ]
+        : []),
     ],
     [
       handleLeaveClick,
       handleReportClick,
       handleBlockClick,
       showBlockOption,
+      showLeaveOption,
       t,
       showMuteOption,
       muted,
