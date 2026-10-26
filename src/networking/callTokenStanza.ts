@@ -8,6 +8,19 @@ import {
   setOutgoingCallToken,
 } from '../roomStore/callSlice';
 import { getGlobalXmppClient } from '../utils/clientRegistry';
+import {
+  decideIncomingWhileBusy,
+  isCallRoomTypeAllowed,
+  parseCallTokenAttrs,
+} from '../calls/callMode';
+import { isSystemAccountSender } from '../calls/senderTrust';
+import { looksLikeRawRoomName, safeCallName } from '../calls/callDisplay';
+import { P2P_SIGNAL_TYPE } from '../calls/p2p/signalStanza';
+import { handleP2PSignalStanza } from '../calls/p2p/p2pRuntime';
+import {
+  reportCallDeclined,
+  reportCallEnded,
+} from './api-requests/callState.api';
 import { callStateHasLogData } from '../helpers/callLogMessage';
 import { ethoraLogger } from '../helpers/ethoraLogger';
 import { decodeJwtPayload } from '../helpers/callPush';
@@ -59,6 +72,33 @@ const consumeKindHint = (
 };
 
 const MAX_CALL_TOKEN_AGE_MS = 5000;
+
+// XMPP domain of this session (the client's own JID domain, else the host).
+const sessionXmppDomain = (): string => {
+  const client = getGlobalXmppClient() as any;
+  return String(client?.client?.jid?.getDomain?.() || client?.host || '');
+};
+
+const isTrueishAttr = (value: unknown): boolean => {
+  const text = String(value ?? '').trim().toLowerCase();
+  return text === 'true' || text === '1';
+};
+
+// Display name of a user we only know by xmpp username (p2p tokens carry no
+// JWT, so no caller name), from the enriched usersSet.
+const lookupUserName = (xmppUsername: string | null): string => {
+  if (!xmppUsername) return '';
+  const usersSet = (store.getState().rooms.usersSet || {}) as Record<
+    string,
+    { firstName?: string; lastName?: string; name?: string }
+  >;
+  const user = usersSet[xmppUsername] || usersSet[xmppUsername.split('@')[0]];
+  if (!user) return '';
+  return (
+    `${user.firstName || ''} ${user.lastName || ''}`.trim() ||
+    String(user.name || '').trim()
+  );
+};
 
 const extractCallId = (data: Element, jwtPayload: Record<string, any> | null) => {
   const fromAttr = String(data.attrs?.callId || data.attrs?.callid || '').trim();
@@ -231,7 +271,11 @@ const handleCallStateData = (
       (currentCall.roomJid || '').split('@')[0] === stanzaRoomAttr);
   const callIdMatches =
     !!stanzaCallId && !!currentCall.callId && currentCall.callId === stanzaCallId;
-  if (stanzaCallId && currentCall.callId && !callIdMatches) return;
+  // A signal that names a DIFFERENT call than the one on screen (e.g. the
+  // server log of the previous call in the same room arriving late) must not
+  // tear down the current one just because the room matches.
+  const callIdConflicts =
+    !!stanzaCallId && !!currentCall.callId && currentCall.callId !== stanzaCallId;
 
   const isTerminalState =
     state === 'ended' ||
@@ -245,7 +289,10 @@ const handleCallStateData = (
   // itself a "session concluded" signal.
   const isServerCallLog = !state && callStateHasLogData(data.attrs || {});
 
-  if ((roomMatches || callIdMatches) && (isTerminalState || isServerCallLog)) {
+  if (
+    (callIdMatches || (roomMatches && !callIdConflicts)) &&
+    (isTerminalState || isServerCallLog)
+  ) {
     store.dispatch(endCall());
   }
 };
@@ -287,7 +334,15 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
         .split('/')[0]
         .split('@')[0]
         .trim();
-      handleCallStateData(data, fromRoom);
+      const declinedInGroup =
+        String(data.attrs?.state || '').toLowerCase() === 'declined' &&
+        isTrueishAttr(data.attrs?.group);
+      if (!declinedInGroup) {
+        // The state / callId / room live on the <data> element, not on the
+        // <message> wrapper. This used to be handed `inner`, which made every
+        // client call-state signal and server call-log a no-op here.
+        handleCallStateData(data, fromRoom);
+      }
 
       // Server call-logs (carry callerXmppUsername / durationMs) should
       // flow on to onRealtimeMessage / onMessageHistory where they become
@@ -297,13 +352,6 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
       if (callStateHasLogData(data.attrs || {})) {
         return false;
       }
-      return true;
-    }
-
-    if (dataType === 'call-state-declined') {
-      handleCallStateData(
-        ({ attrs: { ...data.attrs, state: 'declined' } } as unknown) as Element
-      );
       return true;
     }
 
@@ -334,6 +382,39 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
       return true;
     }
 
+    if (dataType === P2P_SIGNAL_TYPE) {
+      // Peer to peer WebRTC signalling (offer / answer / candidate / end).
+      // Routed to the p2p runtime, never to the chat pipeline.
+      if (store.getState().chatSettingStore.config?.videoCalls?.enabled === true) {
+        handleP2PSignalStanza(inner);
+      }
+      return true;
+    }
+
+    if (dataType === 'call-state-declined') {
+      // Server relay of a callee's decline. In a group call one member
+      // declining must not end the call for everybody, so it is ignored there.
+      // For 1:1 it is a terminal state, same as the client-sent `declined`.
+      if (isTrueishAttr(data.attrs?.group)) {
+        ethoraLogger.log('[call] group member declined', {
+          by: data.attrs?.by,
+          callId: data.attrs?.callId,
+        });
+        return true;
+      }
+      const fromRoom = String(stanza.attrs?.from || '')
+        .split('/')[0]
+        .split('@')[0]
+        .trim();
+      handleCallStateData(
+        ({
+          attrs: { ...(data.attrs || {}), state: 'declined' },
+        } as unknown) as Element,
+        fromRoom
+      );
+      return true;
+    }
+
     if (dataType === 'call-token') {
       const videoCallsConfig =
         store.getState().chatSettingStore.config?.videoCalls;
@@ -344,43 +425,78 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
         return true;
       }
 
-      const token = String(data.attrs?.token || '').trim();
-      const stanzaRoom = String(data.attrs?.room || '').trim();
-      const stanzaKind = String(data.attrs?.kind || '').toLowerCase();
-      const stanzaCallId =
-        String(data.attrs?.callId || data.attrs?.callid || '').trim() || null;
+      // Old servers send neither `mode` nor `group`: parseCallTokenAttrs maps
+      // that to a plain LiveKit 1:1 call, exactly the legacy behaviour.
+      const attrs = parseCallTokenAttrs(data.attrs);
+      // livekitUrl and ice decide where the media goes, and callerName /
+      // caller decide who the ring screen says is calling, so they are
+      // honoured only from the app's system account (see calls/senderTrust).
+      // Anything else keeps the stanza but loses those attributes: the callee
+      // then uses config.videoCalls.livekitUrl, GET /v1/calls/ice-servers and
+      // the name it can work out locally.
+      if (
+        (attrs.livekitUrl ||
+          attrs.iceServers ||
+          attrs.callerName ||
+          attrs.caller) &&
+        !isSystemAccountSender(inner.attrs?.from, sessionXmppDomain())
+      ) {
+        ethoraLogger.log(
+          '[call] ignoring livekitUrl/ice/callerName/caller on a call-token not sent by the system account',
+          { from: inner.attrs?.from }
+        );
+        attrs.livekitUrl = null;
+        attrs.iceServers = null;
+        attrs.callerName = '';
+        attrs.caller = null;
+      }
+      const { token, mode, group, room: stanzaRoom } = attrs;
+      const isP2P = mode === 'p2p';
+      const stanzaCallId = attrs.callId;
       // Server doesn't propagate `kind` on the broadcast stanza, so first
       // look for a client-side `call-invite` hint we stashed when the
       // dialer signaled us directly. Falls back to whatever the server
       // happens to attach, finally to video (legacy default).
       const hintedKind = consumeKindHint([stanzaRoom, stanzaCallId]);
       const kind: 'audio' | 'video' =
-        hintedKind || (stanzaKind === 'audio' ? 'audio' : 'video');
-      if (!token || !stanzaRoom) {
+        hintedKind || (attrs.kind === 'audio' ? 'audio' : 'video');
+      // A p2p token is intentionally empty (the media never touches LiveKit);
+      // it needs the callId instead, to correlate the signalling.
+      if (!stanzaRoom || (isP2P ? !stanzaCallId : !token)) {
         return true;
       }
 
       const resolvedRoom = resolveRoomByStanzaRoom(stanzaRoom);
-      const allowedRoomTypes = videoCallsConfig.allowedRoomTypes || ['private'];
       const usersCnt = Number(resolvedRoom?.usersCnt || 0);
       const isOneToOneLikeRoom = usersCnt > 0 && usersCnt <= 2;
-      const isPrivateAllowed = allowedRoomTypes.includes('private');
-      if (
-        resolvedRoom?.type &&
-        resolvedRoom.type !== 'private' &&
-        !isOneToOneLikeRoom
-      ) {
-        return true;
-      }
-      if (resolvedRoom?.type === 'private' && !isPrivateAllowed) {
-        return true;
-      }
-      if (
-        !resolvedRoom?.type &&
-        !stanzaRoom.includes('@') &&
-        !isOneToOneLikeRoom
-      ) {
-        return true;
+      const allowedRoomTypes = videoCallsConfig.allowedRoomTypes;
+      if (group) {
+        // Group room call (always LiveKit). The host may opt out through
+        // allowedRoomTypes; a room we know to be private contradicts `group`.
+        if (!isCallRoomTypeAllowed('group', allowedRoomTypes)) return true;
+        if (resolvedRoom?.type === 'private') return true;
+      } else {
+        const isPrivateAllowed = isCallRoomTypeAllowed(
+          'private',
+          allowedRoomTypes
+        );
+        if (
+          resolvedRoom?.type &&
+          resolvedRoom.type !== 'private' &&
+          !isOneToOneLikeRoom
+        ) {
+          return true;
+        }
+        if (resolvedRoom?.type === 'private' && !isPrivateAllowed) {
+          return true;
+        }
+        if (
+          !resolvedRoom?.type &&
+          !stanzaRoom.includes('@') &&
+          !isOneToOneLikeRoom
+        ) {
+          return true;
+        }
       }
 
       const roomJid =
@@ -389,27 +505,96 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
       // ring screen - the server populates it with the caller's full name
       // ("Roman Test") which is far more useful than the resolved room
       // title (which for stale / deleted-peer chats reads "deleted").
-      const jwtPayload = decodeJwtPayload(token);
-      const callerName = extractCallerDisplayName(jwtPayload);
+      // A p2p token has no JWT, and in a group the ring should name the room.
+      const jwtPayload = isP2P ? null : decodeJwtPayload(token);
+      const jwtName = group
+        ? ''
+        : safeCallName(extractCallerDisplayName(jwtPayload)) || '';
       const resolvedTitle = String(resolvedRoom?.name || '').trim();
       const titleLooksBad =
         !resolvedTitle ||
         ['deleted', 'deleted user', 'unknown', 'null'].includes(
           resolvedTitle.toLowerCase()
-        );
-      const incomingRoomName =
-        (callerName && titleLooksBad ? callerName : resolvedTitle) ||
-        callerName ||
-        stanzaRoom;
+        ) ||
+        looksLikeRawRoomName(resolvedTitle);
+      const selfXmpp =
+        store.getState().chatSettingStore.user?.xmppUsername || '';
+      // Group rooms have no single peer; a "<a>-<b>" name there is a coincidence.
+      const peerXmppUsername = group
+        ? null
+        : derivePeerXmppUsername(stanzaRoom, selfXmpp) || attrs.caller;
+      const peerName = titleLooksBad
+        ? lookupUserName(peerXmppUsername)
+        : '';
+      // What the call is called on screen. A person's name is preferred; a
+      // raw chat name (two joined JIDs) is never used, an empty result makes
+      // the UI show a neutral label. In a group the call is the ROOM, and the
+      // caller is carried separately (callerName) for the "X is calling in Y"
+      // line.
+      const incomingRoomName = group
+        ? (titleLooksBad ? '' : resolvedTitle) || safeCallName(stanzaRoom) || ''
+        : attrs.callerName ||
+          jwtName ||
+          (titleLooksBad ? '' : resolvedTitle) ||
+          safeCallName(peerName) ||
+          safeCallName(stanzaRoom) ||
+          '';
       if (!roomJid) return true;
 
       const callId = extractCallId(data, jwtPayload);
-      const selfXmpp =
-        store.getState().chatSettingStore.user?.xmppUsername || '';
-      const peerXmppUsername = derivePeerXmppUsername(stanzaRoom, selfXmpp);
+      if (isP2P && !callId) return true;
+
+      // A p2p token for a call another tab already accepted, declined or saw
+      // cancelled is a replay: drop it before the busy / glare logic below can
+      // decline or cancel anything on its behalf.
+      if (isP2P && isCallHandled(callNotificationKey(callId, stanzaRoom))) {
+        return true;
+      }
 
       const callState = store.getState().call;
+
+      if (isP2P || callState.mode === 'p2p') {
+        // Peer to peer (or an active p2p call): one call at a time, decided
+        // by callId. The legacy LiveKit-over-LiveKit path below is untouched.
+        if (isP2P && typeof RTCPeerConnection === 'undefined') {
+          // This browser cannot take the call; tell the caller instead of
+          // leaving them ringing.
+          reportCallDeclined(callId);
+          return true;
+        }
+        const decision = decideIncomingWhileBusy(callState, {
+          mode,
+          callId,
+          roomBareName: stanzaRoom,
+        });
+        if (decision === 'duplicate' || decision === 'glare-keep') return true;
+        if (decision === 'busy') {
+          if (isP2P) {
+            reportCallDeclined(callId);
+            if (peerXmppUsername) {
+              sendCallStateSignal('declined', {
+                peerXmppUsername,
+                callId,
+                roomBareName: stanzaRoom,
+              });
+            }
+          }
+          return true;
+        }
+        if (decision === 'glare-yield') {
+          // We both dialled at once and the other call has the smaller id:
+          // drop ours (the other side keeps theirs and ignores our token).
+          sendCallStateSignal('cancelled');
+          reportCallEnded(callState.callId);
+          // Clear our outgoing call first: the call slice refuses an incoming
+          // token while a call of ours is in progress (late / duplicate token
+          // guard), and here the incoming one is meant to replace it.
+          store.dispatch(endCall());
+        }
+      }
+
       const isOutgoingRoomMatch =
+        !isP2P &&
         callState.direction === 'outgoing' &&
         (callState.roomJid === roomJid ||
           callState.roomName === incomingRoomName ||
@@ -417,7 +602,12 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
 
       if (isOutgoingRoomMatch) {
         store.dispatch(
-          setOutgoingCallToken({ roomJid, token, callId: callId || null })
+          setOutgoingCallToken({
+            roomJid,
+            token,
+            callId: callId || null,
+            livekitUrl: attrs.livekitUrl,
+          })
         );
         return true;
       }
@@ -438,6 +628,12 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
           kind,
           callId: callId || null,
           peerXmppUsername: peerXmppUsername || null,
+          mode,
+          isGroup: group,
+          iceServers: attrs.iceServers,
+          livekitUrl: attrs.livekitUrl,
+          callerName: attrs.callerName || null,
+          callerXmppUsername: attrs.caller,
         })
       );
       return true;

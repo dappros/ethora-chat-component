@@ -10,6 +10,7 @@ import Button from '../styled/Button';
 import {
   AudioCallIcon,
   BackIcon,
+  CalendarIcon,
   LockIcon,
   SearchIcon,
   VideoCallIcon,
@@ -34,11 +35,13 @@ import { useChatSettingState } from '../../hooks/useChatSettingState';
 import { useT, useUiLocale } from '../../i18n/useT';
 import { formatNumberWithCommas } from '../../helpers/formatNumberWithCommas';
 import { appendFileToken } from '../../helpers/secureFileUrl';
-import { blockUser, createChatCall, leaveRoom } from '../../networking/api-requests/rooms.api';
+import { blockUser, leaveRoom } from '../../networking/api-requests/rooms.api';
+import { placeRoomCall } from '../../calls/placeCall';
+import { openScheduleModal } from '../../roomStore/scheduledCallSlice';
+import { isScheduledCallsEnabled } from '../../calls/scheduledCallsConfig';
+import { isCallRoomTypeAllowed } from '../../calls/callMode';
 import { useToast } from '../../context/ToastContext';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
-import { setCallError, startOutgoingCall } from '../../roomStore/callSlice';
-import { sendCallInviteSignal } from '../../networking/callTokenStanza';
 import { ModalWrapper } from '../Modals/ModalWrapper/ModalWrapper';
 import { LanguageSelectorButton } from './LanguageSelectorModal';
 import HeaderLogo from './HeaderLogo';
@@ -313,9 +316,9 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   );
 
   const videoCallsConfig = config?.videoCalls;
-  const allowedRoomTypes = videoCallsConfig?.allowedRoomTypes || ['private'];
   const isVideoCallsEnabled = videoCallsConfig?.enabled === true;
   const isPrivateRoom = currentRoom?.type === 'private';
+  const isGroupRoom = currentRoom?.type === 'group';
   const onlineUsers = useRoomPresence(currentRoom?.jid);
   const myXmppUsername = stateUser?.xmppUsername || '';
   const peer = isPrivateRoom
@@ -348,9 +351,12 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     !!peer?.xmppUsername &&
     config?.features?.userBlock === true &&
     !config?.disableUserBlock;
-  const isRoomAllowedByType =
-    isPrivateRoom && allowedRoomTypes.includes('private');
-  const isRoomAllowed = isRoomAllowedByType;
+  // 1:1 chats and members-only group chats can call, subject to the host's
+  // videoCalls.allowedRoomTypes (default: both). Public rooms never do.
+  const isRoomAllowed = isCallRoomTypeAllowed(
+    currentRoom?.type,
+    videoCallsConfig?.allowedRoomTypes
+  );
   const hasLivekitUrl = Boolean(videoCallsConfig?.livekitUrl?.trim());
   // Optional chain: a host or test store may not mount the call slice.
   const isCallBusy = call?.phase !== 'idle';
@@ -359,6 +365,10 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   // everything a video call needs plus the explicit flag.
   const isAudioCallsEnabled =
     canCall && videoCallsConfig?.enableAudioCalls === true;
+
+  // "Schedule call" sits next to the call buttons and exists wherever a call
+  // can be placed; config.scheduledCalls.enabled: false hides it.
+  const canSchedule = canCall && isScheduledCallsEnabled(config);
 
   const callDisabledReason = !isRoomAllowed
     ? t('call.disabled.roomType')
@@ -458,79 +468,14 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       if (!canCall || isCallBusy || !currentRoom?.jid) {
         return;
       }
-
-      // The call API expects the bare room name (e.g. "${appId}_<uuid>"),
-      // which createRoomFromApi stores as the JID localpart. `currentRoom.name`
-      // looks tempting but actually holds the display title (e.g. the other
-      // party's "First Last"), so passing it produces nonsense URLs like
-      // /v1/chats/call/create/test2%20test2.
-      const chatName = currentRoom.jid.split('@')[0];
-      if (!chatName) return;
-
-      // Resolve the peer xmpp localpart so we can XMPP-signal them when
-      // we hang up / cancel - without this they'd keep ringing forever.
-      const selfLocal = String(stateUser?.xmppUsername || '').split('@')[0];
-      const peer = (currentRoom.members || []).find((member) => {
-        const mLocal = String(member?.xmppUsername || '').split('@')[0];
-        return mLocal && mLocal !== selfLocal;
+      await placeRoomCall({
+        dispatch,
+        room: currentRoom,
+        kind,
+        selfXmppUsername: stateUser?.xmppUsername,
       });
-      const peerXmppUsername = peer?.xmppUsername || null;
-
-      // Don't show "deleted" / "Deleted User" / "Unknown" as the dial
-      // screen title when the chat title is one of the server sentinels.
-      // Prefer the peer's first+last name, falling back to bare chat name.
-      const rawTitle = String(currentRoom.name || '').trim();
-      const isBadTitle =
-        !rawTitle ||
-        ['deleted', 'deleted user', 'unknown', 'null'].includes(
-          rawTitle.toLowerCase()
-        );
-      const peerDisplay = peer
-        ? `${peer.firstName || ''} ${peer.lastName || ''}`.trim() ||
-          peer.name ||
-          ''
-        : '';
-      const dialName =
-        (isBadTitle ? peerDisplay : rawTitle) || peerDisplay || chatName;
-
-      dispatch(
-        startOutgoingCall({
-          roomJid: currentRoom.jid,
-          roomName: dialName,
-          roomBareName: chatName,
-          kind,
-          peerXmppUsername,
-        })
-      );
-
-      // Server's broadcast call-token currently drops the `kind` attribute,
-      // so signal it directly to the peer first. Direct chat is fast
-      // (~50ms) and almost always lands before the server-relayed token
-      // (~200-300ms), so the callee enters the right UI mode.
-      if (peerXmppUsername) {
-        sendCallInviteSignal(kind, {
-          peerXmppUsername,
-          roomBareName: chatName,
-        });
-      }
-
-      try {
-        await createChatCall(chatName, { kind });
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'Failed to create call';
-        dispatch(setCallError(message));
-      }
     },
-    [
-      canCall,
-      isCallBusy,
-      currentRoom?.jid,
-      currentRoom?.name,
-      currentRoom?.members,
-      stateUser?.xmppUsername,
-      dispatch,
-    ]
+    [canCall, isCallBusy, currentRoom, stateUser?.xmppUsername, dispatch]
   );
 
   const handleVideoCallClick = useCallback(
@@ -699,6 +644,18 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
               )}
               {shouldShowLanguageSelector(config?.translates) && (
                 <LanguageSelectorButton />
+              )}
+              {canSchedule && (
+                <HeaderIconButton
+                  onClick={() =>
+                    dispatch(openScheduleModal({ roomJid: currentRoom.jid }))
+                  }
+                  title={t('scheduledCall.action.schedule')}
+                  aria-label={t('scheduledCall.action.schedule')}
+                  data-testid="schedule-call-button"
+                >
+                  <CalendarIcon />
+                </HeaderIconButton>
               )}
               {canCall && !isCallBusy && (
                 <>

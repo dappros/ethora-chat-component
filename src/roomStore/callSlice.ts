@@ -1,4 +1,6 @@
 import { PayloadAction, createSlice } from '@reduxjs/toolkit';
+import type { CallMode, IceServerConfig } from '../calls/callMode';
+import { safeCallName } from '../calls/callDisplay';
 
 export type CallPhase =
   | 'idle'
@@ -40,6 +42,23 @@ export interface CallState {
   // When the call actually connected (phase -> 'in-call'). Null until then.
   // Used to compute a duration for the local "call ended" log fallback.
   connectedAt: number | null;
+  // Transport of this call. `livekit` is the legacy path (and the only one for
+  // group rooms); `p2p` is our own WebRTC peer connection for 1:1. Decided by
+  // the server (create response for the caller, call-token `mode` for the
+  // callee), defaults to livekit so older servers behave exactly as before.
+  mode: CallMode;
+  // Group room call (always LiveKit): more than two participants, so the
+  // session must not assume the call is over when one remote participant leaves.
+  isGroup: boolean;
+  // Public LiveKit wss URL the server reported in the create response. Wins
+  // over config.videoCalls.livekitUrl when present. Caller side only.
+  livekitUrl: string | null;
+  // ICE servers (STUN/TURN with ephemeral credentials) for a p2p call.
+  iceServers: IceServerConfig[] | null;
+  // Who is calling, from the call-token (system account only). roomName is the
+  // name shown for the call; for a group it is the room, and this is the person.
+  callerName: string | null;
+  callerXmppUsername: string | null;
 }
 
 const initialState: CallState = {
@@ -57,6 +76,12 @@ const initialState: CallState = {
   error: null,
   startedAt: null,
   connectedAt: null,
+  mode: 'livekit',
+  isGroup: false,
+  livekitUrl: null,
+  iceServers: null,
+  callerName: null,
+  callerXmppUsername: null,
 };
 
 const resetState = (): CallState => ({ ...initialState });
@@ -100,13 +125,16 @@ const callSlice = createSlice({
         roomBareName?: string | null;
         kind?: CallKind;
         peerXmppUsername?: string | null;
+        isGroup?: boolean;
       }>
     ) {
       state.phase = 'requesting';
       state.direction = 'outgoing';
       state.kind = action.payload.kind || 'video';
       state.roomJid = action.payload.roomJid;
-      state.roomName = action.payload.roomName || null;
+      // A raw chat name is never a name: safeCallName drops it, the UI then
+      // shows a neutral label.
+      state.roomName = safeCallName(action.payload.roomName);
       state.roomBareName =
         action.payload.roomBareName ||
         (action.payload.roomJid || '').split('@')[0] ||
@@ -121,6 +149,45 @@ const callSlice = createSlice({
       state.error = null;
       state.startedAt = Date.now();
       state.connectedAt = null;
+      state.mode = 'livekit';
+      state.isGroup = action.payload.isGroup === true;
+      state.livekitUrl = null;
+      state.iceServers = null;
+      state.callerName = null;
+      state.callerXmppUsername = null;
+    },
+    // The create response told the caller how the call is carried. Applied
+    // only to the very call that asked (startedAt must match), so a late
+    // response for a call the user already cancelled cannot leak into the next.
+    setOutgoingCallRoute(
+      state,
+      action: PayloadAction<{
+        startedAt: number | null;
+        callId: string | null;
+        mode: CallMode;
+        group?: boolean | null;
+        livekitUrl?: string | null;
+        iceServers?: IceServerConfig[] | null;
+      }>
+    ) {
+      if (state.direction !== 'outgoing') return;
+      if (action.payload.startedAt !== state.startedAt) return;
+      // The LiveKit call-token can overtake the HTTP response, so a livekit
+      // route may still be applied once the phase has moved on to
+      // 'connecting'. A p2p route only makes sense while still dialling.
+      if (state.phase !== 'requesting') {
+        if (state.phase !== 'connecting' || action.payload.mode !== 'livekit') {
+          return;
+        }
+      }
+      state.mode = action.payload.mode;
+      if (action.payload.callId) state.callId = action.payload.callId;
+      if (typeof action.payload.group === 'boolean') {
+        state.isGroup = action.payload.group;
+      }
+      state.livekitUrl = action.payload.livekitUrl || null;
+      state.iceServers =
+        action.payload.mode === 'p2p' ? action.payload.iceServers || [] : null;
     },
     setIncomingCallToken(
       state,
@@ -132,6 +199,13 @@ const callSlice = createSlice({
         kind?: CallKind;
         callId?: string | null;
         peerXmppUsername?: string | null;
+        mode?: CallMode;
+        isGroup?: boolean;
+        iceServers?: IceServerConfig[] | null;
+        // LiveKit URL from the call-token stanza; wins over the host config.
+        livekitUrl?: string | null;
+        callerName?: string | null;
+        callerXmppUsername?: string | null;
       }>
     ) {
       if (shouldIgnoreIncomingToken(state, action.payload)) return;
@@ -139,7 +213,7 @@ const callSlice = createSlice({
       state.direction = 'incoming';
       state.kind = action.payload.kind || 'video';
       state.roomJid = action.payload.roomJid;
-      state.roomName = action.payload.roomName || null;
+      state.roomName = safeCallName(action.payload.roomName);
       state.roomBareName =
         action.payload.roomBareName ||
         (action.payload.roomJid || '').split('@')[0] ||
@@ -150,6 +224,12 @@ const callSlice = createSlice({
       state.error = null;
       state.startedAt = Date.now();
       state.connectedAt = null;
+      state.mode = action.payload.mode || 'livekit';
+      state.isGroup = action.payload.isGroup === true;
+      state.livekitUrl = action.payload.livekitUrl || null;
+      state.iceServers = action.payload.iceServers || null;
+      state.callerName = safeCallName(action.payload.callerName);
+      state.callerXmppUsername = action.payload.callerXmppUsername || null;
     },
     setOutgoingCallToken(
       state,
@@ -157,6 +237,7 @@ const callSlice = createSlice({
         roomJid: string;
         token: string;
         callId?: string | null;
+        livekitUrl?: string | null;
       }>
     ) {
       if (state.direction !== 'outgoing') return;
@@ -168,6 +249,8 @@ const callSlice = createSlice({
       state.roomJid = action.payload.roomJid;
       state.token = action.payload.token;
       if (action.payload.callId) state.callId = action.payload.callId;
+      // The stanza's URL, when present, wins over the create response's.
+      if (action.payload.livekitUrl) state.livekitUrl = action.payload.livekitUrl;
       state.error = null;
       state.startedAt = state.startedAt || Date.now();
     },
@@ -232,6 +315,7 @@ export const {
   startOutgoingCall,
   setIncomingCallToken,
   setOutgoingCallToken,
+  setOutgoingCallRoute,
   acceptIncomingCall,
   declineIncomingCall,
   endCall,

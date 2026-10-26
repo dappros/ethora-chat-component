@@ -20,6 +20,8 @@ export interface ParsedCallPush {
   callerName: string | null;
   /** Caller's xmpp localpart, when provided. */
   callerXmppUsername: string | null;
+  /** The call is for a group room (always LiveKit). */
+  isGroup: boolean;
 }
 
 const pick = (data: Record<string, any>, keys: string[]): string => {
@@ -86,6 +88,7 @@ export const parseCallPush = (
     callerXmppUsername:
       pick(d, ['callerXmppUsername', 'callerUsername', 'userJid', 'senderJid'])
         .split('@')[0] || null,
+    isGroup: ['true', '1'].includes(pick(d, ['group', 'isGroup']).toLowerCase()),
   };
 };
 

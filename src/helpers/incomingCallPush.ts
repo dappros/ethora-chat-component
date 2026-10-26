@@ -30,6 +30,7 @@ import {
   resetCallClaims,
 } from './callClaim';
 import { getCallPushFreshness, parseCallPush } from './callPush';
+import { safeCallName } from '../calls/callDisplay';
 
 export interface CallPushContext {
   dispatch: (action: any) => unknown;
@@ -181,11 +182,14 @@ const derivePeer = (
   parsed: ReturnType<typeof parseCallPush>,
   selfLocal: string
 ): string | null => {
+  // A group call has no single peer to signal.
+  if (parsed.isGroup) return null;
   if (parsed.callerXmppUsername) return parsed.callerXmppUsername;
+  // A 1:1 room is named "<userA>-<userB>"; anything else has no derivable peer.
   if (parsed.roomBareName && parsed.roomBareName.includes('-')) {
-    return (
-      parsed.roomBareName.split('-').find((p) => p && p !== selfLocal) || null
-    );
+    const parts = parsed.roomBareName.split('-');
+    if (parts.length !== 2) return null;
+    return parts.find((p) => p && p !== selfLocal) || null;
   }
   return null;
 };
@@ -236,12 +240,15 @@ export const raiseIncomingCallFromPush = (
   ctx.dispatch(
     setIncomingCallToken({
       roomJid: roomJid || parsed.roomRef || '',
-      roomName: parsed.callerName || parsed.roomBareName,
+      // callerName is untrusted push text: sanitised, and never a raw chat
+      // name (the call slice also refuses those for roomName).
+      roomName: safeCallName(parsed.callerName) || parsed.roomBareName,
       roomBareName: parsed.roomBareName,
       token: parsed.token,
       kind: parsed.kind,
       callId: parsed.callId,
       peerXmppUsername: derivePeer(parsed, selfLocalOf(ctx.getState())),
+      isGroup: parsed.isGroup,
     })
   );
 

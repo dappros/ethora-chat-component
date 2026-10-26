@@ -2,6 +2,7 @@ import { IUser } from './user.model';
 import { TranslationObject } from '../types';
 import { Iso639_1Codes } from './language.model';
 import { IAttachment } from './attachment.model';
+import type { ScheduledCallMeta } from './scheduledCall.model';
 
 export interface IMessage {
   id: string;
@@ -109,6 +110,9 @@ export interface IMessage {
     missed: boolean;
     kind: 'audio' | 'video';
   };
+  // Present when this message announces a scheduled call, from a
+  // `<data type="scheduledCall">` stanza (see helpers/scheduledCallMessage.ts).
+  scheduledCall?: ScheduledCallMeta;
 }
 
 export interface ReactionMessage {

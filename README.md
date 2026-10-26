@@ -20,6 +20,7 @@ Use it as a standalone chat page, as an embedded widget in your existing app, or
 - [Chat Props Reference](#chat-props-reference)
 - [Full Config Reference (`IConfig`)](#full-config-reference-iconfig)
 - [Custom Widgets and Overrides](#custom-widgets-and-overrides)
+- [Scheduled Calls](#scheduled-calls)
 - [Push Notifications](#push-notifications)
 - [Auth Strategies](#auth-strategies)
 - [Hooks and API Exports](#hooks-and-api-exports)
@@ -325,6 +326,7 @@ These are the top-level props accepted by `Chat` (exported from `ReduxWrapper`).
 | --- | --- | --- | --- |
 | `config` | `IConfig` | No | Main behavior/configuration object. |
 | `roomJID` | `string` | No | Force specific room JID on load. |
+| `scheduledCallSlug` | `string` | No | Open a scheduled call: once signed in, selects its room and shows the pre-join panel. The slug is the last part of a `/call/<slug>` join link. See [Scheduled Calls](#scheduled-calls). |
 | `user` | `{ email: string; password: string }` | No | Credentials for email/password login helper path. |
 | `loginData` | `{ email: string; password: string }` | No | Optional login payload. |
 | `MainComponentStyles` | `React.CSSProperties` | No | Outer container style override. |
@@ -351,7 +353,8 @@ Below is a grouped reference for all `config` options.
 | `newArch` | `boolean` | Defaults to `true`; set `false` to explicitly force legacy/old architecture paths. |
 | `useStoreConsoleEnabled` | `boolean` | Enable verbose internal logging in console. |
 | `userLookupRoute` | `'auto' \| 'v1' \| 'v2'` | Route used to look up one sender that is not in the room member list. Default `'auto'`: `GET /v1/apps/users/<xmppUsername>` first; if the backend refuses the user token there (400/401, missing route) the chat uses `GET /v2/chats/users?xmppUsername=` for 10 minutes, then tries v1 again. A 403 from v1 is treated as a per-user "not allowed" and shows the name carried on the message, or "Unknown user". `'v1'` / `'v2'` pin one route. |
-| `trustedEventSenders` | `string[]` | Who may push server `ethora-event` headlines (see Server events). Default (unset): any bare JID without a resource on the account's own XMPP domain, which is how the server sends them. Set it to pin the exact sender(s) as full bare JIDs (`admin@xmpp.example.com`) or local parts (`admin`). |
+| `trustedEventSenders` | `string[]` | Who may push server `ethora-event` headlines (see Server events). Default (unset): any bare JID without a resource on the account's own XMPP domain, which is how the server sends them. Set it to pin the exact sender(s) as full bare JIDs (`admin@xmpp.example.com`) or local parts (`admin`). The `chat-component-config-updated` event comes from the bare server domain (see [Server events](#server-events-urnethoraevents1)), so a pinned list must name the domain (`xmpp.example.com`) for it to be heard. |
+| `remoteAppearance` | `{ appId: string; baseUrl?: string; initialWaitMs?: number }` | Read the App's look from the server and keep it current: the colours, fonts, layout switches and AI display options saved in the admin's Chat component tab. Opt in by naming the App. Read at start (the first paint waits for it, at most `initialWaitMs`, default 2500) and again on every `chat-component-config-updated` server event, applied to the open chat without reconnecting. Only the keys in [Applying config live](#applying-config-live-and-remoteappearance) are accepted from the server. Off by default. |
 | `historyPreload` | `{ mode?: 'staged' \| 'all' \| 'off'; topRooms?: number; concurrency?: number }` | Background message-history preload after connect, for accounts with many rooms. Default `{ mode: 'staged', topRooms: 8, concurrency: 3 }`. `staged`: the `topRooms` most recently active rooms get a full page loaded, `concurrency` at a time, and rooms the backend gave no `lastMessage` for get a one-message preview (up to 4x `topRooms` of them); every other room loads the moment it is opened. A room the user opens jumps the queue, and a reconnect only re-queues rooms that are not already preloaded. `all`: preload every room (the old behaviour; fine for a handful of rooms). `off`: no background preload at all. The room list's last message, time and unread badge come from `GET /v1/chats/my` (`lastMessage`, `unreadCount`) when the backend sends them, so they render without waiting for any history; a backend without those fields falls back to the history preload. The older `historyQoS.preloadTopKRooms` / `stagedPreloadConcurrency` are still honoured when the matching field here is not set; pinning `historyQoS.stagedPreloadEnabled: false` keeps the legacy startup catch-up path. |
 | `historyQoS.joinHistoryStanzas` | `number` | Messages the MUC service replays on every room join (sent as `<history maxstanzas="N"/>`). Default `0`: history comes from the message archive only, so connecting an account with many rooms no longer pulls the server default (up to 20 messages) per room. Raise it only if a room of yours has no archiving and relies on the join replay. |
 | `historyQoS.joinConcurrency` | `number` | Rooms joined in parallel by the background join sweep. The room list is shown as soon as `/chats/my` returns; every room is then joined in the background (the open room first, then most recent activity; a room you open while it is queued jumps the queue). Default `5`. |
@@ -420,7 +423,7 @@ Below is a grouped reference for all `config` options.
 | `disableSentLogic` | `boolean` | Disable default sent-state logic when needed. |
 | `secondarySendButton` | `{ enabled: boolean; messageEdit: string; label?: React.ReactNode; buttonStyles?: React.CSSProperties; hideInputSendButton?: boolean; overwriteEnterClick?: true }` | Extra send action/button config. |
 | `messageTextFilter` | `{ enabled: boolean; filterFunction: (text: string) => string }` | Transform/filter outgoing message text. |
-| `eventHandlers` | `{ onMessageSent?; onMessageFailed?; onMessageEdited?; onError? }` | Lifecycle callbacks for message operations, plus `onError` for uncaught render errors caught by the SDK's error boundary, see [Error handling](#error-handling-and-crash-containment). |
+| `eventHandlers` | `{ onMessageSent?; onMessageFailed?; onMessageEdited?; onError?; onChatComponentConfigUpdated? }` | Lifecycle callbacks for message operations, plus `onError` for uncaught render errors caught by the SDK's error boundary, see [Error handling](#error-handling-and-crash-containment), and `onChatComponentConfigUpdated({ appId, version })`, called when the server says the App's chat component config changed, see [Applying config live](#applying-config-live-and-remoteappearance). |
 | `translates` | `{ enabled: boolean; translations?: Iso639_1Codes; mode?: 'auto' \| 'manual'; forceType?: boolean; readerLocale?: string; showLanguageSelector?: boolean; showLanguageList?: boolean; onTranslate?: (text, ctx) => Promise<string>; showTranslateForMessage?: (message) => boolean; endpoint?: string }` | Message translation-related options. In manual mode, an on-demand translate click shows exactly what `mode: 'auto'` would have shown automatically - the same `message.translations` lookup, no network call - unless `onTranslate` is provided, in which case it wins and may do its own HTTP. The built-in translate-service fetch is strictly opt-in: it only runs when the host sets `endpoint` explicitly (there is no default derived from `config.baseUrl`), and the result is cached onto the message so a second click, or switching to 'auto', sees it for free. The call is made directly from the browser, so `endpoint` must respond with `Access-Control-Allow-Origin` for that origin (a self-hosted translate service needs its `CORS_ORIGIN` env var set) or the fetch is blocked with no error shown beyond the retry link; if you can't set that on the endpoint, use `onTranslate` and proxy the call through your own backend instead. When there is genuinely nothing to reveal (no attached translation, no `onTranslate`, no `endpoint`), no "Translate" link is shown at all. |
 | `whitelistSystemMessage` | `string[]` | Restrict/render only selected system message types. |
 | `customSystemMessage` | `React.ComponentType<MessageProps>` | Replace system message component renderer. |
@@ -535,8 +538,37 @@ The server tells a user that something they display changed by sending a `type="
 | --- | --- | --- |
 | `user-profile-updated` | `xmppUsername` (`<appId>_<userId>`), `uuid`, `appId`, `ts` | Re-fetches that user, bypassing the cache and any "not found" memory, through the same lookup route as unknown senders (`userLookupRoute`). Existing bubbles are re-named and re-pictured. If it is the signed-in user, their own profile data is updated too. Bursts within 500 ms collapse into one request. |
 | `chat-meta-updated` | `chatName` (`<appId>_<roomId>`), `appId`, `ts` | Re-fetches `GET /v1/chats/my/<chatName>` and applies only title, description, picture, type and user count to the room. Members, messages, last message and unread counters are never replaced, and the user count is never lowered. Events for rooms the chat does not hold are ignored. Debounced per room (500 ms), one request in flight, backoff after errors. |
+| `chat-component-config-updated` | `appId`, `version`, `ts` | The admin saved a change in the Chat component tab. Calls `config.eventHandlers.onChatComponentConfigUpdated({ appId, version })` and, when `config.remoteAppearance` is set, reads the config again and applies it live. Ignored unless `appId` is this session's own App (`config.appId` or `remoteAppearance.appId`). Once per `version`, a few hundred ms after the last of a burst. No values travel in the event. |
 
-Unknown event types and malformed attributes are ignored. Trust rule: the stanza must come from a bare JID (no resource) on the session's own XMPP domain, so room occupants, other users, the `conference.` domain and other servers are ignored; `trustedEventSenders` narrows this to named senders. `xmppUsername` and `chatName` are validated (charset, length, `<appId>_` prefix) before use. The older `<user-update>` / `<chat-update>` headlines (namespace `your:custom:ns`) are still handled as before.
+Unknown event types and malformed attributes are ignored. Trust rule: the stanza must come from a bare JID (no resource) on the session's own XMPP domain, so room occupants, other users, the `conference.` domain and other servers are ignored; `trustedEventSenders` narrows this to named senders. `chat-component-config-updated` is the one event that is also accepted from the bare server domain itself (`xmpp.example.com`, no user part): the server delivers it to every online session of the host in a single announcement (ejabberd `announce/online`), so it also arrives for other Apps on the host and is dropped unless it names this session's App. A client cannot send as the server domain. `xmppUsername` and `chatName` are validated (charset, length, `<appId>_` prefix) before use. The older `<user-update>` / `<chat-update>` headlines (namespace `your:custom:ns`) are still handled as before.
+
+### Applying config live, and `remoteAppearance`
+
+Changing the `config` prop of a mounted `<Chat>` restyles it in place. Nothing reconnects, no room or message is reloaded, no draft is lost, and the signed-in session is left alone: the new config replaces the one in the store, the components that read it re-render, and the CSS variables, fonts and icon tint are re-published (a font or colour you remove goes back to the default). The connection and login are keyed on identity fields, not on the config object, so a host that rebuilds `config` on every render is already safe.
+
+| Applied live (change them any time) | Read when the chat starts (a new value is used by the next mount) |
+| --- | --- |
+| `colorScheme`; `colors.*` (`primary`, `secondary`, `icons`, `iconsBg`, `ownMessageBackground`, `otherMessageBackground`, `inputBackground`); `typography.*`; `backgroundChat.*` | `appId`, `baseUrl`, `customAppToken`, `xmppSettings.*` (these also pick the cache scope, a different one clears the local cache) |
+| `disableHeader`, `disableMedia`, `disableRooms`, `disableRoomMenu`, `disableNewChatButton`, `disableUserCount`, `disableTypingIndicator`, `disableProfilesInteractions`, `chatHeaderBurgerMenu`, `chatHeaderSettings.hideSearch` | `userLogin`, `jwtLogin`, `customLogin`, `refreshTokens`, `initBeforeLoad`, `initBeforeLoadAuth` |
+| `blockMessageSendingWhenProcessing`, `customTypingIndicator.enabled` / `.text` / `.position`, `translates.enabled`, `secondarySendButton.enabled` | `newArch`, `historyQoS`, `historyPreload`, `disableLastRead`, `receipts`, `e2ee`, `videoCalls`, `pushNotifications` |
+
+Anything not in the left column is not applied from the server by `remoteAppearance` either.
+
+**`remoteAppearance`.** The Ethora admin saves these options per App (`PUT /v2/apps/<appId>/chat-component/config`), and the server tells every online chat of that App with the `chat-component-config-updated` event. Opt in and the chat does the rest:
+
+```tsx
+<Chat config={{ appId, baseUrl, remoteAppearance: { appId } /* baseUrl defaults to config.baseUrl */ }} />
+```
+
+It reads `GET /v2/chat-component/config?appId=` (public, no token) at start and holds the first paint for it, at most `initialWaitMs` (2500), so the chat starts once with its final look; the saved values win over the same keys in your `config`. On every event it reads again with `&v=<version>` (which gets past the endpoint's 30 s cache) and applies the answer live. A failed read keeps the look you have. Only the left-column keys are taken from the answer, each checked (colours, font names and sizes, a few enums and booleans), so a wrong answer cannot do more than restyle. The record is kept in the store next to `config`, so a second writer of `config` (for example `<XmppProvider config>`) does not undo it.
+
+Prefer to fetch yourself? Leave `remoteAppearance` out, read the endpoint in the callback and pass the merged result as `config`:
+
+```tsx
+<Chat config={{ ...base, ...saved, eventHandlers: { onChatComponentConfigUpdated: ({ appId, version }) => reload(appId, version) } }} />
+```
+
+Delivery is best effort, like any push: a client that was offline misses the event and picks the change up at its next start.
 
 ## Custom Widgets and Overrides
 
@@ -583,6 +615,56 @@ Reference example components in repository:
 - `src/examples/customComponents/CustomScrollableArea.tsx`
 - `src/examples/customComponents/CustomDaySeparator.tsx`
 - `src/examples/customComponents/CustomNewMessageLabel.tsx`
+
+## Scheduled Calls
+
+Scheduled calls let a member book a call in a chat. Everyone in the room gets an invite card with "Google Calendar", "Outlook" and "Download .ics" links, and a Join button that opens 15 minutes before the start. Booking only decides when: the call itself runs on the existing call path (1:1 rooms over P2P WebRTC, group rooms over LiveKit), and no camera or microphone is touched until the user taps Join on the pre-join panel. Calendar delivery is `.ics` and template links only; there is no calendar OAuth.
+
+It needs a backend that serves the scheduled-call endpoints (`/v1/chats/calls/scheduled`) and is on by default whenever `config.videoCalls.enabled` is on:
+
+```tsx
+<Chat
+  config={{
+    videoCalls: { enabled: true, livekitUrl: 'wss://livekit.example.com', enableAudioCalls: true },
+    // scheduledCalls is optional; these are the defaults.
+    scheduledCalls: { enabled: true },
+  }}
+/>
+```
+
+What the user sees:
+
+- A "Schedule call" button next to the call buttons in the chat header (same room types and gating as the call buttons). The form takes a title, date and time in the local time zone, a duration (15 minutes to 2 hours, or the call's own when editing) and video or audio (audio only when `videoCalls.enableAudioCalls` is on).
+- An invite card in the room for each scheduled call. An edit or a cancel from the backend replaces the card (one card per call, the newest status wins): upcoming, open to join, ended (greyed) or cancelled (struck through). The person who scheduled the call (the message names them in `scheduledCallCreatedBy`, so no request is needed) and the room owner also get Edit and Cancel.
+- Join opens the pre-join panel (title, time, duration, room, calendar links) and a "Join call" button, enabled from 15 minutes before the start until the call ends.
+
+Clients that do not know the message type show its plain-text body, so older apps stay readable.
+
+### Opening a call from a link
+
+A join link looks like `https://<web app host>/call/<slug>`. Pass the slug to `<Chat>` and, once the user is signed in and the room list has loaded, the chat selects that room and shows the pre-join panel. Nothing starts until the user taps Join.
+
+```tsx
+import { Chat, parseScheduledCallLink, openScheduledCall } from '@ethora/chat-component';
+
+// Declarative: the route /call/:slug renders the chat with the slug.
+<Chat config={config} scheduledCallSlug={slug} />
+
+// Imperative: from a deep-link handler, any time after import.
+const slug = parseScheduledCallLink(url); // null when `url` is not a join link
+if (slug) openScheduledCall(slug);
+```
+
+`parseScheduledCallLink(url, options?)` accepts `https://<host>/call/<slug>` and `<scheme>://call/<slug>` (never plain `http`), on `app.chat.ethora.com`, the page's own host and `options.hosts` (or, when omitted, `config.scheduledCalls.hosts`); schemes follow `options.schemes` or the configured ones. A request made before sign-in or before `<Chat>` is mounted is held and opened once both are true. A slug that cannot be opened (unknown, not a member, cancelled, offline) shows a toast and calls `config.scheduledCalls.onOpenError({ slug, reason })` with `reason` one of `'not-found' | 'not-a-member' | 'cancelled' | 'network'`. A host that wants its own error screens can call `GET /v1/chats/calls/scheduled/:slug` itself first (as `ethora-app-reactjs` does) and only mount the chat for a call that can be opened.
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `scheduledCalls.enabled` | `boolean` | Default `true` when `videoCalls.enabled` is on. `false` hides the "Schedule call" button and the Join button on cards; cards still render with their calendar links. |
+| `scheduledCalls.hosts` | `string[]` | Extra hosts whose `https://<host>/call/<slug>` links `parseScheduledCallLink` accepts, on top of `app.chat.ethora.com` and the page's own host. Same option and defaults as the React Native SDK. |
+| `scheduledCalls.schemes` | `string[]` | App URL schemes (without `://`) accepted for `<scheme>://call/<slug>`. Unset accepts any scheme. |
+| `scheduledCalls.onOpenError` | `(e: { slug: string; reason: ScheduledCallOpenError }) => void` | Called when `scheduledCallSlug` / `openScheduledCall` could not open a call. |
+
+Notes: the invite message is sent by the backend in the clear, also in `e2ee` rooms, like other system messages. Calendar links on a card are accepted only when they are plausible (https calendar provider hosts, and an `.ics` link on the API's own origin), because any member could forge the message attributes.
 
 ## Push Notifications
 
@@ -745,6 +827,8 @@ With `videoCalls.enabled: true` and push enabled, a data-only call push (`type: 
 | `useInAppNotifications` | hook | Enables and handles in-app notifications. |
 | `usePushNotifications` | hook | Push subscription + foreground handling workflow. |
 | `resendMessage` | function | Retry sending failed/pending messages. |
+| `parseScheduledCallLink` | function | `parseScheduledCallLink(url)` returns the slug of a scheduled-call join link (`https://<host>/call/<slug>` or `<scheme>://call/<slug>`), or `null`. |
+| `openScheduledCall` | function | `openScheduledCall(slug)` asks the mounted `<Chat>` to select that call's room and show its pre-join panel; held until the user is signed in. Returns `false` for an implausible slug. |
 | `useRoomMute` | hook | `useRoomMute(roomJid)` returns `{ muted, isSupported, isPending, toggleMute, setMuted }` for a room's mute preference - optimistic with rollback on failure. `isSupported` is only `true` once the backend has reported a `muted` boolean for that room (it hasn't shipped to prod yet), so hosts building their own UI should hide a mute control until then. |
 
 Basic hook usage:

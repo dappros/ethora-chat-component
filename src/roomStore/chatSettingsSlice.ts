@@ -14,10 +14,21 @@ import {
 } from '../helpers/authStorage';
 import { walletToUsername } from '../helpers/walletUsername';
 import XmppClient from '../networking/xmppClient';
+import {
+  applyRemoteConfigRecord,
+  RemoteConfigRecord,
+} from '../helpers/liveConfig';
 
 interface ChatState {
   user: User;
   config?: IConfig;
+  /**
+   * The operator-saved look read for `config.remoteAppearance` (validated,
+   * live keys only). Kept next to `config` so that whoever writes `config`
+   * (the chat, the provider, the init hook) gets it laid over their value,
+   * and one writer cannot undo what another applied. Not persisted.
+   */
+  remoteConfig?: RemoteConfigRecord | null;
   appId?: string;
   activeModal?: ModalType;
   deleteModal?: DeleteModal;
@@ -151,10 +162,18 @@ const chatSlice = createSlice({
       }
     },
     setConfig: (state, action: PayloadAction<IConfig | undefined>) => {
-      state.config = action.payload;
+      state.config = state.remoteConfig
+        ? applyRemoteConfigRecord(action.payload, state.remoteConfig)
+        : action.payload;
       if (action.payload?.appId) {
         state.appId = action.payload.appId;
       }
+    },
+    setRemoteConfig: (
+      state,
+      action: PayloadAction<RemoteConfigRecord | null | undefined>
+    ) => {
+      state.remoteConfig = action.payload || null;
     },
     setActiveModal: (state, action: PayloadAction<ModalType | undefined>) => {
       state.activeModal = action.payload;
@@ -239,6 +258,7 @@ const chatSlice = createSlice({
 export const {
   setUser,
   setConfig,
+  setRemoteConfig,
   refreshTokens,
   setXmppPassword,
   logout,

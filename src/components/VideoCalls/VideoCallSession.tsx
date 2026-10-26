@@ -62,6 +62,12 @@ interface VideoCallSessionProps {
    * receives it. See VideoCallOverlay.
    */
   onParticipantJoined?: () => void;
+  /**
+   * Group room call: render every participant in a grid and keep the call
+   * alive while other people remain. A 1:1 call (default) ends locally as
+   * soon as the single remote peer leaves.
+   */
+  isGroup?: boolean;
   onNoAnswer?: () => void;
   noAnswerTimeoutMs?: number;
 }
@@ -72,12 +78,12 @@ const DEFAULT_PRIMARY = '#0052CD';
 // text variable) around this component in the dark scheme only. The dark
 // video stage / minimized bar below stay literal: they are dark in both
 // schemes on purpose.
-const TEXT_PRIMARY = 'var(--ethora-color-text, #141414)';
-const TEXT_MUTED = 'var(--ethora-call-text-muted, #8c8c8c)';
-const SURFACE = 'var(--ethora-color-bg, #fff)';
-const SURFACE_MUTED = 'var(--ethora-color-chat-bg, #f3f6fc)';
-const DIVIDER = 'var(--ethora-color-bg-hover, #f0f0f0)';
-const DANGER = '#E53935';
+export const TEXT_PRIMARY = 'var(--ethora-color-text, #141414)';
+export const TEXT_MUTED = 'var(--ethora-call-text-muted, #8c8c8c)';
+export const SURFACE = 'var(--ethora-color-bg, #fff)';
+export const SURFACE_MUTED = 'var(--ethora-color-chat-bg, #f3f6fc)';
+export const DIVIDER = 'var(--ethora-color-bg-hover, #f0f0f0)';
+export const DANGER = '#E53935';
 
 // ---------- inline icon set ---------------------------------------------
 
@@ -86,7 +92,7 @@ const DANGER = '#E53935';
 // button) under a thin icon-color line - so the slash reads clearly against
 // the glyph on any background. `cutColor` defaults to the danger red used by
 // the muted buttons.
-const MicOnIcon: React.FC<{ color?: string }> = ({ color = '#FFFFFF' }) => (
+export const MicOnIcon: React.FC<{ color?: string }> = ({ color = '#FFFFFF' }) => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
     <rect x="8.5" y="2" width="7" height="12" rx="3.5" fill={color} />
     <path
@@ -105,7 +111,7 @@ const MicOnIcon: React.FC<{ color?: string }> = ({ color = '#FFFFFF' }) => (
   </svg>
 );
 
-const MicOffIcon: React.FC<{ color?: string; cutColor?: string }> = ({
+export const MicOffIcon: React.FC<{ color?: string; cutColor?: string }> = ({
   color = '#FFFFFF',
   cutColor = DANGER,
 }) => (
@@ -145,7 +151,7 @@ const MicOffIcon: React.FC<{ color?: string; cutColor?: string }> = ({
   </svg>
 );
 
-const CamOnIcon: React.FC<{ color?: string }> = ({ color = '#FFFFFF' }) => (
+export const CamOnIcon: React.FC<{ color?: string }> = ({ color = '#FFFFFF' }) => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
     <rect x="2" y="6" width="14" height="12" rx="2.5" fill={color} />
     <path
@@ -155,7 +161,7 @@ const CamOnIcon: React.FC<{ color?: string }> = ({ color = '#FFFFFF' }) => (
   </svg>
 );
 
-const CamOffIcon: React.FC<{ color?: string; cutColor?: string }> = ({
+export const CamOffIcon: React.FC<{ color?: string; cutColor?: string }> = ({
   color = '#FFFFFF',
   cutColor = DANGER,
 }) => (
@@ -210,7 +216,7 @@ const ShareScreenIcon: React.FC<{ color?: string }> = ({
   </svg>
 );
 
-const MinimizeIcon: React.FC<{ color?: string }> = ({ color = '#FFFFFF' }) => (
+export const MinimizeIcon: React.FC<{ color?: string }> = ({ color = '#FFFFFF' }) => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
     <path
       d="M6 14h6v6M18 10h-6V4"
@@ -222,7 +228,7 @@ const MinimizeIcon: React.FC<{ color?: string }> = ({ color = '#FFFFFF' }) => (
   </svg>
 );
 
-const ExpandIcon: React.FC<{ color?: string }> = ({ color = '#FFFFFF' }) => (
+export const ExpandIcon: React.FC<{ color?: string }> = ({ color = '#FFFFFF' }) => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
     <path
       d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"
@@ -236,7 +242,7 @@ const ExpandIcon: React.FC<{ color?: string }> = ({ color = '#FFFFFF' }) => (
 
 // ---------- helpers -----------------------------------------------------
 
-const hexToRgba = (hex: string, alpha: number): string => {
+export const hexToRgba = (hex: string, alpha: number): string => {
   let value = String(hex || DEFAULT_PRIMARY).trim();
   if (value.startsWith('#')) value = value.slice(1);
   if (value.length === 3) {
@@ -259,7 +265,7 @@ const hexToRgba = (hex: string, alpha: number): string => {
 // the old "start a local timer when I first see the peer" approach, where the
 // caller and callee began counting at different local moments and drifted.
 // Returns null until the peer is present (caller still sees "Ringing…").
-const useSharedCallElapsed = (): number | null => {
+const useSharedCallElapsed = (group = false): number | null => {
   const participants = useParticipants();
   const [, forceTick] = useState(0);
 
@@ -267,8 +273,14 @@ const useSharedCallElapsed = (): number | null => {
     .map((p) => (p.joinedAt ? new Date(p.joinedAt).getTime() : 0))
     .filter((t) => t > 0);
   const peerPresent = participants.length >= 2;
+  // 1:1: the call connected when the LAST of the two joined. Group: it began
+  // when the first participant joined, later joiners do not restart the clock.
   const anchor =
-    peerPresent && joinTimes.length >= 2 ? Math.max(...joinTimes) : null;
+    peerPresent && joinTimes.length >= 2
+      ? group
+        ? Math.min(...joinTimes)
+        : Math.max(...joinTimes)
+      : null;
 
   useEffect(() => {
     if (anchor === null) return;
@@ -280,7 +292,7 @@ const useSharedCallElapsed = (): number | null => {
   return Math.max(0, Math.floor((Date.now() - anchor) / 1000));
 };
 
-const formatDuration = (totalSeconds: number): string => {
+export const formatDuration = (totalSeconds: number): string => {
   const safe = Math.max(0, Math.floor(totalSeconds));
   const hours = Math.floor(safe / 3600);
   const minutes = Math.floor((safe % 3600) / 60);
@@ -296,7 +308,7 @@ const formatDuration = (totalSeconds: number): string => {
 //  - 'danger': red surface, white icon (mic off, cam off, hangup)
 type ToneVariant = 'neutral' | 'active' | 'danger';
 
-const toneStyle = (
+export const toneStyle = (
   tone: ToneVariant,
   primary: string,
   background: string = SURFACE_MUTED
@@ -318,7 +330,7 @@ const toneStyle = (
   };
 };
 
-const controlButtonBase: React.CSSProperties = {
+export const controlButtonBase: React.CSSProperties = {
   width: 48,
   height: 48,
   borderRadius: 999,
@@ -1064,6 +1076,375 @@ const AudioCallContent: React.FC<{
   );
 };
 
+// ---------- group content ----------------------------------------------
+
+const trackIsLive = (t: { publication?: any } | undefined): boolean =>
+  !!t && !!t.publication && !t.publication.isMuted && !!t.publication.track;
+
+interface ParticipantTileProps {
+  name: string;
+  isLocal: boolean;
+  video: TrackReference | null;
+  muted: boolean;
+  speaking: boolean;
+  primaryColor: string;
+  dark: boolean;
+  isScreen?: boolean;
+}
+
+// One participant in the group grid: live video when there is one, otherwise
+// an avatar. Same visual language as the 1:1 stage (dark tiles for video
+// calls, light cards for audio calls).
+const ParticipantTile: React.FC<ParticipantTileProps> = ({
+  name,
+  isLocal,
+  video,
+  muted,
+  speaking,
+  primaryColor,
+  dark,
+  isScreen,
+}) => (
+  <div
+    style={{
+      position: 'relative',
+      minHeight: dark ? 0 : 150,
+      aspectRatio: dark ? '16 / 9' : undefined,
+      borderRadius: 16,
+      overflow: 'hidden',
+      background: dark ? '#111827' : SURFACE_MUTED,
+      border: speaking
+        ? `2px solid ${hexToRgba(primaryColor, 0.9)}`
+        : `1px solid ${dark ? 'rgba(255,255,255,0.12)' : DIVIDER}`,
+      boxSizing: 'border-box',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      color: dark ? '#FFFFFF' : TEXT_PRIMARY,
+    }}
+  >
+    {video ? (
+      <VideoTrack
+        trackRef={video}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          objectFit: isScreen ? 'contain' : 'cover',
+          background: '#0B1220',
+          // Mirror our own camera like every call app; never a screen share.
+          transform: isLocal && !isScreen ? 'scaleX(-1)' : undefined,
+        }}
+      />
+    ) : (
+      <ProfileImagePlaceholder name={name} size={dark ? 64 : 72} />
+    )}
+    <div
+      style={{
+        position: video ? 'absolute' : 'static',
+        left: 8,
+        bottom: 8,
+        maxWidth: 'calc(100% - 16px)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        padding: video ? '3px 8px' : 0,
+        borderRadius: 999,
+        background: video ? 'rgba(0,0,0,0.5)' : 'transparent',
+        color: video || dark ? '#FFFFFF' : TEXT_PRIMARY,
+        fontSize: 13,
+      }}
+    >
+      {muted && (
+        <span
+          aria-label="Microphone is off"
+          title="Microphone is off"
+          style={{
+            width: 18,
+            height: 18,
+            borderRadius: 999,
+            background: DANGER,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+            <rect x="8.5" y="2" width="7" height="12" rx="3.5" fill="#fff" />
+            <path
+              d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"
+              stroke="#fff"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            <line
+              x1="3"
+              y1="3"
+              x2="21"
+              y2="21"
+              stroke="#fff"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
+        </span>
+      )}
+      <span
+        style={{
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {isLocal && name !== 'You' ? `${name} (You)` : name}
+        {isScreen ? ' - screen' : ''}
+      </span>
+    </div>
+  </div>
+);
+
+// Group calls: a grid of everyone in the room instead of the 1:1 "remote
+// fills the stage, me in a corner" layout. Works for audio (avatars) and video
+// (camera tiles + shared screens). Nothing here assumes exactly two people.
+const GroupCallContent: React.FC<{
+  kind: 'audio' | 'video';
+  primaryColor: string;
+  onHangup: () => void;
+  icons?: VideoCallIcons;
+  showScreenShare?: boolean;
+  onToggleMinimize?: () => void;
+  deviceError?: string | null;
+  onDismissDeviceError?: () => void;
+}> = ({
+  kind,
+  primaryColor,
+  onHangup,
+  icons,
+  showScreenShare = true,
+  onToggleMinimize,
+  deviceError,
+  onDismissDeviceError,
+}) => {
+  const roomName = useSelector((state: RootState) => state.call.roomName);
+  const participants = useParticipants();
+  const speaking = useSpeakingParticipants();
+  const connectionState = useConnectionState();
+  const cameraTracks = useTracks(
+    [{ source: Track.Source.Camera, withPlaceholder: false }],
+    { onlySubscribed: false }
+  );
+  const screenTracks = useTracks(
+    [{ source: Track.Source.ScreenShare, withPlaceholder: false }],
+    { onlySubscribed: false }
+  );
+  const micTracks = useTracks(
+    [{ source: Track.Source.Microphone, withPlaceholder: false }],
+    { onlySubscribed: false }
+  );
+  const elapsed = useSharedCallElapsed(true);
+  const dark = kind === 'video';
+
+  useEffect(() => {
+    ensureAudioPulseKeyframes();
+  }, []);
+
+  // Local participant first, then the others in join order.
+  const ordered = [...participants].sort(
+    (a, b) => Number(b.isLocal) - Number(a.isLocal)
+  );
+  const speakingIds = new Set(speaking.map((p) => p.identity));
+
+  const nameOf = (p: { name?: string; identity: string; isLocal: boolean }) =>
+    (p.name || p.identity || (p.isLocal ? 'You' : 'Participant')) as string;
+
+  const statusText =
+    elapsed !== null
+      ? `${participants.length} participants · ${formatDuration(elapsed)}`
+      : connectionState === ConnectionState.Connected
+        ? 'Waiting for others…'
+        : 'Connecting…';
+
+  const tiles: React.ReactNode[] = [];
+  for (const p of ordered) {
+    const screen = screenTracks.find((t) => t.participant.identity === p.identity);
+    if (kind === 'video' && trackIsLive(screen)) {
+      tiles.push(
+        <ParticipantTile
+          key={`${p.identity}:screen`}
+          name={nameOf(p)}
+          isLocal={p.isLocal}
+          video={screen as TrackReference}
+          muted={false}
+          speaking={false}
+          primaryColor={primaryColor}
+          dark={dark}
+          isScreen
+        />
+      );
+    }
+    const camera = cameraTracks.find((t) => t.participant.identity === p.identity);
+    const mic = micTracks.find((t) => t.participant.identity === p.identity);
+    tiles.push(
+      <ParticipantTile
+        key={p.identity}
+        name={nameOf(p)}
+        isLocal={p.isLocal}
+        video={kind === 'video' && trackIsLive(camera) ? (camera as TrackReference) : null}
+        muted={!mic || mic.publication?.isMuted !== false}
+        speaking={speakingIds.has(p.identity)}
+        primaryColor={primaryColor}
+        dark={dark}
+      />
+    );
+  }
+
+  const title = roomName || (kind === 'video' ? 'Group video call' : 'Group audio call');
+
+  return (
+    <div
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        boxSizing: 'border-box',
+        display: 'flex',
+        flexDirection: 'column',
+        background: dark ? '#0B1220' : SURFACE,
+        color: dark ? '#FFFFFF' : TEXT_PRIMARY,
+      }}
+    >
+      <div
+        style={{
+          padding: '14px 56px 10px 20px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
+          flexShrink: 0,
+        }}
+      >
+        <span style={{ fontSize: 15, fontWeight: 600 }}>{title}</span>
+        <span
+          style={{
+            fontSize: 13,
+            color: dark ? 'rgba(255,255,255,0.7)' : TEXT_MUTED,
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {statusText}
+        </span>
+      </div>
+
+      {onToggleMinimize && (
+        <button
+          onClick={onToggleMinimize}
+          aria-label="Minimize call"
+          title="Minimize"
+          style={{
+            position: 'absolute',
+            top: 12,
+            right: 12,
+            zIndex: 11,
+            width: 36,
+            height: 36,
+            borderRadius: 999,
+            border: dark ? 'none' : `1px solid ${DIVIDER}`,
+            background: dark ? 'rgba(255,255,255,0.14)' : SURFACE_MUTED,
+            color: dark ? '#FFFFFF' : TEXT_PRIMARY,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <MinimizeIcon color={dark ? '#FFFFFF' : TEXT_PRIMARY} />
+        </button>
+      )}
+
+      {deviceError && kind === 'audio' && (
+        <div
+          role="alert"
+          style={{
+            margin: '0 20px 8px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            fontSize: 13,
+            color: DANGER,
+            background: 'rgba(229,57,53,0.06)',
+            border: `1px solid ${hexToRgba(DANGER, 0.18)}`,
+            padding: '6px 10px 6px 12px',
+            borderRadius: 14,
+          }}
+        >
+          <span style={{ flex: 1 }}>{deviceError}</span>
+          {onDismissDeviceError && (
+            <button
+              onClick={onDismissDeviceError}
+              aria-label="Dismiss"
+              style={{
+                border: 'none',
+                background: 'transparent',
+                color: DANGER,
+                cursor: 'pointer',
+                fontSize: 15,
+                lineHeight: 1,
+                padding: 0,
+              }}
+            >
+              ×
+            </button>
+          )}
+        </div>
+      )}
+
+      <div
+        data-testid="group-call-grid"
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          padding: '4px 12px 12px',
+          display: 'grid',
+          gridTemplateColumns: `repeat(auto-fit, minmax(${dark ? 220 : 140}px, 1fr))`,
+          gridAutoRows: dark ? undefined : 'min-content',
+          alignContent: 'start',
+          gap: 8,
+        }}
+      >
+        {tiles}
+      </div>
+
+      <div
+        style={{
+          flexShrink: 0,
+          padding: '12px 16px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: dark
+            ? 'linear-gradient(0deg, rgba(0,0,0,0.55), rgba(0,0,0,0))'
+            : undefined,
+        }}
+      >
+        <CallControls
+          primaryColor={primaryColor}
+          onHangup={onHangup}
+          includeCamera={kind === 'video'}
+          includeScreenShare={kind === 'video' && showScreenShare}
+          layout={dark ? 'overlay' : 'light'}
+          icons={icons}
+        />
+      </div>
+
+      <RoomAudioRenderer />
+    </div>
+  );
+};
+
 // ---------- peer-leave watcher -----------------------------------------
 
 // End a 1:1 call locally as soon as the remote peer leaves the LiveKit room
@@ -1129,9 +1510,10 @@ const CompactCallContent: React.FC<{
   onHangup: () => void;
   onToggleMinimize?: () => void;
   icons?: VideoCallIcons;
-}> = ({ primaryColor, onHangup, onToggleMinimize, icons }) => {
+  isGroup?: boolean;
+}> = ({ primaryColor, onHangup, onToggleMinimize, icons, isGroup }) => {
   const roomName = useSelector((state: RootState) => state.call.roomName);
-  const elapsed = useSharedCallElapsed();
+  const elapsed = useSharedCallElapsed(isGroup);
   const mic = useTrackToggle({ source: Track.Source.Microphone });
 
   return (
@@ -1166,7 +1548,11 @@ const CompactCallContent: React.FC<{
             fontVariantNumeric: 'tabular-nums',
           }}
         >
-          {elapsed === null ? 'Ringing…' : formatDuration(elapsed)}
+          {elapsed === null
+            ? isGroup
+              ? 'Waiting for others…'
+              : 'Ringing…'
+            : formatDuration(elapsed)}
         </span>
       </div>
 
@@ -1278,6 +1664,7 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
   e2eeKey,
   e2eeWorkerFactory,
   onParticipantJoined,
+  isGroup = false,
   onNoAnswer,
   noAnswerTimeoutMs = 45000,
 }) => {
@@ -1464,7 +1851,10 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
 
   return (
     <RoomContext.Provider value={room}>
-      <PeerLeaveWatcher onPeerLeft={onHangup} />
+      {/* A 1:1 call is over when the one remote peer leaves. A group call must
+          NOT end that way: the others are still in the room. It ends when the
+          local user hangs up (or the server reports the room empty). */}
+      {!isGroup && <PeerLeaveWatcher onPeerLeft={onHangup} />}
       {onNoAnswer && (
         <NoAnswerWatcher onNoAnswer={onNoAnswer} timeoutMs={noAnswerTimeoutMs} />
       )}
@@ -1518,6 +1908,18 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
           onHangup={onHangup}
           onToggleMinimize={onToggleMinimize}
           icons={icons}
+          isGroup={isGroup}
+        />
+      ) : isGroup ? (
+        <GroupCallContent
+          kind={kind}
+          primaryColor={primaryColor}
+          onHangup={onHangup}
+          icons={icons}
+          showScreenShare={showScreenShare}
+          onToggleMinimize={onToggleMinimize}
+          deviceError={deviceError}
+          onDismissDeviceError={() => setDeviceError(null)}
         />
       ) : isAudioOnly ? (
         <AudioCallContent

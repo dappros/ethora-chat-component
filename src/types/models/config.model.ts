@@ -3,6 +3,7 @@ import { xmppSettingsInterface } from './xmpp.model';
 import { ConfigRoom } from './room.model';
 import { MessageProps, IMessage } from './message.model';
 import { Iso639_1Codes } from './language.model';
+import type { ScheduledCallsConfig } from './scheduledCall.model';
 import { QuickReply } from '../../helpers/quickReplies';
 import React from 'react'; // Assuming React types are globally available or managed by the project's tsconfig
 
@@ -30,7 +31,15 @@ export interface VideoCallIcons {
 export interface VideoCallsConfig {
   enabled: boolean;
   livekitUrl: string;
-  allowedRoomTypes?: Array<'private'>;
+  /**
+   * Room types that can start and receive calls. Defaults to
+   * `['private', 'group']`: 1:1 chats plus members-only group chats (group
+   * calls always run over LiveKit and need a backend that accepts them; on an
+   * older backend the call fails with an error). Pass `['private']` to keep
+   * calls 1:1 only. The 1:1 transport (own WebRTC peer to peer, or LiveKit) is
+   * chosen by the server per call, not by this config.
+   */
+  allowedRoomTypes?: Array<'private' | 'group'>;
   /**
    * Show the audio-only call button next to the video-call button. Off by
    * default: it's a separate opt-in feature. An audio call uses the same call
@@ -699,6 +708,23 @@ export interface IConfig {
      * inside this handler is caught and logged, never rethrown.
      */
     onError?: (event: ChatErrorInfo) => void;
+    /**
+     * Called when the server announces that the App's chat component config
+     * (the admin's Chat component tab) changed: an `ethora-event` headline of
+     * type `chat-component-config-updated` from the server. The event carries
+     * no values, only the App id and an opaque `version`; read the config
+     * again (`GET /v2/chat-component/config?appId=<appId>&v=<version>`, the
+     * `v` steps around the endpoint's 30 s cache) and pass the result in
+     * `config`, or set `config.remoteAppearance` and let the chat do both.
+     *
+     * Fires once per version, for the signed-in session's own App only
+     * (`config.appId`, or `remoteAppearance.appId`), a few hundred ms after
+     * the last of a burst. A throw inside it is caught and logged.
+     */
+    onChatComponentConfigUpdated?: (event: {
+      appId: string;
+      version: string;
+    }) => void;
   };
 
   disableTypingIndicator?: boolean;
@@ -755,6 +781,28 @@ export interface IConfig {
    * (`admin`).
    */
   trustedEventSenders?: string[];
+  /**
+   * Let the chat read the App's look from the server and keep it current:
+   * the colours, fonts, layout switches and AI display options the admin
+   * saved in the Chat component tab. Opt in by naming the App.
+   *
+   * The chat reads `GET /v2/chat-component/config?appId=` once at start and
+   * holds its first paint for it (at most `initialWaitMs`), lays the saved
+   * values over `config` (the server wins for the keys it holds), and reads
+   * again whenever the server announces a new version, applying the result to
+   * the open chat without reconnecting or resetting anything. Only the keys
+   * the chat can change live are accepted from the server (see the README
+   * table), each validated; nothing else in `config` is ever touched. A
+   * failed read keeps the look you already have.
+   */
+  remoteAppearance?: {
+    /** The App whose config to read. Usually the same as `config.appId`. */
+    appId: string;
+    /** API origin. Default: `config.baseUrl`, then the SDK's own default. */
+    baseUrl?: string;
+    /** Longest the first paint waits for the first read, in ms. Default 2500. */
+    initialWaitMs?: number;
+  };
   /**
    * Background history preload after connect. Default `{ mode: 'staged',
    * topRooms: 8, concurrency: 3 }`.
@@ -902,4 +950,10 @@ export interface IConfig {
     }) => void | Promise<void>;
   };
   videoCalls?: VideoCallsConfig;
+  /**
+   * Scheduled calls (booking): a "Schedule call" action next to the call
+   * buttons, and invite cards with Add to calendar and Join in the room. On by
+   * default whenever `videoCalls.enabled` is on. See ScheduledCallsConfig.
+   */
+  scheduledCalls?: ScheduledCallsConfig;
 }
