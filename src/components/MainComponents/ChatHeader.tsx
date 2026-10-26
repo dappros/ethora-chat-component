@@ -32,6 +32,7 @@ import { isMessageSearchEnabled } from '../../helpers/isMessageSearchEnabled';
 import { useMessageSearchShortcut } from '../../hooks/useMessageSearchShortcut';
 import { RoomMenu } from '../MenuRoom/MenuRoom';
 import { useChatSettingState } from '../../hooks/useChatSettingState';
+import { canLeaveRoom } from '../../helpers/canLeaveRoom';
 import { useT, useUiLocale } from '../../i18n/useT';
 import { formatNumberWithCommas } from '../../helpers/formatNumberWithCommas';
 import { appendFileToken } from '../../helpers/secureFileUrl';
@@ -399,7 +400,10 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   }, []);
 
   const handleConfirmLeave = useCallback(() => {
-    if (!activeRoomJID) {
+    if (
+      !activeRoomJID ||
+      !canLeaveRoom(activeRoomJID, config?.defaultRooms)
+    ) {
       setIsLeaveModalOpen(false);
       return;
     }
@@ -425,7 +429,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     }
     dispatch(setCurrentRoom({ roomJID: null }));
     setIsLeaveModalOpen(false);
-  }, [activeRoomJID, dispatch, client, isPrivateRoom]);
+  }, [activeRoomJID, config?.defaultRooms, dispatch, client, isPrivateRoom]);
 
   // Block the peer of a 1-1 private chat. Unlike Leave, this keeps the XMPP
   // room membership (so Unblock from settings restores the conversation); it
