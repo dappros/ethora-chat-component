@@ -10,8 +10,12 @@ import {
   CloseButton,
   GroupContainer,
   ModalTitle,
+  NewChatDialog,
+  NewChatBackdrop,
+  NewChatDialogBody,
+  NewChatDialogFooter,
+  NewChatDialogHeader,
 } from '../styledModalComponents';
-import { PresenceModalBackground, PresenceModalContainer } from '../motionVariants';
 import { useExitTransition } from '../../../hooks/useExitTransition';
 import { MOTION_FAST_MS } from '../../../styles/motion';
 import {
@@ -35,14 +39,21 @@ import Loader from '../../styled/Loader';
 import { CHAT_TYPES } from '../../../helpers/constants/CHAT_TYPES';
 import { useAppDispatch } from '../../../hooks/hooks';
 import { useChatSettingState } from '../../../hooks/useChatSettingState';
-import { useIsMobileViewport } from '../../../hooks/useIsMobileViewport';
 import { useT } from '../../../i18n/useT';
 import {
   ChatTypeGroup,
   ChatTypeIndicator,
   ChatTypeOption,
+  AvatarPicker,
+  AvatarPickerActions,
+  HiddenFileInput,
   InlineUsersInner,
   InlineUsersWrapper,
+  MemberCount,
+  MemberPickerHeader,
+  MemberPickerSection,
+  ModalHint,
+  TextAction,
 } from './styledNewChatComponents';
 
 const NewChatModal: React.FC = () => {
@@ -54,20 +65,17 @@ const NewChatModal: React.FC = () => {
   const { client } = useXmppClient();
   const { showToast } = useToast();
   const { user } = useChatSettingState();
-  const isMobileViewport = useIsMobileViewport();
   const t = useT();
 
   const DEFAULT_CHAT_TYPE: ChatAccessOption = { name: 'Public', id: 'public' };
-  // CHAT_TYPES' wire-level `id`s are unchanged ('public' / 'group') - only
-  // the on-screen label for 'group' now reads "Private" (via i18n below)
-  // instead of "Members-only".
+  // Keep the API's public/group access values; the UI describes group access
+  // as group chat rather than a 1:1 private chat.
   const PUBLIC_TYPE =
     CHAT_TYPES.find((option) => option.id === 'public') || DEFAULT_CHAT_TYPE;
-  const PRIVATE_TYPE =
-    CHAT_TYPES.find((option) => option.id === 'group') || {
-      name: 'Members-only',
-      id: 'group',
-    };
+  const PRIVATE_TYPE = CHAT_TYPES.find((option) => option.id === 'group') || {
+    name: 'Members-only',
+    id: 'group',
+  };
 
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
@@ -78,6 +86,7 @@ const NewChatModal: React.FC = () => {
   const [profileImage, setProfileImage] = useState<string | File | null>(null);
   const [errors, setErrors] = useState({ name: '', description: '' });
   const [selectedUsers, setSelectedUsers] = useState<RoomMember[]>([]);
+  const [isMemberPickerOpen, setIsMemberPickerOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const isPrivate = chatType.id === 'group';
@@ -148,11 +157,11 @@ const NewChatModal: React.FC = () => {
     setProfileImage(null);
     setErrors({ name: '', description: '' });
     setSelectedUsers([]);
+    setIsMemberPickerOpen(false);
   };
-  // containerRef is attached to both the backdrop and the single
-  // ModalContainer step below - the modal is one screen now (the "Private"
-  // user picker expands inline instead of navigating to a second step), so
-  // there's no longer an alternate container to anchor across.
+  // containerRef is attached only to the dialog, so backdrop presses are
+  // correctly treated as outside presses. The member picker expands inside
+  // this dialog instead of navigating to a second step.
   // Rendered synchronously (same as ModalBox/ModalWrapper - no lazy/Suspense
   // boundary here), so the container already exists in the DOM by the time
   // useModalDismiss's mount effect runs - no MutationObserver needed.
@@ -315,151 +324,193 @@ const NewChatModal: React.FC = () => {
   return (
     <>
       {!config?.disableNewChatButton && (
-      <Button
-        style={{
-          color: 'black',
-          padding: 8,
-          borderRadius: '16px',
-          backgroundColor: 'transparent',
-        }}
-        unstyled
-        EndIcon={<AddNewIcon color={resolveIconColor(config)} />}
-        onClick={handleOpenModal}
-        aria-label={t('action.newChat')}
-      />
+        <Button
+          style={{
+            color: 'black',
+            padding: 8,
+            borderRadius: '16px',
+            backgroundColor: 'transparent',
+          }}
+          unstyled
+          EndIcon={<AddNewIcon color={resolveIconColor(config)} />}
+          onClick={handleOpenModal}
+          aria-label={t('action.newChat')}
+        />
       )}
 
       {isModalRendered && (
-        <PresenceModalBackground ref={containerRef} $anchorTop $closing={isModalClosing}>
-          <PresenceModalContainer ref={containerRef} $closing={isModalClosing}>
-            <CloseButton
-              onClick={handleCloseModal}
-              style={{ fontSize: 24 }}
-              aria-label={t('action.close')}
-            >
-              &times;
-            </CloseButton>
-            <ModalTitle>{t('modal.newChat.title')}</ModalTitle>
-            <ProfileImagePlaceholder
-              size={isMobileViewport ? 80 : 120}
-              upload={{ active: true, onUpload }}
-              remove={{ enabled: true, onRemoveClick }}
-              placeholderIcon={<AddPhotoIcon />}
-              icon={profileImage}
-              disableOverlay={!profileImage}
-              role="user"
-            />
-            <GroupContainer
-              style={{
-                flexDirection: 'column',
-                position: 'relative',
-                boxSizing: 'border-box',
-                width: '100%',
-              }}
-            >
-              <InputWithLabel
-                style={{ flex: 1 }}
-                colorBg={config?.colors?.colorInput}
-                id="roomName"
-                value={roomName}
-                onChange={handleRoomNameChange}
-                placeholder={t('modal.newChat.roomNamePlaceholder')}
-                helperText={errors.name}
-                error={!!errors.name}
-              />
-              {/* {chatType.id === 'group' && (
-                <InputWithLabel
-                  style={{ flex: 1 }}
-                  id="roomDescription"
-                  value={roomDescription}
-                  onChange={handleRoomDescriptionChange}
-                  placeholder="Enter Description"
-                  helperText={errors.description}
-                  error={!!errors.description}
+        <NewChatBackdrop $closing={isModalClosing}>
+          <NewChatDialog ref={containerRef} $closing={isModalClosing}>
+            <NewChatDialogHeader>
+              <ModalTitle>{t('modal.newChat.title')}</ModalTitle>
+              <CloseButton
+                onClick={handleCloseModal}
+                aria-label={t('action.close')}
+              >
+                &times;
+              </CloseButton>
+            </NewChatDialogHeader>
+            <NewChatDialogBody data-testid="new-chat-dialog-body">
+              <AvatarPicker>
+                <ProfileImagePlaceholder
+                  size={64}
+                  upload={{ active: true, onUpload }}
+                  fileInputId="new-chat-avatar-file-input"
+                  placeholderIcon={<AddPhotoIcon />}
+                  icon={profileImage}
+                  disableOverlay
+                  role="user"
                 />
-              )} */}
-              {/* Segmented control replaces the old dropdown - two options,
-                  no menu to open. Wire-level `id` sent to the backend is
-                  unchanged (chatType.id stays 'public' | 'group'); only the
-                  displayed label for 'group' now reads "Private". */}
-              <ChatTypeGroup
-                role="radiogroup"
-                aria-label={t('modal.newChat.chatTypePlaceholder')}
-                onKeyDown={(e) => {
-                  // Roving tabindex: arrows move between the two options,
-                  // Tab leaves the group - same pattern as the sidebar's
-                  // Chats/Files tab switcher.
-                  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-                  e.preventDefault();
-                  const next = isPrivate ? PUBLIC_TYPE : PRIVATE_TYPE;
-                  setChatType(next);
-                  (
-                    e.currentTarget.querySelector(
-                      `#ethora-chattype-${next.id}`
-                    ) as HTMLElement | null
-                  )?.focus();
+                <AvatarPickerActions>
+                  <TextAction
+                    type="button"
+                    onClick={() =>
+                      document
+                        .getElementById('new-chat-avatar-file-input')
+                        ?.click()
+                    }
+                  >
+                    {t(profileImage ? 'action.changePhoto' : 'action.addPhoto')}
+                  </TextAction>
+                  {profileImage && (
+                    <TextAction type="button" onClick={onRemoveClick}>
+                      {t('action.removePhoto')}
+                    </TextAction>
+                  )}
+                </AvatarPickerActions>
+              </AvatarPicker>
+              <GroupContainer
+                style={{
+                  flexDirection: 'column',
+                  position: 'relative',
+                  boxSizing: 'border-box',
+                  width: '100%',
+                  gap: 16,
                 }}
               >
-                <ChatTypeIndicator $index={isPrivate ? 1 : 0} $count={2} />
-                <ChatTypeOption
-                  type="button"
-                  role="radio"
-                  id="ethora-chattype-public"
-                  aria-checked={!isPrivate}
-                  tabIndex={!isPrivate ? 0 : -1}
-                  active={!isPrivate}
-                  onClick={() => setChatType(PUBLIC_TYPE)}
+                <InputWithLabel
+                  style={{ flex: 1 }}
+                  colorBg={config?.colors?.colorInput}
+                  id="roomName"
+                  value={roomName}
+                  onChange={handleRoomNameChange}
+                  placeholder={t('modal.newChat.roomNamePlaceholder')}
+                  helperText={errors.name}
+                  error={!!errors.name}
+                />
+                {/* {chatType.id === 'group' && (
+                  <InputWithLabel
+                    style={{ flex: 1 }}
+                    id="roomDescription"
+                    value={roomDescription}
+                    onChange={handleRoomDescriptionChange}
+                    placeholder="Enter Description"
+                    helperText={errors.description}
+                    error={!!errors.description}
+                  />
+                )} */}
+                {/* Segmented control replaces the old dropdown - two options,
+                    no menu to open. Wire-level `id` sent to the backend is
+                    unchanged (chatType.id stays 'public' | 'group'). */}
+                <ChatTypeGroup
+                  role="radiogroup"
+                  aria-label={t('modal.newChat.chatTypePlaceholder')}
+                  onKeyDown={(e) => {
+                    // Roving tabindex: arrows move between the two options,
+                    // Tab leaves the group - same pattern as the sidebar's
+                    // Chats/Files tab switcher.
+                    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+                    e.preventDefault();
+                    const next = isPrivate ? PUBLIC_TYPE : PRIVATE_TYPE;
+                    setChatType(next);
+                    (
+                      e.currentTarget.querySelector(
+                        `#ethora-chattype-${next.id}`
+                      ) as HTMLElement | null
+                    )?.focus();
+                  }}
                 >
-                  {t('modal.newChat.typePublic')}
-                </ChatTypeOption>
-                <ChatTypeOption
-                  type="button"
-                  role="radio"
-                  id="ethora-chattype-group"
-                  aria-checked={isPrivate}
-                  tabIndex={isPrivate ? 0 : -1}
-                  active={isPrivate}
-                  onClick={() => setChatType(PRIVATE_TYPE)}
-                >
-                  {t('modal.newChat.typePrivate')}
-                </ChatTypeOption>
-              </ChatTypeGroup>
-            </GroupContainer>
-
-            {/* Inline reveal: selecting "Private" expands the user picker
-                below instead of navigating to a separate full-screen step. */}
-            {isPrivate && (
-              <InlineUsersWrapper $expanded={userPickerExpanded}>
-                <InlineUsersInner>
-                  <GroupContainer
-                    style={{
-                      flexDirection: 'column',
-                      position: 'relative',
-                      boxSizing: 'border-box',
-                      width: '100%',
-                    }}
+                  <ChatTypeIndicator $index={isPrivate ? 1 : 0} $count={2} />
+                  <ChatTypeOption
+                    type="button"
+                    role="radio"
+                    id="ethora-chattype-public"
+                    aria-checked={!isPrivate}
+                    tabIndex={!isPrivate ? 0 : -1}
+                    active={!isPrivate}
+                    onClick={() => setChatType(PUBLIC_TYPE)}
                   >
-                    {/* No fixed minHeight here - the scrollable list below
-                    already caps its own height (maxHeight 280px + internal
-                    scroll), so letting this wrapper size to its actual
-                    content (label + search + list) keeps it from visually
-                    overflowing past its own box into the buttons below. */}
-                    <UsersList
-                      selectedUsers={selectedUsers}
-                      setSelectedUsers={setSelectedUsers}
-                      style={{
-                        minWidth: '100%',
-                        width: '100%',
-                        maxHeight: '280px',
-                      }}
-                      headerElement={false}
-                    />
-                  </GroupContainer>
-                </InlineUsersInner>
-              </InlineUsersWrapper>
-            )}
+                    {t('modal.newChat.typePublic')}
+                  </ChatTypeOption>
+                  <ChatTypeOption
+                    type="button"
+                    role="radio"
+                    id="ethora-chattype-group"
+                    aria-checked={isPrivate}
+                    tabIndex={isPrivate ? 0 : -1}
+                    active={isPrivate}
+                    onClick={() => setChatType(PRIVATE_TYPE)}
+                  >
+                    {t('modal.newChat.typeGroup')}
+                  </ChatTypeOption>
+                </ChatTypeGroup>
+                <ModalHint>
+                  {t(
+                    isPrivate
+                      ? 'modal.newChat.groupHint'
+                      : 'modal.newChat.publicHint'
+                  )}
+                </ModalHint>
+              </GroupContainer>
 
-            <GroupContainer>
+              {/* Keep the potentially long member picker collapsed until it
+                  is requested, while the selected count stays visible. */}
+              {isPrivate && (
+                <MemberPickerSection>
+                  <MemberPickerHeader>
+                    <TextAction
+                      type="button"
+                      aria-expanded={isMemberPickerOpen}
+                      onClick={() => setIsMemberPickerOpen((open) => !open)}
+                    >
+                      {t('action.addMembers')}
+                    </TextAction>
+                    <MemberCount>{selectedUsers.length}/20</MemberCount>
+                  </MemberPickerHeader>
+                  {isMemberPickerOpen && (
+                    <InlineUsersWrapper $expanded={userPickerExpanded}>
+                      <InlineUsersInner>
+                        <GroupContainer
+                          style={{
+                            flexDirection: 'column',
+                            position: 'relative',
+                            boxSizing: 'border-box',
+                            width: '100%',
+                          }}
+                        >
+                          {/* No fixed minHeight here - the scrollable list below
+                      already caps its own height (maxHeight 280px + internal
+                      scroll), so letting this wrapper size to its actual
+                      content (label + search + list) keeps it from visually
+                      overflowing past its own box into the buttons below. */}
+                          <UsersList
+                            selectedUsers={selectedUsers}
+                            setSelectedUsers={setSelectedUsers}
+                            style={{
+                              minWidth: '100%',
+                              width: '100%',
+                              maxHeight: 'min(240px, 28dvh)',
+                            }}
+                            headerElement={false}
+                          />
+                        </GroupContainer>
+                      </InlineUsersInner>
+                    </InlineUsersWrapper>
+                  )}
+                </MemberPickerSection>
+              )}
+            </NewChatDialogBody>
+            <NewChatDialogFooter data-testid="new-chat-dialog-footer">
               <Button
                 onClick={handleCloseModal}
                 text={t('action.cancel')}
@@ -475,9 +526,9 @@ const NewChatModal: React.FC = () => {
                 disabled={!isValid || loading}
                 EndIcon={loading ? <Loader size={16} /> : undefined}
               />
-            </GroupContainer>
-          </PresenceModalContainer>
-        </PresenceModalBackground>
+            </NewChatDialogFooter>
+          </NewChatDialog>
+        </NewChatBackdrop>
       )}
     </>
   );

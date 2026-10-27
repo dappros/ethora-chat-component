@@ -2,7 +2,9 @@ import styled from 'styled-components';
 
 export const ScrollableContainer = styled.div`
   max-height: 100px;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   width: 80%;
   padding: 8px;
   max-width: 80%;

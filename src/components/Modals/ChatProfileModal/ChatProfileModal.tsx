@@ -156,7 +156,8 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   const peerLocalKey = peerKey.split('@')[0];
   const peerUsersSetEntry = useSelector((state: RootState) =>
     peerKey
-      ? (state.rooms.usersSet?.[peerKey] ?? state.rooms.usersSet?.[peerLocalKey])
+      ? (state.rooms.usersSet?.[peerKey] ??
+        state.rooms.usersSet?.[peerLocalKey])
       : undefined
   );
   const peerProfileImage =
@@ -181,8 +182,10 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   // true total). Opening the profile loads the whole room directory (once
   // per room) and lists it after the known members, deduplicated.
   const membersTruncated = isRoomMembersTruncated(activeRoom);
-  const { members: directoryMembers, state: directoryState } =
-    useRoomDirectory(activeRoom?.jid, membersTruncated);
+  const { members: directoryMembers, state: directoryState } = useRoomDirectory(
+    activeRoom?.jid,
+    membersTruncated
+  );
   const directoryLoading = membersTruncated && directoryState === 'loading';
 
   const enrichedMembers = useMemo(() => {
@@ -289,7 +292,9 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         // REST call the icon reappears blank on the next page refresh (the
         // XMPP IQ only touches ejabberd's Mnesia `room_thumbnail`).
         try {
-          await patchMyChat(activeRoom.jid.split('@')[0], { picture: location });
+          await patchMyChat(activeRoom.jid.split('@')[0], {
+            picture: location,
+          });
         } catch (persistError) {
           console.warn('Chat picture persistence failed:', persistError);
         }
@@ -488,10 +493,10 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
             <DrawerFactPill>
               <GlobeIcon color="currentColor" />
               {t(
-                activeRoom.type === 'private'
-                  ? 'modal.chatProfile.typePrivate'
-                  : activeRoom.type === 'group'
-                    ? 'modal.chatProfile.typeGroup'
+                activeRoom.type === 'group'
+                  ? 'modal.chatProfile.typeGroup'
+                  : activeRoom.type === 'private'
+                    ? 'modal.chatProfile.typePrivate'
                     : 'modal.chatProfile.typePublic'
               )}
             </DrawerFactPill>
@@ -590,7 +595,9 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                 />
               ))}
               {directoryLoading && (
-                <DrawerLabel>{t('modal.chatProfile.membersLoadingAll')}</DrawerLabel>
+                <DrawerLabel>
+                  {t('modal.chatProfile.membersLoadingAll')}
+                </DrawerLabel>
               )}
               {hasMoreMembers && (
                 <ShowMoreButton

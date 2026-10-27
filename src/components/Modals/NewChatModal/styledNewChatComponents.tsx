@@ -1,7 +1,79 @@
 import styled from 'styled-components';
 import { reducedMotion } from '../../../styles/motion';
 
-// --- Chat-type segmented control (Public | Private) ------------------------
+export const AvatarPicker = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+`;
+
+export const AvatarPickerActions = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+`;
+
+export const TextAction = styled.button`
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--ethora-radius-sm, 8px);
+  background: transparent;
+  color: var(--ethora-color-primary-text, var(--ethora-color-primary, #0052cd));
+  font: inherit;
+  font-size: var(--ethora-font-size-sm, 14px);
+  font-weight: var(--ethora-font-weight-medium, 500);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--ethora-color-bg-hover, #f0f2f5);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--ethora-color-primary, #0052cd);
+    outline-offset: 2px;
+  }
+`;
+
+export const MemberPickerHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+`;
+
+export const MemberCount = styled.span`
+  flex: 0 0 auto;
+  color: var(--ethora-color-text-muted, #667085);
+  font-size: var(--ethora-font-size-xs, 12px);
+  font-weight: var(--ethora-font-weight-medium, 500);
+`;
+
+export const MemberPickerSection = styled.div`
+  width: 100%;
+`;
+
+export const ModalHint = styled.p`
+  margin: 0;
+  color: var(--ethora-color-text-secondary, #5a5f66);
+  font-size: var(--ethora-font-size-sm, 14px);
+  line-height: 1.45;
+`;
+
+export const HiddenFileInput = styled.input`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+`;
+
+// --- Chat-type segmented control (Public | Group) --------------------------
 //
 // Visual/keyboard language mirrors the sidebar's "Chats"/"Files" tab
 // switcher (`src/components/styled/RoomListComponents/index.tsx`'s
@@ -68,7 +140,7 @@ export const ChatTypeOption = styled.button.withConfig({
   ${reducedMotion}
 `;
 
-// --- Inline, animated reveal for the "Private" user picker ------------------
+// --- Inline, animated reveal for the group user picker ----------------------
 //
 // Grid-template-rows 0fr -> 1fr is used instead of a fixed max-height because
 // the picker's content height is dynamic (search box + N rows up to its own
