@@ -1,22 +1,44 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { parse } from 'ltx';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { createElement, type PropsWithChildren } from 'react';
+import { Provider, useSelector } from 'react-redux';
 
 const getRoomsMock = vi.fn();
 const invalidateRoomsCacheMock = vi.fn();
+const { roomInitializationClient, syncRoomsHookMock } = vi.hoisted(() => ({
+  roomInitializationClient: {
+    presenceInRoomStanza: vi.fn(async () => true),
+    prioritizeRoomPresence: vi.fn(async () => true),
+    setActiveRoomJid: vi.fn(),
+    promoteRoomHistory: vi.fn(),
+    getRoomInfoStanza: vi.fn(),
+    getHistoryStanza: vi.fn(async () => []),
+    getRoomsStanza: vi.fn(async () => undefined),
+  },
+  syncRoomsHookMock: vi.fn(async () => []),
+}));
 vi.mock('./api-requests/rooms.api', () => ({
   getRooms: (...args: unknown[]) => getRoomsMock(...args),
   invalidateRoomsCache: (...args: unknown[]) => invalidateRoomsCacheMock(...args),
   getRoomByName: vi.fn(),
 }));
+vi.mock('../context/xmppProvider', () => ({
+  useXmppClient: () => ({ client: roomInitializationClient }),
+}));
+vi.mock('../hooks/useGetNewArchRoom', () => ({
+  default: () => syncRoomsHookMock,
+}));
 
 import { handleStanza } from './xmpp/handleStanzas.xmpp';
-import { store } from '../roomStore';
+import { store, type RootState } from '../roomStore';
 import {
   addRoom,
   setCurrentRoom,
   setLogoutState,
 } from '../roomStore/roomsSlice';
 import { setUser } from '../roomStore/chatSettingsSlice';
+import { useRoomInitialization } from '../hooks/useRoomInitialization';
 
 const CONFERENCE = 'conference.xmpp.example.com';
 const ROOM = `room1@${CONFERENCE}`;
@@ -57,6 +79,8 @@ const setup = () => {
   store.dispatch(setLogoutState());
   getRoomsMock.mockReset().mockResolvedValue({ items: [] });
   invalidateRoomsCacheMock.mockReset();
+  Object.values(roomInitializationClient).forEach((mock) => mock.mockClear());
+  syncRoomsHookMock.mockReset().mockResolvedValue([]);
   store.dispatch(setUser({ xmppUsername: 'me' } as any));
   addTestRoom(ROOM);
   addTestRoom(OTHER_ROOM);
@@ -168,5 +192,53 @@ describe('MUC forced-exit presence handling', () => {
     await flush();
 
     expect(store.getState().rooms.activeRoomJID).toBe(OTHER_ROOM);
+  });
+
+  it('does not rejoin the removed room through useRoomInitialization', async () => {
+    store.dispatch(setCurrentRoom({ roomJID: ROOM }));
+    const wrapper = ({ children }: PropsWithChildren) =>
+      createElement(Provider, { store }, children);
+    const { unmount } = renderHook(
+      () => {
+        const activeRoomJID = useSelector(
+          (state: RootState) => state.rooms.activeRoomJID
+        );
+        useRoomInitialization(activeRoomJID || '', {} as any, 0);
+      },
+      { wrapper }
+    );
+
+    await waitFor(() =>
+      expect(roomInitializationClient.presenceInRoomStanza).toHaveBeenCalledWith(
+        ROOM,
+        0,
+        expect.any(Number),
+        true
+      )
+    );
+    roomInitializationClient.presenceInRoomStanza.mockClear();
+
+    await act(async () => {
+      handleStanza(
+        kickedPresence(`<status code='110'/><status code='321'/>`),
+        {} as any
+      );
+      await flush();
+    });
+
+    await waitFor(() =>
+      expect(store.getState().rooms.activeRoomJID).toBe(OTHER_ROOM)
+    );
+    await waitFor(() =>
+      expect(roomInitializationClient.presenceInRoomStanza).toHaveBeenCalled()
+    );
+    expect(roomInitializationClient.presenceInRoomStanza).not.toHaveBeenCalledWith(
+      ROOM,
+      expect.anything(),
+      expect.anything(),
+      expect.anything()
+    );
+
+    unmount();
   });
 });

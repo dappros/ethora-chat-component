@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import styled from 'styled-components';
 import { dedupeMembers, memberKey } from '../../../helpers/dedupeMembers';
 import {
   getRoomUserCount,
@@ -40,6 +41,7 @@ import Button from '../../styled/Button';
 import Switch from '../../MainComponents/Switch';
 import {
   DeleteIcon,
+  EditIcon,
   FileIcon,
   GlobeIcon,
   MoreIcon,
@@ -72,6 +74,58 @@ import { withFileToken } from '../../../helpers/secureFileUrl';
 import { isMessageSearchEnabled } from '../../../helpers/isMessageSearchEnabled';
 import ChatProfileMemberRow from './ChatProfileMemberRow';
 
+const RoomInfoEditButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: var(--ethora-radius-md, 10px);
+  padding: 6px 10px;
+  color: var(--ethora-color-primary, #168fc4);
+  background: transparent;
+  font: inherit;
+  font-size: var(--ethora-font-size-xs, 12px);
+  cursor: pointer;
+  &:hover { background: var(--ethora-color-bg-hover, rgba(127, 127, 127, 0.12)); }
+  &:focus-visible { outline: 2px solid var(--ethora-color-primary, #168fc4); }
+  svg { width: 16px; height: 16px; }
+`;
+
+const RoomInfoInput = styled.input`
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--ethora-color-border, #d0d5dd);
+  border-radius: var(--ethora-radius-md, 10px);
+  padding: 9px 11px;
+  color: var(--ethora-color-text, inherit);
+  background: var(--ethora-color-bg, transparent);
+  font: inherit;
+  font-size: var(--ethora-font-size-sm, 14px);
+`;
+
+const RoomInfoTextarea = styled.textarea`
+  width: 100%;
+  min-height: 88px;
+  box-sizing: border-box;
+  resize: vertical;
+  border: 1px solid var(--ethora-color-border, #d0d5dd);
+  border-radius: var(--ethora-radius-md, 10px);
+  padding: 9px 11px;
+  color: var(--ethora-color-text, inherit);
+  background: var(--ethora-color-bg, transparent);
+  font: inherit;
+  font-size: var(--ethora-font-size-sm, 14px);
+`;
+
+const RoomInfoEditActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--ethora-space-2, 8px);
+  margin-top: var(--ethora-space-2, 8px);
+  button { width: auto; min-width: 76px; padding: 0 12px; }
+`;
+
 interface ChatProfileModalProps {
   handleCloseModal: any;
 }
@@ -90,6 +144,10 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [visible, setVisible] = useState<boolean>(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingRoomInfo, setEditingRoomInfo] = useState(false);
+  const [roomTitleDraft, setRoomTitleDraft] = useState('');
+  const [roomDescriptionDraft, setRoomDescriptionDraft] = useState('');
+  const [savingRoomInfo, setSavingRoomInfo] = useState(false);
 
   const { showToast } = useToast();
   const t = useT();
@@ -362,6 +420,59 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
     dispatch(updateRoom({ jid: activeRoom.jid, updates: { icon: null } }));
   };
 
+  const showDescription = !config?.disableChatInfo?.disableDescription;
+  const showType = !config?.disableChatInfo?.disableType;
+  const canEditRoomInfo =
+    activeRoom.type === 'group' &&
+    activeRoom.role === 'moderator' &&
+    !roomConfigDisabled;
+
+  const startEditingRoomInfo = () => {
+    setRoomTitleDraft(activeRoom.title || activeRoom.name || '');
+    setRoomDescriptionDraft(activeRoom.description || '');
+    setEditingRoomInfo(true);
+  };
+
+  const saveRoomInfo = async () => {
+    const title = roomTitleDraft.trim();
+    if (!title || savingRoomInfo) return;
+
+    setSavingRoomInfo(true);
+    try {
+      const description = roomDescriptionDraft.trim();
+      await patchMyChat(activeRoom.jid.split('@')[0], {
+        title,
+        ...(showDescription ? { description } : {}),
+      });
+      dispatch(
+        updateRoom({
+          jid: activeRoom.jid,
+          updates: {
+            title,
+            name: title,
+            ...(showDescription ? { description } : {}),
+          },
+        })
+      );
+      setEditingRoomInfo(false);
+      showToast({
+        id: Date.now().toString(),
+        title: t('toast.success'),
+        message: t('toast.chatInfoUpdated'),
+        type: 'success',
+      });
+    } catch {
+      showToast({
+        id: Date.now().toString(),
+        title: t('toast.error'),
+        message: t('toast.failedToUpdateChat'),
+        type: 'error',
+      });
+    } finally {
+      setSavingRoomInfo(false);
+    }
+  };
+
   const handleUserAvatarClick = (user: RoomMember): void => {
     dispatch(setActiveModal(MODAL_TYPES.PROFILE));
     dispatch(
@@ -410,9 +521,6 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
       ? t('modal.chatProfile.memberCountSingular', { count: formattedCount })
       : t('modal.chatProfile.memberCountPlural', { count: formattedCount });
   })();
-
-  const showDescription = !config?.disableChatInfo?.disableDescription;
-  const showType = !config?.disableChatInfo?.disableType;
 
   return (
     <SideDrawer
@@ -465,7 +573,28 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
           size={96}
         />
         <div>
-          <ProfileHeroName>{activeRoom.name}</ProfileHeroName>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            {editingRoomInfo ? (
+              <RoomInfoInput
+                aria-label={t('modal.chatProfile.chatName')}
+                value={roomTitleDraft}
+                maxLength={120}
+                onChange={(event) => setRoomTitleDraft(event.target.value)}
+              />
+            ) : (
+              <ProfileHeroName>{activeRoom.name}</ProfileHeroName>
+            )}
+            {canEditRoomInfo && !editingRoomInfo && (
+              <RoomInfoEditButton
+                type="button"
+                aria-label={t('action.editProfile')}
+                onClick={startEditingRoomInfo}
+              >
+                <EditIcon />
+                {t('action.editProfile')}
+              </RoomInfoEditButton>
+            )}
+          </div>
           <ProfileHeroSubtitle>{memberCountLabel}</ProfileHeroSubtitle>
         </div>
       </ProfileHero>
@@ -485,9 +614,37 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
             {t('modal.chatProfile.aboutSection')}
           </DrawerSectionTitle>
           {showDescription && (
-            <DrawerDescriptionText $empty={!activeRoom?.description}>
-              {activeRoom?.description || t('modal.profile.noDescription')}
-            </DrawerDescriptionText>
+            editingRoomInfo ? (
+              <RoomInfoTextarea
+                aria-label={t('modal.chatProfile.description')}
+                value={roomDescriptionDraft}
+                maxLength={2000}
+                onChange={(event) =>
+                  setRoomDescriptionDraft(event.target.value)
+                }
+              />
+            ) : (
+              <DrawerDescriptionText $empty={!activeRoom?.description}>
+                {activeRoom?.description || t('modal.profile.noDescription')}
+              </DrawerDescriptionText>
+            )
+          )}
+          {editingRoomInfo && canEditRoomInfo && (
+            <RoomInfoEditActions>
+              <Button
+                variant="outlined"
+                text={t('action.cancel')}
+                disabled={savingRoomInfo}
+                onClick={() => setEditingRoomInfo(false)}
+              />
+              <Button
+                variant="filled"
+                text={t('action.save')}
+                loading={savingRoomInfo}
+                disabled={!roomTitleDraft.trim() || savingRoomInfo}
+                onClick={saveRoomInfo}
+              />
+            </RoomInfoEditActions>
           )}
           {showType && (
             <DrawerFactPill>
