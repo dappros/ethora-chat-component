@@ -42,6 +42,7 @@ import {
   adjustUsersCnt,
   isRoomMembersTruncated,
 } from '../helpers/roomUserCount';
+import { isLikelyMucJid } from '../helpers/isLikelyMucJid';
 import { removeMessageFromHeapById } from '../roomStore/roomHeapSlice';
 import {
   clearSendFailureWatchdog,
@@ -1018,22 +1019,72 @@ const onMembersRefreshSignal = (stanza: Element, xmpp: XmppClient) => {
 };
 
 const onRoomKicked = async (stanza: Element) => {
-  if (stanza.is('presence') && stanza.attrs.type === 'unavailable') {
-    const xElement = stanza.getChild('x');
-    if (!xElement) return;
+  if (!stanza?.is?.('presence') || stanza.attrs?.type !== 'unavailable') return;
 
-    const statusElements = xElement.getChildren('status');
+  const from = typeof stanza.attrs?.from === 'string' ? stanza.attrs.from : '';
+  const slashIndex = from.indexOf('/');
+  if (slashIndex <= 0 || slashIndex === from.length - 1) return;
 
-    if (!statusElements || statusElements.length === 0) return;
+  const roomJid = from.slice(0, slashIndex);
+  if (!isLikelyMucJid(roomJid)) return;
 
-    const statusCodes = statusElements.map((s) => s.attrs.code);
+  const mucUser = stanza
+    .getChildren('x')
+    .find(
+      (x) => x.attrs?.xmlns === 'http://jabber.org/protocol/muc#user'
+    );
+  if (!mucUser) return;
 
-    if (statusCodes.includes('110') && statusCodes.includes('321')) {
-      const roomJid = stanza.attrs.from.split('/')[0];
+  const statusCodes = mucUser
+    .getChildren('status')
+    .map((status) => status.attrs?.code);
+  const isOwnPresence = statusCodes.includes('110');
+  const affiliationChanged = statusCodes.includes('321');
+  const roomDestroyed = !!mucUser.getChild('destroy');
+  if (!isOwnPresence || (!affiliationChanged && !roomDestroyed)) return;
 
-      store.dispatch(deleteRoom({ jid: roomJid }));
-      await getRooms();
-    }
+  const roomState = store.getState().rooms;
+  // The room-existence guard makes repeated kick/destroy stanzas idempotent:
+  // the first one removes it synchronously, before the API refresh can settle.
+  if (!roomState.rooms[roomJid]) return;
+
+  store.dispatch(deleteRoom({ jid: roomJid }));
+  if (roomState.activeRoomJID === roomJid) {
+    const nextRoomJid =
+      Object.keys(roomState.rooms).find((jid) => jid !== roomJid) || null;
+    store.dispatch(setCurrentRoom({ roomJID: nextRoomJid }));
+  }
+
+  // Bypass the 60s /chats/my cache so the local room list converges with the
+  // server after the forced exit. Some servers include <destroy/> without
+  // status 321, so the MUC event remains authoritative if the API response is
+  // delayed or still contains the room. In that case deliberately don't add
+  // it back or issue a join presence.
+  invalidateRoomsCache();
+  try {
+    const response = await getRooms();
+    if (response?.failed || !Array.isArray(response?.items)) return;
+
+    const conference = roomJid.slice(roomJid.indexOf('@') + 1);
+    const syncedRooms = response.items
+      .map((apiRoom) => ({
+        apiRoom,
+        room: createRoomFromApi(apiRoom, conference),
+      }))
+      .filter(({ room }) => room && room.jid !== roomJid);
+    syncedRooms.forEach(({ room }) => {
+      // addRoom only updates local state; unlike the presence sweep this
+      // path cannot auto-join any room while reconciling the API snapshot.
+      store.dispatch(addRoom({ roomData: room! }));
+    });
+    store.dispatch(
+      updateUsersSet({
+        rooms: syncedRooms.map(({ apiRoom }) => apiRoom),
+      })
+    );
+  } catch {
+    // The XMPP forced-exit is enough to remove the room immediately. A
+    // failed refresh must not restore it or interrupt stanza processing.
   }
 };
 
