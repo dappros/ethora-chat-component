@@ -4,15 +4,23 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '../../../test/renderWithProviders';
 
 const patchMyChatMock = vi.hoisted(() => vi.fn());
+const uploadFileMock = vi.hoisted(() => vi.fn());
+const setRoomImageStanzaMock = vi.hoisted(() => vi.fn());
 vi.mock('../../../networking/api-requests/rooms.api', async (importOriginal) => {
   const actual = await importOriginal<
     typeof import('../../../networking/api-requests/rooms.api')
   >();
   return { ...actual, patchMyChat: patchMyChatMock };
 });
+vi.mock('../../../networking/api-requests/auth.api', async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import('../../../networking/api-requests/auth.api')
+  >();
+  return { ...actual, uploadFile: uploadFileMock };
+});
 vi.mock('../../../context/xmppProvider', () => ({
   useXmppClient: () => ({
-    client: { setRoomImageStanza: vi.fn() },
+    client: { setRoomImageStanza: setRoomImageStanzaMock },
     setClient: vi.fn(),
   }),
 }));
@@ -32,7 +40,7 @@ const renderPanel = (roomType: 'group' | 'public' = 'group') =>
         rooms: {
           [ROOM_JID]: {
             jid: ROOM_JID,
-            name: 'Design team',
+            name: 'room_1',
             title: 'Design team',
             description: 'Original description',
             type: roomType,
@@ -50,7 +58,48 @@ const renderPanel = (roomType: 'group' | 'public' = 'group') =>
   });
 
 describe('ChatProfileModal group metadata editing', () => {
-  beforeEach(() => patchMyChatMock.mockReset().mockResolvedValue(undefined));
+  beforeEach(() => {
+    patchMyChatMock.mockReset().mockResolvedValue(undefined);
+    uploadFileMock.mockReset().mockResolvedValue({
+      data: { results: [{ location: 'https://cdn.example.com/chat.png' }] },
+    });
+    setRoomImageStanzaMock.mockReset();
+  });
+
+  it('persists an uploaded icon through REST without sending the legacy XMPP profile IQ', async () => {
+    const { store, container } = renderPanel();
+    const input = container.querySelector('input[type="file"]');
+    expect(input).toBeTruthy();
+    const file = new File(['avatar'], 'chat.png', { type: 'image/png' });
+
+    fireEvent.change(input!, { target: { files: [file] } });
+
+    await waitFor(() =>
+      expect(patchMyChatMock).toHaveBeenCalledWith('room_1', {
+        picture: 'https://cdn.example.com/chat.png',
+      })
+    );
+    await waitFor(() =>
+      expect(store.getState().rooms.rooms[ROOM_JID]).toMatchObject({
+        icon: 'https://cdn.example.com/chat.png',
+        picture: 'https://cdn.example.com/chat.png',
+      })
+    );
+    expect(setRoomImageStanzaMock).not.toHaveBeenCalled();
+  });
+
+  it('does not update the icon when persisting the upload fails', async () => {
+    patchMyChatMock.mockRejectedValueOnce(new Error('forbidden'));
+    const { store, container } = renderPanel();
+    const input = container.querySelector('input[type="file"]');
+    const file = new File(['avatar'], 'chat.png', { type: 'image/png' });
+
+    fireEvent.change(input!, { target: { files: [file] } });
+
+    await waitFor(() => expect(patchMyChatMock).toHaveBeenCalledOnce());
+    expect(store.getState().rooms.rooms[ROOM_JID].icon).toBeUndefined();
+    expect(setRoomImageStanzaMock).not.toHaveBeenCalled();
+  });
 
   it('patches title and description and updates the room in the store', async () => {
     const { store } = renderPanel();
@@ -73,11 +122,12 @@ describe('ChatProfileModal group metadata editing', () => {
     );
     await waitFor(() => {
       expect(store.getState().rooms.rooms[ROOM_JID]).toMatchObject({
-        name: 'Product team',
+        name: 'room_1',
         title: 'Product team',
         description: 'Planning and delivery',
       });
     });
+    expect(screen.getByText('Product team')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Add more Users' })).toBeTruthy();
   });
 

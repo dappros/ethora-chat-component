@@ -34,7 +34,6 @@ import { useDispatch, useSelector, useStore } from 'react-redux';
 import { RootState, getActiveRoom } from '../../../roomStore';
 import { uploadFile } from '../../../networking/api-requests/auth.api';
 import { appendFileToken } from '../../../helpers/secureFileUrl';
-import { useXmppClient } from '../../../context/xmppProvider';
 import { updateRoom } from '../../../roomStore/roomsSlice';
 import Loader from '../../styled/Loader';
 import Button from '../../styled/Button';
@@ -161,7 +160,6 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   const dispatch = useDispatch();
   const store = useStore<RootState>();
 
-  const { client } = useXmppClient();
   const { user: stateUser, config } = useChatSettingState();
   const activeRoom = useSelector((state: RootState) => getActiveRoom(state));
   const {
@@ -330,24 +328,28 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
 
       const location = uploadResult?.data?.results?.[0]?.location;
 
-      if (location) {
-        // Mongo is the source of truth for GET /v1/chats/my - without the
-        // REST call the icon reappears blank on the next page refresh (the
-        // XMPP IQ only touches ejabberd's Mnesia `room_thumbnail`).
-        try {
-          await patchMyChat(activeRoom.jid.split('@')[0], {
-            picture: location,
-          });
-        } catch (persistError) {
-          console.warn('Chat picture persistence failed:', persistError);
-        }
-        client.setRoomImageStanza(activeRoom.jid, location, 'icon', 'none');
-        dispatch(
-          updateRoom({ jid: activeRoom.jid, updates: { icon: location } })
-        );
-      }
+      if (!location) throw new Error('Image upload returned no location');
+
+      // /chats/my is the source of truth for room pictures. The legacy XMPP
+      // setRoomImage IQ can make ejabberd emit an unavailable/destroy presence
+      // while updating the MUC, which the room-list handler interprets as a
+      // forced exit. Persist first, then update local state; don't optimistically
+      // hide the room if either upload or PATCH fails.
+      await patchMyChat(activeRoom.jid.split('@')[0], { picture: location });
+      dispatch(
+        updateRoom({
+          jid: activeRoom.jid,
+          updates: { icon: location, picture: location },
+        })
+      );
     } catch (error) {
       console.error('File upload failed or location is missing:', error);
+      showToast({
+        id: Date.now().toString(),
+        title: t('toast.error'),
+        message: t('toast.failedToUpdateChat'),
+        type: 'error',
+      });
     }
   };
 
@@ -393,16 +395,26 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   const roomConfigDisabled = config?.disableRoomConfig === true;
 
   const onRemoveClick = async () => {
-    // Mirror onUpload: Mongo-side clear so the icon stays gone across a
-    // page refresh, otherwise /chats/my still returns the previous
-    // `Chat.picture` and the icon pops back on the next load.
+    // Keep REST as the single source of truth for this metadata update. The
+    // legacy XMPP profile IQ can trigger an unavailable/destroy presence.
     try {
       await patchMyChat(activeRoom.jid.split('@')[0], { picture: '' });
     } catch (persistError) {
       console.warn('Chat picture clear failed:', persistError);
+      showToast({
+        id: Date.now().toString(),
+        title: t('toast.error'),
+        message: t('toast.failedToUpdateChat'),
+        type: 'error',
+      });
+      return;
     }
-    client.setRoomImageStanza(activeRoom.jid, null, 'icon', 'none');
-    dispatch(updateRoom({ jid: activeRoom.jid, updates: { icon: null } }));
+    dispatch(
+      updateRoom({
+        jid: activeRoom.jid,
+        updates: { icon: null, picture: '' },
+      })
+    );
   };
 
   const showDescription = !config?.disableChatInfo?.disableDescription;
@@ -439,7 +451,6 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
           jid: activeRoom.jid,
           updates: {
             title,
-            name: title,
             ...(showDescription ? { description } : {}),
           },
         })
@@ -556,7 +567,9 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                 onChange={(event) => setRoomTitleDraft(event.target.value)}
               />
             ) : (
-              <ProfileHeroName>{activeRoom.name}</ProfileHeroName>
+              <ProfileHeroName>
+                {activeRoom.title || activeRoom.name}
+              </ProfileHeroName>
             )}
             {canEditRoomInfo && !editingRoomInfo && (
               <RoomInfoEditButton
