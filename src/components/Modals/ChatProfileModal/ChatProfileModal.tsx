@@ -413,7 +413,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
     activeRoom.type !== 'private' &&
     !roomConfigDisabled;
   const canEditRoomInfo =
-    activeRoom.type === 'group' &&
+    activeRoom.type !== 'private' &&
     isRoomModerator &&
     !roomConfigDisabled;
 

@@ -21,7 +21,7 @@ import ChatProfileModal from './ChatProfileModal';
 
 const ROOM_JID = 'room_1@conference.example.com';
 
-const renderPanel = () =>
+const renderPanel = (roomType: 'group' | 'public' = 'group') =>
   renderWithProviders(<ChatProfileModal handleCloseModal={vi.fn()} />, {
     preloadedState: {
       chatSettingStore: {
@@ -35,7 +35,7 @@ const renderPanel = () =>
             name: 'Design team',
             title: 'Design team',
             description: 'Original description',
-            type: 'group',
+            type: roomType,
             role: 'moderator',
             usersCnt: 1,
             members: [],
@@ -76,6 +76,12 @@ describe('ChatProfileModal group metadata editing', () => {
         description: 'Planning and delivery',
       });
     });
+  });
+
+  it('offers the same metadata editor for public rooms owned by a moderator', () => {
+    renderPanel('public');
+
+    expect(screen.getByRole('button', { name: 'Edit profile' })).toBeTruthy();
   });
 
   it('keeps edit mode and stored metadata unchanged when the PATCH fails', async () => {
