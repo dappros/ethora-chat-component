@@ -419,13 +419,16 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
 
   const showDescription = !config?.disableChatInfo?.disableDescription;
   const showType = !config?.disableChatInfo?.disableType;
-  const isRoomModerator = activeRoom.role?.toLowerCase() === 'moderator';
+  // The room can be removed from Redux while the profile drawer is still
+  // mounted (for example, immediately after deleting the active chat).
+  // Keep this derived permission safe until the no-room guard below closes it.
+  const isRoomModerator = activeRoom?.role?.toLowerCase() === 'moderator';
   const canManageRoom =
     isRoomModerator &&
-    activeRoom.type !== 'private' &&
+    activeRoom?.type !== 'private' &&
     !roomConfigDisabled;
   const canEditRoomInfo =
-    activeRoom.type !== 'private' &&
+    activeRoom?.type !== 'private' &&
     isRoomModerator &&
     !roomConfigDisabled;
 

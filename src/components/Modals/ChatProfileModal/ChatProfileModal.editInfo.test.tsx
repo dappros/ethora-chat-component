@@ -66,6 +66,25 @@ describe('ChatProfileModal group metadata editing', () => {
     setRoomImageStanzaMock.mockReset();
   });
 
+  it('does not crash if the active room disappears while the profile is mounted', () => {
+    expect(() =>
+      renderWithProviders(<ChatProfileModal handleCloseModal={vi.fn()} />, {
+        preloadedState: {
+          chatSettingStore: {
+            config: {},
+            user: { xmppUsername: 'me_1', fileToken: '' },
+          },
+          rooms: {
+            rooms: {},
+            activeRoomJID: null,
+            usersSet: {},
+            presenceByRoom: {},
+          },
+        } as any,
+      })
+    ).not.toThrow();
+  });
+
   it('persists an uploaded icon through REST without sending the legacy XMPP profile IQ', async () => {
     const { store, container } = renderPanel();
     const input = container.querySelector('input[type="file"]');
