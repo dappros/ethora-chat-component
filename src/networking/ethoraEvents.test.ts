@@ -213,6 +213,15 @@ describe('chat-meta-updated', () => {
     expect(room().members).toHaveLength(30);
   });
 
+  it('preserves the current title when the metadata API temporarily returns it empty', async () => {
+    get.mockResolvedValue(answer({ title: '' }));
+    handleStanza(evChat(CHAT), ws);
+    await vi.advanceTimersByTimeAsync(700);
+    expect(room().title).toBe('Old title');
+    expect(room().name).toBe('Old title');
+    expect((store.getState() as any).rooms.rooms[JID]).toBeTruthy();
+  });
+
   it('debounces a burst and dedupes in flight', async () => {
     get.mockResolvedValue(answer());
     for (let i = 0; i < 5; i++) {

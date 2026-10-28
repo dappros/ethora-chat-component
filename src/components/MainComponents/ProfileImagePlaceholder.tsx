@@ -32,6 +32,7 @@ interface ProfileImagePlaceholderProps {
   active?: boolean;
   placeholderIcon?: React.ReactNode;
   disableOverlay?: boolean;
+  fileInputId?: string;
   /** Show a green online-status dot on the avatar. */
   online?: boolean;
 }
@@ -48,6 +49,7 @@ export const ProfileImagePlaceholder: React.FC<
   active = false,
   placeholderIcon,
   disableOverlay,
+  fileInputId = 'avatar-file-input',
   online = false,
 }) => {
   // Only the colours: subscribing to the whole settings slice re-rendered
@@ -126,7 +128,7 @@ export const ProfileImagePlaceholder: React.FC<
 
   const handleAvatarClick = () => {
     if (upload?.active) {
-      document.getElementById('avatar-file-input')?.click();
+      document.getElementById(fileInputId)?.click();
     }
   };
 
@@ -171,7 +173,7 @@ export const ProfileImagePlaceholder: React.FC<
           <>
             <FileInput
               type="file"
-              id="avatar-file-input"
+              id={fileInputId}
               accept="image/png, image/jpeg"
               onChange={handleFileChange}
             />

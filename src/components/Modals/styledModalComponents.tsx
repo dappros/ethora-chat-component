@@ -1,6 +1,11 @@
 import styled, { css } from 'styled-components';
 import Button, { ButtonProps } from '../styled/Button';
-import { fadeInAnimation, scaleInAnimation } from '../../styles/motion';
+import {
+  fadeInAnimation,
+  fadeOutAnimation,
+  scaleInAnimation,
+  scaleOutAnimation,
+} from '../../styles/motion';
 
 // `$anchorTop`: most modals here are a fixed-height single step, so
 // vertically centering them (the default) is fine - their height never
@@ -59,26 +64,48 @@ export const CloseButton = styled.button`
   position: absolute;
   top: 16px;
   right: 16px;
-  background: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background: transparent;
   border: none;
-  font-size: 1.25em;
+  font-size: 24px;
+  line-height: 1;
   cursor: pointer;
   color: var(--ethora-color-text-muted, #8c8c8c);
-  border-radius: var(--ethora-radius-sm, 8px);
-  transition: background-color var(--ethora-motion-fast, 150ms);
+  border-radius: 50%;
+  transition:
+    background-color var(--ethora-motion-fast, 150ms),
+    color var(--ethora-motion-fast, 150ms),
+    transform var(--ethora-motion-fast, 150ms);
 
   &:hover {
     color: var(--ethora-color-text, #141414);
     background-color: var(--ethora-color-bg-hover, #f0f2f5);
+    transform: rotate(90deg);
+  }
+
+  &:active {
+    transform: rotate(90deg) scale(0.94);
   }
 
   &:focus-visible {
     outline: 2px solid var(--ethora-color-primary, #0052cd);
     outline-offset: 2px;
   }
+
+  @media (max-width: 480px) {
+    top: 12px;
+    right: 12px;
+  }
 `;
 
-export const ModalContainer = styled.div.attrs({ role: 'dialog', 'aria-modal': 'true' })`
+export const ModalContainer = styled.div.attrs({
+  role: 'dialog',
+  'aria-modal': 'true',
+})`
   background: var(--ethora-color-bg, #fff);
   border-radius: var(--ethora-radius-lg, 16px);
   padding: 32px 64px;
@@ -121,6 +148,86 @@ export const ModalTitle = styled.h2`
   }
 `;
 
+/** New-chat dialog keeps its chrome and actions visible while a long member
+ * picker scrolls independently in the middle. */
+export const NewChatDialog = styled(ModalContainer)<{ $closing?: boolean }>`
+  width: min(100%, 440px);
+  max-width: 440px;
+  max-height: min(760px, calc(100dvh - 48px));
+  padding: 28px 32px 24px;
+  gap: 20px;
+  overflow: hidden;
+  justify-content: flex-start;
+  font-family: var(
+    --ethora-font-family,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif
+  );
+  &,
+  & * {
+    font-family: inherit;
+  }
+  ${({ $closing }) => $closing && scaleOutAnimation}
+
+  @media (max-width: 480px) {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100dvh - max(12px, env(safe-area-inset-top)) - 8px);
+    padding: 20px 20px 16px;
+    gap: 14px;
+    border-radius: 20px 20px 16px 16px;
+  }
+`;
+
+export const NewChatBackdrop = styled(ModalBackground)<{ $closing?: boolean }>`
+  ${({ $closing }) => $closing && fadeOutAnimation}
+  @media (max-width: 480px) {
+    align-items: flex-end;
+    padding: 0 12px max(12px, env(safe-area-inset-bottom));
+  }
+`;
+
+export const NewChatDialogHeader = styled.header`
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 100%;
+  min-height: 40px;
+`;
+
+export const NewChatDialogBody = styled.div`
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 4px 4px 8px;
+  box-sizing: border-box;
+
+  @media (max-width: 480px) {
+    gap: 16px;
+  }
+`;
+
+export const NewChatDialogFooter = styled.footer`
+  display: flex;
+  flex: 0 0 auto;
+  width: 100%;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--ethora-color-border, #e6e8ec);
+`;
+
 /** Small uppercase-weight label above a field/list inside a modal - e.g. "Select Users (max 20)". */
 export const ModalSectionLabel = styled.div`
   width: 100%;
@@ -142,7 +249,10 @@ export const GroupContainer = styled.div`
   padding: 0;
 `;
 
-export const ModalContainerFullScreen = styled.div.attrs({ role: 'dialog', 'aria-modal': 'true' })`
+export const ModalContainerFullScreen = styled.div.attrs({
+  role: 'dialog',
+  'aria-modal': 'true',
+})`
   width: 100%;
   height: 100%;
   background-color: var(--ethora-color-bg, #fff);

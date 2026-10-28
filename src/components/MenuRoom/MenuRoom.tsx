@@ -12,6 +12,7 @@ interface RoomMenuProps {
   roomJid?: string;
   handleLeaveClick: () => void;
   handleReportClick: () => void;
+  isModerator?: boolean;
   // Block the other user in a 1-1 private chat. Only wired (and `canBlock`
   // only true) for private rooms with a resolvable peer; once blocked the
   // room leaves the list, so this menu only ever offers Block, never Unblock
@@ -24,6 +25,7 @@ export const RoomMenu: FC<RoomMenuProps> = ({
   roomJid,
   handleLeaveClick,
   handleReportClick,
+  isModerator = false,
   handleBlockClick,
   canBlock,
 }) => {
@@ -46,7 +48,8 @@ export const RoomMenu: FC<RoomMenuProps> = ({
     !!handleBlockClick &&
     config?.features?.userBlock === true &&
     !config?.disableUserBlock;
-  const showLeaveOption = canLeaveRoom(roomJid, config?.defaultRooms);
+  const showLeaveOption =
+    !isModerator && canLeaveRoom(roomJid, config?.defaultRooms);
 
   const menuOptions = useMemo(
     () => [
@@ -75,15 +78,19 @@ export const RoomMenu: FC<RoomMenuProps> = ({
             },
           ]
         : []),
-      {
-        label: t('action.report'),
-        icon: <ReportIcon />,
-        onClick: () => {
-          handleReportClick();
-          ethoraLogger.log('Report clicked');
-        },
-        styles: { color: 'var(--ethora-color-danger, #D92D20)' },
-      },
+      ...(!isModerator
+        ? [
+            {
+              label: t('action.report'),
+              icon: <ReportIcon />,
+              onClick: () => {
+                handleReportClick();
+                ethoraLogger.log('Report clicked');
+              },
+              styles: { color: 'var(--ethora-color-danger, #D92D20)' },
+            },
+          ]
+        : []),
       ...(showLeaveOption
         ? [
             {
@@ -103,6 +110,7 @@ export const RoomMenu: FC<RoomMenuProps> = ({
       handleBlockClick,
       showBlockOption,
       showLeaveOption,
+      isModerator,
       t,
       showMuteOption,
       muted,
@@ -125,6 +133,10 @@ export const RoomMenu: FC<RoomMenuProps> = ({
       />
     );
   }
+
+  // A moderator may have no remaining built-in actions after Report and
+  // Leave are hidden. Avoid leaving an empty overflow button in the header.
+  if (isModerator && menuOptions.length === 0) return null;
 
   return (
     <DropdownMenu

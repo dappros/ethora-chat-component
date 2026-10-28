@@ -4,9 +4,13 @@ import { fireEvent, screen } from '@testing-library/react';
 import { renderWithProviders } from '../../test/renderWithProviders';
 import { RoomMenu } from './MenuRoom';
 
-const renderMenu = (config: Record<string, unknown>) =>
+const renderMenu = (config: Record<string, unknown>, isModerator = false) =>
   renderWithProviders(
-    <RoomMenu handleLeaveClick={vi.fn()} handleReportClick={vi.fn()} />,
+    <RoomMenu
+      handleLeaveClick={vi.fn()}
+      handleReportClick={vi.fn()}
+      isModerator={isModerator}
+    />,
     { preloadedState: { chatSettingStore: { config } as any } }
   );
 
@@ -33,6 +37,14 @@ describe('chat header room menu (config.headerChatMenu)', () => {
     clickTheMoreButton();
 
     expect(headerChatMenu).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Report')).toBeNull();
+    expect(screen.queryByText('Leave')).toBeNull();
+  });
+
+  it('hides Report and Leave for a room moderator', () => {
+    renderMenu({}, true);
+
+    expect(screen.queryByRole('button', { name: 'More Options' })).toBeNull();
     expect(screen.queryByText('Report')).toBeNull();
     expect(screen.queryByText('Leave')).toBeNull();
   });

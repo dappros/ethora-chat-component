@@ -162,8 +162,6 @@ const runRoomRefresh = async (chatName: string): Promise<void> => {
     // stay as they are: the response carries the whole member list (a big
     // room is tens of KB) and the loaded one may be a different, larger set.
     const updates: Partial<IRoom> = {
-      title: fresh.title,
-      name: fresh.name,
       description: fresh.description,
       picture: fresh.picture,
       icon: fresh.icon,
@@ -173,6 +171,11 @@ const runRoomRefresh = async (chatName: string): Promise<void> => {
         getRoomUserCount(current)
       ),
     };
+    // A metadata refresh can race the API's read model while a room is being
+    // renamed. Never replace a usable local label with an empty API value:
+    // RoomList treats an unlabeled record as invalid and prunes it.
+    if (String(fresh.title || '').trim()) updates.title = fresh.title;
+    if (String(fresh.name || '').trim()) updates.name = fresh.name;
     if (
       apiRoom.type === 'public' ||
       apiRoom.type === 'group' ||

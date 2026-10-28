@@ -35,41 +35,56 @@ const openModal = () => {
 
 // This modal used to be a two-step flow: a "chat type" dropdown on step 1,
 // and a separate full-screen "Add users" step (activeTab '1') you navigated
-// to and back from. It is now a single screen: a Public/Private segmented
-// control, and picking "Private" reveals the user picker inline right below
-// it - no dropdown, no navigation, no second step.
+// to and back from. It is now a single screen: a Public/Group segmented
+// control; picking "Private group" reveals a compact member-picker section
+// that can be expanded on demand.
 describe('NewChatModal chat-type segmented control', () => {
-  it('renders a Public/Private segmented control instead of a dropdown', () => {
+  it('renders Public and Private group options instead of a dropdown', () => {
     openModal();
 
     const group = screen.getByRole('radiogroup', { name: 'Select chat type' });
     expect(group).toBeTruthy();
 
     const publicOption = within(group).getByRole('radio', { name: 'Public' });
-    const privateOption = within(group).getByRole('radio', { name: 'Private' });
+    const privateOption = within(group).getByRole('radio', {
+      name: 'Private group',
+    });
     expect(publicOption.getAttribute('aria-checked')).toBe('true');
     expect(privateOption.getAttribute('aria-checked')).toBe('false');
+    expect(within(group).queryByRole('radio', { name: 'Private' })).toBeNull();
+    expect(
+      document.querySelector('[data-testid="new-chat-dialog-body"]')
+    ).toBeTruthy();
+    expect(
+      document.querySelector('[data-testid="new-chat-dialog-footer"]')
+    ).toBeTruthy();
 
     // No dropdown/select control on the page.
     expect(document.querySelector('select')).toBeNull();
   });
 
-  it('reveals the user picker inline (no navigation) when Private is selected', () => {
+  it('reveals the member action when Private group is selected', () => {
     openModal();
 
-    // Before selecting Private, no user-search input and the modal's own
+    // Before selecting a private group, no user-search input and the modal's own
     // Create/Cancel buttons are visible (i.e. we're not on a separate
     // full-screen step).
     expect(screen.queryByPlaceholderText('Search users...')).toBeNull();
     expect(screen.getByText('Create')).toBeTruthy();
     expect(screen.getByText('Cancel')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Private' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Private group' }));
 
-    // The user picker appeared inline, and the Create/Cancel row (and the
-    // room-name input from the same screen) is still on screen alongside
-    // it - proof this is an inline reveal, not a navigation to a new step.
-    expect(screen.getByPlaceholderText('Search users...')).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'Private group' }).id).toBe(
+      'ethora-chattype-group'
+    );
+
+    // The member picker stays collapsed until explicitly opened; the
+    // selected count and Create/Cancel actions remain on the same screen.
+    expect(screen.queryByPlaceholderText('Search users...')).toBeNull();
+    const addMembers = screen.getByRole('button', { name: 'Add members' });
+    expect(addMembers).toBeTruthy();
+    expect(getComputedStyle(addMembers).width).toBe('100%');
     expect(screen.getByPlaceholderText('Enter Room Name')).toBeTruthy();
     expect(screen.getByText('Create')).toBeTruthy();
     expect(screen.getByText('Cancel')).toBeTruthy();
@@ -81,7 +96,8 @@ describe('NewChatModal chat-type segmented control', () => {
   it('hides the user picker again when switching back to Public', () => {
     openModal();
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Private' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Private group' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add members' }));
     expect(screen.getByPlaceholderText('Search users...')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('radio', { name: 'Public' }));
@@ -90,21 +106,25 @@ describe('NewChatModal chat-type segmented control', () => {
 
   it('selecting a user in the inline picker updates the selection', () => {
     openModal();
-    fireEvent.click(screen.getByRole('radio', { name: 'Private' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Private group' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add members' }));
 
     const aliceRow = screen.getByText('Alice A').closest('[role="option"]')!;
     expect(aliceRow.getAttribute('aria-selected')).toBe('false');
 
     fireEvent.click(aliceRow);
     expect(aliceRow.getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Add members' })).toBeTruthy();
   });
 
-  it('supports arrow-key roving between Public and Private', () => {
+  it('supports arrow-key roving between Public and Group', () => {
     openModal();
 
     const group = screen.getByRole('radiogroup', { name: 'Select chat type' });
     const publicOption = within(group).getByRole('radio', { name: 'Public' });
-    const privateOption = within(group).getByRole('radio', { name: 'Private' });
+    const privateOption = within(group).getByRole('radio', {
+      name: 'Private group',
+    });
 
     expect(publicOption.getAttribute('tabindex')).toBe('0');
     expect(privateOption.getAttribute('tabindex')).toBe('-1');
@@ -117,8 +137,8 @@ describe('NewChatModal chat-type segmented control', () => {
 
   it('resets chat type and the picker back to Public after closing and reopening', () => {
     openModal();
-    fireEvent.click(screen.getByRole('radio', { name: 'Private' }));
-    expect(screen.getByPlaceholderText('Search users...')).toBeTruthy();
+    fireEvent.click(screen.getByRole('radio', { name: 'Private group' }));
+    expect(screen.queryByPlaceholderText('Search users...')).toBeNull();
 
     fireEvent.click(screen.getByText('Cancel'));
     fireEvent.click(screen.getByRole('button', { name: 'New chat' }));

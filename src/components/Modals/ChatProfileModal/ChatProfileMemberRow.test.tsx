@@ -34,7 +34,9 @@ const trackedMember = (base: Partial<RoomMember>) => {
 
 describe('ChatProfileMemberRow - narrowed usersSet subscription', () => {
   it('does not re-render when an UNRELATED usersSet entry changes', () => {
-    const { proxy: member, getReads } = trackedMember({ xmppUsername: 'alice' });
+    const { proxy: member, getReads } = trackedMember({
+      xmppUsername: 'alice',
+    });
     const storeRef: { current: any } = { current: null };
 
     renderWithProviders(
@@ -53,7 +55,11 @@ describe('ChatProfileMemberRow - narrowed usersSet subscription', () => {
           rooms: {
             rooms: {},
             usersSet: {
-              alice: { firstName: 'Alice', lastName: 'A', xmppUsername: 'alice' },
+              alice: {
+                firstName: 'Alice',
+                lastName: 'A',
+                xmppUsername: 'alice',
+              },
               bob: { firstName: 'Bob', lastName: 'B', xmppUsername: 'bob' },
             },
           } as any,
@@ -74,7 +80,12 @@ describe('ChatProfileMemberRow - narrowed usersSet subscription', () => {
       storeRef.current.dispatch(
         insertUsers({
           newUsers: [
-            { _id: 'b', firstName: 'Bobby', lastName: 'B', xmppUsername: 'bob' } as RoomMember,
+            {
+              _id: 'b',
+              firstName: 'Bobby',
+              lastName: 'B',
+              xmppUsername: 'bob',
+            } as RoomMember,
           ],
         })
       );
@@ -103,7 +114,11 @@ describe('ChatProfileMemberRow - narrowed usersSet subscription', () => {
           rooms: {
             rooms: {},
             usersSet: {
-              alice: { firstName: 'Alice', lastName: 'A', xmppUsername: 'alice' },
+              alice: {
+                firstName: 'Alice',
+                lastName: 'A',
+                xmppUsername: 'alice',
+              },
             },
           } as any,
         },
@@ -117,7 +132,12 @@ describe('ChatProfileMemberRow - narrowed usersSet subscription', () => {
       storeRef.current.dispatch(
         insertUsers({
           newUsers: [
-            { _id: 'a', firstName: 'Alicia', lastName: 'A', xmppUsername: 'alice' } as RoomMember,
+            {
+              _id: 'a',
+              firstName: 'Alicia',
+              lastName: 'A',
+              xmppUsername: 'alice',
+            } as RoomMember,
           ],
         })
       );
@@ -151,7 +171,11 @@ describe('ChatProfileMemberRow - narrowed usersSet subscription', () => {
           rooms: {
             rooms: {},
             usersSet: {
-              alice: { firstName: 'Alice', lastName: 'A', xmppUsername: 'alice' },
+              alice: {
+                firstName: 'Alice',
+                lastName: 'A',
+                xmppUsername: 'alice',
+              },
             },
           } as any,
         },
@@ -167,5 +191,41 @@ describe('ChatProfileMemberRow - narrowed usersSet subscription', () => {
     const calledWith = onAvatarClick.mock.calls[0][0];
     expect(calledWith.firstName).toBe('Alice');
     expect(calledWith.lastName).toBe('A');
+  });
+
+  it('keeps the member actions menu inside the profile drawer edge', () => {
+    renderWithProviders(
+      <ChatProfileMemberRow
+        member={{
+          _id: 'id',
+          firstName: 'Alice',
+          lastName: 'A',
+          xmppUsername: 'alice',
+        }}
+        isLast
+        disableClick={false}
+        online={false}
+        showMenu
+        menuOptions={[
+          {
+            label: 'Delete',
+            icon: <span aria-hidden="true">×</span>,
+            onClick: noop,
+          },
+        ]}
+        moreOptionsLabel="More options"
+        onAvatarClick={noop}
+      />,
+      {
+        preloadedState: {
+          rooms: { rooms: {}, usersSet: {} } as any,
+        },
+      }
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'More options' }));
+
+    expect(screen.getByRole('menu').style.right).toBe('0px');
+    expect(screen.getByRole('menuitem', { name: 'Delete' })).toBeTruthy();
   });
 });

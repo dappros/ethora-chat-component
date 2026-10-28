@@ -83,7 +83,9 @@ const Secondary = styled.span<{ $online?: boolean }>`
 const RoleTag = styled.span<{ $banned?: boolean }>`
   flex: 0 0 auto;
   background-color: ${({ $banned }) =>
-    $banned ? 'rgba(217, 45, 32, 0.1)' : 'var(--ethora-color-primary-soft, #e7edf9)'};
+    $banned
+      ? 'rgba(217, 45, 32, 0.1)'
+      : 'var(--ethora-color-primary-soft, #e7edf9)'};
   color: ${({ $banned }) =>
     $banned
       ? 'var(--ethora-color-danger, #d92d20)'
@@ -135,7 +137,8 @@ const ChatProfileMemberRow: React.FC<ChatProfileMemberRowProps> = ({
   const localKey = key.split('@')[0];
   const enrichedEntry = useSelector(
     (state: RootState) =>
-      (state.rooms.usersSet as any)?.[key] ?? (state.rooms.usersSet as any)?.[localKey]
+      (state.rooms.usersSet as any)?.[key] ??
+      (state.rooms.usersSet as any)?.[localKey]
   );
 
   const firstName = member.firstName || enrichedEntry?.firstName || '';
@@ -208,6 +211,7 @@ const ChatProfileMemberRow: React.FC<ChatProfileMemberRowProps> = ({
       {showMenu && (
         <DropdownMenu
           options={menuOptions}
+          position="left"
           openButton={
             <Button
               onClick={(e) => {

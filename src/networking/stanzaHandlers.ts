@@ -42,6 +42,7 @@ import {
   adjustUsersCnt,
   isRoomMembersTruncated,
 } from '../helpers/roomUserCount';
+import { isLikelyMucJid } from '../helpers/isLikelyMucJid';
 import { removeMessageFromHeapById } from '../roomStore/roomHeapSlice';
 import {
   clearSendFailureWatchdog,
@@ -558,14 +559,22 @@ const onPresenceInRoom = (stanza: Element | any) => {
     }
   }
 
-  const myXmppUsername = state.chatSettingStore.user?.xmppUsername || '';
-  const isOwn = !!myXmppUsername && nickname === myXmppUsername;
-
   const xChildren =
     (typeof stanza.getChildren === 'function' && stanza.getChildren('x')) || [];
   const mucUserX = xChildren.find(
     (e: Element) => e.attrs?.xmlns === 'http://jabber.org/protocol/muc#user'
   );
+  const ownStatus = mucUserX
+    ?.getChildren('status')
+    .some((status) => status.attrs?.code === '110');
+  const myXmppUsername = String(
+    state.chatSettingStore.user?.xmppUsername || ''
+  )
+    .split('@')[0]
+    .toLowerCase();
+  const isOwn =
+    ownStatus || (!!myXmppUsername && nickname.toLowerCase() === myXmppUsername);
+
   const item =
     typeof mucUserX?.getChild === 'function' ? mucUserX.getChild('item') : null;
 
@@ -1018,22 +1027,101 @@ const onMembersRefreshSignal = (stanza: Element, xmpp: XmppClient) => {
 };
 
 const onRoomKicked = async (stanza: Element) => {
-  if (stanza.is('presence') && stanza.attrs.type === 'unavailable') {
-    const xElement = stanza.getChild('x');
-    if (!xElement) return;
+  if (!stanza?.is?.('presence') || stanza.attrs?.type !== 'unavailable') return;
 
-    const statusElements = xElement.getChildren('status');
+  const from = typeof stanza.attrs?.from === 'string' ? stanza.attrs.from : '';
+  const slashIndex = from.indexOf('/');
+  if (slashIndex <= 0 || slashIndex === from.length - 1) return;
 
-    if (!statusElements || statusElements.length === 0) return;
+  const roomJid = from.slice(0, slashIndex);
+  if (!isLikelyMucJid(roomJid)) return;
 
-    const statusCodes = statusElements.map((s) => s.attrs.code);
+  const mucUser = stanza
+    .getChildren('x')
+    .find(
+      (x) => x.attrs?.xmlns === 'http://jabber.org/protocol/muc#user'
+    );
+  if (!mucUser) return;
 
-    if (statusCodes.includes('110') && statusCodes.includes('321')) {
-      const roomJid = stanza.attrs.from.split('/')[0];
+  const statusCodes = mucUser
+    .getChildren('status')
+    .map((status) => status.attrs?.code);
+  const resource = from.slice(slashIndex + 1);
+  const currentXmppUsername = String(
+    store.getState().chatSettingStore.user?.xmppUsername || ''
+  )
+    .split('@')[0]
+    .toLowerCase();
+  // Status 110 is the protocol's explicit self-presence marker. Some servers
+  // omit it for a room-destroy broadcast, so for affiliation removals also
+  // accept a resource matching the authenticated user's XMPP username.
+  const isOwnPresence =
+    statusCodes.includes('110') ||
+    (!!currentXmppUsername && resource.toLowerCase() === currentXmppUsername);
+  const affiliationChanged = statusCodes.includes('321');
+  const roomDestroyed = !!mucUser.getChild('destroy');
+  const item = mucUser.getChild('item');
+  const affiliation = item?.attrs?.affiliation;
+  // `none` alone is ambiguous: a normal own leave can also report no
+  // affiliation. Require MUC's status 321 to treat it as forced removal.
+  // `outcast` is an explicit ban and remains authoritative without 321.
+  const affiliationRemoved =
+    (affiliation === 'none' && affiliationChanged) ||
+    affiliation === 'outcast';
 
-      store.dispatch(deleteRoom({ jid: roomJid }));
-      await getRooms();
-    }
+  // <destroy/> is a room-wide MUC signal and is authoritative even when the
+  // server omits status 110. Affiliation-only changes are actionable only
+  // when the stanza identifies this user, so an unavailable broadcast for a
+  // different occupant cannot remove our room.
+  if (
+    !roomDestroyed &&
+    (!isOwnPresence || (!affiliationChanged && !affiliationRemoved))
+  ) {
+    return;
+  }
+
+  const roomState = store.getState().rooms;
+  // The room-existence guard makes repeated kick/destroy stanzas idempotent:
+  // the first one removes it synchronously, before the API refresh can settle.
+  if (!roomState.rooms[roomJid]) return;
+
+  store.dispatch(deleteRoom({ jid: roomJid }));
+  if (roomState.activeRoomJID === roomJid) {
+    const nextRoomJid =
+      Object.keys(roomState.rooms).find((jid) => jid !== roomJid) || null;
+    store.dispatch(setCurrentRoom({ roomJID: nextRoomJid }));
+  }
+
+  // Bypass the 60s /chats/my cache so the local room list converges with the
+  // server after the forced exit. Some servers include <destroy/> without
+  // status 321, so the MUC event remains authoritative if the API response is
+  // delayed or still contains the room. In that case deliberately don't add
+  // it back or issue a join presence.
+  invalidateRoomsCache();
+  try {
+    const response = await getRooms();
+    if (response?.failed || !Array.isArray(response?.items)) return;
+
+    const conference = roomJid.slice(roomJid.indexOf('@') + 1);
+    const syncedRooms = response.items
+      .map((apiRoom) => ({
+        apiRoom,
+        room: createRoomFromApi(apiRoom, conference),
+      }))
+      .filter(({ room }) => room && room.jid !== roomJid);
+    syncedRooms.forEach(({ room }) => {
+      // addRoom only updates local state; unlike the presence sweep this
+      // path cannot auto-join any room while reconciling the API snapshot.
+      store.dispatch(addRoom({ roomData: room! }));
+    });
+    store.dispatch(
+      updateUsersSet({
+        rooms: syncedRooms.map(({ apiRoom }) => apiRoom),
+      })
+    );
+  } catch {
+    // The XMPP forced-exit is enough to remove the room immediately. A
+    // failed refresh must not restore it or interrupt stanza processing.
   }
 };
 

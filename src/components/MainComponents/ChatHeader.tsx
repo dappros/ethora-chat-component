@@ -698,6 +698,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
               )}
               <RoomMenu
                 roomJid={currentRoom?.jid}
+                isModerator={currentRoom?.role?.toLowerCase() === 'moderator'}
                 handleLeaveClick={handleLeaveClick}
                 handleReportClick={handleReportClick}
                 handleBlockClick={handleBlockClick}

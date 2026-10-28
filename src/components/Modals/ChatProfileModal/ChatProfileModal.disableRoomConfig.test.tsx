@@ -60,7 +60,7 @@ describe('ChatProfileModal with config.disableRoomConfig', () => {
 
     expect(avatarUploadInput()).toBeTruthy();
     expect(screen.getAllByText('Add more Users').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('More Options').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Delete chat' })).toBeTruthy();
   });
 
   it('hides the room avatar upload when set', () => {
@@ -79,6 +79,46 @@ describe('ChatProfileModal with config.disableRoomConfig', () => {
     renderPanel({ disableRoomConfig: true });
 
     expect(screen.queryByText('More Options')).toBeNull();
+  });
+
+  it('places the moderator delete action after the Files section', () => {
+    renderPanel({});
+    const filesHeading = screen.getByText('Files');
+    const deleteButton = screen.getByRole('button', { name: 'Delete chat' });
+
+    expect(
+      Boolean(
+        filesHeading.compareDocumentPosition(deleteButton) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      )
+    ).toBe(true);
+  });
+
+  it('does not show delete action to a non-moderator', () => {
+    renderWithProviders(<ChatProfileModal handleCloseModal={vi.fn()} />, {
+      preloadedState: {
+        chatSettingStore: { config: {}, user: { xmppUsername: 'me_1' } },
+        rooms: {
+          rooms: {
+            [ROOM_JID]: {
+              jid: ROOM_JID,
+              name: 'Design team',
+              title: 'Design team',
+              type: 'group',
+              role: 'participant',
+              usersCnt: 1,
+              members: MEMBERS,
+              messages: [],
+            },
+          },
+          activeRoomJID: ROOM_JID,
+          usersSet: {},
+          presenceByRoom: {},
+        },
+      } as any,
+    });
+
+    expect(screen.queryByRole('button', { name: 'Delete chat' })).toBeNull();
   });
 
   it('keeps the read-only room details visible', () => {

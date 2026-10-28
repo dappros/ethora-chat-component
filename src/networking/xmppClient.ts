@@ -21,6 +21,7 @@ import { inviteRoomRequest } from './xmpp/inviteRoomRequest.xmpp';
 import { notifyMembersChanged } from './xmpp/notifyMembersChanged.xmpp';
 import { getRooms } from './xmpp/getRooms.xmpp';
 import { handleStanza } from './xmpp/handleStanzas.xmpp';
+import { notifyXmppEvent } from './xmpp/notifyXmppEvent';
 import { setVcard } from './xmpp/setVCard.xmpp';
 import {
   Iso639_1Codes,
@@ -889,6 +890,9 @@ export class XmppClient implements XmppClientInterface {
 
     this.client.on('stanza', (stanza) => {
       this.lastActivityTs = Date.now();
+      // Run before the MAM router so archive messages and protocol messages
+      // reach the host callback too; it is guarded to never interrupt XMPP.
+      notifyXmppEvent(stanza as Element);
       try {
         if (this.lastPingId && isPong(stanza, this.lastPingId)) {
           this.handlePong();

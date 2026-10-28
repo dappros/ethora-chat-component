@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import styled from 'styled-components';
 import { dedupeMembers, memberKey } from '../../../helpers/dedupeMembers';
 import {
   getRoomUserCount,
@@ -33,16 +34,15 @@ import { useDispatch, useSelector, useStore } from 'react-redux';
 import { RootState, getActiveRoom } from '../../../roomStore';
 import { uploadFile } from '../../../networking/api-requests/auth.api';
 import { appendFileToken } from '../../../helpers/secureFileUrl';
-import { useXmppClient } from '../../../context/xmppProvider';
 import { updateRoom } from '../../../roomStore/roomsSlice';
 import Loader from '../../styled/Loader';
 import Button from '../../styled/Button';
 import Switch from '../../MainComponents/Switch';
 import {
   DeleteIcon,
+  EditIcon,
   FileIcon,
   GlobeIcon,
-  MoreIcon,
   QrIcon,
   SearchIcon,
 } from '../../../assets/icons';
@@ -72,6 +72,58 @@ import { withFileToken } from '../../../helpers/secureFileUrl';
 import { isMessageSearchEnabled } from '../../../helpers/isMessageSearchEnabled';
 import ChatProfileMemberRow from './ChatProfileMemberRow';
 
+const RoomInfoEditButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: var(--ethora-radius-md, 10px);
+  padding: 6px 10px;
+  color: var(--ethora-color-primary, #168fc4);
+  background: transparent;
+  font: inherit;
+  font-size: var(--ethora-font-size-xs, 12px);
+  cursor: pointer;
+  &:hover { background: var(--ethora-color-bg-hover, rgba(127, 127, 127, 0.12)); }
+  &:focus-visible { outline: 2px solid var(--ethora-color-primary, #168fc4); }
+  svg { width: 16px; height: 16px; }
+`;
+
+const RoomInfoInput = styled.input`
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--ethora-color-border, #d0d5dd);
+  border-radius: var(--ethora-radius-md, 10px);
+  padding: 9px 11px;
+  color: var(--ethora-color-text, inherit);
+  background: var(--ethora-color-bg, transparent);
+  font: inherit;
+  font-size: var(--ethora-font-size-sm, 14px);
+`;
+
+const RoomInfoTextarea = styled.textarea`
+  width: 100%;
+  min-height: 88px;
+  box-sizing: border-box;
+  resize: vertical;
+  border: 1px solid var(--ethora-color-border, #d0d5dd);
+  border-radius: var(--ethora-radius-md, 10px);
+  padding: 9px 11px;
+  color: var(--ethora-color-text, inherit);
+  background: var(--ethora-color-bg, transparent);
+  font: inherit;
+  font-size: var(--ethora-font-size-sm, 14px);
+`;
+
+const RoomInfoEditActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--ethora-space-2, 8px);
+  margin-top: var(--ethora-space-2, 8px);
+  button { width: auto; min-width: 76px; padding: 0 12px; }
+`;
+
 interface ChatProfileModalProps {
   handleCloseModal: any;
 }
@@ -90,24 +142,14 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [visible, setVisible] = useState<boolean>(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingRoomInfo, setEditingRoomInfo] = useState(false);
+  const [roomTitleDraft, setRoomTitleDraft] = useState('');
+  const [roomDescriptionDraft, setRoomDescriptionDraft] = useState('');
+  const [savingRoomInfo, setSavingRoomInfo] = useState(false);
 
   const { showToast } = useToast();
   const t = useT();
   const uiLocale = useUiLocale();
-
-  const chatMenuOptions = useMemo(
-    () => [
-      {
-        label: t('action.deleteChat'),
-        icon: <DeleteIcon />,
-        onClick: () => {
-          setIsModalOpen(true);
-        },
-        styles: { color: 'var(--ethora-color-danger, #D92D20)' },
-      },
-    ],
-    [t]
-  );
 
   const [filesExpanded, setFilesExpanded] = useState<boolean>(false);
   const [visibleMemberCount, setVisibleMemberCount] = useState<number>(
@@ -118,7 +160,6 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   const dispatch = useDispatch();
   const store = useStore<RootState>();
 
-  const { client } = useXmppClient();
   const { user: stateUser, config } = useChatSettingState();
   const activeRoom = useSelector((state: RootState) => getActiveRoom(state));
   const {
@@ -156,7 +197,8 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   const peerLocalKey = peerKey.split('@')[0];
   const peerUsersSetEntry = useSelector((state: RootState) =>
     peerKey
-      ? (state.rooms.usersSet?.[peerKey] ?? state.rooms.usersSet?.[peerLocalKey])
+      ? (state.rooms.usersSet?.[peerKey] ??
+        state.rooms.usersSet?.[peerLocalKey])
       : undefined
   );
   const peerProfileImage =
@@ -181,8 +223,10 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   // true total). Opening the profile loads the whole room directory (once
   // per room) and lists it after the known members, deduplicated.
   const membersTruncated = isRoomMembersTruncated(activeRoom);
-  const { members: directoryMembers, state: directoryState } =
-    useRoomDirectory(activeRoom?.jid, membersTruncated);
+  const { members: directoryMembers, state: directoryState } = useRoomDirectory(
+    activeRoom?.jid,
+    membersTruncated
+  );
   const directoryLoading = membersTruncated && directoryState === 'loading';
 
   const enrichedMembers = useMemo(() => {
@@ -284,22 +328,28 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
 
       const location = uploadResult?.data?.results?.[0]?.location;
 
-      if (location) {
-        // Mongo is the source of truth for GET /v1/chats/my - without the
-        // REST call the icon reappears blank on the next page refresh (the
-        // XMPP IQ only touches ejabberd's Mnesia `room_thumbnail`).
-        try {
-          await patchMyChat(activeRoom.jid.split('@')[0], { picture: location });
-        } catch (persistError) {
-          console.warn('Chat picture persistence failed:', persistError);
-        }
-        client.setRoomImageStanza(activeRoom.jid, location, 'icon', 'none');
-        dispatch(
-          updateRoom({ jid: activeRoom.jid, updates: { icon: location } })
-        );
-      }
+      if (!location) throw new Error('Image upload returned no location');
+
+      // /chats/my is the source of truth for room pictures. The legacy XMPP
+      // setRoomImage IQ can make ejabberd emit an unavailable/destroy presence
+      // while updating the MUC, which the room-list handler interprets as a
+      // forced exit. Persist first, then update local state; don't optimistically
+      // hide the room if either upload or PATCH fails.
+      await patchMyChat(activeRoom.jid.split('@')[0], { picture: location });
+      dispatch(
+        updateRoom({
+          jid: activeRoom.jid,
+          updates: { icon: location, picture: location },
+        })
+      );
     } catch (error) {
       console.error('File upload failed or location is missing:', error);
+      showToast({
+        id: Date.now().toString(),
+        title: t('toast.error'),
+        message: t('toast.failedToUpdateChat'),
+        type: 'error',
+      });
     }
   };
 
@@ -345,16 +395,83 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   const roomConfigDisabled = config?.disableRoomConfig === true;
 
   const onRemoveClick = async () => {
-    // Mirror onUpload: Mongo-side clear so the icon stays gone across a
-    // page refresh, otherwise /chats/my still returns the previous
-    // `Chat.picture` and the icon pops back on the next load.
+    // Keep REST as the single source of truth for this metadata update. The
+    // legacy XMPP profile IQ can trigger an unavailable/destroy presence.
     try {
       await patchMyChat(activeRoom.jid.split('@')[0], { picture: '' });
     } catch (persistError) {
       console.warn('Chat picture clear failed:', persistError);
+      showToast({
+        id: Date.now().toString(),
+        title: t('toast.error'),
+        message: t('toast.failedToUpdateChat'),
+        type: 'error',
+      });
+      return;
     }
-    client.setRoomImageStanza(activeRoom.jid, null, 'icon', 'none');
-    dispatch(updateRoom({ jid: activeRoom.jid, updates: { icon: null } }));
+    dispatch(
+      updateRoom({
+        jid: activeRoom.jid,
+        updates: { icon: null, picture: '' },
+      })
+    );
+  };
+
+  const showDescription = !config?.disableChatInfo?.disableDescription;
+  const showType = !config?.disableChatInfo?.disableType;
+  const isRoomModerator = activeRoom.role?.toLowerCase() === 'moderator';
+  const canManageRoom =
+    isRoomModerator &&
+    activeRoom.type !== 'private' &&
+    !roomConfigDisabled;
+  const canEditRoomInfo =
+    activeRoom.type !== 'private' &&
+    isRoomModerator &&
+    !roomConfigDisabled;
+
+  const startEditingRoomInfo = () => {
+    setRoomTitleDraft(activeRoom.title || activeRoom.name || '');
+    setRoomDescriptionDraft(activeRoom.description || '');
+    setEditingRoomInfo(true);
+  };
+
+  const saveRoomInfo = async () => {
+    const title = roomTitleDraft.trim();
+    if (!title || savingRoomInfo) return;
+
+    setSavingRoomInfo(true);
+    try {
+      const description = roomDescriptionDraft.trim();
+      await patchMyChat(activeRoom.jid.split('@')[0], {
+        title,
+        ...(showDescription ? { description } : {}),
+      });
+      dispatch(
+        updateRoom({
+          jid: activeRoom.jid,
+          updates: {
+            title,
+            ...(showDescription ? { description } : {}),
+          },
+        })
+      );
+      setEditingRoomInfo(false);
+      showToast({
+        id: Date.now().toString(),
+        title: t('toast.success'),
+        message: t('toast.chatInfoUpdated'),
+        type: 'success',
+      });
+    } catch {
+      showToast({
+        id: Date.now().toString(),
+        title: t('toast.error'),
+        message: t('toast.failedToUpdateChat'),
+        type: 'error',
+      });
+    } finally {
+      setSavingRoomInfo(false);
+    }
   };
 
   const handleUserAvatarClick = (user: RoomMember): void => {
@@ -366,6 +483,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         lastName: user.lastName,
         name: `${user.firstName} ${user.lastName}`,
         userJID: user?.xmppUsername,
+        profileImage: user.profileImage || (user as any).photoURL,
       })
     );
   };
@@ -406,9 +524,6 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
       : t('modal.chatProfile.memberCountPlural', { count: formattedCount });
   })();
 
-  const showDescription = !config?.disableChatInfo?.disableDescription;
-  const showType = !config?.disableChatInfo?.disableType;
-
   return (
     <SideDrawer
       title={t('modal.chatProfile.title')}
@@ -422,23 +537,6 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
               aria-label={t('action.showQr')}
             />
           )}
-          {activeRoom.role === 'moderator' &&
-            activeRoom.type !== 'private' &&
-            !roomConfigDisabled &&
-            !config?.disableChatInfo?.disableChatHeaderMenu && (
-              <DropdownMenu
-                position="left"
-                options={chatMenuOptions}
-                openButton={
-                  <Button
-                    style={{ padding: 8, maxHeight: '40px' }}
-                    EndIcon={<MoreIcon />}
-                    unstyled
-                    aria-label={t('action.moreOptions')}
-                  />
-                }
-              />
-            )}
         </>
       }
     >
@@ -460,12 +558,36 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
           size={96}
         />
         <div>
-          <ProfileHeroName>{activeRoom.name}</ProfileHeroName>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            {editingRoomInfo ? (
+              <RoomInfoInput
+                aria-label={t('modal.chatProfile.chatName')}
+                value={roomTitleDraft}
+                maxLength={120}
+                onChange={(event) => setRoomTitleDraft(event.target.value)}
+              />
+            ) : (
+              <ProfileHeroName>
+                {activeRoom.title || activeRoom.name}
+              </ProfileHeroName>
+            )}
+            {canEditRoomInfo && !editingRoomInfo && (
+              <RoomInfoEditButton
+                type="button"
+                aria-label={t('action.editProfile')}
+                onClick={startEditingRoomInfo}
+              >
+                <EditIcon />
+                {t('action.editProfile')}
+              </RoomInfoEditButton>
+            )}
+          </div>
           <ProfileHeroSubtitle>{memberCountLabel}</ProfileHeroSubtitle>
         </div>
       </ProfileHero>
 
-      {activeRoom.role === 'moderator' &&
+      {!editingRoomInfo &&
+        activeRoom.role === 'moderator' &&
         activeRoom.type === 'group' &&
         !roomConfigDisabled && <SelectUsersModal />}
 
@@ -480,18 +602,46 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
             {t('modal.chatProfile.aboutSection')}
           </DrawerSectionTitle>
           {showDescription && (
-            <DrawerDescriptionText $empty={!activeRoom?.description}>
-              {activeRoom?.description || t('modal.profile.noDescription')}
-            </DrawerDescriptionText>
+            editingRoomInfo ? (
+              <RoomInfoTextarea
+                aria-label={t('modal.chatProfile.description')}
+                value={roomDescriptionDraft}
+                maxLength={2000}
+                onChange={(event) =>
+                  setRoomDescriptionDraft(event.target.value)
+                }
+              />
+            ) : (
+              <DrawerDescriptionText $empty={!activeRoom?.description}>
+                {activeRoom?.description || t('modal.profile.noDescription')}
+              </DrawerDescriptionText>
+            )
+          )}
+          {editingRoomInfo && canEditRoomInfo && (
+            <RoomInfoEditActions>
+              <Button
+                variant="outlined"
+                text={t('action.cancel')}
+                disabled={savingRoomInfo}
+                onClick={() => setEditingRoomInfo(false)}
+              />
+              <Button
+                variant="filled"
+                text={t('action.save')}
+                loading={savingRoomInfo}
+                disabled={!roomTitleDraft.trim() || savingRoomInfo}
+                onClick={saveRoomInfo}
+              />
+            </RoomInfoEditActions>
           )}
           {showType && (
             <DrawerFactPill>
               <GlobeIcon color="currentColor" />
               {t(
-                activeRoom.type === 'private'
-                  ? 'modal.chatProfile.typePrivate'
-                  : activeRoom.type === 'group'
-                    ? 'modal.chatProfile.typeGroup'
+                activeRoom.type === 'group'
+                  ? 'modal.chatProfile.typeGroup'
+                  : activeRoom.type === 'private'
+                    ? 'modal.chatProfile.typePrivate'
                     : 'modal.chatProfile.typePublic'
               )}
             </DrawerFactPill>
@@ -590,7 +740,9 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                 />
               ))}
               {directoryLoading && (
-                <DrawerLabel>{t('modal.chatProfile.membersLoadingAll')}</DrawerLabel>
+                <DrawerLabel>
+                  {t('modal.chatProfile.membersLoadingAll')}
+                </DrawerLabel>
               )}
               {hasMoreMembers && (
                 <ShowMoreButton
@@ -661,6 +813,19 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
           />
         )}
       </DrawerSection>
+
+      {canManageRoom && (
+        <DrawerSection>
+          <Button
+            variant="outlined"
+            tone="danger"
+            StartIcon={<DeleteIcon />}
+            text={t('action.deleteChat')}
+            style={{ width: '100%' }}
+            onClick={() => setIsModalOpen(true)}
+          />
+        </DrawerSection>
+      )}
 
       <OperationalModal
         isVisible={visible}
