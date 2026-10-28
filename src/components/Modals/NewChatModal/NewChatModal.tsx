@@ -50,6 +50,7 @@ import {
   InlineUsersInner,
   InlineUsersWrapper,
   MemberCount,
+  MemberPickerAction,
   MemberPickerHeader,
   MemberPickerSection,
   ModalHint,
@@ -468,15 +469,15 @@ const NewChatModal: React.FC = () => {
               {isPrivate && (
                 <MemberPickerSection>
                   <MemberPickerHeader>
-                    <TextAction
-                      type="button"
-                      aria-expanded={isMemberPickerOpen}
-                      onClick={() => setIsMemberPickerOpen((open) => !open)}
-                    >
-                      {t('action.addMembers')}
-                    </TextAction>
                     <MemberCount>{selectedUsers.length}/20</MemberCount>
                   </MemberPickerHeader>
+                  <MemberPickerAction
+                    type="button"
+                    aria-expanded={isMemberPickerOpen}
+                    onClick={() => setIsMemberPickerOpen((open) => !open)}
+                  >
+                    {t('action.addMembers')}
+                  </MemberPickerAction>
                   {isMemberPickerOpen && (
                     <InlineUsersWrapper $expanded={userPickerExpanded}>
                       <InlineUsersInner>

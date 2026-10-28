@@ -82,7 +82,9 @@ describe('NewChatModal chat-type segmented control', () => {
     // The member picker stays collapsed until explicitly opened; the
     // selected count and Create/Cancel actions remain on the same screen.
     expect(screen.queryByPlaceholderText('Search users...')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Add members' })).toBeTruthy();
+    const addMembers = screen.getByRole('button', { name: 'Add members' });
+    expect(addMembers).toBeTruthy();
+    expect(getComputedStyle(addMembers).width).toBe('100%');
     expect(screen.getByPlaceholderText('Enter Room Name')).toBeTruthy();
     expect(screen.getByText('Create')).toBeTruthy();
     expect(screen.getByText('Cancel')).toBeTruthy();

@@ -101,7 +101,7 @@ export type {
 // The props of the exported `<Chat>` component, plus the pieces its
 // fields are made of.
 export type { ChatWrapperProps as ChatProps } from './components/MainComponents/ReduxWrapper';
-export type { IConfig } from './types/models/config.model';
+export type { IConfig, XmppMessageEvent } from './types/models/config.model';
 export type {
   ScheduledCallsConfig,
   ScheduledCallOpenError,

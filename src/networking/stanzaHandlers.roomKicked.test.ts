@@ -34,6 +34,9 @@ import { handleStanza } from './xmpp/handleStanzas.xmpp';
 import { store, type RootState } from '../roomStore';
 import {
   addRoom,
+  setJoiningRoom,
+  setMemberOnline,
+  setRoomDraft,
   setCurrentRoom,
   setLogoutState,
 } from '../roomStore/roomsSlice';
@@ -99,12 +102,59 @@ describe('MUC forced-exit presence handling', () => {
     expect(getRoomsMock).toHaveBeenCalledTimes(1);
   });
 
-  it('removes a destroyed room with status 110 and destroy but no 321', async () => {
-    handleStanza(kickedPresence(`<status code='110'/><destroy/>`), {} as any);
+  it('removes a destroyed room from the QA stanza without status 110', async () => {
+    handleStanza(kickedPresence(`<destroy/>`), {} as any);
     await flush();
 
     expect(store.getState().rooms.rooms[ROOM]).toBeUndefined();
     expect(getRoomsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not treat affiliation none without status 321 as forced removal', async () => {
+    handleStanza(
+      kickedPresence(`<item affiliation='none'/>`, `${ROOM}/me`),
+      {} as any
+    );
+    await flush();
+
+    expect(store.getState().rooms.rooms[ROOM]).toBeDefined();
+    expect(getRoomsMock).not.toHaveBeenCalled();
+  });
+
+  it('removes own affiliation none when status 321 confirms the change', async () => {
+    handleStanza(
+      kickedPresence(
+        `<item affiliation='none'/><status code='321'/>`,
+        `${ROOM}/me`
+      ),
+      {} as any
+    );
+    await flush();
+
+    expect(store.getState().rooms.rooms[ROOM]).toBeUndefined();
+    expect(getRoomsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('removes our room on an explicit outcast ban even without status 321', async () => {
+    handleStanza(
+      kickedPresence(`<item affiliation='outcast'/>`, `${ROOM}/me`),
+      {} as any
+    );
+    await flush();
+
+    expect(store.getState().rooms.rooms[ROOM]).toBeUndefined();
+    expect(getRoomsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not remove our room for another occupant affiliation presence', async () => {
+    handleStanza(
+      kickedPresence(`<item affiliation='none'/>`, `${ROOM}/someone-else`),
+      {} as any
+    );
+    await flush();
+
+    expect(store.getState().rooms.rooms[ROOM]).toBeDefined();
+    expect(getRoomsMock).not.toHaveBeenCalled();
   });
 
   it('keeps the room after an ordinary own unavailable presence', async () => {
@@ -201,10 +251,16 @@ describe('MUC forced-exit presence handling', () => {
 
   it('selects another room when the forcibly removed room was active', async () => {
     store.dispatch(setCurrentRoom({ roomJID: ROOM }));
+    store.dispatch(setRoomDraft({ jid: ROOM, text: 'unsent message' }));
+    store.dispatch(setJoiningRoom(ROOM));
+    store.dispatch(setMemberOnline({ roomJID: ROOM, xmppUsername: 'me' }));
     handleStanza(kickedPresence(`<status code='110'/><status code='321'/>`), {} as any);
     await flush();
 
     expect(store.getState().rooms.activeRoomJID).toBe(OTHER_ROOM);
+    expect(store.getState().rooms.drafts[ROOM]).toBeUndefined();
+    expect(store.getState().rooms.joiningRoomJID).toBeNull();
+    expect(store.getState().rooms.presenceByRoom[ROOM]).toBeUndefined();
   });
 
   it('does not rejoin the removed room through useRoomInitialization', async () => {

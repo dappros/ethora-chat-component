@@ -693,6 +693,29 @@ const roomsStore = createSlice({
       if (state.rooms[jid]) {
         delete state.rooms[jid];
       }
+      if (state.presenceByRoom?.[jid] !== undefined) {
+        delete state.presenceByRoom[jid];
+      }
+      if (state.joiningRoomJID === jid) state.joiningRoomJID = null;
+      if (state.pendingJump?.roomJID === jid) state.pendingJump = null;
+      if (state.archivedMessage?.roomJID === jid) state.archivedMessage = null;
+      if (state.jumpWindow?.roomJID === jid) state.jumpWindow = null;
+      if (state.editAction?.roomJid === jid) {
+        state.editAction = {
+          isEdit: false,
+          roomJid: '',
+          messageId: '',
+          text: '',
+        };
+      }
+      if (state.subscribedRooms?.includes(jid)) {
+        state.subscribedRooms = state.subscribedRooms.filter(
+          (subscribedJid) => subscribedJid !== jid
+        );
+      }
+      if (state.pushSubscriptionStatus?.[jid] !== undefined) {
+        delete state.pushSubscriptionStatus[jid];
+      }
       if (state.drafts?.[jid] !== undefined) {
         if (
           jid === '__proto__' ||

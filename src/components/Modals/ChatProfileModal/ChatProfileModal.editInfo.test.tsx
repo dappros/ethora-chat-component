@@ -54,7 +54,9 @@ describe('ChatProfileModal group metadata editing', () => {
 
   it('patches title and description and updates the room in the store', async () => {
     const { store } = renderPanel();
+    expect(screen.getByRole('button', { name: 'Add more Users' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
+    expect(screen.queryByRole('button', { name: 'Add more Users' })).toBeNull();
     fireEvent.change(screen.getByRole('textbox', { name: 'Chat name' }), {
       target: { value: 'Product team' },
     });
@@ -76,6 +78,16 @@ describe('ChatProfileModal group metadata editing', () => {
         description: 'Planning and delivery',
       });
     });
+    expect(screen.getByRole('button', { name: 'Add more Users' })).toBeTruthy();
+  });
+
+  it('restores Add more Users after cancelling metadata editing', () => {
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
+    expect(screen.queryByRole('button', { name: 'Add more Users' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByRole('button', { name: 'Add more Users' })).toBeTruthy();
   });
 
   it('offers the same metadata editor for public rooms owned by a moderator', () => {

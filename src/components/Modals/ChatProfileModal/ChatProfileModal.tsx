@@ -472,6 +472,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         lastName: user.lastName,
         name: `${user.firstName} ${user.lastName}`,
         userJID: user?.xmppUsername,
+        profileImage: user.profileImage || (user as any).photoURL,
       })
     );
   };
@@ -572,7 +573,8 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
         </div>
       </ProfileHero>
 
-      {activeRoom.role === 'moderator' &&
+      {!editingRoomInfo &&
+        activeRoom.role === 'moderator' &&
         activeRoom.type === 'group' &&
         !roomConfigDisabled && <SelectUsersModal />}
 

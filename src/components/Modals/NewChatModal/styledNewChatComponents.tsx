@@ -39,10 +39,26 @@ export const TextAction = styled.button`
 
 export const MemberPickerHeader = styled.div`
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  align-items: flex-end;
+  justify-content: flex-end;
+  margin-bottom: 8px;
   width: 100%;
+`;
+
+export const MemberPickerAction = styled(TextAction)`
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 10px 16px;
+  border: 1px solid var(--ethora-color-primary, #35a5d5);
+  border-radius: var(--ethora-radius-md, 12px);
+  text-align: center;
+  font-size: var(--ethora-font-size-md, 16px);
+
+  &:hover {
+    background: var(--ethora-color-bg-hover, rgba(53, 165, 213, 0.12));
+  }
 `;
 
 export const MemberCount = styled.span`
@@ -54,6 +70,8 @@ export const MemberCount = styled.span`
 
 export const MemberPickerSection = styled.div`
   width: 100%;
+  margin-top: 8px;
+  padding: 4px 0 8px;
 `;
 
 export const ModalHint = styled.p`

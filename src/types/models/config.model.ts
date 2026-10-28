@@ -170,6 +170,16 @@ export interface ChatErrorInfo {
   scope: ChatErrorScope;
 }
 
+/** An incoming XMPP `<message/>` stanza received by the SDK. */
+export interface XmppMessageEvent {
+  /** The complete stanza as XML, including its message payload. */
+  stanza: string;
+  from?: string;
+  to?: string;
+  id?: string;
+  type?: string;
+}
+
 /**
  * Render-prop form of `fallbackScreens.error`. `reset()` clears the boundary
  * and re-mounts the chat subtree, so a host can build its own "try again".
@@ -664,6 +674,13 @@ export interface IConfig {
     filterFunction: (text: string) => string;
   };
   eventHandlers?: {
+    /**
+     * Called once for every incoming XMPP `<message/>` stanza, before the
+     * SDK routes it to chat, archive, call, or protocol handlers. `stanza`
+     * contains the raw XML; on end-to-end encrypted messages it may still be
+     * encrypted. A thrown error or rejected promise is caught and logged.
+     */
+    onXmppEvent?: (event: XmppMessageEvent) => void | Promise<void>;
     onMessageSent?: (event: {
       message: string;
       roomJID: string;

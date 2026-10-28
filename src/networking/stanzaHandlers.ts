@@ -1046,10 +1046,39 @@ const onRoomKicked = async (stanza: Element) => {
   const statusCodes = mucUser
     .getChildren('status')
     .map((status) => status.attrs?.code);
-  const isOwnPresence = statusCodes.includes('110');
+  const resource = from.slice(slashIndex + 1);
+  const currentXmppUsername = String(
+    store.getState().chatSettingStore.user?.xmppUsername || ''
+  )
+    .split('@')[0]
+    .toLowerCase();
+  // Status 110 is the protocol's explicit self-presence marker. Some servers
+  // omit it for a room-destroy broadcast, so for affiliation removals also
+  // accept a resource matching the authenticated user's XMPP username.
+  const isOwnPresence =
+    statusCodes.includes('110') ||
+    (!!currentXmppUsername && resource.toLowerCase() === currentXmppUsername);
   const affiliationChanged = statusCodes.includes('321');
   const roomDestroyed = !!mucUser.getChild('destroy');
-  if (!isOwnPresence || (!affiliationChanged && !roomDestroyed)) return;
+  const item = mucUser.getChild('item');
+  const affiliation = item?.attrs?.affiliation;
+  // `none` alone is ambiguous: a normal own leave can also report no
+  // affiliation. Require MUC's status 321 to treat it as forced removal.
+  // `outcast` is an explicit ban and remains authoritative without 321.
+  const affiliationRemoved =
+    (affiliation === 'none' && affiliationChanged) ||
+    affiliation === 'outcast';
+
+  // <destroy/> is a room-wide MUC signal and is authoritative even when the
+  // server omits status 110. Affiliation-only changes are actionable only
+  // when the stanza identifies this user, so an unavailable broadcast for a
+  // different occupant cannot remove our room.
+  if (
+    !roomDestroyed &&
+    (!isOwnPresence || (!affiliationChanged && !affiliationRemoved))
+  ) {
+    return;
+  }
 
   const roomState = store.getState().rooms;
   // The room-existence guard makes repeated kick/destroy stanzas idempotent:
