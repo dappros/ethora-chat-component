@@ -559,14 +559,22 @@ const onPresenceInRoom = (stanza: Element | any) => {
     }
   }
 
-  const myXmppUsername = state.chatSettingStore.user?.xmppUsername || '';
-  const isOwn = !!myXmppUsername && nickname === myXmppUsername;
-
   const xChildren =
     (typeof stanza.getChildren === 'function' && stanza.getChildren('x')) || [];
   const mucUserX = xChildren.find(
     (e: Element) => e.attrs?.xmlns === 'http://jabber.org/protocol/muc#user'
   );
+  const ownStatus = mucUserX
+    ?.getChildren('status')
+    .some((status) => status.attrs?.code === '110');
+  const myXmppUsername = String(
+    state.chatSettingStore.user?.xmppUsername || ''
+  )
+    .split('@')[0]
+    .toLowerCase();
+  const isOwn =
+    ownStatus || (!!myXmppUsername && nickname.toLowerCase() === myXmppUsername);
+
   const item =
     typeof mucUserX?.getChild === 'function' ? mucUserX.getChild('item') : null;
 

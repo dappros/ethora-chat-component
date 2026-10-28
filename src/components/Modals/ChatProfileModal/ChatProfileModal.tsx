@@ -44,7 +44,6 @@ import {
   EditIcon,
   FileIcon,
   GlobeIcon,
-  MoreIcon,
   QrIcon,
   SearchIcon,
 } from '../../../assets/icons';
@@ -152,20 +151,6 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   const { showToast } = useToast();
   const t = useT();
   const uiLocale = useUiLocale();
-
-  const chatMenuOptions = useMemo(
-    () => [
-      {
-        label: t('action.deleteChat'),
-        icon: <DeleteIcon />,
-        onClick: () => {
-          setIsModalOpen(true);
-        },
-        styles: { color: 'var(--ethora-color-danger, #D92D20)' },
-      },
-    ],
-    [t]
-  );
 
   const [filesExpanded, setFilesExpanded] = useState<boolean>(false);
   const [visibleMemberCount, setVisibleMemberCount] = useState<number>(
@@ -422,9 +407,14 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
 
   const showDescription = !config?.disableChatInfo?.disableDescription;
   const showType = !config?.disableChatInfo?.disableType;
+  const isRoomModerator = activeRoom.role?.toLowerCase() === 'moderator';
+  const canManageRoom =
+    isRoomModerator &&
+    activeRoom.type !== 'private' &&
+    !roomConfigDisabled;
   const canEditRoomInfo =
     activeRoom.type === 'group' &&
-    activeRoom.role === 'moderator' &&
+    isRoomModerator &&
     !roomConfigDisabled;
 
   const startEditingRoomInfo = () => {
@@ -535,23 +525,6 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
               aria-label={t('action.showQr')}
             />
           )}
-          {activeRoom.role === 'moderator' &&
-            activeRoom.type !== 'private' &&
-            !roomConfigDisabled &&
-            !config?.disableChatInfo?.disableChatHeaderMenu && (
-              <DropdownMenu
-                position="left"
-                options={chatMenuOptions}
-                openButton={
-                  <Button
-                    style={{ padding: 8, maxHeight: '40px' }}
-                    EndIcon={<MoreIcon />}
-                    unstyled
-                    aria-label={t('action.moreOptions')}
-                  />
-                }
-              />
-            )}
         </>
       }
     >
@@ -825,6 +798,19 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
           />
         )}
       </DrawerSection>
+
+      {canManageRoom && (
+        <DrawerSection>
+          <Button
+            variant="outlined"
+            tone="danger"
+            StartIcon={<DeleteIcon />}
+            text={t('action.deleteChat')}
+            style={{ width: '100%' }}
+            onClick={() => setIsModalOpen(true)}
+          />
+        </DrawerSection>
+      )}
 
       <OperationalModal
         isVisible={visible}

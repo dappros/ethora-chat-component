@@ -186,6 +186,19 @@ describe('MUC forced-exit presence handling', () => {
     expect(store.getState().rooms.rooms[ROOM]).toBeUndefined();
   });
 
+  it('records the current user role from MUC status 110 even when the nick differs', () => {
+    const stanza = parse(
+      `<presence xmlns='jabber:client' from='${ROOM}/room-nick' id='presenceInRoom-test'>` +
+        `<x xmlns='http://jabber.org/protocol/muc#user'>` +
+        `<item role='moderator'/><status code='110'/>` +
+        `</x></presence>`
+    );
+
+    handleStanza(stanza, {} as any);
+
+    expect(store.getState().rooms.rooms[ROOM]?.role).toBe('moderator');
+  });
+
   it('selects another room when the forcibly removed room was active', async () => {
     store.dispatch(setCurrentRoom({ roomJID: ROOM }));
     handleStanza(kickedPresence(`<status code='110'/><status code='321'/>`), {} as any);
