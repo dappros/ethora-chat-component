@@ -19,7 +19,7 @@ import {
   listenForForegroundMessages,
   requestPendingPushClick,
 } from '../utils/firebasePushNotifications';
-import { registerPushToken } from '../networking/api-requests/push.api';
+import { registerPushToken, resolvePushLanguage } from '../networking/api-requests/push.api';
 import { messageNotificationManager } from '../utils/messageNotificationManager';
 import { IMessage } from '../types/models/message.model';
 import { pushSubscriptionService } from '../utils/pushSubscriptionService';
@@ -167,7 +167,9 @@ const usePushNotifications = (
   const pushSubscriptionStatus = useSelector(
     (state: RootState) => state.rooms.pushSubscriptionStatus
   );
+  const pushLanguage = useSelector(resolvePushLanguage);
   const dispatch = useDispatch<AppDispatch>();
+  const registeredLanguageRef = useRef<string | null>(null);
 
   // Opened by a cold-start tap with the room in the url (`fromPush=1`): the
   // click is applied from the url below, so the worker's copy is dropped
@@ -427,6 +429,7 @@ const usePushNotifications = (
           ethoraLogger.log('[PushNotifications] Registering FCM token with Ethora backend (API)…');
         }
         await registerPushToken(fcmToken);
+        registeredLanguageRef.current = resolvePushLanguage(store.getState());
 
         _subscriptionRegistered = true;
         fcmTokenRef.current = fcmToken;
@@ -791,6 +794,15 @@ const usePushNotifications = (
       document.removeEventListener('visibilitychange', tryReRegister);
     };
   }, [enabled, softAsk, userToken, runPushFlow]);
+
+  useEffect(() => {
+    if (!enabled || !userToken) return;
+    const fcmToken = fcmTokenRef.current;
+    if (!fcmToken || registeredLanguageRef.current === null) return;
+    if (registeredLanguageRef.current === pushLanguage) return;
+    registeredLanguageRef.current = pushLanguage;
+    void registerPushToken(fcmToken);
+  }, [enabled, userToken, pushLanguage, fcmTokenReady]);
 
   // Subscribe to all known rooms for push delivery
   useEffect(() => {
