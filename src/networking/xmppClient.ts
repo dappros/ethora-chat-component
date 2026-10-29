@@ -15,6 +15,7 @@ import { createRoom } from './xmpp/createRoom.xmpp';
 import { setRoomImage } from './xmpp/setRoomImage.xmpp';
 import { getRoomMembers } from './xmpp/getRoomMembers.xmpp';
 import { getRoomInfo } from './xmpp/getRoomInfo.xmpp';
+import { getRoomAccess, RoomAccess } from './xmpp/getRoomAccess.xmpp';
 import { leaveTheRoom } from './xmpp/leaveTheRoom.xmpp';
 import { editMessage } from './xmpp/editMessage.xmpp';
 import { inviteRoomRequest } from './xmpp/inviteRoomRequest.xmpp';
@@ -2908,6 +2909,11 @@ export class XmppClient implements XmppClientInterface {
       getRoomInfo(roomJID, this.client);
     }).catch(() => {});
   };
+
+  getRoomAccessStanza = (roomJID: string, timeoutMs?: number): Promise<RoomAccess> =>
+    this.wrapWithConnectionCheck(() => getRoomAccess(roomJID, this.client, timeoutMs)).catch(
+      () => 'unknown' as const
+    );
 
   getRoomMembersStanza = (roomJID: string) => {
     this.wrapWithConnectionCheck(async () => {

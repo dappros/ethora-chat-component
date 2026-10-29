@@ -50,6 +50,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   'applyTypography',
   'clearTypography',
   'formatFingerprint',
+  'getRoomAccess',
   'handleQRChatId',
   'isE2eeEnabled',
   'isRefreshFatalError',
@@ -69,6 +70,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   'useRoomPresence',
   'useTypography',
   'useUnread',
+  'useXmppClient',
 ];
 
 /**

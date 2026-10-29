@@ -7,7 +7,9 @@ if (typeof window !== 'undefined') {
 /**
  * Main entry point for the Ethora Chat Component.
  */
-export { XmppProvider } from './context/xmppProvider';
+export { XmppProvider, useXmppClient } from './context/xmppProvider';
+export { getRoomAccess } from './networking/xmpp/getRoomAccess.xmpp';
+export type { RoomAccess } from './networking/xmpp/getRoomAccess.xmpp';
 export { ReduxWrapper as Chat } from './components/MainComponents/ReduxWrapper';
 export { useUnread } from './hooks/useUnreadMessagesCounter';
 export { useRoomPresence, useIsUserOnline } from './hooks/useRoomPresence';

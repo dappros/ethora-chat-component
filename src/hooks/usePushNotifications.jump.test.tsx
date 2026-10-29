@@ -9,6 +9,7 @@ vi.mock('../utils/firebasePushNotifications', () => ({
 }));
 vi.mock('../networking/api-requests/push.api', () => ({
   registerPushToken: vi.fn(),
+  resolvePushLanguage: () => '',
 }));
 vi.mock('../utils/clientRegistry', () => ({
   getGlobalXmppClient: () => null,
