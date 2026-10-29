@@ -1,5 +1,6 @@
 import { Client } from '@xmpp/client';
 import type { ReactionStanzaData } from '../../networking/xmpp/sendMessageReaction.xmpp';
+import type { RoomAccess } from '../../networking/xmpp/getRoomAccess.xmpp';
 import { Iso639_1Codes } from './language.model';
 import XmppClient, { HistoryWindowPage } from '../../networking/xmppClient';
 import { IMessage } from './message.model';
@@ -126,6 +127,7 @@ export interface XmppClientInterface {
     roomBackground?: string
   ): void;
   getRoomInfoStanza(roomJID: string): void;
+  getRoomAccessStanza(roomJID: string, timeoutMs?: number): Promise<RoomAccess>;
   getRoomMembersStanza(roomJID: string): void;
   setVCardStanza(xmppUsername: string): void;
 

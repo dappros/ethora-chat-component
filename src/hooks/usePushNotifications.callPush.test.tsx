@@ -15,7 +15,10 @@ vi.mock('../utils/firebasePushNotifications', () => ({
   listenForForegroundMessages: vi.fn(() => () => {}),
   requestPendingPushClick: vi.fn(async () => true),
 }));
-vi.mock('../networking/api-requests/push.api', () => ({ registerPushToken: vi.fn() }));
+vi.mock('../networking/api-requests/push.api', () => ({
+  registerPushToken: vi.fn(),
+  resolvePushLanguage: () => '',
+}));
 vi.mock('../utils/clientRegistry', () => ({ getGlobalXmppClient: () => null }));
 vi.mock('../networking/callTokenStanza', () => ({
   sendCallStateSignal: (...args: unknown[]) => sendCallStateSignal(...args),
