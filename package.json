@@ -66,6 +66,7 @@
     "livekit-client": "^2.18.3",
     "ltx": "^3.1.2",
     "pdfjs-dist": "^4.10.38",
+    "react-image-crop": "^11.0.7",
     "react-markdown": "^10.1.0",
     "react-qr-code": "^2.0.16",
     "react-redux": "^9.2.0",

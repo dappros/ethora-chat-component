@@ -59,6 +59,8 @@ const renderPanel = (roomType: 'group' | 'public' = 'group') =>
 
 describe('ChatProfileModal group metadata editing', () => {
   beforeEach(() => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ drawImage: vi.fn() } as unknown as CanvasRenderingContext2D);
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation((callback) => callback(new Blob(['cropped'], { type: 'image/png' })));
     patchMyChatMock.mockReset().mockResolvedValue(undefined);
     uploadFileMock.mockReset().mockResolvedValue({
       data: { results: [{ location: 'https://cdn.example.com/chat.png' }] },
@@ -92,6 +94,10 @@ describe('ChatProfileModal group metadata editing', () => {
     const file = new File(['avatar'], 'chat.png', { type: 'image/png' });
 
     fireEvent.change(input!, { target: { files: [file] } });
+    const cropImage = screen.getByRole('img', { name: 'Crop image' });
+    Object.defineProperties(cropImage, { width: { value: 200 }, height: { value: 200 }, naturalWidth: { value: 200 }, naturalHeight: { value: 200 } });
+    fireEvent.load(cropImage);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() =>
       expect(patchMyChatMock).toHaveBeenCalledWith('room_1', {
@@ -114,6 +120,10 @@ describe('ChatProfileModal group metadata editing', () => {
     const file = new File(['avatar'], 'chat.png', { type: 'image/png' });
 
     fireEvent.change(input!, { target: { files: [file] } });
+    const cropImage = screen.getByRole('img', { name: 'Crop image' });
+    Object.defineProperties(cropImage, { width: { value: 200 }, height: { value: 200 }, naturalWidth: { value: 200 }, naturalHeight: { value: 200 } });
+    fireEvent.load(cropImage);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(patchMyChatMock).toHaveBeenCalledOnce());
     expect(store.getState().rooms.rooms[ROOM_JID].icon).toBeUndefined();
