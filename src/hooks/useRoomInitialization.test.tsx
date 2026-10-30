@@ -26,6 +26,14 @@ vi.mock('../roomStore/roomsSlice', () => ({
 vi.mock('./useGetNewArchRoom', () => ({
   default: () => vi.fn(async () => []),
 }));
+vi.mock('../networking/api-requests/rooms.api', () => ({
+  getRoomByName: vi.fn(async () => {
+    throw new Error('404');
+  }),
+}));
+vi.mock('../helpers/createRoomFromApi', () => ({
+  createRoomFromApi: () => null,
+}));
 
 let mockClient: any;
 vi.mock('../context/xmppProvider', () => ({

@@ -6,6 +6,7 @@ import rehypeSanitize from 'rehype-sanitize';
 import { markdownSanitizeSchema } from './markdownSanitizeSchema';
 import { remarkLineBreaks } from './remarkLineBreaks';
 import type { MentionClickHandler } from './parseMessageBody';
+import { handleChatLinkClick } from './chatLinkTarget';
 
 interface MarkdownBodyProps {
   text: string;
@@ -46,6 +47,7 @@ const MarkdownBody = ({ text, onMentionClick }: MarkdownBodyProps) => {
               href={href!}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={(event) => handleChatLinkClick(event, href)}
               style={{
                 color: 'var(--ethora-color-primary-text, var(--ethora-color-primary, #0a66c2))',
                 textDecoration: 'none',

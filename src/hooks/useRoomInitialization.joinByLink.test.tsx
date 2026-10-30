@@ -23,6 +23,21 @@ vi.mock('../roomStore/roomsSlice', () => ({
   setIsLoading: (payload: any) => ({ type: 'setIsLoading', payload }),
   setJoiningRoom: (payload: any) => ({ type: 'setJoiningRoom', payload }),
   clearJoiningRoom: (payload: any) => ({ type: 'clearJoiningRoom', payload }),
+  addRoomViaApi: (payload: any) => ({ type: 'addRoomViaApi', payload }),
+}));
+
+// GET /chats/my/<name>: rejects (404) until a test says the membership exists.
+let roomByNameResult: any = null;
+const getRoomByNameMock = vi.fn(async (_name: string) => {
+  if (!roomByNameResult) throw new Error('404');
+  return roomByNameResult;
+});
+vi.mock('../networking/api-requests/rooms.api', () => ({
+  getRoomByName: (name: string) => getRoomByNameMock(name),
+}));
+vi.mock('../helpers/createRoomFromApi', () => ({
+  createRoomFromApi: (room: any, service: string) =>
+    room?.name && service ? { jid: `${room.name}@${service}`, title: room.title } : null,
 }));
 
 const order: string[] = [];
@@ -75,6 +90,8 @@ afterEach(() => {
   syncRoomsMock.mockClear();
   order.length = 0;
   syncRoomsResult = [];
+  roomByNameResult = null;
+  getRoomByNameMock.mockClear();
 });
 
 describe('useRoomInitialization - entering a room by link', () => {
@@ -199,14 +216,38 @@ describe('useRoomInitialization - entering a room by link', () => {
       await vi.advanceTimersByTimeAsync(2000);
       expect(joiningCalls()).toEqual(['setJoiningRoom']);
 
-      await vi.advanceTimersByTimeAsync(10000);
+      await vi.advanceTimersByTimeAsync(20000);
       expect(joiningCalls()).toEqual(['setJoiningRoom', 'clearJoiningRoom']);
       // initial sync + one per retry step
-      expect(syncRoomsMock).toHaveBeenCalledTimes(4);
+      expect(syncRoomsMock).toHaveBeenCalledTimes(5);
 
       unmount();
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('adds the room from GET /chats/my/<name> when the cached list still misses it', async () => {
+    // /chats/my is cached server-side for 60s and a join does not drop that
+    // cache, so the list keeps missing the room while the membership exists.
+    mockClient = makeClient();
+    syncRoomsResult = [];
+    roomByNameResult = { result: { title: 'Public room', type: 'public' } };
+
+    const { unmount } = renderHook(() =>
+      useRoomInitialization(
+        UNKNOWN_JID,
+        { xmppSettings: { conference: 'conference.example.com' } } as any,
+        0
+      )
+    );
+    await flush();
+
+    expect(getRoomByNameMock).toHaveBeenCalledWith(UNKNOWN_JID.split('@')[0]);
+    const added = dispatchMock.mock.calls.map(([a]) => a).find((a) => a?.type === 'addRoomViaApi');
+    expect(added?.payload.room).toEqual({ jid: UNKNOWN_JID, title: 'Public room' });
+    expect(syncRoomsMock).toHaveBeenCalledTimes(1);
+
+    unmount();
   });
 });

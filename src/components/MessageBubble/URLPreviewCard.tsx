@@ -2,6 +2,7 @@ import { safeImageUrl } from '../../helpers/safeUrl';
 import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import axios from 'axios';
+import { handleChatLinkClick } from '../../helpers/chatLinkTarget';
 
 interface URLPreviewCardProps {
   url: string;
@@ -163,7 +164,12 @@ const URLPreviewCard: React.FC<URLPreviewCardProps> = ({ url }) => {
       {previewData.description && (
         <PreviewDescription>{previewData.description}</PreviewDescription>
       )}
-      <PreviewUrl href={url} target="_blank" rel="noopener noreferrer">
+      <PreviewUrl
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(event: React.MouseEvent<HTMLAnchorElement>) => handleChatLinkClick(event, url)}
+      >
         {displayHostname}
       </PreviewUrl>
     </PreviewContainer>

@@ -1,13 +1,16 @@
 import { useEffect, useRef } from 'react';
 import {
+  addRoomViaApi,
   setIsLoading,
   setJoiningRoom,
   clearJoiningRoom,
 } from '../roomStore/roomsSlice';
+import { createRoomFromApi } from '../helpers/createRoomFromApi';
+import { getRoomByName } from '../networking/api-requests/rooms.api';
 import { useXmppClient } from '../context/xmppProvider';
 import { ApiRoom, IConfig, IMessage, IRoom } from '../types/types';
 import { useDispatch, useSelector, useStore } from 'react-redux';
-import { RootState } from '../roomStore';
+import { AppDispatch, RootState } from '../roomStore';
 import useGetNewArchRoom from './useGetNewArchRoom';
 
 const countUndefinedText = (arr: IMessage[]) =>
@@ -36,7 +39,7 @@ const ACTIVE_ROOM_LOADER_HARD_CAP_MS = 3000;
 // Backoff for the BACKGROUND /chats/my refetches after joining a room by
 // link. Measured against the QA backend, which registers the membership the
 // MUC presence created a few seconds after the presence call returns.
-const JOIN_SYNC_RETRY_DELAYS_MS = [1000, 2500, 5000];
+const JOIN_SYNC_RETRY_DELAYS_MS = [1000, 2500, 5000, 8000];
 
 export const useRoomInitialization = (
   activeRoomJID: string,
@@ -253,7 +256,25 @@ export const useRoomInitialization = (
           const items = await syncRooms(client, config, { force: true }).catch(
             () => [] as ApiRoom[]
           );
-          const alreadyThere = items?.some((item) => item?.name === wantedName);
+          const addJoinedRoom = async (): Promise<boolean> => {
+            try {
+              const res = (await getRoomByName(wantedName)) as
+                | (ApiRoom & { result?: ApiRoom })
+                | undefined;
+              const room = createRoomFromApi(
+                { ...(res?.result || res), name: wantedName } as ApiRoom,
+                config?.xmppSettings?.conference
+              );
+              if (!room) return false;
+              (dispatch as AppDispatch)(addRoomViaApi({ room, xmpp: client }));
+              return true;
+            } catch {
+              return false;
+            }
+          };
+          const alreadyThere =
+            items?.some((item) => item?.name === wantedName) ||
+            (await addJoinedRoom());
           if (alreadyThere) endJoin();
           // One background reconcile per room per mount, no matter how many
           // times this effect re-runs as the room list settles.
@@ -270,6 +291,7 @@ export const useRoomInitialization = (
                     force: true,
                   }).catch(() => [] as typeof items);
                   if (retried?.some((item) => item?.name === wantedName)) return;
+                  if (await addJoinedRoom()) return;
                 }
               } finally {
                 endJoin();
