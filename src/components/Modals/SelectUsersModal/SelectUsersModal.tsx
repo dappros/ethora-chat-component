@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import styled from 'styled-components';
 import { getRoomUserCount } from '../../../helpers/roomUserCount';
 import { useModalDismiss } from '../../../hooks/useModalDismiss';
 import { useDispatch, useSelector } from 'react-redux';
@@ -18,6 +19,12 @@ import { postAddRoomMember } from '../../../networking/api-requests/rooms.api';
 import { useToast } from '../../../context/ToastContext';
 import { updateRoom } from '../../../roomStore/roomsSlice';
 import { useT } from '../../../i18n/useT';
+
+const AddUsersButton = styled(ActionButton)`
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 8px 16px;
+`;
 
 const SelectUsersModal: React.FC = () => {
   const { showToast } = useToast();
@@ -93,9 +100,9 @@ const SelectUsersModal: React.FC = () => {
 
   return (
     <>
-      <ActionButton variant="filled" unstyled onClick={handleOpenModal}>
+      <AddUsersButton variant="filled" onClick={handleOpenModal}>
         {t('action.addMoreUsers')}
-      </ActionButton>
+      </AddUsersButton>
 
       {isModalOpen && (
         <ModalBackground>

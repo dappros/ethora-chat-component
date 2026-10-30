@@ -1,5 +1,6 @@
 import { safeImageUrl } from '../../helpers/safeUrl';
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { AvatarCropDialog } from './AvatarCropDialog';
 import { EditIcon } from '../../assets/icons';
 import {
   AvatarCircle,
@@ -58,6 +59,8 @@ export const ProfileImagePlaceholder: React.FC<
     (state: RootState) => state.chatSettingStore.config?.colors
   );
   const t = useT();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [cropFile, setCropFile] = useState<File | null>(null);
   const iconsBg = colors?.iconsBg;
   const iconColor = colors?.icons;
   const { backgroundColor: hashedBg } = nameToColor(name);
@@ -122,13 +125,14 @@ export const ProfileImagePlaceholder: React.FC<
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && upload?.onUpload) {
-      upload.onUpload(file);
+      setCropFile(file);
     }
+    event.target.value = '';
   };
 
   const handleAvatarClick = () => {
     if (upload?.active) {
-      document.getElementById(fileInputId)?.click();
+      inputRef.current?.click();
     }
   };
 
@@ -173,6 +177,7 @@ export const ProfileImagePlaceholder: React.FC<
           <>
             <FileInput
               type="file"
+              ref={inputRef}
               id={fileInputId}
               accept="image/png, image/jpeg"
               onChange={handleFileChange}
@@ -185,6 +190,7 @@ export const ProfileImagePlaceholder: React.FC<
           </>
         )}
       </AvatarCircle>
+      {cropFile && <AvatarCropDialog file={cropFile} onCancel={() => setCropFile(null)} onSave={(file) => { setCropFile(null); upload?.onUpload(file); }} />}
       {online && (
         <span
           aria-label="online"

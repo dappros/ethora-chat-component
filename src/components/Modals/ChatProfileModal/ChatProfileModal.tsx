@@ -76,6 +76,8 @@ const RoomInfoEditButton = styled.button`
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  justify-content: center;
+  max-width: 100%;
   border: 0;
   border-radius: var(--ethora-radius-md, 10px);
   padding: 6px 10px;
@@ -87,6 +89,11 @@ const RoomInfoEditButton = styled.button`
   &:hover { background: var(--ethora-color-bg-hover, rgba(127, 127, 127, 0.12)); }
   &:focus-visible { outline: 2px solid var(--ethora-color-primary, #168fc4); }
   svg { width: 16px; height: 16px; }
+`;
+
+const RoomIdentity = styled.div`
+  width: 100%;
+  min-width: 0;
 `;
 
 const RoomInfoInput = styled.input`
@@ -560,8 +567,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
           role={activeRoom?.role}
           size={96}
         />
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <RoomIdentity>
             {editingRoomInfo ? (
               <RoomInfoInput
                 aria-label={t('modal.chatProfile.chatName')}
@@ -574,6 +580,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                 {activeRoom.title || activeRoom.name}
               </ProfileHeroName>
             )}
+          <ProfileHeroSubtitle>{memberCountLabel}</ProfileHeroSubtitle>
             {canEditRoomInfo && !editingRoomInfo && (
               <RoomInfoEditButton
                 type="button"
@@ -584,9 +591,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
                 {t('action.editProfile')}
               </RoomInfoEditButton>
             )}
-          </div>
-          <ProfileHeroSubtitle>{memberCountLabel}</ProfileHeroSubtitle>
-        </div>
+        </RoomIdentity>
       </ProfileHero>
 
       {!editingRoomInfo &&
