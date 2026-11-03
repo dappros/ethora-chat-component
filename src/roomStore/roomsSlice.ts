@@ -993,6 +993,22 @@ const roomsStore = createSlice({
         }
       );
     },
+
+    confirmMessageDelivered(
+      state,
+      action: PayloadAction<{ roomJID: string; messageId: string }>
+    ) {
+      const { roomJID, messageId } = action.payload;
+      forEachMessageCopy(
+        state,
+        roomJID,
+        (msg) => msg.id === messageId || msg.xmppId === messageId,
+        (message) => {
+          message.pending = false;
+          message.failed = false;
+        }
+      );
+    },
     // Retry: put the message back into the sending state under its ORIGINAL
     // id, so the retry send and any late echo of the first attempt land on
     // the same entry.
@@ -2123,6 +2139,7 @@ export const {
   setEditAction,
   setMessageSendFailed,
   setMessageSendRetrying,
+  confirmMessageDelivered,
   setMediaUploadState,
   editRoomMessage,
   setMessageTranslation,

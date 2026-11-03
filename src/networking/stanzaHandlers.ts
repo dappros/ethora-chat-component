@@ -4,6 +4,7 @@ import {
   addRoom,
   addRoomMessage,
   addRoomViaApi,
+  confirmMessageDelivered,
   deleteRoomMessage,
   editRoomMessage,
   setComposing,
@@ -1125,6 +1126,32 @@ const onRoomKicked = async (stanza: Element) => {
   }
 };
 
+const confirmDuplicateDelivered = (
+  stanza: Element,
+  roomJID: string,
+  condition: string,
+  client: XmppClient
+): boolean => {
+  const messageId = stanza.attrs.id;
+  if (condition !== 'conflict' || !messageId || !roomJID) return false;
+  const isOurs = store
+    .getState()
+    .rooms.rooms?.[roomJID]?.messages?.some(
+      (m) => m.id === messageId || m.xmppId === messageId
+    );
+  if (!isOurs) return false;
+
+  ethoraLogger.log(
+    `[XMPP] message_error duplicate_confirmed id=${messageId} room=${roomJID}`
+  );
+  store.dispatch(confirmMessageDelivered({ roomJID, messageId }));
+  store.dispatch(removeMessageFromHeapById(messageId));
+  client?.acknowledgeSentMessage(roomJID, messageId);
+  clearSendFailureWatchdog(messageId);
+  endSendRetry(messageId);
+  return true;
+};
+
 const onMessageError = async (stanza: Element, client: XmppClient) => {
   if (stanza.name === 'message' && stanza.attrs.type === 'error') {
     const errorInfo = handleErrorMessageStanza(stanza);
@@ -1142,6 +1169,8 @@ const onMessageError = async (stanza: Element, client: XmppClient) => {
     ethoraLogger.log(
       `[XMPP] message_error condition=${errorInfo?.condition || 'unknown'} text="${errorInfo?.message || ''}" id=${stanza.attrs.id || ''} from=${from} to=${stanza.attrs.to || ''}`
     );
+
+    if (confirmDuplicateDelivered(stanza, roomJID, condition, client)) return;
 
     if (!isMucRoom) {
       ethoraLogger.log(
