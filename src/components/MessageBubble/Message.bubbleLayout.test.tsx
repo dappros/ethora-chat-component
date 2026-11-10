@@ -157,6 +157,14 @@ describe('Message time side (bottom right for every bubble)', () => {
     const css = declarationsFor(timeEl());
     expect(css).toContain('right:13px');
   });
+
+  it('keeps the time pill over the picture when the action row overlaps the bubble', () => {
+    renderBubble(makeMessage({
+      isMediafile: 'true', attachments: [image(1)], body: 'media', reaction: reactions,
+    }), true);
+    expect(declarationsFor(bubble())).toContain('padding:6px6px14px');
+    expect(declarationsFor(timeEl())).toContain('bottom:22px');
+  });
 });
 
 describe('Message time row alignment', () => {
@@ -328,6 +336,8 @@ describe('Message bottom spacing', () => {
     expect(footer().lastElementChild).toBe(screen.getByRole('button', { name: '1 reply' }));
     expect(declarationsFor(footer())).toContain(isUser ? 'flex-direction:row-reverse' : 'flex-direction:row');
     expect(declarationsFor(footer())).not.toContain('position:absolute');
+    expect(declarationsFor(footer())).toContain('margin-top:-8px');
+    expect(declarationsFor(bubble())).toContain(isUser ? 'padding:8px12px16px' : 'padding:7px11px15px');
     expect(declarationsFor(rowOf())).toContain('margin-bottom:max(var(--ethora-message-run-gap,2px),6px)');
   });
 

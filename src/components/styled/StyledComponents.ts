@@ -286,6 +286,7 @@ export const MEDIA_RADIUS_PX = BUBBLE_RADIUS_PX - MEDIA_BUBBLE_INSET_PX;
 export const TIME_BASELINE_NUDGE_PX = 2;
 /** Glass time pill over media: how far it sits inside the media edge, in px. */
 export const MEDIA_TIME_PILL_OFFSET_PX = 8;
+const MESSAGE_FOOTER_OVERLAP_PX = 8;
 
 const bubbleBordered = (props: { $isUser: boolean; $deleted: boolean }) =>
   !props.$deleted && !props.$isUser;
@@ -295,10 +296,13 @@ export const bubblePadding = (props: {
   $isUser: boolean;
   $deleted: boolean;
   $media?: boolean;
+  $hasFooter?: boolean;
 }) => {
   const border = bubbleBordered(props) ? 1 : 0;
   const y = (props.$media ? MEDIA_BUBBLE_INSET_PX : TEXT_BUBBLE_INSET_Y_PX) - border;
   const x = (props.$media ? MEDIA_BUBBLE_INSET_PX : TEXT_BUBBLE_INSET_X_PX) - border;
+  // Keep the footer in front of the bubble's border and clear of its content.
+  if (props.$hasFooter) return `${y}px ${x}px ${y + MESSAGE_FOOTER_OVERLAP_PX}px`;
   return y === x ? `${y}px` : `${y}px ${x}px`;
 };
 
@@ -424,6 +428,7 @@ const bubbleTail = (props: { $isUser: boolean; $deleted: boolean }) => {
 export const CustomMessageBubble = styled.div<{
   $isUser: boolean;
   $deleted: boolean;
+  $hasFooter?: boolean;
   /** The bubble carries a media block (pictures, videos, cards, voice notes). */
   $media?: boolean;
   /** Its only media is one solo picture or video: the bubble hugs it. */
@@ -501,6 +506,7 @@ export const CustomUserName = styled.span<{
 `;
 
 export const CustomMessageTimestamp = styled.span<{
+  $hasFooter?: boolean;
   /** Media bubble: the row sits under the media with 0 8px 2px padding. */
   $media?: boolean;
   /** Text bubble: the time floats at the end of the last line of text. */
@@ -534,7 +540,7 @@ export const CustomMessageTimestamp = styled.span<{
     position: absolute;
     z-index: 2;
     right: ${MEDIA_BUBBLE_INSET_PX + MEDIA_TIME_PILL_OFFSET_PX - (props.$bordered ? 1 : 0)}px;
-    bottom: ${MEDIA_BUBBLE_INSET_PX + MEDIA_TIME_PILL_OFFSET_PX - (props.$bordered ? 1 : 0)}px;
+    bottom: ${MEDIA_BUBBLE_INSET_PX + MEDIA_TIME_PILL_OFFSET_PX - (props.$bordered ? 1 : 0) + (props.$hasFooter ? MESSAGE_FOOTER_OVERLAP_PX : 0)}px;
     align-self: auto;
     padding: 2px 7px;
     border-radius: 999px;
@@ -617,7 +623,8 @@ export const MessageFooter = styled.div<{ $isUser: boolean }>`
   align-items: center;
   gap: 6px;
   flex-direction: ${(props) => (props.$isUser ? 'row-reverse' : 'row')};
-  margin-top: 4px;
+  position: relative;
+  margin-top: -${MESSAGE_FOOTER_OVERLAP_PX}px;
   padding-inline-start: ${(props) => props.$isUser
     ? '0'
     : 'calc(var(--ethora-message-avatar-size, 40px) + var(--ethora-message-avatar-gap, 5px))'};

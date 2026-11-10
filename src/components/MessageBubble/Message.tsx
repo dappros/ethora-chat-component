@@ -852,6 +852,7 @@ const Message: React.FC<MessageProps> = forwardRef<
 
   const timeNode = (
     <CustomMessageTimestamp
+      $hasFooter={hasFooter}
       $inline={timeInline}
       $media={isMediaBubble && !hasQuickReplies}
       $overlay={timeOverPicture}
@@ -944,6 +945,7 @@ const Message: React.FC<MessageProps> = forwardRef<
             isMediaBubble ? mediaTime.mode : timeInline ? 'inline' : 'row'
           }
           $deleted={message.isDeleted}
+          $hasFooter={hasFooter}
           $tail={showsTail}
           $isUser={isUser}
           $media={isMediaBubble}
