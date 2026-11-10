@@ -1,14 +1,12 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { cleanup } from '@testing-library/react';
+import { cleanup, screen } from '@testing-library/react';
 import { renderWithProviders } from '../../test/renderWithProviders';
 import { Message } from './Message';
 import { IAttachment, IMessage, IRoom } from '../../types/types';
 import { MessageContainer } from '../MainComponents/MessageContainer';
 import {
   TIME_BASELINE_NUDGE_PX,
-  REACTION_CLEAR_PX,
-  REACTION_HANG_PX,
   RUN_GAP_PX,
   SENDER_GAP_PX,
 } from '../styled/StyledComponents';
@@ -285,11 +283,7 @@ describe('Message bubble tail', () => {
     expect(pseudoFor(bubble(), '::after')).toBe('');
   });
 
-  it('keeps the reaction row on the left side, inset 8px, away from the tail', () => {
-    renderBubble(makeMessage({ reaction: reactions } as Partial<IMessage>), true, true);
-    expect(emittedCss()).toMatch(/\.[\w-]+>\.reaction-row\{[^}]*left:8px/);
-    expect(emittedCss()).not.toMatch(/\.[\w-]+>\.reaction-row\{[^}]*right:8px/);
-  });
+
 });
 
 describe('Message bottom spacing', () => {
@@ -310,25 +304,6 @@ describe('Message bottom spacing', () => {
     expect(declarationsFor(rowOf())).toContain('margin:0');
   });
 
-  it('reserves the 12px hang plus a 4px clear gap below a row with reactions', () => {
-    renderBubble(makeMessage({ reaction: reactions } as Partial<IMessage>), false, true);
-    expect(REACTION_HANG_PX).toBe(12);
-    expect(REACTION_CLEAR_PX).toBe(4);
-    expect(declarationsFor(rowOf())).toContain(
-      'margin-bottom:max(var(--ethora-message-sender-gap,8px),16px)'
-    );
-    expect(declarationsFor(rowOf())).not.toContain('margin-bottom:12px');
-    expect(declarationsFor(bubble())).not.toContain('padding-bottom');
-  });
-
-  it('reserves 16px with reactions inside a run too, not the 2px run gap', () => {
-    renderBubble(makeMessage({ reaction: reactions } as Partial<IMessage>), false, false);
-    expect(declarationsFor(rowOf())).toContain(
-      'margin-bottom:max(var(--ethora-message-run-gap,2px),16px)'
-    );
-    expect(declarationsFor(rowOf())).not.toContain('margin-bottom:var(--ethora-message-run-gap,2px);');
-  });
-
   it('keeps the 8px sender gap and the 2px run gap when there are no reactions', () => {
     renderBubble(makeMessage(), false, true);
     expect(declarationsFor(rowOf())).toContain('margin-bottom:var(--ethora-message-sender-gap,8px)');
@@ -344,19 +319,25 @@ describe('Message bottom spacing', () => {
     expect(declarationsFor(rowOf())).toContain('z-index:1');
   });
 
-  it('grows the reserve with the measured height of wrapped chip rows', () => {
-    // Two chip rows: 24px + 4px gap + 24px = 52px tall, 40px hang below the bubble.
-    const spy = vi
-      .spyOn(HTMLElement.prototype, 'offsetHeight', 'get')
-      .mockImplementation(function (this: HTMLElement) {
-        return this.classList.contains('reaction-row') ? 52 : 0;
-      });
-    try {
-      renderBubble(makeMessage({ reaction: reactions } as Partial<IMessage>), false, true);
-      expect(declarationsFor(rowOf())).toContain('margin-bottom:max(var(--ethora-message-sender-gap,8px),44px)');
-    } finally {
-      spy.mockRestore();
-    }
+  const reply = makeMessage({ user: { id: 'bob', name: 'Bob' } as IMessage['user'] });
+  const footer = () => bubble().nextElementSibling as HTMLElement;
+
+  it.each([false, true])('uses one footer for reactions and replies (own: %s)', (isUser) => {
+    renderBubble(makeMessage({ reaction: reactions, reply: [reply] }), isUser, false);
+    expect(footer().firstElementChild).toHaveClass('reaction-row');
+    expect(footer().lastElementChild).toBe(screen.getByRole('button', { name: '1 reply' }));
+    expect(declarationsFor(footer())).toContain(isUser ? 'flex-direction:row-reverse' : 'flex-direction:row');
+    expect(declarationsFor(footer())).not.toContain('position:absolute');
+    expect(declarationsFor(rowOf())).toContain('margin-bottom:max(var(--ethora-message-run-gap,2px),6px)');
+  });
+
+  it('puts the only available action first', () => {
+    renderBubble(makeMessage({ reply: [reply] }));
+    expect(footer().firstElementChild).toBe(screen.getByRole('button', { name: '1 reply' }));
+    cleanup();
+    renderBubble(makeMessage({ reaction: reactions }));
+    expect(footer().children).toHaveLength(1);
+    expect(footer().firstElementChild).toHaveClass('reaction-row');
   });
 
   it('gives the row a 6px side gutter so the tail is not clipped', () => {

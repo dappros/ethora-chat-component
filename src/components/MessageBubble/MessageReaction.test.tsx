@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { fireEvent, screen, within } from '@testing-library/react';
 import { renderWithProviders } from '../../test/renderWithProviders';
 import { MessageReaction } from './MessageReaction';
@@ -227,28 +227,28 @@ describe('Message reaction placement', () => {
     height: 900,
   };
 
-  it('sits inside the text bubble, after the text', () => {
+  it('follows the text bubble', () => {
     const { container } = renderMessage({
       ...base,
       body: 'hello there',
     } as IMessage);
     const bubble = container.querySelector('[data-ethora-bubble]') as HTMLElement;
-    const chip = within(bubble).getByRole('button', { name: '👍 1' });
+    const chip = screen.getByRole('button', { name: '👍 1' });
     const text = within(bubble).getByText('hello there');
     expect(text.compareDocumentPosition(chip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('makes the reaction row a direct child of the bubble so it can straddle its bottom edge', () => {
+  it('puts the reaction row in the footer next to the bubble', () => {
     const { container } = renderMessage({
       ...base,
       body: 'hello there',
     } as IMessage);
     const bubble = container.querySelector('[data-ethora-bubble]') as HTMLElement;
-    const row = within(bubble).getByRole('button', { name: '👍 1' }).closest('.reaction-row');
-    expect(row?.parentElement).toBe(bubble);
+    const row = screen.getByRole('button', { name: '👍 1' }).closest('.reaction-row');
+    expect(row?.parentElement).toBe(bubble.nextElementSibling);
   });
 
-  it('renders under a media-only bubble inside the bubble, after the media', () => {
+  it('renders under a media-only bubble, after the media', () => {
     const { container } = renderMessage({
       ...base,
       body: 'media',
@@ -258,7 +258,7 @@ describe('Message reaction placement', () => {
       location: image.location,
     } as IMessage);
     const bubble = container.querySelector('[data-ethora-bubble]') as HTMLElement;
-    const chip = within(bubble).getByRole('button', { name: '👍 1' });
+    const chip = screen.getByRole('button', { name: '👍 1' });
     const media = within(bubble).getByTestId('media-block');
     expect(media.compareDocumentPosition(chip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
@@ -273,7 +273,7 @@ describe('Message reaction placement', () => {
       location: image.location,
     } as IMessage);
     const bubble = container.querySelector('[data-ethora-bubble]') as HTMLElement;
-    const chip = within(bubble).getByRole('button', { name: '👍 1' });
+    const chip = screen.getByRole('button', { name: '👍 1' });
     const caption = within(bubble).getByText('a caption');
     expect(caption.compareDocumentPosition(chip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
@@ -330,100 +330,15 @@ describe('MessageReaction colours match the pre-redesign chip', () => {
   });
 });
 
-describe('MessageReaction hang reporting', () => {
-  type Observed = {
-    callback: () => void;
-    observe: ReturnType<typeof vi.fn>;
-    disconnect: ReturnType<typeof vi.fn>;
-  };
-  let observers: Observed[] = [];
-  let rowHeight = 24;
-  const originalRO = globalThis.ResizeObserver;
-  const originalHeight = Object.getOwnPropertyDescriptor(
-    HTMLElement.prototype,
-    'offsetHeight'
-  );
-
-  const installStubs = () => {
-    observers = [];
-    globalThis.ResizeObserver = class {
-      constructor(callback: () => void) {
-        const entry: Observed = {
-          callback,
-          observe: vi.fn(),
-          disconnect: vi.fn(),
-        };
-        observers.push(entry);
-        return entry as unknown as ResizeObserver;
-      }
-    } as unknown as typeof ResizeObserver;
-    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
-      configurable: true,
-      get(this: HTMLElement) {
-        return this.classList.contains('reaction-row') ? rowHeight : 0;
-      },
-    });
-  };
-
-  afterEach(() => {
-    globalThis.ResizeObserver = originalRO;
-    if (originalHeight) {
-      Object.defineProperty(HTMLElement.prototype, 'offsetHeight', originalHeight);
-    }
-  });
-
-  const renderWithHang = (onHangChange: (px: number) => void) =>
-    renderWithProviders(
-      <MessageReaction
-        reaction={{ bob: reactor('Bob', 'Lee', ['+1']) }}
-        color="#0052CD"
-        changeReaction={vi.fn()}
-        userName={ME}
-        onHangChange={onHangChange}
-      />
-    );
-
-  it('reports the 12px hang of a single chip row on mount', () => {
-    installStubs();
-    rowHeight = 24;
-    const onHangChange = vi.fn();
-    renderWithHang(onHangChange);
-    expect(onHangChange).toHaveBeenLastCalledWith(12);
-    expect(observers[0].observe).toHaveBeenCalledTimes(1);
-  });
-
-  it('reports the taller hang when the chips wrap to a second row', () => {
-    installStubs();
-    rowHeight = 52;
-    const onHangChange = vi.fn();
-    renderWithHang(onHangChange);
-    expect(onHangChange).toHaveBeenLastCalledWith(40);
-  });
-
-  it('re-reports when the row resizes, and disconnects on unmount', () => {
-    installStubs();
-    rowHeight = 24;
-    const onHangChange = vi.fn();
-    const { unmount } = renderWithHang(onHangChange);
-    rowHeight = 80;
-    observers[0].callback();
-    expect(onHangChange).toHaveBeenLastCalledWith(68);
-    unmount();
-    expect(observers[0].disconnect).toHaveBeenCalled();
-  });
-
-  it('reports nothing and observes nothing when there are no reactions', () => {
-    installStubs();
-    const onHangChange = vi.fn();
-    renderWithProviders(
-      <MessageReaction
-        reaction={{}}
-        color="#0052CD"
-        changeReaction={vi.fn()}
-        onHangChange={onHangChange}
-      />
-    );
-    expect(onHangChange).not.toHaveBeenCalled();
-    expect(observers).toHaveLength(0);
-  });
+it('uses a scrollable strip and keeps reaction names available when chips do not fit', () => {
+  const scroll = vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(240);
+  const client = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(120);
+  try {
+    const { container } = renderReaction({ bob: reactor('Bob', 'Lee', ['+1']) });
+    expect(container.querySelector('.reaction-row')).toHaveAttribute('data-scroll', 'true');
+    expect(screen.getByRole('button', { name: '👍 1' })).toHaveAttribute('title', 'Bob Lee reacted with 👍');
+  } finally {
+    scroll.mockRestore();
+    client.mockRestore();
+  }
 });

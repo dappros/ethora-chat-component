@@ -38,7 +38,6 @@ const Row = styled.div<{ $dark: boolean; $accent: string }>`
   flex-wrap: wrap;
   align-items: stretch;
   gap: 8px;
-  margin-top: 10px;
   max-width: 100%;
 `;
 

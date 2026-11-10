@@ -225,14 +225,6 @@ export const SendButton = styled.button`
   }
 `;
 
-/**
- * How far a reaction row hangs below the bubble's bottom edge, in px. The row
- * straddles the edge, so half of it (12px) is inside the bubble and the other
- * half is the only space the message row reserves below it.
- */
-export const REACTION_HANG_PX = 12;
-/** Clear space between the lowest reaction chip and the next bubble, in px. */
-export const REACTION_CLEAR_PX = 4;
 /** Vertical gap below a message that is followed by the same sender, in px. */
 export const RUN_GAP_PX = 2;
 /** Vertical gap below the last message of a run, before the next sender, in px. */
@@ -242,16 +234,10 @@ export const MESSAGE_ROW_GUTTER_PX = 6;
 
 export const CustomMessageContainer = styled.div<{
   $isUser: boolean;
-  $reply: boolean;
-  /** The bubble carries a reaction row that hangs below its bottom edge. */
-  $reaction?: boolean;
+  $hasFooter?: boolean;
+  $quickReplies?: boolean;
   /** False when the next message comes from the same sender (a run). */
   $lastInGroup?: boolean;
-  /**
-   * How far the reaction chips hang below the bubble, in px, as measured by
-   * MessageReaction (one row is REACTION_HANG_PX). Only used with $reaction.
-   */
-  $reactionHang?: number;
 }>`
   display: flex;
   flex-direction: ${(props) => (props.$isUser ? 'row-reverse' : 'row')};
@@ -260,25 +246,13 @@ export const CustomMessageContainer = styled.div<{
   margin: 0;
   padding: 0 var(--ethora-message-row-gutter, ${MESSAGE_ROW_GUTTER_PX}px);
   gap: var(--ethora-message-avatar-gap, 5px);
+  ${(props) => (props.$hasFooter ? 'flex-wrap: wrap; row-gap: 0; z-index: 1;' : '')}
   position: relative;
-  /* A row with chips paints above the rows after it, so the next bubble and
-     its tail never cover the chips that hang into the gap. */
-  ${(props) => (props.$reaction ? 'z-index: 1;' : '')}
   margin-bottom: ${(props) => {
-    const gap = props.$reply
-      ? 40
-      : props.$lastInGroup === false
-        ? RUN_GAP_PX
-        : SENDER_GAP_PX;
-    // The run and sender gaps are host-tunable; the defaults are the constants.
-    const gapCss = props.$reply
-      ? `${gap}px`
-      : props.$lastInGroup === false
-        ? `var(--ethora-message-run-gap, ${RUN_GAP_PX}px)`
-        : `var(--ethora-message-sender-gap, ${SENDER_GAP_PX}px)`;
-    if (!props.$reaction) return gapCss;
-    const hang = props.$reactionHang ?? REACTION_HANG_PX;
-    return `max(${gapCss}, ${hang + REACTION_CLEAR_PX}px)`;
+    const gapCss = props.$lastInGroup === false
+      ? `var(--ethora-message-run-gap, ${RUN_GAP_PX}px)`
+      : `var(--ethora-message-sender-gap, ${SENDER_GAP_PX}px)`;
+    return props.$hasFooter || props.$quickReplies ? `max(${gapCss}, 6px)` : gapCss;
   }};
 `;
 
@@ -483,21 +457,9 @@ export const CustomMessageBubble = styled.div<{
       ? `1px solid ${BUBBLE_BORDER_CSS}`
       : '1px solid transparent'};
   position: relative;
-  /* Overflow stays visible: the tail and the reaction row sit outside the edge. */
+  /* The tail sits outside the bubble. */
   overflow: visible;
   ${(props) => (props.$tail ? bubbleTail(props) : '')}
-  /* The reaction row straddles the bottom edge on the left, inset 8px. The
-     time is bottom right and the tail is on the outer corner, so the row never
-     covers either. */
-  & > .reaction-row {
-    position: absolute;
-    /* Anchored by its first row: that row straddles the bottom edge, and any
-       wrapped rows fall below it. Every bubble has a 1px border, so the
-       padding box is 2px shorter than the bubble: 11px, not 12px, up from it. */
-    top: calc(100% - ${REACTION_HANG_PX - 1}px);
-    left: 8px;
-    z-index: 2;
-  }
 `;
 
 export const CustomMessageText = styled.div`
@@ -648,18 +610,33 @@ export const IconButton = styled.button`
 `;
 
 export const MessageFooter = styled.div<{ $isUser: boolean }>`
+  box-sizing: border-box;
   display: flex;
-  justify-content: flex-start;
-  position: absolute;
+  flex: 0 0 100%;
+  min-width: 0;
+  align-items: center;
   gap: 6px;
-  bottom: -25px;
-  left: ${(props) => !props.$isUser && '50px'};
-  right: ${(props) => props.$isUser && '10px'};
+  flex-direction: ${(props) => (props.$isUser ? 'row-reverse' : 'row')};
+  margin-top: 4px;
+  padding-inline-start: ${(props) => props.$isUser
+    ? '0'
+    : 'calc(var(--ethora-message-avatar-size, 40px) + var(--ethora-message-avatar-gap, 5px))'};
   ${fadeInAnimation}
+`;
 
-  @media (max-width: 675px) {
-    font-size: 12px;
-    bottom: -24px;
+export const MessageQuickReplyRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 4px 12px;
+  margin-top: 6px;
+
+  & > :last-child {
+    margin-inline-start: auto;
+  }
+
+  &:has(> :only-child) {
+    margin-top: 2px;
   }
 `;
 

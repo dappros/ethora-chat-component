@@ -1,6 +1,5 @@
 import {
   FC,
-  RefObject,
   useId,
   useLayoutEffect,
   useMemo,
@@ -12,7 +11,6 @@ import { getEmojiNativeById, useEmojiData } from '../../helpers/lazyEmoji';
 import { ReactionMessage } from '../../types/types';
 import { MOTION_EASE, reducedMotion } from '../../styles/motion';
 import { useT } from '../../i18n/useT';
-import { REACTION_HANG_PX } from '../styled/StyledComponents';
 
 /** Distinct emojis shown before the "+N" chip takes over the rest. */
 const MAX_VISIBLE_REACTIONS = 6;
@@ -26,17 +24,21 @@ type Translate = (
   vars?: Record<string, string | number>
 ) => string;
 
-// The row straddles the bottom edge of its bubble: the bubble positions it
-// (absolute, half above and half below the edge, on the side it hugs), so it
-// is never in the bubble's flow. 4px between chips; it wraps inside the bubble
-// width minus the 8px inset, so a narrow bubble wraps instead of spilling.
 const ReactionContainer = styled.div`
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 4px;
   min-width: 0;
-  max-width: calc(100% - 16px);
+
+  &[data-scroll='true'] {
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-block: 3px;
+  }
+
+  &[data-scroll='true'] [role='tooltip'].reaction-tooltip {
+    display: none;
+  }
 `;
 
 const reactionPop = keyframes`
@@ -72,8 +74,7 @@ const chipBase = css<{ $accent: string }>`
   background-color: var(--ethora-color-bg, #ffffff);
   cursor: pointer;
   white-space: nowrap;
-  /* Ring in the page colour so a chip reads as separate from the bubble edge
-     it straddles. */
+  /* Ring in the page colour so adjacent chips read as separate controls. */
   box-shadow: 0 0 0 2px var(--ethora-color-bg, #ffffff);
   transition:
     background-color var(--ethora-motion-fast, 150ms) ${MOTION_EASE},
@@ -114,6 +115,7 @@ const ReactionBox = styled.button<{ $accent: string }>`
 
 const MoreBox = styled.button<{ $accent: string }>`
   ${chipBase}
+  flex-shrink: 0;
   color: var(--ethora-color-text-muted, #8c8c8c);
   font-size: 12px;
   font-weight: 600;
@@ -146,6 +148,7 @@ const tooltipFade = keyframes`
 const ChipWrap = styled.span`
   position: relative;
   display: inline-flex;
+  flex-shrink: 0;
   max-width: 100%;
 
   &:hover > .reaction-tooltip,
@@ -213,12 +216,6 @@ interface MessageReactionProps {
   reaction: Record<string, ReactionMessage>;
   changeReaction: (reaction: string) => void;
   userName?: string;
-  /**
-   * Reports how far the chip rows hang below the bubble's bottom edge, in px,
-   * whenever their rendered height changes (one row hangs REACTION_HANG_PX).
-   * The message row uses it to reserve room for every wrapped row.
-   */
-  onHangChange?: (hangPx: number) => void;
 }
 
 interface ReactionDetails {
@@ -254,6 +251,7 @@ interface ReactionChipProps {
   accent: string;
   onPress: (emoji: string) => void;
   tooltip: string;
+  scrolls: boolean;
 }
 
 const ReactionChip: FC<ReactionChipProps> = ({
@@ -264,6 +262,7 @@ const ReactionChip: FC<ReactionChipProps> = ({
   accent,
   onPress,
   tooltip,
+  scrolls,
 }) => {
   const t = useT();
   const tooltipId = useId();
@@ -305,6 +304,7 @@ const ReactionChip: FC<ReactionChipProps> = ({
         aria-pressed={mine}
         aria-label={label}
         aria-describedby={tooltipId}
+        title={scrolls ? tooltip : undefined}
         $accent={accent}
         onClick={() => onPress(emoji)}
       >
@@ -324,43 +324,17 @@ const ReactionChip: FC<ReactionChipProps> = ({
   );
 };
 
-/**
- * Measures the chip container and reports how far it hangs below the bubble.
- * The container's top sits REACTION_HANG_PX above the bubble's bottom edge, so
- * the hang is its height minus that overlap. Re-measured on every resize, so a
- * wrap to another row grows the reserve too.
- */
-const useReactionHang = (
-  ref: RefObject<HTMLDivElement | null>,
-  onHangChange: ((hangPx: number) => void) | undefined,
-  active: boolean
-) => {
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el || !onHangChange) return;
-    const report = () =>
-      onHangChange(
-        Math.max(REACTION_HANG_PX, el.offsetHeight - REACTION_HANG_PX)
-      );
-    report();
-    if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(report);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [ref, onHangChange, active]);
-};
-
 export const MessageReaction: FC<MessageReactionProps> = ({
   reaction,
   color,
   changeReaction,
   userName,
-  onHangChange,
 }) => {
   useEmojiData();
   const t = useT();
   const memoEmoji = getEmojiNativeById;
   const [expanded, setExpanded] = useState(false);
+  const [scrolls, setScrolls] = useState(false);
   const rowRef = useRef<HTMLDivElement>(null);
 
   const reactionDetails = useMemo(() => {
@@ -387,7 +361,16 @@ export const MessageReaction: FC<MessageReactionProps> = ({
   }, [reaction]);
 
   const entries = reaction ? Object.entries(reactionDetails) : [];
-  useReactionHang(rowRef, onHangChange, entries.length > 0);
+  useLayoutEffect(() => {
+    const row = rowRef.current;
+    if (!row) return;
+    const measure = () => setScrolls(row.scrollWidth > row.clientWidth);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(row);
+    return () => observer.disconnect();
+  }, [reactionDetails, expanded]);
 
   if (!reaction) return null;
   if (entries.length === 0) return null;
@@ -399,7 +382,7 @@ export const MessageReaction: FC<MessageReactionProps> = ({
   const hiddenCount = entries.length - MAX_VISIBLE_REACTIONS;
 
   return (
-    <ReactionContainer ref={rowRef} className="reaction-row">
+    <ReactionContainer ref={rowRef} className="reaction-row" data-scroll={scrolls}>
       {visible.map(([emoji, details]) => {
         const glyph = memoEmoji(emoji);
         return (
@@ -412,6 +395,7 @@ export const MessageReaction: FC<MessageReactionProps> = ({
             accent={color}
             onPress={changeReaction}
             tooltip={buildTooltip(t, glyph, details.users)}
+            scrolls={scrolls}
           />
         );
       })}

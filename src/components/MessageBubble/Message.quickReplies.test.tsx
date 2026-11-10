@@ -76,6 +76,16 @@ describe('Message - bot quick replies', () => {
     expect(screen.getByRole('button', { name: 'Not now' })).toBeInTheDocument();
   });
 
+  it('shows the timestamp beside the quick replies and keeps it after a tap', () => {
+    const { container } = renderMessage(makeMessage({ quickReplies: BUTTONS }));
+    const replies = screen.getByRole('group', { name: 'Quick replies' });
+    const timestamp = replies.nextElementSibling;
+    expect(timestamp).toHaveTextContent(/\d{1,2}:\d{2}/);
+    fireEvent.click(screen.getByRole('button', { name: 'Take Quiz' }));
+    expect(screen.queryByRole('group', { name: 'Quick replies' })).toBeNull();
+    expect(container.querySelector('[data-ethora-bubble]')).toContainElement(timestamp);
+  });
+
   it('sends the answer into the room as an ordinary message on tap', () => {
     renderMessage(makeMessage({ quickReplies: BUTTONS }));
 
