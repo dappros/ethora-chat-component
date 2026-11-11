@@ -483,13 +483,23 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
       const prefetchedItems = await prefetchPromise;
       await syncRoomsForPreload(targetClient, undefined, prefetchedItems);
 
-      const roomTimestampObject =
-        await targetClient.getChatsPrivateStoreRequestStanza();
-
-      updatedChatLastTimestamps(
-        roomTimestampObject as Record<string, string | number>,
-        store.dispatch
-      );
+      // Read markers can arrive after the room list. A slow or unavailable
+      // XMPP private store should never hold up opening Chats.
+      if (!config?.disableLastRead) {
+        void targetClient.getChatsPrivateStoreRequestStanza()
+          .then((roomTimestampObject) => {
+            if (abortController.signal.aborted) return;
+            updatedChatLastTimestamps(
+              roomTimestampObject as Record<string, string | number>,
+              store.dispatch
+            );
+          })
+          .catch((error: unknown) => {
+            if (!abortController.signal.aborted) {
+              console.warn('[initBeforeLoad] read markers could not be loaded', error);
+            }
+          });
+      }
 
       const preloadCfg = resolveHistoryPreloadConfig(config);
       if (preloadCfg.mode !== 'off') {

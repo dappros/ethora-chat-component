@@ -7,6 +7,7 @@ import React, {
   useMemo,
 } from 'react';
 import { IRoom } from '../../types/types';
+import { RoomPinButton } from '../RoomComponents/RoomPinButton';
 import { SearchInput } from '../InputComponents/Search';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../roomStore';
@@ -357,6 +358,8 @@ const RoomList: React.FC<RoomListProps> = ({
           getRoomLabel(chat).toLowerCase().includes(lowerCaseSearchTerm)
         )
         .sort((a, b) => {
+          const pinOrder = Number(b.pinned === true) - Number(a.pinned === true);
+          if (pinOrder) return pinOrder;
           // Deliberately NOT helpers/roomActivityScore.ts's getRoomLastActivityScore:
           // that helper is shared with xmppClient.ts's reconnect resubscription order
           // and historyPreloadScheduler.ts's preload priority, neither of which should
@@ -762,6 +765,9 @@ const RoomList: React.FC<RoomListProps> = ({
                                 performClick={performClick}
                                 config={config}
                               />
+                              {typeof chat.pinned === 'boolean' && (
+                                <RoomPinButton jid={chat.jid} name={getRoomLabel(chat)} pinned={chat.pinned} />
+                              )}
                             </AnimatedRow>
                             {!isLast && (
                               <Divider $hidden={adjacentToActiveRow} />

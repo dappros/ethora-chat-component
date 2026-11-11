@@ -21,7 +21,15 @@ export interface RoomLastMessage {
   body: string;
 }
 
+export interface ChatChannelPolicy {
+  ownerXmppUsername?: string;
+  readOnly: boolean;
+  commentsEnabled: boolean;
+  reactionsEnabled: boolean;
+}
+
 export interface IRoom {
+  channelPolicy?: ChatChannelPolicy;
   name: string;
   jid: string;
   title: string;
@@ -113,6 +121,8 @@ export interface IRoom {
    * toggle at all (see useRoomMute's `isSupported`).
    */
   muted?: boolean;
+  /** The caller's personal pin. Undefined on older backends. */
+  pinned?: boolean;
 }
 
 /**
@@ -148,6 +158,7 @@ export interface ApiRoomLastMessage {
 }
 
 export interface ApiRoom {
+  channelPolicy?: ChatChannelPolicy;
   name: string;
   type: 'public' | 'group' | 'private';
 
@@ -170,6 +181,7 @@ export interface ApiRoom {
 
   /** See IRoom.muted - only present when the backend supports per-chat mute. */
   muted?: boolean;
+  pinned?: boolean;
 
   /** See IRoom.apiUnreadCount - only present when the backend sends it. */
   unreadCount?: number;

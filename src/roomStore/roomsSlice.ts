@@ -2068,6 +2068,10 @@ const roomsStore = createSlice({
         room.muted = muted;
       }
     },
+    setRoomPinned: (state, action: PayloadAction<{ jid: string; pinned: boolean }>) => {
+      const { jid, pinned } = action.payload;
+      if (isSafeKey(jid) && state.rooms[jid]) state.rooms[jid].pinned = pinned;
+    },
   },
 });
 
@@ -2182,6 +2186,7 @@ export const {
   setRoomDraft,
   clearRoomDraft,
   setRoomMuted,
+  setRoomPinned,
 } = roomsStore.actions;
 
 export default roomsStore.reducer;

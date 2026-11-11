@@ -1,3 +1,5 @@
+import { useT } from '../../i18n/useT';
+import { canPublishToChannel } from '../../helpers/channelPolicy';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ChatContainer, NonRoomChat } from '../styled/StyledComponents';
 import { shallowEqual, useDispatch, useSelector, useStore } from 'react-redux';
@@ -114,6 +116,7 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
     const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
 
     const { user, config } = useChatSettingState();
+    const t = useT();
     const activeRoomJID = useSelector((state: RootState) =>
       typeof state.rooms?.activeRoomJID === 'string'
         ? state.rooms.activeRoomJID
@@ -149,6 +152,10 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         activeRoomJID ? state.rooms.rooms?.[activeRoomJID] : undefined,
       sameHeaderRoom
     );
+    const channelPolicy = useSelector((state: RootState) =>
+      activeRoomJID ? state.rooms.rooms?.[activeRoomJID]?.channelPolicy : undefined
+    );
+    const canPublish = canPublishToChannel(channelPolicy, activeRoomJID, user?.xmppUsername);
     const {
       sendMessage: sendMs,
       sendMedia: sendMessageMedia,
@@ -526,10 +533,15 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             isReply={false}
           />
         )}
-        {editAction.isEdit && (
+        {canPublish && editAction.isEdit && (
           <EditWrapper text={editAction.text} onClose={onCloseEdit} />
         )}
-        {(() => {
+        {!canPublish ? (
+          <div role="note" aria-label="Read-only channel" style={{ padding: '12px 16px', borderTop: '1px solid var(--ethora-color-border, #697180)', fontSize: 14 }}>
+            <strong>{t('channel.adminOnly')}</strong>
+            {channelPolicy?.commentsEnabled && <span> {t('channel.commentHint')}</span>}
+          </div>
+        ) : (() => {
           const baseInputProps: SendInputProps = {
             editMessage: editAction.text,
             sendMessage: editAction.isEdit ? sendEditMessage : sendMessage,

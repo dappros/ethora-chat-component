@@ -16,7 +16,7 @@ import {
   CustomUserName,
   CustomMessagePhotoContainer,
   MessageFooter,
-  REACTION_HANG_PX,
+  MessageQuickReplyRow,
 } from '../styled/StyledComponents';
 import MediaMessage from '../MainComponents/MediaMessage';
 import MediaCaption from './MediaCaption';
@@ -219,6 +219,10 @@ const Message: React.FC<MessageProps> = forwardRef<
   // bubble renders, and `store.getState()` at event/tooltip time. The bubble
   // never subscribes to the whole map.
   const store = useStore<RootState>();
+  const channelPolicy = useSelector((state: RootState) => state.rooms.rooms?.[message.roomJid]?.channelPolicy);
+  const isChannel = channelPolicy?.readOnly === true;
+  const reactionsAllowed = !isChannel || channelPolicy?.reactionsEnabled !== false;
+  const commentsAllowed = !isChannel || channelPolicy?.commentsEnabled !== false;
   const interactionsDisabled = Boolean(config?.disableInteractions);
   const profilesDisabled = Boolean(config?.disableProfilesInteractions);
 
@@ -341,9 +345,6 @@ const Message: React.FC<MessageProps> = forwardRef<
   );
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  // How far the reaction chips hang below the bubble, measured by
-  // MessageReaction, so the row reserves room for every wrapped chip row.
-  const [reactionHang, setReactionHang] = useState(REACTION_HANG_PX);
 
   // A media bubble previews a link only from its caption. Its body is the
   // placeholder or a legacy echo of the file URL, and treating that as a link
@@ -533,6 +534,7 @@ const Message: React.FC<MessageProps> = forwardRef<
   };
 
   const handleReactionMessage = (emoji: string) => {
+    if (!reactionsAllowed) return;
     const own = message.reaction?.[user.xmppUsername || '']?.emoji || [];
     const adding = !own.includes(emoji);
     const next = adding ? [...own, emoji] : own.filter((reaction: string) => reaction !== emoji);
@@ -815,6 +817,7 @@ const Message: React.FC<MessageProps> = forwardRef<
   // that block is only pictures or videos, the time floats over it as a pill.
   const mediaAttachments = isMediaBubble ? getMessageAttachments(message) : [];
   const mediaBlockMode = getMediaBlockMode(mediaAttachments);
+  const hasQuickReplies = !isChannel && quickReplies.length > 0 && !message.isDeleted && !hasAnsweredQuickReplies(message.id);
   // A media message with no caption has no text to translate.
   const showsTranslateRow =
     !isUser &&
@@ -825,7 +828,7 @@ const Message: React.FC<MessageProps> = forwardRef<
     attachments: mediaAttachments,
     hasCaption: Boolean(captionText),
     failed: isFailed,
-    hasQuickReplies: quickReplies.length > 0,
+    hasQuickReplies,
     hasUrlPreview: Boolean(previewUrl) && !message.isDeleted,
     hasTranslateRow: showsTranslateRow,
   });
@@ -835,8 +838,12 @@ const Message: React.FC<MessageProps> = forwardRef<
   // instead of on a line of its own. The time always sits bottom right, for
   // own and other people's bubbles alike.
   const timeInline =
-    !isMediaBubble && !message.isDeleted && !translationDisplay.hasTranslation;
-  const hasReactions = !!message.reaction && Object.keys(message.reaction).length > 0;
+    !isMediaBubble && !message.isDeleted && !translationDisplay.hasTranslation && !hasQuickReplies;
+  const reactions = message.reaction;
+  const hasReactions = !!reactions && Object.values(reactions).some(({ emoji }) => !!emoji?.length);
+  const replies = message.reply;
+  const hasReplies = !!replies?.length;
+  const hasFooter = hasReactions || hasReplies;
   // The tail marks the last bubble of a sender's run. Media-only bubbles (the
   // time floats over the picture) and system or deleted rows get none.
   const isLastInGroup = lastInRun !== false;
@@ -850,8 +857,9 @@ const Message: React.FC<MessageProps> = forwardRef<
 
   const timeNode = (
     <CustomMessageTimestamp
+      $hasFooter={hasFooter}
       $inline={timeInline}
-      $media={isMediaBubble}
+      $media={isMediaBubble && !hasQuickReplies}
       $overlay={timeOverPicture}
       $bordered={!message.isDeleted && !isUser}
     >
@@ -912,9 +920,8 @@ const Message: React.FC<MessageProps> = forwardRef<
       <CustomMessageContainer
         key={message.id}
         $isUser={isUser}
-        $reply={!!message?.reply?.length}
-        $reaction={hasReactions}
-        $reactionHang={reactionHang}
+        $hasFooter={hasFooter}
+        $quickReplies={hasQuickReplies}
         $lastInGroup={isLastInGroup}
         ref={ref}
       >
@@ -943,6 +950,7 @@ const Message: React.FC<MessageProps> = forwardRef<
             isMediaBubble ? mediaTime.mode : timeInline ? 'inline' : 'row'
           }
           $deleted={message.isDeleted}
+          $hasFooter={hasFooter}
           $tail={showsTail}
           $isUser={isUser}
           $media={isMediaBubble}
@@ -1060,20 +1068,6 @@ const Message: React.FC<MessageProps> = forwardRef<
             </CustomMessageText>
           )}
 
-          {/* Inside the bubble, under the content: media, then caption, then
-              the reaction row, then the time row (see MessageReaction). */}
-          {message.reaction && (
-            <MessageReaction
-              reaction={message.reaction}
-              onHangChange={setReactionHang}
-              changeReaction={
-                interactionsDisabled ? () => undefined : handleReactionMessage
-              }
-              color={config.colors?.primary || '#0052CD'}
-              userName={`${user.firstName} ${user.lastName}`}
-            />
-          )}
-
           {showsTranslateRow && (
             <MessageTranslate
               message={message}
@@ -1081,17 +1075,18 @@ const Message: React.FC<MessageProps> = forwardRef<
               isUser={isUser}
             />
           )}
-          {!timeInline && timeNode}
-          {quickReplies.length > 0 && !message.isDeleted && (
-            <QuickReplies
-              replies={quickReplies}
-              messageId={message.id}
-              accentColor={config?.colors?.primary}
-              colorScheme={config?.colorScheme}
-              answered={hasAnsweredQuickReplies(message.id)}
-              onSelect={handleQuickReply}
-            />
-          )}
+          {hasQuickReplies ? (
+            <MessageQuickReplyRow>
+              <QuickReplies
+                replies={quickReplies}
+                messageId={message.id}
+                accentColor={config?.colors?.primary}
+                colorScheme={config?.colorScheme}
+                onSelect={handleQuickReply}
+              />
+              {timeNode}
+            </MessageQuickReplyRow>
+          ) : !timeInline && timeNode}
           {isFailed && mediaRetryLost && (
             <>
               <FailedNotice>
@@ -1123,16 +1118,26 @@ const Message: React.FC<MessageProps> = forwardRef<
             <URLPreviewCard url={previewUrl} isUserMessage={isUser} />
           )}
         </CustomMessageBubble>
-        <MessageFooter $isUser={isUser}>
-          {message?.reply?.length && message?.reply?.length > 0 ? (
-            <BottomReplyContainer
-              isUser={isUser}
-              onClick={handleReplyMessage}
-              reply={message?.reply}
-              color={config.colors?.primary}
-            />
-          ) : null}
-        </MessageFooter>
+        {hasFooter && (
+          <MessageFooter $isUser={isUser}>
+            {hasReactions && (
+              <MessageReaction
+                reaction={reactions}
+                changeReaction={interactionsDisabled || !reactionsAllowed ? () => undefined : handleReactionMessage}
+                color={config.colors?.primary || '#0052CD'}
+                userName={`${user.firstName} ${user.lastName}`}
+              />
+            )}
+            {hasReplies && (
+              <BottomReplyContainer
+                isUser={isUser}
+                onClick={handleReplyMessage}
+                reply={replies}
+                color={config.colors?.primary}
+              />
+            )}
+          </MessageFooter>
+        )}
       </CustomMessageContainer>
 
       {!interactionsDisabled && (
@@ -1146,6 +1151,8 @@ const Message: React.FC<MessageProps> = forwardRef<
           handleDeleteMessage={handleDeleteMessage}
           handleEditMessage={handleEditMessage}
           handleReactionMessage={handleReactionMessage}
+          reactionsAllowed={reactionsAllowed}
+          commentsAllowed={commentsAllowed}
         />
       )}
     </>

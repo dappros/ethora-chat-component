@@ -239,6 +239,23 @@ describe('ThreadWrapper i18n and composer', () => {
     expect(JSON.parse(args[4]).id).toBe(PARENT_ID);
   });
 
+  it('keeps allowed channel comments in the thread and hides the input when disabled', async () => {
+    const storeRef: any = { current: null };
+    const channelPolicy = { readOnly: true, commentsEnabled: true, reactionsEnabled: true };
+    const { container, queryByText } = mount({ historyComplete: true, channelPolicy }, storeRef);
+    expect(container.querySelector('input[type="checkbox"]')).toBeNull();
+    inputProps.current.sendMessage('Comment');
+    expect(sendMessageSpy.mock.calls[0].slice(0, 4)).toEqual(['Comment', roomJid, true, false]);
+
+    act(() => {
+      storeRef.current.dispatch(updateRoom({
+        jid: roomJid, updates: { channelPolicy: { ...channelPolicy, commentsEnabled: false } },
+      }));
+    });
+    expect(queryByText(STRINGS.en['channel.commentsOff'])).toBeTruthy();
+    expect(listProps.current.activeMessage.id).toBe(PARENT_ID);
+  });
+
   it('toggling Also send to flips showInChannel for text and media', () => {
     const { container } = mount();
     const box = container.querySelector('input[type="checkbox"]') as HTMLInputElement;

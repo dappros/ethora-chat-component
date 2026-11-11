@@ -1,3 +1,4 @@
+import type { ChatChannelPolicy } from '../../types/models/room.model';
 import { FC, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import styled from 'styled-components';
 import { IMessage, User } from '../../types/types';
@@ -70,6 +71,7 @@ interface ThreadRoomView {
   name: string | undefined;
   composing: boolean | undefined;
   composingList: string[] | undefined;
+  channelPolicy: ChatChannelPolicy | undefined;
 }
 
 const selectThreadRoomView = (
@@ -85,6 +87,7 @@ const selectThreadRoomView = (
     name: room.name,
     composing: room.composing,
     composingList: room.composingList,
+    channelPolicy: room.channelPolicy,
   };
 };
 
@@ -210,18 +213,22 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
     loadMoreMessages,
   ]);
 
+  const isChannel = room?.channelPolicy?.readOnly === true;
+  const commentsAllowed = !isChannel || room?.channelPolicy?.commentsEnabled !== false;
+  const alsoPostInRoom = isChecked && !isChannel;
+
   const sendMessage = useCallback(
     (message: string, mentions?: IMentionSpan[]) => {
       sendMs(
         message,
         roomJid,
         true,
-        isChecked,
+        alsoPostInRoom,
         createMainMessageForThread(activeMessage, t),
         mentions
       );
     },
-    [activeMessage, isChecked, roomJid, sendMs, t]
+    [activeMessage, alsoPostInRoom, roomJid, sendMs, t]
   );
 
   const sendMedia = useCallback(
@@ -231,12 +238,12 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
         type,
         roomJid,
         true,
-        isChecked,
+        alsoPostInRoom,
         createMainMessageForThread(activeMessage, t),
         caption
       );
     },
-    [activeMessage, isChecked, roomJid, sendMessageMedia, t]
+    [activeMessage, alsoPostInRoom, roomJid, sendMessageMedia, t]
   );
 
   const sendStartComposing = useCallback(() => {
@@ -318,7 +325,7 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
         activeMessage={activeMessage}
         isReply
       />
-      <AlsoContainer
+      {!isChannel && <AlsoContainer
         style={{ cursor: 'pointer' }}
         onClick={() => setIsChecked((prev) => !prev)}
       >
@@ -340,11 +347,11 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
         >
           {room?.name}
         </a>
-      </AlsoContainer>
-      {editAction.isEdit && (
+      </AlsoContainer>}
+      {commentsAllowed && editAction.isEdit && (
         <EditWrapper text={editAction.text} onClose={onCloseEdit} />
       )}
-      <SendInput
+      {commentsAllowed ? <SendInput
         editMessage={editAction.text}
         // Drafts are keyed by room JID and the thread composer is mounted
         // for the SAME room as the main one, so leaving it enabled here
@@ -359,7 +366,7 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
         isMessageProcessing={isLastMessageFromUserAndProcessing(
           activeMessage.roomJid
         )}
-      />
+      /> : <div role="note" style={{ padding: '12px 16px' }}>{t('channel.commentsOff')}</div>}
 
       {/* Custom Typing Indicator for overlay/floating positions */}
       {config?.customTypingIndicator?.enabled &&

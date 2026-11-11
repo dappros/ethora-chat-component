@@ -83,7 +83,8 @@ export const ChatItem = styled.div.withConfig({
   /* One fixed card height for every kind of last message. */
   box-sizing: border-box;
   height: 76px;
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 0;
   border-radius: var(--ethora-radius-md, 12px);
   gap: 16px;
   padding: 8px;
@@ -211,9 +212,31 @@ export const AnimatedRow = styled.div<{
   $delay?: number;
   $skipAnimation?: boolean;
 }>`
+  display: flex;
+  align-items: center;
   ${({ $skipAnimation }) => ($skipAnimation ? '' : fadeInUpAnimation)}
   animation-delay: ${({ $delay, $skipAnimation }) =>
     !$skipAnimation && $delay ? `${Math.min($delay, 240)}ms` : '0ms'};
+`;
+
+export const RoomPinControl = styled.button`
+  display: grid;
+  place-items: center;
+  flex: 0 0 36px;
+  height: 36px;
+  border: 0;
+  border-radius: var(--ethora-radius-sm, 8px);
+  background: transparent;
+  color: var(--ethora-color-text-secondary, #6d7480);
+  cursor: pointer;
+
+  &[aria-pressed='true'] { color: var(--ethora-color-primary, #1b62bb); }
+  &:hover { background: var(--ethora-color-bg-hover, #f0f2f5); }
+  &:disabled { opacity: 0.6; cursor: progress; }
+  @media (pointer: coarse) {
+    flex-basis: 44px;
+    height: 44px;
+  }
 `;
 
 // --- Tab switcher (segmented control): "Chats" | "Files" -------------------

@@ -57,6 +57,8 @@ interface MessageInteractionsProps {
   handleDeleteMessage: () => void;
   handleEditMessage: () => void;
   handleReactionMessage: (reaction) => void;
+  reactionsAllowed?: boolean;
+  commentsAllowed?: boolean;
 }
 
 const MessageInteractions: React.FC<MessageInteractionsProps> = ({
@@ -69,6 +71,8 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
   handleDeleteMessage: deleteMessage,
   handleEditMessage,
   handleReactionMessage,
+  reactionsAllowed = true,
+  commentsAllowed = true,
 }) => {
   // Only the viewer's role in the active room is read. Selecting the role
   // (a string) keeps the menu from re-rendering on every room change.
@@ -224,7 +228,7 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
             ref={menuContainerRef}
             style={{ top: menuPosition.top, left: menuPosition.left }}
           >
-            <ReactionContainer>
+            {reactionsAllowed && <ReactionContainer>
               {fixedEmojiIds.map((id) => (
                 <ReactionBadge
                   key={id}
@@ -256,9 +260,9 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
               >
                 <DownArrowIcon />
               </ArrowButton>
-            </ReactionContainer>
+            </ReactionContainer>}
 
-            {showPicker && (
+            {reactionsAllowed && showPicker && (
               <Picker
                 skinTonePosition="none"
                 searchPosition="static"
@@ -286,7 +290,7 @@ const MessageInteractions: React.FC<MessageInteractionsProps> = ({
             <MESSAGE_INTERACTIONS_ICONS.SEND_ITEM />{' '}
           </MenuItem> */}
               {/* <Delimeter /> */}
-              {!isReply && (
+              {!isReply && commentsAllowed && (
                 <>
                   <MenuItem onClick={handleReplyMessage}>
                     {MESSAGE_INTERACTIONS.REPLY}

@@ -184,6 +184,25 @@ describe('ChatRoom render scope', () => {
     vi.useRealTimers();
   });
 
+  it('keeps room history visible while disabling new channel posts for a member', () => {
+    const { store, container } = setup();
+    expect(container.querySelector('textarea')).toBeTruthy();
+    act(() => {
+      store.current.dispatch(updateRoom({ jid: ROOM, updates: {
+        channelPolicy: { readOnly: true, commentsEnabled: true, reactionsEnabled: true },
+      } }));
+    });
+    expect(screen.getByRole('note', { name: 'Read-only channel' })).toBeTruthy();
+    expect(screen.getByText('message 19')).toBeTruthy();
+    expect(container.querySelector('textarea')).toBeNull();
+    act(() => {
+      store.current.dispatch(updateRoom({ jid: ROOM, updates: {
+        channelPolicy: { readOnly: false, commentsEnabled: true, reactionsEnabled: true },
+      } }));
+    });
+    expect(container.querySelector('textarea')).toBeTruthy();
+  });
+
   it('(g) does not re-render for receipt, marker or composing updates in other rooms', async () => {
     const { store } = setup();
     expect(counters.header).toBeGreaterThan(0);

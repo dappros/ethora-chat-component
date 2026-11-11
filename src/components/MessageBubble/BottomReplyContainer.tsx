@@ -10,9 +10,14 @@ const ReplyContainer = styled.button<{ $isUser: boolean; $color: string }>`
   padding: 4px 8px 4px 16px;
   border-radius: var(--ethora-radius-full, 999px);
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
   color: ${({ $color }) => $color || 'var(--ethora-color-primary, #0052cd)'};
+  [data-ethora-color-scheme='dark'] & {
+    color: var(--ethora-color-primary-text, var(--ethora-color-primary, #0052cd));
+  }
   font-weight: 600;
   cursor: pointer;
   transition: background-color var(--ethora-motion-fast, 150ms)
@@ -81,8 +86,8 @@ export const BottomReplyContainer: FC<BottomReplyContainerProps> = ({
   //TODO Add user avatars
 
   return (
-    <ReplyContainer onClick={onClick} $isUser={isUser} $color={color}>
-      <div style={{ display: 'flex' }}>
+    <ReplyContainer type="button" onClick={onClick} $isUser={isUser} $color={color}>
+      <div aria-hidden="true" style={{ display: 'flex' }}>
         {uniqueUsers.slice(0, 3).map((item) => (
           <AvatarCircle key={item.id}>
             <Avatar

@@ -163,6 +163,7 @@ const runRoomRefresh = async (chatName: string): Promise<void> => {
     // room is tens of KB) and the loaded one may be a different, larger set.
     const updates: Partial<IRoom> = {
       description: fresh.description,
+      channelPolicy: fresh.channelPolicy,
       picture: fresh.picture,
       icon: fresh.icon,
       // never lower the known total

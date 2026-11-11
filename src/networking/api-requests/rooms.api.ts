@@ -202,6 +202,14 @@ export async function unmuteRoom(
   }
 }
 
+export async function setChatPin(chatName: string, pinned: boolean): Promise<void> {
+  const token = store.getState().chatSettingStore.user.token || '';
+  await http.put(`/v1/chats/my/${encodeURIComponent(chatName)}/pin`, { pinned }, {
+    headers: { Authorization: token },
+  });
+  invalidateRoomsCache();
+}
+
 // PUT /v1/chats/my/{chatName}/leave - soft-leave (hide) a 1-1 private chat for
 // the caller. Non-destructive: the peer is unaffected and a new message from
 // them resurfaces the chat (backend clears the flag). Idempotent. QA-only for
