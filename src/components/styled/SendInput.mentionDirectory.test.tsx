@@ -1,15 +1,15 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, screen } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '../../test/renderWithProviders';
+import { setUser } from '../../roomStore/chatSettingsSlice';
 import SendInput from './SendInput';
 
 vi.mock('../../hooks/usePdfThumbnail', () => ({
   usePdfThumbnail: () => ({ status: 'idle', retry: () => undefined }),
 }));
-vi.mock('../../networking/api-requests/rooms.api', () => ({
-  getRoomByName: () => Promise.resolve(null),
-}));
+const getRoom = vi.hoisted(() => vi.fn().mockResolvedValue(null));
+vi.mock('../../networking/api-requests/rooms.api', () => ({ getRoomByName: getRoom }));
 const dir = vi.hoisted(() => ({
   members: [] as any[],
   state: 'idle' as string,
@@ -24,12 +24,13 @@ vi.mock('../../helpers/userResolver', () => ({
 
 const JID = 'big@conference.example.com';
 
-const setup = (usersCnt: number) => {
-  const { container } = renderWithProviders(
-    <SendInput sendMessage={vi.fn()} sendMedia={vi.fn()} isLoading={false} multiline />,
+const setup = (usersCnt: number, options: { token?: string; empty?: boolean } = {}) => {
+  const sendMessage = vi.fn();
+  const { container, store } = renderWithProviders(
+    <SendInput sendMessage={sendMessage} sendMedia={vi.fn()} isLoading={false} multiline />,
     {
       preloadedState: {
-        chatSettingStore: { config: {}, user: { xmppUsername: 'me' } },
+        chatSettingStore: { config: {}, user: { xmppUsername: 'me', token: options.token } },
         rooms: {
           rooms: {
             [JID]: {
@@ -37,7 +38,7 @@ const setup = (usersCnt: number) => {
               name: 'Big',
               title: 'Big',
               usersCnt,
-              members: [
+              members: options.empty ? [] : [
                 { _id: '1', firstName: 'Ann', lastName: 'Known', xmppUsername: 'ann' },
               ],
               messages: [],
@@ -59,7 +60,7 @@ const setup = (usersCnt: number) => {
       } as never,
     }
   );
-  return container.querySelector('textarea') as HTMLTextAreaElement;
+  return { textarea: container.querySelector('textarea') as HTMLTextAreaElement, store, sendMessage };
 };
 
 const typeAt = (ta: HTMLTextAreaElement, value: string) => {
@@ -71,6 +72,7 @@ describe('SendInput @mentions in a truncated big room', () => {
     dir.members = [];
     dir.state = 'idle';
     dir.ensure.mockReset();
+    getRoom.mockClear();
   });
 
   it('does not load a directory until @ is typed', () => {
@@ -80,7 +82,7 @@ describe('SendInput @mentions in a truncated big room', () => {
 
   it('loads the directory on @ and shows a loading row next to known members', () => {
     dir.state = 'loading';
-    const ta = setup(435);
+    const { textarea: ta } = setup(435);
     typeAt(ta, '@');
     expect(dir.ensure).toHaveBeenCalledWith(JID);
     expect(screen.getByText('Ann Known')).toBeTruthy();
@@ -92,15 +94,48 @@ describe('SendInput @mentions in a truncated big room', () => {
     dir.members = [
       { _id: '9', firstName: 'Zed', lastName: 'Faraway', xmppUsername: 'zed' },
     ];
-    const ta = setup(435);
+    const { textarea: ta } = setup(435);
     typeAt(ta, '@');
     typeAt(ta, '@zed');
     expect(screen.getByText('Zed Faraway')).toBeTruthy();
   });
 
   it('does not load a directory for a complete room', () => {
-    const ta = setup(1);
+    const { textarea: ta } = setup(1);
     typeAt(ta, '@');
     expect(dir.ensure).not.toHaveBeenCalled();
+  });
+});
+
+describe('SendInput member lookup authentication', () => {
+  beforeEach(() => { getRoom.mockReset().mockResolvedValue(null); });
+
+  it('does not request room members without an API token', () => {
+    setup(0, { empty: true });
+    expect(getRoom).not.toHaveBeenCalled();
+  });
+
+  it('requests members when a token becomes available', async () => {
+    const { store } = setup(0, { empty: true });
+    expect(getRoom).not.toHaveBeenCalled();
+    act(() => { store.dispatch(setUser({ xmppUsername: 'me', token: 'valid-token' } as never)); });
+    await waitFor(() => expect(getRoom).toHaveBeenCalledTimes(1));
+    expect(getRoom).toHaveBeenCalledWith('big');
+  });
+
+  it('loads a member with a token and sends a selected mention', async () => {
+    getRoom.mockResolvedValue({ members: [
+      { _id: '1', firstName: 'Ann', lastName: 'Known', xmppUsername: 'ann' },
+    ] });
+    const { textarea, sendMessage } = setup(0, { token: 'valid-token', empty: true });
+    await waitFor(() => expect(getRoom).toHaveBeenCalledWith('big'));
+    typeAt(textarea, '@');
+    fireEvent.mouseDown(await screen.findByText('Ann Known'));
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(1));
+    expect(sendMessage.mock.calls[0][0]).toContain('@Ann Known');
+    expect(sendMessage.mock.calls[0][1]).toEqual(expect.arrayContaining([
+      expect.objectContaining({ jid: expect.stringContaining('ann') }),
+    ]));
   });
 });
