@@ -264,11 +264,13 @@ const SendInput: React.FC<SendInputProps> = ({
   // with no candidates to show. Mirror those callers' own fetch (GET
   // /v1/chats/my/<name>, then the same `updateRoom({ members })` dispatch
   // SelectUsersModal/AddMembersModal use) once per room, only when
-  // mentions are enabled and the room doesn't already carry a member list.
+  // mentions are enabled, an API token is available, and the room doesn't
+  // already carry a member list. Anonymous widget visitors use XMPP without
+  // an API token and cannot access this authenticated endpoint.
   const dispatch = useAppDispatch();
   const fetchedMembersForRoomRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!mentionsEnabled) return;
+    if (!mentionsEnabled || !selfUser?.token?.trim()) return;
     const jid = activeRoom?.jid;
     if (!jid) return;
     if (Array.isArray(activeRoom?.members) && activeRoom.members.length > 0) return;
@@ -284,7 +286,7 @@ const SendInput: React.FC<SendInputProps> = ({
         // Best-effort: the dropdown just shows fewer/no candidates until a
         // live membership event fills activeRoom.members in some other way.
       });
-  }, [mentionsEnabled, activeRoom?.jid, activeRoom?.members, dispatch]);
+  }, [mentionsEnabled, selfUser?.token, activeRoom?.jid, activeRoom?.members, dispatch]);
 
   const requestCaret = useCallback((position: number) => {
     pendingCaretRef.current = position;
