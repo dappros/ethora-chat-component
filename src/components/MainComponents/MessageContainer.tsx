@@ -158,7 +158,6 @@ const MessageContainerBase: FC<MessageContainerProps> = ({
         <div data-message-id={message.id}>
           <CustomMessageContainer
             $isUser={false}
-            $reply={false}
             $lastInGroup={isLastInGroup}
           >
             <CustomMessagePhotoContainer style={{ cursor: 'default' }}>
