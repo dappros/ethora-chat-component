@@ -2,6 +2,7 @@ import { IMessage, ModalFile } from '../types/types';
 import { getAttachmentName, getMessageAttachments } from './attachments';
 import { getFileKind } from './fileKind';
 import { withoutFileToken } from './secureFileUrl';
+import { isSensitiveMessage } from './sensitiveMedia';
 
 /**
  * One navigable entry in the media viewer's gallery.
@@ -100,6 +101,9 @@ export const collectRoomMedia = (
     if (!message || message.isDeleted) return;
     // The unread separator is a synthetic row, not a message.
     if (message.id === 'delimiter-new') return;
+    // Trust & Safety: a hidden message has nothing to page through.
+    if (message.moderation?.action === 'hidden') return;
+    const sensitive = isSensitiveMessage(message as IMessage);
 
     getMessageAttachments(message as IMessage).forEach((attachment, slot) => {
       // Empty location = still uploading; there is nothing to open yet.
@@ -118,6 +122,8 @@ export const collectRoomMedia = (
         previewURL: attachment.locationPreview || undefined,
         date: isoDateFromMessage(message),
         sender: senderFromMessage(message),
+        ...(message.id ? { messageId: String(message.id) } : {}),
+        ...(sensitive ? { sensitive: true } : {}),
       });
     });
   });
@@ -174,6 +180,8 @@ export const galleryFromFiles = (
       previewURL: file.previewURL,
       date: file.date,
       sender: file.sender,
+      ...(file.messageId ? { messageId: file.messageId } : {}),
+      ...(file.sensitive ? { sensitive: true } : {}),
     });
   });
   return entries;

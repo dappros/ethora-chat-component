@@ -169,7 +169,9 @@ export const resolveTouchedRooms = (
   switch (action.type) {
     case 'roomMessages/addRoomMessage':
     case 'roomMessages/setRoomMessages':
-    case 'roomMessages/deleteRoomMessage': {
+    case 'roomMessages/deleteRoomMessage':
+    case 'roomMessages/applyModerationNotice':
+    case 'roomMessages/refreshArchivedMessages': {
       const roomJID = action?.payload?.roomJID;
       if (roomJID) touched.add(roomJID);
       break;

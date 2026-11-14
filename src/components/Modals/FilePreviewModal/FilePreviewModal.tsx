@@ -41,6 +41,16 @@ import {
 } from '../../../helpers/roomImageGallery';
 import { resolveViewerSender } from '../../../helpers/viewerSender';
 import { ethoraLogger } from '../../../helpers/ethoraLogger';
+import { probeFileAccess } from '../../../helpers/fileAccessProbe';
+import {
+  concealMessageMedia,
+  FileBlockReason,
+  markMediaBlocked,
+} from '../../../roomStore/trustSafetySlice';
+import {
+  RemovedByModerators,
+  SensitiveMediaGate,
+} from '../../TrustSafety/SensitiveMedia';
 import {
   ActionGroup,
   AudioCard,
@@ -197,6 +207,44 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
     [headerSender, usersSet, me, peerRoomName]
   );
   const senderName = resolvedSender.name;
+
+  // Trust & Safety. A sensitive file stays covered in the viewer too until
+  // the reader taps through (the reveal is shared with the bubble, per
+  // message), and a file the server refused shows why instead of a broken
+  // image. The sender's own files are never covered.
+  const revealedMap = useSelector(
+    (state: RootState) => state.trustSafety?.revealed
+  );
+  const blockedMap = useSelector(
+    (state: RootState) => state.trustSafety?.blocked
+  );
+  const [viewerBlock, setViewerBlock] = useState<{
+    url: string;
+    reason: FileBlockReason;
+  } | null>(null);
+  const myId = String(me?.xmppUsername || '');
+  const isOwnEntry = useCallback(
+    (sender?: { id?: string }) =>
+      Boolean(myId) && String(sender?.id || '').split('@')[0] === myId,
+    [myId]
+  );
+  const isCoveredEntry = useCallback(
+    (entry?: { messageId?: string; sensitive?: boolean; sender?: { id?: string } }) => {
+      if (!entry || isOwnEntry(entry.sender)) return false;
+      const id = entry.messageId;
+      const revealed = Boolean(id && revealedMap?.[id]);
+      const askedForAge = Boolean(id && blockedMap?.[id] === 'age-required');
+      return (Boolean(entry.sensitive) || askedForAge) && !revealed;
+    },
+    [isOwnEntry, revealedMap, blockedMap]
+  );
+  const entryMessageId = current?.messageId ?? activeFile.messageId;
+  const entryInfo = current ?? activeFile;
+  const blockReason: FileBlockReason | undefined =
+    (entryMessageId ? blockedMap?.[entryMessageId] : undefined) ??
+    (viewerBlock?.url === activeFile.fileURL ? viewerBlock.reason : undefined);
+  const entryCovered =
+    (kind === 'image' || kind === 'video') && isCoveredEntry(entryInfo);
   const dateText = formatViewerDate(current?.date ?? activeFile.date);
 
   const hasSource = Boolean(activeFile.fileURL);
@@ -228,6 +276,8 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
           fileName: target.fileName,
           fileURL: target.fileURL,
           mimetype: target.mimetype,
+          messageId: target.messageId,
+          sensitive: target.sensitive,
           // Keep the opener's list so paging never loses it.
           siblings,
         })
@@ -250,10 +300,12 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
     [index - 1, index + 1].forEach((neighbour) => {
       const entry = gallery[neighbour];
       if (!entry || entry.kind !== 'image') return;
+      // A covered sensitive original is not fetched until it is revealed.
+      if (isCoveredEntry(entry)) return;
       const src = appendFileToken(entry.fileURL, fileToken);
       if (src) new Image().src = src;
     });
-  }, [hasGallery, index, gallery, fileToken]);
+  }, [hasGallery, index, gallery, fileToken, isCoveredEntry]);
 
   // Keep the active thumbnail in view when the picture changes.
   useEffect(() => {
@@ -355,11 +407,30 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
     if (event.target === event.currentTarget) closeModal();
   };
 
+  // One request (cached per file) to learn whether a Trust & Safety rule
+  // refused the file; the browser does not show a media element the status.
+  const classifyFailure = () => {
+    const url = activeFile.fileURL;
+    if (!isSecureFileUrl(url)) return;
+    const messageId = entryMessageId;
+    void probeFileAccess(url, { fileToken }).then((access) => {
+      if (access !== 'moderation' && access !== 'age-required') return;
+      if (access === 'age-required' && isOwnEntry(entryInfo?.sender)) return;
+      if (messageId) {
+        dispatch(markMediaBlocked({ messageId, reason: access }));
+        if (access === 'age-required') dispatch(concealMessageMedia(messageId));
+      } else {
+        setViewerBlock({ url, reason: access });
+      }
+    });
+  };
+
   const handleImageError = () => {
     if (isSecureFileUrl(activeFile.fileURL)) {
       void requestFileTokenRecovery();
     }
     setFailedUrl(activeFile.fileURL);
+    classifyFailure();
   };
 
   const tryAgain = () => {
@@ -397,7 +468,22 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
 
   let media: React.ReactNode;
   let mediaFit: 'media' | 'content' = 'media';
-  if (imageFailed) {
+  if (blockReason === 'moderation') {
+    mediaFit = 'content';
+    media = <RemovedByModerators />;
+  } else if (entryCovered || (blockReason === 'age-required' && !entryMessageId)) {
+    media = (
+      <SensitiveMediaGate
+        key={activeFile.fileURL}
+        fill
+        messageId={entryMessageId}
+        probeUrl={activeFile.fileURL}
+        previewUrl={previewSrc}
+      >
+        {null}
+      </SensitiveMediaGate>
+    );
+  } else if (imageFailed) {
     mediaFit = 'content';
     media = <ErrorPanel onRetry={tryAgain} onDownload={saveClick} />;
   } else {
@@ -424,6 +510,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
             src={sourceURL}
             controls
             autoPlay={false}
+            onError={classifyFailure}
           />
         );
         break;
@@ -446,7 +533,10 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
     }
   }
 
-  const showImageControls = kind === 'image' && !imageFailed;
+  const showImageControls =
+    kind === 'image' && !imageFailed && !entryCovered && !blockReason;
+  // Nothing of a covered or refused file is saved or opened elsewhere.
+  const fileActionsBlocked = entryCovered || Boolean(blockReason);
 
   return (
     <ViewerSurface
@@ -478,6 +568,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
           <IconButton
             type="button"
             onClick={saveClick}
+            disabled={fileActionsBlocked}
             aria-label={t('action.save')}
             title={t('action.save')}
           >
@@ -486,7 +577,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
           <IconButton
             type="button"
             onClick={openInNewTab}
-            disabled={!hasSource}
+            disabled={!hasSource || fileActionsBlocked}
             aria-label={t('modal.filePreview.openExternally')}
             title={t('modal.filePreview.openExternally')}
           >
@@ -551,7 +642,8 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
                 aria-current={i === index ? 'true' : undefined}
                 onClick={() => goTo(i)}
               >
-                {item.kind === 'video' && !item.previewURL ? (
+                {!item.previewURL &&
+                (item.kind === 'video' || isCoveredEntry(item)) ? (
                   <ThumbVideoGlyph />
                 ) : (
                   <ThumbImage
@@ -561,6 +653,11 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
                     alt=""
                     loading="lazy"
                     draggable={false}
+                    style={
+                      isCoveredEntry(item)
+                        ? { filter: 'blur(8px)' }
+                        : undefined
+                    }
                   />
                 )}
                 {item.kind === 'video' && <ThumbPlayBadge />}

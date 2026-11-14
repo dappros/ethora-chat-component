@@ -187,6 +187,8 @@ export const pickPreviewSource = <T extends PreviewSource>(
     const m = messages![i];
     if (!m) continue;
     if (m.isDeleted || m.body || m.emoji || hasMediaPreview(m)) return m;
+    // Trust & Safety: a hidden message has no body but is still the latest.
+    if ((m as { moderation?: unknown }).moderation) return m;
   }
   return lastMessage ?? undefined;
 };

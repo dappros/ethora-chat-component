@@ -4,6 +4,22 @@ import { Iso639_1Codes } from './language.model';
 import { IAttachment } from './attachment.model';
 import type { ScheduledCallMeta } from './scheduledCall.model';
 
+/**
+ * What moderation did to a message (Trust & Safety). Read off the
+ * `<moderation xmlns="urn:ethora:moderation" action category by/>` element of
+ * an archived message, or applied by a live moderation notice.
+ *  - `blur`: the text stays, collapsed behind "Tap to view".
+ *  - `hidden`: the content is gone; only "hidden by moderators" is shown.
+ *  - `deleted`: rendered like any deleted message.
+ */
+export interface MessageModeration {
+  action: 'blur' | 'hidden' | 'deleted';
+  /** toxicity | severe | pii | phi | suspension, or a newer category. */
+  category?: string;
+  /** auto | moderator */
+  by?: string;
+}
+
 export interface IMessage {
   id: string;
   user: IUser;
@@ -113,6 +129,23 @@ export interface IMessage {
   // Present when this message announces a scheduled call, from a
   // `<data type="scheduledCall">` stanza (see helpers/scheduledCallMessage.ts).
   scheduledCall?: ScheduledCallMeta;
+  /**
+   * The attachments were flagged sensitive at upload (Trust & Safety): their
+   * previews are blurred by the server, and the originals open only after the
+   * viewer taps through (and passes the age gate when the App has one). A
+   * string because it arrives as a `<data isSensitive="true">` attribute.
+   */
+  isSensitive?: string | boolean;
+  /** Why the attachments were flagged (`nudity`). */
+  sensitiveCategory?: string;
+  /** Set when moderation blurred, hid or deleted this message. */
+  moderation?: MessageModeration;
+  /**
+   * The sender's name was masked by a suspension ("Suspended" / "account" on
+   * the archived `<data>`). Rendered as "Suspended account" with a neutral
+   * avatar and no profile or direct-message action.
+   */
+  senderMasked?: boolean;
 }
 
 export interface ReactionMessage {

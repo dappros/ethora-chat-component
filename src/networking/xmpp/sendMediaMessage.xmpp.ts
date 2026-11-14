@@ -87,6 +87,16 @@ export async function sendMediaMessage(
     (dataToSend as Record<string, unknown>).attachments = data.attachments;
   }
 
+  // Trust & Safety: the upload result said a file may be explicit. Receivers
+  // cover it ("Sensitive content. Tap to view") and the server age gates the
+  // original. Only stamped when set, so other stanzas stay byte-identical.
+  if (data?.isSensitive === 'true' || data?.isSensitive === true) {
+    (dataToSend as Record<string, unknown>).isSensitive = 'true';
+    if (typeof data?.sensitiveCategory === 'string' && data.sensitiveCategory) {
+      (dataToSend as Record<string, unknown>).sensitiveCategory = data.sensitiveCategory;
+    }
+  }
+
   const keys: string[] | undefined = data?.e2eeKeys;
 
   // A sealed attachment says so on <data>. The flag itself reveals nothing the

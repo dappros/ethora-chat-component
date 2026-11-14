@@ -27,6 +27,12 @@ import {
   getTimestampFromUnknown,
 } from '../helpers/timestamp';
 import { isReservedName, isSafeKey } from './safeKey';
+import {
+  applyModeration,
+  ModerationNotice,
+  noticeTargets,
+  tombstoneMessage,
+} from '../helpers/moderation';
 import { capUsersSet, mergeUsersSet } from './usersSetCap';
 
 // Body strings the server uses for call signaling broadcasts (call-token,
@@ -866,22 +872,68 @@ const roomsStore = createSlice({
     ) {
       const { roomJID, messageId } = action.payload;
       if (!isSafeKey(roomJID)) return;
-      const tombstone = (message: IMessage) => {
-        // Tombstone the message instead of removing it so the bubble can
-        // render a "deleted" placeholder and ordering / replies / quoting
-        // stay intact. Edited in place so every copy (live + jump window)
-        // gets the same treatment.
-        message.isDeleted = true;
-        message.body = '';
-        message.isMediafile = 'false';
-        message.location = undefined;
-        message.locationPreview = undefined;
-        message.mimetype = undefined;
-        message.fileName = undefined;
-        message.attachments = undefined;
-        message.reaction = undefined;
-      };
-      forEachMessageCopy(state, roomJID, messageId, tombstone);
+      // Tombstone the message instead of removing it so the bubble can
+      // render a "deleted" placeholder and ordering / replies / quoting
+      // stay intact. Edited in place so every copy (live + jump window)
+      // gets the same treatment.
+      forEachMessageCopy(state, roomJID, messageId, tombstoneMessage);
+    },
+    /**
+     * Trust & Safety: a live moderation notice (see helpers/moderation.ts).
+     * Applied in place to every matching copy, like `<replace>` and
+     * `<delete>`; a notice that names a sender (and no message) applies to
+     * all of that sender's messages in the room. Nothing is inserted, so a
+     * notice never shows as a bubble or moves the unread count.
+     */
+    applyModerationNotice(state, action: PayloadAction<ModerationNotice>) {
+      const notice = action.payload;
+      if (!notice?.roomJID || !isSafeKey(notice.roomJID)) return;
+      forEachMessageCopy(
+        state,
+        notice.roomJID,
+        (message) => noticeTargets(message, notice),
+        (message) =>
+          applyModeration(message, notice.action, notice.category, notice.by, {
+            maskName: notice.maskName,
+          })
+      );
+    },
+    /**
+     * Trust & Safety `restore`: archive copies re-read after a restore notice
+     * replace the stored copies of the same messages (and only those: nothing
+     * is inserted, so no hole in the history is papered over). Client-side
+     * state the archive does not carry (reactions, receipts, the open thread)
+     * is kept.
+     */
+    refreshArchivedMessages(
+      state,
+      action: PayloadAction<{ roomJID: string; messages: IMessage[] }>
+    ) {
+      const { roomJID, messages } = action.payload;
+      if (!isSafeKey(roomJID) || !Array.isArray(messages)) return;
+      for (const incoming of messages) {
+        if (!incoming?.id) continue;
+        const fresh = enrichMessageAuthor(incoming, state.usersSet);
+        forEachMessageCopy(state, roomJID, String(incoming.id), (message) => {
+          const keep = {
+            reaction: message.reaction,
+            receivedBy: message.receivedBy,
+            activeMessage: message.activeMessage,
+            reply: message.reply,
+            numberOfReplies: message.numberOfReplies,
+            xmppId: message.xmppId,
+          };
+          for (const key of Object.keys(message)) {
+            delete (message as unknown as Record<string, unknown>)[key];
+          }
+          Object.assign(message, fresh);
+          for (const [key, value] of Object.entries(keep)) {
+            if (value !== undefined && (message as any)[key] === undefined) {
+              (message as any)[key] = value;
+            }
+          }
+        });
+      }
     },
     /**
      * Hard removal, unlike `deleteRoomMessage`'s tombstone. For optimistic
@@ -1229,7 +1281,8 @@ const roomsStore = createSlice({
       const { roomJID, message, start } = action.payload;
 
       if (!isSafeKey(roomJID)) return;
-      if (!message?.body) return;
+      // A message moderation hid has no body but still holds its place.
+      if (!message?.body && !(message as IMessage)?.moderation) return;
       // Call signaling broadcasts ("call-token", "call-state", etc.)
       // sometimes slip past the live XMPP filter (e.g. MAM history,
       // mucsub catch-up) - drop them here so they never land in the
@@ -2135,6 +2188,8 @@ export const {
   replaceRoomMessages,
   addRoomMessage,
   deleteRoomMessage,
+  applyModerationNotice,
+  refreshArchivedMessages,
   removeRoomMessage,
   setEditAction,
   setMessageSendFailed,

@@ -4,6 +4,8 @@ import {
   addRoom,
   addRoomMessage,
   addRoomViaApi,
+  applyModerationNotice,
+  refreshArchivedMessages,
   confirmMessageDelivered,
   deleteRoomMessage,
   editRoomMessage,
@@ -57,6 +59,11 @@ import {
   shouldShowXmppToast,
 } from '../utils/notificationPolicy';
 import { formatError } from '../utils/formatError';
+import { parseModerationNotice } from '../helpers/moderation';
+import {
+  fetchRestoredMessages,
+  restoreTargets,
+} from '../helpers/moderationRefresh';
 import { ethoraLogger } from '../helpers/ethoraLogger';
 import {
   messageTimestamp,
@@ -129,8 +136,10 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
       store.getState().chatSettingStore.user?.xmppUsername || ''
     );
 
-    // Ignore non-message stanzas (e.g. typing/chatstate with only <data .../>)
-    if (!message?.body || !String(message.body).trim()) {
+    // Ignore non-message stanzas (e.g. typing/chatstate with only <data .../>).
+    // A message moderation hid has no text left but is still a message: it
+    // keeps its place and renders "hidden by moderators".
+    if ((!message?.body || !String(message.body).trim()) && !message?.moderation) {
       return;
     }
 
@@ -256,6 +265,38 @@ const onRealtimeMessage = async (stanza: Element, xmppClient?: XmppClient) => {
 
     return message;
   }
+};
+
+/**
+ * Trust & Safety live notice: a bodiless groupchat message whose
+ * `<moderation xmlns="urn:ethora:moderation">` names a message (stanza-id /
+ * origin-id) or a sender (user). It is applied to the messages already in the
+ * store, the same way `<replace>` and `<delete>` are, and is never inserted
+ * itself: no empty bubble, no unread count, no notification.
+ */
+const onModerationNotice = (stanza: Element, xmppClient?: XmppClient): boolean => {
+  const notice = parseModerationNotice(stanza);
+  if (!notice) return false;
+  // `restored`: what only the archive copy can undo (a hidden or deleted
+  // body, a masked name) is re-read from MAM once, after the local state
+  // that can be lifted here (a blur) is lifted.
+  const targets =
+    notice.action === 'restore'
+      ? restoreTargets(store.getState().rooms.rooms[notice.roomJID]?.messages, notice)
+      : [];
+  store.dispatch(applyModerationNotice(notice));
+  if (targets.length > 0 && xmppClient) {
+    void fetchRestoredMessages(xmppClient, notice.roomJID, targets)
+      .then((messages) => {
+        if (messages.length) {
+          store.dispatch(
+            refreshArchivedMessages({ roomJID: notice.roomJID, messages })
+          );
+        }
+      })
+      .catch(() => undefined);
+  }
+  return true;
 };
 
 const onReactionMessage = async (stanza: Element) => {
@@ -1437,6 +1478,7 @@ const onChatUpdate = async (stanza: Element, xmppWs?: XmppClient) => {
 };
 
 export {
+  onModerationNotice,
   onRealtimeMessage,
   onMessageHistory,
   onPresenceInRoom,

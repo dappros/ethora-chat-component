@@ -4,10 +4,15 @@ import { shallowEqual, useDispatch, useSelector } from 'react-redux';
 import {
   addRoomMessage,
   editRoomMessage,
+  removeRoomMessage,
   setEditAction,
   setMediaUploadState,
 } from '../roomStore/roomsSlice';
 import { uploadFile } from '../networking/api-requests/auth.api';
+import { isUploadBlockedSensitive } from '../helpers/uploadBlocked';
+import { sensitiveFlagsFromUploads } from '../helpers/sensitiveMedia';
+import { useOptionalToast } from '../context/ToastContext';
+import { useT } from '../i18n/useT';
 import { mapWithConcurrency } from '../helpers/mapWithConcurrency';
 import { registerMediaRetry, unregisterMediaRetry } from '../helpers/mediaSendRetry';
 import { isE2eeRoom } from '../e2ee';
@@ -55,6 +60,8 @@ export const useSendMessage = () => {
   const { client } = useXmppClient();
   const dispatch = useDispatch();
   const { handleMessageSent, handleMessageFailed } = useEventHandlers(config);
+  const toast = useOptionalToast();
+  const t = useT();
   const emitMessageSent = useCallback((payload: Parameters<typeof handleMessageSent>[0]) => {
     Promise.resolve(handleMessageSent(payload)).catch((error) => {
       console.error('Error in async message sent hook:', error);
@@ -726,6 +733,9 @@ export const useSendMessage = () => {
           : {}),
       }));
       const uploaded: Array<IAttachment | undefined> = files.map(() => undefined);
+      // Files the server refused as explicit content (422
+      // UPLOAD_BLOCKED_SENSITIVE). Retrying would only be refused again.
+      const blockedIndices = new Set<number>();
       const rawResults: Array<any | undefined> = files.map(() => undefined);
       const sealedKeys: Array<string | undefined> = files.map(() => undefined);
       let delivered = false;
@@ -857,6 +867,7 @@ export const useSendMessage = () => {
         const raws = rawResults as any[];
         const attachments = uploaded as IAttachment[];
         const [head] = raws;
+        const sensitive = sensitiveFlagsFromUploads(raws);
 
         const messagePayload = {
           firstName: user.firstName,
@@ -895,6 +906,8 @@ export const useSendMessage = () => {
           // Consumed by sendMediaMessage, which puts them inside the encrypted
           // <body>. Never stamped onto <data>: that rides in the clear.
           e2eeKeys: isE2ee ? (sealedKeys as string[]) : undefined,
+          // Trust & Safety: `<data isSensitive="true" sensitiveCategory>`.
+          ...(sensitive ?? {}),
         };
 
         const mediaSent = await sendWithActiveRoomRetry(
@@ -932,6 +945,7 @@ export const useSendMessage = () => {
                 originalName: head?.originalname && repairFilenameEncoding(head.originalname),
                 fileName: head.filename,
                 size: head.size?.toString?.() ?? head.size,
+                ...(sensitive ?? {}),
                 ...(captionFields
                   ? {
                       caption: captionFields.caption,
@@ -980,9 +994,35 @@ export const useSendMessage = () => {
               await uploadOne(index);
             } catch (error) {
               console.error('Upload failed:', error);
+              if (isUploadBlockedSensitive(error)) blockedIndices.add(index);
               patchItem(index, { uploadStatus: 'failed', uploadProgress: 0 });
             }
           });
+
+          // Trust & Safety: a file the server refused as explicit content is
+          // never sent, and a retry would be refused again. The message is
+          // withdrawn (it never reached the room) and the sender is told why.
+          if (blockedIndices.size > 0) {
+            delivered = true;
+            unregisterMediaRetry(id);
+            if (!config?.disableSentLogic) {
+              dispatch(removeRoomMessage({ roomJID: activeRoomJID, messageId: id }));
+            }
+            toast?.showToast({
+              id: `upload-blocked-${id}`,
+              title: t('ts.upload.blockedTitle'),
+              message: t('ts.upload.blocked'),
+              type: 'error',
+              duration: 6000,
+            });
+            handleMessageFailed({
+              message: 'media',
+              roomJID: activeRoomJID,
+              error: new Error('upload_blocked_sensitive'),
+              messageType: 'media',
+            });
+            return false;
+          }
 
           if (missingIndices().length > 0) {
             throw new Error('media_upload_failed');
@@ -1029,6 +1069,8 @@ export const useSendMessage = () => {
       emitMessageSent,
       sendWithActiveRoomRetry,
       dispatch,
+      toast,
+      t,
     ]
   );
 

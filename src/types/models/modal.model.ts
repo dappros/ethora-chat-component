@@ -25,4 +25,8 @@ export interface ModalFile {
    * Single-file callers leave it out.
    */
   siblings?: ModalFile[];
+  /** The file belongs to a message flagged sensitive (Trust & Safety). */
+  sensitive?: boolean;
+  /** Id of the message the file belongs to (the reveal state is kept per message). */
+  messageId?: string;
 }

@@ -199,8 +199,12 @@ const canFallBackToLegacyUpload = (error: unknown): boolean => {
   const status = (error as { response?: { status?: number } })?.response
     ?.status;
   if (typeof status !== 'number') return true;
-  return status !== 401 && status !== 413;
+  // 422 is a verdict on the file (Trust & Safety: UPLOAD_BLOCKED_SENSITIVE),
+  // not a sign the endpoint is missing: retrying on the legacy route would
+  // send the same file around the check.
+  return status !== 401 && status !== 413 && status !== 422;
 };
+
 
 const postUpload = (
   endpoint: string,
