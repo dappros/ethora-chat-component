@@ -16,6 +16,7 @@ import { persistReducer, persistStore } from 'redux-persist';
 import { createTransform } from 'redux-persist';
 import { newMessageMidlleware } from './Middleware/newMessageMidlleware';
 import { logoutMiddleware } from './Middleware/logoutMiddleware';
+import { accountBlockedMiddleware } from './Middleware/accountBlockedMiddleware';
 import { sessionEncryptTransform } from './persistEncryption';
 import { reactionsMiddleware } from './Middleware/reactionsMiddleware';
 import { jumpThreadMiddleware } from './Middleware/jumpThreadMiddleware';
@@ -664,6 +665,8 @@ const chatSettingPersistConfig = {
     'client',
     'config',
     'remoteConfig',
+    // A suspension can be lifted at any time; a reload asks the server.
+    'accountStatus',
   ],
   transforms: [scrubSensitiveChatStateTransform, encryptor],
 };
@@ -772,6 +775,7 @@ export const store = configureStore({
       .concat(unreadMiddleware)
       .concat(newMessageMidlleware)
       .concat(logoutMiddleware)
+      .concat(accountBlockedMiddleware)
       .concat(reactionsMiddleware)
       .concat(jumpThreadMiddleware)
       .concat(blockedHydrationMiddleware),

@@ -91,6 +91,20 @@ export type {
   RefreshOptions,
 } from './networking/authRefresh';
 
+// Suspended or archived accounts: what `config.onAccountBlocked` receives,
+// and the rejection the SDK uses for work it refuses to start once the
+// server has reported the account as blocked.
+export {
+  AccountBlockedError,
+  isAccountBlockedError,
+} from './networking/accountBlockedGate';
+export type {
+  AccountBlockedInfo,
+  AccountBlockedCode,
+  AccountBlockedKind,
+  AccountSuspensionDetails,
+} from './helpers/accountBlocked';
+
 // Public type surface.
 //
 // Until now `main.ts` exported 18 runtime symbols and not a single type,

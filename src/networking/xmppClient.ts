@@ -46,6 +46,7 @@ import { sendPing } from './xmpp/sendPing.xmpp';
 import { buildXmppClientIdentityHost } from '../utils/runtimeHostConfig';
 import { isPong } from './xmpp/handlePong.xmpp';
 import { store } from '../roomStore';
+import { isAccountBlocked } from './accountBlockedGate';
 import { removeMessageFromHeapById } from '../roomStore/roomHeapSlice';
 import { hasEchoLanded } from '../helpers/scheduleAckCatchup';
 import {
@@ -438,6 +439,13 @@ export class XmppClient implements XmppClientInterface {
   private async recoverFromAuthFailure(reason: string): Promise<boolean> {
     if (!this.credentialsProvider) return false;
     if (this.intentionalLogout) return false;
+    // A suspended or archived account fails SASL on purpose. The block is
+    // only ever learned from the API (the credential refresh below is the
+    // one call that surfaces it), never inferred from `not-authorized`.
+    if (isAccountBlocked()) {
+      this.logStep(`auth-recovery:account-blocked:${reason}`);
+      return false;
+    }
     if (this.authRecoveryAttempts >= this.maxAuthRecoveryAttempts) {
       this.logStep(`auth-recovery:exhausted:${reason}`);
       return false;
@@ -457,6 +465,14 @@ export class XmppClient implements XmppClientInterface {
     } catch (error) {
       console.warn(`[XMPP] credential refresh failed: ${formatError(error)}`);
       this.authRecoveryActive = false;
+      return false;
+    }
+
+    if (isAccountBlocked()) {
+      // The refresh was refused with USER_SUSPENDED / USER_ARCHIVED: keep
+      // the auth latch set and stop here.
+      this.authRecoveryActive = false;
+      this.logStep(`auth-recovery:account-blocked:${reason}`);
       return false;
     }
 
@@ -1181,6 +1197,10 @@ export class XmppClient implements XmppClientInterface {
     }
     if (this.authFailureDetected || this.status === 'auth_failed') {
       this.logStep('reconnect:skip-auth-failed');
+      return Promise.resolve();
+    }
+    if (isAccountBlocked()) {
+      this.logStep('reconnect:skip-account-blocked');
       return Promise.resolve();
     }
     if (this.intentionalLogout) {
@@ -3458,6 +3478,10 @@ export class XmppClient implements XmppClientInterface {
     }
     if (this.authFailureDetected || this.status === 'auth_failed') {
       this.logStep(`scheduleReconnect:skip-auth-failed:${reason}`);
+      return;
+    }
+    if (isAccountBlocked()) {
+      this.logStep(`scheduleReconnect:skip-account-blocked:${reason}`);
       return;
     }
     if (this.reconnectTimer) return;

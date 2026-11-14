@@ -5,6 +5,7 @@ import { MessageProps, IMessage } from './message.model';
 import { Iso639_1Codes } from './language.model';
 import type { ScheduledCallsConfig } from './scheduledCall.model';
 import { QuickReply } from '../../helpers/quickReplies';
+import type { AccountBlockedInfo } from '../../helpers/accountBlocked';
 import React from 'react'; // Assuming React types are globally available or managed by the project's tsconfig
 
 import { MessageNotificationToastProps } from '../../components/MessageNotification/MessageNotificationToast';
@@ -477,6 +478,18 @@ export interface IConfig {
       xmppPassword?: string;
     } | null>;
   };
+  /**
+   * Called once when the API reports the signed-in account as suspended
+   * (`USER_SUSPENDED`) or archived (`USER_ARCHIVED`). By then the chat
+   * already shows its blocking notice in place of the chat, has closed the
+   * XMPP connection and stopped every reconnect, token refresh and API
+   * request except a new sign-in. The session is not cleared: a host that
+   * wants to sign the user out (or show its own screen) does it here.
+   * `info.suspension` (reason code, administrator message, `until`, support
+   * contact) is present for suspended accounts only. A throw or rejected
+   * promise is caught and logged.
+   */
+  onAccountBlocked?: (info: AccountBlockedInfo) => void | Promise<void>;
   backgroundChat?: {
     color?: string;
     image?: string | File;

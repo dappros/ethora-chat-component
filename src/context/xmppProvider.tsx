@@ -15,6 +15,11 @@ import XmppClient, {
 import { refreshAuthTokensQuietly } from '../networking/authRefresh';
 import { fetchFreshXmppPassword } from '../networking/api-requests/xmppToken.api';
 import {
+  accountBlockedRejection,
+  isAccountBlocked,
+} from '../networking/accountBlockedGate';
+import { ACCOUNT_BLOCKED_EVENT } from '../roomStore/Middleware/accountBlockedMiddleware';
+import {
   buildXmppClientKey,
   getGlobalXmppClient,
   getGlobalXmppClientKey,
@@ -234,6 +239,12 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
         }
       }
 
+      // The refresh above (or any earlier API call) may just have learned
+      // that the account is suspended or archived. Then the SASL failure is
+      // not an expired password, and retrying would be refused again.
+      const blocked = accountBlockedRejection();
+      if (blocked) throw blocked;
+
       // Otherwise (rotation off, or it came back without an xmppPassword)
       // ask the endpoint built for this. The store's own copy is the
       // credential that just failed, so returning it was a no-op retry.
@@ -253,6 +264,11 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
     xmppSettings?: xmppSettingsInterface,
     roomsList?: { [jid: string]: IRoom }
   ): Promise<XmppClient> => {
+    // Suspended or archived account: the server refuses the login, so do
+    // not open a connection that can only fail and retry.
+    const blocked = accountBlockedRejection();
+    if (blocked) throw blocked;
+
     const clientKey = buildXmppClientKey(username, xmppSettings);
     const reusableGlobalClient = getReusableXmppClientByKey(clientKey);
     if (reusableGlobalClient) {
@@ -350,6 +366,7 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
 
   const reconnectClient = () => {
     if (!client) return;
+    if (isAccountBlocked()) return;
     if (
       (client.status === 'error' || client.status === 'offline') &&
       reconnectAttempts < 3
@@ -424,7 +441,7 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
         signal: abortController.signal,
       });
       if (abortController.signal.aborted) return;
-      if (!resolvedUser) {
+      if (!resolvedUser || isAccountBlocked()) {
         setProviderBootstrapStatus('idle');
         return;
       }
@@ -586,11 +603,21 @@ export const XmppProvider: React.FC<XmppProviderProps> = ({
       })();
     };
 
+    // Suspended or archived account: the middleware has already closed the
+    // connection. Drop the provider's reference too, so nothing keeps
+    // reconnecting it and a later sign-in builds a new client. Rooms are
+    // kept: this is not a logout, and the same user may be reinstated.
+    const handleAccountBlocked = () => {
+      resetProviderState();
+    };
+
     window.addEventListener("ethora-xmpp-logout", handleLogout);
+    window.addEventListener(ACCOUNT_BLOCKED_EVENT, handleAccountBlocked);
 
     return () => {
       if (typeof window !== "undefined") {
         window.removeEventListener("ethora-xmpp-logout", handleLogout);
+        window.removeEventListener(ACCOUNT_BLOCKED_EVENT, handleAccountBlocked);
       }
     };
   }, [client, resetProviderState]);

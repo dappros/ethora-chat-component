@@ -64,7 +64,13 @@ vi.mock('../roomStore', async () => {
 });
 
 import { store } from '../roomStore';
-import { setUser, setConfig } from '../roomStore/chatSettingsSlice';
+import {
+  setUser,
+  setConfig,
+  setAccountBlocked,
+  clearAccountBlocked,
+} from '../roomStore/chatSettingsSlice';
+import { isAccountBlockedError } from './accountBlockedGate';
 import { clearStoredUser, persistUserSession } from '../helpers/authStorage';
 import {
   refreshAuthTokens,
@@ -112,6 +118,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
   clearStoredUser();
+  store.dispatch(clearAccountBlocked());
   store.dispatch(setConfig({ refreshTokens: { enabled: true } } as never));
   seedUser('refresh-1');
 });
@@ -817,5 +824,43 @@ describe('dead-session latch', () => {
 
   it('stays inert until something is marked dead', () => {
     expect(isSessionDead({})).toBe(false);
+  });
+});
+
+describe('suspended or archived account', () => {
+  it('refuses to refresh once the account is blocked, without a request', async () => {
+    store.dispatch(
+      setAccountBlocked({ blocked: 'archived', code: 'USER_ARCHIVED' })
+    );
+
+    const error = await refreshAuthTokens().catch((e) => e);
+    expect(isAccountBlockedError(error)).toBe(true);
+    // Not fatal: the session must not be logged out for it.
+    expect(isRefreshFatalError(error)).toBe(false);
+    expect(post).not.toHaveBeenCalled();
+    expect(await refreshAuthTokensQuietly()).toBeNull();
+  });
+
+  it('records a USER_SUSPENDED thrown by a host refresh function', async () => {
+    const refusal = {
+      response: {
+        status: 403,
+        data: { code: 'USER_SUSPENDED', details: { suspension: { reasonCode: 'spam' } } },
+      },
+    };
+    store.dispatch(
+      setConfig({
+        refreshTokens: {
+          enabled: true,
+          refreshFunction: vi.fn().mockRejectedValue(refusal),
+        },
+      } as never)
+    );
+
+    await expect(refreshAuthTokens()).rejects.toBe(refusal);
+    expect(store.getState().chatSettingStore.accountStatus).toMatchObject({
+      blocked: 'suspended',
+      suspension: { reasonCode: 'spam' },
+    });
   });
 });

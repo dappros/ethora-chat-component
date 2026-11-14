@@ -3,7 +3,17 @@ import { store } from '../roomStore';
 import { appToken as betaAppToken } from '../api.config';
 import { VITE_APP_API_URL } from '../config';
 
-import { logout } from '../roomStore/chatSettingsSlice';
+import {
+  clearAccountBlocked,
+  logout,
+} from '../roomStore/chatSettingsSlice';
+import {
+  accountBlockedRejection,
+  isAccountBlocked,
+  isRequestAllowedWhileBlocked,
+  isSessionStartRequest,
+  reportAccountBlockedError,
+} from './accountBlockedGate';
 import {
   refreshAuthTokens,
   isRefreshFatalError,
@@ -69,12 +79,42 @@ export function refresh(): Promise<RefreshResult> {
   return refreshAuthTokens();
 }
 
+// Suspended or archived account: once the server has said so, nothing
+// else is sent. Every request except a new sign-in is refused here, so
+// pollers, retry loops and background syncs stop costing the server (and
+// the user) anything. The rejection has the same shape as the server's 403.
+http.interceptors.request.use((config) => {
+  if (isAccountBlocked() && !isRequestAllowedWhileBlocked(config?.url)) {
+    const rejection = accountBlockedRejection(config);
+    if (rejection) return Promise.reject(rejection);
+  }
+  return config;
+});
+
 http.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // A sign-in that succeeded proves the account it returns is active, so
+    // a block learned earlier (a refused attempt for another account, or a
+    // suspension lifted in the meantime) no longer applies.
+    if (
+      isSessionStartRequest(response?.config?.url) &&
+      store.getState().chatSettingStore?.accountStatus
+    ) {
+      store.dispatch(clearAccountBlocked());
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
     const refreshConfig =
       store.getState().chatSettingStore?.config?.refreshTokens;
+
+    // USER_SUSPENDED / USER_ARCHIVED: record it and pass the error on.
+    // Never a refresh, never a logout: the session is fine, the account
+    // is not, and retrying would only be refused again.
+    if (reportAccountBlockedError(error)) {
+      return Promise.reject(error);
+    }
 
     if (!error.response || error.response.status !== 401 || !originalRequest) {
       return Promise.reject(error);

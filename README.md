@@ -406,6 +406,7 @@ Below is a grouped reference for all `config` options.
 | `userLogin` | `{ enabled: boolean; user: User \| null }` | Inject already-authenticated user directly. |
 | `customLogin` | `{ enabled: boolean; loginFunction: () => Promise<User \| null> }` | Provide your custom async login function. |
 | `refreshTokens` | `{ enabled: boolean; refreshFunction?: () => Promise<{ accessToken: string; refreshToken?: string } \| null> }` | Token refresh strategy. |
+| `onAccountBlocked` | `(info: AccountBlockedInfo) => void \| Promise<void>` | Called once when the API reports the signed-in account as suspended (`USER_SUSPENDED`) or archived (`USER_ARCHIVED`). `info` is `{ blocked: 'suspended' \| 'archived'; code; suspension? }`, where `suspension` (suspended accounts only) is `{ reasonCode, message, suspendedAt, until, supportContact }`. The chat has already replaced itself with its "Account suspended" notice and gone quiet; use the callback to sign the user out of your app or log the event. See [Suspended and archived accounts](#suspended-and-archived-accounts). |
 
 ### Rooms and Data
 
@@ -815,6 +816,53 @@ With `videoCalls.enabled: true` and push enabled, a data-only call push (`type: 
 />
 ```
 
+### Suspended and archived accounts
+
+The Ethora API refuses every request of a suspended account with HTTP 403 and
+`code: 'USER_SUSPENDED'` (sign-in, token refresh and authenticated calls
+alike), and closes its XMPP sessions. An archived account gets 403
+`USER_ARCHIVED`. When the chat sees either answer it:
+
+- replaces the whole chat area (room list, chat and login form) with a
+  blocking notice. For a suspended account it shows "Account suspended", the
+  reason (Child safety, Violation of the Terms of Service, Spam or abuse,
+  Security reasons, Other), the administrator's message when there is one,
+  "until <date>" only when the suspension has an end date, and the support
+  contact (a `mailto:` link for an e-mail address, otherwise a web link). An
+  archived account gets a short "This account is no longer active." with no
+  reason. The text is translated like the rest of the UI (`config.i18n`, keys
+  `account.suspended.*`, `account.archived.*`, `account.blocked.signOut`);
+- closes the XMPP connection and stops reconnecting, refreshing tokens and
+  calling the API. Requests made after that are refused in the browser with
+  an `AccountBlockedError` (same 403 shape, `isAccountBlockedError(error)`),
+  except a new sign-in;
+- calls `config.onAccountBlocked(info)` once.
+
+A failed XMPP login on its own (`not-authorized`) is never taken as a
+suspension, because an expired XMPP password fails the same way. The one
+credential refresh the chat already makes after such a failure is what lets
+the API answer.
+
+The session is kept, not logged out. A reload asks the server again, so a
+lifted suspension shows the chat. The notice goes away when a different
+account signs in (for example a new `userLogin.user`) or on
+`logoutService.performLogout()`. With the chat's own login form the notice
+has a "Sign out" button; when your app signs the user in (`userLogin`,
+`jwtLogin`, `customLogin` or the `user` prop), signing out is left to you.
+
+```tsx
+<Chat
+  config={{
+    userLogin: { enabled: true, user },
+    onAccountBlocked: (info) => {
+      analytics.track('chat_account_blocked', { code: info.code });
+      // e.g. end your own session too:
+      // myAuth.signOut();
+    },
+  }}
+/>
+```
+
 ## Hooks and API Exports
 
 | Export | Type | Purpose |
@@ -828,6 +876,7 @@ With `videoCalls.enabled: true` and push enabled, a data-only call push (`type: 
 | `useInAppNotifications` | hook | Enables and handles in-app notifications. |
 | `usePushNotifications` | hook | Push subscription + foreground handling workflow. |
 | `resendMessage` | function | Retry sending failed/pending messages. |
+| `isAccountBlockedError` / `AccountBlockedError` | function / class | Tells a request the chat refused locally because the account is suspended or archived (see [Suspended and archived accounts](#suspended-and-archived-accounts)) from any other failure. |
 | `parseScheduledCallLink` | function | `parseScheduledCallLink(url)` returns the slug of a scheduled-call join link (`https://<host>/call/<slug>` or `<scheme>://call/<slug>`), or `null`. |
 | `openScheduledCall` | function | `openScheduledCall(slug)` asks the mounted `<Chat>` to select that call's room and show its pre-join panel; held until the user is signed in. Returns `false` for an implausible slug. |
 | `useRoomMute` | hook | `useRoomMute(roomJid)` returns `{ muted, isSupported, isPending, toggleMute, setMuted }` for a room's mute preference - optimistic with rollback on failure. `isSupported` is only `true` once the backend has reported a `muted` boolean for that room (it hasn't shipped to prod yet), so hosts building their own UI should hide a mute control until then. |
