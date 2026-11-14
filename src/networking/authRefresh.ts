@@ -5,6 +5,10 @@ import { getStoredUser } from '../helpers/authStorage';
 import { User } from '../types/types';
 import { localStorageConstants } from '../helpers/constants/LOCAL_STORAGE';
 import { ethoraLogger } from '../helpers/ethoraLogger';
+import {
+  accountBlockedRejection,
+  reportAccountBlockedError,
+} from './accountBlockedGate';
 
 /**
  * THE single refresh-token rotation point for the SDK.
@@ -250,7 +254,16 @@ type ConsumerRefreshFn = () => Promise<{
 const runConsumerRefresh = async (
   refreshFunction: ConsumerRefreshFn
 ): Promise<RefreshResult> => {
-  const refreshed = await refreshFunction();
+  let refreshed: Awaited<ReturnType<ConsumerRefreshFn>>;
+  try {
+    refreshed = await refreshFunction();
+  } catch (error) {
+    // A host function that calls the Ethora API itself (with axios or
+    // anything else that keeps `response.data`) can surface the refusal
+    // too; the SDK's own http client is already covered by its interceptor.
+    reportAccountBlockedError(error);
+    throw error;
+  }
 
   if (!refreshed?.accessToken) {
     throw new Error('Custom refresh function did not return an access token');
@@ -451,6 +464,14 @@ let inflight: Promise<RefreshResult> | null = null;
 export function refreshAuthTokens(
   options?: RefreshOptions
 ): Promise<RefreshResult> {
+  // Suspended or archived: a refresh would only be refused again (and a
+  // host refresh function would run for nothing). Not a RefreshFatalError,
+  // so callers keep the session and do not log the user out.
+  const blocked = accountBlockedRejection();
+  if (blocked) {
+    return Promise.reject(blocked);
+  }
+
   if (inflight) {
     // Whatever that rotation produces is at least as fresh as anything
     // this caller could have asked for.

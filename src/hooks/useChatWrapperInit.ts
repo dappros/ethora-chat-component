@@ -8,6 +8,7 @@ import { chatAutoEnterer } from '../helpers/chatAutoEnterer';
 import { updatedChatLastTimestamps } from '../helpers/updatedChatLastTimestamps';
 import { updateMessagesTillLast } from '../helpers/updateMessagesTillLast';
 import { refreshAuthTokensQuietly } from '../networking/authRefresh';
+import { isAccountBlocked } from '../networking/accountBlockedGate';
 import { setLangSource, setConfig } from '../roomStore/chatSettingsSlice';
 import {
   setCurrentRoom,
@@ -584,6 +585,12 @@ const useChatWrapperInit = ({
     };
 
     const initXmmpClient = async () => {
+      // Suspended or archived account: the notice replaces the chat and no
+      // connection (or retry timer) is started for it.
+      if (isAccountBlocked()) {
+        dispatch(setIsLoading({ loading: false, loadingText: undefined }));
+        return;
+      }
       const legacyLangSource = resolveLegacyTranslatesLangSource(config?.translates);
       if (legacyLangSource) {
         dispatch(setLangSource(legacyLangSource));

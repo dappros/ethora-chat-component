@@ -22,7 +22,7 @@ const { httpMock } = vi.hoisted(() => ({
     post: vi.fn(),
     get: vi.fn(),
     defaults: { baseURL: '' },
-    interceptors: { response: { use: vi.fn() } },
+    interceptors: { request: { use: vi.fn() }, response: { use: vi.fn() } },
   }),
 }));
 

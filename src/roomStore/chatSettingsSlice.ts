@@ -18,6 +18,21 @@ import {
   applyRemoteConfigRecord,
   RemoteConfigRecord,
 } from '../helpers/liveConfig';
+import type { AccountBlockedInfo } from '../helpers/accountBlocked';
+
+/**
+ * The account is suspended or archived (see helpers/accountBlocked.ts).
+ * `userKey` is the XMPP username the block was learned for, or '' when it
+ * arrived before any user was signed in (a refused login).
+ */
+export interface AccountStatusState extends AccountBlockedInfo {
+  userKey: string;
+}
+
+const userKeyOf = (user?: Partial<User> | null): string =>
+  user?.xmppUsername ||
+  walletToUsername(user?.defaultWallet?.walletAddress) ||
+  '';
 
 interface ChatState {
   user: User;
@@ -60,6 +75,12 @@ interface ChatState {
    */
   translateMode?: 'auto' | 'manual';
   blockedUserIds: string[];
+  /**
+   * Set when the API answered USER_SUSPENDED / USER_ARCHIVED for this
+   * session. The chat then shows the blocking notice and stops connecting.
+   * Not persisted: a reload asks the server again.
+   */
+  accountStatus?: AccountStatusState | null;
 }
 
 const unpackAndTransform = (input?: User): User => {
@@ -139,6 +160,7 @@ const initialState: ChatState = {
   config: { colors: { primary: '#0052CD', secondary: '#F3F6FC' } },
   appId: '',
   blockedUserIds: [],
+  accountStatus: null,
 };
 
 const chatSlice = createSlice({
@@ -146,6 +168,19 @@ const chatSlice = createSlice({
   initialState,
   reducers: {
     setUser: (state, action: PayloadAction<User>) => {
+      const blocked = state.accountStatus;
+      if (blocked) {
+        const incomingKey = userKeyOf(action.payload);
+        if (!blocked.userKey) {
+          // Learned before anyone was signed in (a refused login, or a
+          // host login whose follow-up call was refused): the user that
+          // arrives now is the one the block belongs to.
+          blocked.userKey = incomingKey;
+        } else if (incomingKey && incomingKey !== blocked.userKey) {
+          // A different account signed in: the block was not about it.
+          state.accountStatus = null;
+        }
+      }
       state.user = unpackAndTransform(action.payload);
       state.appId = action.payload.appId || state.appId;
       persistUserSession(state.user);
@@ -246,7 +281,19 @@ const chatSlice = createSlice({
         (id) => id !== action.payload
       );
     },
+    setAccountBlocked: (state, action: PayloadAction<AccountBlockedInfo>) => {
+      state.accountStatus = {
+        ...action.payload,
+        // Keep the identity of the first report: a later report for the
+        // same session must not move the block onto someone else.
+        userKey: state.accountStatus?.userKey || userKeyOf(state.user),
+      };
+    },
+    clearAccountBlocked: (state) => {
+      state.accountStatus = null;
+    },
     logout: (state) => {
+      state.accountStatus = null;
       state.user = unpackAndTransform();
       state.config = undefined;
       state.blockedUserIds = [];
@@ -273,6 +320,8 @@ export const {
   setBlockedUserIds,
   addBlockedUserId,
   removeBlockedUserId,
+  setAccountBlocked,
+  clearAccountBlocked,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

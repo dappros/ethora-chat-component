@@ -32,6 +32,7 @@ import type {
   TypographyConfig,
   UseRoomMuteResult,
   ScheduledCallsConfig,
+  AccountBlockedInfo,
 } from './main';
 
 /**
@@ -40,6 +41,7 @@ import type {
  * update the list deliberately, together with a major version bump.
  */
 const EXPECTED_RUNTIME_EXPORTS = [
+  'AccountBlockedError',
   'AuthTestIds',
   'Chat',
   'ChatInputTestIds',
@@ -52,6 +54,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   'formatFingerprint',
   'getRoomAccess',
   'handleQRChatId',
+  'isAccountBlockedError',
   'isE2eeEnabled',
   'isRefreshFatalError',
   'logoutService',
@@ -116,6 +119,7 @@ describe('public API', () => {
     assertExported<ScheduledCallsConfig>();
     assertExported<TypographyConfig>();
     assertExported<UseRoomMuteResult>();
+    assertExported<AccountBlockedInfo>();
 
     expect(props.config).toBe(config);
     expect(props.loginData?.email).toBe('a@b.c');

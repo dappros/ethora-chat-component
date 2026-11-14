@@ -15,6 +15,8 @@ import { setBaseURL } from '../../networking/apiClient';
 import { isSessionDead } from '../../networking/authRefresh';
 import Loader from '../styled/Loader';
 import ErrorFallback from './ErrorFallback';
+import AccountBlockedNotice from './AccountBlockedNotice';
+import { logoutService } from '../../hooks/useLogout';
 import FallbackScreen from './FallbackScreen';
 import {
   getStoredUser,
@@ -45,7 +47,9 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
   const [showModal, setShowModal] = useState(false);
   const { config, MainComponentStyles } = props;
 
-  const { user } = useSelector((state: RootState) => state.chatSettingStore);
+  const { user, accountStatus } = useSelector(
+    (state: RootState) => state.chatSettingStore
+  );
 
   // Restoring a stored session is async (a /users/my round trip, ~800ms).
   // Without this the render gate below - which needs `xmppPassword` to
@@ -122,6 +126,23 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
       // JID against the new app's rooms and mod_ethora would reject it
       // with "wrong app name".
       const wantedUsername = config?.userLogin?.user?.xmppUsername || '';
+
+      // Suspended or archived: every sign-in path below would only be
+      // refused again (or, for a stored session, start a connection that
+      // cannot authenticate). The one exception is a host handing over a
+      // DIFFERENT user, which the setUser reducer takes as a new account.
+      if (
+        accountStatus &&
+        !(
+          config?.userLogin?.enabled &&
+          wantedUsername &&
+          accountStatus.userKey &&
+          wantedUsername !== accountStatus.userKey
+        )
+      ) {
+        return;
+      }
+
       const hasUsableSession = Boolean(user.xmppUsername && user.xmppPassword);
       if (
         hasUsableSession &&
@@ -240,11 +261,38 @@ const LoginWrapper: React.FC<LoginWrapperProps> = ({ ...props }) => {
     // username but no password - see the comment there). Without the
     // password in deps, this effect wouldn't re-evaluate when a restore
     // path fills it in, and a genuinely-needed re-login could be skipped.
-  }, [config, dispatch, loginUserFunction, user.xmppUsername, user.xmppPassword]);
+  }, [
+    config,
+    dispatch,
+    loginUserFunction,
+    user.xmppUsername,
+    user.xmppPassword,
+    accountStatus,
+  ]);
 
   return (
     <>
-      {showModal ? (
+      {accountStatus ? (
+        // Above every other state, the login form included: the server
+        // refuses this account, so nothing else here can work.
+        <AccountBlockedNotice
+          info={accountStatus}
+          onSignOut={
+            // Only when the chat runs its own sign-in (the built-in form).
+            // A host that signs the user in (its own login, a JWT, a user
+            // object or the `user` credentials prop) owns sign-out and is
+            // told through config.onAccountBlocked.
+            config?.customLogin?.enabled ||
+            config?.jwtLogin?.enabled ||
+            config?.userLogin?.enabled ||
+            props.user?.email
+              ? undefined
+              : () => {
+                  void logoutService.performLogout();
+                }
+          }
+        />
+      ) : showModal ? (
         <ErrorFallback
           MainComponentStyles={MainComponentStyles}
           onButtonClick={() => setShowModal(false)}
