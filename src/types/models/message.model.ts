@@ -50,6 +50,12 @@ export interface IMessage {
   // and the user should be offered a retry".
   failed?: boolean;
   /**
+   * Set together with `failed` when the failure is final and known:
+   * 'peer-suspended' means the chat server bounced the message because the
+   * recipient's account is suspended. The bubble says so and offers no retry.
+   */
+  failedReason?: 'peer-suspended';
+  /**
    * Sent in clear in a room that is supposed to be end-to-end encrypted.
    *
    * Derived locally, never trusted from the sender: in an `e2ee` room any

@@ -34,6 +34,19 @@ export interface TrustSafetyState {
    * reason. Remembered so the bubble and the viewer never ask again.
    */
   blocked: Record<string, FileBlockReason>;
+  /**
+   * Other accounts' suspension status, keyed by xmppUsername (local part).
+   * Filled by POST /v2/users/suspended-status (see suspendedPeers.ts) and by
+   * a chat-server bounce that says the recipient is suspended. `checkedAt`
+   * is when the answer arrived; entries older than five minutes are asked
+   * again while something on screen still shows that account.
+   */
+  peers: Record<string, PeerStatus>;
+}
+
+export interface PeerStatus {
+  suspended: boolean;
+  checkedAt: number;
 }
 
 export const initialAgeState: AgeState = {
@@ -49,6 +62,7 @@ const initialState: TrustSafetyState = {
   age: initialAgeState,
   revealed: {},
   blocked: {},
+  peers: {},
 };
 
 const isPlainKey = (key: string) =>
@@ -97,6 +111,34 @@ const trustSafetySlice = createSlice({
     clearMediaBlocked(state, action: PayloadAction<string>) {
       delete state.blocked[action.payload];
     },
+    /**
+     * One status lookup answered: every name in `checked` is suspended when
+     * it is in `suspended`, and not suspended otherwise.
+     */
+    setPeerStatuses(
+      state,
+      action: PayloadAction<{
+        checked: string[];
+        suspended: string[];
+        checkedAt: number;
+      }>
+    ) {
+      const { checked, suspended, checkedAt } = action.payload;
+      const suspendedSet = new Set(suspended);
+      for (const key of checked) {
+        if (!isPlainKey(key)) continue;
+        state.peers[key] = { suspended: suspendedSet.has(key), checkedAt };
+      }
+    },
+    /** The chat server or the API refused something because of it. */
+    markPeerSuspended(
+      state,
+      action: PayloadAction<{ xmppUsername: string; at: number }>
+    ) {
+      const { xmppUsername, at } = action.payload;
+      if (!isPlainKey(xmppUsername)) return;
+      state.peers[xmppUsername] = { suspended: true, checkedAt: at };
+    },
     resetTrustSafety() {
       return initialState;
     },
@@ -119,6 +161,8 @@ export const {
   concealMessageMedia,
   markMediaBlocked,
   clearMediaBlocked,
+  setPeerStatuses,
+  markPeerSuspended,
   resetTrustSafety,
 } = trustSafetySlice.actions;
 

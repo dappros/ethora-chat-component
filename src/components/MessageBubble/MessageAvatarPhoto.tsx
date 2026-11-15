@@ -2,6 +2,7 @@ import React, { CSSProperties } from 'react';
 import { Avatar } from './Avatar';
 import { useAvatarImage } from '../../hooks/useAvatarImage';
 import { safeImageUrl } from '../../helpers/safeUrl';
+import { suspendedAvatarStyle } from '../TrustSafety/SuspendedPeer';
 
 interface MessageAvatarPhotoProps {
   /** Sender photo URL; empty renders the initials circle alone. */
@@ -9,6 +10,8 @@ interface MessageAvatarPhotoProps {
   /** Display name, used for the initials. */
   username?: string;
   style?: CSSProperties;
+  /** Grey the avatar out (a suspended account). */
+  greyed?: boolean;
 }
 
 /**
@@ -21,11 +24,13 @@ interface MessageAvatarPhotoProps {
 export const MessageAvatarPhoto: React.FC<MessageAvatarPhotoProps> = ({
   src,
   username,
-  style,
+  style: baseStyle,
+  greyed = false,
 }) => {
   const image = useAvatarImage(src);
   const showImage = !!image.src && image.status !== 'failed';
   const loaded = image.status === 'loaded';
+  const style = greyed ? { ...baseStyle, ...suspendedAvatarStyle } : baseStyle;
 
   if (!showImage) return <Avatar username={username} style={style} />;
 
@@ -35,9 +40,10 @@ export const MessageAvatarPhoto: React.FC<MessageAvatarPhotoProps> = ({
         position: 'relative',
         width: 'var(--ethora-message-avatar-size, 40px)',
         height: 'var(--ethora-message-avatar-size, 40px)',
+        ...(greyed ? suspendedAvatarStyle : {}),
       }}
     >
-      {!loaded && <Avatar username={username} style={style} />}
+      {!loaded && <Avatar username={username} style={baseStyle} />}
       <img
         src={safeImageUrl(image.src)}
         alt="userIcon"

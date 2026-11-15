@@ -17,6 +17,7 @@ import {
   setIsLoading,
 } from '../../roomStore/roomsSlice';
 import RoomList from './RoomList';
+import { useSuspendedPeerLookups } from '../../hooks/useSuspendedPeers';
 import Modal from '../Modals/Modal/Modal';
 import SidePanel from '../Modals/SidePanel/SidePanel';
 import ThreadWrapper from '../Thread/ThreadWrapper';
@@ -124,6 +125,9 @@ const ChatWrapper: FC<ChatWrapperProps> = ({
     Boolean(state.rooms?.reportRoom?.isOpen)
   );
   const { loadingText } = useRoomState();
+  // Trust & Safety: keep the "Suspended" badges of private-chat partners and
+  // of the open room's members and senders current.
+  useSuspendedPeerLookups();
 
   // Deliberately placed after the room selectors: the QR / deep-link hook
   // needs to see the rooms as they load so it can keep re-asserting the

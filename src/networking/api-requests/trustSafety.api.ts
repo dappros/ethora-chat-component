@@ -8,6 +8,8 @@ import http from '../apiClient';
  *    (any App member; tells the client whether sensitive media is age gated)
  *  - GET /v2/users/me/age               -> { birthYear, isAdult, declaredAt, canDeclareAdult }
  *  - PUT /v2/users/me/age { dateOfBirth: 'YYYY-MM-DD' } -> same; 409 AGE_LOCKED
+ *  - POST /v2/users/suspended-status { xmppUsernames: string[1..500] }
+ *      -> { suspended: string[] } (the subset that is suspended)
  */
 
 export interface AppTrustSafety {
@@ -95,6 +97,30 @@ export async function putMyAge(dateOfBirth: string): Promise<UserAge> {
     { headers: authHeaders() }
   );
   return normalizeUserAge(response.data);
+}
+
+/** The subset of `xmppUsernames` that belongs to suspended accounts. */
+export const normalizeSuspendedStatus = (data: unknown): string[] => {
+  const record = unwrap(data);
+  const list = Array.isArray(data)
+    ? data
+    : Array.isArray(record.suspended)
+      ? record.suspended
+      : [];
+  return list.filter(
+    (value): value is string => typeof value === 'string' && value.length > 0
+  );
+};
+
+export async function postSuspendedStatus(
+  xmppUsernames: string[]
+): Promise<string[]> {
+  const response = await http.post(
+    '/v2/users/suspended-status',
+    { xmppUsernames },
+    { headers: authHeaders() }
+  );
+  return normalizeSuspendedStatus(response.data);
 }
 
 /** The error code the server sends with a 409 once a minor's age is locked. */

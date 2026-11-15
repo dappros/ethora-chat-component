@@ -502,6 +502,9 @@ const en: UiStringTable = {
   'ts.message.blurredPersonalShort': "Hidden: may contain personal or health information",
   'ts.message.hidden': "Message hidden by moderators",
   'user.suspendedAccount': "Suspended account",
+  'peer.suspended.badge': "Suspended",
+  'peer.suspended.notice': "This account is suspended. You can't message or call it.",
+  'peer.suspended.notDelivered': "Not delivered: this account is suspended",
 };
 
 const fr: UiStringTable = {
@@ -1000,6 +1003,9 @@ const fr: UiStringTable = {
   'ts.message.blurredPersonalShort': "Masqué : peut contenir des informations personnelles ou de santé",
   'ts.message.hidden': "Message masqué par les modérateurs",
   'user.suspendedAccount': "Compte suspendu",
+  'peer.suspended.badge': "Suspendu",
+  'peer.suspended.notice': "Ce compte est suspendu. Vous ne pouvez ni lui écrire ni l'appeler.",
+  'peer.suspended.notDelivered': "Non envoyé : ce compte est suspendu",
 };
 
 const es: UiStringTable = {
@@ -1493,6 +1499,9 @@ const es: UiStringTable = {
   'ts.message.blurredPersonalShort': "Oculto: puede contener información personal o de salud",
   'ts.message.hidden': "Mensaje ocultado por los moderadores",
   'user.suspendedAccount': "Cuenta suspendida",
+  'peer.suspended.badge': "Suspendida",
+  'peer.suspended.notice': "Esta cuenta está suspendida. No puedes enviarle mensajes ni llamarla.",
+  'peer.suspended.notDelivered': "No enviado: esta cuenta está suspendida",
 };
 
 const pt: UiStringTable = {
@@ -1988,6 +1997,9 @@ const pt: UiStringTable = {
   'ts.message.blurredPersonalShort': "Oculto: pode conter informações pessoais ou de saúde",
   'ts.message.hidden': "Mensagem ocultada pelos moderadores",
   'user.suspendedAccount': "Conta suspensa",
+  'peer.suspended.badge': "Suspensa",
+  'peer.suspended.notice': "Esta conta está suspensa. Você não pode enviar mensagens nem ligar para ela.",
+  'peer.suspended.notDelivered': "Não enviado: esta conta está suspensa",
 };
 
 const ht: UiStringTable = {
@@ -2479,6 +2491,9 @@ const ht: UiStringTable = {
   'ts.message.blurredPersonalShort': "Kache: ka gen enfòmasyon pèsonèl oswa enfòmasyon sou sante",
   'ts.message.hidden': "Moderatè yo kache mesaj sa a",
   'user.suspendedAccount': "Kont sispann",
+  'peer.suspended.badge': "Sispann",
+  'peer.suspended.notice': "Kont sa a sispann. Ou pa ka voye mesaj ba li ni rele li.",
+  'peer.suspended.notDelivered': "Pa voye: kont sa a sispann",
 };
 
 const zh: UiStringTable = {
@@ -2963,6 +2978,9 @@ const zh: UiStringTable = {
   'ts.message.blurredPersonalShort': "已隐藏：可能包含个人或健康信息",
   'ts.message.hidden': "消息已被管理员隐藏",
   'user.suspendedAccount': "已停用的账户",
+  'peer.suspended.badge': "已暂停",
+  'peer.suspended.notice': "此账户已被暂停。您无法给其发消息或通话。",
+  'peer.suspended.notDelivered': "未发送：此账户已被暂停",
 };
 
 // Built-in tables keyed by base language. Add a language here (plus the code

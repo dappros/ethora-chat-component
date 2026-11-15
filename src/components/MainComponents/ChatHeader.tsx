@@ -4,6 +4,8 @@ import styled from 'styled-components';
 import RoomList from './RoomList';
 import { IConfig, IRoom } from '../../types/types';
 import { ProfileImagePlaceholder } from './ProfileImagePlaceholder';
+import { usePeerSuspended } from '../../hooks/useSuspendedPeers';
+import { SuspendedBadge } from '../TrustSafety/SuspendedPeer';
 import { useRoomPresence } from '../../hooks/useRoomPresence';
 import OnlineUsersPopover from '../RoomComponents/OnlineUsersPopover';
 import Button from '../styled/Button';
@@ -344,6 +346,9 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   );
   const peerProfileImage =
     peer?.profileImage || peerUsersSetEntry?.profileImage || '';
+  // Trust & Safety: a suspended partner can't be messaged or called, so the
+  // call buttons go and the name carries a "Suspended" badge.
+  const peerSuspended = usePeerSuspended(isPrivateRoom ? peerKey : '');
   // Block is offered only for 1-1 private rooms with a resolvable peer, and
   // only when the host opts in with config.features.userBlock (the production
   // backend does not serve the route yet). config.disableUserBlock always hides it.
@@ -361,7 +366,8 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const hasLivekitUrl = Boolean(videoCallsConfig?.livekitUrl?.trim());
   // Optional chain: a host or test store may not mount the call slice.
   const isCallBusy = call?.phase !== 'idle';
-  const canCall = isVideoCallsEnabled && isRoomAllowed && hasLivekitUrl;
+  const canCall =
+    isVideoCallsEnabled && isRoomAllowed && hasLivekitUrl && !peerSuspended;
   // Audio calls are an opt-in feature on top of the call infra; they need
   // everything a video call needs plus the explicit flag.
   const isAudioCallsEnabled =
@@ -562,11 +568,13 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                 )}
                 active={true}
                 online={isPrivateRoom && peerOnline}
+                greyed={peerSuspended}
               />
             </div>
             <HeaderTextCol>
               <HeaderTitleRow>
                 <HeaderTitle>{currentRoom?.title}</HeaderTitle>
+                {peerSuspended && <SuspendedBadge />}
                 {currentRoom?.e2ee && (
                   // The tooltip lives on the wrapper, not on the <svg>: these
                   // icon components spread props onto an svg that already has

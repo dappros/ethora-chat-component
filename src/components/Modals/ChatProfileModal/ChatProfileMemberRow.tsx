@@ -8,6 +8,8 @@ import DropdownMenu from '../../DropdownMenu/DropdownMenu';
 import Button from '../../styled/Button';
 import { ethoraLogger } from '../../../helpers/ethoraLogger';
 import { useT, useUiLocale } from '../../../i18n/useT';
+import { usePeerSuspended } from '../../../hooks/useSuspendedPeers';
+import { SuspendedBadge } from '../../TrustSafety/SuspendedPeer';
 
 // Row height/radius/hover match RoomList's ChatItem and the Files tab's own
 // rows (see src/components/styled/RoomListComponents/index.tsx and
@@ -62,6 +64,13 @@ const Name = styled.span`
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+`;
+
+const NameLine = styled.span`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
 `;
 
 // The secondary line every row was missing: "online" (live presence) takes
@@ -156,6 +165,8 @@ const ChatProfileMemberRow: React.FC<ChatProfileMemberRowProps> = ({
     profileImage,
   } as RoomMember;
 
+  // Trust & Safety: shown with a "Suspended" badge and a greyed avatar.
+  const suspended = usePeerSuspended(localKey);
   const hasRole = !!member.role && member.role !== 'none';
   const isBanned = member.ban_status === 'banned';
 
@@ -197,11 +208,15 @@ const ChatProfileMemberRow: React.FC<ChatProfileMemberRowProps> = ({
           icon={profileImage}
           size={40}
           online={online}
+          greyed={suspended}
         />
         <NameColumn>
-          <Name>
-            {firstName} {lastName}
-          </Name>
+          <NameLine>
+            <Name>
+              {firstName} {lastName}
+            </Name>
+            {suspended && <SuspendedBadge />}
+          </NameLine>
           {secondaryText && (
             <Secondary $online={online}>{secondaryText}</Secondary>
           )}

@@ -15,6 +15,7 @@ import { useSelector } from 'react-redux';
 import type { RootState } from '../../roomStore';
 import { useAvatarImage } from '../../hooks/useAvatarImage';
 import { useT } from '../../i18n/useT';
+import { suspendedAvatarStyle } from '../TrustSafety/SuspendedPeer';
 
 interface ProfileImagePlaceholderProps {
   name?: string;
@@ -36,6 +37,8 @@ interface ProfileImagePlaceholderProps {
   fileInputId?: string;
   /** Show a green online-status dot on the avatar. */
   online?: boolean;
+  /** Grey the avatar out (a suspended account); hides the online dot. */
+  greyed?: boolean;
 }
 
 export const ProfileImagePlaceholder: React.FC<
@@ -52,6 +55,7 @@ export const ProfileImagePlaceholder: React.FC<
   disableOverlay,
   fileInputId = 'avatar-file-input',
   online = false,
+  greyed = false,
 }) => {
   // Only the colours: subscribing to the whole settings slice re-rendered
   // every avatar in a list on unrelated settings changes.
@@ -152,6 +156,7 @@ export const ProfileImagePlaceholder: React.FC<
           ...(iconColor ? { color: iconColor } : {}),
           cursor: 'pointer',
           position: 'relative',
+          ...(greyed ? suspendedAvatarStyle : {}),
         }}
       >
         {!imageLoaded && (placeholderIcon ?? getInitials())}
@@ -191,7 +196,7 @@ export const ProfileImagePlaceholder: React.FC<
         )}
       </AvatarCircle>
       {cropFile && <AvatarCropDialog file={cropFile} onCancel={() => setCropFile(null)} onSave={(file) => { setCropFile(null); upload?.onUpload(file); }} />}
-      {online && (
+      {online && !greyed && (
         <span
           aria-label="online"
           style={{

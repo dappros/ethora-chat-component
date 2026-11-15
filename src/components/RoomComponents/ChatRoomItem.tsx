@@ -32,6 +32,8 @@ import {
   isOpaqueXmppUserId,
   isSameXmppUsername,
 } from '../../helpers/xmppUsername';
+import { usePeerSuspended } from '../../hooks/useSuspendedPeers';
+import { SuspendedBadge } from '../TrustSafety/SuspendedPeer';
 
 interface ChatRoomItemProps {
   chat: IRoom;
@@ -81,6 +83,8 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
   );
   const peerProfileImage =
     peer?.profileImage || peerUsersSetEntry?.profileImage || '';
+  // Trust & Safety: the other person's account is suspended.
+  const peerSuspended = usePeerSuspended(isPrivateRoom ? peerKey : '');
   // Group/public rooms only - 1:1 rooms already show the peer's own
   // online/offline dot on their avatar, a member-count popover doesn't add
   // anything there.
@@ -303,6 +307,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
           fileToken
         )}
         online={peerOnline}
+        greyed={peerSuspended}
         size={44}
       />
       <div
@@ -339,6 +344,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
               }}
             >
               <ChatName style={{ minWidth: 0 }}>{displayName}</ChatName>
+              {peerSuspended && <SuspendedBadge />}
               {chat?.e2ee && (
                 <span
                   title={t('e2ee.roomEncrypted')}

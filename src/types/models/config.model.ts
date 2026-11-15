@@ -426,6 +426,14 @@ export interface IConfig {
    */
   disableUserBlock?: boolean;
   /**
+   * Turn off the "Suspended" badges and the suspended-partner notice in 1:1
+   * chats, and the `POST /v2/users/suspended-status` lookups behind them.
+   * On by default; a backend without the route is detected (404) and not
+   * asked again. A message the chat server bounces because the recipient is
+   * suspended is still shown as not delivered.
+   */
+  disableSuspendedPeers?: boolean;
+  /**
    * Opt-in backend features. Each flag turns on client code that calls a route
    * not every backend deployment serves yet, so the default keeps the control
    * hidden rather than showing an action that fails.
