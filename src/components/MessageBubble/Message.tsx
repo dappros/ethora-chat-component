@@ -91,6 +91,9 @@ import {
 } from '../../utils/translateModePolicy';
 import { resendMessage } from '../../utils/resendMessage';
 import { hasMediaRetry, retryMediaSend } from '../../helpers/mediaSendRetry';
+import { usePeerSuspended } from '../../hooks/useSuspendedPeers';
+import { PEER_SUSPENDED_FAILURE } from '../../helpers/suspendedPeers';
+import { SuspendedBadge } from '../TrustSafety/SuspendedPeer';
 import { getMessageAttachments, isMediaMessage } from '../../helpers/attachments';
 import { getMessageCaption } from '../../helpers/caption';
 import {
@@ -334,6 +337,11 @@ const Message: React.FC<MessageProps> = forwardRef<
   const shownSenderName = senderMasked
     ? t('user.suspendedAccount')
     : senderDisplayName;
+  // Trust & Safety: the sender's account is suspended now (a lookup or a
+  // bounce said so). A masked sender already reads "Suspended account".
+  const senderSuspended = usePeerSuspended(
+    !isUser && !senderMasked ? senderLocal : ''
+  );
   const referencedMessage = parseMessageReference(message.mainMessage);
 
   const dispatch = useDispatch();
@@ -726,6 +734,9 @@ const Message: React.FC<MessageProps> = forwardRef<
   // memory. After a reload the message can still be in the persisted store
   // with no runner behind it, and a Retry button there would do nothing. In
   // that case offer Remove instead, which drops the optimistic message.
+  // Bounced because the recipient is suspended: final, so no Retry.
+  const peerSuspendedFailure =
+    isFailed && message?.failedReason === PEER_SUSPENDED_FAILURE;
   const mediaRetryLost = Boolean(
     isFailed && message?.isMediafile === 'true' && !hasMediaRetry(message.id)
   );
@@ -960,6 +971,7 @@ const Message: React.FC<MessageProps> = forwardRef<
                 src={senderProfileImage}
                 username={senderDisplayName}
                 style={{ cursor: avatarClickable ? 'pointer' : 'default' }}
+                greyed={senderSuspended}
               />
             )}
           </CustomMessagePhotoContainer>
@@ -997,6 +1009,9 @@ const Message: React.FC<MessageProps> = forwardRef<
               data-sender-masked={senderMasked ? 'true' : undefined}
             >
               {shownSenderName}
+              {senderSuspended && (
+                <SuspendedBadge style={{ marginLeft: 6 }} />
+              )}
             </CustomUserName>
           )}
           {!isReply && referencedMessage?.text && (
@@ -1140,7 +1155,12 @@ const Message: React.FC<MessageProps> = forwardRef<
               onSelect={handleQuickReply}
             />
           )}
-          {isFailed && mediaRetryLost && (
+          {isFailed && peerSuspendedFailure && (
+            <FailedNotice data-failed-reason={PEER_SUSPENDED_FAILURE}>
+              <span>{t('peer.suspended.notDelivered')}</span>
+            </FailedNotice>
+          )}
+          {isFailed && !peerSuspendedFailure && mediaRetryLost && (
             <>
               <FailedNotice>
                 <span>{t('message.notDelivered')}</span>
@@ -1155,7 +1175,7 @@ const Message: React.FC<MessageProps> = forwardRef<
               <FailedNote>{t('message.mediaLostNote')}</FailedNote>
             </>
           )}
-          {isFailed && !mediaRetryLost && (
+          {isFailed && !peerSuspendedFailure && !mediaRetryLost && (
             <FailedNotice>
               <span>{t('message.notDelivered')}</span>
               <RetryButton

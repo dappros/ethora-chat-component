@@ -23,6 +23,7 @@ import { useChatSettingState } from '../../../hooks/useChatSettingState';
 import { useToast } from '../../../context/ToastContext';
 import { useAppDispatch } from '../../../hooks/hooks';
 import { useT } from '../../../i18n/useT';
+import { isPeerSuspendedError } from '../../../helpers/suspendedPeers';
 
 const AddMembersModal: React.FC = () => {
   const { config } = useChatSettingState();
@@ -85,7 +86,9 @@ const AddMembersModal: React.FC = () => {
       showToast({
         id: Date.now().toString(),
         title: t('toast.error'),
-        message: t('toast.failedToAddUser'),
+        message: isPeerSuspendedError(error)
+          ? t('peer.suspended.notice')
+          : t('toast.failedToAddUser'),
         type: 'error',
       });
     }

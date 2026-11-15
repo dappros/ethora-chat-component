@@ -35,6 +35,11 @@ import type { CaptionInput } from '../../helpers/caption';
 import { useLoaderDebug } from '../../hooks/useLoaderDebug';
 import { useChatOpenPhase } from '../../hooks/useChatOpenPhase';
 import { ChatRoomOpeningPreview } from './ChatRoomOpeningPreview';
+import {
+  usePeerSuspended,
+  usePrivatePeerXmppUsername,
+} from '../../hooks/useSuspendedPeers';
+import { SuspendedPeerNotice } from '../TrustSafety/SuspendedPeer';
 
 // What ChatRoom renders from the active room. Built by a selector that returns
 // primitives and stable references only, so the component re-renders when
@@ -149,6 +154,10 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
         activeRoomJID ? state.rooms.rooms?.[activeRoomJID] : undefined,
       sameHeaderRoom
     );
+    // Trust & Safety: in a 1:1 chat with a suspended account the composer
+    // gives way to a notice; nothing sent there could be delivered.
+    const privatePeer = usePrivatePeerXmppUsername(headerRoom);
+    const peerSuspended = usePeerSuspended(privatePeer);
     const {
       sendMessage: sendMs,
       sendMedia: sendMessageMedia,
@@ -555,6 +564,8 @@ const ChatRoom: React.FC<ChatRoomProps> = React.memo(
             onSendMessage: baseInputProps.sendMessage,
             onSendMedia: baseInputProps.sendMedia,
           };
+
+          if (peerSuspended) return <SuspendedPeerNotice />;
 
           return CustomInputComponent ? (
             <CustomInputComponent {...normalizedProps} />

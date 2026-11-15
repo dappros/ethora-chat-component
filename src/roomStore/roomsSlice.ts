@@ -1019,6 +1019,33 @@ const roomsStore = createSlice({
         }
       );
     },
+    // The chat server bounced this message for good (the recipient is
+    // suspended). The bounce names the recipient, not the room, so every
+    // room is searched; it is rare and only touches our own pending sends.
+    markMessageUndeliverable(
+      state,
+      action: PayloadAction<{
+        messageId: string;
+        reason: 'peer-suspended';
+        roomJID?: string;
+      }>
+    ) {
+      const { messageId, reason, roomJID } = action.payload;
+      if (!messageId) return;
+      const jids = roomJID ? [roomJID] : Object.keys(state.rooms);
+      for (const jid of jids) {
+        forEachMessageCopy(
+          state,
+          jid,
+          (msg) => msg.id === messageId || msg.xmppId === messageId,
+          (message) => {
+            message.pending = false;
+            message.failed = true;
+            message.failedReason = reason;
+          }
+        );
+      }
+    },
     // Multi-file send in flight: replaces the optimistic attachment list
     // (per-file progress / failed state) and the message's sending flags.
     // Unlike addRoomMessage this never forces `pending`/`failed` back to a
@@ -2193,6 +2220,7 @@ export const {
   removeRoomMessage,
   setEditAction,
   setMessageSendFailed,
+  markMessageUndeliverable,
   setMessageSendRetrying,
   confirmMessageDelivered,
   setMediaUploadState,

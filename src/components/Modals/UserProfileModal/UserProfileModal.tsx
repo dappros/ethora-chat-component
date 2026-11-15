@@ -64,6 +64,9 @@ import { useAppDispatch } from '../../../hooks/hooks';
 import { logoutService } from '../../../hooks/useLogout';
 import { useT } from '../../../i18n/useT';
 import { ethoraLogger } from '../../../helpers/ethoraLogger';
+import { usePeerSuspended } from '../../../hooks/useSuspendedPeers';
+import { isPeerSuspendedError } from '../../../helpers/suspendedPeers';
+import { SuspendedBadge } from '../../TrustSafety/SuspendedPeer';
 
 interface UserProfileModalProps {
   handleCloseModal: any;
@@ -108,6 +111,18 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const isAudioCallsEnabled =
     canCall && videoCallsConfig?.enableAudioCalls === true;
   const isCallBusy = callPhase !== 'idle';
+
+  // Trust & Safety: someone else's suspended account. Badge and greyed
+  // avatar; no Message or Call actions (the server would refuse them).
+  const selectedUserXmppUsername = String(
+    (selectedUser as any)?.xmppUsername ||
+      (selectedUser as any)?.userJID ||
+      selectedUser?.id ||
+      ''
+  );
+  const selectedUserSuspended = usePeerSuspended(
+    selectedUser ? selectedUserXmppUsername : ''
+  );
 
   const handleBackClick = useCallback(() => {
     dispatch(setSelectedUser());
@@ -278,7 +293,9 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
         showToast({
           id: Date.now().toString(),
           title: t('toast.error'),
-          message: e?.message || t('toast.failedToCreatePrivateChat'),
+          message: isPeerSuspendedError(e)
+            ? t('peer.suspended.notice')
+            : e?.message || t('toast.failedToCreatePrivateChat'),
           type: 'error',
           duration: 4000,
         });
@@ -500,11 +517,15 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
             icon={modalUser?.profileImage ?? null}
             name={modalUser?.name ?? modalUser?.firstName}
             size={96}
+            greyed={selectedUserSuspended}
           />
           <ProfileHeroName>
             {modalUser?.name
               ? `${modalUser?.name}`
               : `${modalUser?.firstName} ${modalUser?.lastName}`}
+            {selectedUserSuspended && (
+              <SuspendedBadge style={{ marginLeft: 8 }} />
+            )}
           </ProfileHeroName>
         </ProfileHero>
 
@@ -545,14 +566,16 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
               {t('modal.profile.actions')}
             </DrawerSectionTitle>
             <ProfileActions>
-              <ActionButton
-                StartIcon={<ChatIcon />}
-                onClick={handlePrivateMessage}
-                variant="filled"
-              >
-                {t('action.message')}
-              </ActionButton>
-              {isE2eeEnabled && (
+              {!selectedUserSuspended && (
+                <ActionButton
+                  StartIcon={<ChatIcon />}
+                  onClick={handlePrivateMessage}
+                  variant="filled"
+                >
+                  {t('action.message')}
+                </ActionButton>
+              )}
+              {isE2eeEnabled && !selectedUserSuspended && (
                 <ActionButton
                   StartIcon={
                     <LockIcon color="var(--ethora-color-text-on-primary, #FFFFFF)" />
@@ -563,7 +586,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   {t('action.encryptedMessage')}
                 </ActionButton>
               )}
-              {canCall && (
+              {canCall && !selectedUserSuspended && (
                 <ActionButton
                   StartIcon={<VideoCallIcon color="var(--ethora-color-text-on-primary, #FFFFFF)" />}
                   onClick={() => void handleCall('video')}
@@ -573,7 +596,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   {isAudioCallsEnabled ? t('action.videoCall') : t('action.call')}
                 </ActionButton>
               )}
-              {isAudioCallsEnabled && (
+              {isAudioCallsEnabled && !selectedUserSuspended && (
                 <ActionButton
                   StartIcon={<AudioCallIcon color="var(--ethora-color-text-on-primary, #FFFFFF)" />}
                   onClick={() => void handleCall('audio')}
@@ -606,6 +629,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     ),
     [
       modalUser,
+      selectedUserSuspended,
       canCall,
       canBlock,
       isAudioCallsEnabled,

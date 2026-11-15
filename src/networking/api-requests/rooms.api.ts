@@ -12,6 +12,13 @@ import http from '../apiClient';
 import { CallCreateResult, parseCallCreateResponse } from '../../calls/callMode';
 import { createSharedRequest, SharedRequest } from '../sharedRequest';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
+import {
+  PEER_SUSPENDED,
+  PeerSuspendedError,
+  peerSuspendedTargetsFromResults,
+} from '../../helpers/suspendedPeers';
+import { markPeerSuspendedNow } from '../suspendedPeersLookup';
+import { errorCodeOf } from './trustSafety.api';
 
 // 60s, not 1.5s. Provider bootstrap fires /chats/my early; chat mount can
 // happen many seconds later (route transition, lazy chunk). Without this
@@ -384,6 +391,12 @@ export async function postPrivateRoom(
     );
     return response.data.result;
   } catch (error) {
+    // 409 PEER_SUSPENDED: the other account is suspended. Remember it, so
+    // its badge shows right away, and let the caller say why.
+    if (errorCodeOf(error) === PEER_SUSPENDED) {
+      markPeerSuspendedNow(username);
+      throw new PeerSuspendedError();
+    }
     throw new Error('Error updating profile');
   }
 }
@@ -424,8 +437,20 @@ export async function postAddRoomMember(
         },
       }
     );
-    return response?.data?.results || [];
+    // A bulk add skips suspended accounts and lists them with
+    // code PEER_SUSPENDED: they are not members, so they are not returned.
+    const results = response?.data?.results || [];
+    const skipped = peerSuspendedTargetsFromResults(results);
+    if (skipped.length === 0) return results;
+    skipped.forEach((name) => markPeerSuspendedNow(name));
+    return (results as unknown[]).filter(
+      (item) => peerSuspendedTargetsFromResults([item]).length === 0
+    ) as RoomMember[];
   } catch (error) {
+    if (errorCodeOf(error) === PEER_SUSPENDED) {
+      if (members.length === 1) markPeerSuspendedNow(members[0]);
+      throw new PeerSuspendedError();
+    }
     throw new Error('Error updating profile');
   }
 }

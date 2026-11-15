@@ -469,6 +469,7 @@ defaults are the safe choice for a backend that has not been updated.
 | --- | --- | --- |
 | `features.userBlock` | `false` | `/v1/chats/blocked` is not served by the production backend yet (404), so the "Block user" item would always fail. Set `true` once your backend serves it. |
 | `attachments.captionMode` | `'separate'` | The caption goes out as its own text message after the media (the 26.9.8 wire shape), which older web builds, React Native and server push all show. `'inline'` puts it on the media message as `<data caption>`, which those readers do not render yet. |
+| `disableSuspendedPeers` | `false` | Shows a "Suspended" badge for suspended accounts and replaces the composer in a 1:1 chat with one, using `POST /v2/users/suspended-status`. A backend without that route answers 404 once and is not asked again in the session. Set `true` to turn the badges and lookups off. |
 | `uploads.endpoint` | `'auto'` | `'auto'` tries `/v2/files/secure` and falls back to `/v1/files/`. Secure-files URLs can be unreadable on a backend that is not updated, so `'legacy'` posts straight to `/v1/files/`. `'secure'` never falls back. |
 
 | Option | Type | Description |

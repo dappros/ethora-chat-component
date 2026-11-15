@@ -29,6 +29,7 @@ import { ethoraLogger } from '../../helpers/ethoraLogger';
 import { onEthoraEvent } from '../ethoraEvents';
 import { onCallTokenMessage } from '../callTokenStanza';
 import { onCallKeyStanza } from '../callKeyStanza';
+import { onPeerSuspendedBounce } from '../peerSuspendedBounce';
 import { accountDomain, isE2eeEnabled } from '../../e2ee';
 import { decryptStanzaInPlace, encryptedCarrier } from '../../e2ee/stanza';
 
@@ -59,6 +60,14 @@ async function decryptAndRedispatch(
 }
 
 export function handleStanza(stanza: Element, xmppWs: XmppClient) {
+  // A message or call signal bounced because the recipient is suspended.
+  // First, because the bounce carries the original payload back (a call
+  // signal's <data>, possibly an <encrypted>), which the handlers below
+  // would otherwise take for a new stanza.
+  if (stanza?.name === 'message' && onPeerSuspendedBounce(stanza)) {
+    return;
+  }
+
   // E2EE seam. Inert unless the host app enabled encryption; when it did,
   // the stanza is decrypted and then re-dispatched through this same
   // function, with no <encrypted> left to match a second time.

@@ -7,6 +7,9 @@ import {
   ChatContainer,
 } from '../styled/StyledComponents';
 import SendInput from '../styled/SendInput';
+import { usePeerSuspended } from '../../hooks/useSuspendedPeers';
+import { getPrivatePeerXmppUsername } from '../../helpers/suspendedPeers';
+import { SuspendedPeerNotice } from '../TrustSafety/SuspendedPeer';
 import CustomTypingIndicator from '../styled/StyledInputComponents/CustomTypingIndicator';
 import { shallowEqual, useDispatch, useSelector, useStore } from 'react-redux';
 import { RootState } from '../../roomStore';
@@ -124,6 +127,14 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
     shallowEqual
   );
   const parentTs = Number(activeMessage.id);
+  // A thread in a 1:1 chat with a suspended account cannot be answered.
+  const privatePeer = useSelector((state: RootState) =>
+    getPrivatePeerXmppUsername(
+      state.rooms?.rooms?.[roomJid],
+      state.chatSettingStore?.user?.xmppUsername
+    )
+  );
+  const peerSuspended = usePeerSuspended(privatePeer);
 
   // One page request at a time, and never the same page twice: a page that
   // returns only reactions or receipts leaves the cursor where it was, and
@@ -344,22 +355,26 @@ const ThreadWrapper: FC<ThreadWrapperProps> = ({
       {editAction.isEdit && (
         <EditWrapper text={editAction.text} onClose={onCloseEdit} />
       )}
-      <SendInput
-        editMessage={editAction.text}
-        // Drafts are keyed by room JID and the thread composer is mounted
-        // for the SAME room as the main one, so leaving it enabled here
-        // would have the two overwrite each other's text.
-        disableDrafts
-        sendMedia={sendMedia}
-        sendMessage={editAction.isEdit ? sendEditMessage : sendMessage}
-        config={config}
-        onFocus={sendStartComposing}
-        onBlur={sendEndComposing}
-        isLoading={loading}
-        isMessageProcessing={isLastMessageFromUserAndProcessing(
-          activeMessage.roomJid
-        )}
-      />
+      {peerSuspended ? (
+        <SuspendedPeerNotice />
+      ) : (
+        <SendInput
+          editMessage={editAction.text}
+          // Drafts are keyed by room JID and the thread composer is mounted
+          // for the SAME room as the main one, so leaving it enabled here
+          // would have the two overwrite each other's text.
+          disableDrafts
+          sendMedia={sendMedia}
+          sendMessage={editAction.isEdit ? sendEditMessage : sendMessage}
+          config={config}
+          onFocus={sendStartComposing}
+          onBlur={sendEndComposing}
+          isLoading={loading}
+          isMessageProcessing={isLastMessageFromUserAndProcessing(
+            activeMessage.roomJid
+          )}
+        />
+      )}
 
       {/* Custom Typing Indicator for overlay/floating positions */}
       {config?.customTypingIndicator?.enabled &&

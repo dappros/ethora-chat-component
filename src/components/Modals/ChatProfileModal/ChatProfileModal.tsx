@@ -71,6 +71,8 @@ import { ApiFile } from '../../../types/types';
 import { withFileToken } from '../../../helpers/secureFileUrl';
 import { isMessageSearchEnabled } from '../../../helpers/isMessageSearchEnabled';
 import ChatProfileMemberRow from './ChatProfileMemberRow';
+import { usePeerSuspended } from '../../../hooks/useSuspendedPeers';
+import { SuspendedBadge } from '../../TrustSafety/SuspendedPeer';
 
 const RoomInfoEditButton = styled.button`
   display: inline-flex;
@@ -210,6 +212,8 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
   );
   const peerProfileImage =
     peer?.profileImage || peerUsersSetEntry?.profileImage || '';
+  // Trust & Safety: the other person in this 1:1 chat is suspended.
+  const peerSuspended = usePeerSuspended(isPrivateRoom ? peerLocalKey : '');
 
   // `onlineUsers` is an array (see useRoomPresence). Checking membership with
   // .includes() inside a .map() over up to ~3,500 members made the online-dot
@@ -566,6 +570,7 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
           }
           role={activeRoom?.role}
           size={96}
+          greyed={peerSuspended}
         />
         <RoomIdentity>
             {editingRoomInfo ? (
@@ -579,6 +584,9 @@ const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
               <ProfileHeroName>
                 {activeRoom.title || activeRoom.name}
               </ProfileHeroName>
+            )}
+            {!editingRoomInfo && peerSuspended && (
+              <SuspendedBadge style={{ marginTop: 4 }} />
             )}
           <ProfileHeroSubtitle>{memberCountLabel}</ProfileHeroSubtitle>
             {canEditRoomInfo && !editingRoomInfo && (
