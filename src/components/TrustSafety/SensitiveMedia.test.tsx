@@ -189,9 +189,14 @@ describe('sensitive media in a message', () => {
     expect(api.getMyAge).not.toHaveBeenCalled();
   });
 
-  it("is never covered for the sender's own message", () => {
+  it("covers the sender's own message too, and reveals it on tap without an age check", async () => {
     render(sensitive(), true);
-    expect(screen.queryByTestId('sensitive-cover')).toBeNull();
+    expect(screen.getByTestId('sensitive-cover')).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('sensitive-cover'));
+    });
+    await waitFor(() => screen.getByTestId('sensitive-revealed'));
+    expect(api.getMyAge).not.toHaveBeenCalled();
   });
 });
 

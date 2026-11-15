@@ -43,8 +43,9 @@ interface MediaMessageProps {
   location?: string;
   locationPreview?: string;
   /**
-   * The viewer sent this message. Their own sensitive media is never covered:
-   * the server serves the uploader the original anyway.
+   * The viewer sent this message. Their own sensitive media is covered too,
+   * so the sender sees it was flagged, but opens on a tap without the age
+   * check (the server serves the uploader the original anyway).
    */
   isUser?: boolean;
 }
@@ -125,8 +126,7 @@ const MediaMessage: React.FC<MediaMessageProps> = ({
   const sealed = Boolean(message?.e2eeKeys?.length);
   const gated =
     !sealed &&
-    !isUser &&
-    (isSensitiveMessage(message) || blocked === 'age-required');
+    (isSensitiveMessage(message) || (!isUser && blocked === 'age-required'));
 
   // A secure file that failed to load: ask the server once why. Cached per
   // file, so a failing tile never turns into a loop of requests.
@@ -196,6 +196,7 @@ const MediaMessage: React.FC<MediaMessageProps> = ({
         messageId={messageId}
         probeUrl={probeTarget?.location}
         previewUrl={pickCoverPreview(attachments)}
+        own={isUser}
       >
         {list(originals)}
       </SensitiveMediaGate>

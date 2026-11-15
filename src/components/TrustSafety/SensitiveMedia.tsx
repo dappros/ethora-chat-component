@@ -206,6 +206,8 @@ interface SensitiveMediaGateProps {
   /** What to show once revealed. */
   children: React.ReactNode;
   fill?: boolean;
+  /** The viewer sent it: covered, but revealed on tap without an age check. */
+  own?: boolean;
 }
 
 /**
@@ -218,9 +220,10 @@ export const SensitiveMediaGate: React.FC<SensitiveMediaGateProps> = ({
   previewUrl,
   children,
   fill,
+  own,
 }) => {
   const t = useT();
-  const reveal = useSensitiveReveal({ messageId, probeUrl });
+  const reveal = useSensitiveReveal({ messageId, probeUrl, own });
 
   if (reveal.status === 'removed') return <RemovedByModerators />;
 

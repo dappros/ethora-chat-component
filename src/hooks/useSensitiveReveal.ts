@@ -26,6 +26,12 @@ interface Options {
   probeUrl?: string;
   /** Test seam: probe override. */
   probe?: (url: string) => Promise<FileAccess>;
+  /**
+   * The viewer sent this media. It is still covered (so the sender sees that
+   * it was flagged), but a tap reveals it at once: the server serves the
+   * uploader the original, so there is no age check to make.
+   */
+  own?: boolean;
 }
 
 const appIdOf = (state: RootState): string =>
@@ -47,7 +53,7 @@ const appIdOf = (state: RootState): string =>
  * Nothing here repeats by itself: every request is one tap, and the dialog is
  * offered at most once per tap.
  */
-export const useSensitiveReveal = ({ messageId, probeUrl, probe }: Options) => {
+export const useSensitiveReveal = ({ messageId, probeUrl, probe, own = false }: Options) => {
   const dispatch = useDispatch();
   const store = useStore<RootState>();
   const fileToken = useSelector(
@@ -87,6 +93,10 @@ export const useSensitiveReveal = ({ messageId, probeUrl, probe }: Options) => {
         if (next.dialog) setDialogOpen(true);
       };
       try {
+        if (own) {
+          dispatch(revealMessageMedia(messageId));
+          return;
+        }
         const policy = await ensureAppPolicy(store, appIdOf(store.getState()));
         const gated = policy.ageGate !== false;
         let age: AgeState | undefined;
@@ -120,7 +130,7 @@ export const useSensitiveReveal = ({ messageId, probeUrl, probe }: Options) => {
         if (mounted.current) setChecking(false);
       }
     },
-    [messageId, probeUrl, store, dispatch, ask]
+    [messageId, probeUrl, store, dispatch, ask, own]
   );
 
   const requestReveal = useCallback(() => {
