@@ -10,6 +10,8 @@ import { getTimestampFromUnknown } from './timestamp';
 import { normalizeXmppUsername } from './xmppUsername';
 import { parseSealedMediaPayload } from '../e2ee/fileEnvelope';
 import { getMessageCaption, normalizeCaptionMentions } from './caption';
+import { parseModerationMarker } from './moderation';
+import type { MessageModeration } from '../types/types';
 
 const getLocalpartFromJid = (jid?: string): string | undefined => {
   const value = String(jid || '').trim();
@@ -48,6 +50,8 @@ interface DataXml {
   xmppId?: string;
   xmppFrom?: string;
   isHistory?: boolean;
+  /** Trust & Safety: what moderation did to this message, if anything. */
+  moderation?: MessageModeration;
   data: { [x: string]: any };
 }
 export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
@@ -74,6 +78,10 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
   );
   const rawBody = fullData?.getChild('body')?.getText() || undefined;
   const deleted = !!fullData?.getChild('deleted');
+  // `<moderation xmlns="urn:ethora:moderation"/>` on an archived message. A
+  // live notice (which names a target) is not this message's own state and
+  // parses as undefined here; stanzaHandlers applies it to its target.
+  const moderation = parseModerationMarker(fullData);
   const translations = fullData?.getChild('translations')?.attrs?.value
       ? transformArrayToObject(
           normalizeTranslations(translationPayload.translates)
@@ -206,5 +214,6 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
     xmppId,
     xmppFrom,
     isHistory,
+    ...(moderation ? { moderation } : {}),
   };
 };

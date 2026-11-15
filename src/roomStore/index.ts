@@ -9,6 +9,7 @@ import roomsSlice from './roomsSlice';
 import roomHeapSlice from './roomHeapSlice';
 import callSlice from './callSlice';
 import scheduledCallSlice from './scheduledCallSlice';
+import trustSafetySlice from './trustSafetySlice';
 import { IMessage, IRoom } from '../types/types';
 import { unreadMiddleware } from './Middleware/unreadMidlleware';
 import { storage } from './storage';
@@ -315,6 +316,13 @@ const PERSISTED_MESSAGE_FIELDS: (keyof IMessage)[] = [
   // from the cache's oldest message), so a cached bubble whose reaction stanza
   // sits in the skipped middle would otherwise repaint with no reaction chip.
   'reaction',
+  // Trust & Safety: a cached sensitive attachment must repaint blurred, a
+  // moderated message must repaint hidden or blurred, and a masked sender
+  // must stay masked (its <data> name attributes are not persisted).
+  'isSensitive',
+  'sensitiveCategory',
+  'moderation',
+  'senderMasked',
 ];
 
 // The sender identity that rides along on every message over the wire
@@ -725,6 +733,8 @@ const rootReducer = combineReducers({
   roomHeapSlice,
   call: callSlice,
   scheduledCall: scheduledCallSlice,
+  // Session-only (age, App policy, what the viewer revealed): never persisted.
+  trustSafety: trustSafetySlice,
 });
 
 export type RootState = ReturnType<typeof rootReducer>;

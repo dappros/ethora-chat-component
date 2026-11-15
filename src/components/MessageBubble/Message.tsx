@@ -54,6 +54,10 @@ import {
 } from '../../roomStore/roomsSlice';
 import { MessageReply } from './MessageReply';
 import { DeletedMessage } from './DeletedMessage';
+import {
+  MaskedSenderAvatar,
+  ModeratedMessage,
+} from '../TrustSafety/ModeratedMessage';
 import { useXmppClient } from '../../context/xmppProvider';
 import { MessageReaction } from './MessageReaction';
 import MessageTranslate from './MessageTranslate';
@@ -323,6 +327,13 @@ const Message: React.FC<MessageProps> = forwardRef<
   // initials circle instead of their photo.
   const senderProfileImage =
     senderEntry?.profileImage || message.user?.profileImage || '';
+  // Trust & Safety: a suspension rewrote this sender to "Suspended" /
+  // "account". Shown as "Suspended account" with a neutral avatar, and with
+  // no way to open their profile or start a direct message from here.
+  const senderMasked = Boolean(message.senderMasked);
+  const shownSenderName = senderMasked
+    ? t('user.suspendedAccount')
+    : senderDisplayName;
   const referencedMessage = parseMessageReference(message.mainMessage);
 
   const dispatch = useDispatch();
@@ -349,7 +360,17 @@ const Message: React.FC<MessageProps> = forwardRef<
   // placeholder or a legacy echo of the file URL, and treating that as a link
   // pulled a preview card under a picture-only bubble (and with it the time
   // out of the overlay), sometimes and not other times.
-  const isMediaBubble = isMediaMessage(message);
+  // Trust & Safety: a message moderation blurred stays collapsed until the
+  // reader taps it; a hidden one shows only that it was hidden. Deleted
+  // messages keep the deleted rendering.
+  const [moderationExpanded, setModerationExpanded] = useState(false);
+  const moderation = message.isDeleted ? undefined : message.moderation;
+  const contentCovered = Boolean(
+    moderation &&
+      (moderation.action === 'hidden' ||
+        (moderation.action === 'blur' && !moderationExpanded))
+  );
+  const isMediaBubble = isMediaMessage(message) && !contentCovered;
   const captionText = isMediaBubble ? getMessageCaption(message) : undefined;
   const previewSource = isMediaBubble ? captionText : message?.body;
   useEffect(() => {
@@ -418,13 +439,14 @@ const Message: React.FC<MessageProps> = forwardRef<
   };
 
   const avatarClickable =
+    !senderMasked &&
     !profilesDisabled &&
     !senderNamePending &&
     senderDisplayName !== 'Deleted User' &&
     senderDisplayName !== unresolvedPlaceholder;
 
   const handleUserAvatarClick = (user: IUser): void => {
-    if (profilesDisabled || user?.name === 'Deleted User') return;
+    if (senderMasked || profilesDisabled || user?.name === 'Deleted User') return;
     dispatch(setActiveModal(MODAL_TYPES.PROFILE));
     // The bubble's own avatar/name already read from usersSet (senderEntry),
     // because message.user is a stale copy taken at send time: profileImage is
@@ -818,6 +840,7 @@ const Message: React.FC<MessageProps> = forwardRef<
   // A media message with no caption has no text to translate.
   const showsTranslateRow =
     !isUser &&
+    !contentCovered &&
     Boolean(config?.translates?.enabled) &&
     effectiveTranslateMode === 'manual' &&
     (!isMediaBubble || Boolean(captionText));
@@ -930,11 +953,15 @@ const Message: React.FC<MessageProps> = forwardRef<
             }
             style={avatarClickable ? undefined : { cursor: 'default' }}
           >
-            <MessageAvatarPhoto
-              src={senderProfileImage}
-              username={senderDisplayName}
-              style={{ cursor: avatarClickable ? 'pointer' : 'default' }}
-            />
+            {senderMasked ? (
+              <MaskedSenderAvatar />
+            ) : (
+              <MessageAvatarPhoto
+                src={senderProfileImage}
+                username={senderDisplayName}
+                style={{ cursor: avatarClickable ? 'pointer' : 'default' }}
+              />
+            )}
           </CustomMessagePhotoContainer>
         )}
         <CustomMessageBubble
@@ -963,12 +990,13 @@ const Message: React.FC<MessageProps> = forwardRef<
               $media={isMediaBubble}
               $color={config?.colors?.primary}
               style={
-                senderNamePending
+                senderNamePending && !senderMasked
                   ? { opacity: 0.5, minWidth: '1.5em', display: 'inline-block' }
                   : undefined
               }
+              data-sender-masked={senderMasked ? 'true' : undefined}
             >
-              {senderDisplayName}
+              {shownSenderName}
             </CustomUserName>
           )}
           {!isReply && referencedMessage?.text && (
@@ -979,13 +1007,33 @@ const Message: React.FC<MessageProps> = forwardRef<
               color={config?.colors?.primary}
             />
           )}
-          {isMediaBubble ? (
+          {contentCovered && moderation ? (
+            <CustomMessageText
+              style={
+                timeInline
+                  ? {
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      alignItems: 'flex-end',
+                      columnGap: 12,
+                    }
+                  : undefined
+              }
+            >
+              <ModeratedMessage
+                moderation={moderation}
+                onExpand={() => setModerationExpanded(true)}
+              />
+              {timeInline && timeNode}
+            </CustomMessageText>
+          ) : isMediaBubble ? (
             <>
               <MediaMessage
                 mimeType={message.mimetype}
                 locationPreview={message.locationPreview}
                 location={message?.location}
                 message={message}
+                isUser={isUser}
               />
               <MediaCaption
                 message={message}
@@ -1082,7 +1130,7 @@ const Message: React.FC<MessageProps> = forwardRef<
             />
           )}
           {!timeInline && timeNode}
-          {quickReplies.length > 0 && !message.isDeleted && (
+          {quickReplies.length > 0 && !message.isDeleted && !contentCovered && (
             <QuickReplies
               replies={quickReplies}
               messageId={message.id}
@@ -1119,7 +1167,7 @@ const Message: React.FC<MessageProps> = forwardRef<
               </RetryButton>
             </FailedNotice>
           )}
-          {previewUrl && !message.isDeleted && (
+          {previewUrl && !message.isDeleted && !contentCovered && (
             <URLPreviewCard url={previewUrl} isUserMessage={isUser} />
           )}
         </CustomMessageBubble>

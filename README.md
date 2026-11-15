@@ -21,6 +21,7 @@ Use it as a standalone chat page, as an embedded widget in your existing app, or
 - [Full Config Reference (`IConfig`)](#full-config-reference-iconfig)
 - [Custom Widgets and Overrides](#custom-widgets-and-overrides)
 - [Scheduled Calls](#scheduled-calls)
+- [Trust & Safety](#trust--safety)
 - [Push Notifications](#push-notifications)
 - [Auth Strategies](#auth-strategies)
 - [Hooks and API Exports](#hooks-and-api-exports)
@@ -667,6 +668,48 @@ if (slug) openScheduledCall(slug);
 | `scheduledCalls.onOpenError` | `(e: { slug: string; reason: ScheduledCallOpenError }) => void` | Called when `scheduledCallSlug` / `openScheduledCall` could not open a call. |
 
 Notes: the invite message is sent by the backend in the clear, also in `e2ee` rooms, like other system messages. Calendar links on a card are accepted only when they are plausible (https calendar provider hosts, and an `.ics` link on the API's own origin), because any member could forge the message attributes.
+
+## Trust & Safety
+
+The component shows the client side of an Ethora server's Trust & Safety (moderation) features. Nothing has to be configured: a server with Trust & Safety off never sends any of the attributes below, and the chat behaves as before. Detection itself (nudity, toxicity, PII and PHI) runs on the server.
+
+### Sensitive media
+
+- **Sending.** When the upload result of a file (`POST /v2/files/secure`) carries `sensitive: true`, the media message gets `isSensitive="true"` and `sensitiveCategory` (for example `nudity`) on its `<data>`. When the server refuses the file (`422 { code: 'UPLOAD_BLOCKED_SENSITIVE' }`), nothing is sent: the pending bubble is removed and the sender sees "This file can't be sent because it may contain explicit content." A 422 never falls back to the legacy upload route.
+- **Receiving.** A message with `isSensitive` shows its preview (the server already blurs it) under an eye-off badge and "Sensitive content. Tap to view". The original is not requested until the viewer taps. The sender's own messages are never covered. The same cover is used in the media viewer, its thumbnail strip and the album grid; Save and Open are disabled while a file is covered.
+- **Tap to view.** The chat checks whether the App age gates sensitive media (`GET /v2/apps/:appId/trust-safety`, once per session). If it does, it reads the viewer's age (`GET /v2/users/me/age`, once per session). An unknown age opens a dialog asking for a date of birth (`PUT /v2/users/me/age` with `{ dateOfBirth: 'YYYY-MM-DD' }`; the server keeps only the birth year and whether the user is an adult). An adult sees the original, with a "Hide" control that blurs it again. A minor, or an age the server has locked (`409 AGE_LOCKED`), sees "This content is not available for your account." What was revealed is kept for the session only.
+- **Refusals.** Before revealing, and once after a secure file fails to load, the chat sends one `HEAD` request for the original with the viewer's file token (`?ft=`). A `403` with `X-Ethora-Block: age-required` covers the media and runs the flow above (this also covers files from clients that never set `isSensitive`); `X-Ethora-Block: moderation` replaces it with "Removed by moderators". The answer is cached per file, so nothing is retried in a loop. The secure files host must expose the header to scripts (`Access-Control-Expose-Headers: X-Ethora-Block`); without it a `403` is shown as unavailable.
+
+### Moderated messages
+
+Archived messages carry `<moderation xmlns="urn:ethora:moderation" action="blur|hidden|deleted" category="..." by="auto|moderator"/>`. Live, the room receives a bodiless notice with the same element plus `stanza-id`, `origin-id` or (for every message of one sender) `user`. A notice is applied to the messages already loaded, like an edit or a delete; it never shows as a bubble and does not change unread counts.
+
+| `action` | Bubble |
+| --- | --- |
+| `blur` | Collapsed: "Hidden: may be offensive. Tap to view" ("Hidden: may contain personal or health information. Tap to view" for `pii` and `phi`). Tapping shows the message. |
+| `hidden` | "Message hidden by moderators", no content. |
+| `deleted` | The usual deleted message. |
+
+A notice with `action="masked"` (or `mask-name="true"` next to `hidden` or `deleted`) masks the sender's name on the messages it names (see below) and keeps their content. A notice with `action="restored"` lifts a blur and a masked name at once, and re-reads the restored messages from the archive (MAM, a few bounded pages starting at the oldest one) so the original body and name show again. Restored messages outside those pages, or not loaded at the time, show their original the next time history is loaded.
+
+The room list preview follows the same rules and never shows the moderated text.
+
+### Suspended senders
+
+When a suspension masks a sender's name, archived messages carry `senderFirstName="Suspended"` and `senderLastName="account"` (and `fullName="Suspended account"`, with `photo` and `photoURL` cleared). The bubble and the room list show "Suspended account" with a neutral avatar, and the avatar does not open a profile (so no direct message can be started from it).
+
+### Data attributes and endpoints
+
+| Where | Name | Meaning |
+| --- | --- | --- |
+| `<data>` | `isSensitive="true"`, `sensitiveCategory` | Media flagged at upload. |
+| `<moderation xmlns="urn:ethora:moderation">` | `action`, `category`, `by`; on notices `stanza-id`, `origin-id`, `user`, `mask-name` | Moderation result or live notice (notices also use `masked` and `restored`). |
+| `<data>` | `senderFirstName="Suspended"`, `senderLastName="account"` | Masked sender. |
+| `GET /v2/apps/:appId/trust-safety` | `{ enabled, ageGate, effective }` | Whether tapping asks for an age. |
+| `GET` / `PUT /v2/users/me/age` | `{ birthYear, isAdult, declaredAt, canDeclareAdult }` | The viewer's declared age. |
+| Secure file `HEAD` | `403` + `X-Ethora-Block: age-required` or `moderation` | Why an original is refused. |
+
+All strings are translated in en, fr, es, pt, ht and zh, and every surface uses the `--ethora-color-*` theme tokens, so light and dark themes both work.
 
 ## Push Notifications
 

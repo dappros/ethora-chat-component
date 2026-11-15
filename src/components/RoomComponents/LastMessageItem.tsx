@@ -11,6 +11,7 @@ import {
   LastRoomMessageText,
 } from './styled/StyledRoomComponents';
 import { useT } from '../../i18n/useT';
+import { isPersonalInfoCategory } from '../../helpers/moderation';
 
 interface LastMessageItemProps {
   lastMessage: LastMessage;
@@ -21,6 +22,32 @@ interface LastMessageItemProps {
 const LastMessageItem: FC<LastMessageItemProps> = ({ lastMessage, sealed }) => {
   const t = useT();
   const { body, emoji } = lastMessage;
+
+  // Trust & Safety: the preview never shows what moderation blurred or hid.
+  const moderation = lastMessage?.isDeleted ? undefined : lastMessage?.moderation;
+  if (moderation?.action === 'blur' || moderation?.action === 'hidden') {
+    return (
+      <LastRoomMessageContainer data-testid="last-message-block">
+        {lastMessage.user?.name && (
+          <LastRoomMessageName data-testid="last-message-name">
+            {lastMessage.user.name}
+          </LastRoomMessageName>
+        )}
+        <LastRoomMessageText
+          data-testid="last-message-line"
+          style={{ fontStyle: 'italic', opacity: 0.7 }}
+        >
+          {moderation.action === 'hidden'
+            ? t('ts.message.hidden')
+            : t(
+                isPersonalInfoCategory(moderation.category)
+                  ? 'ts.message.blurredPersonalShort'
+                  : 'ts.message.blurredShort'
+              )}
+        </LastRoomMessageText>
+      </LastRoomMessageContainer>
+    );
+  }
 
   if (lastMessage?.isDeleted) {
     return (

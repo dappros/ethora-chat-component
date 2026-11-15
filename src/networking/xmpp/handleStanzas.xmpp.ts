@@ -22,6 +22,7 @@ import {
   onMessageError,
   onUserUpdate,
   onChatUpdate,
+  onModerationNotice,
 } from '../stanzaHandlers';
 import XmppClient from '../xmppClient';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
@@ -94,6 +95,9 @@ export function handleStanza(stanza: Element, xmppWs: XmppClient) {
   switch (stanza.name) {
     case 'message': {
       const unwrapped = unwrapMucsubMessage(stanza);
+      // A moderation notice only changes other messages; nothing else here
+      // has anything to do with it.
+      if (onModerationNotice(unwrapped, xmppWs)) break;
       onMessageError(unwrapped, xmppWs);
       onReactionMessage(unwrapped);
       onReactionHistory(unwrapped);

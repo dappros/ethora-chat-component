@@ -7,6 +7,7 @@ import { ToastProvider } from '../context/ToastContext';
 import chatSettingsSlice from '../roomStore/chatSettingsSlice';
 import roomsSlice from '../roomStore/roomsSlice';
 import roomHeapSlice from '../roomStore/roomHeapSlice';
+import trustSafetySlice from '../roomStore/trustSafetySlice';
 
 /**
  * Renders a component with the providers it expects in production -
@@ -40,6 +41,7 @@ export function renderWithProviders(
       chatSettingStore: chatSettingsSlice,
       rooms: roomsSlice,
       roomHeapSlice,
+      trustSafety: trustSafetySlice,
     },
     preloadedState,
     // No saga / persist middleware in tests - each one is pure and

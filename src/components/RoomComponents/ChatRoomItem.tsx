@@ -158,7 +158,10 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
       const mail = named.find((c) => c.includes('@'));
       const safeName = isOwn
         ? t('search.messages.you')
-        : real || (mail ? mail.split('@')[0] : idFallback[0] || '');
+        : (message as IMessage)?.senderMasked
+          ? // Trust & Safety: a suspension masked this sender's name.
+            t('user.suspendedAccount')
+          : real || (mail ? mail.split('@')[0] : idFallback[0] || '');
 
       return {
         ...message,
@@ -410,6 +413,7 @@ const ChatRoomItem: React.FC<ChatRoomItemProps> = ({
             />
           ) : lastMessage?.body ||
           lastMessage?.isDeleted ||
+          (lastMessage as IMessage | undefined)?.moderation ||
           hasMediaPreview(lastMessage) ? (
             <LastMessageItem
               lastMessage={lastMessage as LastMessage}

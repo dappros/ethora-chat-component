@@ -63,6 +63,7 @@ import { formatError } from '../utils/formatError';
 import { toRoomJid, isLikelyMucJid } from '../helpers/isLikelyMucJid';
 import { getDataFromXml } from '../helpers/getDataFromXml';
 import { createMessageFromXml } from '../helpers/createMessageFromXml';
+import { parseModerationMarker } from '../helpers/moderation';
 import { transformCallLogMessage } from '../helpers/callLogMessage';
 import { applyMamReactions } from '../helpers/mamReactions';
 import {
@@ -1913,7 +1914,11 @@ export class XmppClient implements XmppClientInterface {
           continue;
         }
         const text = msg.getChild('body')?.getText();
-        if (!text) continue;
+        // A message moderation hid has its body blanked in the archive but
+        // keeps its place in the transcript ("hidden by moderators"). A live
+        // moderation notice that got archived is not a message: skip it, the
+        // archived copy of its target already carries the result.
+        if (!text && !parseModerationMarker(msg as Element)) continue;
 
         const { data, id, body, ...rest } = await getDataFromXml(msg as any);
         if (!data) continue;

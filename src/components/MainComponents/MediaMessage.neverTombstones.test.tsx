@@ -5,6 +5,7 @@ import { renderWithProviders } from '../../test/renderWithProviders';
 import MediaMessage from './MediaMessage';
 import { IMessage, IRoom } from '../../types/types';
 import { resetMediaProbeCaches } from '../../hooks/useMediaProbe';
+import { resetFileAccessProbeCache } from '../../helpers/fileAccessProbe';
 
 vi.mock('../../hooks/usePdfThumbnail', () => ({
   usePdfThumbnail: () => ({ status: 'idle', retry: () => undefined }),
@@ -48,6 +49,7 @@ describe('MediaMessage never tombstones a message because its file failed to loa
   let fetchSpy: ReturnType<typeof vi.fn>;
   beforeEach(() => {
     resetMediaProbeCaches();
+    resetFileAccessProbeCache();
     class FailingImage {
       onload: null | (() => void) = null;
       onerror: null | (() => void) = null;
@@ -84,8 +86,14 @@ describe('MediaMessage never tombstones a message because its file failed to loa
     const message = storeRef.current.getState().rooms.rooms[ROOM_JID].messages[0];
     expect(message.isDeleted).toBeFalsy();
     expect(message.location).toBe(baseMessage.location);
-    // No status probe at all: nothing to misread.
-    expect(fetchSpy).not.toHaveBeenCalled();
+    // Trust & Safety asks once (a HEAD) whether a 403 named a reason; any
+    // other answer, 404 included, changes nothing about the message.
+    expect(fetchSpy.mock.calls.length).toBeLessThanOrEqual(1);
+    fetchSpy.mock.calls.forEach(([, init]) => {
+      expect((init as RequestInit)?.method).toBe('HEAD');
+    });
+    expect(screen.queryByTestId('media-removed')).toBeNull();
+    expect(screen.queryByTestId('sensitive-cover')).toBeNull();
   });
 
   it('does nothing once the message is already marked deleted', async () => {

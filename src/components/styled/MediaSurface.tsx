@@ -1,8 +1,9 @@
 import { safeImageUrl } from '../../helpers/safeUrl';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import styled, { css, keyframes } from 'styled-components';
 import { ImageUnavailableState } from '../MainComponents/ImageUnavailable';
 import { useMediaProbe } from '../../hooks/useMediaProbe';
+import { useMediaAccess } from '../../context/MediaAccessContext';
 import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion';
 import { isGifFile } from '../../helpers/fileKind';
 import { reducedMotion, shimmerBackground } from '../../styles/motion';
@@ -328,6 +329,7 @@ const hideBroken = (event: React.SyntheticEvent<HTMLImageElement>) => {
 const VideoLayer: React.FC<{ src: string; label: string; compact: boolean; poster?: string }> = ({ src, label, compact, poster }) => {
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
+  const access = useMediaAccess();
   if (failed) return <ImageUnavailableState compact={compact} />;
   return (
     <>
@@ -342,7 +344,11 @@ const VideoLayer: React.FC<{ src: string; label: string; compact: boolean; poste
         preload="metadata"
         $ready={ready}
         onLoadedMetadata={() => setReady(true)}
-        onError={() => setFailed(true)}
+        onError={() => {
+          setFailed(true);
+          // Trust & Safety: let the message ask the server once why.
+          access?.reportFailure(src);
+        }}
       />
     </>
   );
@@ -475,6 +481,12 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
     full.status === 'error' &&
     !localReady &&
     (!hasPreview || low.status === 'error');
+  // Trust & Safety: a secure picture that cannot be shown may be refused on
+  // purpose (age gate, moderation). The message asks the server once why.
+  const access = useMediaAccess();
+  useEffect(() => {
+    if (unavailable && src) access?.reportFailure(src);
+  }, [unavailable, src, access]);
   // A failed picture of unknown size gets a compact card, not the 4:3 box.
   const compactCard = unavailable && placeholder;
   const soloStyle: React.CSSProperties | undefined = compactCard
