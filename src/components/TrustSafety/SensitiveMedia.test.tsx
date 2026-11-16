@@ -220,6 +220,79 @@ describe('an unflagged file the server refuses', () => {
     globalThis.fetch = RealFetch;
   });
 
+  // The media takes the same box covered and revealed (no jump in the chat).
+  // jsdom does no layout, so the box is the frame's own sizing styles.
+  const frameOf = (root: HTMLElement) => {
+    const el = root.querySelector('[data-testid="media-surface"]') as HTMLElement | null;
+    return el ? { width: el.style.width, aspectRatio: el.style.aspectRatio, minHeight: el.style.minHeight } : null;
+  };
+  const albumOf = (root: HTMLElement) => {
+    const el = root.querySelector('[data-testid="album-grid"]') as HTMLElement | null;
+    return el ? { layout: el.getAttribute('data-layout'), aspectRatio: getComputedStyle(el).aspectRatio } : null;
+  };
+  const revealThenHide = async () => {
+    const covered = frameOf(screen.getByTestId('sensitive-in-place'));
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('sensitive-cover'));
+    });
+    await waitFor(() => screen.getByTestId('sensitive-revealed'));
+    const revealed = frameOf(screen.getByTestId('sensitive-revealed'));
+    fireEvent.click(screen.getByRole('button', { name: 'Blur this content again' }));
+    const coveredAgain = frameOf(screen.getByTestId('sensitive-in-place'));
+    return { covered, revealed, coveredAgain };
+  };
+
+  it('keeps the box of a picture with known dimensions when revealed and hidden again', async () => {
+    api.getMyAge.mockResolvedValue(adult);
+    render(sensitive({ attachments: [{ location: ORIGINAL, locationPreview: PREVIEW, mimetype: 'image/png', originalName: 'a.png', width: 1200, height: 800 }] } as unknown as Partial<IMessage>));
+    const { covered, revealed, coveredAgain } = await revealThenHide();
+    expect(covered).not.toBeNull();
+    expect(covered?.aspectRatio).toBe('560 / 373');
+    expect(revealed).toEqual(covered);
+    expect(coveredAgain).toEqual(covered);
+  });
+
+  it('a picture of unknown size is fitted into the box the cover had, not the other way round', async () => {
+    api.getMyAge.mockResolvedValue(adult);
+    render(sensitive());
+    const { covered, revealed, coveredAgain } = await revealThenHide();
+    expect(covered?.aspectRatio).toBe('560 / 420');
+    expect(revealed).toEqual(covered);
+    expect(coveredAgain).toEqual(covered);
+  });
+
+  it('keeps the box of a video', async () => {
+    api.getMyAge.mockResolvedValue(adult);
+    render(sensitive({ mimetype: 'video/mp4', location: 'https://secure-files.example.com/bucket/v.mp4', originalName: 'v.mp4' }));
+    const { covered, revealed } = await revealThenHide();
+    expect(covered?.aspectRatio).toBe('560 / 315');
+    expect(revealed).toEqual(covered);
+  });
+
+  it('keeps the album layout', async () => {
+    api.getMyAge.mockResolvedValue(adult);
+    const album = [1, 2, 3].map((n) => ({
+      location: `https://secure-files.example.com/bucket/p${n}.png`,
+      locationPreview: `https://secure-files.example.com/bucket/p${n}-thumb.png`,
+      mimetype: 'image/png',
+      originalName: `p${n}.png`,
+    }));
+    render(sensitive({ attachments: album } as unknown as Partial<IMessage>));
+    const covered = albumOf(screen.getByTestId('sensitive-in-place'));
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('sensitive-cover'));
+    });
+    await waitFor(() => screen.getByTestId('sensitive-revealed'));
+    expect(covered).not.toBeNull();
+    expect(albumOf(screen.getByTestId('sensitive-revealed'))).toEqual(covered);
+  });
+
+  it('the covered layout never asks for the originals', () => {
+    render(sensitive({ attachments: [{ location: ORIGINAL, locationPreview: PREVIEW, mimetype: 'image/png', originalName: 'a.png', width: 1200, height: 800 }] } as unknown as Partial<IMessage>));
+    const srcs = Array.from(document.querySelectorAll('img, video, source')).map((el) => el.getAttribute('src') || '');
+    expect(srcs.some((src) => src.includes('/a.png'))).toBe(false);
+  });
+
   it('turns into the sensitive cover after one probe answers age-required', async () => {
     const fetchSpy = vi.fn(async () => head(403, 'age-required'));
     globalThis.fetch = fetchSpy as never;

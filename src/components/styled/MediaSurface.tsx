@@ -4,6 +4,7 @@ import styled, { css, keyframes } from 'styled-components';
 import { ImageUnavailableState } from '../MainComponents/ImageUnavailable';
 import { useMediaProbe } from '../../hooks/useMediaProbe';
 import { useMediaAccess } from '../../context/MediaAccessContext';
+import { useMediaCover } from '../TrustSafety/mediaCover';
 import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion';
 import { isGifFile } from '../../helpers/fileKind';
 import { reducedMotion, shimmerBackground } from '../../styles/motion';
@@ -394,7 +395,35 @@ export interface MediaSurfaceProps {
  * preview blurred until the full file is decoded, a 180ms fade to the real
  * image, and a self-contained unavailable state when it cannot be shown.
  */
-const MediaSurface: React.FC<MediaSurfaceProps> = ({
+const MediaSurface: React.FC<MediaSurfaceProps> = (props) => {
+  // Sensitive media (TrustSafety/mediaCover): covered, only the server's
+  // blurred preview is drawn and the original is never requested; the
+  // viewer and the video chrome are off. A box locked by the gate wins over
+  // every size this surface would work out itself.
+  const cover = useMediaCover();
+  const covered = Boolean(cover?.covered);
+  return (
+    <MediaSurfaceInner
+      {...props}
+      src={covered ? undefined : props.src}
+      onOpen={covered ? undefined : props.onOpen}
+      interactive={covered ? false : props.interactive}
+      chrome={covered ? false : props.chrome}
+      blurred={covered || props.blurred}
+      coverMode={covered}
+      lockedSolo={cover?.lockedSolo || null}
+      onSoloBox={cover?.onSoloBox}
+    />
+  );
+};
+
+const MediaSurfaceInner: React.FC<
+  MediaSurfaceProps & {
+    coverMode?: boolean;
+    lockedSolo?: SoloBox | null;
+    onSoloBox?: (box: SoloBox, placeholder: boolean) => void;
+  }
+> = ({
   kind,
   src,
   previewSrc,
@@ -412,6 +441,9 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
   loadProgress,
   openDisabled = false,
   mimetype,
+  coverMode = false,
+  lockedSolo = null,
+  onSoloBox,
 }) => {
   const isImage = kind === 'image';
   const reducedMotionPref = usePrefersReducedMotion();
@@ -431,7 +463,7 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
     variant === 'solo'
       ? computeSoloBox(parseDimension(dims?.width), parseDimension(dims?.height))
       : null;
-  const previewOnly = hasPreview && !animate && recordedBox?.mode !== 'natural';
+  const previewOnly = hasPreview && (coverMode || (!animate && recordedBox?.mode !== 'natural'));
   const low = useMediaProbe(hasPreview ? previewSrc : undefined);
   const full = useMediaProbe(
     isImage && src && (!previewOnly || low.status === 'error') ? src : undefined
@@ -452,7 +484,9 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
   // real ratio, so the list does not jump.
   let solo: SoloBox | null = null;
   let placeholder = false;
-  if (variant === 'solo') {
+  if (variant === 'solo' && lockedSolo) {
+    solo = lockedSolo;
+  } else if (variant === 'solo') {
     if (kind === 'video') {
       const { width, height } = SOLO_VIDEO_DEFAULT_BOX;
       solo = { width, height, imageWidth: width, imageHeight: height, mode: 'fit' };
@@ -503,6 +537,7 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
     : undefined;
 
   // A natural-size picture is drawn at its own size, centred on the tile.
+  // In a locked box the picture is fitted into the box, whatever its ratio.
   const layerStyle: React.CSSProperties | undefined =
     natural && solo
       ? {
@@ -511,7 +546,17 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
           margin: 'auto',
           objectFit: 'contain',
         }
-      : undefined;
+      : lockedSolo && variant === 'solo'
+        ? { objectFit: 'contain' }
+        : undefined;
+
+  // Report the settled box to the sensitive-media gate (if any).
+  const soloKey = solo ? `${solo.width}x${solo.height}:${solo.mode}:${placeholder ? 'p' : ''}` : '';
+  useEffect(() => {
+    if (onSoloBox && solo && !lockedSolo) onSoloBox(solo, placeholder);
+    // soloKey sums up `solo` and `placeholder`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onSoloBox, soloKey, lockedSolo]);
 
   const fullLoaded = full.status === 'loaded';
   const lowLoaded = low.status === 'loaded';
@@ -534,7 +579,13 @@ const MediaSurface: React.FC<MediaSurfaceProps> = ({
   };
 
   let body: React.ReactNode;
-  if (kind === 'video') {
+  if (kind === 'video' && coverMode) {
+    body = previewSrc ? (
+      <FullLayer data-media-layer="cover" src={safeImageUrl(previewSrc)} alt="" aria-hidden="true" draggable={false} />
+    ) : (
+      <Skeleton $shimmer={false} />
+    );
+  } else if (kind === 'video') {
     body = src ? (
       <VideoLayer key={src} src={src} poster={previewSrc || undefined} label={alt} compact={variant === 'fill'} />
     ) : (

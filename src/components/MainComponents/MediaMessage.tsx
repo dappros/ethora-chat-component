@@ -197,6 +197,9 @@ const MediaMessage: React.FC<MediaMessageProps> = ({
         probeUrl={probeTarget?.location}
         previewUrl={pickCoverPreview(attachments)}
         own={isUser}
+        // Covered: the same list from the blurred previews (the surfaces drop
+        // the originals while covered), so the cover has the revealed box.
+        cover={list(attachments)}
       >
         {list(originals)}
       </SensitiveMediaGate>
