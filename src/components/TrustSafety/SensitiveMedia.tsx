@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import styled, { css } from 'styled-components';
 import { useT } from '../../i18n/useT';
 import { safeImageUrl } from '../../helpers/safeUrl';
-import { MEDIA_WIDTH_CSS } from '../../helpers/mediaBox';
+import { MEDIA_WIDTH_CSS, SoloBox } from '../../helpers/mediaBox';
+import { MediaCoverContext, MediaCoverState } from './mediaCover';
 import { EyeOffIcon, ShieldIcon } from './icons';
 import { AgeDialog } from './AgeDialog';
 import { RevealStatus, useSensitiveReveal } from '../../hooks/useSensitiveReveal';
@@ -168,6 +169,41 @@ export const SensitiveCover: React.FC<SensitiveCoverProps> = ({
   );
 };
 
+// The covered media itself, in its real layout, under the cover button: the
+// box is the one the revealed media will have.
+const InPlace = styled.div`
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
+  border-radius: var(--ethora-radius-md, 12px);
+  overflow: hidden;
+`;
+
+const InPlaceMedia = styled.div`
+  pointer-events: none;
+  user-select: none;
+`;
+
+const InPlaceButton = styled.button<{ $interactive: boolean }>`
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  cursor: ${({ $interactive }) => ($interactive ? 'pointer' : 'default')};
+
+  &:focus-visible {
+    outline: 2px solid var(--ethora-color-primary, #0052cd);
+    outline-offset: -2px;
+  }
+`;
+
 const HideAgain = styled.button`
   position: absolute;
   top: 8px;
@@ -208,6 +244,12 @@ interface SensitiveMediaGateProps {
   fill?: boolean;
   /** The viewer sent it: covered, but revealed on tap without an age check. */
   own?: boolean;
+  /**
+   * The same media as `children`, laid out the same way, for the covered
+   * state (drawn from the blurred previews). With it the cover takes exactly
+   * the box of the revealed media; without it a fixed 4:3 cover is shown.
+   */
+  cover?: React.ReactNode;
 }
 
 /**
@@ -221,16 +263,39 @@ export const SensitiveMediaGate: React.FC<SensitiveMediaGateProps> = ({
   children,
   fill,
   own,
+  cover,
 }) => {
   const t = useT();
   const reveal = useSensitiveReveal({ messageId, probeUrl, own });
+
+  // One box for both states (mediaCover.ts). Until the first switch the
+  // covered picture may still settle (4:3, then the preview's ratio); at the
+  // first reveal or hide its box is frozen and reused both ways after that.
+  const latest = useRef<SoloBox | null>(null);
+  const [lockedSolo, setLockedSolo] = useState<SoloBox | null>(null);
+  const revealed = reveal.status === 'revealed';
+  const lastRevealed = useRef(revealed);
+  useEffect(() => {
+    if (lastRevealed.current !== revealed) {
+      lastRevealed.current = revealed;
+      if (!lockedSolo && latest.current) setLockedSolo(latest.current);
+    }
+  }, [revealed, lockedSolo]);
+  const onSoloBox = useCallback((box: SoloBox, placeholder: boolean) => {
+    // Revealed media of unknown size passes through the 4:3 placeholder
+    // before it decodes: only a real size counts there.
+    if (placeholder && lastRevealed.current) return;
+    latest.current = box;
+  }, []);
+  const coveredCtx = useMemo<MediaCoverState>(() => ({ covered: true, lockedSolo, onSoloBox }), [lockedSolo, onSoloBox]);
+  const revealedCtx = useMemo<MediaCoverState>(() => ({ covered: false, lockedSolo, onSoloBox }), [lockedSolo, onSoloBox]);
 
   if (reveal.status === 'removed') return <RemovedByModerators />;
 
   if (reveal.status === 'revealed') {
     return (
       <RevealedWrap data-testid="sensitive-revealed" style={fill ? { width: '100%', height: '100%' } : undefined}>
-        {children}
+        <MediaCoverContext.Provider value={revealedCtx}>{children}</MediaCoverContext.Provider>
         <HideAgain
           type="button"
           onClick={(event) => {
@@ -244,6 +309,53 @@ export const SensitiveMediaGate: React.FC<SensitiveMediaGateProps> = ({
           <span>{t('ts.sensitive.hide')}</span>
         </HideAgain>
       </RevealedWrap>
+    );
+  }
+
+  const dialog = reveal.dialogOpen && (
+    <AgeDialog onCancel={reveal.onAgeCancel} onDeclared={reveal.onAgeDeclared} />
+  );
+
+  if (cover && !fill) {
+    const interactive = reveal.status === 'covered';
+    const label =
+      reveal.status === 'unavailable'
+        ? t('ts.sensitive.unavailable')
+        : reveal.status === 'checking'
+          ? t('ts.sensitive.checking')
+          : t('ts.sensitive.overlay');
+    return (
+      <>
+        <InPlace data-testid="sensitive-in-place">
+          <InPlaceMedia aria-hidden="true" {...{ inert: '' }}>
+            <MediaCoverContext.Provider value={coveredCtx}>{cover}</MediaCoverContext.Provider>
+          </InPlaceMedia>
+          <InPlaceButton
+            type="button"
+            data-testid="sensitive-cover"
+            data-state={reveal.status}
+            $interactive={interactive}
+            aria-label={label}
+            aria-disabled={interactive ? undefined : 'true'}
+            aria-busy={reveal.status === 'checking' ? 'true' : undefined}
+            onClick={(event) => {
+              event.stopPropagation();
+              if (interactive) reveal.requestReveal();
+            }}
+          >
+            {previewUrl && (
+              <CoverImage src={safeImageUrl(previewUrl)} alt="" aria-hidden="true" draggable={false} />
+            )}
+            <Scrim>
+              <Badge>
+                <EyeOffIcon size={22} />
+              </Badge>
+              {reveal.status === 'unavailable' ? <Muted>{label}</Muted> : <span>{label}</span>}
+            </Scrim>
+          </InPlaceButton>
+        </InPlace>
+        {dialog}
+      </>
     );
   }
 
