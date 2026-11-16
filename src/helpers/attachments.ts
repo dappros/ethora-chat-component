@@ -191,7 +191,7 @@ export const getMessageAttachments = (
     | 'originalName'
     | 'fileName'
     | 'size'
-  > & { duration?: unknown; mediaDuration?: unknown } | null
+  > & { duration?: unknown; mediaDuration?: unknown; width?: unknown; height?: unknown } | null
 ): IAttachment[] => {
   if (!message) return [];
 
@@ -220,6 +220,9 @@ export const getMessageAttachments = (
       .filter((item): item is IAttachment => item !== null);
   }
 
+  // width / height travel as free-form <data> attributes on a single-file
+  // message (like attachmentId); without them the picture's box is only
+  // known once it decodes.
   const legacy = normalizeAttachment({
     location: message.location,
     locationPreview: message.locationPreview,
@@ -229,6 +232,8 @@ export const getMessageAttachments = (
     size: message.size,
     duration: message.duration,
     mediaDuration: message.mediaDuration,
+    width: message.width,
+    height: message.height,
   });
 
   return legacy ? [legacy] : [];

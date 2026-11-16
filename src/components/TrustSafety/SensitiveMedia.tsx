@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import styled, { css } from 'styled-components';
 import { useT } from '../../i18n/useT';
 import { safeImageUrl } from '../../helpers/safeUrl';
@@ -271,16 +271,19 @@ export const SensitiveMediaGate: React.FC<SensitiveMediaGateProps> = ({
   // One box for both states (mediaCover.ts). Until the first switch the
   // covered picture may still settle (4:3, then the preview's ratio); at the
   // first reveal or hide its box is frozen and reused both ways after that.
+  //
+  // The freeze happens during render, at the switch itself: child effects
+  // run before the gate's own, so a freeze in an effect would come after the
+  // revealed picture had already reported its 4:3 "still decoding" box.
   const latest = useRef<SoloBox | null>(null);
-  const [lockedSolo, setLockedSolo] = useState<SoloBox | null>(null);
+  const lock = useRef<SoloBox | null>(null);
   const revealed = reveal.status === 'revealed';
   const lastRevealed = useRef(revealed);
-  useEffect(() => {
-    if (lastRevealed.current !== revealed) {
-      lastRevealed.current = revealed;
-      if (!lockedSolo && latest.current) setLockedSolo(latest.current);
-    }
-  }, [revealed, lockedSolo]);
+  if (lastRevealed.current !== revealed) {
+    lastRevealed.current = revealed;
+    if (!lock.current && latest.current) lock.current = latest.current;
+  }
+  const lockedSolo = lock.current;
   const onSoloBox = useCallback((box: SoloBox, placeholder: boolean) => {
     // Revealed media of unknown size passes through the 4:3 placeholder
     // before it decodes: only a real size counts there.
