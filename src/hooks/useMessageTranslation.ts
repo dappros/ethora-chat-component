@@ -1,3 +1,4 @@
+import { useEffect, useReducer } from 'react';
 import { IMessage } from '../types/types';
 import { resolveMessageTranslation } from '../helpers/resolveMessageTranslation';
 
@@ -5,6 +6,8 @@ export interface MessageTranslationState {
   /** False when the message is already in the reader's language, or no
    * translation is available - render the plain body, no quote. */
   hasTranslation: boolean;
+  isPending: boolean;
+  pendingUntil: number;
   originalText: string;
   /** Translation when hasTranslation, else the original - always safe to
    * render directly. */
@@ -30,7 +33,16 @@ export interface MessageTranslationState {
  * disclaimer in LanguageSelectorModal).
  */
 export const useMessageTranslation = (
-  message: Pick<IMessage, 'body' | 'langSource' | 'translations'>,
+  message: Pick<
+    IMessage,
+    | 'body'
+    | 'langSource'
+    | 'translations'
+    | 'translationPending'
+    | 'translationPendingSince'
+    | 'id'
+    | 'date'
+  >,
   readerLocale?: string,
   enabled = true
 ): MessageTranslationState => {
@@ -39,6 +51,8 @@ export const useMessageTranslation = (
   if (!enabled) {
     return {
       hasTranslation: false,
+      isPending: false,
+      pendingUntil: 0,
       originalText: resolved.originalText,
       displayText: resolved.originalText,
     };
@@ -46,7 +60,19 @@ export const useMessageTranslation = (
 
   return {
     hasTranslation: resolved.hasTranslation,
+    isPending: resolved.isPending,
+    pendingUntil: resolved.pendingUntil,
     originalText: resolved.originalText,
     displayText: resolved.displayText,
   };
+};
+
+export const useRerenderAt = (at: number): void => {
+  const [, tick] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => {
+    const left = at - Date.now();
+    if (!at || left <= 0) return;
+    const timer = setTimeout(tick, left);
+    return () => clearTimeout(timer);
+  }, [at]);
 };

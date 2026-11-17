@@ -14,3 +14,30 @@ export const transformArrayToObject = (
     return acc;
   }, {} as TranslationObject);
 };
+
+export const TRANSLATE_NS = 'ethora:translate';
+
+export const normalizeTranslations = (value: unknown): Translation[] =>
+  Array.isArray(value)
+    ? value.filter(
+        (item): item is Translation =>
+          !!item &&
+          typeof item === 'object' &&
+          typeof (item as any).translatedText === 'string' &&
+          typeof (item as any).language === 'string' &&
+          typeof (item as any).languageName === 'string'
+      )
+    : [];
+
+export const parseTranslationsValue = (
+  value: unknown
+): TranslationObject | undefined => {
+  if (typeof value !== 'string' || !value) return undefined;
+  let payload: { translates?: unknown } = {};
+  try {
+    payload = JSON.parse(value) || {};
+  } catch {
+    payload = {};
+  }
+  return transformArrayToObject(normalizeTranslations(payload.translates));
+};

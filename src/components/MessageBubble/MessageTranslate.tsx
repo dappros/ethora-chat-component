@@ -1,4 +1,4 @@
-import React, { FC, useCallback, useState } from 'react';
+import React, { FC, useCallback, useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { IConfig, IMessage } from '../../types/types';
 import { CustomDivider } from './CustomDivider';
@@ -7,6 +7,7 @@ import { useT } from '../../i18n/useT';
 import { useAppDispatch } from '../../hooks/hooks';
 import { setMessageTranslation } from '../../roomStore/roomsSlice';
 import { resolveMessageTranslation } from '../../helpers/resolveMessageTranslation';
+import { useRerenderAt } from '../../hooks/useMessageTranslation';
 import { fetchTranslation } from '../../networking/api-requests/translate.api';
 
 interface MessageTranslateProps {
@@ -33,7 +34,7 @@ const TranslateLink = styled.span<{ $color?: string }>`
   }
 `;
 
-type Phase = 'idle' | 'loading' | 'done' | 'error';
+type Phase = 'idle' | 'loading' | 'awaiting' | 'done' | 'error';
 
 /**
  * Manual-mode message translation (LinkedIn-style). Renders a "Translate"
@@ -92,6 +93,7 @@ const MessageTranslate: FC<MessageTranslateProps> = ({
   // a click here can never reveal anything different than auto mode would
   // have rendered automatically.
   const resolved = resolveMessageTranslation(message, targetLocale);
+  useRerenderAt(resolved.pendingUntil);
   const hasHostTranslate = typeof translates?.onTranslate === 'function';
   const hasExplicitEndpoint = !!translates?.endpoint;
 
@@ -107,7 +109,12 @@ const MessageTranslate: FC<MessageTranslateProps> = ({
     // actually reveal a result: it's already attached, the host has its own
     // translator, or an explicit endpoint is configured to fetch one. With
     // none of those, the link could only ever end in "Could not translate".
-    return resolved.hasTranslation || hasHostTranslate || hasExplicitEndpoint;
+    return (
+      resolved.hasTranslation ||
+      resolved.isPending ||
+      hasHostTranslate ||
+      hasExplicitEndpoint
+    );
   })();
 
   const runTranslate = useCallback(async () => {
@@ -124,6 +131,10 @@ const MessageTranslate: FC<MessageTranslateProps> = ({
       } else {
         const attached = resolveMessageTranslation(message, targetLocale);
         result = attached.hasTranslation ? attached.displayText : undefined;
+        if (!result && attached.isPending) {
+          setPhase('awaiting');
+          return;
+        }
         // The built-in translate service is strictly opt-in: only called
         // when the host has explicitly set `config.translates.endpoint`.
         // There is no default derivation from `config.baseUrl` - a host
@@ -160,6 +171,16 @@ const MessageTranslate: FC<MessageTranslateProps> = ({
     }
   }, [originalText, translates, sourceLocale, targetLocale, message, dispatch]);
 
+  useEffect(() => {
+    if (phase !== 'awaiting') return;
+    if (resolved.hasTranslation) {
+      setTranslated(resolved.displayText);
+      setPhase('done');
+    } else if (!resolved.isPending) {
+      setPhase('idle');
+    }
+  }, [phase, resolved.hasTranslation, resolved.isPending, resolved.displayText]);
+
   if (!shouldShow) return null;
 
   if (phase === 'idle') {
@@ -170,7 +191,7 @@ const MessageTranslate: FC<MessageTranslateProps> = ({
     );
   }
 
-  if (phase === 'loading') {
+  if (phase === 'loading' || phase === 'awaiting') {
     return (
       <TranslateLink $color={linkColor} as="span">
         {t('translation.translating')}

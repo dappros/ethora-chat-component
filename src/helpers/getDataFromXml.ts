@@ -1,6 +1,9 @@
 import { Element } from 'ltx';
 import { IUser } from '../types/types';
-import { transformArrayToObject } from './transformTranslatations';
+import {
+  parseTranslationsValue,
+  TRANSLATE_NS,
+} from './transformTranslatations';
 import { Iso639_1Codes } from '../types/types';
 import { ethoraLogger } from './ethoraLogger';
 import { safeJsonParse } from './safeJson';
@@ -19,24 +22,6 @@ const getLocalpartFromJid = (jid?: string): string | undefined => {
   return value.split('@')[0] || undefined;
 };
 
-const normalizeTranslations = (value: unknown) =>
-  Array.isArray(value)
-    ? value.filter(
-        (
-          item
-        ): item is {
-          translatedText: string;
-          language: string;
-          languageName: string;
-        } =>
-          !!item &&
-          typeof item === 'object' &&
-          typeof (item as any).translatedText === 'string' &&
-          typeof (item as any).language === 'string' &&
-          typeof (item as any).languageName === 'string'
-      )
-    : [];
-
 interface DataXml {
   id: string;
   body: string;
@@ -46,6 +31,7 @@ interface DataXml {
   user: IUser;
   deleted?: boolean;
   translations?: any;
+  translationPending?: boolean;
   langSource?: Iso639_1Codes;
   xmppId?: string;
   xmppFrom?: string;
@@ -72,21 +58,17 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
     id = xmppId || Date.now().toString();
   }
 
-  const translationPayload = safeJsonParse<{ translates?: unknown[] }>(
-    fullData?.getChild('translations')?.attrs?.value,
-    {}
-  );
   const rawBody = fullData?.getChild('body')?.getText() || undefined;
   const deleted = !!fullData?.getChild('deleted');
   // `<moderation xmlns="urn:ethora:moderation"/>` on an archived message. A
   // live notice (which names a target) is not this message's own state and
   // parses as undefined here; stanzaHandlers applies it to its target.
   const moderation = parseModerationMarker(fullData);
-  const translations = fullData?.getChild('translations')?.attrs?.value
-      ? transformArrayToObject(
-          normalizeTranslations(translationPayload.translates)
-      )
-    : undefined;
+  const translations = parseTranslationsValue(
+    fullData?.getChild('translations')?.attrs?.value
+  );
+  const translationPending =
+    !translations && !!fullData?.getChild('translation-pending', TRANSLATE_NS);
   const langSource = fullData?.getChild('translate')?.attrs?.source as
     | Iso639_1Codes
     | undefined;
@@ -210,6 +192,7 @@ export const getDataFromXml = async (stanza: Element): Promise<DataXml> => {
     user,
     deleted,
     translations,
+    ...(translationPending ? { translationPending: true } : {}),
     langSource,
     xmppId,
     xmppFrom,
