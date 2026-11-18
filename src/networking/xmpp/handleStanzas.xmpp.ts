@@ -1,4 +1,5 @@
 import { Element } from 'ltx';
+import { onRoomJoinRefused } from '../roomJoinRefused';
 import {
   onDeleteMessage,
   onEditMessage,
@@ -127,6 +128,7 @@ export function handleStanza(stanza: Element, xmppWs: XmppClient) {
     }
     case 'presence':
       onRoomKicked(stanza);
+      onRoomJoinRefused(stanza);
       onPresenceInRoom(stanza);
       break;
     case 'iq':
