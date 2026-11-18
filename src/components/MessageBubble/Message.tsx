@@ -67,7 +67,10 @@ import { parseMessageBody } from '../../helpers/parseMessageBody';
 import URLPreviewCard from './URLPreviewCard';
 import { useMessageHeapState } from '../../hooks/useMessageHeapState';
 import { parseMessageReference } from '../../helpers/parseMessageReference';
-import { useMessageTranslation } from '../../hooks/useMessageTranslation';
+import {
+  useMessageTranslation,
+  useRerenderAt,
+} from '../../hooks/useMessageTranslation';
 import TranslatedMessageBody from './TranslatedMessageBody';
 import { useT } from '../../i18n/useT';
 import QuickReplies from './QuickReplies';
@@ -242,6 +245,7 @@ const Message: React.FC<MessageProps> = forwardRef<
     readerLocale,
     isAutoTranslate
   );
+  useRerenderAt(translationDisplay.pendingUntil);
 
   // Read sender name live from usersSet so user-update stanzas trigger immediate re-render.
   // Select ONLY this sender's entry: subscribing to the whole usersSet map
@@ -1100,6 +1104,20 @@ const Message: React.FC<MessageProps> = forwardRef<
                         mentions: mentionsForDisplay,
                         onMentionClick: handleMentionClick,
                       })}
+                      {translationDisplay.isPending && !isUser && (
+                        <div
+                          className="message-translating"
+                          data-testid="message-translating"
+                          style={{
+                            fontSize: 12,
+                            fontStyle: 'italic',
+                            opacity: 0.6,
+                            marginTop: 4,
+                          }}
+                        >
+                          {t('translation.translating')}
+                        </div>
+                      )}
                     </div>
                   );
 

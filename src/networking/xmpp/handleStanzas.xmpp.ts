@@ -27,6 +27,7 @@ import {
 import XmppClient from '../xmppClient';
 import { ethoraLogger } from '../../helpers/ethoraLogger';
 import { onEthoraEvent } from '../ethoraEvents';
+import { onTranslationUpdate } from '../translationUpdate';
 import { onCallTokenMessage } from '../callTokenStanza';
 import { onCallKeyStanza } from '../callKeyStanza';
 import { onPeerSuspendedBounce } from '../peerSuspendedBounce';
@@ -85,6 +86,7 @@ export function handleStanza(stanza: Element, xmppWs: XmppClient) {
   }
 
   if (stanza?.attrs?.type === 'headline') {
+    if (onTranslationUpdate(stanza)) return;
     onUserUpdate(stanza, xmppWs);
     onChatUpdate(stanza, xmppWs);
     return;

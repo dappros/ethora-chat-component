@@ -11,6 +11,7 @@ import {
   Translation,
 } from '../types/types';
 import { insertMessageWithDelimiter } from '../helpers/insertMessageWithDelimiter';
+import type { TranslationObject } from '../helpers/transformTranslatations';
 import XmppClient from '../networking/xmppClient';
 import {
   createUserNameFromSetUser,
@@ -1249,21 +1250,44 @@ const roomsStore = createSlice({
         // a message that was already edited before this attempt doesn't
         // lose its "edited" label when the failed attempt is undone.
         isEdited?: boolean;
+        // What the server's relay of the edit says about the translations
+        // of the new text: they came with it (mod_edit, sync mode), or they
+        // follow as a <translation-update/> (async mode).
+        translations?: TranslationObject;
+        translationPending?: boolean;
+        receivedAt?: number;
       }>
     ) {
-      const { roomJID, messageId, text, isEdited = true } = action.payload;
+      const {
+        roomJID,
+        messageId,
+        text,
+        isEdited = true,
+        translations,
+        translationPending,
+        receivedAt,
+      } = action.payload;
       forEachMessageCopy(state, roomJID, messageId, (message) => {
         message.body = text;
         message.isEdited = isEdited;
-        // The cached translation was computed for the OLD body, and the edit
-        // relay (editMessage.xmpp.ts) carries no re-translation - so a stale
+        // The cached translation was computed for the OLD body, so a stale
         // entry would render as if it were a translation of text that no
-        // longer exists. `translations` is deliberately not persisted and
-        // re-syncs from the server on room open (see PERSISTED_MESSAGE_FIELDS
-        // in roomStore/index.ts), so dropping it here just means the reader
-        // sees the plain (correct) new body until the next resync instead of
-        // a mismatched one.
-        delete message.translations;
+        // longer exists: only what the edit brings counts. Without anything
+        // (the optimistic apply, an older server, a failed translation) the
+        // reader sees the plain (correct) new body. `translations` is
+        // deliberately not persisted and re-syncs from the server on room
+        // open (see PERSISTED_MESSAGE_FIELDS in roomStore/index.ts).
+        if (translations) {
+          message.translations = translations;
+        } else {
+          delete message.translations;
+        }
+        message.translationPending = !translations && !!translationPending;
+        if (message.translationPending) {
+          message.translationPendingSince = receivedAt;
+        } else {
+          delete message.translationPendingSince;
+        }
       });
     },
     // Caches a single on-demand translation (manual mode's "Translate"
@@ -1303,6 +1327,28 @@ const roomsStore = createSlice({
         }
         message.translations[locale] = entry;
       });
+    },
+    applyTranslationUpdate(
+      state,
+      action: PayloadAction<{
+        roomJID: string;
+        ids: string[];
+        translations?: TranslationObject;
+      }>
+    ) {
+      const { roomJID, ids, translations } = action.payload;
+      if (!isSafeKey(roomJID) || !Array.isArray(ids) || !ids.length) return;
+      forEachMessageCopy(
+        state,
+        roomJID,
+        (message) =>
+          ids.includes(String(message.id)) ||
+          (!!message.xmppId && ids.includes(String(message.xmppId))),
+        (message) => {
+          if (translations) message.translations = translations;
+          message.translationPending = false;
+        }
+      );
     },
     addRoomMessage(state, action: PayloadAction<AddRoomMessageAction>) {
       const { roomJID, message, start } = action.payload;
@@ -2226,6 +2272,7 @@ export const {
   setMediaUploadState,
   editRoomMessage,
   setMessageTranslation,
+  applyTranslationUpdate,
   setComposing,
   setIsLoading,
   setLastViewedTimestamp,

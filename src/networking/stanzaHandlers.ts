@@ -29,6 +29,10 @@ import { createMessageFromXml } from '../helpers/createMessageFromXml';
 import { transformCallLogMessage } from '../helpers/callLogMessage';
 import { setDeleteModal, updateUser } from '../roomStore/chatSettingsSlice';
 import { getDataFromXml } from '../helpers/getDataFromXml';
+import {
+  parseTranslationsValue,
+  TRANSLATE_NS,
+} from '../helpers/transformTranslatations';
 import { getBooleanFromString } from '../helpers/getBooleanFromString';
 import { getNumberFromString } from '../helpers/getNumberFromString';
 import {
@@ -410,11 +414,20 @@ const onEditMessage = async (stanza: Element) => {
       return;
     }
 
+    const translations = parseTranslationsValue(
+      stanza.getChild('translations')?.attrs?.value
+    );
+    const translationPending =
+      !translations && !!stanza.getChild('translation-pending', TRANSLATE_NS);
+
     store.dispatch(
       editRoomMessage({
         roomJID: stanzaId.attrs.by,
         messageId: replace.attrs.id,
         text: replace.attrs.text,
+        translations,
+        translationPending,
+        receivedAt: Date.now(),
       })
     );
   }

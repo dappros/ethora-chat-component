@@ -95,6 +95,8 @@ export interface IMessage {
   receivedBy?: Record<string, number>;
   fileName?: string;
   translations?: TranslationObject;
+  translationPending?: boolean;
+  translationPendingSince?: number;
   langSource?: Iso639_1Codes;
   originalName?: string;
   size?: string;

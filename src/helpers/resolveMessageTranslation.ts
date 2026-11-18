@@ -17,10 +17,27 @@ export interface ResolvedMessageTranslation {
    * no network call at all.
    */
   hasTranslation: boolean;
+  /**
+   * The server is still translating the message into the reader's language
+   * (mod_translate, async mode): show "Translating…". Never true together
+   * with hasTranslation.
+   */
+  isPending: boolean;
+  /** When isPending stops being true by itself (epoch ms), 0 if never. */
+  pendingUntil: number;
   originalText: string;
   /** hasTranslation ? the translation : originalText - always safe to render directly. */
   displayText: string;
 }
+
+export const TRANSLATION_PENDING_MAX_AGE_MS = 3 * 60_000;
+
+const sentAtMs = (message: Pick<IMessage, 'id' | 'date'>): number => {
+  const m = /^(\d{13})/.exec(String(message?.id || ''));
+  if (m) return Number(m[1]);
+  const t = message?.date ? new Date(message.date as any).getTime() : NaN;
+  return Number.isFinite(t) ? t : 0;
+};
 
 // "42", "+1 (555) 123-4567", "3.14159" - text with no actual letters has
 // nothing to translate.
@@ -39,7 +56,16 @@ const hasNoLetters = (text: string): boolean => !/\p{L}/u.test(text);
  * automatically, because both ask this same function the same question.
  */
 export const resolveMessageTranslation = (
-  message: Pick<IMessage, 'body' | 'langSource' | 'translations'>,
+  message: Pick<
+    IMessage,
+    | 'body'
+    | 'langSource'
+    | 'translations'
+    | 'translationPending'
+    | 'translationPendingSince'
+    | 'id'
+    | 'date'
+  >,
   readerLocale?: string
 ): ResolvedMessageTranslation => {
   const originalText = message?.body || '';
@@ -72,9 +98,19 @@ export const resolveMessageTranslation = (
   const isRealTranslation =
     !!result && result.trim() !== originalText.trim();
 
+  const sentAt = message?.translationPending
+    ? message.translationPendingSince || sentAtMs(message)
+    : 0;
+  const pendingUntil =
+    needsTranslation && !isRealTranslation && sentAt
+      ? sentAt + TRANSLATION_PENDING_MAX_AGE_MS
+      : 0;
+
   return {
     needsTranslation,
     hasTranslation: isRealTranslation,
+    isPending: pendingUntil > Date.now(),
+    pendingUntil,
     originalText,
     displayText: isRealTranslation ? (result as string) : originalText,
   };
