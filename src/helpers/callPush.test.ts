@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
-  CALL_TOKEN_MIN_REMAINING_MS,
   decodeJwtPayload,
   getCallPushFreshness,
   isCallPush,
   jwtExpiresAtMs,
   parseCallPush,
 } from './callPush';
+import { CALL_ANSWER_BUFFER_MS } from '../calls/callTiming';
 
 const NOW = 1_700_000_000_000;
 
@@ -82,7 +82,7 @@ describe('getCallPushFreshness', () => {
   it('is fresh while the token has time left', () => {
     expect(getCallPushFreshness(withExp(30_000), NOW)).toEqual({
       fresh: true,
-      expiresAt: NOW + 30_000,
+      answerUntil: NOW + 30_000 - CALL_ANSWER_BUFFER_MS,
     });
   });
 
@@ -90,16 +90,24 @@ describe('getCallPushFreshness', () => {
     expect(getCallPushFreshness(withExp(-1_000), NOW).fresh).toBe(false);
   });
 
-  it('is expired with under 3 s left, fresh at exactly 3 s', () => {
-    expect(getCallPushFreshness(withExp(CALL_TOKEN_MIN_REMAINING_MS - 1000), NOW).fresh).toBe(false);
-    expect(getCallPushFreshness(withExp(CALL_TOKEN_MIN_REMAINING_MS), NOW).fresh).toBe(true);
+  it('cuts off Answer five seconds before the token expires', () => {
+    expect(getCallPushFreshness(withExp(CALL_ANSWER_BUFFER_MS), NOW).fresh).toBe(false);
+    expect(getCallPushFreshness(withExp(CALL_ANSWER_BUFFER_MS + 1000), NOW).fresh).toBe(true);
+  });
+
+  it('takes the earlier of the server expiry and the ring deadline stored on a P2P notification', () => {
+    expect(getCallPushFreshness({ mode: 'p2p', expiresAt: String(NOW + 6000), answerUntil: NOW + 500 }, NOW)).toEqual({
+      fresh: true,
+      answerUntil: NOW + 500,
+    });
+    expect(getCallPushFreshness({ mode: 'p2p', expiresAt: String(NOW + CALL_ANSWER_BUFFER_MS) }, NOW).fresh).toBe(false);
   });
 
   it('cannot prove a push stale without a readable exp, so it counts as fresh', () => {
     for (const callToken of ['not-a-jwt', makeJwt({ sub: 'x' }), '', undefined]) {
       expect(getCallPushFreshness({ type: 'call', callId: 'c', callToken }, NOW)).toEqual({
         fresh: true,
-        expiresAt: null,
+        answerUntil: null,
       });
     }
   });

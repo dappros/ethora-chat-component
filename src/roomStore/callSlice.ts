@@ -1,6 +1,8 @@
 import { PayloadAction, createSlice } from '@reduxjs/toolkit';
 import type { CallMode, IceServerConfig } from '../calls/callMode';
 import { safeCallName } from '../calls/callDisplay';
+import { CALL_ANSWER_BUFFER_MS, CALL_RING_TIMEOUT_MS } from '../calls/callTiming';
+import { jwtExpiresAtMs } from '../helpers/callPush';
 
 export type CallPhase =
   | 'idle'
@@ -39,6 +41,8 @@ export interface CallState {
   e2eeKeyCallId: string | null;
   error: string | null;
   startedAt: number | null;
+  ringExpiresAt: number | null;
+  answerUntil: number | null;
   // When the call actually connected (phase -> 'in-call'). Null until then.
   // Used to compute a duration for the local "call ended" log fallback.
   connectedAt: number | null;
@@ -75,6 +79,8 @@ const initialState: CallState = {
   e2eeKeyCallId: null,
   error: null,
   startedAt: null,
+  ringExpiresAt: null,
+  answerUntil: null,
   connectedAt: null,
   mode: 'livekit',
   isGroup: false,
@@ -96,7 +102,7 @@ const resetState = (): CallState => ({ ...initialState });
 //    LiveKit and ends the call for both sides (a late call push or a late
 //    XMPP call-token after the user already answered).
 //  - the same call already ringing: re-applying would restart the ring and
-//    extend startedAt, so the 45 s timeout never fires.
+//    extend the answer window.
 // Both the XMPP path and the push path (and both mounted hook instances)
 // dispatch this action, so the rule lives here.
 const shouldIgnoreIncomingToken = (
@@ -148,6 +154,8 @@ const callSlice = createSlice({
       state.e2eeKeyCallId = null;
       state.error = null;
       state.startedAt = Date.now();
+      state.ringExpiresAt = null;
+      state.answerUntil = null;
       state.connectedAt = null;
       state.mode = 'livekit';
       state.isGroup = action.payload.isGroup === true;
@@ -168,10 +176,14 @@ const callSlice = createSlice({
         group?: boolean | null;
         livekitUrl?: string | null;
         iceServers?: IceServerConfig[] | null;
+        ringExpiresAt?: number | null;
       }>
     ) {
       if (state.direction !== 'outgoing') return;
       if (action.payload.startedAt !== state.startedAt) return;
+      if (state.phase !== 'error' && action.payload.ringExpiresAt) {
+        state.ringExpiresAt = action.payload.ringExpiresAt;
+      }
       // The LiveKit call-token can overtake the HTTP response, so a livekit
       // route may still be applied once the phase has moved on to
       // 'connecting'. A p2p route only makes sense while still dialling.
@@ -196,6 +208,7 @@ const callSlice = createSlice({
         roomName?: string | null;
         roomBareName?: string | null;
         token: string;
+        answerUntil?: number | null;
         kind?: CallKind;
         callId?: string | null;
         peerXmppUsername?: string | null;
@@ -208,7 +221,24 @@ const callSlice = createSlice({
         callerXmppUsername?: string | null;
       }>
     ) {
-      if (shouldIgnoreIncomingToken(state, action.payload)) return;
+      const now = Date.now();
+      const tokenExpiresAt = jwtExpiresAtMs(action.payload.token);
+      const answerUntil = Math.min(
+        action.payload.answerUntil ?? now + CALL_RING_TIMEOUT_MS - CALL_ANSWER_BUFFER_MS,
+        tokenExpiresAt === null ? Infinity : tokenExpiresAt - CALL_ANSWER_BUFFER_MS
+      );
+      if (shouldIgnoreIncomingToken(state, action.payload)) {
+        // A duplicate may carry a server deadline the first delivery lacked.
+        if (
+          state.phase === 'ringing-incoming' &&
+          state.callId &&
+          state.callId === action.payload.callId
+        ) {
+          state.answerUntil = Math.min(state.answerUntil ?? Infinity, answerUntil);
+        }
+        return;
+      }
+      if (answerUntil <= now) return;
       state.phase = 'ringing-incoming';
       state.direction = 'incoming';
       state.kind = action.payload.kind || 'video';
@@ -222,7 +252,9 @@ const callSlice = createSlice({
       state.peerXmppUsername = action.payload.peerXmppUsername || null;
       state.token = action.payload.token;
       state.error = null;
-      state.startedAt = Date.now();
+      state.startedAt = now;
+      state.ringExpiresAt = null;
+      state.answerUntil = answerUntil;
       state.connectedAt = null;
       state.mode = action.payload.mode || 'livekit';
       state.isGroup = action.payload.isGroup === true;
@@ -238,6 +270,7 @@ const callSlice = createSlice({
         token: string;
         callId?: string | null;
         livekitUrl?: string | null;
+        ringExpiresAt?: number | null;
       }>
     ) {
       if (state.direction !== 'outgoing') return;
@@ -249,6 +282,7 @@ const callSlice = createSlice({
       state.roomJid = action.payload.roomJid;
       state.token = action.payload.token;
       if (action.payload.callId) state.callId = action.payload.callId;
+      if (action.payload.ringExpiresAt) state.ringExpiresAt = action.payload.ringExpiresAt;
       // The stanza's URL, when present, wins over the create response's.
       if (action.payload.livekitUrl) state.livekitUrl = action.payload.livekitUrl;
       state.error = null;
@@ -260,6 +294,7 @@ const callSlice = createSlice({
       // in-call session back to connecting.
       if (state.direction !== 'incoming') return;
       if (state.phase !== 'ringing-incoming') return;
+      if (state.answerUntil !== null && Date.now() >= state.answerUntil) return;
       state.phase = 'connecting';
       state.error = null;
       state.startedAt = state.startedAt || Date.now();

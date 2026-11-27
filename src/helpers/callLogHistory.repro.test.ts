@@ -4,6 +4,7 @@ import { getDataFromXml } from './getDataFromXml';
 import { createMessageFromXml } from './createMessageFromXml';
 import {
   buildLocalCallLogMessage,
+  formatCallLogLabel,
   transformCallLogMessage,
 } from './callLogMessage';
 import roomsReducer, {
@@ -30,8 +31,8 @@ const ROOM_JID =
 // The receiving user (callee side; caller is ..._69c2517a...).
 const SELF = '69c24e911e53d44d2b6c4bbc_69c251a0239cee5defaf5343';
 
-const parseServerCallState = async (): Promise<IMessage> => {
-  const stanza = parse(STANZA);
+const parseServerCallState = async (xml = STANZA): Promise<IMessage> => {
+  const stanza = parse(xml);
   const { data, id, body, ...rest } = await getDataFromXml(stanza as any);
   expect(data).toBeTruthy();
   const raw = await createMessageFromXml({ data, id, body, ...rest } as any);
@@ -48,6 +49,29 @@ const stateWithRoom = () => {
 };
 
 describe('server call-state survives into history (user repro)', () => {
+  it.each([
+    ['missed', 'Missed call', 'call.missed'],
+    ['declined', 'Declined', 'call.declined'],
+  ])('parses and renders the server %s flag after merging with a local entry', async (outcome, body, label) => {
+    const message = await parseServerCallState(
+      STANZA.replace("durationMs='10995'", `durationMs='0' ${outcome}='true'`)
+    );
+    const local = buildLocalCallLogMessage({
+      callId: message.callLog!.callId,
+      direction: 'incoming',
+      durationMs: 0,
+      kind: 'video',
+      selfXmppUsername: SELF,
+    });
+    let state = stateWithRoom();
+    state = roomsReducer(state, addRoomMessage({ roomJID: ROOM_JID, message: local }));
+    state = roomsReducer(state, addRoomMessage({ roomJID: ROOM_JID, message }));
+    const entries = state.rooms[ROOM_JID].messages;
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ id: message.id, body, callLog: { outcome } });
+    expect(formatCallLogLabel(entries[0].callLog, (key) => key)).toBe(label);
+  });
+
   it('parses + transforms into a call log entry', async () => {
     const message = await parseServerCallState();
     expect(message.body).toBe('Incoming call · 11 sec');

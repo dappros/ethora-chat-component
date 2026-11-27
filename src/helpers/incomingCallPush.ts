@@ -31,6 +31,7 @@ import {
 } from './callClaim';
 import { getCallPushFreshness, parseCallPush } from './callPush';
 import { safeCallName } from '../calls/callDisplay';
+import { CALL_ANSWER_BUFFER_MS, CALL_RING_TIMEOUT_MS } from '../calls/callTiming';
 
 export interface CallPushContext {
   dispatch: (action: any) => unknown;
@@ -53,10 +54,10 @@ export type CallPushOutcome =
   | 'handled'
   /** Held until the chat config and the user are ready. */
   | 'held'
-  /** The push carries no LiveKit token, so it cannot ring. */
+  /** The push lacks the information required to join or signal the call. */
   | 'no-token';
 
-const RING_TIMEOUT_MS = 45_000;
+const RING_TIMEOUT_MS = CALL_RING_TIMEOUT_MS - CALL_ANSWER_BUFFER_MS;
 const RECENT_TTL_MS = 5 * 60_000;
 const DECLINE_DEDUPE_MS = 10_000;
 
@@ -93,8 +94,7 @@ export const wasCallRaisedFromPush = (key: string | null | undefined): boolean =
 // ── hold until ready ──────────────────────────────────────────
 // A cold-start tap can deliver the call push before the host has put the chat
 // config (videoCalls) and the user into Redux. It is kept, not dropped, and
-// raised once both are there, or discarded when its token expires (45 s after
-// being held when the token has no readable exp).
+// raised once both are there, or discarded at the answer deadline.
 interface PendingCallPush {
   data: Record<string, any>;
   answer: boolean;
@@ -110,6 +110,10 @@ export const holdCallPush = (
   answer: boolean,
   swShows = false
 ) => {
+  if (pendingCallPush?.answer && !answer) {
+    const callId = parseCallPush(data).callId;
+    if (callId && parseCallPush(pendingCallPush.data).callId === callId) return;
+  }
   pendingCallPush = { data, answer, heldAt: Date.now(), swShows };
 };
 
@@ -119,9 +123,9 @@ export const takePendingCallPush = (
   const held = pendingCallPush;
   pendingCallPush = null;
   if (!held) return null;
-  const { fresh, expiresAt } = getCallPushFreshness(held.data, now);
+  const { fresh, answerUntil } = getCallPushFreshness(held.data, now);
   if (!fresh) return null;
-  if (expiresAt === null && now - held.heldAt > RING_TIMEOUT_MS) return null;
+  if (answerUntil === null && now - held.heldAt >= RING_TIMEOUT_MS) return null;
   return held;
 };
 
@@ -201,8 +205,8 @@ const selfLocalOf = (state: any): string =>
 
 /**
  * Puts the ring up from a call push (through the guarded reducer) and, for the
- * Answer action, accepts it right away so LiveKit connects with the push's own
- * token and no second click.
+ * Answer action, accepts it right away. LiveKit joins with the push token,
+ * while 1:1 WebRTC obtains ICE credentials and signals the caller over XMPP.
  */
 export const raiseIncomingCallFromPush = (
   ctx: CallPushContext,
@@ -212,8 +216,12 @@ export const raiseIncomingCallFromPush = (
   const parsed = parseCallPush(data);
   const answer = options.answer === true;
 
-  if (!getCallPushFreshness(data).fresh) return 'expired';
-  if (!parsed.token) return 'no-token';
+  const { fresh, answerUntil } = getCallPushFreshness(data);
+  if (!fresh) return 'expired';
+  const canAnswer = parsed.mode === 'p2p'
+    ? Boolean(parsed.callId && parsed.callerXmppUsername && parsed.roomRef)
+    : Boolean(parsed.token);
+  if (!canAnswer) return 'no-token';
 
   // Another tab already took care of this call (accepted, declined, or saw the
   // caller give up): a late push, a stale Answer or a replay must not ring it
@@ -236,6 +244,10 @@ export const raiseIncomingCallFromPush = (
     return 'held';
   }
 
+  const selfLocal = selfLocalOf(ctx.getState());
+  const recipient = String(data.userJid || '').split('@')[0].trim().toLowerCase();
+  if (recipient && recipient !== selfLocal.toLowerCase()) return 'handled';
+
   const roomJid = ctx.normalizeRoomJid(parsed.roomRef || '');
   ctx.dispatch(
     setIncomingCallToken({
@@ -244,10 +256,14 @@ export const raiseIncomingCallFromPush = (
       // name (the call slice also refuses those for roomName).
       roomName: safeCallName(parsed.callerName) || parsed.roomBareName,
       roomBareName: parsed.roomBareName,
-      token: parsed.token,
+      token: parsed.token || '',
+      mode: parsed.mode,
+      answerUntil: answerUntil ?? Date.now() + RING_TIMEOUT_MS,
       kind: parsed.kind,
       callId: parsed.callId,
-      peerXmppUsername: derivePeer(parsed, selfLocalOf(ctx.getState())),
+      peerXmppUsername: derivePeer(parsed, selfLocal),
+      callerName: parsed.callerName,
+      callerXmppUsername: parsed.callerXmppUsername,
       isGroup: parsed.isGroup,
     })
   );
@@ -261,6 +277,7 @@ export const raiseIncomingCallFromPush = (
   }
   if (answer) {
     ctx.dispatch(acceptIncomingCall());
+    if (ctx.getState().call.phase !== 'connecting') return 'expired';
     // This tab is the one that accepted, whatever claim it went through.
     rememberCallDecision(callKey);
     // Other tabs still ringing for it end quietly.

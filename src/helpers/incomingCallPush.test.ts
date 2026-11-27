@@ -140,6 +140,30 @@ describe('incoming call push (page side)', () => {
       expect(store.getState().call.phase).toBe('connecting');
     });
 
+    it('answers a tokenless P2P push using the caller and call ID', () => {
+      const { ctx, store } = makeCtx();
+      const data = push({ mode: 'p2p', callToken: '', expiresAt: String(NOW + 60_000) });
+
+      expect(raiseIncomingCallFromPush(ctx, data, { answer: true })).toBe('accepted');
+      expect(store.getState().call).toMatchObject({
+        phase: 'connecting',
+        callId: 'c-1',
+        mode: 'p2p',
+        peerXmppUsername: 'app_a',
+        answerUntil: NOW + 55_000,
+      });
+    });
+
+    it('does not answer a P2P push for another account or past the deadline', () => {
+      const { ctx, store } = makeCtx();
+      const data = push({ mode: 'p2p', callToken: '', expiresAt: String(NOW + 60_000) });
+
+      expect(raiseIncomingCallFromPush(ctx, { ...data, userJid: 'someone_else@xmpp.test' }, { answer: true })).toBe('handled');
+      vi.setSystemTime(NOW + 55_000);
+      expect(raiseIncomingCallFromPush(ctx, data, { answer: true })).toBe('expired');
+      expect(store.getState().call.phase).toBe('idle');
+    });
+
     it('an expired push opens nothing ringing, not even for Answer', () => {
       const { ctx, store } = makeCtx();
       expect(raiseIncomingCallFromPush(ctx, push({ callToken: jwt(-5_000) }), { answer: true })).toBe('expired');
@@ -202,6 +226,16 @@ describe('incoming call push (page side)', () => {
       expect(store.getState().call.phase).toBe('connecting');
     });
 
+    it('preserves a cold-start P2P Answer when a duplicate ring arrives before login', () => {
+      const { ctx, store, state } = makeCtx(false);
+      const data = push({ mode: 'p2p', callToken: '', answerUntil: NOW + 55_000 });
+      expect(raiseIncomingCallFromPush(ctx, data, { answer: true })).toBe('held');
+      expect(raiseIncomingCallFromPush(ctx, data)).toBe('held');
+      state.ready = true;
+      expect(flushPendingCallPush(ctx)).toBe('accepted');
+      expect(store.getState().call).toMatchObject({ phase: 'connecting', mode: 'p2p' });
+    });
+
     it('is dropped when its token expires while waiting', () => {
       const { ctx, store, state } = makeCtx(false);
       raiseIncomingCallFromPush(ctx, push());
@@ -211,10 +245,10 @@ describe('incoming call push (page side)', () => {
       expect(store.getState().call.phase).toBe('idle');
     });
 
-    it('a push whose token has no exp is held for at most the 45 s ring window', () => {
+    it('a push whose token has no exp is held for at most the 55 s Answer window', () => {
       const { ctx, store, state } = makeCtx(false);
       raiseIncomingCallFromPush(ctx, push({ callToken: jwt(null) }));
-      vi.setSystemTime(NOW + 46_000);
+      vi.setSystemTime(NOW + 55_000);
       state.ready = true;
       expect(flushPendingCallPush(ctx)).toBeNull();
       expect(store.getState().call.phase).toBe('idle');

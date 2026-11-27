@@ -708,11 +708,11 @@ describe('service worker call push', () => {
     expect(tab.postMessage).not.toHaveBeenCalled();
   });
 
-  it('counts less than 3 s of token left as expired', async () => {
+  it('counts the last five seconds of token life as expired', async () => {
     const sw = loadWorker();
     await sw.push({ data: callData({ callToken: makeJwt(NOW_S + 2) }) });
     expect(sw.lastNotification().title).toContain('Missed');
-    const finish = await ring(sw, callData({ callId: 'c-2', callToken: makeJwt(NOW_S + 4) }));
+    const finish = await ring(sw, callData({ callId: 'c-2', callToken: makeJwt(NOW_S + 6) }));
     expect(sw.lastNotification().title).toContain('Incoming');
     await finish();
   });
@@ -819,14 +819,14 @@ describe('service worker call push', () => {
   });
 
   describe('ring lifetime', () => {
-    it('keeps the push alive until exp, then swaps the ring for "Missed call"', async () => {
+    it('keeps the push alive until the answer cutoff, then swaps the ring for "Missed call"', async () => {
       const sw = loadWorker();
       const done = sw.push({ data: callData() });
       let settled = false;
       void done.then(() => {
         settled = true;
       });
-      await sw.advance(59_000);
+      await sw.advance(54_000);
       expect(settled).toBe(false);
       expect(sw.shown.map((n) => n.tag)).toEqual(['call:c-1']);
 
@@ -905,6 +905,40 @@ describe('service worker call push', () => {
       expect(sent.data.callId).toBe('c-1');
       expect((await sw.requestPending()).postMessage).not.toHaveBeenCalled();
       await finish();
+    });
+
+    it('opens the chat on cold-start Answer for tokenless P2P and replays its deadline once', async () => {
+      const sw = loadWorker('?clickPath=%2Fapp%2Fchat');
+      const finish = await ring(sw, callData({ mode: 'p2p', callToken: '', callerXmppUsername: 'app1_a' }));
+      const { options } = sw.lastNotification();
+      expect(options.actions).toContainEqual({ action: 'answer', title: 'Answer' });
+      expect(options.data.answerUntil).toBe(NOW_S * 1000 + 55_000);
+
+      await sw.fire('notificationclick', {
+        action: 'answer',
+        notification: { data: options.data, title: 'x', body: 'y', close: vi.fn() },
+      });
+
+      expect(sw.clientsApi.openWindow).toHaveBeenCalledWith(`${ORIGIN}/app/chat`);
+      expect((await sw.requestPending()).postMessage).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'PUSH_NOTIFICATION_CLICK',
+        action: 'answer',
+        data: expect.objectContaining({ mode: 'p2p', callId: 'c-1', answerUntil: options.data.answerUntil }),
+      }));
+      expect((await sw.requestPending()).postMessage).not.toHaveBeenCalled();
+      await finish();
+    });
+
+    it('shows Missed call instead of an Answer action when a tokenless push arrives after the server cutoff', async () => {
+      const sw = loadWorker();
+      await sw.push({ data: callData({
+        mode: 'p2p',
+        callToken: '',
+        callerXmppUsername: 'app1_a',
+        expiresAt: String(NOW_S * 1000 + 5_000),
+      }) });
+      expect(sw.lastNotification().options.actions).toBeUndefined();
+      expect(sw.lastNotification().title).toContain('Missed');
     });
 
     it('a plain tap carries no action', async () => {

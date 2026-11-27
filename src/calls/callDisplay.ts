@@ -5,6 +5,7 @@
 
 /** Shown on the ring screen when no human-readable name is known. */
 export const NEUTRAL_INCOMING_CALL_LABEL = 'Incoming call';
+export const CALL_NO_ANSWER_MESSAGE = 'No answer';
 
 const MAX_CALL_NAME_LENGTH = 80;
 

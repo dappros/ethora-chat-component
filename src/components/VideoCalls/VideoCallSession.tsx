@@ -69,7 +69,7 @@ interface VideoCallSessionProps {
    */
   isGroup?: boolean;
   onNoAnswer?: () => void;
-  noAnswerTimeoutMs?: number;
+  noAnswerDeadline?: number | null;
 }
 
 const DEFAULT_PRIMARY = '#0052CD';
@@ -1476,9 +1476,9 @@ const PeerLeaveWatcher: React.FC<{ onPeerLeft: () => void }> = ({
   return null;
 };
 
-const NoAnswerWatcher: React.FC<{ onNoAnswer: () => void; timeoutMs: number }> = ({
+const NoAnswerWatcher: React.FC<{ onNoAnswer: () => void; deadline: number }> = ({
   onNoAnswer,
-  timeoutMs,
+  deadline,
 }) => {
   const remoteParticipants = useRemoteParticipants();
   const peerJoined = remoteParticipants.length > 0;
@@ -1492,9 +1492,9 @@ const NoAnswerWatcher: React.FC<{ onNoAnswer: () => void; timeoutMs: number }> =
     if (everJoinedRef.current) return;
     const timer = window.setTimeout(() => {
       if (!everJoinedRef.current) cbRef.current?.();
-    }, timeoutMs);
+    }, Math.max(0, deadline - Date.now()));
     return () => window.clearTimeout(timer);
-  }, [timeoutMs, peerJoined]);
+  }, [deadline, peerJoined]);
   return null;
 };
 
@@ -1666,7 +1666,7 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
   onParticipantJoined,
   isGroup = false,
   onNoAnswer,
-  noAnswerTimeoutMs = 45000,
+  noAnswerDeadline,
 }) => {
   const isAudioOnly = kind === 'audio';
   // Read the initial device state from refs so the connect effect stays
@@ -1855,8 +1855,8 @@ export const VideoCallSession: React.FC<VideoCallSessionProps> = ({
           NOT end that way: the others are still in the room. It ends when the
           local user hangs up (or the server reports the room empty). */}
       {!isGroup && <PeerLeaveWatcher onPeerLeft={onHangup} />}
-      {onNoAnswer && (
-        <NoAnswerWatcher onNoAnswer={onNoAnswer} timeoutMs={noAnswerTimeoutMs} />
+      {onNoAnswer && noAnswerDeadline != null && (
+        <NoAnswerWatcher onNoAnswer={onNoAnswer} deadline={noAnswerDeadline} />
       )}
       {/* Audio renders its own in-flow banner (below, inside AudioCallContent)
           - this overlay-on-canvas style only makes sense for video's

@@ -132,6 +132,7 @@ export interface IMessage {
     direction: 'outgoing' | 'incoming';
     durationMs: number;
     missed: boolean;
+    outcome?: 'missed' | 'declined';
     kind: 'audio' | 'video';
   };
   // Present when this message announces a scheduled call, from a

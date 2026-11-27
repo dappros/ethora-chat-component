@@ -322,10 +322,8 @@ function callPushKind(data) {
 }
 
 // ── CALL FRESHNESS ────────────────────────────────────────────
-// The backend sends call pushes without a TTL, so a device that was offline can
-// receive one long after the call. The LiveKit token in the push lives 60 s, so
-// its `exp` is the freshness clock (mirror of helpers/callPush.ts).
-const CALL_MIN_REMAINING_MS = 3000;
+// Match the page's answer cutoff before the server expires the call.
+const CALL_ANSWER_BUFFER_MS = 5000;
 const CALL_ACK_TIMEOUT_MS = 1500;
 const CALL_KEEPALIVE_CAP_MS = 60 * 1000;
 const CALL_ACTIONS = [
@@ -335,6 +333,14 @@ const CALL_ACTIONS = [
 
 function callTokenOf(data) {
   return pickField(data, ['callToken', 'livekitToken', 'token']);
+}
+
+function isP2PCall(data) {
+  const group = pickField(data, ['group', 'isGroup']).toLowerCase();
+  return (
+    group !== 'true' && group !== '1' &&
+    pickField(data, ['mode']).toLowerCase() === 'p2p'
+  );
 }
 
 function callIdOf(data) {
@@ -358,13 +364,17 @@ function jwtExpiresAtMs(token) {
   }
 }
 
-// No readable exp (no token, malformed token): treated as fresh, because it
-// cannot be proven stale. The ring is still bounded: it never outlives
-// receivedAt + CALL_KEEPALIVE_CAP_MS (the backend's own TTL for a call).
-function callPushFreshness(data, now) {
-  const expiresAt = jwtExpiresAtMs(callTokenOf(data));
-  if (expiresAt === null) return { fresh: true, expiresAt: null };
-  return { fresh: expiresAt - now >= CALL_MIN_REMAINING_MS, expiresAt };
+function readEpochMs(value) {
+  const ms = Number(value);
+  return Number.isFinite(ms) && ms > 0 ? ms : Infinity;
+}
+
+function callAnswerDeadline(data) {
+  const expiresAt = Math.min(
+    readEpochMs(data.expiresAt),
+    jwtExpiresAtMs(callTokenOf(data)) ?? Infinity
+  );
+  return Math.min(readEpochMs(data.answerUntil), expiresAt - CALL_ANSWER_BUFFER_MS);
 }
 
 // One key for a call on both sides (the worker and the page, see
@@ -593,8 +603,11 @@ async function handlePush(rawInput = {}, source = 'push') {
     : '';
   const callId = isCall ? callIdOf(data) : '';
   const callKey = isCall ? callKeyOf(data) || dedupKey : '';
-  // A call without a LiveKit token cannot be answered from the notification.
-  const canAnswer = isCall && !!callTokenOf(data);
+  // A P2P call uses XMPP, so it needs a stable call ID and the caller's
+  // username in place of the LiveKit token.
+  const canAnswer = isCall && (isP2PCall(data)
+    ? !!(callId && callRoomOf(data) && pickField(data, ['callerXmppUsername', 'callerUsername', 'senderJid']))
+    : !!callTokenOf(data));
 
   // Call pushes: a call-styled title, a tag keyed on the callId so repeat
   // call-token pushes replace (not stack), and requireInteraction so the
@@ -798,8 +811,8 @@ async function showMissedCall(data, icon, badge) {
 }
 
 // Keeps the event alive until the ring ends, then swaps a ring that is still on
-// screen for the "Missed call" notification. The ring ends at the token's exp,
-// but never later than receivedAt + 60 s (the backend's TTL for a call): a push
+// screen for the "Missed call" notification. The ring ends at the page's answer
+// deadline, capped at receivedAt + 60 s (the backend's TTL for a call). A push
 // with no readable exp, or an exp further away, must not stay sticky forever
 // when no page is open to end it. Runs for the rings this worker shows itself
 // (push) and for the ones a page shows through the registration
@@ -844,10 +857,17 @@ async function handleCallPush({
   badge,
 }) {
   const receivedAt = Date.now();
-  const { fresh, expiresAt } = callPushFreshness(data, receivedAt);
+  let answerUntil = callAnswerDeadline(data);
+  if (!Number.isFinite(answerUntil) && isP2PCall(data)) {
+    // Compatibility with servers that do not include expiresAt yet. Preserve
+    // this deadline on the notification so reopening a tab cannot renew it.
+    answerUntil = receivedAt + CALL_KEEPALIVE_CAP_MS - CALL_ANSWER_BUFFER_MS;
+    data = { ...data, answerUntil };
+    options.data = { ...options.data, answerUntil };
+  }
 
-  if (!fresh) {
-    log('STALE CALL PUSH', { callId, expiresAt });
+  if (receivedAt >= answerUntil) {
+    log('STALE CALL PUSH', { callId, answerUntil });
     return showMissedCall(data, icon, badge);
   }
 
@@ -869,15 +889,14 @@ async function handleCallPush({
     }
   }
 
+  if (Date.now() >= answerUntil) return showMissedCall(data, icon, badge);
+
   log('SHOW CALL NOTIFICATION', { tag: options.tag });
   await self.registration.showNotification(title, options);
   await expireCallNotification({
     tag: options.tag,
     data,
-    endAt: Math.min(
-      expiresAt === null ? Infinity : expiresAt,
-      receivedAt + CALL_KEEPALIVE_CAP_MS
-    ),
+    endAt: Math.min(answerUntil, receivedAt + CALL_KEEPALIVE_CAP_MS),
     icon,
     badge,
   });

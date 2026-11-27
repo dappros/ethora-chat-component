@@ -51,6 +51,7 @@ export async function requestOutgoingCall(params: {
       group: result.group,
       livekitUrl: result.livekitUrl,
       iceServers: result.iceServers,
+      ringExpiresAt: result.expiresAt,
     })
   );
 }

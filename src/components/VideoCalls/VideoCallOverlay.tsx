@@ -25,7 +25,15 @@ import { useResolvedColorScheme, useThemeTokenStyle } from '../../styles/tokens'
 import { VideoCallSession } from './VideoCallSession';
 import { P2PCallSession } from './P2PCallSession';
 import { P2PCallRunner } from './P2PCallRunner';
-import { NEUTRAL_INCOMING_CALL_LABEL } from '../../calls/callDisplay';
+import {
+  CALL_NO_ANSWER_MESSAGE,
+  NEUTRAL_INCOMING_CALL_LABEL,
+} from '../../calls/callDisplay';
+import {
+  CALL_ANSWER_BUFFER_MS,
+  CALL_RESULT_DELIVERY_TIMEOUT_MS,
+  CALL_RING_TIMEOUT_MS,
+} from '../../calls/callTiming';
 import { reportCallDeclined } from '../../networking/api-requests/callState.api';
 import { ProfileImagePlaceholder } from '../MainComponents/ProfileImagePlaceholder';
 import {
@@ -51,6 +59,7 @@ import {
 import { wasCallRaisedFromPush } from '../../helpers/incomingCallPush';
 import { runIfCallClaimed } from '../../helpers/callClaim';
 import { jwtExpiresAtMs } from '../../helpers/callPush';
+import { markCallHandled } from '../../utils/handledCalls';
 import {
   silenceCallOutcome,
   startCallOutcomeSync,
@@ -98,13 +107,6 @@ const dialogWrapperStyle: React.CSSProperties = {
 // Focusable elements query for the focus trap.
 const FOCUSABLE =
   'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-
-// Stop the dial UI sitting forever when the server never broadcasts a
-// call-token (offline peer, backend error, etc.). 30s matches the typical
-// PSTN ring window.
-const OUTGOING_CALL_TIMEOUT_MS = 30000;
-
-const INCOMING_CALL_TIMEOUT_MS = 45000;
 
 const DEFAULT_PRIMARY = '#0052CD';
 // Light surfaces read the chat's colour tokens with the original literals as
@@ -437,7 +439,7 @@ const RingingCard: React.FC<RingingCardProps> = ({
 
 const VideoCallOverlayView: React.FC = () => {
   const dispatch = useDispatch();
-  const reduxStore = useStore();
+  const reduxStore = useStore<RootState>();
   const call = useSelector((state: RootState) => state.call);
   const { config, user } = useChatSettingState();
 
@@ -541,10 +543,7 @@ const VideoCallOverlayView: React.FC = () => {
 
   const isOpen = enabled && call.phase !== 'idle';
 
-  // The latest call and user, for the ring timer that fires long after the
-  // render it was set up in.
-  const latestRef = useRef({ call, hasUser: !!user?.xmppUsername });
-  latestRef.current = { call, hasUser: !!user?.xmppUsername };
+  const hasUser = !!user?.xmppUsername;
 
   // OS notification settings, shared by the ring and the "Missed call" ones.
   const notificationScope = config?.pushNotifications?.serviceWorkerScope || '/';
@@ -563,54 +562,86 @@ const VideoCallOverlayView: React.FC = () => {
   // cancelled by the caller) is announced to them, and a ring here that another
   // tab ended is ended quietly (no "Missed call", nothing sent to the caller).
   useEffect(
-    () => startCallOutcomeSync(reduxStore as any),
+    () => startCallOutcomeSync(reduxStore),
     [reduxStore]
   );
 
+  const ringEndsAt =
+    call.ringExpiresAt ??
+    (call.startedAt === null ? null : call.startedAt + CALL_RING_TIMEOUT_MS);
+  // Give the server time to settle the call and deliver its final state.
+  const resultDeadline =
+    ringEndsAt === null ? null : ringEndsAt + CALL_RESULT_DELIVERY_TIMEOUT_MS;
   useEffect(() => {
-    if (call.phase !== 'requesting' || call.direction !== 'outgoing') {
+    if (
+      call.phase !== 'requesting' ||
+      call.direction !== 'outgoing' ||
+      resultDeadline === null
+    ) {
       return;
     }
     const timer = window.setTimeout(() => {
-      sendCallStateSignal('cancelled');
-      dispatch(setCallError('No answer - call timed out'));
-    }, OUTGOING_CALL_TIMEOUT_MS);
+      const current = reduxStore.getState().call;
+      if (
+        current.phase === 'requesting' &&
+        current.direction === 'outgoing' &&
+        current.startedAt === call.startedAt &&
+        (!current.ringExpiresAt ||
+          Date.now() >= current.ringExpiresAt + CALL_RESULT_DELIVERY_TIMEOUT_MS)
+      ) {
+        dispatch(setCallError(CALL_NO_ANSWER_MESSAGE));
+      }
+    }, Math.max(0, resultDeadline - Date.now()));
     return () => window.clearTimeout(timer);
-  }, [call.phase, call.direction, call.startedAt, dispatch]);
+  }, [call.phase, call.direction, call.startedAt, resultDeadline, dispatch, reduxStore]);
+
+  const tokenExpiresAt = jwtExpiresAtMs(call.token);
+  const answerUntil =
+    call.answerUntil ??
+    (call.startedAt === null
+      ? null
+      : Math.min(
+          call.startedAt + CALL_RING_TIMEOUT_MS - CALL_ANSWER_BUFFER_MS,
+          tokenExpiresAt === null ? Infinity : tokenExpiresAt - CALL_ANSWER_BUFFER_MS
+        ));
 
   useEffect(() => {
-    if (call.phase !== 'ringing-incoming' || call.direction !== 'incoming') {
+    if (
+      call.phase !== 'ringing-incoming' ||
+      call.direction !== 'incoming' ||
+      answerUntil === null
+    ) {
       return;
     }
-    const now = Date.now();
-    const elapsed = now - (call.startedAt || now);
-    // The ring cannot outlive its LiveKit token: a call raised late from a
-    // push may have only a few seconds of token left, and answering after
-    // that would just fail to connect.
-    const tokenExp = jwtExpiresAtMs(call.token);
-    const untilTokenExpiry =
-      tokenExp === null ? Infinity : tokenExp - now;
     const timer = window.setTimeout(() => {
+      const ringing = reduxStore.getState().call;
+      if (
+        ringing.phase !== 'ringing-incoming' ||
+        ringing.direction !== 'incoming' ||
+        ringing.callId !== call.callId ||
+        ringing.startedAt !== call.startedAt ||
+        (ringing.answerUntil !== null && ringing.answerUntil > Date.now())
+      ) {
+        return;
+      }
+      const key = callNotificationKey(
+        ringing.callId,
+        ringing.roomBareName || ringing.roomJid
+      );
       // Nobody answered. In a hidden tab leave a "Missed call" behind, the
-      // same notification the service worker swaps its ring for at the token's
-      // exp (same tag and data, shown at most once): the worker wakes at the
+      // same notification the service worker swaps its ring for at the answer
+      // deadline (same tag and data, shown at most once): the worker wakes at the
       // same moment, finds the ring already closed and would otherwise return
       // with nothing shown. A visible tab saw the ring on screen and the call
       // log lands in the chat, so it gets no extra OS notification.
-      const ringing = latestRef.current.call;
       if (
-        ringing.phase === 'ringing-incoming' &&
-        ringing.direction === 'incoming' &&
         typeof document !== 'undefined' &&
         document.visibilityState !== 'visible' &&
-        latestRef.current.hasUser
+        hasUser
       ) {
         void showMissedCallNotification(
           {
-            key: callNotificationKey(
-              ringing.callId,
-              ringing.roomBareName || ringing.roomJid
-            ),
+            key,
             kind: ringing.kind === 'audio' ? 'audio' : 'video',
             callerName: ringing.roomName,
             roomBareName: ringing.roomBareName,
@@ -625,21 +656,20 @@ const VideoCallOverlayView: React.FC = () => {
         );
       }
       // A timeout is each tab's own: not announced to the others.
-      silenceCallOutcome(
-        callNotificationKey(
-          ringing.callId,
-          ringing.roomBareName || ringing.roomJid
-        )
-      );
+      silenceCallOutcome(key);
+      markCallHandled(key);
       dispatch(declineIncomingCall());
-    }, Math.max(0, Math.min(INCOMING_CALL_TIMEOUT_MS - elapsed, untilTokenExpiry)));
+    }, Math.max(0, answerUntil - Date.now()));
     return () => window.clearTimeout(timer);
   }, [
     call.phase,
     call.direction,
     call.startedAt,
-    call.token,
+    call.callId,
+    answerUntil,
     dispatch,
+    hasUser,
+    reduxStore,
     pushIconPath,
     pushBadgePath,
     notificationScope,
@@ -733,6 +763,9 @@ const VideoCallOverlayView: React.FC = () => {
           callToken: call.token || '',
           room: call.roomBareName || '',
           kind: call.kind,
+          mode: call.mode,
+          group: String(call.isGroup),
+          ...(answerUntil === null ? {} : { answerUntil: String(answerUntil) }),
           callerName: call.roomName || '',
           callerXmppUsername: call.peerXmppUsername || '',
         },
@@ -741,14 +774,16 @@ const VideoCallOverlayView: React.FC = () => {
         scope: notificationScope,
         useServiceWorker: config?.pushNotifications?.enabled === true,
         onClick: () => window.focus(),
-        // The worker ends this ring at the token's exp if the tab is gone by then.
-        expiresAt: jwtExpiresAtMs(call.token),
+        expiresAt: answerUntil,
       }
     );
   }, [
     call.direction,
     call.phase,
     call.kind,
+    call.mode,
+    call.isGroup,
+    answerUntil,
     call.roomName,
     call.callId,
     call.roomJid,
@@ -763,7 +798,9 @@ const VideoCallOverlayView: React.FC = () => {
     notificationScope,
   ]);
 
+  const noAnswer = call.phase === 'error' && call.error === CALL_NO_ANSWER_MESSAGE;
   const ringingHeader = useMemo(() => {
+    if (noAnswer) return CALL_NO_ANSWER_MESSAGE;
     if (call.direction === 'incoming') {
       return `Incoming ${call.isGroup ? 'group ' : ''}${call.kind === 'audio' ? 'audio' : 'video'} call`;
     }
@@ -771,7 +808,7 @@ const VideoCallOverlayView: React.FC = () => {
     if (call.phase === 'connecting') return 'Connecting…';
     if (call.phase === 'error') return 'Call failed';
     return 'Call';
-  }, [call.direction, call.phase, call.kind, call.isGroup]);
+  }, [call.direction, call.phase, call.kind, call.isGroup, noAnswer]);
 
   const ringingSubtitle = useMemo(() => {
     const noun = call.kind === 'audio' ? 'Audio call' : 'Video call';
@@ -786,7 +823,7 @@ const VideoCallOverlayView: React.FC = () => {
     if (call.phase === 'connecting') {
       return isP2P ? 'Connecting…' : 'Connecting to room';
     }
-    if (call.phase === 'error') return 'Please try again later';
+    if (call.phase === 'error' && !noAnswer) return 'Please try again later';
     return label;
   }, [
     call.direction,
@@ -796,6 +833,7 @@ const VideoCallOverlayView: React.FC = () => {
     call.callerName,
     call.roomName,
     isP2P,
+    noAnswer,
   ]);
 
   const terminateCall = useCallback(
@@ -1022,12 +1060,10 @@ const VideoCallOverlayView: React.FC = () => {
                   e2eeKey={call.e2eeKey}
                   e2eeWorkerFactory={videoCallsConfig?.e2ee?.workerFactory}
                   onParticipantJoined={redistributeCallKey}
+                  noAnswerDeadline={resultDeadline}
                   onNoAnswer={
                     call.direction === 'outgoing'
-                      ? () => {
-                          sendCallStateSignal('cancelled');
-                          dispatch(setCallError('No answer - call timed out'));
-                        }
+                      ? () => dispatch(setCallError(CALL_NO_ANSWER_MESSAGE))
                       : undefined
                   }
                 />
@@ -1072,10 +1108,12 @@ const VideoCallOverlayView: React.FC = () => {
             variant="error"
             primaryColor={primaryColor}
             errorMessage={
-              call.error ||
-              (!livekitUrl && !isP2P
-                ? 'Video calls unavailable: missing livekitUrl in config.videoCalls'
-                : null)
+              noAnswer
+                ? null
+                : call.error ||
+                  (!livekitUrl && !isP2P
+                    ? 'Video calls unavailable: missing livekitUrl in config.videoCalls'
+                    : null)
             }
             onDismiss={() => dispatch(resetCall())}
           />

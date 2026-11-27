@@ -97,7 +97,7 @@ export const P2PCallRunner: React.FC = () => {
         },
         createBrowserP2PDeps({ callId, peerXmppUsername: peer }),
         {
-          onNegotiated: () => {
+          onAnswerReceived: () => {
             if (
               role === 'caller' &&
               isCurrentCall(callId) &&

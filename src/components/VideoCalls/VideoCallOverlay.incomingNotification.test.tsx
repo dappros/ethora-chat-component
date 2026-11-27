@@ -5,7 +5,9 @@ import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import callSlice, {
   CallState,
+  acceptIncomingCall,
   declineIncomingCall,
+  setCallPhase,
 } from '../../roomStore/callSlice';
 import {
   markCallRaisedFromPush,
@@ -51,6 +53,8 @@ const baseCallState: CallState = {
   e2eeKeyCallId: null,
   error: null,
   startedAt: Date.now(),
+  ringExpiresAt: null,
+  answerUntil: null,
   connectedAt: null,
 };
 
@@ -330,7 +334,7 @@ describe('VideoCallOverlay - call push lifecycle', () => {
     expect(closed).toHaveBeenCalledTimes(1);
   });
 
-  it('a ring raised late stops when its token expires, not after the full 45 s', async () => {
+  it('stops offering Answer five seconds before a late token expires', async () => {
     setHidden(false);
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
     let store: any;
@@ -341,7 +345,24 @@ describe('VideoCallOverlay - call push lifecycle', () => {
       ).store;
     });
     await act(async () => {
-      vi.advanceTimersByTime(7_000);
+      vi.advanceTimersByTime(2_500);
+    });
+    expect(store.getState().call.phase).toBe('ringing-incoming');
+    await act(async () => {
+      vi.advanceTimersByTime(700);
+    });
+    expect(store.getState().call.phase).toBe('idle');
+  });
+
+  it('stops offering Answer at 55 s when no token expiry is available', async () => {
+    setHidden(false);
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    let store: any;
+    await act(async () => {
+      store = renderOverlay({ ...baseCallState, startedAt: Date.now(), token: 'jwt' }, pushEnabled).store;
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(54_000);
     });
     expect(store.getState().call.phase).toBe('ringing-incoming');
     await act(async () => {
@@ -350,21 +371,53 @@ describe('VideoCallOverlay - call push lifecycle', () => {
     expect(store.getState().call.phase).toBe('idle');
   });
 
-  it('keeps the 45 s ring for a token whose exp cannot be read', async () => {
+  it('leaves the server in charge of outgoing expiry and stops the timer after answer', async () => {
     setHidden(false);
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
-    let store: any;
-    await act(async () => {
-      store = renderOverlay({ ...baseCallState, startedAt: Date.now(), token: 'jwt' }, pushEnabled).store;
+    const { store } = renderOverlay({
+      ...baseCallState,
+      phase: 'requesting',
+      direction: 'outgoing',
+      startedAt: Date.now(),
     });
-    await act(async () => {
-      vi.advanceTimersByTime(44_000);
+    act(() => vi.advanceTimersByTime(54_000));
+    expect(store.getState().call.phase).toBe('requesting');
+    act(() => store.dispatch(setCallPhase('connecting')));
+    act(() => vi.advanceTimersByTime(12_000));
+    expect(store.getState().call.phase).toBe('connecting');
+    expect(sendCallStateSignal).not.toHaveBeenCalled();
+  });
+
+  it('rejects an Answer queued after expiry even before the ring timer executes', () => {
+    setHidden(false);
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    const startedAt = Date.now();
+    const { store } = renderOverlay({
+      ...baseCallState,
+      startedAt,
+      answerUntil: startedAt + 55_000,
     });
+    vi.setSystemTime(startedAt + 55_000);
+    act(() => store.dispatch(acceptIncomingCall()));
     expect(store.getState().call.phase).toBe('ringing-incoming');
-    await act(async () => {
-      vi.advanceTimersByTime(1_500);
+  });
+
+  it('waits for the configured server deadline before showing the outgoing fallback', () => {
+    setHidden(false);
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    const startedAt = Date.now();
+    const { store } = renderOverlay({
+      ...baseCallState,
+      phase: 'requesting',
+      direction: 'outgoing',
+      startedAt,
+      ringExpiresAt: startedAt + 80_000,
     });
-    expect(store.getState().call.phase).toBe('idle');
+    act(() => vi.advanceTimersByTime(84_999));
+    expect(store.getState().call.phase).toBe('requesting');
+    act(() => vi.advanceTimersByTime(1));
+    expect(store.getState().call).toMatchObject({ phase: 'error', error: 'No answer' });
+    expect(sendCallStateSignal).not.toHaveBeenCalled();
   });
 
   describe('a push the page acked, and a tab switch mid-ring', () => {
@@ -703,7 +756,7 @@ describe('VideoCallOverlay - call push lifecycle', () => {
       expect(sent).toMatchObject({
         type: 'CALL_RING_SHOWN',
         key: 'call-123',
-        exp,
+        exp: exp - 5_000,
         data: { callId: 'call-123', room: 'peer', kind: 'audio', callerName: 'Ada Lovelace' },
       });
       expect(JSON.stringify(sent)).not.toContain(token);

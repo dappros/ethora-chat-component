@@ -79,13 +79,16 @@ const isLocalCallLogEntry = (message: IMessage | undefined | null): boolean =>
 // xmppId) comes from the server copy when one side is the local fallback -
 // the server archive id is what MAM pages and the catch-up anchor will match
 // against later. Display (body/callLog) comes from whichever copy saw the
-// larger duration, so partial per-participant call-states don't shrink it.
+// explicit outcome, or the larger duration among older call-state entries.
 const mergeCallLogEntries = (a: IMessage, b: IMessage): IMessage => {
   const aLocal = isLocalCallLogEntry(a);
   const bLocal = isLocalCallLogEntry(b);
   const identity = aLocal === bLocal ? a : aLocal ? b : a;
-  const display =
-    (a.callLog?.durationMs || 0) >= (b.callLog?.durationMs || 0) ? a : b;
+  const aHasOutcome = !!a.callLog?.outcome;
+  const bHasOutcome = !!b.callLog?.outcome;
+  const display = aHasOutcome === bHasOutcome
+    ? ((a.callLog?.durationMs || 0) >= (b.callLog?.durationMs || 0) ? a : b)
+    : aHasOutcome ? a : b;
   if (identity === display) return identity;
   return {
     ...display,
@@ -1391,8 +1394,8 @@ const roomsStore = createSlice({
       //    archive id is what MAM and the catch-up anchor return later, so
       //    keeping a local "calllog-" id around breaks anchor matching and
       //    duplicates the entry on the next history merge;
-      //  - the LARGEST duration wins for display, so a 2-minute call doesn't
-      //    render as "2 sec".
+      //  - an explicit server outcome wins for display. When neither has one,
+      //    the longest duration wins.
       const incomingCallLog = (message as IMessage).callLog;
       if (incomingCallLog?.callId) {
         const list = state.rooms[roomJID].messages;
