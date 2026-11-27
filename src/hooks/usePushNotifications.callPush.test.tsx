@@ -150,6 +150,24 @@ describe('usePushNotifications - incoming call push', () => {
     expect(store.getState().call).toMatchObject({ phase: 'connecting', callId: 'c-1', token: data.callToken });
   });
 
+  it('answers a P2P push in a background tab without a LiveKit token', async () => {
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+    const store = makeStore(VIDEO_ON);
+    mount(store);
+    const data = callData({ mode: 'p2p', callToken: '' });
+
+    await emit({ type: 'CALL_PUSH', data });
+    expect(store.getState().call.phase).toBe('ringing-incoming');
+    await emit({ type: 'PUSH_NOTIFICATION_CLICK', action: 'answer', data, notification: {} });
+    expect(store.getState().call).toMatchObject({
+      phase: 'connecting',
+      callId: 'c-1',
+      mode: 'p2p',
+      peerXmppUsername: 'app_a',
+    });
+    expect(postToPushServiceWorker).toHaveBeenCalledWith({ type: 'CALL_PUSH_ANSWER_ACK', callId: 'c-1' });
+  });
+
   it('a plain tap raises the ring screen and waits for the user', async () => {
     const store = makeStore(VIDEO_ON);
     mount(store);

@@ -1,0 +1,3 @@
+export const CALL_RING_TIMEOUT_MS = 60_000;
+export const CALL_ANSWER_BUFFER_MS = 5_000;
+export const CALL_RESULT_DELIVERY_TIMEOUT_MS = 5_000;

@@ -3,6 +3,7 @@ import { xml } from '@xmpp/client';
 import { store } from '../roomStore';
 import {
   endCall,
+  setCallError,
   setCallKind,
   setIncomingCallToken,
   setOutgoingCallToken,
@@ -13,8 +14,16 @@ import {
   isCallRoomTypeAllowed,
   parseCallTokenAttrs,
 } from '../calls/callMode';
+import {
+  CALL_ANSWER_BUFFER_MS,
+  CALL_RING_TIMEOUT_MS,
+} from '../calls/callTiming';
 import { isSystemAccountSender } from '../calls/senderTrust';
-import { looksLikeRawRoomName, safeCallName } from '../calls/callDisplay';
+import {
+  CALL_NO_ANSWER_MESSAGE,
+  looksLikeRawRoomName,
+  safeCallName,
+} from '../calls/callDisplay';
 import { P2P_SIGNAL_TYPE } from '../calls/p2p/signalStanza';
 import { handleP2PSignalStanza } from '../calls/p2p/p2pRuntime';
 import {
@@ -83,6 +92,12 @@ const isTrueishAttr = (value: unknown): boolean => {
   const text = String(value ?? '').trim().toLowerCase();
   return text === 'true' || text === '1';
 };
+
+const isMissedCallState = (attrs: Element['attrs']): boolean =>
+  isTrueishAttr(attrs?.missed) ||
+  [attrs?.state || attrs?.event, attrs?.reason].some(
+    (value) => String(value || '').trim().toLowerCase() === 'missed'
+  );
 
 // Display name of a user we only know by xmpp username (p2p tokens carry no
 // JWT, so no caller name), from the enriched usersSet.
@@ -179,11 +194,12 @@ const extractNumericTimestamp = (value?: string): number | null => {
   return Number(match.slice(0, 13));
 };
 
-const isFreshCallToken = (stanza: Element): boolean => {
+const getFreshCallTokenTimestamp = (stanza: Element): number | null => {
   const stanzaId = stanza.getChild('stanza-id')?.attrs?.id;
   const createdTs = extractNumericTimestamp(stanzaId);
-  if (!createdTs) return false;
-  return Math.abs(Date.now() - createdTs) <= MAX_CALL_TOKEN_AGE_MS;
+  return createdTs && Math.abs(Date.now() - createdTs) <= MAX_CALL_TOKEN_AGE_MS
+    ? createdTs
+    : null;
 };
 
 // Match a call-token stanza's `room` attribute against the local rooms map.
@@ -276,8 +292,18 @@ const handleCallStateData = (
   // tear down the current one just because the room matches.
   const callIdConflicts =
     !!stanzaCallId && !!currentCall.callId && currentCall.callId !== stanzaCallId;
+  // A new outgoing call in the same room has no ID until create resolves.
+  // A terminal event arriving then may belong to the previous call.
+  const awaitingOutgoingCallId =
+    currentCall.direction === 'outgoing' &&
+    currentCall.phase === 'requesting' &&
+    !currentCall.callId;
+  const matchesActiveCall =
+    callIdMatches || (roomMatches && !callIdConflicts && !awaitingOutgoingCallId);
 
+  const isMissed = isMissedCallState(data.attrs);
   const isTerminalState =
+    isMissed ||
     state === 'ended' ||
     state === 'declined' ||
     state === 'cancelled' ||
@@ -289,10 +315,11 @@ const handleCallStateData = (
   // itself a "session concluded" signal.
   const isServerCallLog = !state && callStateHasLogData(data.attrs || {});
 
-  if (
-    (callIdMatches || (roomMatches && !callIdConflicts)) &&
-    (isTerminalState || isServerCallLog)
-  ) {
+  if (matchesActiveCall && (isTerminalState || isServerCallLog)) {
+    if (isMissed && currentCall.direction === 'outgoing') {
+      store.dispatch(setCallError(CALL_NO_ANSWER_MESSAGE));
+      return;
+    }
     store.dispatch(endCall());
   }
 };
@@ -336,7 +363,8 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
         .trim();
       const declinedInGroup =
         String(data.attrs?.state || '').toLowerCase() === 'declined' &&
-        isTrueishAttr(data.attrs?.group);
+        isTrueishAttr(data.attrs?.group) &&
+        !isMissedCallState(data.attrs);
       if (!declinedInGroup) {
         // The state / callId / room live on the <data> element, not on the
         // <message> wrapper. This used to be handed `inner`, which made every
@@ -395,7 +423,10 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
       // Server relay of a callee's decline. In a group call one member
       // declining must not end the call for everybody, so it is ignored there.
       // For 1:1 it is a terminal state, same as the client-sent `declined`.
-      if (isTrueishAttr(data.attrs?.group)) {
+      if (
+        isTrueishAttr(data.attrs?.group) &&
+        !isMissedCallState(data.attrs)
+      ) {
         ethoraLogger.log('[call] group member declined', {
           by: data.attrs?.by,
           callId: data.attrs?.callId,
@@ -421,7 +452,8 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
       if (videoCallsConfig?.enabled !== true) {
         return true;
       }
-      if (!isFreshCallToken(inner)) {
+      const tokenIssuedAt = getFreshCallTokenTimestamp(inner);
+      if (tokenIssuedAt === null) {
         return true;
       }
 
@@ -434,12 +466,13 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
       // Anything else keeps the stanza but loses those attributes: the callee
       // then uses config.videoCalls.livekitUrl, GET /v1/calls/ice-servers and
       // the name it can work out locally.
+      const isTrustedTokenSender = isSystemAccountSender(
+        inner.attrs?.from,
+        sessionXmppDomain()
+      );
       if (
-        (attrs.livekitUrl ||
-          attrs.iceServers ||
-          attrs.callerName ||
-          attrs.caller) &&
-        !isSystemAccountSender(inner.attrs?.from, sessionXmppDomain())
+        !isTrustedTokenSender &&
+        (attrs.livekitUrl || attrs.iceServers || attrs.callerName || attrs.caller)
       ) {
         ethoraLogger.log(
           '[call] ignoring livekitUrl/ice/callerName/caller on a call-token not sent by the system account',
@@ -543,11 +576,21 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
 
       const callId = extractCallId(data, jwtPayload);
       if (isP2P && !callId) return true;
+      const expiresAtAttr = Number(data.attrs?.expiresAt);
+      const ringExpiresAt =
+        isTrustedTokenSender && Number.isFinite(expiresAtAttr) && expiresAtAttr > 0
+          ? expiresAtAttr
+          : null;
+      const answerUntil =
+        (ringExpiresAt ?? tokenIssuedAt + CALL_RING_TIMEOUT_MS) - CALL_ANSWER_BUFFER_MS;
 
       // A p2p token for a call another tab already accepted, declined or saw
       // cancelled is a replay: drop it before the busy / glare logic below can
       // decline or cancel anything on its behalf.
-      if (isP2P && isCallHandled(callNotificationKey(callId, stanzaRoom))) {
+      if (isP2P && (
+        answerUntil <= Date.now() ||
+        isCallHandled(callNotificationKey(callId, stanzaRoom))
+      )) {
         return true;
       }
 
@@ -607,6 +650,7 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
             token,
             callId: callId || null,
             livekitUrl: attrs.livekitUrl,
+            ringExpiresAt,
           })
         );
         return true;
@@ -625,6 +669,7 @@ export const onCallTokenMessage = (stanza: Element): boolean => {
           roomName: incomingRoomName,
           roomBareName: stanzaRoom,
           token,
+          answerUntil,
           kind,
           callId: callId || null,
           peerXmppUsername: peerXmppUsername || null,

@@ -189,6 +189,7 @@ const harness = (
     sendSignal: (signal, payload) => sent.push({ signal, payload }),
   };
   const events = {
+    onAnswerReceived: vi.fn(),
     onNegotiated: vi.fn(),
     onConnected: vi.fn(),
     onRemoteEnd: vi.fn(),
@@ -262,6 +263,8 @@ describe('caller', () => {
     await flush();
 
     h.controller.receive(fromPeer('answer', sdpPayload('answer', 'answer-x')));
+    expect(h.events.onAnswerReceived).toHaveBeenCalledTimes(1);
+    expect(h.pc().setRemoteDescription).not.toHaveBeenCalled();
     await flush();
     expect(h.pc().setRemoteDescription).toHaveBeenCalledWith({
       type: 'answer',
@@ -299,6 +302,19 @@ describe('caller', () => {
     await flush();
     await vi.advanceTimersByTimeAsync(10_000);
     expect(h.sent.filter((s) => s.signal === 'offer')).toHaveLength(2);
+  });
+
+  it('re-sends an offer for an incoming client that reconnects late in the ring window', async () => {
+    const h = harness();
+    await h.controller.start();
+    await flush();
+
+    await vi.advanceTimersByTimeAsync(52_000);
+    h.sent.length = 0;
+    await vi.advanceTimersByTimeAsync(4_000);
+    expect(h.sent.map((s) => s.signal)).toEqual(['offer']);
+    await vi.advanceTimersByTimeAsync(8_000);
+    expect(h.sent.map((s) => s.signal)).toEqual(['offer']);
   });
 
   it('fails the call if nobody connects within the connect timeout', async () => {

@@ -9,13 +9,12 @@ import { IMessage } from '../types/types';
 //   - durationMs == 0 → "No answer" (we called)  / "Missed call" (they called)
 // Direction is derived from callerXmppUsername vs the logged-in user.
 
-export interface CallLogMeta {
-  callId: string;
-  direction: 'outgoing' | 'incoming';
-  durationMs: number;
-  missed: boolean;
-  kind: 'audio' | 'video';
-}
+export type CallLogMeta = NonNullable<IMessage['callLog']>;
+
+const isCallOutcomeFlag = (value: unknown): boolean => {
+  const normalized = String(value ?? '').trim().toLowerCase();
+  return normalized === 'true' || normalized === '1';
+};
 
 export const isCallLogMessage = (message: unknown): boolean => {
   const type = String((message as any)?.type || '').toLowerCase();
@@ -31,7 +30,10 @@ export const callStateHasLogData = (attrs: Record<string, any>): boolean => {
   const hasCaller = !!String(attrs.callerXmppUsername || '').trim();
   const hasDuration =
     attrs.durationMs !== undefined && attrs.durationMs !== null && attrs.durationMs !== '';
-  return hasCaller || hasDuration;
+  const callId = String(attrs.callId || attrs.callid || '').trim();
+  return hasCaller || hasDuration || (
+    !!callId && (isCallOutcomeFlag(attrs.missed) || isCallOutcomeFlag(attrs.declined))
+  );
 };
 
 export const formatCallDuration = (ms: number): string => {
@@ -60,19 +62,23 @@ export const transformCallLogMessage = (
   const durationMs = Number(raw.durationMs || 0);
   const kind: 'audio' | 'video' =
     String(raw.kind || '').toLowerCase() === 'audio' ? 'audio' : 'video';
-
-  let body: string;
-  if (durationMs > 0) {
-    body = `${isOutgoing ? 'Outgoing' : 'Incoming'} call · ${formatCallDuration(durationMs)}`;
-  } else {
-    body = isOutgoing ? 'No answer' : 'Missed call';
-  }
+  const outcome = isCallOutcomeFlag(raw.declined)
+    ? 'declined'
+    : isCallOutcomeFlag(raw.missed)
+      ? 'missed'
+      : undefined;
+  const missed =
+    outcome === 'missed' || (outcome === undefined && raw.missed == null && durationMs === 0);
+  let body = `${isOutgoing ? 'Outgoing' : 'Incoming'} call · ${formatCallDuration(durationMs)}`;
+  if (outcome === 'declined') body = 'Declined';
+  if (missed) body = isOutgoing ? 'No answer' : 'Missed call';
 
   const callLog: CallLogMeta = {
     callId: String(raw.callId || raw.callid || '').trim(),
     direction: isOutgoing ? 'outgoing' : 'incoming',
     durationMs,
-    missed: durationMs === 0,
+    missed,
+    ...(outcome ? { outcome } : {}),
     kind,
   };
 
@@ -149,7 +155,8 @@ export const formatCallLogLabel = (
 ): string => {
   if (!callLog) return fallbackBody;
 
-  if (!callLog.durationMs || callLog.durationMs <= 0) {
+  if (callLog.outcome === 'declined') return t('call.declined');
+  if (callLog.missed ?? (callLog.durationMs <= 0)) {
     return callLog.direction === 'outgoing' ? t('call.noAnswer') : t('call.missed');
   }
 

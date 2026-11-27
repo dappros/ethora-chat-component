@@ -51,6 +51,7 @@ describe('requestOutgoingCall', () => {
       result({
         mode: 'p2p',
         iceServers: [{ urls: 'stun:s.example.com' }],
+        expiresAt: 1_800_000_000_000,
       })
     );
     await requestOutgoingCall({ chatName: 'room', kind: 'video', peerXmppUsername: 'peer' });
@@ -59,6 +60,7 @@ describe('requestOutgoingCall', () => {
       mode: 'p2p',
       callId: 'c1',
       phase: 'requesting',
+      ringExpiresAt: 1_800_000_000_000,
       iceServers: [{ urls: 'stun:s.example.com' }],
     });
   });

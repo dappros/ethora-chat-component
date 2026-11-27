@@ -1,4 +1,5 @@
 import type { IceServerConfig } from '../callMode';
+import { CALL_RING_TIMEOUT_MS } from '../callTiming';
 import { IceAction, IceRestartPolicy, P2PConnState } from './icePolicy';
 import { NegotiatorCommand, P2PNegotiator, P2PRole } from './negotiator';
 import type {
@@ -62,6 +63,8 @@ export interface P2PCallDeps {
 }
 
 export interface P2PCallEvents {
+  /** The peer's initial answer arrived, before asynchronous SDP application. */
+  onAnswerReceived?: () => void;
   /** The offer/answer exchange completed: media is now negotiating. */
   onNegotiated?: () => void;
   /** Media is flowing for the first time. */
@@ -82,12 +85,17 @@ export interface P2PTimings {
   offerResendMs: number[];
 }
 
+const OFFER_RESEND_INTERVAL_MS = 4_000;
+
 const DEFAULT_TIMINGS: P2PTimings = {
   connectTimeoutMs: 25_000,
   // While nobody has answered, the offer and candidates are sent again: a
   // callee that was still reconnecting (woken by push) missed the first copy,
-  // and the stanzas are not stored for later. Duplicates are no-ops there.
-  offerResendMs: [4_000, 10_000],
+  // and the stanzas are not stored for later. Retry through the ring window.
+  offerResendMs: Array.from(
+    { length: Math.ceil(CALL_RING_TIMEOUT_MS / OFFER_RESEND_INTERVAL_MS) - 1 },
+    (_, index) => (index + 1) * OFFER_RESEND_INTERVAL_MS
+  ),
 };
 
 export const describeMediaError = (error: unknown): string => {
@@ -320,6 +328,13 @@ export class P2PCallController {
     if (end && end.type === 'remote-end') {
       this.handleRemoteEnd(end.reason);
       return;
+    }
+    if (
+      this.role === 'caller' &&
+      !this.negotiated &&
+      commands.some((command) => command.type === 'apply-answer')
+    ) {
+      this.events.onAnswerReceived?.();
     }
     if (commands.length > 0) this.enqueue(() => this.runCommands(commands));
   }

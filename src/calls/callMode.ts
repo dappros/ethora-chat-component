@@ -163,6 +163,7 @@ export interface CallCreateResult {
   livekitUrl: string | null;
   iceServers: IceServerConfig[];
   ttlSeconds: number | null;
+  expiresAt: number | null;
 }
 
 /**
@@ -197,6 +198,7 @@ export const parseCallCreateResponse = (
     throw new Error('Call response is missing callId');
   }
   const ttl = Number(d.ttlSeconds);
+  const expiresAt = Number(d.expiresAt);
   const livekitUrl = normalizeLivekitUrl(d.livekitUrl);
   return {
     callId,
@@ -209,6 +211,7 @@ export const parseCallCreateResponse = (
     livekitUrl,
     iceServers: mode === 'p2p' ? normalizeIceServers(d.iceServers) : [],
     ttlSeconds: Number.isFinite(ttl) && ttl > 0 ? ttl : null,
+    expiresAt: Number.isFinite(expiresAt) && expiresAt > 0 ? expiresAt : null,
   };
 };
 

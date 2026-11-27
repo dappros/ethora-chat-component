@@ -190,7 +190,7 @@ describe('P2PCallRunner', () => {
     await tick();
     const c = h.instances[0];
 
-    act(() => c.events.onNegotiated());
+    act(() => c.events.onAnswerReceived());
     expect(call().phase).toBe('connecting');
 
     act(() => c.events.onConnected());

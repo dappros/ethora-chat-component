@@ -7,6 +7,7 @@ import {
   acceptIncomingCall,
   resetCall,
   setIncomingCallToken,
+  setOutgoingCallRoute,
   setOutgoingCallToken,
   startOutgoingCall,
 } from '../roomStore/callSlice';
@@ -85,6 +86,30 @@ describe('call teardown from call-state stanzas', () => {
     expect(store.getState().call.phase).toBe('idle');
   });
 
+  it('shows No answer for a server timeout, including a missed group call', () => {
+    dialOutgoing();
+    onCallTokenMessage(
+      parse(
+        `<message type='chat' from='system@xmpp.example.com'>` +
+          `<data type='call-state-declined' room='${ROOM}' callId='${CALL_ID}' group='true' reason='missed'/></message>`
+      )
+    );
+    expect(store.getState().call).toMatchObject({ phase: 'error', error: 'No answer' });
+  });
+
+  it('dismisses an unanswered incoming call on the server missed log', () => {
+    ringIncoming();
+    expect(
+      onCallTokenMessage(
+        parse(
+          `<message type='groupchat' from='${ROOM_JID}/system'>` +
+            `<data type='call-state' callId='${CALL_ID}' missed='true'/><body>call-state</body></message>`
+        )
+      )
+    ).toBe(false);
+    expect(store.getState().call.phase).toBe('idle');
+  });
+
   it('ends the call on the server call log broadcast into the room', () => {
     dialOutgoing();
     onCallTokenMessage(
@@ -107,6 +132,28 @@ describe('call teardown from call-state stanzas', () => {
       )
     );
     expect(store.getState().call.phase).toBe('ringing-incoming');
+  });
+
+  it.each([
+    ["callId='previous' durationMs='2500' callerXmppUsername='app_bob'"],
+    ["state='ended'"],
+  ])('ignores a prior same-room terminal event while the new call ID is pending (%s)', (attrs) => {
+    store.dispatch(startOutgoingCall({
+      roomJid: ROOM_JID,
+      roomBareName: ROOM,
+      peerXmppUsername: 'app_alice',
+    }));
+    const { startedAt } = store.getState().call;
+
+    onCallTokenMessage(parse(
+      `<message type='groupchat' from='${ROOM_JID}/system'>` +
+        `<data type='call-state' ${attrs}/><body>call-state</body></message>`
+    ));
+
+    store.dispatch(setOutgoingCallRoute({ startedAt, mode: 'p2p', callId: CALL_ID }));
+    expect(store.getState().call).toMatchObject({ phase: 'requesting', callId: CALL_ID });
+    onCallTokenMessage(peerSignal('declined'));
+    expect(store.getState().call.phase).toBe('idle');
   });
 });
 

@@ -236,13 +236,9 @@ const usePushNotifications = (
   );
 
   // Surface an incoming call that arrived via push (the XMPP `call-token` was
-  // missed because the app was backgrounded or its socket was dead). With a
-  // LiveKit token in the push the ring goes up through the guarded reducer and
-  // Accept works offline (`answer` accepts it at once, for the notification's
-  // Answer action); a late or duplicate push never disturbs a call already in
-  // progress. Before the chat config (videoCalls) and the user are in Redux the
-  // call is held, not dropped. Without a token we open the room and let the
-  // reconnecting XMPP session deliver the real call-token.
+  // missed while the app was backgrounded or offline). A push with enough
+  // call data raises the ring and the Answer action accepts it directly. Until
+  // the call config and user are ready, keep the push for replay.
   const handleIncomingCallPush = useCallback(
     (data: Record<string, any>, answer = false): CallPushOutcome => {
       const outcome = raiseIncomingCallFromPush(callPushCtx, data, { answer });
